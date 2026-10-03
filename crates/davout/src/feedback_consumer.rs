@@ -310,6 +310,11 @@ impl<B: MotorBus> Supervisor<B> {
                         EchoedCommand::ReportingOff => {
                             self.observe_reporting_off_echo(&echo.address, echo.received_at);
                         }
+                        // Any SetZero to this address on the wire (this owner's
+                        // or another local socket's) starts its blackout clock.
+                        EchoedCommand::SetZero => {
+                            self.note_set_zero(&echo.address, echo.received_at);
+                        }
                     }
                     continue;
                 }

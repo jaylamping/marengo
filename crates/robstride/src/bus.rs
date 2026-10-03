@@ -715,8 +715,13 @@ fn ingest_feedback_frames(
             ingest_reply_frame(motor_types, report, order, timed, comm_type);
             continue;
         }
-        if comm_type == CommunicationType::Enable {
-            ingest_host_echo(motor_types, report, order, timed, EchoedCommand::Enable);
+        let echoed = match comm_type {
+            CommunicationType::Enable => Some(EchoedCommand::Enable),
+            CommunicationType::SetZeroPosition => Some(EchoedCommand::SetZero),
+            _ => None,
+        };
+        if let Some(command) = echoed {
+            ingest_host_echo(motor_types, report, order, timed, command);
             continue;
         }
         let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
@@ -827,10 +832,11 @@ fn ingest_feedback_frames(
     }
 }
 
-/// Exactly the frame [`MotorBus::enable_drive_at`] or
-/// [`MotorBus::disable_active_reporting_at`] transmits, to a configured
-/// address. Any other envelope of that type (an On, another host's command)
-/// is not this host's echo.
+/// Exactly the frame [`MotorBus::enable_drive_at`],
+/// [`MotorBus::disable_active_reporting_at`] or
+/// [`MotorBus::set_zero_position_at`] transmits, to a configured address. Any
+/// other envelope of that type (an On, another host's command) is not this
+/// host's echo.
 fn ingest_host_echo(
     motor_types: &HashMap<MotorAddress, MotorType>,
     report: &mut FeedbackReport,
@@ -844,6 +850,7 @@ fn ingest_host_echo(
     let (id, data) = match command {
         EchoedCommand::Enable => lifecycle::encode_default_enable(device_id),
         EchoedCommand::ReportingOff => lifecycle::encode_default_active_reporting(device_id, false),
+        EchoedCommand::SetZero => lifecycle::encode_default_set_zero_position(device_id),
     };
     let exact = received.kind == RxFrameKind::Data
         && frame.id == id

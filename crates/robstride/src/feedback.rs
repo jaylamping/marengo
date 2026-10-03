@@ -133,9 +133,11 @@ pub enum EchoedCommand {
     Enable,
     /// Type 24 with `F_CMD` 0: stop the drive's active reporting.
     ReportingOff,
+    /// Type 6 SetZero (`data[0] == 1`).
+    SetZero,
 }
 
-/// This host's Enable or reporting Off ([`DEFAULT_HOST_ID`](crate::DEFAULT_HOST_ID))
+/// This host's Enable, reporting Off or SetZero ([`DEFAULT_HOST_ID`](crate::DEFAULT_HOST_ID))
 /// to a configured address, read back from the receive stream. On a bus that
 /// [echoes transmissions](crate::CanBus::echoes_transmissions) its `order` is
 /// where the command actually went on the wire, after any drive traffic that

@@ -132,6 +132,19 @@ use rustc_hash::{FxHashMap, FxHashSet};
 /// Sized at ~2× Consul `MOTOR_STATUS_POLL_MS` (2.5 s) so one missed poll does not flap Offline.
 pub const FREE_DRIVE_FEEDBACK_TTL: Duration = Duration::from_secs(5);
 
+/// Minimum time from a SetZero on the wire to the next Enable (or the type-24
+/// Off that precedes it) written to the same address on an echoing bus.
+///
+/// Bench candumps (rev 15542aa; 2026-10-03 14:51:33 and 15:34:09, all five
+/// right-arm drives): about 535 ms after receiving a SetZero (type 6) every
+/// Robstride drive transmits nothing for 48-57 ms, and a frame it receives in
+/// that window is never acted on. An Enable written there leaves the drive in
+/// Reset, which latches a persistent `DriveState` fault after the Enable's echo.
+/// 650 ms clears the latest observed blackout end (~592 ms) with margin. The
+/// SetZero time is its host echo's read time (its write time until the echo is
+/// read), which bounds the wire time from above.
+pub const POST_SET_ZERO_QUIET: Duration = Duration::from_millis(650);
+
 use armee_kinematics::{
     clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf, LimitMarginConfig,
 };
@@ -391,6 +404,10 @@ pub struct Supervisor<B: MotorBus> {
     /// Echoing buses only: when the echo of each address's type-24 Off written
     /// since `reporting_off_since` was read (see [`Self::reporting_off_settled`]).
     reporting_off_echoed: FxHashMap<MotorAddress, Instant>,
+    /// Echoing buses only: each address's latest SetZero, at its host echo's
+    /// read time (its write time until then). No Enable goes to that address
+    /// before [`POST_SET_ZERO_QUIET`] has elapsed since.
+    set_zero_on_wire: FxHashMap<MotorAddress, Instant>,
     invalid_feedback: FxHashSet<MotorAddress>,
     last_tau_ff: FxHashMap<String, f64>,
     feedback_velocity_trips: FxHashMap<String, u8>,
@@ -602,6 +619,7 @@ impl<B: MotorBus> Supervisor<B> {
             enable_write_due: None,
             reporting_off_since: None,
             reporting_off_echoed: FxHashMap::default(),
+            set_zero_on_wire: FxHashMap::default(),
             invalid_feedback: FxHashSet::default(),
             last_tau_ff: FxHashMap::default(),
             feedback_velocity_trips: FxHashMap::default(),
@@ -984,7 +1002,7 @@ impl<B: MotorBus> Supervisor<B> {
             if binding.is_revoked() {
                 continue;
             }
-            let withheld_since = self.active_since.filter(|_| {
+            let withheld_since = self.enable_bounds_start(&binding.address).filter(|_| {
                 self.mode == OperationalMode::Active
                     && self.enable_echo_pending.contains(&binding.address)
             });
@@ -1166,10 +1184,11 @@ impl<B: MotorBus> Supervisor<B> {
             DavoutError::CommWatchdog { joint, .. } => {
                 // An early nonneutral request without initial pose is rejected,
                 // but the bounded neutral bootstrap may still obtain feedback.
-                if self.active_since.is_some_and(|enabled| {
-                    enabled.elapsed()
-                        <= Duration::from_millis(self.control.control.comm_watchdog_ms)
-                }) {
+                let window = Duration::from_millis(self.control.control.comm_watchdog_ms);
+                if motor_for_joint(&self.motors, joint)
+                    .and_then(|motor| self.enable_bounds_start(&MotorAddress::from(motor)))
+                    .is_some_and(|start| start.elapsed() <= window)
+                {
                     return false;
                 }
                 (FaultClass::Communication, Some(joint.as_str()))
@@ -1460,12 +1479,29 @@ impl<B: MotorBus> Supervisor<B> {
                 // reporting across host processes, and a report it built before
                 // acting on an Enable follows that Enable's echo still in Reset.
                 // Enables follow one per interface per control period, each only
-                // once its Off has settled on the wire.
+                // once its Off has settled on the wire. A target zeroed less
+                // than POST_SET_ZERO_QUIET ago gets neither its Off nor its
+                // Enable until that quiet has elapsed: a drive drops frames it
+                // receives in its post-SetZero blackout.
                 let now = Instant::now();
+                for (joint, address) in joints.iter().zip(&addresses) {
+                    if let Some(until) = self
+                        .set_zero_quiet_until(address)
+                        .filter(|until| *until > now)
+                    {
+                        info!(
+                            joint = %joint,
+                            interface = %address.interface,
+                            device_id = address.device_id,
+                            wait_ms = until.duration_since(now).as_millis() as u64,
+                            "Enable held until the post-SetZero quiet elapses"
+                        );
+                    }
+                }
                 self.begin_reporting_off_gate(now);
                 self.enable_echo_pending.extend(addresses.iter().cloned());
                 self.enable_writes_pending = addresses;
-                self.issue_target_reporting_offs(now, false)?;
+                self.issue_target_reporting_offs(now)?;
             } else {
                 // Without echo, post-enable follows pop time: every target must
                 // be written before activation.
@@ -1507,15 +1543,22 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Remove the next Enable wave from `enable_writes_pending`: among targets
-    /// whose type-24 Off has settled on the wire, the first of each interface,
-    /// or all of them when `all`.
-    fn take_enable_wave(&mut self, now: Instant, all: bool) -> Vec<MotorAddress> {
+    /// whose post-SetZero quiet has elapsed and whose type-24 Off has settled on
+    /// the wire, the first of each interface once the stagger period is due,
+    /// plus every such target past its catch-up point.
+    fn take_enable_wave(&mut self, now: Instant) -> Vec<MotorAddress> {
+        let stagger_due = self.enable_write_due.is_none_or(|due| now >= due);
         let mut pending = std::mem::take(&mut self.enable_writes_pending);
         let mut wave: Vec<MotorAddress> = Vec::new();
         pending.retain(|address| {
-            if !self.reporting_off_settled(address, now)
-                || (!all
-                    && wave
+            if !self.set_zero_quiet_elapsed(address, now)
+                || !self.reporting_off_settled(address, now)
+            {
+                return true;
+            }
+            if !self.enable_catch_up(address, now)
+                && (!stagger_due
+                    || wave
                         .iter()
                         .any(|taken| taken.interface == address.interface))
             {
@@ -1579,14 +1622,55 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
+    /// Record a SetZero to `address` on an echoing bus: its write time, then
+    /// its host echo's read time. The latest SetZero wins.
+    fn note_set_zero(&mut self, address: &MotorAddress, at: Instant) {
+        self.set_zero_on_wire
+            .entry(address.clone())
+            .and_modify(|last| *last = (*last).max(at))
+            .or_insert(at);
+    }
+
+    /// When `address`'s post-SetZero quiet ends, if a SetZero was recorded.
+    fn set_zero_quiet_until(&self, address: &MotorAddress) -> Option<Instant> {
+        self.set_zero_on_wire
+            .get(address)
+            .map(|at| *at + POST_SET_ZERO_QUIET)
+    }
+
+    /// No SetZero to `address` within [`POST_SET_ZERO_QUIET`] before `now`.
+    fn set_zero_quiet_elapsed(&self, address: &MotorAddress, now: Instant) -> bool {
+        self.set_zero_quiet_until(address)
+            .is_none_or(|until| now >= until)
+    }
+
+    /// Start of `address`'s enable bounds in the current Active session:
+    /// activation, or the end of its post-SetZero quiet when that is later.
+    /// Catch-up, missing-echo, first-pose and liveness bounds count from here,
+    /// so an Enable held for the quiet is not failed for being held.
+    fn enable_bounds_start(&self, address: &MotorAddress) -> Option<Instant> {
+        let since = self.active_since?;
+        Some(
+            self.set_zero_quiet_until(address)
+                .map_or(since, |until| since.max(until)),
+        )
+    }
+
+    /// Half of `comm_watchdog_ms` past `address`'s enable bounds start: its Off
+    /// and Enable are written regardless of the stagger, so slow ticks never
+    /// stretch the stagger into the missing-echo bound.
+    fn enable_catch_up(&self, address: &MotorAddress, now: Instant) -> bool {
+        self.enable_bounds_start(address).is_some_and(|start| {
+            now.saturating_duration_since(start)
+                >= Duration::from_millis(self.control.control.comm_watchdog_ms) / 2
+        })
+    }
+
     /// Echoing buses: write the type-24 Off of each target whose Enable is
-    /// pending and whose stream this window has not turned Off yet, in reporting's
-    /// one-write-per-interface-per-period slot unless `force`.
-    fn issue_target_reporting_offs(
-        &mut self,
-        now: Instant,
-        force: bool,
-    ) -> Result<(), DavoutError> {
+    /// pending, whose post-SetZero quiet has elapsed and whose stream this
+    /// window has not turned Off yet, in reporting's one-write-per-interface-
+    /// per-period slot unless the target is past its catch-up point.
+    fn issue_target_reporting_offs(&mut self, now: Instant) -> Result<(), DavoutError> {
         for address in &self.enable_writes_pending {
             let Some(motor) = self
                 .motors
@@ -1596,9 +1680,12 @@ impl<B: MotorBus> Supervisor<B> {
             else {
                 continue;
             };
-            if self.reporting_off_written(&motor.joint).is_some() {
+            if self.reporting_off_written(&motor.joint).is_some()
+                || !self.set_zero_quiet_elapsed(address, now)
+            {
                 continue;
             }
+            let force = self.enable_catch_up(address, now);
             if let Some(result) = self
                 .active_reporting
                 .write_off(&mut self.bus, motor, now, force)
@@ -1628,25 +1715,21 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Write type-24 Offs, then the next staggered Enable wave once its control
-    /// period is due. Half of `comm_watchdog_ms` after activation every
-    /// remaining Off, and every target whose Off has settled, is written at once,
-    /// so slow ticks never stretch the stagger into the missing-echo bound; that
-    /// bound still fails closed for any target whose Off or Enable echo does not
-    /// follow.
+    /// period is due. A target's Off and Enable wait for its post-SetZero quiet
+    /// ([`POST_SET_ZERO_QUIET`]). Half of `comm_watchdog_ms` past a target's
+    /// enable bounds start ([`Self::enable_bounds_start`]) its remaining Off,
+    /// and its Enable once the Off has settled, are written regardless of the
+    /// stagger; the missing-echo bound still fails closed for any target whose
+    /// Off or Enable echo does not follow.
     fn issue_due_enable_writes(&mut self, now: Instant) -> Result<(), DavoutError> {
-        if self.mode != OperationalMode::Active || self.enable_writes_pending.is_empty() {
+        if self.mode != OperationalMode::Active
+            || self.enable_writes_pending.is_empty()
+            || self.active_since.is_none()
+        {
             return Ok(());
         }
-        let Some(active_since) = self.active_since else {
-            return Ok(());
-        };
-        let catch_up = now.saturating_duration_since(active_since)
-            >= Duration::from_millis(self.control.control.comm_watchdog_ms) / 2;
-        self.issue_target_reporting_offs(now, catch_up)?;
-        if !catch_up && self.enable_write_due.is_some_and(|due| now < due) {
-            return Ok(());
-        }
-        let wave = self.take_enable_wave(now, catch_up);
+        self.issue_target_reporting_offs(now)?;
+        let wave = self.take_enable_wave(now);
         if wave.is_empty() {
             return Ok(());
         }
@@ -1835,7 +1918,8 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Fail closed when an Active address's Enable has not been read back from
-    /// the wire within `comm_watchdog_ms` of activation: without the echo the
+    /// the wire within `comm_watchdog_ms` of its enable bounds start (activation,
+    /// or the end of its post-SetZero quiet when later): without the echo the
     /// strict Run expectation would never arm for that address. A target whose
     /// type-24 Off echo never arrived had its Enable withheld; it fails here too.
     fn enable_echo_overdue(&mut self, now: Instant) -> Option<(DavoutError, bool)> {
@@ -1843,15 +1927,18 @@ impl<B: MotorBus> Supervisor<B> {
             return None;
         }
         let bound_ms = self.control.control.comm_watchdog_ms;
-        let since = now.checked_duration_since(self.active_since?)?;
-        if since <= Duration::from_millis(bound_ms) {
-            return None;
-        }
+        let bound = Duration::from_millis(bound_ms);
         let stop_motors = Arc::clone(&self.stop_motors);
         let (motor, address) = stop_motors.iter().find_map(|motor| {
             self.enable_echo_pending
                 .iter()
-                .find(|address| is_motor_address(address, motor))
+                .find(|address| {
+                    is_motor_address(address, motor)
+                        && self
+                            .enable_bounds_start(address)
+                            .and_then(|start| now.checked_duration_since(start))
+                            .is_some_and(|since| since > bound)
+                })
                 .map(|address| (motor, address))
         })?;
         let message = if self.enable_writes_pending.contains(address)
@@ -1934,11 +2021,13 @@ impl<B: MotorBus> Supervisor<B> {
                 continue;
             }
             // Bootstrap is only an inert MIT status solicit during the enable
-            // deadline; never permit servo/FF motion on absent or stale pose.
+            // deadline (from the address's enable bounds start, so an Enable
+            // held for its post-SetZero quiet keeps it); never permit servo/FF
+            // motion on absent or stale pose.
             if neutral_bootstrap
                 && !self.invalid_feedback.contains(&*address)
-                && self.active_since.is_some_and(|enabled| {
-                    now.duration_since(enabled) <= Duration::from_millis(max_ms)
+                && self.enable_bounds_start(&address).is_some_and(|start| {
+                    now.saturating_duration_since(start) <= Duration::from_millis(max_ms)
                 })
             {
                 continue;

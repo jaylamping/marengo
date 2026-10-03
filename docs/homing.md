@@ -136,6 +136,13 @@ Disable keeps grants.
 535 ms after a SetZero every drive goes quiet for 48-57 ms and drops any type-0
 it receives meanwhile, so an `enable` right after `home` can land in that gap.
 
+**Enable after a fresh home.** A frame received in that gap is never acted on,
+so on SocketCAN Davout writes no Enable (nor its preceding type-24 Off) to a
+drive until 650 ms (`POST_SET_ZERO_QUIET`) after its last SetZero. An `enable`
+right after `home` succeeds; just-zeroed targets are enabled up to about
+650 ms later, and the log says "Enable held until the post-SetZero quiet
+elapses".
+
 ### Pi bench procedure
 
 Arm supported at mechanical home, hands off, physical E-stop reachable:

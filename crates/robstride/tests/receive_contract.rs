@@ -5,10 +5,11 @@ use std::time::{Duration, Instant};
 
 use marengo_config::MotorType;
 use robstride::{
-    encode_default_active_reporting, encode_default_enable, encode_enable, AddressedMitCommand,
-    BusError, CanBus, CanFrame, DriveMode, EchoedCommand, FeedbackEvent, MalformedReason,
-    MemoryBus, MitCommand, MotorAddress, MotorBus, MotorState, ParameterId, ReceiveAttempt,
-    ReceiveCompletion, ReceiveLimits, ReceivedCanFrame, RunMode, RxFrameKind, TimedCanFrame,
+    encode_default_active_reporting, encode_default_enable, encode_default_set_zero_position,
+    encode_enable, AddressedMitCommand, BusError, CanBus, CanFrame, DriveMode, EchoedCommand,
+    FeedbackEvent, MalformedReason, MemoryBus, MitCommand, MotorAddress, MotorBus, MotorState,
+    ParameterId, ReceiveAttempt, ReceiveCompletion, ReceiveLimits, ReceivedCanFrame, RunMode,
+    RxFrameKind, TimedCanFrame,
 };
 
 const POSE: [u8; 8] = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8];
@@ -510,7 +511,7 @@ fn own_transmission_echoes_are_bounded_reads_but_never_feedback_or_replies() {
         report.parameter_reads.is_empty(),
         "a request is not a reply"
     );
-    // Only the Enable and the reporting Off are wire-order markers.
+    // Only the SetZero, the reporting Off and the Enable are wire-order markers.
     let echoed: Vec<_> = report
         .host_echoes
         .iter()
@@ -519,6 +520,11 @@ fn own_transmission_echoes_are_bounded_reads_but_never_feedback_or_replies() {
     assert_eq!(
         echoed,
         [
+            (
+                EchoedCommand::SetZero,
+                2,
+                encode_default_set_zero_position(1).0
+            ),
             (
                 EchoedCommand::ReportingOff,
                 sent.len() - 2,

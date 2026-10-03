@@ -14,11 +14,11 @@ use std::time::{Duration, Instant};
 use davout::simulation::SimulationBus;
 use davout::{
     DavoutError, JointHomingState, OperationalMode, ReferenceAudit, ReferenceError,
-    ReferenceOutcome, Supervisor,
+    ReferenceOutcome, Supervisor, POST_SET_ZERO_QUIET,
 };
 use marengo_config::{load_homing_config_from, load_motors_config_from, HomingMethod};
-use physical_firmware::{Firmware, FirmwareBus, SharedFirmware};
-use robstride::CommunicationType;
+use physical_firmware::{Firmware, FirmwareBus, SharedFirmware, SET_ZERO_BLACKOUT};
+use robstride::{CommunicationType, DEFAULT_HOST_ID};
 use support::TestDirectory;
 
 const PITCH: &str = "right_shoulder_pitch";
@@ -168,10 +168,11 @@ impl Bench {
 
     /// Control-loop drains, one per control period, until `done` holds. On an
     /// echoing bus each staggered target's type-24 Off must be read back from
-    /// the wire at least one control period before its Enable is written.
+    /// the wire at least one control period before its Enable is written, and a
+    /// target zeroed less than `POST_SET_ZERO_QUIET` ago waits for that quiet.
     fn drain_until(&mut self, done: impl Fn(&Self) -> bool) -> Result<(), DavoutError> {
         let window = Duration::from_millis(self.supervisor.control.control.comm_watchdog_ms);
-        let give_up = Instant::now() + window;
+        let give_up = Instant::now() + POST_SET_ZERO_QUIET + window;
         while !done(self) {
             assert!(
                 Instant::now() < give_up,
@@ -775,7 +776,7 @@ fn reset_report_after_the_enable_echo_still_faults() {
 fn missing_enable_echo_fails_closed_within_watchdog() {
     let mut bench = Bench::physical("physical-enable-echo-lost");
     bench.acquire(ROLL);
-    bench.pump(Duration::from_millis(20));
+    bench.pump(POST_SET_ZERO_QUIET);
     bench.firmware.borrow_mut().lost_echoes = vec![CommunicationType::Enable.as_u8()];
     bench
         .supervisor
@@ -946,7 +947,7 @@ fn inherited_stream_is_off_before_each_staggered_enable() {
     bench.acquire(PITCH);
     bench.pump(Duration::from_millis(30));
     bench.acquire(ROLL);
-    bench.pump(Duration::from_millis(30));
+    bench.pump(POST_SET_ZERO_QUIET);
     for drive in &mut bench.firmware.borrow_mut().drives {
         drive.reporting = true;
     }
@@ -970,7 +971,7 @@ fn inherited_stream_is_off_before_each_staggered_enable() {
 fn missing_reporting_off_echo_withholds_enable_and_fails_closed() {
     let mut bench = Bench::physical("physical-enable-off-echo-lost");
     bench.acquire(ROLL);
-    bench.pump(Duration::from_millis(20));
+    bench.pump(POST_SET_ZERO_QUIET);
     {
         let mut firmware = bench.firmware.borrow_mut();
         firmware.clear_trace();
@@ -1025,13 +1026,14 @@ fn missing_reporting_off_echo_withholds_enable_and_fails_closed() {
 // ---------------------------------------------------------------- staggered enable
 
 /// PITCH and ROLL referenced; both on can0, so their Enables are staggered.
+/// Both post-SetZero quiets have elapsed, so only the stagger paces them.
 /// The trace is cleared: counts below are this enable session's writes.
 fn two_joint_bench(label: &str) -> Bench {
     let mut bench = Bench::physical(label);
     bench.acquire(PITCH);
     bench.pump(Duration::from_millis(30));
     bench.acquire(ROLL);
-    bench.pump(Duration::from_millis(20));
+    bench.pump(POST_SET_ZERO_QUIET);
     bench.firmware.borrow_mut().clear_trace();
     bench
 }
@@ -1208,6 +1210,145 @@ fn missing_echo_of_a_staggered_enable_fails_closed() {
             if message.contains("Enable not observed on the bus")),
         "{error}"
     );
+    assert!(bench.supervisor.has_latched_fault());
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    bench.assert_all_drives_stopped();
+}
+
+// ---------------------------------------------------------------- post-SetZero quiet
+
+/// Write time of `joint`'s SetZero in the current trace.
+fn set_zero_written_at(bench: &Bench, joint: &str) -> Instant {
+    first_write(bench, CommunicationType::SetZeroPosition, joint, |_| true)
+        .unwrap_or_else(|| panic!("{joint}: SetZero written"))
+        .1
+}
+
+/// Every frame written to `joint` (outbound low byte) with its write time.
+fn writes_to(bench: &Bench, joint: &str) -> Vec<(u32, Instant)> {
+    let device = u32::from(bench.device(joint));
+    let firmware = bench.firmware.borrow();
+    firmware
+        .tx
+        .iter()
+        .zip(&firmware.tx_at)
+        .filter(|(frame, _)| {
+            frame.id & 0xff == device && (frame.id >> 8) & 0xff == u32::from(DEFAULT_HOST_ID)
+        })
+        .map(|(frame, at)| ((frame.id >> 24) & 0x1f, *at))
+        .collect()
+}
+
+/// PITCH, then ROLL (the last reference) referenced; `enable_targets` is
+/// called 530 ms after ROLL's SetZero, just before its 535-590 ms blackout,
+/// with PITCH's blackout already over. Unheld, ROLL's Off and Enable would
+/// follow within a few control periods: inside ROLL's blackout, where the
+/// drive never acts on them. Returns each joint's SetZero write time; the
+/// trace then holds only this enable session's writes.
+fn enable_just_before_last_blackout(label: &str) -> (Bench, [(&'static str, Instant); 2]) {
+    let mut bench = Bench::physical(label);
+    bench.acquire(PITCH);
+    bench.pump(Duration::from_millis(100));
+    bench.acquire(ROLL);
+    let zeroed = [
+        (PITCH, set_zero_written_at(&bench, PITCH)),
+        (ROLL, set_zero_written_at(&bench, ROLL)),
+    ];
+    let call_at = zeroed[1].1 + Duration::from_millis(530);
+    bench.pump(
+        call_at
+            .saturating_duration_since(Instant::now())
+            .saturating_sub(PUMP_PERIOD),
+    );
+    std::thread::sleep(call_at.saturating_duration_since(Instant::now()));
+    bench.firmware.borrow_mut().clear_trace();
+    enable_both(&mut bench);
+    (bench, zeroed)
+}
+
+/// Control-loop drains until every held Enable is written, then one more with
+/// a status from each target. Status is solicited every period (the control
+/// loop's neutral MIT); a blacked-out drive sends none.
+fn drain_held_enables(bench: &mut Bench, roll_zeroed: Instant) -> Result<(), DavoutError> {
+    let give_up = roll_zeroed
+        + POST_SET_ZERO_QUIET
+        + Duration::from_millis(bench.supervisor.control.control.comm_watchdog_ms);
+    loop {
+        let pending = bench.supervisor.enable_writes_pending();
+        assert!(Instant::now() < give_up, "the held Enables complete");
+        std::thread::sleep(PUMP_PERIOD);
+        bench.firmware.borrow_mut().emit_report(PITCH);
+        bench.firmware.borrow_mut().emit_report(ROLL);
+        bench.supervisor.drain_feedback()?;
+        if !pending {
+            return Ok(());
+        }
+    }
+}
+
+#[test]
+fn enable_right_after_the_last_reference_is_held_past_the_set_zero_blackout() {
+    // Bench candump (rev 15542aa): each drive went silent for 48-57 ms about
+    // 535 ms after its SetZero; an Enable written then was never acted on, the
+    // drive stayed in Reset and the session latched DriveState.
+    let (mut bench, zeroed) = enable_just_before_last_blackout("physical-quiet-held");
+    assert!(bench.supervisor.enable_writes_pending());
+    assert_eq!(
+        bench.sent(CommunicationType::Enable, ROLL),
+        0,
+        "ROLL's Enable is held, not refused"
+    );
+    drain_held_enables(&mut bench, zeroed[1].1).expect("held Enables are acted on");
+    assert!(!bench.supervisor.has_latched_fault());
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+    for (joint, set_zero_at) in zeroed {
+        let (_, enabled_at) = first_write(&bench, CommunicationType::Enable, joint, |_| true)
+            .unwrap_or_else(|| panic!("{joint}: Enable written"));
+        assert!(
+            enabled_at.duration_since(set_zero_at) >= POST_SET_ZERO_QUIET,
+            "{joint}: Enable held for the post-SetZero quiet"
+        );
+        assert!(
+            bench.firmware.borrow().drive(joint).enabled,
+            "{joint} in Run"
+        );
+        assert!(
+            bench.supervisor.joint_feedback(joint).is_some(),
+            "{joint}: Run report after its own echo is session pose"
+        );
+        assert_off_settled_before_enable(&bench, joint);
+    }
+    // Neither ROLL's Off nor its Enable was written inside its blackout.
+    let (blackout_start, blackout_end) = SET_ZERO_BLACKOUT;
+    for (comm_type, at) in writes_to(&bench, ROLL) {
+        if comm_type == u32::from(CommunicationType::Enable.as_u8())
+            || comm_type == u32::from(CommunicationType::ActiveReporting.as_u8())
+        {
+            let since = at.saturating_duration_since(zeroed[1].1);
+            assert!(
+                !(blackout_start..=blackout_end).contains(&since),
+                "type {comm_type} written {since:?} after SetZero"
+            );
+        }
+    }
+    bench.supervisor.disable_all().expect("stop");
+}
+
+#[test]
+fn reset_after_a_held_enable_reaches_the_wire_still_faults() {
+    let (mut bench, zeroed) = enable_just_before_last_blackout("physical-quiet-ignored");
+    bench.firmware.borrow_mut().drive_mut(ROLL).ignore_enable = true;
+    let error = drain_held_enables(&mut bench, zeroed[1].1)
+        .expect_err("Reset after ROLL's held Enable reached the wire is a dropout");
+    assert!(
+        matches!(&error, DavoutError::InvalidFeedback { joint, message }
+            if joint == ROLL && message.contains("unexpected drive mode Reset")),
+        "{error}"
+    );
+    assert_eq!(bench.sent(CommunicationType::Enable, ROLL), 1);
+    let (_, enabled_at) =
+        first_write(&bench, CommunicationType::Enable, ROLL, |_| true).expect("ROLL's Enable");
+    assert!(enabled_at.duration_since(zeroed[1].1) >= POST_SET_ZERO_QUIET);
     assert!(bench.supervisor.has_latched_fault());
     assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
     bench.assert_all_drives_stopped();

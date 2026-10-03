@@ -5,7 +5,9 @@
 //! the wire when written (or, while held, when released): its SocketCAN echo
 //! is queued first, then the drive's replies, in wire order. Type-24 reports
 //! are emitted only when the test pumps, or after an Enable when a drive models
-//! a report built before it acted on that Enable. Inbound status/reply identifiers
+//! a report built before it acted on that Enable. Like the bench drives, each
+//! drive ignores every frame and transmits nothing in its post-SetZero
+//! blackout ([`SET_ZERO_BLACKOUT`] after receiving a SetZero). Inbound status/reply identifiers
 //! follow the documented wire layout (`type << 24 | extra << 8 | low`);
 //! outbound frames are produced by the supervisor through the robstride encoders.
 #![allow(dead_code, clippy::expect_used, clippy::panic)]
@@ -24,6 +26,11 @@ use robstride::{
 
 const RESET_MODE: u32 = 0;
 const RUN_MODE: u32 = 2;
+/// Bench candumps 2026-10-03 (all five drives): about 535 ms after receiving a
+/// SetZero a drive transmits nothing for 48-57 ms and never acts on a frame it
+/// receives meanwhile. Modeled as [535, 590] ms after the SetZero reached it.
+pub const SET_ZERO_BLACKOUT: (Duration, Duration) =
+    (Duration::from_millis(535), Duration::from_millis(590));
 
 /// One emulated drive at one configured address.
 #[derive(Debug, Clone)]
@@ -42,6 +49,8 @@ pub struct Drive {
     pub reporting: bool,
     /// A rebooting drive receives and answers nothing until this instant.
     pub silent_until: Option<Instant>,
+    /// When this drive last received a SetZero (starts its blackout).
+    pub set_zero_at: Option<Instant>,
     // Fault knobs.
     pub answer_identity: bool,
     pub drop_set_zero_ack: bool,
@@ -85,7 +94,15 @@ impl Drive {
     }
 
     fn responsive(&self, now: Instant) -> bool {
-        self.silent_until.is_none_or(|until| now >= until)
+        self.silent_until.is_none_or(|until| now >= until) && !self.in_set_zero_blackout(now)
+    }
+
+    /// Inside the post-SetZero blackout: no reception, no transmission.
+    pub fn in_set_zero_blackout(&self, now: Instant) -> bool {
+        self.set_zero_at.is_some_and(|at| {
+            let since = now.saturating_duration_since(at);
+            since >= SET_ZERO_BLACKOUT.0 && since <= SET_ZERO_BLACKOUT.1
+        })
     }
 
     /// Type-2 (or type-24) status in the drive's current mode.
@@ -143,6 +160,7 @@ impl Drive {
         self.reporting = false;
         self.held_reply = None;
         self.silent_until = silent_until;
+        self.set_zero_at = None;
     }
 }
 
@@ -198,6 +216,7 @@ impl Firmware {
                     enabled: false,
                     reporting: false,
                     silent_until: None,
+                    set_zero_at: None,
                     answer_identity: true,
                     drop_set_zero_ack: false,
                     hold_enable_reply_until_set_zero: false,
@@ -244,9 +263,14 @@ impl Firmware {
         self.rx.extend(frames);
     }
 
-    /// One type-24 report from `joint` in its current drive mode.
+    /// One type-24 report from `joint` in its current drive mode, unless the
+    /// drive is in its post-SetZero blackout.
     pub fn emit_report(&mut self, joint: &str) {
-        let frame = self.drive(joint).status(CommunicationType::ActiveReporting);
+        let drive = self.drive(joint);
+        if drive.in_set_zero_blackout(Instant::now()) {
+            return;
+        }
+        let frame = drive.status(CommunicationType::ActiveReporting);
         self.rx.push_back(frame);
     }
 
@@ -357,6 +381,7 @@ impl Firmware {
             }
             Some(CommunicationType::SetZeroPosition) => {
                 drive.zero_offset_motor_rad = drive.raw_motor_rad;
+                drive.set_zero_at = Some(now);
                 if let Some(stale) = drive.held_reply.take() {
                     replies.push(stale);
                 }

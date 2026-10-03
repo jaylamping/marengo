@@ -160,7 +160,8 @@ disables. The fault does not clear on its own.
   Drive traffic popped before an address's Enable echo is never held to Run and
   never becomes session pose. After the echo, Reset/Calibration latches as before.
   A missing echo latches DriveState once `comm_watchdog_ms` has passed since
-  activation. Echoes are never feedback, liveness or replies.
+  activation (or the target's post-SetZero quiet end, below, when later).
+  Echoes are never feedback, liveness or replies.
 - **Staggered enable and reporting writes:** Every host frame solicits a drive
   reply, and the bench mcp251x holds only two received frames. On 2026-10-03
   Enable + RunMode to five drives plus their replies (about 2.9 received
@@ -193,8 +194,26 @@ disables. The fault does not clear on its own.
   reference, the phase deadline times out before any Enable. In an Active
   session, DriveState latches at the Enable-echo bound with "type-24 Off not
   observed". The strict post-echo Run check is unchanged. While a target's
-  Enable echo is pending, grant liveness counts from activation, because its
-  traffic is withheld from pose and the echo bound covers that silence.
+  Enable echo is pending, grant liveness counts from activation (or its
+  post-SetZero quiet end), because its traffic is withheld from pose and the
+  echo bound covers that silence.
+- **No Enable inside the post-SetZero blackout:** About 535 ms after receiving
+  a SetZero (type 6) every Robstride drive transmits nothing for 48-57 ms and
+  never acts on a frame received in that window (bench candumps, rev 15542aa,
+  all five right-arm drives). An Enable written there leaves the drive in
+  Reset, and its later Reset report latches DriveState. Davout records each
+  address's latest SetZero at its host echo (`EchoedCommand::SetZero`; the
+  write time until the echo is read). On SocketCAN no Enable, and no gate Off
+  preceding it, goes to that address until `POST_SET_ZERO_QUIET` (650 ms) has
+  passed since. `enable_targets` keeps such a target pending, logs "Enable held
+  until the post-SetZero quiet elapses" and writes it once the quiet ends;
+  other targets are not delayed. That target's stagger catch-up, missing-echo
+  latch, neutral-bootstrap watchdog grace and grant liveness count from the
+  later of activation and its quiet end. A reference waits in
+  `AwaitReportingOff` before arming an address it zeroed less than 650 ms
+  earlier; arming a different joint is unaffected. A Reset report after the
+  held Enable's echo still latches DriveState. Type-0 identity admission retries
+  through the blackout separately (`IDENTITY_ADMISSION_RETRY`).
 - **Controller receive overflow is persistent (operator recommendation
   open):** an mcp251x RX overflow reaches Davout as a kernel error frame
   (`CAN_ERR_CRTL_RX_OVERFLOW`) and latches Transport. Making an *isolated*

@@ -1015,14 +1015,20 @@ impl<B: MotorBus> Supervisor<B> {
                 next
             }
             ReferencePhase::ArmTarget => {
-                if backend.is_physical()
-                    && self.bus.echoes_transmissions()
-                    && !self.reporting_off_settled(&reservation.address, Instant::now())
-                {
-                    return self.fail_reference(
-                        ReferenceFailureKind::Backend,
-                        "target reporting Off not settled on the wire before Enable",
-                    );
+                if backend.is_physical() && self.bus.echoes_transmissions() {
+                    let now = Instant::now();
+                    if !self.reporting_off_settled(&reservation.address, now) {
+                        return self.fail_reference(
+                            ReferenceFailureKind::Backend,
+                            "target reporting Off not settled on the wire before Enable",
+                        );
+                    }
+                    if !self.set_zero_quiet_elapsed(&reservation.address, now) {
+                        return self.fail_reference(
+                            ReferenceFailureKind::Backend,
+                            "target post-SetZero quiet not elapsed before Enable",
+                        );
+                    }
                 }
                 // Uncertain delivery may have armed the target; cleanup is
                 // mandatory even when the bus returns an error.
@@ -1047,6 +1053,11 @@ impl<B: MotorBus> Supervisor<B> {
                         message: "installed target disappeared".into(),
                     })?;
                 self.invalidate_reference_target_pose_for_zero_attempt(&motor);
+                // Even an uncertain write may reach the wire; its echo, when
+                // read, supersedes this write time.
+                if self.bus.echoes_transmissions() {
+                    self.note_set_zero(&reservation.address, Instant::now());
+                }
                 let result = self.bus.set_zero_position_at(&reservation.address);
                 let epoch = match &backend {
                     ReferenceBackend::Virtual(backend) => (backend.device_epoch)(&self.bus),
@@ -1206,6 +1217,20 @@ impl<B: MotorBus> Supervisor<B> {
                                     live.uid = Some(uid);
                                 }
                                 if self.bus.echoes_transmissions() {
+                                    if let Some(until) = self
+                                        .set_zero_quiet_until(&reservation.address)
+                                        .filter(|until| *until > Instant::now())
+                                    {
+                                        tracing::info!(
+                                            interface = %reservation.address.interface,
+                                            device_id = reservation.address.device_id,
+                                            wait_ms = until
+                                                .saturating_duration_since(Instant::now())
+                                                .as_millis()
+                                                as u64,
+                                            "reference Enable held until the post-SetZero quiet elapses"
+                                        );
+                                    }
                                     ReferencePhase::AwaitReportingOff
                                 } else {
                                     ReferencePhase::ArmTarget
@@ -1214,9 +1239,14 @@ impl<B: MotorBus> Supervisor<B> {
                         }
                     }
                     // The unrenewed phase deadline fails a missing Off echo
-                    // closed, as DrainPostArm does a missing Enable echo.
+                    // closed, as DrainPostArm does a missing Enable echo. A
+                    // target zeroed less than POST_SET_ZERO_QUIET ago also waits
+                    // here: its drive drops frames received in its blackout.
                     ReferencePhase::AwaitReportingOff => {
-                        if self.reporting_off_settled(&reservation.address, Instant::now()) {
+                        let now = Instant::now();
+                        if self.reporting_off_settled(&reservation.address, now)
+                            && self.set_zero_quiet_elapsed(&reservation.address, now)
+                        {
                             ReferencePhase::ArmTarget
                         } else {
                             ReferencePhase::AwaitReportingOff
