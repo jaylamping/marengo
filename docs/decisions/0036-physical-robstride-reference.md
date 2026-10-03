@@ -139,6 +139,15 @@ and the [behaviour doc](../commissioning/firmware/robstride-firmware-behavior.md
 - An Active session discards a target's traffic as pose until its Enable echo,
   so its last pose is as old as the session, and the first Run reply (1.4-5.2
   ms) can be read a tick after the echo. Silence counts from the echo.
+- Receive times are host read times. Enable runs the gravity preflight
+  (64-68 ms on the Pi) without reading CAN, so a drive whose post-SetZero
+  blackout covered the last read before it lapsed with its reports still
+  queued (`pi_enable_soak` at 84e80653, 6 of 20 cycles). Enable resolution
+  drains before it builds the facets, and a non-Active drain judges liveness
+  after it reads the queue. A drive that stops during a host stall loses its
+  grant up to one stall later, and Enable still needs a fresh type-0 reply.
+  Active drains still judge before reading (open: a stall of about 90 ms or
+  more while Active revokes every grant).
 
 Not adopted: raising `comm_watchdog_ms` or shortening the stale retry (a
 stream restarted at 200 ms would still miss a 100 ms bound), and counting
