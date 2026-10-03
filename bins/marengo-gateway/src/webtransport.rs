@@ -260,6 +260,34 @@ fn bench_san_names() -> Result<Vec<String>, Box<dyn std::error::Error + Send + S
     Ok(names)
 }
 
+#[cfg(unix)]
+fn write_private_key(
+    path: &Path,
+    contents: &[u8],
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use std::io::Write;
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)?;
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    file.write_all(contents)?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn write_private_key(
+    path: &Path,
+    contents: &[u8],
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    std::fs::write(path, contents)?;
+    Ok(())
+}
+
 fn persist_bench_tls_pem(
     cert_file: &Path,
     key_file: &Path,
@@ -286,7 +314,7 @@ fn persist_bench_tls_pem(
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(cert_file, cert.pem())?;
-    std::fs::write(key_file, key_pair.serialize_pem())?;
+    write_private_key(key_file, key_pair.serialize_pem().as_bytes())?;
     tracing::info!(
         cert = %cert_file.display(),
         "generated bench TLS certificate (13-day validity, ECDSA P-256)"
@@ -549,6 +577,18 @@ mod tests {
         let cert_path = dir.path().join("cert.pem");
         let key_path = dir.path().join("key.pem");
         persist_bench_tls_pem(&cert_path, &key_path).expect("certificate fixture");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&key_path)
+                    .expect("key metadata")
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o600
+            );
+        }
         let first = CertificateDer::from_pem_slice(&std::fs::read(&cert_path).expect("PEM"))
             .expect("fixture DER");
         let second = rcgen::generate_simple_self_signed(vec!["chain.fixture".into()])

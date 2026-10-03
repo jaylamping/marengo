@@ -36,6 +36,9 @@ use crate::state::{filter_topics, SharedState};
 struct HealthResponse {
     ok: bool,
     node: &'static str,
+    listeners: crate::state::ListenerHealth,
+    ipc_connected: bool,
+    store_available: bool,
     /// Structured log inserts dropped due to DB-writer backpressure (0 in healthy operation).
     dropped_log_inserts: u64,
 }
@@ -224,7 +227,12 @@ async fn authorize_api(
             .then_some(Capability::SensitiveRead)
     } else if path.starts_with("/logs/") || path == "/snapshot/logs/recent" || path == "/settings" {
         Some(Capability::SensitiveRead)
-    } else if path.starts_with("/hardware/urdf") {
+    } else if path == "/config/snapshot"
+        || path == "/hardware/completeness"
+        || path == "/hardware/urdf/archive"
+        || path == "/hardware/commissioning-scope"
+        || path.starts_with("/hardware/urdf")
+    {
         Some(Capability::Configuration)
     } else if matches!(
         *request.method(),
@@ -256,6 +264,18 @@ async fn authorize_api(
                 .into_response();
         }
     }
+    if path == "/config/patch" {
+        if let Err(status) = state
+            .access
+            .authorize(request.headers(), Capability::Control)
+        {
+            return (
+                status,
+                "config patch requires control and configuration credentials",
+            )
+                .into_response();
+        }
+    }
     next.run(request).await
 }
 
@@ -275,9 +295,13 @@ async fn health(State(state): State<SharedState>) -> Json<HealthResponse> {
         .as_ref()
         .map(|l| l.dropped_log_inserts())
         .unwrap_or(0);
+    let listeners = state.listener_health();
     Json(HealthResponse {
-        ok: true,
+        ok: listeners.ready(),
         node: "marengo-gateway",
+        listeners,
+        ipc_connected: state.runtime_connected(),
+        store_available: state.logs.is_some(),
         dropped_log_inserts,
     })
 }
@@ -313,10 +337,14 @@ async fn stream_chappe(
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    let Some(permit) = state.acquire_http_stream() else {
+        return Err(StatusCode::TOO_MANY_REQUESTS);
+    };
     let (mut writer, reader) = tokio::io::duplex(64 * 1024);
     let rx = state.subscribe_envelopes();
     let topics_clone = topics.clone();
     tokio::spawn(async move {
+        let _permit = permit;
         let _ = framing::pump_envelope_stream(rx, &topics_clone, &mut writer).await;
     });
 
@@ -773,6 +801,40 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::OK);
+    }
+    #[tokio::test]
+    async fn http_stream_subscribers_are_bounded() {
+        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::new(
+            Bus::default(),
+        )));
+        let app = router(std::sync::Arc::clone(&state), None);
+        let mut bodies = Vec::new();
+        for _ in 0..64 {
+            let response = app
+                .clone()
+                .oneshot(
+                    axum::http::Request::builder()
+                        .uri("/stream/chappe?topics=robot/heartbeat")
+                        .body(Body::empty())
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), StatusCode::OK);
+            bodies.push(response.into_body());
+        }
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/stream/chappe?topics=robot/heartbeat")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        drop(bodies);
+        drop(state);
     }
 
     #[tokio::test]

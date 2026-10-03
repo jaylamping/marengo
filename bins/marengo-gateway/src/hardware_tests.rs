@@ -57,8 +57,11 @@ fn envelope_bytes<M: Message>(message_type: &str, message: &M) -> Vec<u8> {
     .encode_to_vec()
 }
 
-fn state_with_safety(mode: OperationalMode, heartbeat_ts_ms: u64) -> SharedState {
-    let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
+fn repository_root() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn add_safety(state: &SharedState, mode: OperationalMode, heartbeat_ts_ms: u64) {
     state.ingest_runtime_frame(
         TOPIC_SAFETY.to_string(),
         envelope_bytes(
@@ -82,6 +85,11 @@ fn state_with_safety(mode: OperationalMode, heartbeat_ts_ms: u64) -> SharedState
             },
         ),
     );
+}
+
+fn state_with_safety(mode: OperationalMode, heartbeat_ts_ms: u64) -> SharedState {
+    let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
+    add_safety(&state, mode, heartbeat_ts_ms);
     state
 }
 
@@ -186,7 +194,7 @@ async fn activate_refuses_active_with_fresh_heartbeat() {
     assert_eq!(result["restart_required"], false);
     assert_eq!(
         result["message"],
-        "urdf activate refused while operational mode Active"
+        "urdf activate refused: require a known, fresh non-Active runtime state"
     );
 
     std::env::remove_var(TOKEN_ENV);
@@ -196,7 +204,7 @@ async fn activate_refuses_active_with_fresh_heartbeat() {
 async fn completeness_is_advisory_and_upload_not_blocked() {
     let _env = lock_test_env();
     std::env::set_var(TOKEN_ENV, TEST_TOKEN);
-    let root = marengo_config::resolve_repo_root();
+    let root = repository_root();
     let tmp = tempfile::tempdir().expect("tmp");
     let assets = tmp.path().join("assets/urdf");
     fs::create_dir_all(assets.join("staging")).expect("staging");
@@ -237,6 +245,7 @@ async fn completeness_is_advisory_and_upload_not_blocked() {
         .oneshot(
             axum::http::Request::builder()
                 .uri("/hardware/completeness")
+                .header("x-marengo-log-token", TEST_TOKEN)
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -266,7 +275,7 @@ async fn completeness_is_advisory_and_upload_not_blocked() {
 async fn activate_archives_replaced_active_and_promotes_merge() {
     let _env = lock_test_env();
     std::env::set_var(TOKEN_ENV, TEST_TOKEN);
-    let root = marengo_config::resolve_repo_root();
+    let root = repository_root();
     let tmp = tempfile::tempdir().expect("tmp");
     let assets = tmp.path().join("assets/urdf");
     fs::create_dir_all(assets.join("staging")).expect("staging");
@@ -301,6 +310,7 @@ async fn activate_archives_replaced_active_and_promotes_merge() {
     let state = std::sync::Arc::new(
         crate::state::AppState::new(std::sync::Arc::clone(&bus)).with_logs(logs),
     );
+    add_safety(&state, OperationalMode::Disabled, crate::restart::now_ms());
     let app = test_app(state);
 
     let body = serde_json::json!({
@@ -349,7 +359,7 @@ async fn activate_archives_replaced_active_and_promotes_merge() {
 async fn activate_saves_manifest_before_failed_live_promote() {
     let _env = lock_test_env();
     std::env::set_var(TOKEN_ENV, TEST_TOKEN);
-    let root = marengo_config::resolve_repo_root();
+    let root = repository_root();
     let tmp = tempfile::tempdir().expect("tmp");
     let assets = tmp.path().join("assets/urdf");
     fs::create_dir_all(assets.join("staging")).expect("staging");
@@ -369,7 +379,7 @@ async fn activate_saves_manifest_before_failed_live_promote() {
     fs::write(staging.join("contributor.urdf"), contributor).expect("contributor");
     fs::create_dir(assets.join("marengo.urdf.tmp")).expect("block live temp write");
 
-    let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
+    let state = state_with_safety(OperationalMode::Disabled, crate::restart::now_ms());
     let app = test_app(state);
     let body = serde_json::json!({
         "upload_id": upload_id,
@@ -465,12 +475,13 @@ robot:
     let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
     let app = test_app(state);
 
-    // GET is read-only (no token) — LAN-bench parity with /config/snapshot.
+    // Configuration inventory is authenticated under ADR 0033.
     let get0 = app
         .clone()
         .oneshot(
             axum::http::Request::builder()
                 .uri("/hardware/commissioning-scope")
+                .header("x-marengo-log-token", TEST_TOKEN)
                 .body(Body::empty())
                 .expect("req"),
         )

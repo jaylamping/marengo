@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
-use crate::restart::{now_ms, refuse_active_fresh, HEARTBEAT_FRESH_MS};
+use crate::restart::{now_ms, refuse_unsafe_management_state, HEARTBEAT_FRESH_MS};
 use crate::state::SharedState;
 
 static DEPLOY_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -91,12 +91,27 @@ pub async fn post_control_deploy(
     let heartbeat = state
         .snapshot_heartbeat()
         .map(|snapshot| snapshot.timestamp_ms);
-    if refuse_active_fresh(mode, heartbeat, now_ms(), HEARTBEAT_FRESH_MS) {
+    if refuse_unsafe_management_state(mode, heartbeat, now_ms(), HEARTBEAT_FRESH_MS) {
         return Ok((
             StatusCode::CONFLICT,
             Json(DeployResponseJson {
                 ok: false,
-                message: "motors are ACTIVE — disable before updating".to_string(),
+                message: "update refused: require a known, fresh non-Active runtime state"
+                    .to_string(),
+                already_current: None,
+                job_id: None,
+                target_sha: None,
+            }),
+        ));
+    }
+    if state.persist_degraded() {
+        return Ok((
+            StatusCode::CONFLICT,
+            Json(DeployResponseJson {
+                ok: false,
+                message:
+                    "config write-behind failed — resolve persist-degraded state before update"
+                        .to_string(),
                 already_current: None,
                 job_id: None,
                 target_sha: None,
@@ -188,5 +203,44 @@ pub async fn post_control_deploy(
                 }),
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use tower::ServiceExt;
+
+    const TOKEN: &str = "deploy-gate-test-token";
+
+    #[tokio::test]
+    async fn deploy_refuses_when_runtime_evidence_is_missing() {
+        use crate::access::{AccessPolicy, Capability};
+
+        let state = std::sync::Arc::new(
+            crate::state::AppState::new(std::sync::Arc::new(chappe::Bus::default())).with_access(
+                AccessPolicy::role_fixture(TOKEN, Capability::Management)
+                    .expect("management grant"),
+            ),
+        );
+        let app = crate::http::router(state, None);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/control/deploy")
+                    .header("authorization", format!("Bearer {TOKEN}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"confirm":true}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::CONFLICT);
     }
 }

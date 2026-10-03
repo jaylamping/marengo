@@ -60,7 +60,8 @@ export function registerLogTools(
         const body = wrapRemote(
           cfg,
           [
-            `if curl -sf "${gw}/logs/sessions?limit=${args.limit}" >/tmp/m-sessions.json 2>/dev/null; then`,
+            `gateway_curl() { if [[ -n "\${MARENGO_GATEWAY_LOG_TOKEN:-}" ]]; then curl -sf -H "x-marengo-log-token: \${MARENGO_GATEWAY_LOG_TOKEN}" "$@"; else curl -sf "$@"; fi; }`,
+            `if gateway_curl "${gw}/logs/sessions?limit=${args.limit}" >/tmp/m-sessions.json 2>/dev/null; then`,
             '  echo "=== gateway sessions ==="',
             '  cat /tmp/m-sessions.json',
             '  echo ""',
@@ -99,7 +100,8 @@ export function registerLogTools(
         const body = wrapRemote(
           cfg,
           [
-            `if curl -sf "${gw}/logs/sessions?limit=${args.limit}" >/tmp/m-sessions.json 2>/dev/null; then`,
+            `gateway_curl() { if [[ -n "\${MARENGO_GATEWAY_LOG_TOKEN:-}" ]]; then curl -sf -H "x-marengo-log-token: \${MARENGO_GATEWAY_LOG_TOKEN}" "$@"; else curl -sf "$@"; fi; }`,
+            `if gateway_curl "${gw}/logs/sessions?limit=${args.limit}" >/tmp/m-sessions.json 2>/dev/null; then`,
             '  cat /tmp/m-sessions.json',
             "else",
             `  marengo-log-cli archive --keep 50 2>/dev/null || true`,

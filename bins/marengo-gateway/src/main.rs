@@ -36,6 +36,48 @@ use tracing::info;
 
 use crate::logs::LogServices;
 
+enum IpcCallbackEvent {
+    Frame(String, Vec<u8>),
+    ConnectionChanged(bool),
+}
+
+#[derive(Default)]
+struct IpcStateHolder {
+    state: Option<state::SharedState>,
+    pending: Vec<IpcCallbackEvent>,
+}
+
+impl IpcStateHolder {
+    fn dispatch(&mut self, event: IpcCallbackEvent) {
+        if let Some(state) = &self.state {
+            match event {
+                IpcCallbackEvent::Frame(topic, payload) => {
+                    state.ingest_runtime_frame(topic, payload)
+                }
+                IpcCallbackEvent::ConnectionChanged(connected) => {
+                    state.runtime_connection_changed(connected)
+                }
+            }
+        } else {
+            self.pending.push(event);
+        }
+    }
+
+    fn attach(&mut self, state: state::SharedState) {
+        self.state = Some(Arc::clone(&state));
+        for event in self.pending.drain(..) {
+            match event {
+                IpcCallbackEvent::Frame(topic, payload) => {
+                    state.ingest_runtime_frame(topic, payload)
+                }
+                IpcCallbackEvent::ConnectionChanged(connected) => {
+                    state.runtime_connection_changed(connected)
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Args {
     http_addr: SocketAddr,
@@ -123,8 +165,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args = parse_args().map_err(|e| e.to_string())?;
     let bus = Arc::new(Bus::default());
     chappe::tracing_layer::init_subscriber(Some(Arc::clone(&bus)), "marengo-gateway");
-    let state_holder: Arc<std::sync::Mutex<Option<state::SharedState>>> =
-        Arc::new(std::sync::Mutex::new(None));
+    let state_holder = Arc::new(std::sync::Mutex::new(IpcStateHolder::default()));
 
     let logs = {
         let root = marengo_store::resolve_marengo_root();
@@ -162,10 +203,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let on_frame = {
         let holder = Arc::clone(&state_holder);
         Arc::new(move |topic: String, payload: Vec<u8>| {
-            if let Ok(guard) = holder.lock() {
-                if let Some(st) = guard.as_ref() {
-                    st.ingest_runtime_frame(topic, payload);
-                }
+            if let Ok(mut holder) = holder.lock() {
+                holder.dispatch(IpcCallbackEvent::Frame(topic, payload));
             }
         })
     };
@@ -173,10 +212,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let on_connection_change = {
         let holder = Arc::clone(&state_holder);
         Arc::new(move |connected: bool| {
-            if let Ok(guard) = holder.lock() {
-                if let Some(st) = guard.as_ref() {
-                    st.runtime_connection_changed(connected);
-                }
+            if let Ok(mut holder) = holder.lock() {
+                holder.dispatch(IpcCallbackEvent::ConnectionChanged(connected));
             }
         })
     };
@@ -209,8 +246,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         app_state = app_state.with_logs(log_services);
     }
     let state: state::SharedState = Arc::new(app_state);
-    if let Ok(mut guard) = state_holder.lock() {
-        *guard = Some(Arc::clone(&state));
+    if let Ok(mut holder) = state_holder.lock() {
+        holder.attach(Arc::clone(&state));
     }
 
     state::spawn_bus_fanout(Arc::clone(&state));
@@ -227,17 +264,23 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (cert_pem, key_pem) = webtransport::resolve_tls_pem_paths(args.cert_path, args.key_path);
 
     let http_state = Arc::clone(&state);
+    let http_listener_state = Arc::clone(&state);
     let http_addr = args.http_addr;
     tokio::spawn(async move {
         let app = http::router(http_state, None);
         match tokio::net::TcpListener::bind(http_addr).await {
             Ok(listener) => {
+                http_listener_state.set_http_listener(true);
                 info!(%http_addr, "HTTP listening");
                 if let Err(e) = axum::serve(listener, app).await {
                     tracing::error!(error = %e, "http serve failed");
                 }
+                http_listener_state.set_http_listener(false);
             }
-            Err(e) => tracing::error!(error = %e, %http_addr, "http bind failed"),
+            Err(e) => {
+                http_listener_state.set_http_listener(false);
+                tracing::error!(error = %e, %http_addr, "http bind failed");
+            }
         }
     });
 
@@ -254,19 +297,84 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .into());
         }
         let https_state = Arc::clone(&state);
+        let https_listener_state = Arc::clone(&state);
         let rustls = RustlsConfig::from_pem_file(&cert_pem, &key_pem).await?;
         tokio::spawn(async move {
             let app = http::router(https_state, Some(web_root.as_path()));
+            let listener = match tokio::net::TcpListener::bind(https_addr).await {
+                Ok(listener) => listener,
+                Err(error) => {
+                    https_listener_state.set_https_listener(false);
+                    tracing::error!(%error, %https_addr, "https bind failed");
+                    return;
+                }
+            };
+            let listener = match listener.into_std() {
+                Ok(listener) => listener,
+                Err(error) => {
+                    https_listener_state.set_https_listener(false);
+                    tracing::error!(%error, %https_addr, "https listener conversion failed");
+                    return;
+                }
+            };
+            let server = match axum_server::from_tcp_rustls(listener, rustls) {
+                Ok(server) => server,
+                Err(error) => {
+                    https_listener_state.set_https_listener(false);
+                    tracing::error!(%error, %https_addr, "https server construction failed");
+                    return;
+                }
+            };
+            https_listener_state.set_https_listener(true);
             info!(%https_addr, root = %web_root.display(), "HTTPS listening (Consul UI)");
-            if let Err(e) = axum_server::bind_rustls(https_addr, rustls)
-                .serve(app.into_make_service())
-                .await
-            {
-                tracing::error!(error = %e, "https serve failed");
+            if let Err(error) = server.serve(app.into_make_service()).await {
+                tracing::error!(%error, "https serve failed");
             }
+            https_listener_state.set_https_listener(false);
         });
     }
 
     webtransport::run_webtransport(state, args.wt_addr, tls).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod ipc_bootstrap_tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+    use armee_proto::prost::Message;
+
+    #[test]
+    fn callbacks_before_state_installation_are_replayed_in_order() {
+        let bus = Arc::new(Bus::default());
+        let mut holder = IpcStateHolder::default();
+        holder.dispatch(IpcCallbackEvent::ConnectionChanged(true));
+        let state_frame = armee_proto::Envelope {
+            timestamp_ms: 1,
+            source_node: "test-pi".into(),
+            message_type: "marengo.v1.RobotState".into(),
+            payload: armee_proto::RobotState {
+                timestamp_ms: 42,
+                joints: vec![],
+            }
+            .encode_to_vec(),
+        }
+        .encode_to_vec();
+        holder.dispatch(IpcCallbackEvent::Frame(
+            state::TOPIC_STATE.into(),
+            state_frame,
+        ));
+
+        let state = Arc::new(state::AppState::new(bus));
+        holder.attach(Arc::clone(&state));
+        assert!(state.runtime_connected());
+        assert_eq!(
+            state
+                .snapshot_robot_state()
+                .expect("first IPC observation")
+                .timestamp_ms,
+            42
+        );
+    }
 }
