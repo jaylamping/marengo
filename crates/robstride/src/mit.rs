@@ -144,6 +144,27 @@ pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> O
     Some(decode_status_payload(motor_type, comm, can_id, data))
 }
 
+/// Raw fields of a type-1 MIT command (the inverse of [`encode_mit`]'s
+/// packing, before scaling). `None` for another type or a short payload.
+pub fn decode_mit_command_fields(
+    can_id: u32,
+    data: &[u8],
+) -> Option<crate::wire::MitCommandFields> {
+    let unpacked = unpack_ext_id(can_id)?;
+    if CommunicationType::from_u8(unpacked.comm_type)? != CommunicationType::OperationControl
+        || data.len() != 8
+    {
+        return None;
+    }
+    Some(crate::wire::MitCommandFields {
+        position: read_be_u16(data, 0),
+        velocity: read_be_u16(data, 2),
+        kp: read_be_u16(data, 4),
+        kd: read_be_u16(data, 6),
+        torque_ff: unpacked.extra_data,
+    })
+}
+
 /// Payload decode for an id the caller already unpacked as OperationStatus or
 /// ActiveReporting; shared by [`decode_mit_feedback`] and the receive path.
 pub(crate) fn decode_status_payload(

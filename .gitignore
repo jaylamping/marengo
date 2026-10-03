@@ -59,6 +59,8 @@ var/log/
 var/gravity-calibration/
 # pi_enable_soak captures (workstation; candump + session log + firmware-timing)
 var/enable-soak/
+# Bench candumps scp'd for `marengo-log-cli firmware-timing` (profile is committed, captures are not)
+var/firmware-captures/
 # Local deploy staging (docker cross-build rsync bundle)
 .pi-deploy-staging/
 .pi-deploy/

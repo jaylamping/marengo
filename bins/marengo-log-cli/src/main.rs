@@ -2,7 +2,9 @@
 //! Candump inspection uses `marengo-candump` directly (no DB required).
 //! Explicit historical recovery dispatches before opening the normal Store.
 //! `gravity-fit` fits link inertials to `pi_gravity_calibrate` sessions (workstation, no DB).
+//! `firmware-timing` measures Robstride firmware timing from candump captures (no DB).
 
+mod firmware_timing;
 mod gravity_fit;
 
 use std::io::Write;
@@ -88,6 +90,16 @@ enum Commands {
         /// Local URDF compared with the Pi base (reported, never modified).
         #[arg(long, default_value = "assets/urdf/marengo.urdf")]
         repo_urdf: PathBuf,
+    },
+    /// Measure Robstride firmware timing (Enable→Run, post-SetZero silence, reply
+    /// latencies, report period) from `candump -L` or `candump -t z|a` captures.
+    /// Exit 0 = ok, 1 = error.
+    FirmwareTiming {
+        /// Print the JSON profile instead of the text report.
+        #[arg(long)]
+        json: bool,
+        #[arg(required = true)]
+        captures: Vec<PathBuf>,
     },
 }
 
@@ -294,6 +306,7 @@ fn main() -> ExitCode {
             })
         }
         Commands::Candump { action } => run_candump(action),
+        Commands::FirmwareTiming { json, captures } => run_firmware_timing(json, &captures),
         Commands::RecoverKnownV2 {
             source,
             backup,
@@ -309,6 +322,18 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn run_firmware_timing(json: bool, captures: &[PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
+    let timing = firmware_timing::analyze(captures)?;
+    let mut stdout = std::io::stdout().lock();
+    if json {
+        serde_json::to_writer_pretty(&mut stdout, &timing)?;
+        writeln!(stdout)?;
+    } else {
+        write!(stdout, "{}", firmware_timing::format_text(&timing))?;
+    }
+    Ok(())
 }
 
 /// Exit 0 = patch proposed, 2 = refused (fit verdict or out-of-limit input), 1 = error.
@@ -394,6 +419,9 @@ fn run_store_command(
         Commands::Candump { .. } => unreachable!("candump handled before store open"),
         Commands::RecoverKnownV2 { .. } => unreachable!("recovery handled before store open"),
         Commands::GravityFit { .. } => unreachable!("gravity-fit handled before store open"),
+        Commands::FirmwareTiming { .. } => {
+            unreachable!("firmware-timing handled before store open")
+        }
     }
     Ok(())
 }

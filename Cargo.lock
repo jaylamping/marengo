@@ -1566,6 +1566,7 @@ dependencies = [
  "marengo-config",
  "marengo-store",
  "marengo-support",
+ "robstride",
  "serde",
  "serde_json",
  "tempfile",

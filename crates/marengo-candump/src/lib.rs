@@ -8,6 +8,8 @@
 //! ## Responsibilities
 //!
 //! - [`Candump::inspect_path`] / [`Candump::inspect_bytes`]: single inspection seam
+//! - [`Candump::visit_path`] / [`Candump::visit_bytes`]: stream every parsed frame to a
+//!   caller visitor (whole-capture analyses such as `marengo-log-cli firmware-timing`)
 //! - Validated [`CanId`], [`Summary`], [`Inspection`]
 //! - Optional `robstride-enrichment` catalog lookup
 //!
@@ -318,7 +320,7 @@ impl Candump {
         request: InspectRequest,
     ) -> Result<Inspection, Error> {
         let path = path.as_ref();
-        scan::inspect_path(path, request, &self.enrichment).map_err(|err| match err {
+        scan::inspect_path(path, request, &self.enrichment, None).map_err(|err| match err {
             Error::Io { source, .. } => Error::Io {
                 path: path.to_path_buf(),
                 source,
@@ -333,7 +335,48 @@ impl Candump {
         bytes: &[u8],
         request: InspectRequest,
     ) -> Result<Inspection, Error> {
-        scan::inspect_bytes(bytes, request, &self.enrichment)
+        scan::inspect_bytes(bytes, request, &self.enrichment, None)
+    }
+
+    /// Streams every parsed frame, in source order, to `visit` without retaining
+    /// frames (for whole-capture analyses that cannot page); returns the summary.
+    pub fn visit_path(
+        &self,
+        path: impl AsRef<Path>,
+        timestamp_mode: TimestampMode,
+        visit: &mut dyn FnMut(&Frame),
+    ) -> Result<Summary, Error> {
+        let path = path.as_ref();
+        scan::inspect_path(
+            path,
+            InspectRequest::summary(timestamp_mode),
+            &self.enrichment,
+            Some(visit),
+        )
+        .map(|inspection| inspection.summary)
+        .map_err(|err| match err {
+            Error::Io { source, .. } => Error::Io {
+                path: path.to_path_buf(),
+                source,
+            },
+            other => other,
+        })
+    }
+
+    /// [`Self::visit_path`] over in-memory bytes (fixtures and tests).
+    pub fn visit_bytes(
+        &self,
+        bytes: &[u8],
+        timestamp_mode: TimestampMode,
+        visit: &mut dyn FnMut(&Frame),
+    ) -> Result<Summary, Error> {
+        scan::inspect_bytes(
+            bytes,
+            InspectRequest::summary(timestamp_mode),
+            &self.enrichment,
+            Some(visit),
+        )
+        .map(|inspection| inspection.summary)
     }
 
     #[cfg(feature = "robstride-enrichment")]
