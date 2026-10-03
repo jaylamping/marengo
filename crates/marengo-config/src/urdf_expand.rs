@@ -298,6 +298,8 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tmp");
         let urdf_path = tmp.path().join("marengo.urdf");
         fs::copy(root.join("assets/urdf/marengo.urdf"), &urdf_path).expect("copy");
+        let before = joint_limits(&load_urdf(&urdf_path).expect("load"), "right_elbow_pitch")
+            .expect("limits before");
 
         let mut motors = load_motors_config_from(root.join("config")).expect("motors");
         let elbow = motors
@@ -315,7 +317,8 @@ mod tests {
         assert!(expand_urdf_file_to_cover_motors(&urdf_path, &motors).expect("expand"));
         let robot = load_urdf(&urdf_path).expect("reload");
         let lim = joint_limits(&robot, "right_elbow_pitch").expect("limits");
-        assert!((lim.lower - (-0.5)).abs() < 1e-9);
+        // Expand-only: the lower bound moves only if -0.5 is past the current URDF hard.
+        assert!((lim.lower - before.lower.min(-0.5)).abs() < 1e-9);
         assert!((lim.upper - 3.0).abs() < 1e-9);
         assert!(!expand_urdf_file_to_cover_motors(&urdf_path, &motors).expect("noop"));
     }

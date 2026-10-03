@@ -255,7 +255,14 @@ mod tests {
         let assets = tmp.path().join("assets/urdf");
         fs::create_dir_all(&assets).expect("assets");
         let urdf = fs::read_to_string(root.join("assets/urdf/marengo.urdf")).expect("urdf");
-        let urdf = urdf.replace("<mass value=\"0.3\"/>", "<mass value=\"0\"/>");
+        // Zero one arm link's mass, whatever its current value.
+        const MASS: &str = "<mass value=\"";
+        let link = urdf
+            .find("<link name=\"right_shoulder_pitch_link\">")
+            .expect("pitch link");
+        let start = link + urdf[link..].find(MASS).expect("pitch mass") + MASS.len();
+        let end = start + urdf[start..].find('"').expect("mass end");
+        let urdf = format!("{}0{}", &urdf[..start], &urdf[end..]);
         fs::write(assets.join("marengo.urdf"), urdf).expect("write urdf");
 
         let report = completeness_report(tmp.path(), &config_dir).expect("report");

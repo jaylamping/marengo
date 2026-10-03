@@ -26,6 +26,27 @@ fn auth_headers() -> HeaderMap {
     headers
 }
 
+/// `master` with the `right_elbow_pitch` hard upper limit raised by 0.25 rad, whatever its
+/// current (taught) value; also returns the new value as written.
+fn raise_elbow_upper(master: &str) -> (String, String) {
+    const UPPER: &str = " upper=\"";
+    let joint = master
+        .find("<joint name=\"right_elbow_pitch\"")
+        .expect("elbow joint");
+    let start = joint + master[joint..].find(UPPER).expect("elbow upper") + UPPER.len();
+    let end = start + master[start..].find('"').expect("elbow upper end");
+    let current: f64 = master[start..end].parse().expect("elbow upper value");
+    // Trimmed like the merge writes limit values ("1.9", not "1.90").
+    let raised = format!("{:.2}", current + 0.25)
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string();
+    (
+        format!("{}{raised}{}", &master[..start], &master[end..]),
+        raised,
+    )
+}
+
 fn envelope_bytes<M: Message>(message_type: &str, message: &M) -> Vec<u8> {
     Envelope {
         timestamp_ms: 1,
@@ -323,10 +344,7 @@ async fn activate_archives_replaced_active_and_promotes_merge() {
     std::env::set_var("MARENGO_CONFIG_DIR", config_dir.as_os_str());
 
     let master_before = fs::read_to_string(assets.join("marengo.urdf")).expect("master");
-    let contributor = master_before.replace(
-        "<limit lower=\"-0.50\" upper=\"1.2\"",
-        "<limit lower=\"-0.50\" upper=\"1.5\"",
-    );
+    let (contributor, raised_upper) = raise_elbow_upper(&master_before);
 
     let upload_id = "upload-test-activate";
     let staging = assets.join("staging").join(upload_id);
@@ -378,7 +396,7 @@ async fn activate_archives_replaced_active_and_promotes_merge() {
     let replaced = fs::read_to_string(archive.join("replaced_active.urdf")).expect("replaced");
     assert_eq!(replaced, master_before);
     let live = fs::read_to_string(assets.join("marengo.urdf")).expect("live");
-    assert!(live.contains("upper=\"1.5\""));
+    assert!(live.contains(&format!("upper=\"{raised_upper}\"")));
 
     std::env::remove_var("MARENGO_ROOT");
     std::env::remove_var("MARENGO_CONFIG_DIR");
@@ -401,10 +419,7 @@ async fn activate_saves_manifest_before_failed_live_promote() {
     std::env::set_var("MARENGO_ROOT", tmp.path());
 
     let master_before = fs::read_to_string(assets.join("marengo.urdf")).expect("master");
-    let contributor = master_before.replace(
-        "<limit lower=\"-0.50\" upper=\"1.2\"",
-        "<limit lower=\"-0.50\" upper=\"1.5\"",
-    );
+    let (contributor, _) = raise_elbow_upper(&master_before);
     let upload_id = "upload-test-promote-failure";
     let staging = assets.join("staging").join(upload_id);
     fs::create_dir_all(&staging).expect("staging dir");

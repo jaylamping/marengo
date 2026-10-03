@@ -3222,7 +3222,8 @@ mod tests {
         let urdf_after = joint_limits(sup.urdf_robot(), "right_elbow_pitch").expect("urdf");
         assert!(urdf_after.lower <= urdf_before.lower);
         assert!(urdf_after.upper >= urdf_before.upper);
-        assert!((urdf_after.lower - (-0.5)).abs() < 1e-9);
+        // Expand-only: a bound moves only when the patch is past the current URDF hard.
+        assert!((urdf_after.lower - urdf_before.lower.min(-0.5)).abs() < 1e-9);
         assert!((urdf_after.upper - 3.0).abs() < 1e-9);
     }
 
