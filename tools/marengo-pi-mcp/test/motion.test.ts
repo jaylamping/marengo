@@ -243,7 +243,7 @@ describe("marengo-pi script tool", () => {
     );
   });
 
-  it("does not select a missing fallback when help probe times out", async () => {
+  it("selects the marengo-pi binary by path without executing it", async () => {
     let script = "";
     const tools = registerMotionTools(
       cfg,
@@ -263,8 +263,9 @@ describe("marengo-pi script tool", () => {
 
     assert.match(script, /PI_BIN=bin\/marengo-pi/);
     assert.match(script, /PI_FALLBACK="\$HOME\/marengo\/target\/release\/marengo-pi"/);
-    assert.match(script, /timeout 2 "\$PI_BIN" 2>&1 \|\| true/);
-    assert.match(script, /test -x "\$PI_FALLBACK"/);
+    assert.match(script, /if ! test -x "\$PI_BIN" && test -x "\$PI_FALLBACK"; then\n  PI_BIN="\$PI_FALLBACK"\nfi/);
+    // Running marengo-pi (even for `help`) opens SocketCAN before reading stdin.
+    assert.doesNotMatch(script, /\$PI_BIN" 2>&1|PI_HELP/);
     assert.match(script, /\} \| timeout 10 \$PI_BIN/);
   });
 

@@ -192,6 +192,10 @@ const benchLogWrapper = (
     : wrapRemote(cfg, body, false);
 };
 
+/**
+ * Installed binary first, staging build only when it is missing. Selection never runs
+ * marengo-pi: stdin commands (even `help`) are read only after it has opened SocketCAN.
+ */
 function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
   const fallback = cfg.piStagingRoot.startsWith("~/")
     ? `"${"$HOME"}${cfg.piStagingRoot.slice(1)}/target/release/marengo-pi"`
@@ -201,12 +205,6 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
     `PI_FALLBACK=${fallback}`,
     'if ! test -x "$PI_BIN" && test -x "$PI_FALLBACK"; then',
     '  PI_BIN="$PI_FALLBACK"',
-    "fi",
-    'if test -x "$PI_BIN"; then',
-    '  PI_HELP=$(printf \'%s\\n\' help | timeout 2 "$PI_BIN" 2>&1 || true)',
-    '  if ! printf \'%s\\n\' "$PI_HELP" | grep -q hold-on && test -x "$PI_FALLBACK"; then',
-    '    PI_BIN="$PI_FALLBACK"',
-    "  fi",
     "fi",
   ].join("\n");
 }
