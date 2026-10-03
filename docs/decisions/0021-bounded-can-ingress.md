@@ -64,10 +64,10 @@ claim quiescence. An independent terminal
 error and all observations remain available together. Vendor and transport
 events retain their common raw delivery ordinal; separate projection lists
 must not reorder the initiating hazard when receive timestamps tie.
-Compatibility bulk/cache
-methods project this same engine, retain delivered prefixes and report
-incomplete work as an error instead of silently treating a prefix as a full
-drain.
+The public feedback API exposes the lossless bounded report directly; legacy
+bulk/cache projections were removed because callers must inspect ordered events,
+terminal errors and completion together rather than silently reducing them to
+latest-state caches or fixed-width frame vectors.
 
 Davout inspects malformed evidence, terminal failure and incomplete completion
 before authorizing further output. These observed receive hazards latch through

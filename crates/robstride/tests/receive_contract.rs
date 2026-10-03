@@ -7,16 +7,16 @@ use marengo_config::MotorType;
 use robstride::{
     encode_default_active_reporting, encode_default_enable, encode_default_set_zero_position,
     encode_enable, AddressedMitCommand, BusError, CanBus, CanFrame, DriveMode, EchoedCommand,
-    FeedbackEvent, MalformedReason, MemoryBus, MitCommand, MotorAddress, MotorBus, MotorState,
-    ParameterId, ReceiveAttempt, ReceiveCompletion, ReceiveLimits, ReceivedCanFrame, RunMode,
-    RxFrameKind, TimedCanFrame,
+    FeedbackEvent, MalformedReason, MemoryBus, MitCommand, MotorAddress, MotorBus, ParameterId,
+    ReceiveAttempt, ReceiveCompletion, ReceiveLimits, ReceivedCanFrame, RunMode, RxFrameKind,
+    TimedCanFrame,
 };
 
 const POSE: [u8; 8] = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8];
 
-#[derive(Debug)]
 enum Step {
     Frame(ReceivedCanFrame),
+    Ignored,
     Idle,
     Interrupted,
     Error,
@@ -56,6 +56,7 @@ impl CanBus for ScriptedBus {
                 received_at: self.stamp,
                 received,
             })),
+            Step::Ignored => Ok(ReceiveAttempt::Ignored),
             Step::Idle => Ok(ReceiveAttempt::Idle),
             Step::Interrupted => Ok(ReceiveAttempt::Interrupted),
             Step::Error => Err(BusError::Driver("injected one-read failure".into())),
@@ -101,10 +102,6 @@ fn every_short_status_and_fault_payload_remains_partial_evidence() {
             let status_header = (id != 0x1500_01fd).then_some((37, DriveMode::Run));
             assert_eq!(partial.status_flags, status_header.map(|header| header.0));
             assert_eq!(partial.drive_mode, status_header.map(|header| header.1));
-            let mut projection = MotorState::default();
-            observed.update_state(&mut projection);
-            assert_eq!(projection.updated, None);
-            assert_eq!(projection.fault, 0);
         }
     }
 }
@@ -336,6 +333,24 @@ fn quota_exhaustion_retains_both_prefix_and_read_failure_without_visiting_more_s
     assert_eq!(bus.calls, 2);
     assert_eq!(bus.steps.len(), 1);
 }
+#[test]
+fn ignored_foreign_frame_is_counted_and_spends_the_shared_frame_quota() {
+    let mut bus = ScriptedBus::new([Step::Ignored, Step::Frame(data(0x0280_01fd, &POSE))]);
+    let report = bus.recv_feedback_report_with_limits(
+        &types(),
+        Duration::ZERO,
+        Duration::ZERO,
+        ReceiveLimits {
+            max_frames: 1,
+            ..ReceiveLimits::default()
+        },
+    );
+    assert_eq!(report.completion, ReceiveCompletion::WorkLimit);
+    assert_eq!(report.ignored_frames, 1);
+    assert_eq!(report.raw_frames, 1);
+    assert!(report.observations.is_empty());
+    assert_eq!(bus.calls, 1);
+}
 
 #[test]
 fn explicit_expired_deadline_and_overflow_fail_before_io() {
@@ -368,62 +383,6 @@ fn healthy_long_empty_poll_is_a_benign_timeout_with_bounded_attempts() {
     assert!(matches!(report.terminal_error, Some(BusError::RecvTimeout)));
     assert!((1..=256).contains(&report.read_attempts));
     assert_eq!(bus.calls, report.read_attempts);
-}
-
-#[test]
-fn legacy_projections_preserve_valid_prefixes_and_report_unrepresentable_rx() {
-    for malformed in [
-        data(0x0280_01fd, &POSE[..7]),
-        ReceivedCanFrame::new_remote(Some("can0".into()), 0x0280_01fd, true, 8).expect("remote"),
-    ] {
-        let mut bus = ScriptedBus::new([
-            Step::Frame(data(0x0280_01fd, &POSE)),
-            Step::Frame(malformed.clone()),
-        ]);
-        let mut raw = Vec::new();
-        assert!(bus.recv_frames(&mut raw).is_err());
-        assert_eq!(raw.len(), 1);
-        assert_eq!(raw[0].data, POSE);
-
-        let mut bus = ScriptedBus::new([
-            Step::Frame(data(0x0280_01fd, &POSE)),
-            Step::Frame(malformed.clone()),
-        ]);
-        let mut states = HashMap::new();
-        assert!(matches!(
-            bus.recv_all_addressed(&types(), &mut states, Duration::ZERO, Duration::ZERO),
-            Err(BusError::MalformedFeedback { .. })
-        ));
-        assert_eq!(
-            states[&MotorAddress::new("can0", 1)].updated,
-            Some(bus.stamp)
-        );
-
-        let mut bus = ScriptedBus::new([
-            Step::Frame(data(0x0280_01fd, &POSE)),
-            Step::Frame(malformed),
-        ]);
-        let mut states = HashMap::new();
-        assert!(matches!(
-            bus.recv_all(
-                &HashMap::from([(1, MotorType::Rs03)]),
-                &mut states,
-                Duration::ZERO,
-                Duration::ZERO
-            ),
-            Err(BusError::MalformedFeedback { .. })
-        ));
-        assert_eq!(states[&1].updated, Some(bus.stamp));
-    }
-    let mut error = data(0x40, &[0x80; 8]);
-    error.kind = RxFrameKind::Error;
-    let mut bus = ScriptedBus::new([Step::Frame(data(0x0280_01fd, &POSE)), Step::Frame(error)]);
-    let mut states = HashMap::new();
-    assert!(matches!(
-        bus.recv_all_addressed(&types(), &mut states, Duration::ZERO, Duration::ZERO),
-        Err(BusError::Driver(_))
-    ));
-    assert!(states[&MotorAddress::new("can0", 1)].updated.is_some());
 }
 
 #[test]
@@ -543,10 +502,11 @@ fn own_transmission_echoes_are_bounded_reads_but_never_feedback_or_replies() {
         .iter()
         .all(|echo| echo.address == address));
 
-    // A waiting poll that read only echoes saw no drive at all.
+    // A waiting poll that read only echoes saw the wire traffic it was waiting on.
     let report =
         echoes(&sent).recv_feedback_report(&types(), Duration::from_millis(1), Duration::ZERO);
-    assert!(matches!(report.terminal_error, Some(BusError::RecvTimeout)));
+    assert!(report.terminal_error.is_none());
+    assert_eq!(report.host_echoes.len(), 3);
 }
 
 #[test]

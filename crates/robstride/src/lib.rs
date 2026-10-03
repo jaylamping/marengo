@@ -7,7 +7,7 @@
 //!
 //! - [`comm`](comm): pack/unpack Robstride 29-bit communication-type IDs.
 //! - [`mit`](mit): pack/unpack MIT `{kp, kd, q, dq, tau_ff}` per [`MotorType`](marengo_config::MotorType).
-//! - [`bus::MotorBus`]: `mit_control_all`, lifecycle, parameter writes, status receive.
+//! - [`bus::MotorBus`]: addressed MIT commands, lifecycle, parameters, status receive.
 //! - [`params`](params): firmware `run_mode` and parameter read/write frames.
 //! - [`command`](command): typed rejection of nonfinite input, negative gains and wrong register types.
 //! - [`lifecycle`](lifecycle): enable, disable, and set-zero frames.
@@ -34,7 +34,7 @@
 //!
 //! | Caller | Usage |
 //! |--------|--------|
-//! | Davout | Sole production path to `send_mit` / `MotorBus` |
+//! | Davout | Sole production path through addressed `MotorBus` methods |
 //! | Tests | [`MemoryBus`](bus::MemoryBus) without hardware |
 //!
 //! Wire spec: [hardware/docs/decisions/0002-robstride-protocol.md](../../hardware/docs/decisions/0002-robstride-protocol.md).
@@ -53,9 +53,8 @@ pub mod state;
 pub mod wire;
 
 pub use bus::{
-    send_mit, send_motion, AddressedMitCommand, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
-    MemoryRxQueue, MotorAddress, MotorBus, ReceivedCanFrame, RuntimeBus, RxFrameKind,
-    TimedCanFrame,
+    AddressedMitCommand, BusError, CanBus, CanFrame, MemoryBus, MemoryRxQueue, MotorAddress,
+    MotorBus, ReceivedCanFrame, RuntimeBus, RxFrameKind, TimedCanFrame,
 };
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 pub use bus::{SocketCanBus, SocketCanRouter};
@@ -72,12 +71,10 @@ pub use identity::{
 };
 pub use lifecycle::{
     encode_active_reporting, encode_default_active_reporting, encode_default_disable,
-    encode_default_enable, encode_default_set_zero_position, encode_disable, encode_enable,
-    encode_set_zero_position,
+    encode_default_enable, encode_default_fault_clear, encode_default_set_zero_position,
+    encode_disable, encode_enable, encode_fault_clear, encode_set_zero_position,
 };
-pub use mit::{
-    decode_mit_command_fields, encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback,
-};
+pub use mit::{decode_mit_command_fields, encode_mit, MitCommand, MitFeedback};
 pub use params::{
     decode_read_parameter_reply, encode_current_ref, encode_position_ref, encode_read_parameter,
     encode_set_run_mode, encode_speed_ref, encode_write_parameter, ParameterId, ParameterKind,
@@ -108,65 +105,9 @@ mod tests {
     use marengo_config::MotorType;
 
     use super::bus::{AddressedMitCommand, MemoryBus, MotorAddress, MotorBus, ReceivedCanFrame};
-    use super::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType, DEFAULT_HOST_ID};
+    use super::comm::{unpack_ext_id, CommunicationType};
     use super::mit::{encode_mit, MitCommand};
     use super::CanFrame;
-
-    fn status_frame(device_id: u8) -> CanFrame {
-        CanFrame {
-            id: pack_typed_ext_id(
-                CommunicationType::OperationStatus,
-                u16::from(device_id),
-                DEFAULT_HOST_ID,
-            ),
-            data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8],
-            extended: true,
-        }
-    }
-
-    /// Returns scripted RX batches in order; empty batches simulate inter-frame gaps.
-    struct ScriptBus {
-        batches: Vec<Vec<CanFrame>>,
-        index: usize,
-        offset: usize,
-    }
-
-    impl ScriptBus {
-        fn new(batches: Vec<Vec<CanFrame>>) -> Self {
-            Self {
-                batches,
-                index: 0,
-                offset: 0,
-            }
-        }
-    }
-
-    impl super::CanBus for ScriptBus {
-        fn send_frame(&mut self, _frame: &CanFrame) -> Result<(), super::BusError> {
-            Ok(())
-        }
-
-        fn recv_one_nonblocking(&mut self) -> Result<super::ReceiveAttempt, super::BusError> {
-            while let Some(batch) = self.batches.get(self.index) {
-                if batch.is_empty() {
-                    self.index += 1;
-                    return Ok(super::ReceiveAttempt::Idle);
-                }
-                if let Some(frame) = batch.get(self.offset) {
-                    self.offset += 1;
-                    return Ok(super::ReceiveAttempt::Frame(super::TimedCanFrame {
-                        received_at: std::time::Instant::now(),
-                        received: ReceivedCanFrame::full_data(None, frame.clone()),
-                    }));
-                }
-                self.index += 1;
-                self.offset = 0;
-            }
-            Ok(super::ReceiveAttempt::Idle)
-        }
-    }
-
-    impl MotorBus for ScriptBus {}
 
     #[derive(Default)]
     struct RoutedMemoryBus {
@@ -235,7 +176,11 @@ mod tests {
             kd: 0.0,
             torque_ff_nm: 2.0,
         };
-        bus.mit_control_all(&[cmd]).expect("send");
+        bus.mit_control_all_at(&[AddressedMitCommand {
+            address: MotorAddress::new("can0", 1),
+            command: cmd,
+        }])
+        .expect("send");
         assert_eq!(bus.tx.len(), 1);
         assert!(bus.tx[0].extended);
         let unpacked = unpack_ext_id(bus.tx[0].id).expect("extended id");
@@ -268,159 +213,6 @@ mod tests {
         assert_eq!(bus.tx.len(), 1);
         assert_eq!(bus.tx[0].0, address);
         assert!(bus.tx[0].1.extended);
-    }
-
-    #[test]
-    fn recv_all_times_out_without_rx() {
-        let mut bus = MemoryBus::default();
-        let mut states = HashMap::new();
-        let types = HashMap::from([(1u8, MotorType::Rs03)]);
-        let err = bus
-            .recv_all(
-                &types,
-                &mut states,
-                Duration::from_millis(5),
-                Duration::from_micros(300),
-            )
-            .expect_err("timeout");
-        assert!(matches!(err, super::bus::BusError::RecvTimeout));
-    }
-
-    #[test]
-    fn recv_all_drains_multiple_status_frames() {
-        let mut bus = MemoryBus::default();
-        let status_data = [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8];
-        bus.rx_queue.push(CanFrame {
-            id: pack_typed_ext_id(CommunicationType::OperationStatus, 1, DEFAULT_HOST_ID),
-            data: status_data,
-            extended: true,
-        });
-        bus.rx_queue.push(CanFrame {
-            id: pack_typed_ext_id(CommunicationType::OperationStatus, 2, DEFAULT_HOST_ID),
-            data: status_data,
-            extended: true,
-        });
-        let mut states = HashMap::new();
-        let types = HashMap::from([(1u8, MotorType::Rs03), (2u8, MotorType::Rs02)]);
-        let count = bus
-            .recv_all(
-                &types,
-                &mut states,
-                Duration::from_millis(1),
-                Duration::from_micros(300),
-            )
-            .expect("status frames");
-        assert_eq!(count, 2);
-        assert_eq!(states.len(), 2);
-        assert!((states[&1].temperature_c - 20.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn recv_all_addressed_keeps_repeated_device_ids_separate() {
-        let mut bus = RoutedMemoryBus::default();
-        let can0_id1 = MotorAddress::new("can0", 1);
-        let can1_id1 = MotorAddress::new("can1", 1);
-        bus.rx.push(ReceivedCanFrame::full_data(
-            Some("can1".to_string()),
-            CanFrame {
-                id: pack_typed_ext_id(CommunicationType::OperationStatus, 1, DEFAULT_HOST_ID),
-                data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8],
-                extended: true,
-            },
-        ));
-        let mut states = HashMap::new();
-        let types = HashMap::from([
-            (can0_id1.clone(), MotorType::Rs03),
-            (can1_id1.clone(), MotorType::Rs02),
-        ]);
-
-        let count = bus
-            .recv_all_addressed(
-                &types,
-                &mut states,
-                Duration::from_millis(1),
-                Duration::from_micros(300),
-            )
-            .expect("addressed status");
-
-        assert_eq!(count, 1);
-        assert!(!states.contains_key(&can0_id1));
-        assert!(states.contains_key(&can1_id1));
-    }
-
-    #[test]
-    fn recv_all_addressed_zero_budget_single_pass() {
-        let mut bus = ScriptBus::new(vec![vec![status_frame(1)], vec![], vec![status_frame(1)]]);
-        let mut states = HashMap::new();
-        let types = HashMap::from([(MotorAddress::new("can0", 1), MotorType::Rs03)]);
-
-        let count = bus
-            .recv_all_addressed(
-                &types,
-                &mut states,
-                Duration::ZERO,
-                Duration::from_micros(300),
-            )
-            .expect("zero-budget drain");
-
-        assert_eq!(count, 1);
-        assert!(states.contains_key(&MotorAddress::new("can0", 1)));
-        let second = bus
-            .recv_all_addressed(
-                &types,
-                &mut states,
-                Duration::ZERO,
-                Duration::from_micros(300),
-            )
-            .expect("second zero-budget drain");
-        assert_eq!(second, 1);
-    }
-
-    #[test]
-    fn recv_all_addressed_drains_four_motor_burst_across_gaps() {
-        let mut bus = ScriptBus::new(vec![
-            vec![status_frame(1)],
-            vec![],
-            vec![status_frame(2)],
-            vec![status_frame(3)],
-            vec![status_frame(4)],
-        ]);
-        let mut states = HashMap::new();
-        let types = HashMap::from([
-            (MotorAddress::new("can0", 1), MotorType::Rs03),
-            (MotorAddress::new("can0", 2), MotorType::Rs02),
-            (MotorAddress::new("can0", 3), MotorType::Rs03),
-            (MotorAddress::new("can0", 4), MotorType::Rs02),
-        ]);
-        let count = bus
-            .recv_all_addressed(
-                &types,
-                &mut states,
-                Duration::from_millis(10),
-                Duration::from_micros(200),
-            )
-            .expect("four-motor burst");
-        assert_eq!(count, 4);
-        assert_eq!(states.len(), 4);
-    }
-
-    #[test]
-    fn recv_all_preserves_a_valid_prefix_when_work_is_incomplete() {
-        let mut bus = ScriptBus::new((0..65).map(|_| vec![status_frame(1)]).collect());
-        let mut states = HashMap::new();
-        let types = HashMap::from([(1u8, MotorType::Rs03)]);
-        let error = bus
-            .recv_all(&types, &mut states, Duration::ZERO, Duration::ZERO)
-            .expect_err("a prefix is not a complete drain");
-        assert!(matches!(
-            error,
-            super::BusError::ReceiveIncomplete {
-                completion: super::ReceiveCompletion::WorkLimit,
-            }
-        ));
-        assert_eq!(states[&1].position_rad, 0.0);
-        assert_eq!(states[&1].temperature_c, 20.0);
-        assert!(states[&1].updated.is_some());
     }
 
     #[test]
@@ -553,9 +345,13 @@ mod tests {
         let deadline = std::time::Instant::now() + Duration::from_millis(100);
         let mut frames: Vec<ReceivedCanFrame> = Vec::new();
         while std::time::Instant::now() < deadline {
-            router
-                .recv_frames_from(&mut frames)
-                .expect("recv routed vcan frames");
+            let report = router.recv_raw_report(
+                Duration::ZERO,
+                Duration::ZERO,
+                super::ReceiveLimits::default(),
+            );
+            frames.extend(report.frames.into_iter().map(|timed| timed.received));
+            assert!(report.terminal_error.is_none(), "recv routed vcan frames");
             let saw_vcan0 = frames.iter().any(|frame| {
                 frame.interface.as_deref() == Some(super::vcan::DEFAULT_INTERFACE)
                     && frame.frame.id == expected_id

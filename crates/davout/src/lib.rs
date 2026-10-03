@@ -58,7 +58,7 @@
 //!        ├─ filter in joint space
 //!        ├─ apply direction/gear_ratio to motor space
 //!        ▼
-//!   robstride::send_mit / mit_control_all
+//!   mit_control_all_at (addressed Robstride batch)
 //!        ▲
 //!   motor_states (joint space) ◄── direction/gear_ratio ◄── lossless feedback report ◄── CAN
 //!        │

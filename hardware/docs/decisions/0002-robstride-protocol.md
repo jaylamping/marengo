@@ -42,25 +42,29 @@ RS03 "Max speed" is the MIT velocity field range: Seeed listed 50, but the RS03 
 ## Marengo implementation
 
 - `motor_type` in [`config/motors.yaml`](../../../config/motors.yaml): `rs00` | `rs02` | `rs03` | `rs04`.
-- `crates/robstride`: vendor `encode_mit` / `decode_mit_feedback`, lifecycle frames, and parameter read/write helpers. It stays in raw motor/CAN coordinates and does not apply joint sign or gearing.
+- `crates/robstride`: vendor MIT encoding, report-owned status decoding, lifecycle frames, and parameter read/write helpers. It stays in raw motor/CAN coordinates and does not apply joint sign or gearing.
 - `crates/davout`: safety gateway and joint↔motor coordinate boundary. It reads each motor row's `direction` and `gear_ratio`, filters commands in joint space, converts approved commands to motor space before calling robstride, and converts feedback back to joint space before Berthier reads it.
 - **MIT production path:** Berthier joint-space commands → Davout safety + direction/gear transform → Robstride `OPERATION_CONTROL` (`comm_type=1`) every tick.
 - **Bench diagnostics:** firmware Speed/Position/Current modes require explicit Davout methods and config gates; do not map Berthier control modes to firmware `run_mode`.
 
-### Software validation update (2026-09-30)
+### Software validation update (2026-10-03)
 
-MIT encoders now return typed errors for nonfinite fields or negative gains;
+MIT encoders return typed errors for nonfinite and finite out-of-range fields;
 addressed batches validate every command and route before any transmit. Firmware
-writes validate the register kind and reject nonfinite floats, negative gains
-and negative speed/torque caps. The RS03 260713 manual's parameter table (PDF
-pages 49–50, printed pages 48–49) specifies `run_mode` 0x7005 as u8,
-`EPScan_time` 0x7026 as u16, `CAN_TIMEOUT` 0x7028 as u32, and the supported
-target/gain/limit registers as float. All use little-endian parameter payloads.
+writes validate register kind and reject nonfinite floats, negative gains,
+negative speed/torque caps, and writes to `ZeroSta` or `AddOffset`. Raw type-22
+save frames are refused at the CAN bus boundary. A type-4 fault-clear encoder
+uses `Byte[0]=1`, but no `MotorBus` fault-clear operation is wired; ordinary
+Disable remains a stop request, not a fault clear.
 
-The [current RS02 260713 manual](https://github.com/RobStride/Product_Information/blob/main/Product%20Literature/RS02/RS02User%20Manual260713.pdf)
-also agrees on the timing register kinds.
-Older vendor documentation uses conflicting register IDs/kinds, so this static
-schema requires model/firmware identification before commissioning use.
+The RS03 260713 manual's parameter table (PDF pages 49–50, printed pages 48–49)
+specifies `run_mode` 0x7005 as u8, `EPScan_time` 0x7026 as u16,
+`CAN_TIMEOUT` 0x7028 as u32, and supported target/gain/limit registers as
+float. All use little-endian parameter payloads. The [current RS02 260713
+manual](https://github.com/RobStride/Product_Information/blob/main/Product%20Literature/RS02/RS02User%20Manual260713.pdf)
+agrees on timing register kinds. Older vendor documentation uses conflicting
+register IDs/kinds, so this static schema requires model/firmware
+identification before commissioning use.
 
 This verification repairs software admission and the stale RS03 source link.
 The historical wire scales above and installed-drive policy are unchanged;
@@ -95,8 +99,8 @@ Vendor free-drive sensing (manual §4.1.11; [Seeed RobStride control](https://wi
 | Aspect | Contract |
 |--------|----------|
 | Encode | `robstride::encode_active_reporting` / `encode_default_active_reporting` — payload `01..06 F_CMD` (`F_CMD` `00`=off, `01`=on); arbitration uses `CommunicationType::ActiveReporting` (=24) |
-| Decode | `decode_mit_feedback` accepts **OperationStatus** (`comm_type=2`) and **ActiveReporting** (`comm_type=24`) with the same MIT scale tables |
-| Bus | `MotorBus::enable_active_reporting_at` / `disable_active_reporting_at`; `recv_all` treats type-24 like status for MIT feedback |
+| Decode | The bounded receive/report path decodes **OperationStatus** (`comm_type=2`) and **ActiveReporting** (`comm_type=24`) with the same MIT scale tables; status flags and drive mode remain separate evidence |
+| Bus | `MotorBus::enable_active_reporting_at` / `disable_active_reporting_at`; `recv_feedback_report` retains type-24 status observations |
 | When on | Davout sync: desired iff not ACTIVE and (global diagnostics or any unexpired lease). **Never** while operational mode is `ACTIVE` (MIT OperationControl + status own that path) |
 | Leases | Consul Enhanced-logging → gateway → Chappe → Davout (`crates/davout/src/active_reporting.rs`); TTL backstop; see [docs/safety.md](../../../docs/safety.md) |
 

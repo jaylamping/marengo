@@ -19,6 +19,15 @@ pub fn encode_enable(host_id: u8, device_id: u8) -> (u32, [u8; 8]) {
 pub fn encode_disable(host_id: u8, device_id: u8) -> (u32, [u8; 8]) {
     empty_frame(CommunicationType::Disable, host_id, device_id)
 }
+/// Vendor fault clear (communication type 4, Byte[0] = 1; RS02/RS03 manual §4.1.4).
+pub fn encode_fault_clear(host_id: u8, device_id: u8) -> (u32, [u8; 8]) {
+    let mut data = [0; 8];
+    data[0] = 1;
+    (
+        pack_typed_ext_id(CommunicationType::Disable, u16::from(host_id), device_id),
+        data,
+    )
+}
 
 pub fn encode_set_zero_position(host_id: u8, device_id: u8) -> (u32, [u8; 8]) {
     (
@@ -41,6 +50,10 @@ pub fn encode_default_disable(device_id: u8) -> (u32, [u8; 8]) {
 
 pub fn encode_default_set_zero_position(device_id: u8) -> (u32, [u8; 8]) {
     encode_set_zero_position(DEFAULT_HOST_ID, device_id)
+}
+
+pub fn encode_default_fault_clear(device_id: u8) -> (u32, [u8; 8]) {
+    encode_fault_clear(DEFAULT_HOST_ID, device_id)
 }
 
 /// Active reporting (comm type 24) — manual §4.1.11 payload `01..06 F_CMD`; F_CMD 00=off, 01=on.
@@ -75,6 +88,13 @@ mod tests {
         assert_eq!(unpacked.extra_data, u16::from(DEFAULT_HOST_ID));
         assert_eq!(unpacked.device_id, 1);
         assert_eq!(data, [0; 8]);
+    }
+
+    #[test]
+    fn fault_clear_uses_type_four_and_manual_payload() {
+        let (id, data) = encode_default_fault_clear(12);
+        assert_eq!(id, 0x0400_FD0C);
+        assert_eq!(data, [1, 0, 0, 0, 0, 0, 0, 0]);
     }
 
     #[test]

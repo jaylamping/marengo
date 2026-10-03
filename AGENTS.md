@@ -152,9 +152,8 @@ See [`docs/cloud-pi-tailscale.md`](docs/cloud-pi-tailscale.md) for Tailscale sec
 // BAD — Berthier opens CAN
 socketcan::CanSocket::open("can0")?;
 
-// GOOD — Berthier → Davout → robstride
-davout::filter(cmd)?;
-robstride::send(cmd)?;
+// GOOD — Davout owns filtering, transform and Robstride delivery
+supervisor.send_mit_batch(joint_space_cmds)?;
 ```
 
 ### Error handling

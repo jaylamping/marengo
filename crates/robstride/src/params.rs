@@ -129,6 +129,12 @@ pub fn encode_write_parameter(
     parameter: ParameterId,
     value: ParameterValue,
 ) -> Result<(u32, [u8; 8]), CommandError> {
+    if matches!(parameter, ParameterId::ZeroSta | ParameterId::AddOffset) {
+        return Err(CommandError::ForbiddenParameterWrite {
+            device_id,
+            parameter,
+        });
+    }
     if parameter.is_read_only() {
         return Err(CommandError::ReadOnlyParameter {
             device_id,
@@ -449,14 +455,17 @@ mod tests {
                 parameter: ParameterId::MechPos
             })
         ));
-        assert!(matches!(
-            encode_write_parameter(
-                DEFAULT_HOST_ID,
-                1,
-                ParameterId::ZeroSta,
-                ParameterValue::F32(1.0)
-            ),
-            Err(CommandError::ParameterType { .. })
-        ));
+        for (parameter, value) in [
+            (ParameterId::ZeroSta, ParameterValue::U8(1)),
+            (ParameterId::AddOffset, ParameterValue::F32(0.25)),
+        ] {
+            assert!(matches!(
+                encode_write_parameter(DEFAULT_HOST_ID, 1, parameter, value),
+                Err(CommandError::ForbiddenParameterWrite {
+                    device_id: 1,
+                    parameter: actual,
+                }) if actual == parameter
+            ));
+        }
     }
 }

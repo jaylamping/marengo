@@ -122,7 +122,6 @@ fn inject(supervisor: &mut Supervisor<SimulationBus>, address: MotorAddress, sta
                 velocity_rad_s: state.velocity_rad_s,
                 torque_nm: state.torque_nm,
                 temperature_c: state.temperature_c,
-                fault: state.fault,
                 status_flags: state.fault as u8,
                 drive_mode: DriveMode::Run,
             })

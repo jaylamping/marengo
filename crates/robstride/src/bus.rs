@@ -19,7 +19,6 @@ use crate::lifecycle;
 use crate::mit::{self, MitCommand};
 use crate::params::{self, ParameterId, ParameterValue, RunMode};
 use crate::receive::{RawReceiveReport, ReceiveAttempt, ReceiveCompletion, ReceiveLimits};
-use crate::state::MotorState;
 
 fn trace_skipped_frame(
     interface: Option<&str>,
@@ -36,6 +35,12 @@ fn trace_skipped_frame(
         reason,
         "ignoring CAN frame"
     );
+}
+fn validate_can_tx(frame: &CanFrame) -> Result<(), BusError> {
+    if frame.extended && (frame.id >> 24) & 0x1f == 22 {
+        return Err(CommandError::ForbiddenCommunicationType { comm_type: 22 }.into());
+    }
+    Ok(())
 }
 
 #[derive(Debug, Error)]
@@ -68,12 +73,6 @@ pub enum BusError {
         address: MotorAddress,
         reason: MalformedReason,
     },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct FaultReport {
-    device_id: u8,
-    feedback: DetailedFaultFeedback,
 }
 
 /// One recorded frame (extended 29-bit id).
@@ -300,73 +299,6 @@ pub trait CanBus {
     fn send_frame_to(&mut self, _address: &MotorAddress, frame: &CanFrame) -> Result<(), BusError> {
         self.send_frame(frame)
     }
-
-    /// Legacy full-data projection. A short/remote/error envelope cannot be
-    /// converted to this type without losing evidence, so conversion fails.
-    fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
-        let report = self.recv_raw_report(Duration::ZERO, Duration::ZERO, ReceiveLimits::default());
-        let mut conversion_error = None;
-        for timed in report.frames {
-            let received = timed.received;
-            if received.kind == RxFrameKind::Data && received.payload_len == 8 {
-                out.push(received.frame);
-            } else if conversion_error.is_none() {
-                conversion_error = Some(BusError::Driver(format!(
-                    "legacy raw projection cannot represent CAN {:#x} kind {:?} length {}",
-                    received.frame.id, received.kind, received.payload_len,
-                )));
-            }
-        }
-        if let Some(error) = report.terminal_error.or(conversion_error) {
-            return Err(error);
-        }
-        if !report.completion.is_complete() {
-            return Err(BusError::ReceiveIncomplete {
-                completion: report.completion,
-            });
-        }
-        Ok(())
-    }
-
-    /// Drain received frames with source interface when the backend can provide it.
-    fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
-        let mut frames = Vec::new();
-        let result = self.recv_timed_frames_from_nonblocking(&mut frames);
-        out.extend(frames.into_iter().map(|timed| timed.received));
-        result
-    }
-
-    /// Drain whatever is already queued without waiting for the next frame.
-    fn recv_frames_from_nonblocking(
-        &mut self,
-        out: &mut Vec<ReceivedCanFrame>,
-    ) -> Result<(), BusError> {
-        self.recv_frames_from(out)
-    }
-
-    fn recv_timed_frames_from(&mut self, out: &mut Vec<TimedCanFrame>) -> Result<(), BusError> {
-        self.recv_raw_report(Duration::ZERO, Duration::ZERO, ReceiveLimits::default())
-            .into_result(out)
-    }
-
-    fn recv_timed_frames_from_nonblocking(
-        &mut self,
-        out: &mut Vec<TimedCanFrame>,
-    ) -> Result<(), BusError> {
-        self.recv_timed_frames_from(out)
-    }
-}
-
-fn send_encoded_frame<B: CanBus + ?Sized>(
-    bus: &mut B,
-    id: u32,
-    data: [u8; 8],
-) -> Result<(), BusError> {
-    bus.send_frame(&CanFrame {
-        id,
-        data,
-        extended: true,
-    })
 }
 
 fn send_encoded_frame_to<B: CanBus + ?Sized>(
@@ -395,25 +327,6 @@ fn send_encoded_frame_to<B: CanBus + ?Sized>(
 pub trait MotorBus: CanBus {
     /// Validate the complete batch before emitting the first motion frame.
     /// Transport failures can still occur after some valid frames were sent.
-    fn mit_control_all(&mut self, cmds: &[MitCommand]) -> Result<(), BusError> {
-        for (index, cmd) in cmds.iter().enumerate() {
-            cmd.validate()?;
-            if cmds[..index]
-                .iter()
-                .any(|prior| prior.device_id == cmd.device_id)
-            {
-                return Err(BusError::DuplicateCommand {
-                    device_id: cmd.device_id,
-                });
-            }
-        }
-        for cmd in cmds {
-            let (id, data) = mit::encode_mit(cmd)?;
-            send_encoded_frame(self, id, data)?;
-        }
-        Ok(())
-    }
-
     fn mit_control_all_at(&mut self, cmds: &[AddressedMitCommand]) -> Result<(), BusError> {
         for (index, cmd) in cmds.iter().enumerate() {
             cmd.command.validate()?;
@@ -441,19 +354,9 @@ pub trait MotorBus: CanBus {
         Ok(())
     }
 
-    fn enable_drive(&mut self, device_id: u8) -> Result<(), BusError> {
-        let (id, data) = lifecycle::encode_default_enable(device_id);
-        send_encoded_frame(self, id, data)
-    }
-
     fn enable_drive_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
         let (id, data) = lifecycle::encode_default_enable(address.device_id);
         send_encoded_frame_to(self, address, id, data)
-    }
-
-    fn disable_drive(&mut self, device_id: u8) -> Result<(), BusError> {
-        let (id, data) = lifecycle::encode_default_disable(device_id);
-        send_encoded_frame(self, id, data)
     }
 
     fn disable_drive_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
@@ -461,19 +364,9 @@ pub trait MotorBus: CanBus {
         send_encoded_frame_to(self, address, id, data)
     }
 
-    fn set_zero_position(&mut self, device_id: u8) -> Result<(), BusError> {
-        let (id, data) = lifecycle::encode_default_set_zero_position(device_id);
-        send_encoded_frame(self, id, data)
-    }
-
     fn set_zero_position_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
         let (id, data) = lifecycle::encode_default_set_zero_position(address.device_id);
         send_encoded_frame_to(self, address, id, data)
-    }
-
-    fn read_parameter(&mut self, device_id: u8, parameter: ParameterId) -> Result<(), BusError> {
-        let (id, data) = params::encode_read_parameter(comm::DEFAULT_HOST_ID, device_id, parameter);
-        send_encoded_frame(self, id, data)
     }
 
     fn read_parameter_at(
@@ -492,17 +385,6 @@ pub trait MotorBus: CanBus {
         send_encoded_frame_to(self, address, id, data)
     }
 
-    fn write_parameter(
-        &mut self,
-        device_id: u8,
-        parameter: ParameterId,
-        value: ParameterValue,
-    ) -> Result<(), BusError> {
-        let (id, data) =
-            params::encode_write_parameter(comm::DEFAULT_HOST_ID, device_id, parameter, value)?;
-        send_encoded_frame(self, id, data)
-    }
-
     fn write_parameter_at(
         &mut self,
         address: &MotorAddress,
@@ -518,19 +400,9 @@ pub trait MotorBus: CanBus {
         send_encoded_frame_to(self, address, id, data)
     }
 
-    fn set_run_mode(&mut self, device_id: u8, mode: RunMode) -> Result<(), BusError> {
-        let (id, data) = params::encode_set_run_mode(device_id, mode);
-        send_encoded_frame(self, id, data)
-    }
-
     fn set_run_mode_at(&mut self, address: &MotorAddress, mode: RunMode) -> Result<(), BusError> {
         let (id, data) = params::encode_set_run_mode(address.device_id, mode);
         send_encoded_frame_to(self, address, id, data)
-    }
-
-    fn speed_control(&mut self, device_id: u8, velocity_rad_s: f32) -> Result<(), BusError> {
-        let (id, data) = params::encode_speed_ref(device_id, velocity_rad_s)?;
-        send_encoded_frame(self, id, data)
     }
 
     fn speed_control_at(
@@ -550,44 +422,6 @@ pub trait MotorBus: CanBus {
     fn disable_active_reporting_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
         let (id, data) = lifecycle::encode_default_active_reporting(address.device_id, false);
         send_encoded_frame_to(self, address, id, data)
-    }
-
-    fn recv_all(
-        &mut self,
-        motor_types: &HashMap<u8, MotorType>,
-        states: &mut HashMap<u8, MotorState>,
-        budget: Duration,
-        quiet: Duration,
-    ) -> Result<usize, BusError> {
-        let types = motor_types
-            .iter()
-            .map(|(id, kind)| (MotorAddress::new("", *id), *kind))
-            .collect();
-        let mut raw = self.recv_raw_report(budget, quiet, ReceiveLimits::default());
-        // This compatibility map intentionally has no interface domain. Retain
-        // the checked envelope; only the address projection loses that domain.
-        for frame in &mut raw.frames {
-            frame.received.interface = None;
-        }
-        let report = feedback_from_raw(&types, raw, budget);
-        for observation in &report.observations {
-            observation.update_state(states.entry(observation.address.device_id).or_default());
-        }
-        finish_feedback_projection(report)
-    }
-
-    fn recv_all_addressed(
-        &mut self,
-        motor_types: &HashMap<MotorAddress, MotorType>,
-        states: &mut HashMap<MotorAddress, MotorState>,
-        budget: Duration,
-        quiet: Duration,
-    ) -> Result<usize, BusError> {
-        let report = self.recv_feedback_report(motor_types, budget, quiet);
-        for observation in &report.observations {
-            observation.update_state(states.entry(observation.address.clone()).or_default());
-        }
-        finish_feedback_projection(report)
     }
 
     /// Lossless bounded receive. Zero budget never waits; positive budget waits
@@ -613,35 +447,6 @@ pub trait MotorBus: CanBus {
     }
 }
 
-fn finish_feedback_projection(report: FeedbackReport) -> Result<usize, BusError> {
-    if let Some(error) = report.terminal_error {
-        return Err(error);
-    }
-    if let Some(transport) = report.transport_frames.first() {
-        return Err(BusError::Driver(format!(
-            "CAN error frame on {:?}: id={:#x} length={} bytes={:02x?}",
-            transport.frame.received.interface,
-            transport.frame.received.frame.id,
-            transport.frame.received.payload_len,
-            transport.frame.received.frame.data,
-        )));
-    }
-    for observation in &report.observations {
-        if let FeedbackEvent::Malformed(feedback) = observation.event {
-            return Err(BusError::MalformedFeedback {
-                address: observation.address.clone(),
-                reason: feedback.reason,
-            });
-        }
-    }
-    if !report.completion.is_complete() {
-        return Err(BusError::ReceiveIncomplete {
-            completion: report.completion,
-        });
-    }
-    Ok(report.observations.len())
-}
-
 fn feedback_from_raw(
     motor_types: &HashMap<MotorAddress, MotorType>,
     raw: RawReceiveReport,
@@ -649,8 +454,8 @@ fn feedback_from_raw(
 ) -> FeedbackReport {
     let mut report = FeedbackReport {
         completion: raw.completion,
-        raw_frames: raw.frames.len(),
-        observations: Vec::with_capacity(raw.frames.len()),
+        raw_frames: raw.frames.len() + raw.ignored_frames,
+        ignored_frames: raw.ignored_frames,
         read_attempts: raw.read_attempts,
         terminal_error: raw.terminal_error,
         terminal_error_order: raw.terminal_error_order,
@@ -658,8 +463,8 @@ fn feedback_from_raw(
     };
     ingest_feedback_frames(motor_types, &mut report, &raw.frames);
     if !budget.is_zero()
-        && report.completion.is_complete()
         && report.observations.is_empty()
+        && report.host_echoes.is_empty()
         && report.transport_frames.is_empty()
         && report.identities.is_empty()
         && report.parameter_reads.is_empty()
@@ -706,6 +511,13 @@ fn ingest_feedback_frames(
             continue;
         };
         let Some(comm_type) = CommunicationType::from_u8(ext.comm_type) else {
+            trace_skipped_frame(
+                received.interface.as_deref(),
+                frame.id,
+                "unknown-comm-type",
+                Some((frame.id & 0xff) as u8),
+                Some(ext.comm_type),
+            );
             continue;
         };
         if matches!(
@@ -811,13 +623,7 @@ fn ingest_feedback_frames(
                     ))
                 }
                 CommunicationType::FaultReport => {
-                    let Some(fault) = decode_fault_report(
-                        frame.id,
-                        &frame.data[..usize::from(received.payload_len)],
-                    ) else {
-                        continue;
-                    };
-                    FeedbackEvent::DetailedFault(fault.feedback)
+                    FeedbackEvent::DetailedFault(DetailedFaultFeedback { raw: frame.data })
                 }
                 _ => continue,
             }
@@ -969,18 +775,6 @@ fn address_for_frame<'a>(
     }
 }
 
-fn decode_fault_report(can_id: u32, data: &[u8]) -> Option<FaultReport> {
-    let unpacked = comm::unpack_ext_id(can_id)?;
-    if CommunicationType::from_u8(unpacked.comm_type)? != CommunicationType::FaultReport {
-        return None;
-    }
-    let raw: [u8; 8] = data.try_into().ok()?;
-    Some(FaultReport {
-        device_id: comm::inbound_motor_device_id(can_id, CommunicationType::FaultReport),
-        feedback: DetailedFaultFeedback { raw },
-    })
-}
-
 /// FIFO storage for synthetic full-eight-byte frames. The compatibility push
 /// method keeps fixture injection simple without shifting an unread backlog.
 #[derive(Debug, Default)]
@@ -1031,6 +825,7 @@ pub struct MemoryBus {
 
 impl CanBus for MemoryBus {
     fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
+        validate_can_tx(frame)?;
         self.tx.push(frame.clone());
         Ok(())
     }
@@ -1181,36 +976,6 @@ fn socketcan_unavailable() -> BusError {
     )
 }
 
-/// Joint name + motion setpoint (legacy position path).
-#[derive(Debug, Clone, PartialEq)]
-pub struct JointMotion {
-    pub joint: String,
-    pub device_id: u8,
-    pub motor_type: MotorType,
-    pub position_rad: f32,
-    pub velocity_rad_s: f32,
-    pub torque_nm: f32,
-}
-
-/// Encode MIT and send one joint command (after Davout approval).
-pub fn send_mit<B: MotorBus>(bus: &mut B, cmd: &MitCommand) -> Result<(), BusError> {
-    bus.mit_control_all(std::slice::from_ref(cmd))
-}
-
-/// Legacy position-mode send (maps to MIT with kp=0, kd=0).
-pub fn send_motion<B: MotorBus>(bus: &mut B, motion: &JointMotion) -> Result<(), BusError> {
-    let cmd = MitCommand {
-        device_id: motion.device_id,
-        motor_type: motion.motor_type,
-        position_rad: motion.position_rad,
-        velocity_rad_s: motion.velocity_rad_s,
-        kp: 0.0,
-        kd: 0.0,
-        torque_ff_nm: motion.torque_nm,
-    };
-    send_mit(bus, &cmd)
-}
-
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 mod socketcan {
     use super::*;
@@ -1242,10 +1007,8 @@ mod socketcan {
     impl SocketCanBus {
         pub fn open(interface: &str) -> Result<Self, BusError> {
             tracing::debug!(interface, "opening SocketCAN interface");
-            let classic = CanSocket::open(interface).map_err(|e| BusError::Send {
-                message: e.to_string(),
-            })?;
-            // Classic CanSocket::read_frame uses Read::read_exact, which retries
+            let classic = CanSocket::open(interface)
+                .map_err(|error| BusError::Driver(format!("SocketCAN open failed: {error}")))?;
             // EINTR internally. CanFdSocket::read_frame uses a single read. Wrap
             // a duplicate descriptor of the classic socket without enabling FD:
             // neither CanFdSocket::open nor its FD-enabling TryFrom is used.
@@ -1285,6 +1048,7 @@ mod socketcan {
         }
 
         fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
+            validate_can_tx(frame)?;
             tracing::trace!(
                 interface = %self.interface,
                 can_id = format_args!("{:#010x}", frame.id),
@@ -1339,6 +1103,17 @@ mod socketcan {
         fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
             match self.socket.read_frame() {
                 Ok(frame) => {
+                    let ignored_reason = match &frame {
+                        ::socketcan::CanAnyFrame::Fd(_) => Some("unsupported CAN FD frame"),
+                        ::socketcan::CanAnyFrame::Remote(remote) if remote.dlc() > 8 => {
+                            Some("oversized classic CAN remote frame")
+                        }
+                        _ => None,
+                    };
+                    if let Some(reason) = ignored_reason {
+                        tracing::warn!(interface = %self.interface, reason, "skipping foreign CAN frame");
+                        return Ok(ReceiveAttempt::Ignored);
+                    }
                     let received_at = Instant::now();
                     let interface = Some(self.interface.clone());
                     let received = ReceivedCanFrame::from_socketcan(interface, frame)?;
