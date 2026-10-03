@@ -17,7 +17,7 @@ Workspace library crates implementing the Marengo humanoid robot's control stack
 | `robstride` | Pure CAN transport driver: encode/decode Robstride MIT frames (29-bit extended protocol), no policy |
 | `marengo-config` | YAML/URDF config loading: robot.yaml, motors.yaml, control.yaml, homing.yaml |
 | `marengo-homing` | Joint homing registry: encoder zero verification, calibration record persistence |
-| `marengo-support` | Shared init helpers: `init_tracing()`, workspace lint overrides |
+| `marengo-support` | `init_tracing()` (RUST_LOG filter) only |
 | `marengo-store` | Time-series key-value store for telemetry replay |
 | `marengo-imu` | IMU driver and frame publishing |
 | `marengo-host-metrics` | Host-level CPU/Mem/Disk metrics for health dashboard |

@@ -16,7 +16,7 @@
 | `marengo-config` | — | `config/*.yaml` loaders |
 | `marengo-homing` | — | Homing state machine, zero registry |
 | `marengo-imu` | — | BNO085 SHTP/I2C driver, rotation-vector samples |
-| `marengo-support` | — | `init_tracing()`, repo-root resolution, shared utils |
+| `marengo-support` | — | `init_tracing()` only |
 | `marengo-host-metrics` | — | Host-level metrics (CPU, temp, etc.) |
 | `marengo-store` | — | Bench session / log archive SQL store |
 | `marengo-deploy` | — | Self-update jobs, revisions, upstream status, and enqueueing |
