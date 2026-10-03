@@ -3,6 +3,7 @@
 mod enable_gate;
 #[cfg(test)]
 mod enable_gate_tests;
+#[cfg(target_os = "linux")]
 mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod imu;
