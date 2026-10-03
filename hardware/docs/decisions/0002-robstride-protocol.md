@@ -33,9 +33,11 @@ The Seeed wiki's simplified `0x200`/`0x300`/`0x400 + device_id` table is documen
 | Model | Peak torque | Max speed | KP max | KD max |
 |-------|-------------|-----------|--------|--------|
 | RS04 | 120 Nm | 15 rad/s | 5000 | 100 |
-| RS03 | 60 Nm | 50 rad/s | 5000 | 100 |
+| RS03 | 60 Nm | 20 rad/s | 5000 | 100 |
 | RS02 | 17 Nm | 44 rad/s | 500 | 5 |
 | RS00 | 17 Nm | 50 rad/s | 500 | 5 |
+
+RS03 "Max speed" is the MIT velocity field range: Seeed listed 50, but the RS03 manual (§4.1.2, all revisions) and bench capture `cd-20261003T145133Z` give ±20 rad/s; Marengo uses 20 since 2026-10-03. RS00 is disputed (manuals: 33 rad/s, 14 Nm). See [robstride-mit-ranges.md](../../../docs/commissioning/firmware/robstride-mit-ranges.md).
 
 ## Marengo implementation
 

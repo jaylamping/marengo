@@ -151,6 +151,17 @@ disables. The fault does not clear on its own.
 
 - **Hardware E-stop wiring:** `Supervisor::set_hardware_estop` exists but Pi GPIO/input is not yet connected at runtime. Treat physical E-stop as authoritative; do not assume software `Disabled` reflects the hardware line until wired.
 - **Danger zones:** Rules evaluate **measured** joint `q`/`dq` (not commanded MIT fields). Prefer `clamp_torque` when Berthier sends `kd_mit = 0` and velocity clamps alone cannot slow gravity-driven descent.
+- **RS03 MIT velocity scale (fixed 2026-10-03):** RS03 velocity is ±20 rad/s
+  on the wire, not ±50 (manual §4.1.2, bench capture
+  `cd-20261003T145133Z`). Before the fix commanded `v_des` reached RS03 drives
+  at 0.4×, so the drive's `kd` damping target and danger-zone
+  `clamp_velocity` limits (e.g. 0.45 rad/s arrived as 0.18) were 0.4× intent,
+  and RS03 feedback velocity read 2.5× high. Both now reach the drive at their
+  intended value, so RS03 (shoulder pitch/roll) ramps and settles behave
+  differently with unchanged config: less drag at the end of ramps and faster
+  clamped descents. Re-check with the arm supported. Values tuned under the old
+  scale and the RS00 open question:
+  [robstride-mit-ranges.md](commissioning/firmware/robstride-mit-ranges.md).
 - **Limit envelope:** Davout uses `max(|dq_cmd|, |dq_meas|)` for velocity-scaled margins so gravity-driven motion cannot shrink the envelope unexpectedly.
 - **Fault authority:** Observed runtime hazards persist across later healthy feedback, Disable and cache clearing. Davout attempts every configured stop address and retains failures; send acceptance is not physical stop acknowledgement. Qualified recovery/reset is not implemented. See [ADR 0020](decisions/0020-lossless-feedback-and-fault-authority.md).
 - **Receive integrity and work:** Status/detail feedback requires exactly eight Data bytes. Malformed configured feedback, kernel errors and incomplete receive work latch through fault authority. Every poll is limited to 64 raw frames and 256 nonblocking read attempts across all interfaces, including noise and interruptions; both enable flushes require observed quiescence. Host read order/deadlines do not qualify physical acquisition, drive behavior or Pi jitter. See [ADR 0021](decisions/0021-bounded-can-ingress.md).

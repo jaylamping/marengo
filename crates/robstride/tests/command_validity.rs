@@ -386,7 +386,7 @@ fn finite_rs03_command_matches_independent_wire_fixture() {
     for (model, kp, kd, torque, speed) in [
         (MotorType::Rs00, 250.0, 2.5, 8.5, 25.0),
         (MotorType::Rs02, 250.0, 2.5, 8.5, 22.0),
-        (MotorType::Rs03, 2500.0, 50.0, 30.0, 25.0),
+        (MotorType::Rs03, 2500.0, 50.0, 30.0, 10.0),
         (MotorType::Rs04, 2500.0, 50.0, 60.0, 7.5),
     ] {
         let request = MitCommand {
