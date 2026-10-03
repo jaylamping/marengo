@@ -2,7 +2,7 @@
 
 Branch `audit/wp-o`, based on `edbaebaf`.
 
-Fix commits already on this branch: `b38d14bd`, `881c5aa5`, `9d0ee10c`, `016963f0`, `3c875edf`, `600cbae0`. This report also records the independently-owned gateway fix `125f0798` from WP-K; it is not part of this branch. WP-O's final integration commit will add the remaining docs/config/Davout test updates and this report.
+Fix commits on this branch: `b38d14bd`, `881c5aa5`, `9d0ee10c`, `016963f0`, `3c875edf`, `600cbae0`, `8515a471`. This report also records the independently-owned gateway fix `125f0798` from WP-K; it is not part of this branch.
 
 “Red → green” below describes the baseline behavior and the regression assertion added or already present. The WP-O worker did not run the gates; the integrator should run them once after all work packages land, then append the results here.
 
