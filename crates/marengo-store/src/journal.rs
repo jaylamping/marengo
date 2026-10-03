@@ -3,8 +3,12 @@
 #[cfg(target_os = "linux")]
 use std::process::Command;
 
+// Linux production code, also compiled for tests everywhere so the journal
+// line parser is covered on macOS CI too.
+#[cfg(any(target_os = "linux", test))]
 use serde::Deserialize;
 
+#[cfg(any(target_os = "linux", test))]
 use crate::model::LogEventInsert;
 use crate::store::Store;
 use crate::Result;
@@ -32,6 +36,7 @@ pub fn import_journal(store: &Store, units: &[&str]) -> Result<u32> {
     }
 }
 
+#[cfg(any(target_os = "linux", test))]
 #[derive(Debug, Deserialize)]
 struct JournalEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
@@ -94,6 +99,7 @@ fn import_journal_linux(store: &Store, units: &[&str]) -> Result<u32> {
 }
 
 /// Map a journal `PRIORITY` digit to a log level (pure; tested everywhere).
+#[cfg(any(target_os = "linux", test))]
 fn journal_priority_level(priority: Option<&str>) -> String {
     match priority.and_then(|p| p.parse::<u8>().ok()) {
         Some(0..=3) => "error".into(),
@@ -107,6 +113,7 @@ fn journal_priority_level(priority: Option<&str>) -> String {
 /// Parse one `journalctl --output json` line into a log event newer than the
 /// stored cursor. Pure (no `journalctl`, no clock); tested on every platform.
 /// Returns the event and its millisecond timestamp.
+#[cfg(any(target_os = "linux", test))]
 fn parse_journal_line(line: &str, since_ms: u64) -> Option<(LogEventInsert, u64)> {
     let line = line.trim();
     if line.is_empty() {
@@ -142,6 +149,8 @@ fn parse_journal_line(line: &str, since_ms: u64) -> Option<(LogEventInsert, u64)
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::{journal_priority_level, parse_journal_line};
 
     #[test]
