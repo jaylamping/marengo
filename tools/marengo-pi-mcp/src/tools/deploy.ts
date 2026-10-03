@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { MarengoPiConfig } from "../config.js";
 import { sudoStagingInstallCommand } from "../config.js";
-import { shellQuote, wrapRemote } from "../env.js";
+import { shellQuote, wrapRemote, wrapStagingRemote } from "../env.js";
 import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
 import { waitForDeployReady } from "./deploy-wait.js";
 
@@ -41,7 +41,8 @@ export async function runSyncMain(
 
   if (strategy === "pi_native") {
     // Canonical path: scripts/pi-self-update.sh (shared with Consul /control/deploy).
-    const tipBody = wrapRemote(
+    // Resolve the tip in the ~/marengo checkout, never the sealed /opt install tree.
+    const tipBody = wrapStagingRemote(
       cfg,
       [
         "git fetch origin",
