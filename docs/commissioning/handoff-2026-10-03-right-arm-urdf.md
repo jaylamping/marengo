@@ -1,5 +1,7 @@
 # Handoff 2026-10-03: right-arm URDF geometry from CAD
 
+> **Status (2026-10-03, Windows):** steps 1–3 done. The URDF now has CAD origins and inertials plus the Pi's taught limits. Results, assumptions and expected τ_g: [right-arm-urdf-from-cad-2026-10-03.md](right-arm-urdf-from-cad-2026-10-03.md). Steps 4–5 remain for the Pi session.
+
 Move to the Windows host (`J:\code\marengo`, SolidWorks running, SolidWorks MCP enabled). `git pull` first; `main` is at or after `123a433`.
 
 ## Goal

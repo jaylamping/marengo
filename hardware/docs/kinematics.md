@@ -4,10 +4,10 @@ Single source of truth for joint names, axes, limits, link dimensions, and actua
 
 | Model | URDF | Status |
 |-------|------|--------|
-| Right arm (4 DOF, live) | [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) | Current master SoT; same arm chain as the target humanoid, not a separate robot |
+| Right arm (5 DOF, live) | [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) | Current master SoT; same arm chain as the target humanoid, not a separate robot |
 | Historical slices | [`assets/urdf/archive/seed-*/contributor.urdf`](../../assets/urdf/archive/) | Archive seeds only; never selected as the live runtime SoT |
 
-Full-body target: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml). Live bench: master [`config/robot.yaml`](../../config/robot.yaml), [`config/motors.yaml`](../../config/motors.yaml), and [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) for the wired right 4-DOF arm. Old 3-DOF and 4-DOF contributors are preserved at [`archive/seed-arm_3dof_right/contributor.urdf`](../../assets/urdf/archive/seed-arm_3dof_right/contributor.urdf) and [`archive/seed-arm_4dof_right/contributor.urdf`](../../assets/urdf/archive/seed-arm_4dof_right/contributor.urdf). Milestones: [`docs/roadmap.md`](../../docs/roadmap.md).
+Full-body target: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml). Live bench: master [`config/robot.yaml`](../../config/robot.yaml), [`config/motors.yaml`](../../config/motors.yaml), and [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) for the wired right 5-DOF arm. Old 3-DOF and 4-DOF contributors are preserved at [`archive/seed-arm_3dof_right/contributor.urdf`](../../assets/urdf/archive/seed-arm_3dof_right/contributor.urdf) and [`archive/seed-arm_4dof_right/contributor.urdf`](../../assets/urdf/archive/seed-arm_4dof_right/contributor.urdf). Milestones: [`docs/roadmap.md`](../../docs/roadmap.md).
 
 ---
 
@@ -152,9 +152,9 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `right_elbow_pitch` | RS02 | upper_arm → right_forearm | Y | -0.50 | 1.2 | 17 | **Upright hazard** — verify G-comp sign |
 | `right_lower_arm_yaw` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
 
-The promoted right-arm hard limits above match `assets/urdf/marengo.urdf`; Davout intersects them with the measured bounds in `config/motors.yaml`. URDF soft limits are pitch `[-0.872665, 3.20]`, roll `[-0.05, 3.14159]`, yaw `[-1.57, 1.57]`, and elbow `[-0.50, 1.15]` rad per [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
+These are the design limits. The bench URDF carries the wider taught hard envelope ([ADR 0017](../../docs/decisions/0017-bench-set-limits-urdf-expand.md), listed below); Davout intersects it with the measured bounds in `config/motors.yaml`. URDF soft limits are pitch `[-0.872665, 3.20]`, roll `[-0.05, 3.14159]`, yaw `[-1.57, 1.57]`, and elbow `[-0.50, 1.15]` rad per [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
 
-Masses and inertials in URDF are **estimates** until CAD export; re-run MuJoCo cross-check after export ([ADR 0005](../../docs/decisions/0005-dynamics-library.md)).
+Right-arm joint origins and link inertials come from CAD as of 2026-10-03 ([derivation](../../docs/commissioning/right-arm-urdf-from-cad-2026-10-03.md)). Printed-part masses are infill estimates until weighed. Re-run the MuJoCo cross-check after changes ([ADR 0005](../../docs/decisions/0005-dynamics-library.md)).
 
 ---
 
@@ -166,11 +166,13 @@ This promoted subset of humanoid arm kinematics is the live master model in
 
 | Joint | Actuator | Parent → Child | Axis (joint) | Lower (rad) | Upper (rad) | Effort (Nm) | Notes |
 |-------|----------|----------------|--------------|-------------|-------------|-------------|-------|
-| `right_shoulder_pitch` | RS03 | base_link → right_shoulder_pitch_link | Y | -0.9 | 3.25 | 60 | Soft `[-0.872665, 3.20]`; **upright hazard** when q > ~0.5 rad |
-| `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -0.05 | 3.14159 | 60 | Soft equals hard |
+| `right_shoulder_pitch` | RS03 | base_link → right_shoulder_pitch_link | Y | -1.43134 | 3.25 | 60 | Soft `[-0.872665, 3.20]`; **upright hazard** when q > ~0.5 rad |
+| `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -0.099415 | 3.22308 | 60 | Soft `[-0.05, 3.14159]` |
 | `right_upper_arm_yaw` | RS02 | roll → right_upper_arm_link | Z | -1.57 | 1.57 | 17 | Soft equals hard |
-| `right_elbow_pitch` | RS02 | upper_arm → right_forearm_link | Y | -0.50 | 1.2 | 17 | Soft `[-0.50, 1.15]`; **upright hazard** — verify G-comp sign |
-| `right_lower_arm_yaw` | RS00 | forearm → right_hand_link | Y | -1.6 | 1.6 | 17 | Soft `[-1.55, 1.55]`; CAN id **5** on `can0` |
+| `right_elbow_pitch` | RS02 | upper_arm → right_forearm_link | Y | -1.63191 | 1.60728 | 17 | Soft `[-0.50, 1.15]`; **upright hazard** — verify G-comp sign |
+| `right_lower_arm_yaw` | RS00 | forearm → right_hand_link | Y | -3.24409 | 3.24409 | 17 | Soft `[-1.55, 1.55]`; CAN id **5** on `can0`; in CAD the RS00 axis runs along the forearm (Z at q = 0) |
+
+Hard limits are the taught envelope from the Pi URDF on 2026-10-03 ([ADR 0017](../../docs/decisions/0017-bench-set-limits-urdf-expand.md)). Geometry from CAD: the roll axis crosses the pitch axis 73.5 mm outboard of the pitch output face; the elbow axis is 230.4 mm below that point; the RS00 output face is 99.7 mm below the elbow axis. The bench base frame has the arm's front at −X and outboard at +Y ([derivation](../../docs/commissioning/right-arm-urdf-from-cad-2026-10-03.md)).
 
 ---
 
