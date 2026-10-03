@@ -268,6 +268,34 @@ mod tests {
         assert!((b.soft_upper - 3.141593).abs() < 1e-6);
     }
 
+    /// The bench `robot.yaml` joint list must match the actuated joints of the
+    /// live bench URDF it points at. (The 23-joint `robot_humanoid.yaml`
+    /// template is future scope and intentionally does not match the 5-DOF
+    /// bench URDF, so it is not asserted here.)
+    #[test]
+    fn bench_robot_config_joints_match_bench_urdf() {
+        use marengo_config::{load_robot_config, resolve_repo_root, resolve_urdf_path};
+
+        let root = resolve_repo_root();
+        let robot = load_robot_config(&root).expect("robot.yaml");
+
+        let urdf_path = resolve_urdf_path(&root, &robot).expect("bench urdf");
+        let parsed = load_urdf(&urdf_path).expect("parse bench urdf");
+
+        let mut config_joints = robot.robot.joints;
+        config_joints.sort();
+
+        let mut urdf_joints = actuated_joint_names(&parsed);
+        urdf_joints.sort();
+
+        assert_eq!(
+            urdf_joints,
+            config_joints,
+            "actuated joints in {} must match config/robot.yaml",
+            urdf_path.display()
+        );
+    }
+
     fn robot_with_limit(joint_type: &str, limit: &str) -> urdf_rs::Robot {
         urdf_rs::read_from_string(&format!(
             r#"<robot name="t">

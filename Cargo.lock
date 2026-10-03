@@ -1538,8 +1538,11 @@ dependencies = [
 name = "marengo-limit-sync"
 version = "0.1.0"
 dependencies = [
+ "assert_cmd",
  "clap",
  "marengo-config",
+ "marengo-support",
+ "tracing",
 ]
 
 [[package]]

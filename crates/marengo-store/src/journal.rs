@@ -3,10 +3,8 @@
 #[cfg(target_os = "linux")]
 use std::process::Command;
 
-#[cfg(target_os = "linux")]
 use serde::Deserialize;
 
-#[cfg(target_os = "linux")]
 use crate::model::LogEventInsert;
 use crate::store::Store;
 use crate::Result;
@@ -34,7 +32,6 @@ pub fn import_journal(store: &Store, units: &[&str]) -> Result<u32> {
     }
 }
 
-#[cfg(target_os = "linux")]
 #[derive(Debug, Deserialize)]
 struct JournalEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
@@ -82,42 +79,10 @@ fn import_journal_linux(store: &Store, units: &[&str]) -> Result<u32> {
     let mut max_ts = since_ms;
 
     for line in String::from_utf8_lossy(&output.stdout).lines() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
+        if let Some((event, ts_ms)) = parse_journal_line(line, since_ms) {
+            max_ts = max_ts.max(ts_ms);
+            events.push(event);
         }
-        let entry: JournalEntry = match serde_json::from_str(line) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        let Some(us_raw) = entry.realtime_us else {
-            continue;
-        };
-        let Ok(us) = us_raw.parse::<u64>() else {
-            continue;
-        };
-        let ts_ms = us / 1000;
-        if ts_ms <= since_ms {
-            continue;
-        }
-        max_ts = max_ts.max(ts_ms);
-        let unit = entry
-            .systemd_unit
-            .as_deref()
-            .unwrap_or(entry.syslog_id.as_deref().unwrap_or("unknown"))
-            .trim_end_matches(".service");
-        let message = entry.message.unwrap_or_default();
-        if message.is_empty() {
-            continue;
-        }
-        events.push(LogEventInsert {
-            ts_ms,
-            level: journal_priority_level(entry.priority.as_deref()),
-            target: format!("systemd:{unit}"),
-            message,
-            session_id: None,
-            fields_json: None,
-        });
     }
 
     let count = events.len() as u32;
@@ -128,7 +93,7 @@ fn import_journal_linux(store: &Store, units: &[&str]) -> Result<u32> {
     Ok(count)
 }
 
-#[cfg(target_os = "linux")]
+/// Map a journal `PRIORITY` digit to a log level (pure; tested everywhere).
 fn journal_priority_level(priority: Option<&str>) -> String {
     match priority.and_then(|p| p.parse::<u8>().ok()) {
         Some(0..=3) => "error".into(),
@@ -139,15 +104,110 @@ fn journal_priority_level(priority: Option<&str>) -> String {
     }
 }
 
+/// Parse one `journalctl --output json` line into a log event newer than the
+/// stored cursor. Pure (no `journalctl`, no clock); tested on every platform.
+/// Returns the event and its millisecond timestamp.
+fn parse_journal_line(line: &str, since_ms: u64) -> Option<(LogEventInsert, u64)> {
+    let line = line.trim();
+    if line.is_empty() {
+        return None;
+    }
+    let entry: JournalEntry = serde_json::from_str(line).ok()?;
+    let us = entry.realtime_us?.parse::<u64>().ok()?;
+    let ts_ms = us / 1000;
+    if ts_ms <= since_ms {
+        return None;
+    }
+    let unit = entry
+        .systemd_unit
+        .as_deref()
+        .unwrap_or(entry.syslog_id.as_deref().unwrap_or("unknown"))
+        .trim_end_matches(".service");
+    let message = entry.message.unwrap_or_default();
+    if message.is_empty() {
+        return None;
+    }
+    Some((
+        LogEventInsert {
+            ts_ms,
+            level: journal_priority_level(entry.priority.as_deref()),
+            target: format!("systemd:{unit}"),
+            message,
+            session_id: None,
+            fields_json: None,
+        },
+        ts_ms,
+    ))
+}
+
 #[cfg(test)]
-#[cfg(target_os = "linux")]
 mod tests {
-    use super::journal_priority_level;
+    use super::{journal_priority_level, parse_journal_line};
 
     #[test]
     fn journal_priority_maps() {
         assert_eq!(journal_priority_level(Some("3")), "error");
         assert_eq!(journal_priority_level(Some("4")), "warn");
         assert_eq!(journal_priority_level(Some("6")), "info");
+    }
+
+    #[test]
+    fn parse_accepts_a_newer_event() {
+        let (event, ts) = parse_journal_line(
+            r#"{"__REALTIME_TIMESTAMP":"1700000000123456","MESSAGE":"tick ok","_SYSTEMD_UNIT":"marengo-pi.service","PRIORITY":"6"}"#,
+            1_700_000_000_000,
+        )
+        .expect("newer line parses");
+        assert_eq!(ts, 1_700_000_000_123);
+        assert_eq!(event.ts_ms, 1_700_000_000_123);
+        assert_eq!(event.level, "info");
+        assert_eq!(event.target, "systemd:marengo-pi");
+        assert_eq!(event.message, "tick ok");
+    }
+
+    #[test]
+    fn parse_drops_stale_same_ms_and_malformed_lines() {
+        // Same-ms entries never advance the cursor (import is cursor-ordered).
+        assert!(
+            parse_journal_line(
+                r#"{"__REALTIME_TIMESTAMP":"1700000000000000","MESSAGE":"dup","_SYSTEMD_UNIT":"marengo-pi.service","PRIORITY":"6"}"#,
+                1_700_000_000_000,
+            )
+            .is_none()
+        );
+        // An absent MESSAGE defaults to empty and is skipped, never stored
+        // as a blank row.
+        assert!(
+            parse_journal_line(
+                r#"{"__REALTIME_TIMESTAMP":"1700000000123456","_SYSTEMD_UNIT":"marengo-pi.service","PRIORITY":"3"}"#,
+                0,
+            )
+            .is_none()
+        );
+        assert!(parse_journal_line("not json", 0).is_none());
+        assert!(parse_journal_line("   ", 0).is_none());
+        assert!(parse_journal_line(
+            r#"{"MESSAGE":"no timestamp","_SYSTEMD_UNIT":"x.service"}"#,
+            0,
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn parse_falls_back_to_syslog_id_and_unknown_unit() {
+        let (event, _) = parse_journal_line(
+            r#"{"__REALTIME_TIMESTAMP":"1700000000123456","MESSAGE":"boot","SYSLOG_IDENTIFIER":"kernel","PRIORITY":"4"}"#,
+            0,
+        )
+        .expect("syslog fallback parses");
+        assert_eq!(event.target, "systemd:kernel");
+        assert_eq!(event.level, "warn");
+        let (event, _) = parse_journal_line(
+            r#"{"__REALTIME_TIMESTAMP":"1700000000123456","MESSAGE":"boot","PRIORITY":"2"}"#,
+            0,
+        )
+        .expect("unit fallback parses");
+        assert_eq!(event.target, "systemd:unknown");
+        assert_eq!(event.level, "error");
     }
 }
