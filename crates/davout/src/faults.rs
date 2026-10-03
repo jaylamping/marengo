@@ -252,11 +252,15 @@ pub(crate) struct FaultAuthority {
     first_failed_stop: Option<StopReport>,
 }
 
+/// Cap for an accumulated fault record message: dedupe keeps one record
+/// per (class, address), so distinct causes append here instead of
+/// spawning unbounded records.
+const MAX_FAULT_MESSAGE_LEN: usize = 1024;
+
 impl FaultAuthority {
     pub(crate) fn is_latched(&self) -> bool {
         !self.faults.is_empty()
     }
-
     pub(crate) fn first_fault(&self) -> Option<&FaultRecord> {
         self.faults.first()
     }
@@ -309,6 +313,18 @@ impl FaultAuthority {
         {
             existing.last_seen = now;
             existing.device.merge(&device);
+            // Dedupe keeps one record per (class, address), but later
+            // distinct causes must stay distinguishable: accumulate bounded
+            // message evidence instead of dropping it.
+            let incoming = bounded_message(message);
+            if !incoming.is_empty()
+                && !existing.message.contains(incoming.as_str())
+                && existing.message.len() < MAX_FAULT_MESSAGE_LEN
+            {
+                existing.message.push_str("; ");
+                existing.message.push_str(&incoming);
+                existing.message = bounded_message(&existing.message);
+            }
             return false;
         }
         let first = self.faults.is_empty();
@@ -379,4 +395,58 @@ impl FaultAuthority {
 
 pub(crate) fn bounded_message(message: &str) -> String {
     message.chars().take(512).collect()
+}
+
+#[cfg(test)]
+mod record_tests {
+    #![allow(clippy::expect_used)]
+    use super::*;
+    use robstride::MotorAddress;
+
+    fn address() -> MotorAddress {
+        MotorAddress::new("can0", 1)
+    }
+
+    #[test]
+    fn distinct_drive_state_causes_on_one_address_stay_distinguishable() {
+        let mut authority = FaultAuthority::default();
+        assert!(authority.record(
+            FaultClass::DriveState,
+            Some("joint".to_string()),
+            Some(address()),
+            "missing Enable echo",
+            DeviceFaultEvidence::default(),
+        ));
+        assert!(!authority.record(
+            FaultClass::DriveState,
+            Some("joint".to_string()),
+            Some(address()),
+            "missing Off echo",
+            DeviceFaultEvidence::default(),
+        ));
+        let snapshot = authority.snapshot(false);
+        assert_eq!(snapshot.faults.len(), 1);
+        let message = &snapshot.faults[0].message;
+        assert!(
+            message.contains("missing Enable echo") && message.contains("missing Off echo"),
+            "both causes must survive dedupe: {message}"
+        );
+    }
+
+    #[test]
+    fn repeated_same_cause_does_not_grow_the_message() {
+        let mut authority = FaultAuthority::default();
+        for _ in 0..10 {
+            authority.record(
+                FaultClass::DriveState,
+                Some("joint".to_string()),
+                Some(address()),
+                "missing Enable echo",
+                DeviceFaultEvidence::default(),
+            );
+        }
+        let snapshot = authority.snapshot(false);
+        assert_eq!(snapshot.faults.len(), 1);
+        assert_eq!(snapshot.faults[0].message, "missing Enable echo");
+    }
 }

@@ -574,8 +574,15 @@ impl<B: MotorBus> Supervisor<B> {
             .map_err(|_| ReferenceError::OutcomeExpired)?;
         Ok(match snapshot.phase {
             ReferenceCommitPhase::Pending => ReferenceOutcome::InProgress,
-            _ if snapshot.usable_reference => ReferenceOutcome::Current {
-                position_rad: stage.evidence_position_rad().unwrap_or(f32::NAN),
+            _ if snapshot.usable_reference => match stage.evidence_position_rad() {
+                Some(position_rad) if position_rad.is_finite() => {
+                    ReferenceOutcome::Current { position_rad }
+                }
+                // A usable reference without a finite evidence position is
+                // not a pose: report failure, never `pos=NaN` on stdout.
+                _ => ReferenceOutcome::Failed {
+                    message: "usable reference without finite evidence position".into(),
+                },
             },
             phase => ReferenceOutcome::Failed {
                 message: format!(
