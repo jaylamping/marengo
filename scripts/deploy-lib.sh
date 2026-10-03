@@ -415,8 +415,14 @@ compose_ssh_preflight() {
 # --- deploy revision (single writer: install-pi.sh → /opt/marengo/.deploy-rev) ---
 
 # Root install-pi runs git as root; without safe.directory git refuses /opt/marengo (owned by marengo).
+# Idempotent: every deploy/install calls this, and `--add` alone appends a duplicate each run.
 ensure_git_safe_directory() {
   local repo_root="$1"
+  local trusted
+  trusted="$(git config --global --get-all safe.directory 2>/dev/null || true)"
+  if grep -Fxq -- "$repo_root" <<<"$trusted"; then
+    return 0
+  fi
   git config --global --add safe.directory "$repo_root" 2>/dev/null || true
 }
 

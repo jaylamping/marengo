@@ -85,6 +85,18 @@ else
   fail=$((fail + 1))
 fi
 
+# --- safe.directory registration is idempotent (stage_deploy_rev already added ROOT) ---
+ensure_git_safe_directory "${ROOT}"
+ensure_git_safe_directory "${ROOT}"
+ROOT_TRUST_COUNT="$(git config --global --get-all safe.directory | grep -Fxc -- "${ROOT}" || true)"
+if [[ "$ROOT_TRUST_COUNT" == "1" ]]; then
+  echo "ok: ensure_git_safe_directory adds each path once"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ensure_git_safe_directory — expected 1 safe.directory entry for ${ROOT}, got ${ROOT_TRUST_COUNT}" >&2
+  fail=$((fail + 1))
+fi
+
 echo ""
 echo "deploy-rev.test: ${pass} passed, ${fail} failed"
 if [[ "$fail" -gt 0 ]]; then
