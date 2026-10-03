@@ -73,7 +73,7 @@ mod reference_journal_tests;
 mod test_support;
 
 pub use davout::ControlMode;
-pub use gain_runtime::{mode_allows_gain_override, GainOverride};
+pub use gain_runtime::{mode_allows_gain_override, GainOverride, GainShapeError};
 pub use position_hold::HoldFuseTrip;
 pub use r#loop::{
     proto_control_mode, ControlLoop, LoopError, TickPhaseAverages, ENABLE_COMPLETION_TIMEOUT,

@@ -21,7 +21,8 @@ use tracing::{debug, info};
 
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::gain_runtime::{
-    target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime, JointModeGains,
+    target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime, GainShapeError,
+    JointModeGains,
 };
 use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
@@ -91,6 +92,9 @@ pub enum LoopError {
     InvalidGainOverride { joint: String, field: &'static str },
     #[error("invalid nominal controller period {seconds} seconds")]
     InvalidLoopPeriod { seconds: f64 },
+    /// Internal invariant break: per-joint gain inputs were not parallel to the joint list.
+    #[error(transparent)]
+    GainShape(#[from] GainShapeError),
 }
 
 impl From<HoldError> for LoopError {
@@ -465,7 +469,7 @@ impl<B: MotorBus> ControlLoop<B> {
             last_enable_session: None,
             last_stop_generation: 0,
             active_feedback_grace_ticks: 0,
-            gains: GainRuntime::new(),
+            gains: GainRuntime::for_loop_hz(loop_hz),
             torque_cmds: TorqueCmdLatch::new(),
             position_wave: None,
         })
@@ -849,6 +853,12 @@ impl<B: MotorBus> ControlLoop<B> {
             let prev_targets = self.target_gains_for_mode(previous);
             self.gains
                 .wire_gains_now(previous, &self.joint_names, &prev_targets)
+                .unwrap_or_else(|error| {
+                    // Unreachable: targets are built from `joint_names`. Without ramp
+                    // startpoints the transition uses the YAML targets directly.
+                    tracing::error!(%error, "gain ramp startpoints unavailable; no ramp");
+                    Vec::new()
+                })
         };
         let to = self.target_gains_for_mode(mode);
         if mode != ControlMode::Position {
@@ -1096,6 +1106,7 @@ impl<B: MotorBus> ControlLoop<B> {
             if matches!(
                 error,
                 LoopError::Safety(_)
+                    | LoopError::GainShape(_)
                     | LoopError::MissingFeedback { .. }
                     | LoopError::AscentStall { .. }
                     | LoopError::HoldTracking { .. }
@@ -1206,7 +1217,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     let yaml = self.joint_mode_gains_yaml(&POSITION_DEFAULT_IMPEDANCE);
                     let resolved =
                         self.gains
-                            .resolve_all(self.control_mode, &self.joint_names, &yaml);
+                            .resolve_all(self.control_mode, &self.joint_names, &yaml)?;
                     let dq_meas: Vec<f64> = self
                         .joint_names
                         .iter()
@@ -1402,7 +1413,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     let yaml = self.joint_mode_gains_yaml(&ZERO_IMPEDANCE);
                     let resolved =
                         self.gains
-                            .resolve_all(self.control_mode, &self.joint_names, &yaml);
+                            .resolve_all(self.control_mode, &self.joint_names, &yaml)?;
                     let ff_joints: Vec<MitFfJointIn> = self
                         .joint_names
                         .iter()
