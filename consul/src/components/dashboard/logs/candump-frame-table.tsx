@@ -119,7 +119,7 @@ export const CandumpFrameTable = memo(function CandumpFrameTable({
                     <span className="truncate">{frame.can_id}</span>
                     <span className="truncate">{dash(frame.joint)}</span>
                     <span className="truncate">{dash(commLabel)}</span>
-                    <span className="truncate">{frame.data}</span>
+                    <span className="truncate">{frame.rtr ? 'RTR' : frame.data}</span>
                   </div>
                 );
               })}

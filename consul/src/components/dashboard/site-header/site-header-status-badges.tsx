@@ -25,11 +25,18 @@ type MachineState = {
   summary: string;
 };
 
-function resolveMachineState(
+/** Safety facts from `SafetyState` that outrank the operational mode. */
+export type MachineSafety = {
+  hardwareEstopAsserted: boolean;
+  faultLatched: boolean;
+};
+
+export function resolveMachineState(
   live: boolean,
   connected: boolean,
   operationalMode: string | null,
   gatewayError: string | null,
+  safety: MachineSafety | null = null,
 ): MachineState {
   if (!live) {
     return {
@@ -53,6 +60,23 @@ function resolveMachineState(
           textClassName: 'text-muted-foreground',
           summary: 'Endpoints configured; waiting for gateway telemetry.',
         };
+  }
+  if (safety?.hardwareEstopAsserted) {
+    return {
+      label: 'E-STOP',
+      ledClassName: 'led led-fault',
+      textClassName: 'text-fault',
+      summary: 'Hardware E-stop asserted (SafetyState) — every drive is commanded off.',
+    };
+  }
+  if (safety?.faultLatched) {
+    return {
+      label: 'FAULT LATCHED',
+      ledClassName: 'led led-fault',
+      textClassName: 'text-fault',
+      summary:
+        'Davout fault authority is latched — motion is refused until marengo-pi restarts.',
+    };
   }
   const mode = operationalMode ?? 'LIVE';
   if (mode === 'ACTIVE') {
@@ -157,6 +181,14 @@ function machineTooltipBody(machine: MachineState, errDetail: string | null) {
           <span className="font-mono text-foreground/90">ACTIVE</span> — motors
           enabled
         </li>
+        <li>
+          <span className="font-mono text-foreground/90">FAULT LATCHED</span> —
+          Davout refuses motion until restart
+        </li>
+        <li>
+          <span className="font-mono text-foreground/90">E-STOP</span> — hardware
+          E-stop asserted
+        </li>
       </ul>
     </div>
   );
@@ -197,6 +229,7 @@ export function SiteHeaderStatusBadges() {
   const connected = useRobotStore((s) => s.connected);
   const operationalMode = useRobotStore((s) => s.operationalMode);
   const gatewayError = useRobotStore((s) => s.gatewayError);
+  const safetyState = useRobotStore((s) => s.safetyState);
   const transportMode = useHostMetricsStore((s) => s.transportMode);
   const resolution = resolveChappeEndpoints();
   const live = resolution.endpoints !== null;
@@ -205,7 +238,18 @@ export function SiteHeaderStatusBadges() {
       ? chappeConnectionErrDetail(resolution, chappeMisconfigHint())
       : null;
 
-  const machine = resolveMachineState(live, connected, operationalMode, gatewayError);
+  const machine = resolveMachineState(
+    live,
+    connected,
+    operationalMode,
+    gatewayError,
+    safetyState
+      ? {
+          hardwareEstopAsserted: safetyState.hardwareEstopAsserted,
+          faultLatched: safetyState.softwareEstopLatched,
+        }
+      : null,
+  );
 
   return (
     <div className="flex items-center gap-2">

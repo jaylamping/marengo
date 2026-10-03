@@ -5,9 +5,8 @@ import type {
   JointActuatorLimit,
 } from '@/gen/marengo/v1/marengo_pb';
 import {
-  staticLimitsForJoint,
   toCanonicalBenchJoint,
-  type StaticJointLimits,
+  type JointCapLimits,
 } from '@/data/actuator-joints';
 
 export type ActuatorBootstrapStatus =
@@ -129,11 +128,11 @@ export type LiveJointEnvelope = {
   softUpperRad: number;
 };
 
-/** Live snapshot caps only — never fall back to static display limits for commands. */
+/** Live snapshot caps only; there is no static fallback (unknown, never guessed). */
 export function liveJointLimits(
   jointName: string,
   snapshot: ActuatorLimitSnapshot | null,
-): StaticJointLimits | null {
+): JointCapLimits | null {
   const live = findSnapshotLimit(snapshot, jointName);
   if (!live) {
     return null;
@@ -179,14 +178,6 @@ export function liveJointEnvelope(
     softLowerRad,
     softUpperRad,
   };
-}
-
-/** Display helper: live caps preferred, static reference only when snapshot missing. */
-export function resolveJointLimits(
-  jointName: string,
-  snapshot: ActuatorLimitSnapshot | null,
-): StaticJointLimits | null {
-  return liveJointLimits(jointName, snapshot) ?? staticLimitsForJoint(jointName);
 }
 
 export function jointLimitMax(
