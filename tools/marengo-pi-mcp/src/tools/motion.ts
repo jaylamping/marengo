@@ -4,7 +4,7 @@ import { BENCH_PROFILES, profileMeta } from "../bench-profiles.js";
 import { appendAudit } from "../audit.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { effectiveProfile, validateMotionConfirm } from "../safety.js";
-import { homingStatusShell } from "../homing-preflight.js";
+import { homingReportShell } from "../homing.js";
 import { renderRobotStateHoming } from "../robot-state.js";
 import {
   REFUSE_UNSETTLED_MARENGO_PI,
@@ -575,17 +575,12 @@ const motorRecoverSummaryShell = [
   'fi',
 ].join("\n");
 
-/** motor-repl set-zero (with verify) + homing-status readback. */
-function zeroActuatorRemoteBody(joint: string, verify: boolean): string {
-  const lines = [
+/** motor-repl set-zero (its own qualified SetZero + mechPos readback), then disable. */
+function zeroActuatorRemoteBody(joint: string): string {
+  return [
     `bin/motor-repl set-zero ${shellQuote(joint)} --sign-tested`,
-    "bin/motor-repl homing-status",
-  ];
-  lines.push("bin/motor-repl disable 2>/dev/null || true");
-  if (verify) {
-    lines.push("sleep 0.3", "bin/motor-repl homing-status");
-  }
-  return lines.join("\n");
+    "bin/motor-repl disable 2>/dev/null || true",
+  ].join("\n");
 }
 
 export function registerMotionTools(
@@ -702,8 +697,9 @@ export function registerMotionTools(
 
     pi_homing_status: {
       description:
-        "Read-only homing state per joint (motor-repl homing-status). No motion. " +
-        "While marengo-pi owns CAN, reports marengo-pi's RobotState homing via the gateway instead of opening CAN.",
+        "Read-only homing state per joint. Never opens CAN: while marengo-pi runs, its RobotState homing via " +
+        "the gateway; otherwise `no live marengo-pi session` plus the latest reference journal rows " +
+        "(grants are process-local, ADR 0036; a fresh motor-repl would always read Unhomed).",
       inputSchema: z.object({
         config_dir: z.string().optional(),
       }),
@@ -711,7 +707,7 @@ export function registerMotionTools(
         const configDir =
           benchConfigDirForJoint(cfg, undefined, args.config_dir) ??
           BENCH_CONFIG_MASTER;
-        const body = wrapRemoteWithConfig(cfg, homingStatusShell(), configDir);
+        const body = wrapRemoteWithConfig(cfg, homingReportShell(), configDir);
         return renderRobotStateHoming(await runRemote(body, 20_000));
       },
     },
@@ -719,7 +715,8 @@ export function registerMotionTools(
     pi_set_zero: {
       description:
         "Zero encoder at mechanical reference via motor-repl `set-zero <joint> --sign-tested` (CAN SetZero, " +
-        "qualified readback) and print homing-status. The reference grant ends when motor-repl exits: enabling " +
+        "qualified mechPos readback printed as `set-zero <joint> verified pos=`). The grant ends when motor-repl " +
+        "exits: enabling " +
         "still requires marengo-pi `home <joints> sign-tested` in the controlling session (pi_hold_on set_zero). " +
         "Position arm first; confirm: true. " +
         SOLE_CAN_OWNER_NOTE,
@@ -734,10 +731,6 @@ export function registerMotionTools(
           .describe(
             "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config)",
           ),
-        verify: z
-          .boolean()
-          .default(true)
-          .describe("Enable briefly and print status so feedback pos ≈ 0 is visible"),
       }),
       handler: async (args: {
         confirm: true;
@@ -745,21 +738,19 @@ export function registerMotionTools(
         profile?: BenchProfile;
         joint?: string;
         config_dir?: string;
-        verify?: boolean;
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
         const joint = args.joint ?? "right_shoulder_pitch";
-        const verify = args.verify ?? true;
         const configDir =
           benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
         const body = wrapRemoteWithConfig(
           cfg,
-          soleCanOwnerShell(zeroActuatorRemoteBody(joint, verify)),
+          soleCanOwnerShell(zeroActuatorRemoteBody(joint)),
           configDir,
         );
-        const out = await runRemote(body, (verify ? 45_000 : 30_000) + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_set_zero", { ...args, joint, verify }, out, 0);
+        const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
+        auditMotion("pi_set_zero", { ...args, joint }, out, 0);
         // Consul soft-invalidate is browser-local until a Chappe/gateway signal exists.
         return (
           `${out}\n\n` +

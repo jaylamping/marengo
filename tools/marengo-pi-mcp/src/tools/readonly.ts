@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
 import { unlessCanOwned } from "../can-owner.js";
-import { homingReportShell } from "../homing-preflight.js";
+import { homingReportShell } from "../homing.js";
 import { renderRobotStateHoming } from "../robot-state.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
@@ -13,7 +13,8 @@ export function registerReadonlyTools(
     pi_health: {
       description:
         "Pi health: CAN links, marengo-pi binary, deploy rev, homing/calibration, commissioned motors.yaml map. " +
-        "Never opens CAN: while marengo-pi owns the bus, homing comes from its RobotState via the gateway.",
+        "Never opens CAN: homing comes from a live marengo-pi's RobotState via the gateway, else the latest " +
+        "reference journal rows (grants are process-local, ADR 0036).",
       inputSchema: z.object({}),
       handler: async () => {
         const body = wrapRemote(

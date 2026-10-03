@@ -118,6 +118,15 @@ drains. `disable`, `quit` and E-stop cancel it (`failed: cancelled`). A plain
 journal. Its grant ends when the process exits, so it cannot prepare a later
 `marengo-pi enable`.
 
+**Checking homing.** Only the live `marengo-pi` knows its grants. A fresh
+`motor-repl homing-status` always reads `Unhomed` while its Supervisor still
+opens SocketCAN and sends type-24 frames, so no install, deploy or health path
+runs it. `pi_health` and `pi_homing_status` show the running `marengo-pi`'s
+RobotState via the gateway; with no `marengo-pi` they print `no live marengo-pi
+session: reference grants are process-local (ADR 0036)` and the latest journal
+rows (`scripts/reference-journal-tail.py`, SQLite read-only). Journal rows are
+history and grant nothing.
+
 **Journal path.** `MARENGO_REFERENCE_JOURNAL`, or else
 `reference-journal.sqlite3` next to the calibration record
 (`MARENGO_CALIBRATION_RECORD`, else `homing.yaml` `calibration_record_path`).

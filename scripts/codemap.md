@@ -10,7 +10,8 @@
 | `deploy-lib.sh` | Shared deploy helpers, host resolution, progress env |
 | `pi-remote.sh` | SSH wrapper for remote Pi commands |
 | `check.sh` | CI: fmt, clippy, test, deny |
-| `install-pi.sh` | Install staging tree to `/opt/marengo`; preserve local regular-file log aliases while refusing redirected code/data directories |
+| `install-pi.sh` | Install staging tree to `/opt/marengo`; preserve local regular-file log aliases while refusing redirected code/data directories. Never opens CAN: prints one line pointing at the in-process reference rule (ADR 0036) instead of a homing check |
+| `reference-journal-tail.py` | Read-only (`mode=ro`) summary of the latest physical reference journal rows; history only, never a grant. Used by MCP `pi_health` / `pi_homing_status` when no marengo-pi runs |
 | `vcan-setup.sh` | Virtual CAN for dev without hardware |
 | `daily-audit/` | Automated audit scripts |
 

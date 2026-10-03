@@ -60,7 +60,7 @@ Omitted **`config_dir`** always means the master `/opt/marengo/config`. Narrow a
 
 Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_marengo_pi_script`** (not `pi_motor_enable` alone).
 
-**Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`. Then **`pi_homing_status`**; all joints must be `Verified` before **`home`** / enable. `pi_hold_on` defaults `set_zero: false` — only set true when intentionally recalibrating.
+**Encoder zero (replaces Motor Studio):** grants are process-local (ADR 0036), so reference and enable in **one** marengo-pi session: position the arm at its mechanical reference → **`pi_hold_on`** / **`pi_bench_harness`** with `set_zero: true` + `at_mechanical_reference: true` (or `home <joints> sign-tested` in **`pi_marengo_pi_script`**). **`pi_set_zero`** checks SetZero and readback but its grant ends with motor-repl. **`pi_homing_status`** never opens CAN: live RobotState while marengo-pi runs, else `no live marengo-pi session` plus journal history. `pi_hold_on` defaults `set_zero: false` — only set true when intentionally recalibrating.
 
 **Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 15`** (default). Script `["home","enable bench","gravity-on"]` against the master config. Stay within the commissioned joint envelope during manual moves. Bump timeout only when the move needs it (e.g. gravity assist to arm-down: `timeout_sec: 60`).
 

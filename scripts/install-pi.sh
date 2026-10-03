@@ -231,7 +231,6 @@ else
   echo "warning: no Consul UI (consul/dist or www/index.html missing — run pi-native-build or cross deploy)" >&2
 fi
 chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
-chmod 755 "${INSTALL_ROOT}/scripts/homing-preflight.sh" 2>/dev/null || true
 
 if id "$DEPLOY_USER" &>/dev/null; then
   SUDOERS_PATH="/etc/sudoers.d/marengo-${DEPLOY_USER}"
@@ -372,18 +371,7 @@ if [[ -f "${INSTALL_ROOT}/bin/marengo-pi" ]]; then
 fi
 
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
-if [[ -x "${INSTALL_ROOT}/bin/motor-repl" ]] && [[ -x "${INSTALL_ROOT}/scripts/homing-preflight.sh" ]]; then
-  BENCH_CFG="${INSTALL_ROOT}/config"
-  if [[ -f /etc/marengo/env ]] && grep -q '^MARENGO_CONFIG_DIR=' /etc/marengo/env 2>/dev/null; then
-    BENCH_CFG="$(grep '^MARENGO_CONFIG_DIR=' /etc/marengo/env | tail -1 | cut -d= -f2- | tr -d "\"'")"
-    if [[ "$BENCH_CFG" != /* ]]; then
-      BENCH_CFG="${INSTALL_ROOT}/${BENCH_CFG}"
-    fi
-  fi
-  echo ""
-  MARENGO_ROOT="${INSTALL_ROOT}" MARENGO_CONFIG_DIR="${BENCH_CFG}" \
-    "${INSTALL_ROOT}/scripts/homing-preflight.sh" || true
-fi
+echo "Homing: reference grants live only inside the marengo-pi that acquired them (ADR 0036); run 'home <joints> sign-tested' in that session before enable — see docs/homing.md"
 echo "Next:"
 echo "  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)"
 echo "  2. Consul UI: https://marengo.local:8444 (gateway enabled on boot; accept self-signed cert once)"

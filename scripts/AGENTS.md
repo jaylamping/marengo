@@ -31,7 +31,7 @@ scripts/
 ├── setup-cloud-pi.sh         # Cloud VM: Tailscale + SSH to Pi
 ├── setup-mac-pi-cross.sh     # macOS aarch64 cross-compile setup
 ├── setup-wsl-pi-cross.sh     # WSL2 cross-compile setup
-├── homing-preflight.sh       # Pre-enable homing checks
+├── reference-journal-tail.py # Read-only latest reference journal rows (history, never a grant)
 ├── log-inventory.sh          # Bench log inventory
 ├── bench-log-archive.sh      # Archive bench sessions
 ├── bench-log-prune.sh        # Prune old bench logs
@@ -71,4 +71,4 @@ scripts/
 
 - Asking user to paste Pi logs when `pi-remote.sh` can fetch them.
 - Suppressing advisory refresh or registry-index failures to make a dependency check pass.
-- Skipping `homing-preflight.sh` before first enable on bench.
+- Running `motor-repl homing-status` (or any CAN-opening check) to decide whether the arm is homed: grants are process-local (ADR 0036), so a fresh process always reads Unhomed while its Supervisor still opens SocketCAN. Reference and enable inside one `marengo-pi` (`home <joints> sign-tested`, see `docs/homing.md`).
