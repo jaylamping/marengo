@@ -119,6 +119,11 @@ pub fn is_descent_return(q: f64, target: f64, min_span_rad: f64) -> bool {
 }
 
 /// One trapezoidal velocity step toward `q_target`.
+///
+/// Fails closed on invalid limits (config rejects them, so this is defence in
+/// depth): a `v_max` that is not finite and positive is treated as 0 (no cruise
+/// speed, never a reversal), and an `a_max` that is not finite and positive
+/// leaves the reference stationary at `q` with zero velocity.
 pub fn trapezoid_step(
     q: f64,
     v: f64,
@@ -127,12 +132,21 @@ pub fn trapezoid_step(
     a_max: f64,
     dt: f64,
 ) -> (f64, f64, TrapezoidPhase) {
+    let v_max = if v_max.is_finite() && v_max > 0.0 {
+        v_max
+    } else {
+        0.0
+    };
     let remaining = q_target - q;
     let dir = remaining.signum();
     let dist = remaining.abs();
 
     if dist <= POSITION_TOLERANCE_RAD {
         return (q_target, 0.0, TrapezoidPhase::Hold);
+    }
+    if !(a_max.is_finite() && a_max > 0.0) {
+        // Not at target (checked above), so never report Hold.
+        return (q, 0.0, TrapezoidPhase::Accelerate);
     }
 
     let v_along = v * dir;
@@ -435,5 +449,68 @@ mod tests {
     fn damping_no_spike_cap_when_crossed_target() {
         let tau = position_hold_damping_torque(0.12, 0.10, 1.25, 0.02, false);
         assert!((tau + 0.025).abs() < 1e-9);
+    }
+
+    /// Drive the planner `steps` ticks toward `target` from rest at `q0`; returns the
+    /// (q, v) trace.
+    fn run_from_rest(
+        q0: f64,
+        target: f64,
+        v_max: f64,
+        a_max: f64,
+        steps: usize,
+    ) -> Vec<(f64, f64)> {
+        let (mut q, mut v) = (q0, 0.0);
+        let mut trace = Vec::new();
+        for _ in 0..steps {
+            let (q_new, v_new, _) = trapezoid_step(q, v, target, v_max, a_max, 0.005);
+            q = q_new;
+            v = v_new;
+            trace.push((q, v));
+        }
+        trace
+    }
+
+    /// L-berthier-16: config rejects these (`positive` in safety_validation), but the
+    /// law itself must never reverse toward/away from the target or jump to `v_max`
+    /// when handed them (e.g. a future caller or an unvalidated cap).
+    #[test]
+    fn invalid_v_max_never_moves_the_reference_away_from_target() {
+        for v_max in [-0.3, -1e-12, f64::NEG_INFINITY, f64::NAN, f64::INFINITY] {
+            for (q0, target) in [(0.0, 1.0), (0.0, -1.0)] {
+                for (q, v) in run_from_rest(q0, target, v_max, 2.0, 200) {
+                    assert!(q.is_finite() && v.is_finite(), "v_max={v_max}");
+                    assert!(
+                        (q - q0) * (target - q0) >= 0.0,
+                        "v_max={v_max} moved away from {target}: q={q}"
+                    );
+                    assert!(
+                        v * (target - q0) >= 0.0,
+                        "v_max={v_max} reversed: v={v} toward {target}"
+                    );
+                    assert!(v.abs() < 1e-12, "no valid cruise speed means no motion");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_a_max_fails_closed_with_a_stationary_reference() {
+        for a_max in [0.0, -2.0, f64::NEG_INFINITY, f64::NAN, f64::INFINITY] {
+            for (q, v) in run_from_rest(0.2, 1.0, 0.5, a_max, 200) {
+                assert!(
+                    (q - 0.2).abs() < 1e-12 && v.abs() < 1e-12,
+                    "a_max={a_max}: q={q} v={v}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_a_max_stops_a_moving_reference_without_nan() {
+        for a_max in [0.0, -2.0, f64::NAN] {
+            let (q, v, _) = trapezoid_step(0.5, 0.4, 1.0, 0.8, a_max, 0.005);
+            assert!(q.is_finite() && v.abs() < 1e-12, "a_max={a_max}: {q} {v}");
+        }
     }
 }
