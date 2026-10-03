@@ -174,10 +174,12 @@ not enable. The firmware assumptions in ADR 0036 (SetZero accepted while
 enabled, in-order readback, persistence unknown) stay unqualified until this
 procedure passes on the bench.
 
-The fresh `motor-repl disable` path also requires full startup configuration
-and history loading; a corrupt resource can prevent it from reaching its stop
-writes. It is not a qualified emergency-stop mechanism. An accepted socket write
-or software Disabled state does not prove physical stop.
+`motor-repl disable` is independent of configuration and history loading: it
+needs only the drive addresses in `motors.yaml`, sends one Disable to each drive
+and reports every drive's outcome (exit 1 if any was not reached). It is still
+not a qualified emergency-stop mechanism. An accepted socket write or software
+Disabled state does not prove physical stop, and Disable does not clear a
+latched drive fault.
 
 Positive software tests use scripted buses with literal Robstride frames, and a
 closed in-memory simulator with an explicit initial virtual reference fixture.
