@@ -84,7 +84,14 @@ pub fn build_product_id_request() -> [u8; 2] {
 pub fn report_payload_length(report_id: u8) -> Option<usize> {
     match report_id {
         REPORT_ACCELEROMETER | REPORT_GYROSCOPE => Some(10),
+        // SH-2 vec3 sensor reports share the 10-byte layout (id, seq,
+        // status, delay, 3 x i16). They are skipped, never parsed: the
+        // driver only consumes the rotation vector.
+        0x03 | 0x04 | 0x06 => Some(10),
         REPORT_ROTATION_VECTOR => Some(12),
+        // Rotation-vector family: same stride question as 0x05 (CS18,
+        // unresolved). Skipped, never parsed.
+        0x08 | 0x09 => Some(12),
         REPORT_TIMESTAMP_REBASE | REPORT_BASE_TIMESTAMP => Some(5),
         0x14..=0x16 => Some(16), // raw accel / gyro / mag
         GET_FEATURE_RESPONSE => Some(17),
@@ -127,7 +134,8 @@ pub fn parse_rotation_vector(report: &[u8]) -> Option<(f64, f64, f64, f64, u8)> 
     if report.first().copied()? != REPORT_ROTATION_VECTOR || report.len() < 12 {
         return None;
     }
-    // report[1] is status (unused in default BNO085 mode)
+    // SH-2 input report layout: [id, seq, status, delay, payload...].
+    // report[2] bits 0-1 are the accuracy class.
     let accuracy = report[2];
     let i = i16::from_le_bytes([report[4], report[5]]) as f64 * Q_POINT_14_SCALAR;
     let j = i16::from_le_bytes([report[6], report[7]]) as f64 * Q_POINT_14_SCALAR;
@@ -246,5 +254,29 @@ mod tests {
         assert!(is_meta_report(REPORT_BASE_TIMESTAMP));
         assert!(is_meta_report(REPORT_TIMESTAMP_REBASE));
         assert!(!is_meta_report(REPORT_ROTATION_VECTOR));
+    }
+
+    #[test]
+    fn game_rotation_before_rotation_vector_no_longer_hides_it() {
+        // 0x08 (game rotation vector) enabled ahead of 0x05 must be
+        // skipped by stride, not abort the batch.
+        let mut data = vec![0u8; 24];
+        data[0] = 0x08;
+        data[12] = REPORT_ROTATION_VECTOR;
+        let slices = split_batch_reports(&data);
+        assert_eq!(slices.len(), 2);
+        assert_eq!(slices[0][0], 0x08);
+        assert_eq!(slices[1][0], REPORT_ROTATION_VECTOR);
+    }
+
+    #[test]
+    fn linear_accel_and_gravity_skip_by_stride() {
+        let mut data = vec![0u8; 20];
+        data[0] = 0x04;
+        data[10] = 0x06;
+        let slices = split_batch_reports(&data);
+        assert_eq!(slices.len(), 2);
+        assert_eq!(slices[0].len(), 10);
+        assert_eq!(slices[1].len(), 10);
     }
 }

@@ -28,6 +28,8 @@ export type CandumpFrameDto = {
   interface: string;
   can_id: string;
   data: string;
+  /** Remote transmission request: `data` is empty by definition. */
+  rtr?: boolean;
   line_no: number;
   timestamp_unix_us?: number;
   comm_type?: number;
@@ -74,6 +76,8 @@ export type CandumpSummaryDto = {
   approx_hz: number | null;
   interfaces: CandumpInterfaceSummaryDto[];
   top_ids: CandumpIdCountDto[];
+  /** At least one frame resolved a joint against motors.yaml. */
+  enriched?: boolean;
 };
 
 function statusToKind(status: number): LogErrorKind {

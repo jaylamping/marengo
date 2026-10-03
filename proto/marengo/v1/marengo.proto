@@ -35,6 +35,10 @@ message JointState {
   JointHomingState homing_state = 7;
   bool drive_active = 8;
   bool out_of_limits = 9;
+  // Milliseconds from the underlying RX sample to publication. Presence in
+  // RobotState means "heard recently" (free-drive TTL), not "grant live":
+  // consumers must use this age, not mere presence, for liveness.
+  uint64 sample_age_ms = 10;
 }
 
 message RobotState {
@@ -69,6 +73,10 @@ message ImuSample {
   double gyro_z_rad_s = 13;
   bool has_accel = 14;
   bool has_gyro = 15;
+  // Monotonic per driver session, incremented only on new sensor samples.
+  // Publishers emit only fresh samples; a repeated sequence (or a gap with no
+  // publication) means the sensor is silent, never "holding the last pose".
+  uint64 sample_seq = 16;
 }
 
 // --- Safety / enable (Spot-style surface, Marengo semantics) ---
@@ -98,6 +106,8 @@ message SafetyState {
   uint64 timestamp_ms = 1;
   OperationalMode mode = 2;
   bool hardware_estop_asserted = 3;
+  // Davout's retained fault authority is latched: motion is refused until a
+  // restart. `active_faults` may also carry a non-latched tick error.
   bool software_estop_latched = 4;
   repeated Fault active_faults = 5;
 }
@@ -255,6 +265,8 @@ message HostMetrics {
 
   uint64 log_disk_bytes = 30;
   uint64 log_disk_budget_bytes = 31;
+  // True for the non-Linux dev stub: every section is synthetic, never live data.
+  bool simulated = 32;
 }
 
 message BuildInfo {
@@ -268,6 +280,9 @@ message ChappeHealth {
   bool gateway_reachable = 2;
   uint64 last_publish_age_ms = 3;
   IpcQueueHealth ipc_queue = 4;
+  // Measured TCP-connect latency of the gateway HTTP probe that sets
+  // gateway_reachable. Absent when the probe fails: unknown, never zero.
+  optional double gateway_probe_latency_ms = 5;
 }
 
 // Runtime transport admission counters. Queued bytes exclude framing/object
@@ -286,6 +301,11 @@ message IpcQueueHealth {
   uint64 max_in_flight_payload_bytes = 11;
   // Failed frame attempts have uncertain delivery and are never replayed.
   uint64 write_failures_total = 12;
+  // State discarded unread past the age bound (a subset of dropped_total).
+  uint64 expired_total = 13;
+  // Admissions never queued (unknown topic, oversize payload, closed outbox):
+  // excluded from dropped_total, which counts transport-pressure loss only.
+  uint64 rejected_total = 14;
 }
 
 // Gateway-local IPC transition; receiving this retires prior producer facts.
@@ -335,6 +355,8 @@ message MemoryMetrics {
   uint64 cached_bytes = 5;
   uint64 swap_total_bytes = 6;
   uint64 swap_used_bytes = 7;
+  // False when /proc/meminfo was unreadable: byte counts are unknown, never zero.
+  bool meminfo_known = 8;
 }
 
 message LoadMetrics {
@@ -349,6 +371,8 @@ message ThermalMetrics {
   // Deprecated: never populated.
   double soc_celsius = 3 [deprecated = true];
   repeated ThermalZone zones = 4;
+  // False when no thermal zone was readable: cpu_celsius is unknown, never 0.
+  bool cpu_known = 5;
 }
 
 message ThermalZone {
@@ -382,6 +406,9 @@ message NetworkInterfaceMetrics {
   string can_state = 7;
   uint64 can_tx_error_count = 8;
   uint64 can_rx_error_count = 9;
+  // False for a first sample, a counter reset, or a stalled sampler:
+  // per-second rates are unknown, never zero.
+  bool rates_valid = 10;
 }
 
 message ServiceStatus {
@@ -401,6 +428,8 @@ message PiPlatformMetrics {
   uint32 sdram_freq_mhz = 6 [deprecated = true];
   uint32 gpu_freq_mhz = 7 [deprecated = true];
   double pmic_temp_celsius = 8;
+  // False when vcgencmd was unavailable: throttled_now/events unknown, never clear.
+  bool throttle_known = 9;
 }
 
 // Deprecated (B13 D-1): no Jetson producer; Jetson scaffolds removed. Kept compiling for wire compat, never delete.

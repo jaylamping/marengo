@@ -169,6 +169,7 @@ struct Accumulator {
     page_frames: Vec<Frame>,
     top_id_limit: u8,
     timestamp_mode: TimestampMode,
+    enriched: bool,
 }
 
 impl Accumulator {
@@ -185,6 +186,7 @@ impl Accumulator {
             page_frames: Vec::new(),
             top_id_limit: request.top_id_limit(),
             timestamp_mode: request.timestamp_mode(),
+            enriched: false,
         }
     }
 
@@ -266,16 +268,29 @@ impl Accumulator {
             let end = start.saturating_add(u64::from(page.limit()));
             frame_index >= start && frame_index < end
         });
+        // RTR frames are bus-state requests, not motor frames: the id names a
+        // request, not evidence, so they are never enriched.
+        let enrichment = if parsed.rtr {
+            None
+        } else {
+            enrich_frame(parsed.can_id, &parsed.data, &parsed.interface, enrichment)
+        };
+        // Result-side flag: at least one parsed frame (paged or not)
+        // resolved a joint name. Mode-alone would claim enrichment a catalog
+        // that matches nothing cannot deliver.
+        if enrichment.as_ref().is_some_and(|e| e.joint.is_some()) {
+            self.enriched = true;
+        }
         if !in_page && visit.is_none() {
             return Ok(());
         }
-        let enrichment = enrich_frame(parsed.can_id, &parsed.interface, enrichment);
         let frame = Frame {
             offset,
             unix_time,
             interface: parsed.interface,
             can_id: parsed.can_id,
             data: parsed.data,
+            rtr: parsed.rtr,
             source_line: line_no,
             enrichment,
         };
@@ -330,6 +345,7 @@ impl Accumulator {
                 approx_hz,
                 interfaces,
                 top_ids,
+                enriched: self.enriched,
             },
             frames: self.page_frames,
         }
@@ -341,6 +357,8 @@ struct ParsedFields {
     interface: String,
     can_id: CanId,
     data: Vec<u8>,
+    /// Remote transmission request: carries no data by definition.
+    rtr: bool,
 }
 
 fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
@@ -367,9 +385,18 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
     // Accept both can-utils wire shapes used on the bench:
     // - log (`-L`): `(ts) iface ID#HEX…`
     // - ASCII (default `candump -t z`): `(ts) iface ID [dlc] XX YY…`
+    //
+    // The ID field width is the standard/extended flag: can-utils prints
+    // extended IDs zero-padded to 8 digits (`000001FE`) and standard IDs
+    // unpadded (`1FE`). Inferring extended from the value mislabels
+    // extended IDs at or below 0x7FF.
     let id_part = parts[2];
+    // The `#` separates the ID from payload: measure the width on the ID
+    // field alone (`701#...` is a standard ID with data attached).
+    let id_hex_prefix = id_part.split('#').next().unwrap_or("");
+    let extended = id_hex_prefix.len() > 3;
     let mut declared_dlc = None;
-    let (id_hex, data_hex_owned) = if let Some((id, hex)) = id_part.split_once('#') {
+    let (id_hex, data_hex_owned, ascii_rtr) = if let Some((id, hex)) = id_part.split_once('#') {
         let mut data = hex.to_string();
         if parts.len() > 3 {
             if !data.is_empty() {
@@ -377,42 +404,57 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
             }
             data.push_str(&parts[3..].join(" "));
         }
-        (id, data)
+        (id, data, false)
     } else if parts.len() == 3 {
-        (id_part, String::new())
+        (id_part, String::new(), false)
     } else if is_ascii_dlc_token(parts[3]) {
         let count = parts[3][1..parts[3].len() - 1].parse::<usize>().ok()?;
         if count > MAX_CLASSIC_DLC {
             return None;
         }
         declared_dlc = Some(count);
-        (id_part, parts[4..].join(" "))
+        // ASCII RTR shape: `(ts) iface ID [dlc] remote request`.
+        let tail = &parts[4..];
+        if tail == ["remote", "request"] {
+            (id_part, String::new(), true)
+        } else {
+            (id_part, tail.join(" "), false)
+        }
     } else {
         return None;
     };
 
     let can_value = u32::from_str_radix(id_hex, 16).ok()?;
-    let can_id = CanId::new(can_value).ok()?;
+    let can_id = CanId::new(can_value, extended).ok()?;
 
     let data_hex: String = data_hex_owned
         .chars()
         .filter(|c| !c.is_ascii_whitespace())
         .collect();
-    if data_hex.len() % 2 != 0 {
+    // Log-format RTR shape: `ID#R` or `ID#R<len>` (remote request, no data).
+    let log_rtr = data_hex
+        .strip_prefix('R')
+        .is_some_and(|len| len.len() <= 1 && len.bytes().all(|b| (b'0'..=b'8').contains(&b)));
+    let rtr = ascii_rtr || log_rtr;
+    if !rtr && data_hex.len() % 2 != 0 {
         return None;
     }
-    let byte_len = data_hex.len() / 2;
-    if byte_len > MAX_CLASSIC_DLC || declared_dlc.is_some_and(|count| count != byte_len) {
+    let byte_len = if rtr { 0 } else { data_hex.len() / 2 };
+    // RTR frames name a requested length (`[8] remote request`), not a
+    // payload, so the declared-DLC agreement check applies to data only.
+    if byte_len > MAX_CLASSIC_DLC || (!rtr && declared_dlc.is_some_and(|count| count != byte_len)) {
         return None;
     }
     let mut data = Vec::with_capacity(byte_len);
-    let bytes = data_hex.as_bytes();
-    let mut i = 0;
-    while i + 1 < bytes.len() {
-        let hi = hex_nibble(bytes[i])?;
-        let lo = hex_nibble(bytes[i + 1])?;
-        data.push((hi << 4) | lo);
-        i += 2;
+    if !rtr {
+        let bytes = data_hex.as_bytes();
+        let mut i = 0;
+        while i + 1 < bytes.len() {
+            let hi = hex_nibble(bytes[i])?;
+            let lo = hex_nibble(bytes[i + 1])?;
+            data.push((hi << 4) | lo);
+            i += 2;
+        }
     }
 
     Some(ParsedFields {
@@ -420,6 +462,7 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
         interface,
         can_id,
         data,
+        rtr,
     })
 }
 
@@ -444,18 +487,20 @@ fn is_ascii_dlc_token(token: &str) -> bool {
 #[cfg(feature = "robstride-enrichment")]
 fn enrich_frame(
     can_id: CanId,
+    data: &[u8],
     interface: &str,
     enrichment: &EnrichmentMode,
 ) -> Option<FrameEnrichment> {
     match enrichment {
         EnrichmentMode::None => None,
-        EnrichmentMode::Robstride(catalog) => enrich_robstride(can_id, interface, catalog),
+        EnrichmentMode::Robstride(catalog) => enrich_robstride(can_id, data, interface, catalog),
     }
 }
 
 #[cfg(not(feature = "robstride-enrichment"))]
 fn enrich_frame(
     _can_id: CanId,
+    _data: &[u8],
     _interface: &str,
     _enrichment: &EnrichmentMode,
 ) -> Option<FrameEnrichment> {
@@ -465,16 +510,17 @@ fn enrich_frame(
 #[cfg(feature = "robstride-enrichment")]
 fn enrich_robstride(
     can_id: CanId,
+    data: &[u8],
     interface: &str,
     catalog: &MotorCatalog,
 ) -> Option<FrameEnrichment> {
-    if !can_id.is_extended() {
+    if !can_id.is_extended() || can_id.is_error() {
         return None;
     }
     let ext = robstride::comm::unpack_ext_id(can_id.get())?;
     let known = robstride::comm::CommunicationType::from_u8(ext.comm_type);
     let comm_type_name = known.map(|kind| kind.name().to_string());
-    let device_id = known.map(|kind| robstride::comm::inbound_motor_device_id(can_id.get(), kind));
+    let device_id = known.and_then(|kind| motor_device_id(can_id.get(), data, kind));
     let joint = device_id.and_then(|id| catalog.lookup(interface, id).map(str::to_string));
     Some(FrameEnrichment {
         comm_type: ext.comm_type,
@@ -482,4 +528,213 @@ fn enrich_robstride(
         device_id,
         joint,
     })
+}
+
+/// Motor id for a RobStride frame, decoded with the same direction rule as
+/// the receive path (`wire::classify_frame` with [`DEFAULT_HOST_ID`]): drive
+/// frames echo the host id in the low byte with the responder at bits 8-15,
+/// host frames carry the target in the low byte.
+///
+/// Returns `None` when the id bytes name no motor (reply markers, the host
+/// id on a truncated reply) so a joint is never attributed to the wrong
+/// motor. The bench standardises on [`DEFAULT_HOST_ID`]; captures from a
+/// custom host id attribute host-side frames only.
+#[cfg(feature = "robstride-enrichment")]
+fn motor_device_id(
+    can_id: u32,
+    payload: &[u8],
+    comm_type: robstride::comm::CommunicationType,
+) -> Option<u8> {
+    use robstride::comm::CommunicationType as T;
+    use robstride::{DEFAULT_HOST_ID, DEVICE_ID_REPLY_MARKER};
+    let low = (can_id & 0xFF) as u8;
+    let extra_low = ((can_id >> 8) & 0xFF) as u8;
+    match comm_type {
+        // Type-0 replies carry the marker in the low byte and the responder
+        // in extra_data; anything else is a request naming its target.
+        T::GetDeviceId => {
+            if low == DEVICE_ID_REPLY_MARKER {
+                robstride::decode_device_id_reply(can_id, payload).map(|reply| reply.device_id)
+            } else {
+                Some(low)
+            }
+        }
+        // Type-17 replies echo the host id in the low byte; requests name
+        // the target motor there.
+        T::ReadParameter => {
+            if low == DEFAULT_HOST_ID {
+                robstride::decode_read_parameter_reply(DEFAULT_HOST_ID, can_id, payload)
+                    .map(|reply| reply.device_id)
+            } else {
+                Some(low)
+            }
+        }
+        // Status/fault/report frames share the inbound layout; host-side
+        // commands reusing these type bytes name the target in the low byte.
+        T::OperationStatus | T::FaultReport | T::ActiveReporting => {
+            if low == DEFAULT_HOST_ID {
+                Some(extra_low)
+            } else {
+                Some(low)
+            }
+        }
+        _ => Some(low),
+    }
+}
+
+#[cfg(all(test, feature = "robstride-enrichment"))]
+#[allow(clippy::unwrap_used)]
+mod enrichment_tests {
+    use marengo_config::{MotorBenchLimits, MotorEntry, MotorType, MotorsConfigFile};
+
+    use super::*;
+    use crate::{Candump, FramePage, InspectRequest, TimestampMode};
+
+    fn catalog() -> MotorCatalog {
+        let motor = |joint: &str, device_id: u8| MotorEntry {
+            joint: joint.to_string(),
+            driver: "robstride".to_string(),
+            motor_type: MotorType::Rs02,
+            can_interface: "can0".to_string(),
+            device_id,
+            direction: 1,
+            gear_ratio: 1.0,
+            recv_can_id: 0,
+            firmware_version: "test".to_string(),
+            bench: MotorBenchLimits {
+                position_lower_rad: -1.0,
+                position_upper_rad: 1.0,
+                velocity_limit_rad_s: 1.0,
+                torque_limit_nm: 1.0,
+            },
+        };
+        MotorCatalog::try_from(&MotorsConfigFile {
+            motors: vec![motor("j1", 1), motor("j2", 2)],
+        })
+        .unwrap()
+    }
+
+    fn inspect_first(catalog: MotorCatalog, line: &str) -> Frame {
+        let bytes = format!("(0.000000) can0 {line}\n");
+        let page = FramePage::new(0, 10).unwrap();
+        let report = Candump::with_robstride(catalog)
+            .inspect_bytes(
+                bytes.as_bytes(),
+                InspectRequest::page(TimestampMode::Delta, page),
+            )
+            .unwrap();
+        assert_eq!(report.summary.parsed_frames, 1);
+        assert_eq!(report.frames.len(), 1);
+        report.frames.into_iter().next().unwrap()
+    }
+
+    fn joint_of(frame: &Frame) -> Option<&str> {
+        frame.enrichment.as_ref().and_then(|e| e.joint.as_deref())
+    }
+
+    #[test]
+    fn inbound_status_attributes_responder_not_host() {
+        // Bench wire shape: type 2, motor 1 at bits 8-15, host 0xFD low.
+        let frame = inspect_first(catalog(), "028001FD#0011223344556677");
+        assert_eq!(joint_of(&frame), Some("j1"));
+    }
+
+    #[test]
+    fn outbound_reporting_command_attributes_target() {
+        // Host-side type-24 On to motor 2 (SocketCAN echo): the old inbound
+        // decode read bits 8-15 (0xFD = 253, no joint).
+        let (id, payload) = robstride::encode_active_reporting(0xFD, 2, true);
+        let line = format!("{:08X}#{}", id, hex(&payload));
+        let frame = inspect_first(catalog(), &line);
+        assert_eq!(id, 0x1800_FD02);
+        assert_eq!(joint_of(&frame), Some("j2"));
+    }
+
+    #[test]
+    fn type0_reply_resolves_responder_via_marker() {
+        // Type-0 reply from motor 1: marker 0xFE low, responder in
+        // extra_data, 8-byte UID. Note the 8-digit width: value 0x1FE is
+        // extended on the wire despite fitting in 11 bits.
+        let frame = inspect_first(catalog(), "000001FE#0001020304050607");
+        assert_eq!(joint_of(&frame), Some("j1"));
+    }
+
+    #[test]
+    fn type0_request_names_target_in_low_byte() {
+        // Type-0 request to motor 2 (host 0xFD in extra_data): not a reply.
+        let frame = inspect_first(catalog(), "0000FD02#");
+        assert_eq!(joint_of(&frame), Some("j2"));
+    }
+
+    #[test]
+    fn type17_reply_resolves_responder_for_host() {
+        // Type-17 reply to host 0xFD: responder in extra_data. The old
+        // low-byte decode read 0xFD = 253 and resolved nothing.
+        let frame = inspect_first(catalog(), "110001FD#0011223344556677");
+        assert_eq!(joint_of(&frame), Some("j1"));
+    }
+
+    #[test]
+    fn type17_request_names_target_in_low_byte() {
+        let frame = inspect_first(catalog(), "11701902#");
+        let name = frame
+            .enrichment
+            .as_ref()
+            .and_then(|e| e.comm_type_name.clone());
+        assert_eq!(name.as_deref(), Some("read_parameter"));
+        assert_eq!(joint_of(&frame), Some("j2"));
+    }
+
+    #[test]
+    fn truncated_reply_shaped_frame_resolves_nothing() {
+        // Low byte names the host, but the short payload cannot confirm a
+        // reply: unknown, never motor 253's joint.
+        let frame = inspect_first(catalog(), "110001FD#AABBCC");
+        let enrichment = frame.enrichment.as_ref().unwrap();
+        assert_eq!(enrichment.comm_type_name.as_deref(), Some("read_parameter"));
+        assert_eq!(enrichment.device_id, None);
+        assert_eq!(joint_of(&frame), None);
+    }
+
+    #[test]
+    fn error_frame_with_catalog_stays_unenriched() {
+        // 0x20000004 would unpack as comm type 0: must not read as
+        // "get_device_id".
+        let frame = inspect_first(catalog(), "20000004#00000000");
+        assert!(frame.can_id.is_error());
+        assert!(frame.enrichment.is_none());
+    }
+
+    #[test]
+    fn rtr_with_catalog_stays_unenriched() {
+        let frame = inspect_first(catalog(), "028001FD#R");
+        assert!(frame.rtr);
+        assert!(frame.enrichment.is_none());
+    }
+
+    #[test]
+    fn summary_enriched_reflects_joint_resolution() {
+        let page = FramePage::new(0, 10).unwrap();
+        let request = || InspectRequest::page(TimestampMode::Delta, page);
+        let bytes = b"(0.000000) can0 028001FD#0011223344556677\n";
+        let matched = Candump::with_robstride(catalog())
+            .inspect_bytes(bytes, request())
+            .unwrap();
+        assert!(matched.summary.enriched);
+        let empty = Candump::with_robstride(
+            MotorCatalog::try_from(&MotorsConfigFile { motors: vec![] }).unwrap(),
+        )
+        .inspect_bytes(bytes, request())
+        .unwrap();
+        assert!(
+            !empty.summary.enriched,
+            "catalog matching nothing resolves no joints"
+        );
+        let plain = Candump::plain().inspect_bytes(bytes, request()).unwrap();
+        assert!(!plain.summary.enriched);
+    }
+
+    fn hex(bytes: &[u8]) -> String {
+        bytes.iter().map(|b| format!("{b:02X}")).collect()
+    }
 }

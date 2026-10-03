@@ -1,15 +1,18 @@
 use std::path::Path;
 
 use i2cdev::core::I2CDevice;
-use i2cdev::linux::LinuxI2CDevice;
+use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 
-use crate::bus::{BusError, I2cBus};
+use crate::bus::{errno_is_no_packet, BusError, I2cBus};
 
-fn io_is_no_packet(err: &impl std::fmt::Display) -> bool {
-    let msg = err.to_string();
-    msg.contains("Remote I/O error")
-        || msg.contains("No such device")
-        || msg.contains("Resource temporarily unavailable")
+/// `i2cdev` surfaces raw errnos: classify numerically, never by
+/// locale-dependent message text.
+fn err_is_no_packet(err: &LinuxI2CError) -> bool {
+    let code = match err {
+        LinuxI2CError::Errno(code) => Some(*code),
+        LinuxI2CError::Io(io) => io.raw_os_error(),
+    };
+    code.is_some_and(errno_is_no_packet)
 }
 
 /// Linux `/dev/i2c-*` backend using `i2cdev`.
@@ -36,7 +39,7 @@ impl I2cBus for LinuxI2cBus {
     fn read_header(&mut self) -> Result<[u8; 4], BusError> {
         let mut header = [0u8; 4];
         if let Err(err) = self.device.read(&mut header) {
-            if io_is_no_packet(&err) {
+            if err_is_no_packet(&err) {
                 return Err(BusError::NoPacket);
             }
             return Err(BusError::Io {
@@ -57,7 +60,7 @@ impl I2cBus for LinuxI2cBus {
             return Ok(());
         }
         if let Err(err) = self.device.read(&mut out[..total_len]) {
-            if io_is_no_packet(&err) {
+            if err_is_no_packet(&err) {
                 return Err(BusError::NoPacket);
             }
             return Err(BusError::Io {

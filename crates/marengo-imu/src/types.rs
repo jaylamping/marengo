@@ -19,6 +19,21 @@ impl Quaternion {
         }
         self
     }
+
+    /// Normalized quaternion, or `None` when the norm is zero: a zero-norm
+    /// report carries no orientation and must never be published as valid.
+    pub fn normalize_checked(mut self) -> Option<Self> {
+        let norm =
+            (self.i * self.i + self.j * self.j + self.k * self.k + self.real * self.real).sqrt();
+        if norm <= f64::EPSILON {
+            return None;
+        }
+        self.i /= norm;
+        self.j /= norm;
+        self.k /= norm;
+        self.real /= norm;
+        Some(self)
+    }
 }
 
 /// SH-2 accuracy nibble (0 = unreliable .. 3 = high).

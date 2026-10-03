@@ -215,6 +215,10 @@ pub struct JointFeedback {
     pub torque_nm: f64,
     pub temperature_c: f32,
     pub fault: u16,
+    /// Age of the underlying RX sample at read time. Presence in
+    /// `RobotState` means "heard within the free-drive TTL", not "grant
+    /// live": consumers must use this age, not mere presence, for liveness.
+    pub sample_age: Duration,
 }
 
 /// MIT command for one joint (after filtering).
@@ -781,6 +785,9 @@ impl<B: MotorBus> Supervisor<B> {
             // Compatibility indication only. Full independent vendor domains
             // remain available in safety_snapshot, including fault-only evidence.
             fault: state.fault | u16::from(self.fault_authority.joint_is_faulted(joint)),
+            // `published_state` already refused samples without RX time,
+            // so this age is always a real measurement, never a default.
+            sample_age: state.updated.map(|t| t.elapsed()).unwrap_or(Duration::MAX),
         })
     }
 

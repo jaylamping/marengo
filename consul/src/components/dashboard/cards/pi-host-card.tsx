@@ -7,6 +7,7 @@ import {
   dummyPiHostMetrics,
   type PiHostMetrics,
 } from '@/data/host-metrics';
+import type { HostMetrics } from '@/gen/marengo/v1/marengo_pb';
 import { isChappeLive } from '@/lib/chappe-config';
 import {
   computeRamUsagePercent,
@@ -30,36 +31,43 @@ import { useRobotStore } from '@/state/robotStore';
 import { formatUptime, bytesToGb } from '@/lib/host-card-utils';
 
 
-function livePiMetrics(
-  metrics: ReturnType<typeof useHostMetricsStore.getState>['piMetrics'],
-): PiHostMetrics | null {
+/**
+ * Map wire HostMetrics to card values. Unknown observations stay null: the
+ * `*_known` flags (and, for producers predating them, an impossible zero)
+ * mean "not measured", which must never render as a healthy zero.
+ */
+export function livePiMetrics(metrics: HostMetrics | null): PiHostMetrics | null {
   if (!metrics) {
     return null;
   }
   const cpu = metrics.cpu?.sampleValid ? metrics.cpu.usagePercent : undefined;
   const mem = metrics.memory;
-  const ramTotalGb = mem ? bytesToGb(mem.totalBytes) : 0;
-  const ramUsedGb = mem ? bytesToGb(mem.usedBytes) : 0;
+  const memKnown = mem !== undefined && (mem.meminfoKnown || mem.totalBytes > 0n);
+  const thermal = metrics.thermal;
+  const tempKnown =
+    thermal !== undefined && (thermal.cpuKnown || thermal.cpuCelsius !== 0);
+  const pi = metrics.platform.case === 'pi' ? metrics.platform.value : undefined;
   const rootDisk =
     metrics.disks?.find((disk) => disk.mountPoint === '/') ?? metrics.disks?.[0];
   const logBudget = metrics.logDiskBudgetBytes;
   return {
     hostname: metrics.hostname || 'marengo-pi',
     cpuPercent: cpu,
-    ramUsedGb,
-    ramTotalGb,
+    ramUsedGb: memKnown ? bytesToGb(mem.usedBytes) : null,
+    ramTotalGb: memKnown ? bytesToGb(mem.totalBytes) : null,
     diskUsedGb: rootDisk?.capacityKnown ? bytesToGb(rootDisk.usedBytes) : null,
     diskTotalGb: rootDisk?.capacityKnown ? bytesToGb(rootDisk.totalBytes) : null,
     logDiskUsedGb:
       metrics.logDiskBytes !== undefined ? bytesToGb(metrics.logDiskBytes) : null,
     logDiskBudgetGb:
       logBudget !== undefined && logBudget > 0n ? bytesToGb(logBudget) : null,
-    tempC: metrics.thermal?.cpuCelsius ?? 0,
+    tempC: tempKnown ? thermal.cpuCelsius : null,
     load1m: metrics.load?.load1m ?? 0,
     uptime: formatUptime(metrics.uptimeSec),
-    throttled:
-      (metrics.platform.case === 'pi' && metrics.platform.value.throttledNow) ||
-      (metrics.platform.case === 'pi' && metrics.platform.value.throttleEvents !== 0),
+    throttled: pi?.throttleKnown
+      ? pi.throttledNow || pi.throttleEvents !== 0
+      : null,
+    simulated: metrics.simulated,
   };
 }
 
@@ -93,15 +101,27 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
     note: metricsLoading ? 'Waiting for telemetry' : stale ? 'Metrics stale' : undefined,
   });
 
-  let badgeLabel = metricsLoading ? '…' : metrics?.throttled ? 'throttled' : 'healthy';
+  // Unknown throttle state is muted, never "healthy".
+  let badgeLabel = metricsLoading
+    ? '…'
+    : metrics?.throttled
+      ? 'throttled'
+      : metrics?.throttled === null
+        ? 'throttle ?'
+        : 'healthy';
   let badgeTone: 'healthy' | 'warning' | 'muted' = metrics?.throttled
     ? 'warning'
-    : 'healthy';
+    : metrics?.throttled === null
+      ? 'muted'
+      : 'healthy';
   if (!live) {
     const demo = demoBadge();
     badgeLabel = demo.label;
     badgeTone = demo.tone;
   } else if (metricsLoading) {
+    badgeTone = 'muted';
+  } else if (metrics?.simulated) {
+    badgeLabel = 'simulated';
     badgeTone = 'muted';
   } else if (warnCan || warnDisk || warnChappe) {
     badgeLabel = warnCan ? 'CAN' : warnChappe ? 'chappe' : 'disk';
@@ -109,7 +129,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
   } else if (warnClock) {
     badgeLabel = 'clock';
     badgeTone = 'muted';
-  } else if (live && connected && operationalMode) {
+  } else if (live && connected && operationalMode && metrics?.throttled !== null) {
     badgeLabel = operationalMode;
     badgeTone = 'healthy';
   }
@@ -135,15 +155,15 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
           <MetricItem
             label="RAM"
             value={
-              metrics
+              metrics?.ramUsedGb != null && metrics.ramTotalGb != null
                 ? formatRamUsage(metrics.ramUsedGb, metrics.ramTotalGb)
                 : placeholder
             }
             valueClassName="text-xs"
             usagePercent={
-              live && metrics
+              live && metrics?.ramUsedGb != null && metrics.ramTotalGb != null
                 ? computeRamUsagePercent(metrics.ramUsedGb, metrics.ramTotalGb)
-                : 0
+                : undefined
             }
           />
           <MetricItem
@@ -175,7 +195,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
           <MetricItem
             label="Temp"
             value={placeholder}
-            smoothValue={metrics?.tempC}
+            smoothValue={metrics?.tempC ?? undefined}
             formatSmoothValue={formatTempC}
           />
           <MetricItem
@@ -196,7 +216,13 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
               : placeholder
       }
       footerSecondary={
-        !live ? 'Not measured from Chappe' : stale ? 'Host metrics stale' : undefined
+        !live
+          ? 'Not measured from Chappe'
+          : metrics?.simulated
+            ? 'Dev-host stub · not live Pi data'
+            : stale
+              ? 'Host metrics stale'
+              : undefined
       }
     />
   );

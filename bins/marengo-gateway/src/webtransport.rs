@@ -414,6 +414,8 @@ pub fn spawn_demo_publisher(state: SharedState) {
                     homing_state: armee_proto::JointHomingState::Unhomed as i32,
                     drive_active: false,
                     out_of_limits: false,
+                    // Synthesized live each tick: age zero is true, not a default.
+                    sample_age_ms: 0,
                 }],
             };
             let safety = SafetyState {

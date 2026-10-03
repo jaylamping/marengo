@@ -18,11 +18,22 @@ const PRODUCT_ID_TIMEOUT: Duration = Duration::from_secs(5);
 const POST_RESET_DELAY: Duration = Duration::from_millis(1000);
 
 /// BNO085 driver over SHTP/I2C.
+///
+/// `poll` reports only samples that arrived since the previous `poll`: a
+/// silent sensor yields `Ok(None)`, never a re-stamped cached sample (CS17).
 pub struct Bno085<B: I2cBus> {
     bus: B,
     sequence: [u8; 6],
     enabled_features: Vec<u8>,
     last_rotation: Option<RotationVectorSample>,
+    /// A new rotation arrived since the last `poll`.
+    pending_rotation: bool,
+    /// Monotonic per driver instance, incremented on every new rotation
+    /// sample. Publishers expose it so consumers can tell a fresh sample
+    /// from a silent sensor.
+    sample_seq: u64,
+    /// Last inbound SHTP sequence per channel, for gap detection.
+    last_rx_seq: [Option<u8>; 6],
     id_verified: bool,
 }
 
@@ -33,14 +44,31 @@ impl<B: I2cBus> Bno085<B> {
             sequence: [0; 6],
             enabled_features: Vec::new(),
             last_rotation: None,
+            pending_rotation: false,
+            sample_seq: 0,
+            last_rx_seq: [None; 6],
             id_verified: false,
         }
     }
 
     pub fn initialize(&mut self) -> Result<(), ImuError> {
+        self.initialize_while(|| true)
+    }
+
+    /// `initialize` that consults `keep_going` between attempts and inside
+    /// the product-ID wait, so an owner can abort the worst-case ~22 s init
+    /// (absent sensor) instead of blocking shutdown on the publisher thread.
+    /// A cancelled init reports `Timeout`, like any other init failure, so
+    /// the session backoff path handles it.
+    pub fn initialize_while(&mut self, keep_going: impl Fn() -> bool) -> Result<(), ImuError> {
         for attempt in 0..3 {
+            if !keep_going() {
+                return Err(ImuError::Timeout {
+                    what: "imu init cancelled".to_string(),
+                });
+            }
             self.soft_reset()?;
-            match self.check_product_id() {
+            match self.check_product_id_while(&keep_going) {
                 Ok(()) => return Ok(()),
                 Err(err) if attempt < 2 => {
                     debug!(error = %err, attempt, "product id check failed, retrying");
@@ -77,9 +105,24 @@ impl<B: I2cBus> Bno085<B> {
         Err(ImuError::FeatureNotEnabled { feature_id })
     }
 
+    /// Drain newly arrived packets and report a rotation sample only when one
+    /// arrived since the previous `poll`. A silent sensor yields `Ok(None)`;
+    /// the cached sample is never re-stamped (CS17). Pair with
+    /// [`Self::sample_seq`] to detect silence across polls.
     pub fn poll(&mut self) -> Result<Option<RotationVectorSample>, ImuError> {
         self.process_available_packets(None)?;
-        Ok(self.last_rotation)
+        if self.pending_rotation {
+            self.pending_rotation = false;
+            Ok(self.last_rotation)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Monotonic count of new rotation samples on this driver instance.
+    /// Incremented only when a fresh, valid rotation report arrives.
+    pub fn sample_seq(&self) -> u64 {
+        self.sample_seq
     }
 
     pub fn last_rotation(&self) -> Option<RotationVectorSample> {
@@ -89,6 +132,10 @@ impl<B: I2cBus> Bno085<B> {
     fn soft_reset(&mut self) -> Result<(), ImuError> {
         self.sequence = [0; 6];
         self.enabled_features.clear();
+        self.last_rotation = None;
+        self.pending_rotation = false;
+        self.sample_seq = 0;
+        self.last_rx_seq = [None; 6];
         self.id_verified = false;
         self.send_packet(CHANNEL_EXE, &SOFT_RESET_PAYLOAD)?;
         std::thread::sleep(POST_RESET_DELAY);
@@ -100,7 +147,7 @@ impl<B: I2cBus> Bno085<B> {
         Ok(())
     }
 
-    fn check_product_id(&mut self) -> Result<(), ImuError> {
+    fn check_product_id_while(&mut self, keep_going: impl Fn() -> bool) -> Result<(), ImuError> {
         if self.id_verified {
             return Ok(());
         }
@@ -109,6 +156,11 @@ impl<B: I2cBus> Bno085<B> {
 
         let deadline = Instant::now() + PRODUCT_ID_TIMEOUT;
         while Instant::now() < deadline {
+            if !keep_going() {
+                return Err(ImuError::Timeout {
+                    what: "imu init cancelled".to_string(),
+                });
+            }
             self.process_available_packets(Some(20))?;
             if self.id_verified {
                 return Ok(());
@@ -140,6 +192,7 @@ impl<B: I2cBus> Bno085<B> {
     }
 
     fn handle_packet(&mut self, packet: ShtpPacket) -> Result<(), ImuError> {
+        self.observe_rx_sequence(packet.channel, packet.sequence);
         for report in packet.reports() {
             match report.first().copied() {
                 Some(SHTP_REPORT_PRODUCT_ID_RESPONSE) => {
@@ -165,10 +218,16 @@ impl<B: I2cBus> Bno085<B> {
                 continue;
             }
             if let Some((i, j, k, real, accuracy)) = parse_rotation_vector(report) {
+                let Some(quaternion) = Quaternion { i, j, k, real }.normalize_checked() else {
+                    debug!("dropping zero-norm rotation report");
+                    continue;
+                };
                 self.last_rotation = Some(RotationVectorSample {
-                    quaternion: Quaternion { i, j, k, real }.normalize(),
+                    quaternion,
                     accuracy: ImuAccuracy::from(accuracy),
                 });
+                self.pending_rotation = true;
+                self.sample_seq = self.sample_seq.wrapping_add(1);
             }
         }
         Ok(())
@@ -198,8 +257,29 @@ impl<B: I2cBus> Bno085<B> {
             .map_err(ImuError::from)?;
         Ok(Some(ShtpPacket {
             channel: buffer[2],
+            sequence: buffer[3],
             data: buffer[4..total].to_vec(),
         }))
+    }
+
+    /// Track the inbound per-channel SHTP sequence for gap detection.
+    /// Gaps and duplicates are diagnostics only (debug log); the driver has
+    /// no retransmission path, so it never acts on them.
+    fn observe_rx_sequence(&mut self, channel: u8, sequence: u8) {
+        let slot = usize::from(channel);
+        if slot >= self.last_rx_seq.len() {
+            return;
+        }
+        if let Some(previous) = self.last_rx_seq[slot] {
+            let expected = previous.wrapping_add(1);
+            if sequence != expected {
+                debug!(
+                    channel,
+                    previous, sequence, "SHTP sequence gap or duplicate on inbound channel"
+                );
+            }
+        }
+        self.last_rx_seq[slot] = Some(sequence);
     }
 
     fn send_packet(&mut self, channel: u8, payload: &[u8]) -> Result<(), ImuError> {
@@ -218,6 +298,7 @@ impl<B: I2cBus> Bno085<B> {
 
 struct ShtpPacket {
     channel: u8,
+    sequence: u8,
     data: Vec<u8>,
 }
 
@@ -258,6 +339,48 @@ mod tests {
         let len = build_outgoing_packet(CHANNEL_INPUT_SENSOR_REPORTS, 2, &report, &mut packet);
         packet.truncate(len);
         packet
+    }
+
+    #[test]
+    fn poll_reports_each_sample_once_then_silence() {
+        let mut bus = MockI2cBus::default();
+        bus.push_read_packet(&rotation_report_packet(0.5));
+
+        let mut driver = Bno085::new(bus);
+        driver.enabled_features.push(REPORT_ROTATION_VECTOR);
+        let first = driver.poll().expect("poll").expect("fresh sample");
+        assert!((first.quaternion.i - 1.0).abs() < 1e-3);
+        assert_eq!(driver.sample_seq(), 1);
+        // No new packet arrived: silence, not a re-stamped cached sample.
+        assert!(driver.poll().expect("poll").is_none());
+        assert_eq!(driver.sample_seq(), 1);
+    }
+
+    #[test]
+    fn zero_norm_rotation_is_dropped_not_published() {
+        let mut report = [0u8; 14];
+        report[0] = REPORT_ROTATION_VECTOR;
+        let mut packet = vec![0u8; 4 + 14];
+        let len = build_outgoing_packet(CHANNEL_INPUT_SENSOR_REPORTS, 2, &report, &mut packet);
+        packet.truncate(len);
+
+        let mut bus = MockI2cBus::default();
+        bus.push_read_packet(&packet);
+        let mut driver = Bno085::new(bus);
+        driver.enabled_features.push(REPORT_ROTATION_VECTOR);
+        assert!(driver.poll().expect("poll").is_none());
+        assert!(driver.last_rotation().is_none());
+        assert_eq!(driver.sample_seq(), 0);
+    }
+
+    #[test]
+    fn initialize_while_aborts_when_cancelled() {
+        let bus = MockI2cBus::default();
+        let mut driver = Bno085::new(bus);
+        let err = driver
+            .initialize_while(|| false)
+            .expect_err("cancelled init must fail");
+        assert!(matches!(err, ImuError::Timeout { .. }));
     }
 
     #[test]

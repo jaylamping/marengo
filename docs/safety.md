@@ -45,6 +45,11 @@ Read this before enabling motors on the bench or robot.
   changes revoke all grants. `zero_sta`/`add_offset` writes and type-22 saves
   are never sent.
 
+Consul's **Online** badge is not grant liveness. While not Active, `RobotState`
+keeps a joint for `FREE_DRIVE_FEEDBACK_TTL` (5 s) after its last sample, so a
+joint can read Online after its grant lapsed at `comm_watchdog_ms`. Each
+`JointState` carries `sample_age_ms`, the true age of that sample.
+
 Manual reference is the qualified commissioning workflow. Bench qualification is
 pending, and the three-Hall workflow is unimplemented. Home and enable in one
 `marengo-pi` process. The former separate CLI Set Zero → home → Pi enable
@@ -191,6 +196,7 @@ disables. The fault does not clear on its own.
 ## Known software gaps (see also [position-hold-control-review.md](position-hold-control-review.md))
 
 - **Hardware E-stop wiring:** `Supervisor::set_hardware_estop` exists but Pi GPIO/input is not yet connected at runtime. Treat physical E-stop as authoritative; do not assume software `Disabled` reflects the hardware line until wired.
+- **SafetyState semantics:** `software_estop_latched` mirrors Davout's retained fault authority only. A control-tick error that Davout does not latch is still listed in `active_faults`, and it is held until the next successful 25 Hz publication, so a one-tick error is never missed between publishes. Consul shows `E-STOP` / `FAULT LATCHED` in the header ahead of the operational mode.
 - **Danger zones:** Rules evaluate **measured** joint `q`/`dq` (not commanded MIT fields). Prefer `clamp_torque` when Berthier sends `kd_mit = 0` and velocity clamps alone cannot slow gravity-driven descent.
 - **RS03 MIT velocity scale (fixed 2026-10-03):** RS03 velocity is ±20 rad/s
   on the wire, not ±50 (manual §4.1.2, bench capture

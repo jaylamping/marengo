@@ -163,3 +163,28 @@ describe('interpretPostEnableWatch', () => {
     expect(result.kind).toBe('ok');
   });
 });
+
+describe('safety publication honesty (L-armee-proto-07)', () => {
+  it('names E-stop severity instead of rendering it as a plain fault', () => {
+    const estop = create(FaultSchema, {
+      code: 'runtime',
+      message: 'hardware estop',
+      severity: FaultSeverity.ESTOP,
+    });
+    expect(formatSafetyFaults([estop])).toMatch(/^E-STOP /);
+  });
+
+  it('reports an asserted hardware E-stop even with an empty fault list', () => {
+    const safetyState = create(SafetyStateSchema, {
+      mode: OperationalMode.DISABLED,
+      hardwareEstopAsserted: true,
+    });
+    const verdict = interpretPostEnableWatch({
+      elapsedMs: 100,
+      operationalMode: 'DISABLED',
+      safetyState,
+    });
+    expect(verdict.kind).toBe('error');
+    expect(verdict.message).toContain('E-stop');
+  });
+});

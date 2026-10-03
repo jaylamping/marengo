@@ -45,11 +45,12 @@ fn chappe_health_input(chappe: &Bus) -> ChappeHealthInput {
         .unwrap_or(0);
     let last = chappe.last_publish_ms();
     let ipc = chappe.ipc_queue_stats();
+    let gateway_probe = probe_gateway_health();
     ChappeHealthInput {
         ipc_connected: ipc.as_ref().is_some_and(|stats| stats.connected),
-        gateway_reachable: probe_gateway_health(),
+        gateway_reachable: gateway_probe.is_some(),
         last_publish_age_ms: now_ms.saturating_sub(last),
-        gateway_rtt_ms: 0.0,
+        gateway_probe_latency_ms: gateway_probe.map(|d| d.as_secs_f64() * 1000.0),
         ipc_queue: ipc.map(|stats| IpcQueueHealthInput {
             queued_items: stats.queued_items as u64,
             queued_payload_bytes: stats.queued_bytes as u64,
@@ -59,6 +60,8 @@ fn chappe_health_input(chappe: &Bus) -> ChappeHealthInput {
             accepted_total: stats.accepted,
             coalesced_total: stats.coalesced,
             dropped_total: stats.dropped,
+            expired_total: stats.expired,
+            rejected_total: stats.rejected,
             admitted_disconnected_total: stats.admitted_disconnected,
             max_payload_bytes: chappe::ipc::MAX_PAYLOAD_BYTES as u64,
             max_in_flight_payload_bytes: chappe::ipc::MAX_PAYLOAD_BYTES as u64,
@@ -67,7 +70,9 @@ fn chappe_health_input(chappe: &Bus) -> ChappeHealthInput {
     }
 }
 
-fn probe_gateway_health() -> bool {
+/// TCP-connect probe for the gateway HTTP port. Returns the measured
+/// connect latency, or `None` when unreachable: unknown, never zero.
+fn probe_gateway_health() -> Option<Duration> {
     let addr: SocketAddr = std::env::var("MARENGO_GATEWAY_HTTP")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -76,5 +81,7 @@ fn probe_gateway_health() -> bool {
                 .parse()
                 .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 8080)))
         });
-    TcpStream::connect_timeout(&addr, Duration::from_millis(200)).is_ok()
+    let start = Instant::now();
+    TcpStream::connect_timeout(&addr, Duration::from_millis(200)).ok()?;
+    Some(start.elapsed())
 }

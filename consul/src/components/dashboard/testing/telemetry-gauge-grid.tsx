@@ -16,30 +16,43 @@ import { compoundPresetById } from '@/data/compound-tests';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { liveJointEnvelope, useActuatorStore } from '@/state/actuatorStore';
 
-const GAIN_LIMITS: Record<
-  string,
-  {
-    kp_max: number;
-    kd_max: number;
-    tau_ff_max_nm: number;
-    velocity_max_rad_s: number;
-  }
-> = {
-  rs00: { kp_max: 500, kd_max: 5, tau_ff_max_nm: 17, velocity_max_rad_s: 50 },
-  rs02: { kp_max: 500, kd_max: 5, tau_ff_max_nm: 17, velocity_max_rad_s: 44 },
-  rs03: {
-    kp_max: 5000,
-    kd_max: 100,
-    tau_ff_max_nm: 60,
-    velocity_max_rad_s: 50,
-  },
-  rs04: {
-    kp_max: 5000,
-    kd_max: 100,
-    tau_ff_max_nm: 120,
-    velocity_max_rad_s: 15,
-  },
+type GaugeLimits = {
+  /** Absolute torque cap (Nm), or null when neither Davout nor config publishes one. */
+  torqueLimitNm: number | null;
+  /** Absolute velocity cap (rad/s), or null when unknown. */
+  velocityMaxRadS: number | null;
+  /** Hard position range (rad), or null when unknown. */
+  position: { lower: number; upper: number } | null;
 };
+
+/**
+ * Gauge limits come from the live Davout snapshot first, then the master
+ * config snapshot. There is no per-motor-type fallback table: an unknown cap
+ * renders as unknown, never as a plausible-looking wrong number.
+ */
+export function resolveGaugeLimits(input: {
+  live: { tauFfMaxNm: number; velocityMaxRadS: number } | null;
+  envelope: { hardLowerRad: number; hardUpperRad: number } | null;
+  benchTorqueNm: number | undefined;
+  benchPosition: { lower: number; upper: number } | undefined;
+  configVelocityMaxRadS: number | undefined;
+}): GaugeLimits {
+  const finite = (v: number | undefined): number | null =>
+    v !== undefined && Number.isFinite(v) && v > 0 ? v : null;
+  const position = input.envelope
+    ? { lower: input.envelope.hardLowerRad, upper: input.envelope.hardUpperRad }
+    : (input.benchPosition ?? null);
+  return {
+    torqueLimitNm: finite(input.live?.tauFfMaxNm) ?? finite(input.benchTorqueNm),
+    velocityMaxRadS:
+      finite(input.live?.velocityMaxRadS) ?? finite(input.configVelocityMaxRadS),
+    position:
+      position && Number.isFinite(position.lower) && Number.isFinite(position.upper)
+        && position.upper > position.lower
+        ? position
+        : null,
+  };
+}
 
 export function TelemetryGaugeGrid() {
   const robotState = useRobotStore((s) => s.robotState);
@@ -81,36 +94,27 @@ export function TelemetryGaugeGrid() {
         const controlLimit = config?.control_limits.find(
           (c) => c.joint === joint.name,
         );
-        const limits =
-          GAIN_LIMITS[motorConfig?.motor_type ?? 'rs03'] ?? GAIN_LIMITS.rs03;
         const liveCaps = limitSnapshot?.joints.find((j) => j.joint === joint.name);
-        const torqueLimit =
-          liveCaps?.tauFfMaxNm ??
-          motorConfig?.bench.torque_limit_nm ??
-          limits.tau_ff_max_nm;
-        const envelope = liveJointEnvelope(joint.name, limitSnapshot);
-        const posUpper =
-          envelope?.hardUpperRad ??
-          motorConfig?.bench.position_upper_rad ??
-          Math.PI;
-        const posLower =
-          envelope?.hardLowerRad ??
-          motorConfig?.bench.position_lower_rad ??
-          -Math.PI;
-        const velMax =
-          liveCaps?.velocityMaxRadS ??
-          controlLimit?.velocity_max_rad_s ??
-          limits.velocity_max_rad_s;
-
-        const posRange = posUpper - posLower;
-        const posPercent =
-          posRange > 0
-            ? Math.abs((joint.position - posLower) / posRange) * 100
-            : 0;
+        const limits = resolveGaugeLimits({
+          live: liveCaps ?? null,
+          envelope: liveJointEnvelope(joint.name, limitSnapshot),
+          benchTorqueNm: motorConfig?.bench.torque_limit_nm,
+          benchPosition: motorConfig
+            ? {
+                lower: motorConfig.bench.position_lower_rad,
+                upper: motorConfig.bench.position_upper_rad,
+              }
+            : undefined,
+          configVelocityMaxRadS: controlLimit?.velocity_max_rad_s,
+        });
+        const { torqueLimitNm, velocityMaxRadS, position } = limits;
+        const posPercent = position
+          ? Math.abs((joint.position - position.lower) / (position.upper - position.lower)) * 100
+          : null;
         const torquePercent =
-          torqueLimit > 0 ? Math.abs(joint.effort / torqueLimit) * 100 : 0;
+          torqueLimitNm === null ? null : Math.abs(joint.effort / torqueLimitNm) * 100;
         const velPercent =
-          velMax > 0 ? Math.abs(joint.velocity / velMax) * 100 : 0;
+          velocityMaxRadS === null ? null : Math.abs(joint.velocity / velocityMaxRadS) * 100;
 
         const badges = resolveActuatorCardBadges({
           operationalMode,
@@ -149,21 +153,25 @@ export function TelemetryGaugeGrid() {
                 value={joint.position}
                 percent={posPercent}
                 unit="rad"
-                limit={`${posLower.toFixed(2)} → ${posUpper.toFixed(2)}`}
+                limit={
+                  position
+                    ? `${position.lower.toFixed(2)} → ${position.upper.toFixed(2)}`
+                    : 'limit unknown'
+                }
               />
               <Gauge
                 label="Velocity"
                 value={joint.velocity}
                 percent={velPercent}
                 unit="rad/s"
-                limit={`±${velMax.toFixed(2)}`}
+                limit={velocityMaxRadS === null ? 'limit unknown' : `±${velocityMaxRadS.toFixed(2)}`}
               />
               <Gauge
                 label="Torque"
                 value={joint.effort}
                 percent={torquePercent}
                 unit="Nm"
-                limit={`±${torqueLimit.toFixed(2)}`}
+                limit={torqueLimitNm === null ? 'limit unknown' : `±${torqueLimitNm.toFixed(2)}`}
               />
               <div className="data-value text-xs text-muted-foreground">
                 TEMP{' '}
@@ -188,7 +196,8 @@ function Gauge({
 }: {
   label: string;
   value: number;
-  percent: number;
+  /** Null when the limit is unknown: the bar is hidden, never drawn at 0 %. */
+  percent: number | null;
   unit: string;
   limit: string;
 }) {
@@ -201,15 +210,19 @@ function Gauge({
           <span className="text-muted-foreground">/ {limit}</span>
         </span>
       </div>
-      <div className="h-1.5 rounded-sm bg-surface-3 overflow-hidden">
-        <div
-          className={cn(
-            'h-full transition-all',
-            percent > 90 ? 'bg-fault' : percent > 70 ? 'bg-warning' : 'bg-ok',
-          )}
-          style={{ width: `${Math.min(percent, 100)}%` }}
-        />
-      </div>
+      {percent === null ? (
+        <div className="h-1.5 rounded-sm bg-surface-3" data-testid="gauge-unknown" />
+      ) : (
+        <div className="h-1.5 rounded-sm bg-surface-3 overflow-hidden">
+          <div
+            className={cn(
+              'h-full transition-all',
+              percent > 90 ? 'bg-fault' : percent > 70 ? 'bg-warning' : 'bg-ok',
+            )}
+            style={{ width: `${Math.min(percent, 100)}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }

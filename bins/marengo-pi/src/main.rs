@@ -3,6 +3,7 @@
 mod enable_gate;
 #[cfg(test)]
 mod enable_gate_tests;
+#[cfg(target_os = "linux")]
 mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod imu;
@@ -453,6 +454,41 @@ fn stop_after_tick_error<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, error: &Lo
             );
             format!("{error}; stop after tick failure not delivered: {stop_error}")
         }
+    }
+}
+
+/// Tick errors seen since the last `SafetyState` publication. The control loop
+/// ticks at 200 Hz and publishes at `chappe_state_hz` (25 Hz), so an error
+/// that Davout does not latch would otherwise be published only when the
+/// failing tick happened to coincide with a publish (CS13 residual). The first
+/// error is retained until it is published; later ones are counted.
+#[derive(Debug, Default)]
+struct UnpublishedTickFault {
+    first: Option<String>,
+    more: u32,
+}
+
+impl UnpublishedTickFault {
+    fn record(&mut self, message: String) {
+        if self.first.is_none() {
+            self.first = Some(message);
+        } else {
+            self.more = self.more.saturating_add(1);
+        }
+    }
+
+    fn message(&self) -> Option<String> {
+        let first = self.first.as_ref()?;
+        Some(if self.more == 0 {
+            first.clone()
+        } else {
+            format!("{first} (+{} more tick errors)", self.more)
+        })
+    }
+
+    /// Called only after a successful publication.
+    fn clear(&mut self) {
+        *self = Self::default();
     }
 }
 
@@ -1001,7 +1037,10 @@ fn publish_safety<B: MotorBus>(
         timestamp_ms: timestamp_ms(),
         mode: proto_operational_mode(supervisor.mode()),
         hardware_estop_asserted: snapshot.hardware_estop_asserted,
-        software_estop_latched: !faults.is_empty(),
+        // Davout's retained fault authority (motion refused until restart).
+        // A transient tick error is listed in `active_faults` but is not a
+        // latch, so it never sets this flag.
+        software_estop_latched: snapshot.is_latched(),
         active_faults: faults,
     };
     chappe.publish(TOPIC_SAFETY, "marengo-pi", "marengo.v1.SafetyState", &state)
@@ -1353,6 +1392,11 @@ fn main() {
         env::set_var("MARENGO_CONFIG_DIR", dir);
     }
     let config_dir = resolve_config_dir(&root);
+    // Install the subscriber before any config load or Davout construction so
+    // startup events (e.g. the joint-subset info line, SocketCAN open) reach
+    // the journal and Chappe instead of being dropped.
+    let chappe = Arc::new(Bus::default());
+    chappe::tracing_layer::init_subscriber(Some(Arc::clone(&chappe)), "marengo-pi");
 
     let control = match load_control_config(&root) {
         Ok(c) => c,
@@ -1417,8 +1461,6 @@ fn main() {
         }
     };
 
-    let chappe = Arc::new(Bus::default());
-    chappe::tracing_layer::init_subscriber(Some(Arc::clone(&chappe)), "marengo-pi");
     #[cfg(unix)]
     match resolve_chappe_socket(std::env::var_os("MARENGO_CHAPPE_SOCKET")) {
         Some(socket_path) => {
@@ -1694,7 +1736,7 @@ fn run_control_loop<B: MotorBus>(
     let chappe_period = Duration::from_secs_f64(1.0 / f64::from(runtime.chappe_state_hz.max(1)));
     let mut last_chappe = Instant::now();
     let mut last_heartbeat = Instant::now();
-    let mut active_fault: Option<String>;
+    let mut unpublished_fault = UnpublishedTickFault::default();
     let mut timing = LoopTimingWindow::new(loop_ctrl.tick_count());
     let mut reference_queue = PiReferenceQueue::new(format!("marengo-pi-{}", std::process::id()));
     let mut enable_gate = EnableGate::default();
@@ -1781,10 +1823,9 @@ fn run_control_loop<B: MotorBus>(
             break;
         }
 
-        active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
-            Ok(()) => None,
-            Err(e) => Some(stop_after_tick_error(loop_ctrl, &e)),
-        };
+        if let Err(e) = loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
+            unpublished_fault.record(stop_after_tick_error(loop_ctrl, &e));
+        }
         emit_reference_events(reference_queue.pump(loop_ctrl.supervisor_mut()));
         // After the tick: report a completed (or refused) Enable, then retry
         // deferred Position-mode arms.
@@ -1805,12 +1846,13 @@ fn run_control_loop<B: MotorBus>(
         let now = Instant::now();
         if now.duration_since(last_chappe) >= chappe_period {
             // A healthy Disabled tick cannot clear the authority retained by Davout.
-            if let Err(e) = publish_safety(
+            match publish_safety(
                 runtime.chappe.as_ref(),
                 loop_ctrl.supervisor(),
-                active_fault.as_deref(),
+                unpublished_fault.message().as_deref(),
             ) {
-                warn!(error = %e, "failed to publish SafetyState");
+                Ok(()) => unpublished_fault.clear(),
+                Err(e) => warn!(error = %e, "failed to publish SafetyState"),
             }
             if let Err(e) = runtime.actuator_overlay.maybe_publish_limits(
                 loop_ctrl.supervisor(),

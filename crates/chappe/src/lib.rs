@@ -198,6 +198,7 @@ mod tests {
                     homing_state: 0,
                     drive_active: false,
                     out_of_limits: false,
+                    sample_age_ms: 0,
                 }],
             },
         )

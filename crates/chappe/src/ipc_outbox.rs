@@ -24,6 +24,11 @@ pub enum ForwardOutcome {
 }
 
 /// Queue counters describe transport admission, not delivery or physical safety.
+///
+/// `dropped` counts transport-pressure loss only (lock contention, event
+/// overflow, expiry past the age bound). Admissions never queued (unknown
+/// topic, oversize payload, closed outbox) count as `rejected`, never as
+/// dropped, so Consul command traffic cannot inflate the loss counter.
 #[derive(Debug, Clone, Default)]
 pub struct IpcQueueStats {
     pub connected: bool,
@@ -33,6 +38,11 @@ pub struct IpcQueueStats {
     pub accepted: u64,
     pub coalesced: u64,
     pub dropped: u64,
+    /// State discarded unread past the age bound (a subset of `dropped`).
+    pub expired: u64,
+    /// Admissions never queued (unknown topic, oversize payload, closed
+    /// outbox). Excluded from `dropped`.
+    pub rejected: u64,
     pub admitted_disconnected: u64,
     pub write_failures: u64,
 }
@@ -59,6 +69,8 @@ pub(crate) struct Outbox {
     accepted: AtomicU64,
     coalesced: AtomicU64,
     dropped: AtomicU64,
+    expired: AtomicU64,
+    rejected: AtomicU64,
     disconnected: AtomicU64,
     write_failures: AtomicU64,
     connection_changes: tokio::sync::broadcast::Sender<bool>,
@@ -84,6 +96,8 @@ impl Outbox {
             accepted: AtomicU64::new(0),
             coalesced: AtomicU64::new(0),
             dropped: AtomicU64::new(0),
+            expired: AtomicU64::new(0),
+            rejected: AtomicU64::new(0),
             disconnected: AtomicU64::new(0),
             write_failures: AtomicU64::new(0),
             connection_changes: tokio::sync::broadcast::channel(16).0,
@@ -141,7 +155,7 @@ impl Outbox {
             || payload.len() > MAX_PAYLOAD_BYTES
             || (latest_index.is_none() && event_index.is_none())
         {
-            return self.drop_publication();
+            return self.reject_publication();
         }
         before_lock();
         let mut queue = match self.queue.try_lock() {
@@ -150,7 +164,7 @@ impl Outbox {
             Err(TryLockError::WouldBlock) => return self.drop_publication(),
         };
         if self.closed() {
-            return self.drop_publication();
+            return self.reject_publication();
         }
         let outcome = if let Some(index) = latest_index {
             let replaced = queue.latest[index].is_some();
@@ -199,6 +213,13 @@ impl Outbox {
         ForwardOutcome::Dropped
     }
 
+    /// Admissions never queued (unknown topic, oversize payload, closed
+    /// outbox): counted separately so transport-pressure loss stays honest.
+    fn reject_publication(&self) -> ForwardOutcome {
+        self.rejected.fetch_add(1, Ordering::Relaxed);
+        ForwardOutcome::Dropped
+    }
+
     pub fn next(&self) -> Option<Publication> {
         let mut queue = self.queue.lock().unwrap_or_else(|error| error.into_inner());
         loop {
@@ -217,6 +238,10 @@ impl Outbox {
                     if (self.clock)().saturating_duration_since(state.admitted) <= STATE_MAX_AGE {
                         return Some(state);
                     }
+                    // Expired state is transport-pressure loss (a subset of
+                    // dropped) with its own counter so the gateway can tell
+                    // "expired" from "never sent".
+                    self.expired.fetch_add(1, Ordering::Relaxed);
                     self.dropped.fetch_add(1, Ordering::Relaxed);
                 }
             }
@@ -249,6 +274,8 @@ impl Outbox {
             accepted: self.accepted.load(Ordering::Relaxed),
             coalesced: self.coalesced.load(Ordering::Relaxed),
             dropped: self.dropped.load(Ordering::Relaxed),
+            expired: self.expired.load(Ordering::Relaxed),
+            rejected: self.rejected.load(Ordering::Relaxed),
             admitted_disconnected: self.disconnected.load(Ordering::Relaxed),
             write_failures: self.write_failures.load(Ordering::Relaxed),
         }
@@ -284,6 +311,47 @@ mod shutdown_admission_tests {
         );
         assert_eq!(outbox.stats().queued_items, 0);
         assert_eq!(outbox.stats().accepted, 0);
+        // Closed admission never queued: rejected, not dropped.
+        assert_eq!(outbox.stats().rejected, 1);
+        assert_eq!(outbox.stats().dropped, 0);
+    }
+
+    #[test]
+    fn unknown_topic_and_oversize_are_rejected_not_dropped() {
+        let outbox = Outbox::new();
+        assert_eq!(
+            outbox.admit("robot/testing/mit_command_batch", &[1]),
+            ForwardOutcome::Dropped
+        );
+        assert_eq!(
+            outbox.admit("robot/state", &vec![0u8; MAX_PAYLOAD_BYTES + 1]),
+            ForwardOutcome::Dropped
+        );
+        let stats = outbox.stats();
+        assert_eq!(stats.rejected, 2);
+        assert_eq!(stats.dropped, 0);
+        assert_eq!(stats.accepted, 0);
+    }
+
+    #[test]
+    fn expired_state_counts_expired_inside_dropped() {
+        use std::sync::Mutex;
+        let now = Arc::new(Mutex::new(Instant::now()));
+        let clock = Arc::clone(&now);
+        let outbox = Outbox::new_with_clock(Arc::new(move || *clock.lock().expect("fake clock")));
+        outbox.set_connected(true);
+        assert_eq!(outbox.admit("robot/state", &[1]), ForwardOutcome::Accepted);
+        *now.lock().expect("fake clock") += Duration::from_secs(2);
+        assert_eq!(
+            outbox.admit("logs/structured", &[2]),
+            ForwardOutcome::Accepted
+        );
+        let publication = outbox.next();
+        assert_eq!(publication.map(|p| p.topic), Some("logs/structured"));
+        let stats = outbox.stats();
+        assert_eq!(stats.expired, 1);
+        assert_eq!(stats.dropped, 1);
+        assert_eq!(stats.rejected, 0);
     }
 }
 

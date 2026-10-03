@@ -1,8 +1,9 @@
-import type {
-  ActuatorLimitSnapshot,
-  Fault,
-  RobotState,
-  SafetyState,
+import {
+  FaultSeverity,
+  type ActuatorLimitSnapshot,
+  type Fault,
+  type RobotState,
+  type SafetyState,
 } from '@/gen/marengo/v1/marengo_pb';
 import type { ConfigSnapshotDto } from '@/lib/config-api';
 import type { OperationalModeLabel } from '@/state/robotStore';
@@ -12,9 +13,15 @@ export function formatSafetyFaults(faults: Fault[]): string {
   if (faults.length === 0) return '';
   return faults
     .map((f) => {
+      const severity =
+        f.severity === FaultSeverity.ESTOP
+          ? 'E-STOP '
+          : f.severity === FaultSeverity.WARNING
+            ? 'warning '
+            : '';
       const joint = f.joint?.trim() ? `${f.joint}: ` : '';
       const code = f.code?.trim() ? `[${f.code}] ` : '';
-      return `${joint}${code}${f.message || 'fault'}`.trim();
+      return `${severity}${joint}${code}${f.message || 'fault'}`.trim();
     })
     .join(' · ');
 }
@@ -120,6 +127,13 @@ export function interpretPostEnableWatch(args: {
   config?: ConfigSnapshotDto | null;
   limitSnapshot?: ActuatorLimitSnapshot | null;
 }): { done: boolean; message: string | null; kind: 'ok' | 'error' | 'pending' } {
+  if (args.safetyState?.hardwareEstopAsserted) {
+    return {
+      done: true,
+      kind: 'error',
+      message: 'Enable refused — hardware E-stop asserted.',
+    };
+  }
   const faults = args.safetyState?.activeFaults ?? [];
   if (faults.length > 0) {
     return {

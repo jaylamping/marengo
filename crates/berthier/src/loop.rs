@@ -1735,6 +1735,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     homing_state,
                     drive_active,
                     out_of_limits,
+                    sample_age_ms: state.sample_age.as_millis().min(u128::from(u64::MAX)) as u64,
                 })
             })
             .collect();
