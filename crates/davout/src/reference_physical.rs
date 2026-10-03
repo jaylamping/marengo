@@ -15,7 +15,7 @@ use robstride::{
 use rustc_hash::FxHashMap;
 
 /// Upper bound for the type-0 identity round trip at each Enable admission,
-/// from the first request. A Robstride drive transmits nothing for 45-61 ms
+/// from the first request (plus two [`IDENTITY_ADMISSION_SPACING`] per further target). A Robstride drive transmits nothing for 45-61 ms
 /// starting 511-614 ms after a SetZero, and never answers a type-0 request it
 /// received meanwhile (firmware 0.3.1.42, 124 measured blackouts; profile
 /// `docs/commissioning/firmware/robstride-timing-profile.json`, replies
@@ -27,6 +27,10 @@ pub const IDENTITY_ADMISSION_TIMEOUT: Duration = Duration::from_millis(100);
 /// A target that has not answered yet is asked again this often: a request
 /// that reached a drive inside its post-SetZero blackout is never answered.
 pub const IDENTITY_ADMISSION_RETRY: Duration = Duration::from_millis(10);
+/// Admission requests to different targets leave this far apart, one per
+/// interface-group spacing, so their replies cannot overrun the controller's
+/// two receive buffers. The deadline grows by two spacings per extra target.
+pub const IDENTITY_ADMISSION_SPACING: Duration = crate::burst::BURST_GROUP_SPACING;
 /// One identity admission poll; replies normally arrive within a millisecond.
 pub(crate) const IDENTITY_ADMISSION_POLL: Duration = Duration::from_millis(5);
 /// Retained replies per kind. A request only accepts replies popped after it.
@@ -69,6 +73,11 @@ struct Device {
     uid: Option<DeviceUid>,
     last_seen: Option<Instant>,
     last_position_rad: Option<f64>,
+    /// Silence before this instant is the host's doing, not the drive's: the
+    /// host withheld a frame the drive needs to speak (a type-24 On it kept out
+    /// of the post-SetZero blackout) or the drive has not yet had the chance to
+    /// answer one (an Enable whose echo was just read). Monotonic.
+    silence_counts_from: Option<Instant>,
 }
 
 #[derive(Debug, Clone)]
@@ -118,6 +127,7 @@ impl PhysicalDevices {
                             uid: None,
                             last_seen: None,
                             last_position_rad: None,
+                            silence_counts_from: None,
                         },
                     )
                 })
@@ -134,6 +144,16 @@ impl PhysicalDevices {
     /// Owner reference work suspends reporting; liveness restarts from its end.
     pub(crate) fn mark_owner_work(&mut self, now: Instant) {
         self.last_owner_work = Some(self.last_owner_work.map_or(now, |last| last.max(now)));
+    }
+
+    /// The host caused `address`'s silence up to `at`: liveness counts it from
+    /// `at` at the earliest (see `Device::silence_counts_from`). The latest
+    /// instant wins. A drive that stays silent for `comm_watchdog_ms` after
+    /// `at` still loses its grant.
+    pub(crate) fn count_silence_from(&mut self, address: &MotorAddress, at: Instant) {
+        if let Some(device) = self.devices.get_mut(address) {
+            device.silence_counts_from = Some(device.silence_counts_from.map_or(at, |s| s.max(at)));
+        }
     }
 
     pub(crate) fn record_identity(
@@ -272,6 +292,8 @@ impl PhysicalDevices {
 
     /// Epoch of a granted address, or `None` once it went unobserved for longer
     /// than `window` outside owner reference work (comm loss or a possible reboot).
+    /// Silence the host itself caused ([`Self::count_silence_from`]) is not
+    /// counted.
     /// While an Active session withholds the address's traffic from pose (its
     /// Enable echo is pending, since `withheld_since`), silence counts from that
     /// start instead: the owner is not listening, and the Enable-echo bound
@@ -288,10 +310,15 @@ impl PhysicalDevices {
         if owner_busy {
             return Some(device.epoch);
         }
-        let reference = [device.last_seen, self.last_owner_work, withheld_since]
-            .into_iter()
-            .flatten()
-            .max()?;
+        let reference = [
+            device.last_seen,
+            self.last_owner_work,
+            withheld_since,
+            device.silence_counts_from,
+        ]
+        .into_iter()
+        .flatten()
+        .max()?;
         (now.saturating_duration_since(reference) <= window).then_some(device.epoch)
     }
 

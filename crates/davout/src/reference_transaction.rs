@@ -10,12 +10,15 @@ use std::time::{Duration, Instant};
 
 use robstride::{BusError, DeviceUid, MotorAddress, MotorBus, ParameterId};
 
+use crate::burst::BurstPacer;
 use crate::feedback_consumer::{
     AdvanceReceiveBudget, ReceiveContext, ReferenceReceiveContext, ReferenceReceivePhase,
 };
 use crate::reference_model::InstalledModelStamp;
 use crate::reference_physical::{PhysicalBackend, PhysicalDevices};
-use crate::{ControlMode, OperationalMode, Supervisor};
+use crate::{
+    ControlMode, OperationalMode, Supervisor, POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
+};
 
 use crate::{DavoutError, StopReport};
 
@@ -956,7 +959,11 @@ impl<B: MotorBus> Supervisor<B> {
         }
         let next_phase = match reservation.phase {
             ReferencePhase::BaselineStop => {
-                let stop = self.perform_stop(false);
+                // Stop and Off groups are spaced on a real (echoing) bus: their
+                // replies must not overrun the controller's receive buffers.
+                let mut pacer = (backend.is_physical() && self.bus.echoes_transmissions())
+                    .then(BurstPacer::default);
+                let stop = self.perform_stop_paced(false, pacer.as_mut());
                 if stop.failed_writes() > 0 {
                     let terminal = self.finish_reference(
                         failure(
@@ -984,10 +991,20 @@ impl<B: MotorBus> Supervisor<B> {
                     self.begin_reporting_off_gate(now);
                 }
                 let unrecorded = backend.is_physical().then_some(&reservation.address);
+                // A peer in its possible post-SetZero blackout keeps its stream:
+                // an Off it acts on needs an On that the drive would then drop.
+                let set_zero_on_wire = &self.set_zero_on_wire;
                 let reporting = self.active_reporting.suspend(
                     &mut self.bus,
                     &self.stop_motors,
                     unrecorded,
+                    |address| {
+                        set_zero_on_wire.get(address).is_some_and(|at| {
+                            (POST_SET_ZERO_BLACKOUT_FROM..POST_SET_ZERO_QUIET)
+                                .contains(&now.saturating_duration_since(*at))
+                        })
+                    },
+                    pacer.as_mut(),
                     now,
                 );
                 let attempts: Vec<_> = reporting
@@ -1556,7 +1573,15 @@ impl<B: MotorBus> Supervisor<B> {
             .reservation
             .take()
             .ok_or(ReferenceError::OutcomeExpired)?;
-        let stop = existing_stop.unwrap_or_else(|| self.perform_stop(false));
+        // A completed physical reference stops the drives group by group; any
+        // failure or cancellation stops them at once.
+        let stop = existing_stop.unwrap_or_else(|| {
+            let mut pacer = (accepted.is_some()
+                && self.reference_owner.is_physical()
+                && self.bus.echoes_transmissions())
+            .then(BurstPacer::default);
+            self.perform_stop_paced(false, pacer.as_mut())
+        });
         if let Some(ReferenceBackend::Virtual(backend)) = &self.reference_owner.backend {
             (backend.end)(&mut self.bus);
         }

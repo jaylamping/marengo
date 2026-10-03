@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use marengo_config::{MotorEntry, MotorsConfigFile};
+
+use crate::burst::BurstPacer;
 use robstride::bus::{BusError, MotorAddress, MotorBus};
 
 /// Default lease lifetime when Consul holds a modal open.
@@ -91,18 +93,30 @@ impl ActiveReportingState {
     /// this process never turned On may still stream.
     /// Every attempted route is written once even after another write fails.
     /// Failed routes keep their applied state; no retry or receive occurs here.
+    ///
+    /// `leave_on` names applied routes whose stream stays On (a peer in its
+    /// possible post-SetZero blackout: the drive drops the Off, or acts on it
+    /// and then drops the On that must follow). `unrecorded` is always written.
+    /// Each write starts a `pacer` group when one is given.
     pub(super) fn suspend<B: MotorBus>(
         &mut self,
         bus: &mut B,
         installed_motors: &[MotorEntry],
         unrecorded: Option<&MotorAddress>,
+        leave_on: impl Fn(&MotorAddress) -> bool,
+        mut pacer: Option<&mut BurstPacer>,
         now: Instant,
     ) -> ReportingSuspendReport {
         let mut attempts = Vec::new();
         for motor in installed_motors {
             let address = MotorAddress::from(motor);
-            if !self.applied_on(&motor.joint) && unrecorded != Some(&address) {
+            if unrecorded != Some(&address)
+                && (!self.applied_on(&motor.joint) || leave_on(&address))
+            {
                 continue;
+            }
+            if let Some(pacer) = pacer.as_mut() {
+                pacer.begin_group(&motor.can_interface);
             }
             let error = bus.disable_active_reporting_at(&address).err();
             if error.is_none() {
@@ -303,6 +317,33 @@ impl ActiveReportingState {
         now: Instant,
         last_feedback_rx: &HashMap<String, Instant, S>,
     ) {
+        let _ = self.sync_holding(
+            bus,
+            motors,
+            mode_active,
+            global_diagnostics,
+            now,
+            last_feedback_rx,
+            &[],
+        );
+    }
+
+    /// [`Self::sync`] that writes nothing to the joints in `held` (drives in
+    /// their possible post-SetZero blackout, where every frame is dropped).
+    /// Returns the held joints that had a write due: the caller owns their
+    /// silence until the hold ends, and a later call writes it.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn sync_holding<B: MotorBus, S: std::hash::BuildHasher>(
+        &mut self,
+        bus: &mut B,
+        motors: &MotorsConfigFile,
+        mode_active: bool,
+        global_diagnostics: bool,
+        now: Instant,
+        last_feedback_rx: &HashMap<String, Instant, S>,
+        held: &[String],
+    ) -> Vec<String> {
+        let mut deferred = Vec::new();
         self.expire_stale(now);
         let spacing_elapsed = self
             .last_heartbeat_attempt
@@ -315,7 +356,8 @@ impl ActiveReportingState {
                 .map(|offset| (start + offset) % count)
                 .find(|index| {
                     let joint = &motors.motors[*index].joint;
-                    self.desired(joint, mode_active, global_diagnostics, now)
+                    !held.contains(joint)
+                        && self.desired(joint, mode_active, global_diagnostics, now)
                         && self.applied_on(joint)
                         && last_feedback_rx.get(joint).is_some_and(|last| {
                             now.saturating_duration_since(*last) < ACTIVE_REPORTING_FEEDBACK_STALE
@@ -363,6 +405,14 @@ impl ActiveReportingState {
         due.sort_by_key(|(_, _, refresh_only)| *refresh_only);
         for (index, want, refresh_only) in due {
             let motor = &motors.motors[index];
+            if held.contains(&motor.joint) {
+                // Only a stream the host keeps Off is the host's silence; a
+                // stream applied On that went quiet is the drive's.
+                if want && !self.applied_on(&motor.joint) {
+                    deferred.push(motor.joint.clone());
+                }
+                continue;
+            }
             if !self.slot_free(&motor.can_interface, now) {
                 continue;
             }
@@ -389,6 +439,7 @@ impl ActiveReportingState {
                 }
             }
         }
+        deferred
     }
 }
 
@@ -480,6 +531,93 @@ mod tests {
         assert_eq!(cmds, vec![(1, 0x01)]);
         assert!(state.applied_on("j1"));
         assert!(!state.applied_on("j2"));
+    }
+
+    #[test]
+    fn held_joint_is_not_written_and_a_withheld_stream_is_reported() {
+        // A drive in its possible post-SetZero blackout drops a type-24 On.
+        let motors = motors_two();
+        let mut state = ActiveReportingState::default();
+        let mut bus = MemoryBus::default();
+        let now = Instant::now();
+        for joint in ["j1", "j2"] {
+            state
+                .acquire(joint, "c1", "lease", DEFAULT_LEASE_TTL, now, &motors)
+                .expect("acquire");
+        }
+        let rx = HashMap::new();
+        let held = ["j1".to_owned()];
+        let deferred = state.sync_holding(&mut bus, &motors, false, false, now, &rx, &held);
+        assert_eq!(deferred, vec!["j1".to_owned()]);
+        assert_eq!(type24_cmds(&bus), vec![(2, 0x01)], "only j2 is written");
+        assert!(!state.applied_on("j1"));
+        // Once the hold ends, the next call writes the On.
+        let later = now + ACTIVE_REPORTING_WRITE_SPACING;
+        let deferred = state.sync_holding(&mut bus, &motors, false, false, later, &rx, &[]);
+        assert!(deferred.is_empty());
+        assert_eq!(type24_cmds(&bus), vec![(2, 0x01), (1, 0x01)]);
+    }
+
+    #[test]
+    fn held_stream_that_is_applied_on_is_not_withheld_silence() {
+        // The drive's stream runs; a stale retry held back is not the host's
+        // silence to excuse.
+        let motors = motors_two();
+        let mut state = ActiveReportingState::default();
+        let mut bus = MemoryBus::default();
+        let now = Instant::now();
+        state
+            .acquire("j1", "c1", "lease", DEFAULT_LEASE_TTL, now, &motors)
+            .expect("acquire");
+        let rx = HashMap::new();
+        state.sync(&mut bus, &motors, false, false, now, &rx);
+        assert!(state.applied_on("j1"));
+        let stale = now + ACTIVE_REPORTING_FEEDBACK_STALE * 2;
+        let held = ["j1".to_owned()];
+        let deferred = state.sync_holding(&mut bus, &motors, false, false, stale, &rx, &held);
+        assert!(deferred.is_empty());
+        assert_eq!(type24_cmds(&bus), vec![(1, 0x01)], "no retry while held");
+    }
+
+    #[test]
+    fn suspend_leaves_a_held_peer_streaming_but_always_writes_the_unrecorded_route() {
+        let motors = motors_two();
+        let mut state = ActiveReportingState::default();
+        let mut bus = MemoryBus::default();
+        let now = Instant::now();
+        for joint in ["j1", "j2"] {
+            state
+                .acquire(joint, "c1", "lease", DEFAULT_LEASE_TTL, now, &motors)
+                .expect("acquire");
+        }
+        let rx = HashMap::new();
+        state.sync(&mut bus, &motors, false, false, now, &rx);
+        state.sync(
+            &mut bus,
+            &motors,
+            false,
+            false,
+            now + ACTIVE_REPORTING_WRITE_SPACING,
+            &rx,
+        );
+        bus.tx.clear();
+        let j1 = MotorAddress::from(&motors.motors[0]);
+        let j2 = MotorAddress::from(&motors.motors[1]);
+        let report = state.suspend(
+            &mut bus,
+            &motors.motors,
+            Some(&j2),
+            |address| *address == j1 || *address == j2,
+            None,
+            now,
+        );
+        assert_eq!(report.attempts.len(), 1);
+        assert_eq!(
+            type24_cmds(&bus),
+            vec![(2, 0x00)],
+            "the target is always Off"
+        );
+        assert!(state.applied_on("j1"), "the held peer keeps streaming");
     }
 
     #[test]

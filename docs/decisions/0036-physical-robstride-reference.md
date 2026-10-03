@@ -39,8 +39,10 @@ calls `disable_all` and returns `HomingVerify`.
 The phases are:
 
 ```text
-BaselineStop   all-address stop; applied active reporting off, and the target's
-               reporting off whatever this process applied
+BaselineStop   all-address stop, one address group per 2 ms on a real bus; applied
+               active reporting off, except a peer in its possible blackout
+               (450-800 ms after its SetZero), and the target's reporting off
+               whatever this process applied
 DrainOld       complete bounded drain of queued feedback
 RequestIdentity type-0 to the target (host 0xFD)
 AwaitIdentity  type-0 reply popped after the request; UID not claimed by another address
@@ -106,12 +108,48 @@ device coordinate epoch. Revocation is per joint for:
 - a drive reporting Calibration mode;
 - no feedback for longer than `control.comm_watchdog_ms` outside owner
   reference work. Liveness restarts at the end of owner work, and periodic
-  reporting resumes after selection.
+  reporting resumes after selection. Silence the host caused is not counted
+  (see *Host-caused silence* below).
 
 Fault, E-stop, uncertain stop, shutdown, a model change and an observed relevant
 policy change revoke all grants. A revoked grant stays revoked. A successful
 ordinary Disable preserves intact grants (ADR0023), subject to the liveness rule
 above.
+
+### Host-caused silence (amendment, 2026-10-03)
+
+Revocation is latched but derived on demand: each check recomputes a joint's
+liveness from its last frame, the end of owner work and the instants below, and
+the check that finds a lapse revokes the joint for the rest of the process.
+`pi_enable_soak` at e6add09 failed 14 of 20 cycles because two silences the
+host itself caused lapsed the 100 ms bound (see
+[safety.md](../safety.md#known-software-gaps-see-also-position-hold-control-reviewmd)
+and the [behaviour doc](../commissioning/firmware/robstride-firmware-behavior.md)):
+
+- Each reference's baseline turns every streaming peer's type-24 Off and the
+  commit's sync turns it On about 100 ms later. The first joint's Off and On
+  straddle its post-SetZero blackout (start 511-614 ms after SetZero), the drive
+  drops the On, and the 200 ms stale retry is later than the liveness bound.
+  Decision: from `POST_SET_ZERO_BLACKOUT_FROM` (450 ms) to `POST_SET_ZERO_QUIET`
+  (800 ms) after a SetZero's echo no type-24 On or Off is written to that drive.
+  The reporting sync holds them, the baseline leaves a peer's stream On
+  (the target's own Off is unchanged: it precedes its SetZero), and an On that
+  was due goes out when the quiet ends. The drive's silence while a due On is
+  held counts from the quiet's end. A stream applied On is not excused.
+- An Active session discards a target's traffic as pose until its Enable echo,
+  so its last pose is as old as the session, and the first Run reply (1.4-5.2
+  ms) can be read a tick after the echo. Silence counts from the echo.
+
+Not adopted: raising `comm_watchdog_ms` or shortening the stale retry (a
+stream restarted at 200 ms would still miss a 100 ms bound), and counting
+silence only from a confirmed first report (a dropped On would still lapse).
+
+Bursts that overran the mcp251x during reference work are spaced:
+BaselineStop's and finish's all-address stop start one address group per
+`BURST_GROUP_SPACING` (2 ms) per interface, as do the baseline's type-24 Offs,
+the type-0 admission requests (`IDENTITY_ADMISSION_SPACING`, with the admission
+deadline growing by two spacings per further target) and the status solicit.
+A fault, E-stop, cancellation or shutdown stop is never paced.
 
 ### Per-joint accumulation
 

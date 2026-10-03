@@ -79,6 +79,7 @@ extern crate self as davout;
 mod active_reporting;
 #[cfg(test)]
 mod active_reporting_pacing_tests;
+mod burst;
 mod faults;
 mod feedback_consumer;
 #[cfg(test)]
@@ -104,7 +105,9 @@ pub use reference_commit::{
 pub use reference_journal::{ReferenceJournalDrain, ReferenceJournalError, ReferenceJournalResult};
 pub use reference_journal_event::ReferenceHistoryRecord;
 /// Firmware timing bounds, exported for the measured-profile conformance test.
-pub use reference_physical::{IDENTITY_ADMISSION_RETRY, IDENTITY_ADMISSION_TIMEOUT};
+pub use reference_physical::{
+    IDENTITY_ADMISSION_RETRY, IDENTITY_ADMISSION_SPACING, IDENTITY_ADMISSION_TIMEOUT,
+};
 
 pub use reference_transaction::{
     ReferenceCancelReason, ReferenceCause, ReferenceCommit, ReferenceError, ReferenceFailureKind,
@@ -114,6 +117,8 @@ pub use reference_transaction::{
 };
 
 pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
+use burst::BurstPacer;
+pub use burst::BURST_GROUP_SPACING;
 use faults::{bounded_message, FaultAuthority};
 pub use faults::{
     DeviceFaultEvidence, DeviceWarning, FaultClass, FaultRecord, ReceiveDrainEvidence,
@@ -152,6 +157,16 @@ pub const FREE_DRIVE_FEEDBACK_TTL: Duration = Duration::from_secs(5);
 /// The SetZero time is its host echo's read time (its write time until the
 /// echo is read), which bounds the wire time from above.
 pub const POST_SET_ZERO_QUIET: Duration = Duration::from_millis(800);
+
+/// Earliest a drive's post-SetZero blackout can begin, counted from the
+/// SetZero's host echo: the measured minimum is 511 ms
+/// (`docs/commissioning/firmware/robstride-firmware-behavior.md`), less 61 ms
+/// for tick and pacing jitter. From here to [`POST_SET_ZERO_QUIET`] no type-24
+/// On or Off is written to the drive: it drops every frame it receives in the
+/// blackout, so an On written there leaves the stream Off with the host
+/// believing otherwise. Before this point the drive acts on type-24 writes.
+/// `tests/firmware_profile.rs` keeps the margin over the committed profile.
+pub const POST_SET_ZERO_BLACKOUT_FROM: Duration = Duration::from_millis(450);
 
 use armee_kinematics::{
     clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf, LimitMarginConfig,
@@ -1652,6 +1667,16 @@ impl<B: MotorBus> Supervisor<B> {
             .is_none_or(|until| now >= until)
     }
 
+    /// `address` may be inside its post-SetZero blackout: its SetZero is
+    /// between [`POST_SET_ZERO_BLACKOUT_FROM`] and [`POST_SET_ZERO_QUIET`] old.
+    /// Only echoing buses record SetZeros.
+    fn set_zero_blackout_possible(&self, address: &MotorAddress, now: Instant) -> bool {
+        self.set_zero_on_wire.get(address).is_some_and(|at| {
+            let since = now.saturating_duration_since(*at);
+            (POST_SET_ZERO_BLACKOUT_FROM..POST_SET_ZERO_QUIET).contains(&since)
+        })
+    }
+
     /// Start of `address`'s enable bounds in the current Active session:
     /// activation, or the end of its post-SetZero quiet when that is later.
     /// Catch-up, missing-echo, first-pose and liveness bounds count from here,
@@ -1756,11 +1781,13 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Type-0 round trip for each physical target, bounded by
-    /// [`reference_physical::IDENTITY_ADMISSION_TIMEOUT`] from the first request.
+    /// [`reference_physical::IDENTITY_ADMISSION_TIMEOUT`] from the first request,
+    /// plus two [`reference_physical::IDENTITY_ADMISSION_SPACING`] per further target.
     /// No enable frame is sent unless every target answers with the identifier
-    /// its grant bound. A target still silent is asked again every
-    /// [`reference_physical::IDENTITY_ADMISSION_RETRY`]; only replies popped
-    /// after the first request count, and a missing reply still revokes.
+    /// its grant bound. Requests leave one per spacing, so the replies do not
+    /// overrun the controller's receive buffers. A target still silent is asked
+    /// again every [`reference_physical::IDENTITY_ADMISSION_RETRY`]; only replies
+    /// popped after the first request count, and a missing reply still revokes.
     fn verify_physical_identities(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         if !self.reference_owner.is_physical() {
             return Ok(());
@@ -1781,12 +1808,18 @@ impl<B: MotorBus> Supervisor<B> {
         }
         let watermark = self.reference_owner.physical.watermark();
         let start = Instant::now();
-        let deadline = start + reference_physical::IDENTITY_ADMISSION_TIMEOUT;
-        let mut request_due = start;
+        let spacing = reference_physical::IDENTITY_ADMISSION_SPACING;
+        // The last target's first request leaves (n - 1) spacings late, and a
+        // lost request is retried after at most n spacings.
+        let deadline = start
+            + reference_physical::IDENTITY_ADMISSION_TIMEOUT
+            + spacing * u32::try_from(2 * targets.len().saturating_sub(1)).unwrap_or(u32::MAX);
+        let mut asked: Vec<Option<Instant>> = vec![None; targets.len()];
+        let mut next_request = start;
         let mut missing = Vec::with_capacity(targets.len());
         loop {
             missing.clear();
-            for (joint, address, bound) in &targets {
+            for (index, (joint, address, bound)) in targets.iter().enumerate() {
                 match self
                     .reference_owner
                     .physical
@@ -1802,7 +1835,7 @@ impl<B: MotorBus> Supervisor<B> {
                             ),
                         });
                     }
-                    None => missing.push((joint, address)),
+                    None => missing.push(index),
                 }
             }
             if missing.is_empty() {
@@ -1810,26 +1843,43 @@ impl<B: MotorBus> Supervisor<B> {
             }
             let now = Instant::now();
             if now >= deadline {
-                for (joint, _) in &missing {
-                    self.reference_authority.revoke_joint(joint);
+                for index in &missing {
+                    self.reference_authority.revoke_joint(&targets[*index].0);
                 }
                 return Err(DavoutError::HomingVerify {
                     joint: missing
                         .iter()
-                        .map(|(joint, _)| joint.as_str())
+                        .map(|index| targets[*index].0.as_str())
                         .collect::<Vec<_>>()
                         .join(","),
                     message: "device identity reply missing at admission".into(),
                 });
             }
-            if now >= request_due {
-                for (_, address) in &missing {
-                    self.bus.get_device_id_at(address)?;
-                }
-                request_due = now + reference_physical::IDENTITY_ADMISSION_RETRY;
+            // A target is due when it was never asked or its last request is a
+            // retry period old; at most one request leaves per spacing.
+            let due_at = |index: usize| {
+                asked[index].map_or(next_request, |at| {
+                    (at + reference_physical::IDENTITY_ADMISSION_RETRY).max(next_request)
+                })
+            };
+            if let Some(index) = missing
+                .iter()
+                .copied()
+                .filter(|index| due_at(*index) <= now)
+                .min_by_key(|index| asked[*index])
+            {
+                self.bus.get_device_id_at(&targets[index].1)?;
+                asked[index] = Some(now);
+                next_request = now + spacing;
+                continue;
             }
+            let next_due = missing
+                .iter()
+                .map(|index| due_at(*index))
+                .min()
+                .unwrap_or(deadline);
             let wait = deadline
-                .min(request_due)
+                .min(next_due)
                 .saturating_duration_since(Instant::now());
             self.poll_feedback(wait.min(reference_physical::IDENTITY_ADMISSION_POLL))?;
         }
@@ -2353,6 +2403,18 @@ impl<B: MotorBus> Supervisor<B> {
     /// One all-address best-effort burst. Reference cleanup suppresses reporting
     /// synchronization so a sensing lease cannot re-enable a stopped target.
     fn perform_stop(&mut self, synchronize_reporting: bool) -> StopReport {
+        self.perform_stop_paced(synchronize_reporting, None)
+    }
+
+    /// [`Self::perform_stop`] with each address's three frames starting a
+    /// [`BurstPacer`] group on its interface, so the replies do not overrun the
+    /// controller's receive buffers. Only reference work paces; every other stop
+    /// goes out at once.
+    fn perform_stop_paced(
+        &mut self,
+        synchronize_reporting: bool,
+        mut pacer: Option<&mut BurstPacer>,
+    ) -> StopReport {
         if self.has_latched_fault() {
             self.reference_authority.revoke();
         }
@@ -2362,6 +2424,9 @@ impl<B: MotorBus> Supervisor<B> {
             attempts: Vec::with_capacity(self.stop_motors.len() * 3),
         };
         for motor in self.stop_motors.iter() {
+            if let Some(pacer) = pacer.as_mut() {
+                pacer.begin_group(&motor.can_interface);
+            }
             let address = MotorAddress::from(motor);
             let result = self.bus.speed_control_at(&address, 0.0);
             report.attempts.push(StopAttempt {
@@ -2464,7 +2529,13 @@ impl<B: MotorBus> Supervisor<B> {
             })
             .map(|motor| (motor.joint.clone(), MotorAddress::from(motor)))
             .collect();
+        // Each Disable solicits a reply: on a real bus the writes start spaced
+        // groups so five replies cannot overrun the controller.
+        let mut pacer = self.bus.echoes_transmissions().then(BurstPacer::default);
         for (joint, address) in targets {
+            if let Some(pacer) = pacer.as_mut() {
+                pacer.begin_group(&address.interface);
+            }
             if let Err(e) = self.bus.disable_drive_at(&address) {
                 warn!(
                     joint = %joint,
@@ -2488,14 +2559,40 @@ impl<B: MotorBus> Supervisor<B> {
         let mode_active = self.mode == OperationalMode::Active;
         let global = self.control.control.bench.active_reporting_diagnostics;
         let now = Instant::now();
-        self.active_reporting.sync(
+        // A drive in its possible blackout drops a type-24 On, and the stream
+        // would stay Off until the stale retry, longer than the grant liveness
+        // bound. Hold those writes to the quiet's end and do not count the
+        // drive's silence meanwhile.
+        let held: Vec<String> = if self.set_zero_on_wire.is_empty() {
+            Vec::new()
+        } else {
+            self.motors
+                .motors
+                .iter()
+                .filter(|motor| self.set_zero_blackout_possible(&MotorAddress::from(*motor), now))
+                .map(|motor| motor.joint.clone())
+                .collect()
+        };
+        let deferred = self.active_reporting.sync_holding(
             &mut self.bus,
             &self.motors,
             mode_active,
             global,
             now,
             &self.last_feedback_rx,
+            &held,
         );
+        for joint in deferred {
+            let Some(motor) = self.motors.motors.iter().find(|motor| motor.joint == joint) else {
+                continue;
+            };
+            let address = MotorAddress::from(motor);
+            if let Some(until) = self.set_zero_quiet_until(&address) {
+                self.reference_owner
+                    .physical
+                    .count_silence_from(&address, until);
+            }
+        }
     }
 
     /// Expire TTLs and resync type-24 (call each control-loop iteration).

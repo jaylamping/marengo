@@ -36,9 +36,14 @@ Read this before enabling motors on the bench or robot.
   process. A grant is revoked per joint for a UID change, a missing or mismatched
   UID in the type-0 check at Enable (done before any Enable frame), a coordinate
   discontinuity, Calibration drive mode, or no feedback for longer than
-  `comm_watchdog_ms` outside reference work. Fault, E-stop, uncertain stop,
-  shutdown and model/policy changes revoke all grants. `zero_sta`/`add_offset`
-  writes and type-22 saves are never sent.
+  `comm_watchdog_ms` outside reference work. Silence the host itself caused is
+  not counted: a type-24 On it held back from the drive's possible post-SetZero
+  blackout counts from the quiet's end, and a just-enabled drive counts from its
+  Enable echo (see *Host-caused silence* below). A revocation is checked on
+  demand but latched: the check that finds a lapse revokes that joint for the
+  rest of the process. Fault, E-stop, uncertain stop, shutdown and model/policy
+  changes revoke all grants. `zero_sta`/`add_offset` writes and type-22 saves
+  are never sent.
 
 Manual reference is the qualified commissioning workflow. Bench qualification is
 pending, and the three-Hall workflow is unimplemented. Home and enable in one
@@ -270,6 +275,44 @@ disables. The fault does not clear on its own.
   Reset report after the held Enable's echo still latches DriveState. Type-0
   identity admission retries through the blackout separately
   (`IDENTITY_ADMISSION_RETRY`).
+- **Host-caused silence (2026-10-03 soak, rev e6add09):** `pi_enable_soak`
+  failed 14 of 20 cycles: 11 `home failed: ... no private current-reference
+  permission` for the first joint (0.1-0.25 s after the fifth reference), 2
+  `Enable requires full-master Robot Ready`, and 1 grant lost mid-enable. Two
+  causes, one rule: liveness must not count silence the host caused.
+  1. *Stream restarted into a blackout.* Each reference's baseline writes a
+     type-24 Off to every streaming peer, and the commit's reporting sync turns
+     it On again about 100 ms later. For the first joint (SetZero 0.5 s before
+     the last reference) those two writes straddle its blackout (start 511-614
+     ms after SetZero). An Off before it and an On inside it leave the stream
+     Off; the stale retry (200 ms) is slower than the 100 ms liveness bound
+     (candump `decay-20261003T170858Z`: pitch SetZero 40.029, baseline Offs at
+     +0.364, +0.456, +0.554, Ons at +0.414, +0.507, +0.605, blackout +0.533 to
+     +0.586, so the last Off or On is dropped depending on the cadence). From
+     `POST_SET_ZERO_BLACKOUT_FROM` (450 ms) to `POST_SET_ZERO_QUIET` (800 ms)
+     after its SetZero echo, no type-24 On or Off goes to a drive: the reporting
+     sync holds its writes, the reference baseline leaves a peer's stream On,
+     and an On that was due is written when the quiet ends. That held silence is
+     excused until the quiet's end (`count_silence_from`), then counts as usual.
+     A stream that is applied On is never excused: a drive that goes silent
+     beyond `comm_watchdog_ms` inside the window still loses its grant.
+  2. *Enable echo before the first Run reply.* Traffic of a target whose Enable
+     echo is pending is not pose, so its last pose is as old as the session
+     (the Enable can be held 0.8 s). The echo is read in the writing tick and
+     the Run reply (1.4-5.2 ms later) one tick later; liveness counted the old
+     pose the moment the echo cleared the pending flag (soak cycle 9: the tick
+     failed with "current reference was revoked" at 17:07:22.358, 4 ms after
+     roll's Enable was written). Silence now counts from the echo.
+- **Paced reference bursts:** the all-address stop (speed zero, neutral MIT,
+  Disable per address) answers 15 frames; written back to back at the end of a
+  reference it overran the mcp251x once in three runs (17:09:07, `rx_over_errors`
+  5 to 6, Transport latched). During reference work the baseline and finishing
+  stops start one address group per `BURST_GROUP_SPACING` (2 ms) per interface,
+  as do the baseline's type-24 Offs, the Enable-admission type-0 requests
+  (`IDENTITY_ADMISSION_SPACING`) and the Hardware-page status solicit. A stop
+  caused by a fault, E-stop, cancellation or shutdown is never paced.
+  `tests/physical_firmware` models the controller's two receive buffers
+  (`RxFifo`); the Transport latch is unchanged.
 - **Position arms wait for enable completion:** Berthier reads 0.0 for a joint
   with no session pose, and `enable_targets` returns while Enables can still be
   held (stagger, post-SetZero quiet). A `hold-on` arriving then would have

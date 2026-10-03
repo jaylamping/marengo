@@ -14,7 +14,8 @@ use std::time::{Duration, Instant};
 use davout::simulation::SimulationBus;
 use davout::{
     DavoutError, JointHomingState, OperationalMode, ReferenceAudit, ReferenceError,
-    ReferenceOutcome, Supervisor, POST_SET_ZERO_QUIET,
+    ReferenceOutcome, Supervisor, BURST_GROUP_SPACING, IDENTITY_ADMISSION_SPACING,
+    POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
 };
 use marengo_config::{load_homing_config_from, load_motors_config_from, HomingMethod};
 use physical_firmware::{
@@ -1601,5 +1602,368 @@ fn hall_and_none_methods_refuse_on_physical_owner() {
         assert!(bench.firmware.borrow().tx.is_empty(), "method {method:?}");
         assert!(!bench.supervisor.has_latched_fault());
         assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
+    }
+}
+
+// ---------------------------------------------------------------- host-caused silence
+//
+// 2026-10-03 `pi_enable_soak` at e6add09: 14 of 20 cycles failed `home` with
+// "no private current-reference permission" right after the five references,
+// and one lost a grant mid-enable. Streams silenced by the host's own Offs and
+// restarted into a drive's post-SetZero blackout, or a first Run reply read a
+// tick after its Enable echo, were counted as drive silence.
+
+const FIVE: [&str; 5] = [
+    PITCH,
+    ROLL,
+    "right_upper_arm_yaw",
+    "right_elbow_pitch",
+    "right_lower_arm_yaw",
+];
+
+fn millis(ms: u64) -> Duration {
+    Duration::from_millis(ms)
+}
+
+impl Bench {
+    /// One `marengo-pi` loop iteration: reports on the wire, the reporting
+    /// sync, then owner work while a reference is pending and a plain drain
+    /// otherwise.
+    fn runtime_tick(&mut self) {
+        self.firmware.borrow_mut().emit_reports();
+        self.supervisor.tick_active_reporting_leases();
+        if self.supervisor.reference_work_pending() {
+            self.supervisor
+                .advance_reference_work()
+                .expect("owner work advances");
+        } else {
+            let _ = self.supervisor.drain_feedback();
+        }
+    }
+
+    /// `home <joints> sign-tested` as the stdin queue runs it: every reference
+    /// starts as the previous one ends, on 5 ms ticks. Returns when the last
+    /// one is current.
+    fn home_in_sequence(&mut self, joints: &[&str]) -> Instant {
+        for joint in joints {
+            let handle = self
+                .supervisor
+                .request_reference(
+                    joint,
+                    true,
+                    ReferenceAudit {
+                        operator: OPERATOR.into(),
+                        session: "physical-liveness".into(),
+                    },
+                )
+                .expect("physical request admitted");
+            let give_up = Instant::now() + Duration::from_secs(5);
+            loop {
+                self.runtime_tick();
+                match self.supervisor.reference_outcome(&handle).expect("outcome") {
+                    ReferenceOutcome::Current { .. } => break,
+                    ReferenceOutcome::Failed { message } => panic!("{joint}: {message}"),
+                    ReferenceOutcome::InProgress => {
+                        assert!(Instant::now() < give_up, "{joint}: reference finishes");
+                        std::thread::sleep(PUMP_PERIOD);
+                    }
+                }
+            }
+        }
+        Instant::now()
+    }
+
+    fn all_verified(&self) -> Option<&'static str> {
+        FIVE.into_iter()
+            .find(|joint| self.state(joint) != JointHomingState::Verified)
+    }
+}
+
+/// Type-24 writes to `joint` with their offset after its SetZero write.
+fn reporting_writes_since_set_zero(bench: &Bench, joint: &str) -> Vec<Duration> {
+    let set_zero = set_zero_written_at(bench, joint);
+    writes_to(bench, joint)
+        .into_iter()
+        .filter(|(comm_type, _)| {
+            *comm_type == u32::from(CommunicationType::ActiveReporting.as_u8())
+        })
+        .map(|(_, at)| at.saturating_duration_since(set_zero))
+        .filter(|since| *since > Duration::ZERO)
+        .collect()
+}
+
+#[test]
+fn every_grant_is_valid_at_every_offset_after_the_last_reference() {
+    // The pitch blackout sweeps the measured start range at the longest
+    // modeled length: the drive drops whatever it is sent for up to 65 ms. The
+    // host's Off for the next reference and the On after it used to land on
+    // opposite sides of that blackout, leaving pitch's stream Off until the
+    // 200 ms stale retry, past the 100 ms grant liveness bound.
+    for start in [500, 530, 560, 590, 620] {
+        let mut bench = Bench::physical(&format!("physical-grant-offsets-{start}"));
+        {
+            let mut firmware = bench.firmware.borrow_mut();
+            firmware.drive_mut(PITCH).set_zero_blackout = (millis(start), millis(65));
+        }
+        let last = bench.home_in_sequence(&FIVE);
+        // `home` can arrive at any offset (the soak's feeder: 0.1-0.25 s).
+        while last.elapsed() <= millis(1000) {
+            bench.runtime_tick();
+            let offset = last.elapsed();
+            assert_eq!(
+                bench.all_verified(),
+                None,
+                "pitch blackout from {start} ms: a grant lapsed {offset:?} after the last reference"
+            );
+            std::thread::sleep(PUMP_PERIOD);
+        }
+        assert!(!bench.supervisor.has_latched_fault());
+        // No type-24 write reached any drive inside a blackout the emulator can
+        // model (500-690 ms after its SetZero write).
+        let (blackout_start, blackout_end) = SET_ZERO_BLACKOUT;
+        for joint in FIVE {
+            for since in reporting_writes_since_set_zero(&bench, joint) {
+                assert!(
+                    !(blackout_start..=blackout_end).contains(&since),
+                    "{joint}: type-24 written {since:?} after its SetZero"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn five_references_do_not_overrun_the_receive_buffers() {
+    // 2026-10-03 17:09:07: the all-address stop that finishes a reference wrote
+    // 15 frames back to back; their replies overran the mcp251x (rx_over_errors
+    // 5 to 6) and the kernel's error frame latched Transport.
+    let mut bench = Bench::physical("physical-references-no-overrun");
+    bench.firmware.borrow_mut().rx_fifo.enforce = true;
+    bench.home_in_sequence(&FIVE);
+    bench.pump(millis(300));
+    assert_eq!(bench.firmware.borrow().rx_fifo.overruns, 0);
+    assert!(!bench.supervisor.has_latched_fault());
+    assert_eq!(bench.all_verified(), None);
+}
+
+#[test]
+fn reference_write_bursts_are_spaced_on_the_bus() {
+    let mut bench = Bench::physical("physical-burst-spacing");
+    bench.home_in_sequence(&[PITCH, ROLL, "right_upper_arm_yaw"]);
+    let firmware = bench.firmware.borrow();
+    // Each address's stop starts a group (speed zero is its first frame), and
+    // each peer's type-24 Off is one more.
+    let mut previous: Option<(Instant, u32)> = None;
+    for (frame, at) in firmware.tx.iter().zip(&firmware.tx_at) {
+        let comm_type = (frame.id >> 24) & 0x1f;
+        let group_start = comm_type == u32::from(CommunicationType::WriteParameter.as_u8())
+            || (comm_type == u32::from(CommunicationType::ActiveReporting.as_u8())
+                && frame.data[6] == 0);
+        if !group_start {
+            continue;
+        }
+        if let Some((last_at, last_device)) = previous {
+            if last_device != frame.id & 0xff {
+                assert!(
+                    at.duration_since(last_at) >= Duration::from_micros(1900),
+                    "group starts {:?} apart",
+                    at.duration_since(last_at)
+                );
+            }
+        }
+        previous = Some((*at, frame.id & 0xff));
+    }
+    assert_eq!(firmware.rx_fifo.overruns, 0);
+}
+
+#[test]
+fn an_unpaced_stop_burst_overruns_the_receive_model() {
+    // The model must bite: fifteen stop frames and their replies, back to back,
+    // are what overran the bench controller (rx_over_errors 5 to 6, 17:09:07).
+    let mut bench = Bench::physical("physical-unpaced-stop-overrun");
+    bench.firmware.borrow_mut().rx_fifo.enforce = true;
+    bench.supervisor.disable_all().expect("stop");
+    assert!(bench.firmware.borrow().rx_fifo.overruns > 0);
+    let _ = bench.supervisor.drain_feedback();
+    assert!(
+        bench.supervisor.has_latched_fault(),
+        "the overflow error frame latches Transport"
+    );
+}
+
+#[test]
+fn a_streaming_drive_that_goes_silent_beyond_the_bound_still_revokes() {
+    // Stream applied On: its silence is the drive's, before and inside the
+    // window where the host holds type-24 writes back.
+    for pump_before in [millis(20), POST_SET_ZERO_BLACKOUT_FROM + millis(50)] {
+        let mut bench = Bench::physical("physical-silent-stream");
+        bench.acquire(PITCH);
+        let zeroed = set_zero_written_at(&bench, PITCH);
+        bench.pump(pump_before.saturating_sub(zeroed.elapsed()));
+        let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
+        assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+        bench.firmware.borrow_mut().drive_mut(PITCH).silent_until =
+            Some(Instant::now() + window * 4);
+        bench.pump(window * 2);
+        assert_eq!(
+            bench.state(PITCH),
+            JointHomingState::Unhomed,
+            "silent {:?} after its SetZero",
+            zeroed.elapsed()
+        );
+        assert!(!bench.supervisor.has_latched_fault());
+    }
+}
+
+#[test]
+fn a_drive_that_died_while_the_host_held_its_stream_off_loses_its_grant() {
+    // PITCH dies right after its reference. The host's Offs silence its stream
+    // and, with the next On due inside the blackout window, hold it back until
+    // the quiet ends; that silence is excused, but only until the quiet ends
+    // plus the liveness bound.
+    let mut bench = Bench::physical("physical-dead-while-held");
+    bench.home_in_sequence(&[PITCH]);
+    let zeroed = set_zero_written_at(&bench, PITCH);
+    bench.firmware.borrow_mut().drive_mut(PITCH).silent_until =
+        Some(Instant::now() + Duration::from_secs(60));
+    bench.home_in_sequence(&FIVE[1..]);
+    let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
+    let revoked_by = zeroed + POST_SET_ZERO_QUIET + window + millis(50);
+    while Instant::now() < revoked_by {
+        bench.runtime_tick();
+        std::thread::sleep(PUMP_PERIOD);
+    }
+    bench.runtime_tick();
+    assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
+    for joint in &FIVE[1..] {
+        assert_eq!(bench.state(joint), JointHomingState::Verified, "{joint}");
+    }
+}
+
+#[test]
+fn a_grant_survives_the_gap_between_the_enable_echo_and_the_first_run_reply() {
+    // Enable-to-Run reply latency is 1.4-5.2 ms (behaviour doc). The write tick
+    // reads the echo, the next tick the reply; the address's traffic was
+    // withheld from pose until the echo, so its last pose is as old as the
+    // session. PITCH's Enable is held to its post-SetZero quiet, 0.66 s after
+    // activation, and liveness counted that age the moment the echo was read.
+    // (Two joints only: PITCH's stream is never Off across its blackout here.)
+    let joints = [PITCH, ROLL];
+    for delay in [millis(2), millis(4)] {
+        let mut bench = Bench::physical("physical-enable-reply-gap");
+        for drive in &mut bench.firmware.borrow_mut().drives {
+            drive.enable_reply_delay = delay;
+        }
+        bench.home_in_sequence(&joints);
+        let targets: Vec<String> = joints.iter().map(|joint| (*joint).to_owned()).collect();
+        bench
+            .supervisor
+            .enable_targets(&targets)
+            .expect("identity admits");
+        let give_up = Instant::now() + POST_SET_ZERO_QUIET + millis(500);
+        loop {
+            assert!(
+                Instant::now() < give_up,
+                "reply {delay:?}: the Enables complete"
+            );
+            bench.firmware.borrow_mut().emit_reports();
+            // The loop's neutral status solicit.
+            let neutral = joints
+                .iter()
+                .map(|joint| davout::MitJointCommand {
+                    joint: (*joint).to_owned(),
+                    kp: 0.0,
+                    kd: 0.0,
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 0.0,
+                })
+                .collect();
+            bench
+                .supervisor
+                .send_mit_batch(neutral)
+                .unwrap_or_else(|error| panic!("reply {delay:?}: {error}"));
+            bench
+                .supervisor
+                .drain_feedback()
+                .unwrap_or_else(|error| panic!("reply {delay:?}: {error}"));
+            if !bench.supervisor.enable_writes_pending()
+                && joints
+                    .iter()
+                    .all(|joint| bench.supervisor.joint_feedback(joint).is_some())
+            {
+                break;
+            }
+            std::thread::sleep(PUMP_PERIOD);
+        }
+        assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+        for joint in joints {
+            assert_eq!(
+                bench.state(joint),
+                JointHomingState::Verified,
+                "reply {delay:?}: {joint}"
+            );
+        }
+        bench.supervisor.disable_all().expect("stop");
+    }
+}
+
+#[test]
+fn identity_admission_requests_leave_one_spacing_apart() {
+    let mut bench = Bench::physical("physical-admission-spacing");
+    bench.home_in_sequence(&FIVE);
+    bench.pump(POST_SET_ZERO_QUIET);
+    bench.firmware.borrow_mut().clear_trace();
+    let all: Vec<String> = FIVE.iter().map(|joint| (*joint).to_owned()).collect();
+    bench
+        .supervisor
+        .enable_targets(&all)
+        .expect("identity admits");
+    let firmware = bench.firmware.borrow();
+    let requests: Vec<Instant> = firmware
+        .tx
+        .iter()
+        .zip(&firmware.tx_at)
+        .filter(|(frame, _)| {
+            (frame.id >> 24) & 0x1f == u32::from(CommunicationType::GetDeviceId.as_u8())
+        })
+        .map(|(_, at)| *at)
+        .collect();
+    assert_eq!(requests.len(), FIVE.len(), "one request per target");
+    for pair in requests.windows(2) {
+        assert!(
+            pair[1].duration_since(pair[0]) >= IDENTITY_ADMISSION_SPACING,
+            "admission requests {:?} apart",
+            pair[1].duration_since(pair[0])
+        );
+    }
+    drop(firmware);
+    bench.supervisor.disable_all().expect("stop");
+}
+
+#[test]
+fn status_solicit_disables_leave_one_spacing_apart() {
+    let mut bench = Bench::physical("physical-solicit-spacing");
+    bench
+        .supervisor
+        .control
+        .control
+        .bench
+        .active_reporting_diagnostics = false;
+    bench.firmware.borrow_mut().clear_trace();
+    bench.supervisor.solicit_status_feedback().expect("solicit");
+    let firmware = bench.firmware.borrow();
+    let disables: Vec<Instant> = firmware
+        .tx
+        .iter()
+        .zip(&firmware.tx_at)
+        .filter(|(frame, _)| {
+            (frame.id >> 24) & 0x1f == u32::from(CommunicationType::Disable.as_u8())
+        })
+        .map(|(_, at)| *at)
+        .collect();
+    assert_eq!(disables.len(), FIVE.len());
+    for pair in disables.windows(2) {
+        assert!(pair[1].duration_since(pair[0]) >= BURST_GROUP_SPACING);
     }
 }
