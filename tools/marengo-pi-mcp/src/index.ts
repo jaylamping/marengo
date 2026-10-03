@@ -13,6 +13,7 @@ import { registerLogTools } from "./tools/logs.js";
 import { registerAdminTools } from "./tools/admin.js";
 import { makeAuditMotion, registerMotionTools } from "./tools/motion.js";
 import { registerGravityCalibrateTools } from "./tools/gravity-calibrate.js";
+import { registerEnableSoakTools } from "./tools/enable-soak.js";
 
 // zod-to-json-schema is optional; inline minimal schema helper if not installed
 function schemaOf(zodSchema: { _def?: unknown }): Record<string, unknown> {
@@ -38,8 +39,9 @@ async function main() {
   const admin = registerAdminTools(cfg, runRemote);
   const motion = registerMotionTools(cfg, runRemote, auditMotion);
   const gravityCalibrate = registerGravityCalibrateTools(cfg, runRemote, auditMotion);
+  const enableSoak = registerEnableSoakTools(cfg, runRemote, auditMotion);
 
-  const allTools = { ...readonly, ...logs, ...admin, ...motion, ...gravityCalibrate };
+  const allTools = { ...readonly, ...logs, ...admin, ...motion, ...gravityCalibrate, ...enableSoak };
 
   type ToolEntry = {
     description: string;

@@ -375,16 +375,18 @@ function awaitReplyShell(opts: {
   ok: string;
   fail: string;
   waitSec: number;
+  pollSec?: number;
 }): string {
+  const pollSec = opts.pollSec ?? 0.2;
   return [
     '_ref_from=$(wc -l < "$LOG")',
     `printf '%s\\n' ${JSON.stringify(opts.line)}`,
     "_ref_state=timeout",
-    `for _ in $(seq ${opts.waitSec * 5}); do`,
+    `for _ in $(seq ${Math.round(opts.waitSec / pollSec)}); do`,
     '  _ref_out=$(tail -n "+$((_ref_from + 1))" "$LOG")',
     `  if grep -Eq '${opts.fail}' <<<"$_ref_out"; then _ref_state=failed; break; fi`,
     `  if ${opts.ok}; then _ref_state=ok; break; fi`,
-    "  sleep 0.2",
+    `  sleep ${pollSec}`,
     "done",
     'if [[ "$_ref_state" != ok ]]; then',
     `  echo "${opts.label} $_ref_state (${opts.subject}); sending disable/quit" >&2`,
@@ -412,9 +414,9 @@ function referenceAcquireShell(line: string, joints: string[]): string {
 /**
  * Awaited `home` readiness check or `enable [...]` line, or null for any other line. marengo-pi
  * answers `homing verified → Ready` / `home failed:` and `enabled (operator=…)` /
- * `enable failed:` / `enable blocked:` / `enable refused:`.
+ * `enable failed:` / `enable blocked:` / `enable refused:`. `pollSec` is the "$LOG" poll step.
  */
-function admissionGateShell(line: string): string | null {
+export function admissionGateShell(line: string, pollSec?: number): string | null {
   const trimmed = line.trim();
   if (trimmed === "home") {
     return awaitReplyShell({
@@ -424,6 +426,7 @@ function admissionGateShell(line: string): string | null {
       ok: `grep -q '^homing verified ' <<<"$_ref_out"`,
       fail: "^home failed:",
       waitSec: ADMISSION_REPLY_SEC,
+      pollSec,
     });
   }
   if (trimmed.split(/\s+/)[0] === "enable") {
@@ -434,6 +437,7 @@ function admissionGateShell(line: string): string | null {
       ok: `grep -q '^enabled (operator=' <<<"$_ref_out"`,
       fail: "^enable (failed|blocked|refused):",
       waitSec: ADMISSION_REPLY_SEC,
+      pollSec,
     });
   }
   return null;
