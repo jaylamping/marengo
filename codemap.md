@@ -6,7 +6,7 @@ One repository for a personal humanoid robot: CAD, wiring, URDF, and the Rust ru
 ## System Entry Points
 | Entry | Role |
 |-------|------|
-| `Cargo.toml` | Armée workspace root — 18 crates + 10 bins, `#![forbid(unsafe_code)]` |
+| `Cargo.toml` | Armée workspace root — 16 crates + 6 bins, `#![forbid(unsafe_code)]` |
 | `bins/marengo-pi/src/main.rs` | Pi control loop, CAN, Chappe telemetry, operator REPL |
 | `bins/marengo-gateway/src/main.rs` | HTTP/WebTransport gateway for Consul |
 | `bins/motor-repl/src/main.rs` | Bench motor CLI (bring-up, set-zero, jog) |

@@ -196,10 +196,10 @@ just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
 
 | Tool | Choice |
 |---|---|
-| Rust | **1.88.0** (`rust-toolchain.toml`), edition 2021, rustfmt 100 cols. `.tool-versions` is stale; trust `rust-toolchain.toml` / `mise.toml` |
+| Rust | **1.88.0** (`rust-toolchain.toml`), edition 2021, rustfmt 100 cols. `.tool-versions` mirrors `mise.toml`; `rust-toolchain.toml` pins the channel |
 | Node | **24.16** (`.nvmrc`), **npm** with lockfiles, never bun. Regenerate the Consul lock with `just consul-lock` (Linux) |
 | Proto | buf from `consul/node_modules` (`@bufbuild/buf`), protoc **28.3** |
-| Python | uv (research MCP), `python3 -m unittest` for scripts |
+| Python | uv (research MCP), `python3 -m unittest` for scripts, pytest for `test_analyze_position_trace.py` |
 | Dependencies | cargo-deny 0.20.2, cargo-audit 0.22.2 via `scripts/check-dependencies.sh` |
 | Cross target | `aarch64-unknown-linux-gnu` (`aarch64-linux-gnu-gcc`); features `socketcan`, `linux-i2c` are off by default |
 | Hosts | ADR 0018: Windows `J:\code\marengo` (software + local CAD), macOS host checkout. No WSL checkout. Docker for the Linux gate |
