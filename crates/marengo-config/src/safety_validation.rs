@@ -1,6 +1,9 @@
 //! Declarative safety policy validation, shared by loaders and update boundaries.
+//!
+//! Duplicate checks scan the already-visited prefix instead of building a set:
+//! these validators run on every Davout control tick and inventories are small.
 
-use std::collections::HashSet;
+use std::fmt::Display;
 use std::time::Duration;
 
 use crate::{
@@ -16,25 +19,27 @@ fn invalid(field: impl Into<String>, message: impl Into<String>) -> ConfigError 
     }
 }
 
-fn finite(field: &str, value: f64) -> Result<(), ConfigError> {
+// Field paths are `Display` (usually `format_args!`) so the success path never
+// allocates; the string is built only when an error is returned.
+fn finite(field: impl Display, value: f64) -> Result<(), ConfigError> {
     if !value.is_finite() {
-        return Err(invalid(field, "must be finite"));
+        return Err(invalid(field.to_string(), "must be finite"));
     }
     Ok(())
 }
 
-fn nonnegative(field: &str, value: f64) -> Result<(), ConfigError> {
-    finite(field, value)?;
+fn nonnegative(field: impl Display, value: f64) -> Result<(), ConfigError> {
+    finite(&field, value)?;
     if value < 0.0 {
-        return Err(invalid(field, "must be >= 0"));
+        return Err(invalid(field.to_string(), "must be >= 0"));
     }
     Ok(())
 }
 
-fn positive(field: &str, value: f64) -> Result<(), ConfigError> {
-    finite(field, value)?;
+fn positive(field: impl Display, value: f64) -> Result<(), ConfigError> {
+    finite(&field, value)?;
     if value <= 0.0 {
-        return Err(invalid(field, "must be > 0"));
+        return Err(invalid(field.to_string(), "must be > 0"));
     }
     Ok(())
 }
@@ -60,10 +65,9 @@ pub fn validate_robot_config(robot: &RobotConfigFile) -> Result<(), ConfigError>
         "robot.bench.max_joint_torque_nm",
         robot.bench.max_joint_torque_nm,
     )?;
-    let mut joints = HashSet::new();
-    for joint in &robot.joints {
+    for (index, joint) in robot.joints.iter().enumerate() {
         named("robot.joints", joint)?;
-        if !joints.insert(joint) {
+        if robot.joints[..index].contains(joint) {
             return Err(invalid("robot.joints", format!("duplicate joint {joint}")));
         }
     }
@@ -72,48 +76,52 @@ pub fn validate_robot_config(robot: &RobotConfigFile) -> Result<(), ConfigError>
 
 /// Validate unique motor identity, transforms, and hard bench envelopes.
 pub fn validate_motors_config(motors: &MotorsConfigFile) -> Result<(), ConfigError> {
-    let mut joints = HashSet::new();
-    let mut addresses = HashSet::new();
-    for motor in &motors.motors {
+    for (index, motor) in motors.motors.iter().enumerate() {
+        let seen = &motors.motors[..index];
         named("motors.joint", &motor.joint)?;
         named("motors.can_interface", &motor.can_interface)?;
-        if !joints.insert(&motor.joint) {
+        if seen.iter().any(|prior| prior.joint == motor.joint) {
             return Err(invalid(
                 "motors.joint",
                 format!("duplicate joint {}", motor.joint),
             ));
         }
-        if !addresses.insert((&motor.can_interface, motor.device_id)) {
+        if seen.iter().any(|prior| {
+            prior.can_interface == motor.can_interface && prior.device_id == motor.device_id
+        }) {
             return Err(ConfigError::DuplicateMotorAddress {
                 interface: motor.can_interface.clone(),
                 device_id: motor.device_id,
             });
         }
-        let field = format!("motors.{}", motor.joint);
+        let joint = &motor.joint;
         if !matches!(motor.direction, -1 | 1) {
-            return Err(invalid(format!("{field}.direction"), "must be -1 or +1"));
+            return Err(invalid(
+                format!("motors.{joint}.direction"),
+                "must be -1 or +1",
+            ));
         }
-        positive(&format!("{field}.gear_ratio"), motor.gear_ratio)?;
+        positive(format_args!("motors.{joint}.gear_ratio"), motor.gear_ratio)?;
         finite(
-            &format!("{field}.bench.position_lower_rad"),
+            format_args!("motors.{joint}.bench.position_lower_rad"),
             motor.bench.position_lower_rad,
         )?;
         finite(
-            &format!("{field}.bench.position_upper_rad"),
+            format_args!("motors.{joint}.bench.position_upper_rad"),
             motor.bench.position_upper_rad,
         )?;
         if motor.bench.position_lower_rad >= motor.bench.position_upper_rad {
             return Err(invalid(
-                format!("{field}.bench"),
+                format!("motors.{joint}.bench"),
                 "hard lower must be < hard upper",
             ));
         }
         nonnegative(
-            &format!("{field}.bench.velocity_limit_rad_s"),
+            format_args!("motors.{joint}.bench.velocity_limit_rad_s"),
             motor.bench.velocity_limit_rad_s,
         )?;
         nonnegative(
-            &format!("{field}.bench.torque_limit_nm"),
+            format_args!("motors.{joint}.bench.torque_limit_nm"),
             motor.bench.torque_limit_nm,
         )?;
     }
@@ -124,7 +132,6 @@ pub(crate) fn validate_joint_numbers(
     joint: &str,
     entry: &JointControlEntry,
 ) -> Result<(), ConfigError> {
-    let field = format!("control.joints.{joint}");
     named("control.joints", joint)?;
     for (name, value) in [
         ("position_slew_rad_s", entry.position_slew_rad_s),
@@ -141,18 +148,18 @@ pub(crate) fn validate_joint_numbers(
             entry.position_trajectory_velocity_deadband_rad,
         ),
     ] {
-        nonnegative(&format!("{field}.{name}"), value)?;
+        nonnegative(format_args!("control.joints.{joint}.{name}"), value)?;
     }
     positive(
-        &format!("{field}.position_trajectory_velocity_rad_s"),
+        format_args!("control.joints.{joint}.position_trajectory_velocity_rad_s"),
         entry.position_trajectory_velocity_rad_s,
     )?;
     positive(
-        &format!("{field}.position_trajectory_accel_rad_s2"),
+        format_args!("control.joints.{joint}.position_trajectory_accel_rad_s2"),
         entry.position_trajectory_accel_rad_s2,
     )?;
     finite(
-        &format!("{field}.position_hold_trim_rad"),
+        format_args!("control.joints.{joint}.position_hold_trim_rad"),
         entry.position_hold_trim_rad,
     )?;
     Ok(())
@@ -203,65 +210,72 @@ pub(crate) fn validate_control_numbers(cfg: &ControlConfigFile) -> Result<(), Co
                 format!("unsupported motor type {motor_type}"),
             ));
         }
-        let field = format!("control.motor_type_defaults.{motor_type}");
         for (name, value) in [
             ("kp_max", defaults.kp_max),
             ("kd_max", defaults.kd_max),
             ("tau_ff_max_nm", defaults.tau_ff_max_nm),
         ] {
-            nonnegative(&format!("{field}.{name}"), value)?;
+            nonnegative(
+                format_args!("control.motor_type_defaults.{motor_type}.{name}"),
+                value,
+            )?;
         }
         positive(
-            &format!("{field}.velocity_max_rad_s"),
+            format_args!("control.motor_type_defaults.{motor_type}.velocity_max_rad_s"),
             defaults.velocity_max_rad_s,
         )?;
     }
     for (joint, entry) in &control.joints {
         validate_joint_numbers(joint, entry)?;
-        crate::validate_joint_gains_against_motor_type(cfg, joint)?;
+        crate::validate_entry_gains_against_motor_type(cfg, joint, entry)?;
     }
-    let mut names = HashSet::new();
-    for rule in &control.danger_zones {
+    for (index, rule) in control.danger_zones.iter().enumerate() {
         named("control.danger_zones.name", &rule.name)?;
-        if !names.insert(&rule.name) {
+        if control.danger_zones[..index]
+            .iter()
+            .any(|prior| prior.name == rule.name)
+        {
             return Err(invalid(
                 "control.danger_zones.name",
                 format!("duplicate rule {}", rule.name),
             ));
         }
-        let field = format!("control.danger_zones.{}", rule.name);
+        let name = &rule.name;
         if !control.joints.contains_key(&rule.joint) {
             return Err(invalid(
-                format!("{field}.joint"),
+                format!("control.danger_zones.{name}.joint"),
                 "must name a control joint",
             ));
         }
         if !matches!(rule.action.as_str(), "clamp_velocity" | "clamp_torque") {
             return Err(invalid(
-                format!("{field}.action"),
+                format!("control.danger_zones.{name}.action"),
                 "must be clamp_velocity or clamp_torque",
             ));
         }
         if rule.action == "clamp_torque" && rule.max_torque_nm.is_none() {
             return Err(invalid(
-                format!("{field}.max_torque_nm"),
+                format!("control.danger_zones.{name}.max_torque_nm"),
                 "clamp_torque requires an explicit torque cap",
             ));
         }
         finite(
-            &format!("{field}.position_above_rad"),
+            format_args!("control.danger_zones.{name}.position_above_rad"),
             rule.position_above_rad,
         )?;
         finite(
-            &format!("{field}.velocity_below_rad_s"),
+            format_args!("control.danger_zones.{name}.velocity_below_rad_s"),
             rule.velocity_below_rad_s,
         )?;
         nonnegative(
-            &format!("{field}.max_velocity_rad_s"),
+            format_args!("control.danger_zones.{name}.max_velocity_rad_s"),
             rule.max_velocity_rad_s,
         )?;
         if let Some(cap) = rule.max_torque_nm {
-            nonnegative(&format!("{field}.max_torque_nm"), cap)?;
+            nonnegative(
+                format_args!("control.danger_zones.{name}.max_torque_nm"),
+                cap,
+            )?;
         }
     }
     let sign = &control.wrong_sign_watchdog;
@@ -285,24 +299,24 @@ pub(crate) fn validate_control_numbers(cfg: &ControlConfigFile) -> Result<(), Co
 }
 
 fn validate_homing_numbers(
-    field: &str,
+    field: impl Display,
     offset: f64,
     velocity: f64,
     torque: f64,
     timeout: f64,
     backoff: f64,
 ) -> Result<(), ConfigError> {
-    finite(&format!("{field}.home_offset_rad"), offset)?;
-    positive(&format!("{field}.search_velocity_rad_s"), velocity)?;
-    nonnegative(&format!("{field}.search_torque_nm"), torque)?;
-    positive(&format!("{field}.search_timeout_s"), timeout)?;
+    finite(format_args!("{field}.home_offset_rad"), offset)?;
+    positive(format_args!("{field}.search_velocity_rad_s"), velocity)?;
+    nonnegative(format_args!("{field}.search_torque_nm"), torque)?;
+    positive(format_args!("{field}.search_timeout_s"), timeout)?;
     if Duration::try_from_secs_f64(timeout).is_err() {
         return Err(invalid(
             format!("{field}.search_timeout_s"),
             "must fit in a Duration",
         ));
     }
-    nonnegative(&format!("{field}.backoff_rad"), backoff)
+    nonnegative(format_args!("{field}.backoff_rad"), backoff)
 }
 
 /// Validate homing defaults and the effective values after per-joint overrides.
@@ -324,11 +338,10 @@ pub fn validate_homing_config(cfg: &HomingConfigFile) -> Result<(), ConfigError>
     for joint in homing.configured_joints() {
         named("homing.joints", joint)?;
         let effective = homing
-            .effective_joint(joint)
+            .effective_joint_ref(joint)
             .ok_or_else(|| invalid("homing.joints", format!("missing joint {joint}")))?;
-        let field = format!("homing.joints.{joint}");
         validate_homing_numbers(
-            &field,
+            format_args!("homing.joints.{joint}"),
             effective.home_offset_rad,
             effective.search_velocity_rad_s,
             effective.search_torque_nm,
@@ -337,7 +350,7 @@ pub fn validate_homing_config(cfg: &HomingConfigFile) -> Result<(), ConfigError>
         )?;
         if effective.method == HomingMethod::HallThreeSensor && effective.sensors.is_none() {
             return Err(invalid(
-                format!("{field}.sensors"),
+                format!("homing.joints.{joint}.sensors"),
                 "Hall homing requires home, min_limit, and max_limit sensors",
             ));
         }
@@ -349,7 +362,7 @@ pub fn validate_homing_config(cfg: &HomingConfigFile) -> Result<(), ConfigError>
             ];
             if pins[0] == pins[1] || pins[0] == pins[2] || pins[1] == pins[2] {
                 return Err(invalid(
-                    format!("{field}.sensors"),
+                    format!("homing.joints.{joint}.sensors"),
                     "home, min_limit, and max_limit must use distinct GPIOs",
                 ));
             }
@@ -371,7 +384,7 @@ pub fn validate_safety_config(
     validate_control_against_limits(robot, motors, control)?;
     validate_homing_config(homing)?;
     for joint in &robot.robot.joints {
-        let effective = homing.homing.effective_joint(joint).ok_or_else(|| {
+        let effective = homing.homing.effective_joint_ref(joint).ok_or_else(|| {
             invalid(
                 "homing.joints",
                 format!("active joint {joint} has no homing entry"),

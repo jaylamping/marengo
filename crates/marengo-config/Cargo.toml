@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 armee-kinematics.workspace = true
+rustc-hash.workspace = true
 serde.workspace = true
 serde_yaml = "0.9"
 thiserror.workspace = true

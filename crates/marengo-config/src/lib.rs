@@ -69,8 +69,11 @@ pub use urdf_merge::{
     ResolutionChoice,
 };
 
-use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+
+// Config maps are hashed on every control tick by safety validation. Keys are
+// operator-authored names, so the fast non-DoS-resistant hasher is appropriate.
+pub use rustc_hash::FxHashMap;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -288,10 +291,10 @@ pub struct ControlSection {
     pub disable_on_exit: bool,
     #[serde(default)]
     pub bench: ControlBenchSection,
-    pub motor_type_defaults: HashMap<String, MotorTypeDefaults>,
+    pub motor_type_defaults: FxHashMap<String, MotorTypeDefaults>,
     #[serde(default)]
-    pub actuator_groups: HashMap<String, ActuatorGroupEntry>,
-    pub joints: HashMap<String, JointControlEntry>,
+    pub actuator_groups: FxHashMap<String, ActuatorGroupEntry>,
+    pub joints: FxHashMap<String, JointControlEntry>,
     pub danger_zones: Vec<DangerZoneRule>,
     /// GravityComp wrong-sign watchdog (ADR 0015). Trips when sign(torque_ff)
     /// opposes the expected sign sustained over `min_opposition_ticks`.
@@ -597,8 +600,7 @@ pub fn resolve_joint_velocity_cap(
 }
 
 fn validate_actuator_groups(control: &ControlSection) -> Result<(), ConfigError> {
-    let mut joint_owner: HashMap<String, String> = HashMap::new();
-    for (group, entry) in &control.actuator_groups {
+    for (index, (group, entry)) in control.actuator_groups.iter().enumerate() {
         if !entry.velocity_max_rad_s.is_finite() || entry.velocity_max_rad_s <= 0.0 {
             return Err(ConfigError::InvalidActuatorGroup {
                 group: group.clone(),
@@ -611,14 +613,23 @@ fn validate_actuator_groups(control: &ControlSection) -> Result<(), ConfigError>
                 message: "joints must not be empty".to_string(),
             });
         }
-        for joint in &entry.joints {
+        for (position, joint) in entry.joints.iter().enumerate() {
             if !control.joints.contains_key(joint) {
                 return Err(ConfigError::InvalidActuatorGroup {
                     group: group.clone(),
                     message: format!("joint {joint} not in control.joints"),
                 });
             }
-            if let Some(other) = joint_owner.insert(joint.clone(), group.clone()) {
+            // Unmodified map iteration order is stable, so `take(index)` revisits
+            // exactly the groups that claimed joints earlier in this pass.
+            let other = control
+                .actuator_groups
+                .iter()
+                .take(index)
+                .find(|(_, prior)| prior.joints.contains(joint))
+                .map(|(name, _)| name)
+                .or_else(|| entry.joints[..position].contains(joint).then_some(group));
+            if let Some(other) = other {
                 return Err(ConfigError::InvalidActuatorGroup {
                     group: group.clone(),
                     message: format!("joint {joint} already in group {other}"),
@@ -685,9 +696,8 @@ pub fn validate_control_against_limits(
     validate_motors_against_robot(robot, motors)?;
     validate_control_config(control)?;
     validate_robot_control_joint_coverage(robot, control)?;
-    let robot_joints: HashSet<&str> = robot.robot.joints.iter().map(String::as_str).collect();
     for joint in control.control.joints.keys() {
-        if !robot_joints.contains(joint.as_str()) {
+        if !robot.robot.joints.contains(joint) {
             return Err(ConfigError::InvalidSafetyConfig {
                 field: "control.joints".to_string(),
                 message: format!("joint {joint} not in robot.joints"),
@@ -696,7 +706,7 @@ pub fn validate_control_against_limits(
     }
     for (group, entry) in &control.control.actuator_groups {
         for joint in &entry.joints {
-            if !robot_joints.contains(joint.as_str()) {
+            if !robot.robot.joints.contains(joint) {
                 return Err(ConfigError::InvalidActuatorGroup {
                     group: group.clone(),
                     message: format!("joint {joint} not in robot.joints"),
@@ -795,7 +805,7 @@ pub struct HomingSection {
     pub calibration_record_path: String,
     #[serde(default)]
     pub defaults: HomingJointDefaults,
-    pub joints: std::collections::HashMap<String, HomingJointEntry>,
+    pub joints: FxHashMap<String, HomingJointEntry>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -924,9 +934,12 @@ pub struct SensorInput {
 }
 
 /// Effective homing parameters for one joint (defaults merged with overrides).
+///
+/// `J` is the joint-name type: owned by default, or `&str` borrowed from the
+/// config via [`HomingSection::effective_joint_ref`] on per-tick paths.
 #[derive(Debug, Clone)]
-pub struct EffectiveHomingJoint {
-    pub joint: String,
+pub struct EffectiveHomingJoint<J = String> {
+    pub joint: J,
     pub method: HomingMethod,
     pub home_offset_rad: f64,
     pub search_direction: SearchDirection,
@@ -941,11 +954,29 @@ pub struct EffectiveHomingJoint {
 
 impl HomingSection {
     pub fn effective_joint(&self, joint: &str) -> Option<EffectiveHomingJoint> {
-        let entry = self.joints.get(joint)?;
+        let effective = self.effective_joint_ref(joint)?;
+        Some(EffectiveHomingJoint {
+            joint: effective.joint.to_string(),
+            method: effective.method,
+            home_offset_rad: effective.home_offset_rad,
+            search_direction: effective.search_direction,
+            search_velocity_rad_s: effective.search_velocity_rad_s,
+            search_torque_nm: effective.search_torque_nm,
+            search_timeout_s: effective.search_timeout_s,
+            backoff_rad: effective.backoff_rad,
+            sign_test_required: effective.sign_test_required,
+            allow_sensor_overlap: effective.allow_sensor_overlap,
+            sensors: effective.sensors,
+        })
+    }
+
+    /// Same resolution as [`Self::effective_joint`] without allocating the name.
+    pub fn effective_joint_ref(&self, joint: &str) -> Option<EffectiveHomingJoint<&str>> {
+        let (joint, entry) = self.joints.get_key_value(joint)?;
         let d = &self.defaults;
         let o = &entry.overrides;
         Some(EffectiveHomingJoint {
-            joint: joint.to_string(),
+            joint: joint.as_str(),
             method: entry.method,
             home_offset_rad: o.home_offset_rad.unwrap_or(d.home_offset_rad),
             search_direction: o.search_direction.unwrap_or(d.search_direction),
@@ -1087,6 +1118,15 @@ pub fn validate_joint_gains_against_motor_type(
             path: PathBuf::from("control.yaml"),
             message: format!("unknown joint {joint}"),
         })?;
+    validate_entry_gains_against_motor_type(cfg, joint, entry)
+}
+
+/// [`validate_joint_gains_against_motor_type`] for an entry the caller already holds.
+pub(crate) fn validate_entry_gains_against_motor_type(
+    cfg: &ControlConfigFile,
+    joint: &str,
+    entry: &JointControlEntry,
+) -> Result<(), ConfigError> {
     let type_key = motor_type_key(entry.motor_type);
     let defaults = cfg
         .control
@@ -1351,7 +1391,7 @@ mod tests {
     }
 
     fn sample_control_section() -> ControlSection {
-        let mut motor_type_defaults = HashMap::new();
+        let mut motor_type_defaults = FxHashMap::default();
         motor_type_defaults.insert(
             "rs03".to_string(),
             MotorTypeDefaults {
@@ -1361,7 +1401,7 @@ mod tests {
                 velocity_max_rad_s: 2.0,
             },
         );
-        let mut joints = HashMap::new();
+        let mut joints = FxHashMap::default();
         joints.insert(
             "right_shoulder_pitch".to_string(),
             JointControlEntry {
@@ -1398,7 +1438,7 @@ mod tests {
                 position_soft_upper_rad: None,
             },
         );
-        let mut actuator_groups = HashMap::new();
+        let mut actuator_groups = FxHashMap::default();
         actuator_groups.insert(
             "shoulder_pitch".to_string(),
             ActuatorGroupEntry {

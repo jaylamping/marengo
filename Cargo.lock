@@ -594,6 +594,7 @@ dependencies = [
  "marengo-homing",
  "robstride",
  "rusqlite",
+ "rustc-hash",
  "same-file",
  "serde",
  "serde_json",
@@ -1443,6 +1444,7 @@ name = "marengo-config"
 version = "0.1.0"
 dependencies = [
  "armee-kinematics",
+ "rustc-hash",
  "serde",
  "serde_yaml",
  "tempfile",
