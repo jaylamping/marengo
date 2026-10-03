@@ -128,7 +128,6 @@ name = "armee-kinematics"
 version = "0.1.0"
 dependencies = [
  "marengo-config",
- "serde_yaml",
  "thiserror 1.0.69",
  "urdf-rs",
 ]

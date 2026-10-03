@@ -125,20 +125,7 @@ fn copied_fixture() -> (tempfile::TempDir, PathBuf) {
     )
     .expect("copy immutable master model");
     // Exact acquisition trace is separate from the applied-reporting qualification.
-    let path = config.join("control.yaml");
-    let text = std::fs::read_to_string(&path).expect("copied control source");
-    assert_eq!(
-        text.matches("active_reporting_diagnostics: true").count(),
-        1
-    );
-    std::fs::write(
-        path,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("disable only copied diagnostics before constructing owner");
+    crate::test_support::disable_copied_diagnostics(temp.path());
     (temp, config)
 }
 

@@ -45,25 +45,10 @@ impl Drop for Owner<'_> {
 }
 
 fn tree() -> support::FixtureTree {
-    let tree = support::FixtureTree::new(
+    support::fixture_tree_without_diagnostics(
         "selected-reference",
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
-    );
-    let path = tree.path().join("config/control.yaml");
-    let text = std::fs::read_to_string(&path).expect("owned policy");
-    assert_eq!(
-        text.matches("active_reporting_diagnostics: true").count(),
-        1
-    );
-    std::fs::write(
-        path,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
     )
-    .expect("isolated reporting policy");
-    tree
 }
 fn raw_zero() -> CanFrame {
     CanFrame {
