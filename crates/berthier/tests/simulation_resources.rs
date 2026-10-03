@@ -32,7 +32,15 @@ fn check_child(root: &Path, case: &str) {
         .expect("ordinary runtime constructor uses ambient configuration");
         assert_eq!(owner.mode(), OperationalMode::Disabled);
         assert!(owner.control.control.bench.active_reporting_diagnostics);
-        assert_eq!(owner.bus().transmissions().len(), 5);
+        // Construction writes the first reporting On per interface; `sync`
+        // writes the rest one per interface per control period.
+        let interfaces: std::collections::HashSet<&str> = owner
+            .motors
+            .motors
+            .iter()
+            .map(|motor| motor.can_interface.as_str())
+            .collect();
+        assert_eq!(owner.bus().transmissions().len(), interfaces.len());
         assert!(owner
             .bus()
             .transmissions()

@@ -1129,7 +1129,9 @@ impl<B: MotorBus> ControlLoop<B> {
         if self.active_feedback_grace_ticks > 0 {
             if all_have_feedback {
                 self.active_feedback_grace_ticks = 0;
-            } else {
+            } else if !self.supervisor.enable_writes_pending() {
+                // A target whose staggered Enable is not yet written cannot
+                // have session pose; the grace counts from the last write.
                 self.active_feedback_grace_ticks -= 1;
             }
         }

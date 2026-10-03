@@ -241,6 +241,11 @@ impl Firmware {
         self.rx.push_back(frame);
     }
 
+    /// Deliver `frame` to the host receive queue as is (e.g. a stale echo).
+    pub fn inject_rx(&mut self, frame: CanFrame) {
+        self.rx.push_back(frame);
+    }
+
     /// Put every held write on the wire, in write order.
     pub fn release_tx(&mut self) {
         for frame in self.held_tx.take().unwrap_or_default() {

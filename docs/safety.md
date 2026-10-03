@@ -161,6 +161,33 @@ disables. The fault does not clear on its own.
   never becomes session pose. After the echo, Reset/Calibration latches as before.
   A missing echo latches DriveState once `comm_watchdog_ms` has passed since
   activation. Echoes are never feedback, liveness or replies.
+- **Staggered enable and reporting writes:** Every host frame solicits a drive
+  reply, and the bench mcp251x holds only two received frames. On 2026-10-03
+  Enable + RunMode to five drives plus their replies (about 2.9 received
+  frames/ms for 12 ms, 81% bus load) overran it, and five type-24 Ons did the
+  same at startup. On SocketCAN, Enable now writes the first target per
+  interface and goes Active; `poll_feedback` writes the next target per
+  interface each control period, and any remainder at once half of
+  `comm_watchdog_ms` after activation. Every target is pending from
+  activation, so a target not yet written is never held to Run or admitted as
+  pose, and only its own echo (not an older one) arms the strict check; the
+  missing-echo latch above is unchanged. Type-24 `sync` writes (On, Off,
+  retries, refreshes) take one slot per interface per control period.
+  Own-message echo is not receive load: the driver builds it in software on
+  TX completion, outside the controller's receive buffers.
+- **Controller receive overflow is persistent (operator recommendation
+  open):** an mcp251x RX overflow reaches Davout as a kernel error frame
+  (`CAN_ERR_CRTL_RX_OVERFLOW`) and latches Transport. Making an *isolated*
+  overflow recoverable while every Active joint's feedback stays fresh within
+  `comm_watchdog_ms` was considered and not adopted. *For:* the drives keep
+  their own CAN timeout, the lost frame was most likely a periodic status or
+  MIT reply that the next tick replaces, and freshness/watchdog checks still
+  bound stale pose. *Against:* the dropped drive frame's identity is unknown;
+  it can be a fault report or a reply carrying a Reset/fault mode, so the
+  strict mode check and fault authority may have missed exactly the evidence
+  they exist for; an overflow also shows host receive servicing already fell
+  behind. Relaxing it needs a decided policy (which frames may be lost, how a
+  possibly lost fault is re-solicited before motion continues) and an ADR.
 - **Reference and stop callers:** Private admission closes legacy direct grants
   and cached verification. Physical reference runs inside the owning
   `marengo-pi`/`motor-repl` process (ADR 0036); installed-owner client migration

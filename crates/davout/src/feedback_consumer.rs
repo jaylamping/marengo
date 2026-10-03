@@ -298,7 +298,11 @@ impl<B: MotorBus> Supervisor<B> {
                 OrderedReceive::Motor(observation) => observation,
                 OrderedReceive::EnableEcho(echo) => {
                     // Wire-order marker only: never pose, liveness or a reply.
-                    self.enable_echo_pending.remove(&echo.address);
+                    // A staggered target whose Enable this session has not yet
+                    // written cannot be on the wire; an older echo is not its.
+                    if !self.enable_writes_pending.contains(&echo.address) {
+                        self.enable_echo_pending.remove(&echo.address);
+                    }
                     continue;
                 }
                 OrderedReceive::Terminal(error) => {

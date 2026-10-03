@@ -752,6 +752,191 @@ fn missing_enable_echo_refuses_reference_before_set_zero() {
     bench.assert_all_drives_stopped();
 }
 
+// ---------------------------------------------------------------- staggered enable
+
+/// PITCH and ROLL referenced; both on can0, so their Enables are staggered.
+/// The trace is cleared: counts below are this enable session's writes.
+fn two_joint_bench(label: &str) -> Bench {
+    let mut bench = Bench::physical(label);
+    bench.acquire(PITCH);
+    bench.pump(Duration::from_millis(30));
+    bench.acquire(ROLL);
+    bench.pump(Duration::from_millis(20));
+    bench.firmware.borrow_mut().clear_trace();
+    bench
+}
+
+fn loop_period(bench: &Bench) -> Duration {
+    Duration::from_micros(1_000_000 / u64::from(bench.supervisor.control.control.loop_hz))
+}
+
+fn enable_both(bench: &mut Bench) {
+    bench
+        .supervisor
+        .enable_targets(&[PITCH.to_owned(), ROLL.to_owned()])
+        .expect("identity admits both targets");
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+}
+
+#[test]
+fn staggered_enable_writes_one_target_per_interface_per_control_period() {
+    // 2026-10-03: Enable + RunMode to five drives in one call (plus every
+    // drive's reply) overran the mcp251x two-frame receive buffer.
+    let mut bench = two_joint_bench("physical-enable-stagger");
+    enable_both(&mut bench);
+    assert_eq!(bench.sent(CommunicationType::Enable, PITCH), 1);
+    assert_eq!(
+        bench.sent(CommunicationType::Enable, ROLL),
+        0,
+        "a second can0 target waits for the next control period"
+    );
+    assert!(bench.supervisor.enable_writes_pending());
+
+    // ROLL is still in Reset: its traffic is neither a dropout nor pose.
+    bench.firmware.borrow_mut().emit_report(PITCH);
+    bench.firmware.borrow_mut().emit_report(ROLL);
+    bench
+        .supervisor
+        .drain_feedback()
+        .expect("a target not yet enabled may report Reset");
+    assert!(!bench.supervisor.has_latched_fault());
+    assert!(bench.supervisor.joint_feedback(PITCH).is_some());
+    if bench.sent(CommunicationType::Enable, ROLL) == 0 {
+        // Unless that drain already crossed into the next period.
+        assert!(bench.supervisor.joint_feedback(ROLL).is_none());
+    }
+
+    std::thread::sleep(loop_period(&bench));
+    bench
+        .supervisor
+        .drain_feedback()
+        .expect("ROLL's Enable, its echo, then its Run reply");
+    assert_eq!(bench.sent(CommunicationType::Enable, ROLL), 1);
+    assert!(!bench.supervisor.enable_writes_pending());
+    assert!(!bench.supervisor.has_latched_fault());
+    assert!(
+        bench.supervisor.joint_feedback(ROLL).is_some(),
+        "the Run reply after ROLL's own echo is session pose"
+    );
+    let order: Vec<(u32, u8)> = bench
+        .firmware
+        .borrow()
+        .tx
+        .iter()
+        .map(|frame| ((frame.id >> 24) & 0x1f, (frame.id & 0xff) as u8))
+        .filter(|(kind, _)| *kind == 3 || *kind == 18)
+        .collect();
+    let (pitch, roll) = (bench.device(PITCH), bench.device(ROLL));
+    assert_eq!(
+        order,
+        [(3, pitch), (18, pitch), (3, roll), (18, roll)],
+        "Enable then RunMode per target, one target per period"
+    );
+    bench.supervisor.disable_all().expect("stop");
+}
+
+#[test]
+fn staggered_target_reset_after_its_own_echo_still_faults() {
+    let mut bench = two_joint_bench("physical-stagger-ignored");
+    bench.firmware.borrow_mut().drive_mut(ROLL).ignore_enable = true;
+    enable_both(&mut bench);
+    std::thread::sleep(loop_period(&bench));
+    let error = bench
+        .supervisor
+        .drain_feedback()
+        .expect_err("Reset after ROLL's Enable reached the wire is a dropout");
+    assert_eq!(bench.sent(CommunicationType::Enable, ROLL), 1);
+    assert!(
+        matches!(&error, DavoutError::InvalidFeedback { joint, message }
+            if joint == ROLL && message.contains("unexpected drive mode Reset")),
+        "{error}"
+    );
+    assert!(bench.supervisor.has_latched_fault());
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    assert!(!bench.supervisor.enable_writes_pending());
+    bench.assert_all_drives_stopped();
+}
+
+#[test]
+fn stale_enable_echo_cannot_arm_a_target_not_yet_written() {
+    // An older echo of ROLL's Enable (here, the exact frame), read after this
+    // session activated but before ROLL's own staggered Enable is written,
+    // must not hold ROLL's Reset traffic to Run or admit it as pose.
+    for _attempt in 0..5 {
+        let mut bench = two_joint_bench("physical-stagger-stale-echo");
+        enable_both(&mut bench);
+        let roll = bench.device(ROLL);
+        let stale_echo = {
+            let firmware = bench.firmware.borrow();
+            let pitch_enable = firmware
+                .tx
+                .iter()
+                .find(|frame| {
+                    (frame.id >> 24) & 0x1f == u32::from(CommunicationType::Enable.as_u8())
+                })
+                .expect("PITCH's Enable");
+            robstride::CanFrame {
+                id: (pitch_enable.id & !0xff) | u32::from(roll),
+                ..pitch_enable.clone()
+            }
+        };
+        {
+            let mut firmware = bench.firmware.borrow_mut();
+            firmware.inject_rx(stale_echo);
+            firmware.emit_report(ROLL);
+        }
+        let drained = bench.supervisor.drain_feedback();
+        if bench.sent(CommunicationType::Enable, ROLL) > 0 {
+            // The drain crossed into ROLL's period and wrote its own Enable
+            // first; retry inside one control period.
+            continue;
+        }
+        drained.expect("ROLL's Reset precedes its own Enable on the wire");
+        assert!(!bench.supervisor.has_latched_fault());
+        assert!(bench.supervisor.joint_feedback(ROLL).is_none());
+        assert!(bench.supervisor.enable_writes_pending());
+        bench.supervisor.disable_all().expect("stop");
+        return;
+    }
+    panic!("no drain ran inside one control period");
+}
+
+#[test]
+fn missing_echo_of_a_staggered_enable_fails_closed() {
+    let mut bench = two_joint_bench("physical-stagger-echo-lost");
+    bench.firmware.borrow_mut().lost_echoes = vec![CommunicationType::Enable.as_u8()];
+    enable_both(&mut bench);
+    let window = Duration::from_millis(bench.supervisor.control.control.comm_watchdog_ms);
+    let give_up = Instant::now() + window * 3;
+    let error = loop {
+        bench.firmware.borrow_mut().emit_reports();
+        if let Err(error) = bench.supervisor.drain_feedback() {
+            break error;
+        }
+        for joint in [PITCH, ROLL] {
+            assert!(
+                bench.supervisor.joint_feedback(joint).is_none(),
+                "unconfirmed traffic cannot authorize {joint}"
+            );
+        }
+        assert!(Instant::now() < give_up, "missing echoes must fail closed");
+        std::thread::sleep(PUMP_PERIOD);
+    };
+    assert_eq!(
+        bench.sent(CommunicationType::Enable, ROLL),
+        1,
+        "the stagger completed before the echo bound"
+    );
+    assert!(
+        matches!(&error, DavoutError::InvalidFeedback { message, .. }
+            if message.contains("Enable not observed on the bus")),
+        "{error}"
+    );
+    assert!(bench.supervisor.has_latched_fault());
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    bench.assert_all_drives_stopped();
+}
+
 #[test]
 fn own_frame_echoes_are_never_drive_feedback_or_liveness() {
     let mut bench = Bench::physical("physical-echo-not-feedback");

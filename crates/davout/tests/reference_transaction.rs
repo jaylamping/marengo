@@ -323,6 +323,15 @@ fn fixture(diagnostics: bool, saved_history: bool) -> Fixture {
     }
 }
 
+/// Construction writes the first default reporting On; `sync` writes the rest
+/// one per interface per control period.
+fn settle_reporting(owner: &mut Supervisor<SimulationBus>) {
+    for _ in 0..=owner.motors.motors.len() {
+        std::thread::sleep(Duration::from_millis(5));
+        owner.sync_active_reporting();
+    }
+}
+
 fn owner(fixture: &Fixture) -> Supervisor<SimulationBus> {
     Supervisor::from_simulation_with_calibration_record_path(
         fixture.tree.path(),
@@ -1216,6 +1225,7 @@ fn uncertain_setzero_and_failed_terminal_stop_keep_the_original_outcome() {
     // attempts. Applied reporting makes a skipped Off phase observable too.
     let baseline_fixture = fixture(true, true);
     let mut baseline_owner = owner(&baseline_fixture);
+    settle_reporting(&mut baseline_owner);
     let applied_before_baseline = [
         "right_shoulder_pitch",
         "right_shoulder_roll",
@@ -1494,6 +1504,7 @@ fn actual_reporting_off_precedes_flush_and_cannot_interfere_with_reference() {
     for off_failure in [false, true] {
         let fixture = fixture(true, true);
         let mut owner = owner(&fixture);
+        settle_reporting(&mut owner);
         let applied = [
             "right_shoulder_pitch",
             "right_shoulder_roll",

@@ -850,6 +850,8 @@ impl<B: MotorBus> Supervisor<B> {
         self.reference_owner.next_sequence = next;
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
+        self.enable_writes_pending.clear();
+        self.enable_write_due = None;
         self.reference_owner.reservation = Some(Reservation {
             request,
             handle: handle.clone(),

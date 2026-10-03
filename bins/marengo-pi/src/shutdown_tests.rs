@@ -172,9 +172,11 @@ fn all_original_stop_writes_precede_waiting_for_the_real_gated_writer() {
         );
     }
     let startup = witness.lock().expect("startup witness").clone();
+    // Reporting writes are spaced one per interface per control period, so
+    // construction reaches only the first configured On.
     assert_eq!(
         startup.iter().map(|tx| tx.frame.id).collect::<Vec<_>>(),
-        [0x1800fd01, 0x1800fd02, 0x1800fd03, 0x1800fd04, 0x1800fd05],
+        [0x1800fd01],
         "ordinary construction must reach the real configured diagnostic output"
     );
     witness.lock().expect("clear checked setup traffic").clear();

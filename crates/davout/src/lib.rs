@@ -376,6 +376,14 @@ pub struct Supervisor<B: MotorBus> {
     /// read after it may predate the Enable on the bus; the strict Run
     /// expectation and session pose start at the echo instead.
     enable_echo_pending: FxHashSet<MotorAddress>,
+    /// Echoing buses only: this session's targets whose Enable + RunMode are not
+    /// yet written, in target order. Every host frame solicits a drive reply and
+    /// the mcp251x keeps only two received frames, so activation writes one
+    /// target per interface per control period (see [`Self::issue_due_enable_writes`]).
+    /// They stay in `enable_echo_pending` from activation until their own echo.
+    enable_writes_pending: Vec<MotorAddress>,
+    /// Earliest time the next staggered Enable wave may be written.
+    enable_write_due: Option<Instant>,
     invalid_feedback: FxHashSet<MotorAddress>,
     last_tau_ff: FxHashMap<String, f64>,
     feedback_velocity_trips: FxHashMap<String, u8>,
@@ -583,6 +591,8 @@ impl<B: MotorBus> Supervisor<B> {
             motor_states: FxHashMap::default(),
             active_since: None,
             enable_echo_pending: FxHashSet::default(),
+            enable_writes_pending: Vec::new(),
+            enable_write_due: None,
             invalid_feedback: FxHashSet::default(),
             last_tau_ff: FxHashMap::default(),
             feedback_velocity_trips: FxHashMap::default(),
@@ -1419,25 +1429,30 @@ impl<B: MotorBus> Supervisor<B> {
         // before activation; only later received poses may authorize this session.
         self.poll_feedback(Duration::ZERO)?;
         let result = (|| {
+            let mut addresses = Vec::with_capacity(joints.len());
             for joint in joints {
-                let motor = motor_for_joint(&self.motors, joint)
-                    .ok_or_else(|| DavoutError::UnknownJoint {
+                let motor = motor_for_joint(&self.motors, joint).ok_or_else(|| {
+                    DavoutError::UnknownJoint {
                         joint: joint.clone(),
-                    })?
-                    .clone();
-                let address = MotorAddress::from(&motor);
-                info!(
-                    joint = %motor.joint,
-                    interface = %address.interface,
-                    device_id = address.device_id,
-                    "enabling motor"
-                );
-                self.bus.enable_drive_at(&address)?;
-                self.bus.set_run_mode_at(&address, RunMode::Mit)?;
-                // The writes only queued the Enable. Nothing is read in between,
-                // so its echo can only be popped after this mark.
-                if self.bus.echoes_transmissions() {
-                    self.enable_echo_pending.insert(address);
+                    }
+                })?;
+                addresses.push(MotorAddress::from(motor));
+            }
+            if self.bus.echoes_transmissions() {
+                // Every target stays pending from here until its own echo, so
+                // traffic from a target not yet written is never held to Run
+                // and never becomes session pose. The first wave goes now; the
+                // rest follow one per interface per control period.
+                self.enable_echo_pending.extend(addresses.iter().cloned());
+                self.enable_writes_pending = addresses;
+                for address in self.take_enable_wave(false) {
+                    self.write_enable(&address)?;
+                }
+            } else {
+                // Without echo, post-enable follows pop time: every target must
+                // be written before activation.
+                for address in &addresses {
+                    self.write_enable(address)?;
                 }
             }
             // Drives can queue status while enable/run-mode writes are still
@@ -1448,7 +1463,9 @@ impl<B: MotorBus> Supervisor<B> {
             self.ensure_reference_for(joints)?;
             self.active_joints = joints.iter().cloned().collect();
             self.mode = OperationalMode::Active;
-            self.active_since = Some(Instant::now());
+            let activated_at = Instant::now();
+            self.active_since = Some(activated_at);
+            self.enable_write_due = Some(activated_at + self.loop_period());
             self.wrong_sign_state.clear();
             self.last_tau_ff.clear();
             self.last_tick = None;
@@ -1465,6 +1482,79 @@ impl<B: MotorBus> Supervisor<B> {
             }
         }
         result
+    }
+
+    fn loop_period(&self) -> Duration {
+        Duration::from_micros(1_000_000 / u64::from(self.control.control.loop_hz.max(1)))
+    }
+
+    /// Remove the next Enable wave from `enable_writes_pending`: the first
+    /// pending target of each interface, or every pending target when `all`.
+    fn take_enable_wave(&mut self, all: bool) -> Vec<MotorAddress> {
+        if all {
+            return std::mem::take(&mut self.enable_writes_pending);
+        }
+        let mut wave: Vec<MotorAddress> = Vec::new();
+        self.enable_writes_pending.retain(|address| {
+            if wave
+                .iter()
+                .any(|taken| taken.interface == address.interface)
+            {
+                return true;
+            }
+            wave.push(address.clone());
+            false
+        });
+        wave
+    }
+
+    fn write_enable(&mut self, address: &MotorAddress) -> Result<(), DavoutError> {
+        let joint = self
+            .motors
+            .motors
+            .iter()
+            .find(|motor| is_motor_address(address, motor))
+            .map_or("", |motor| motor.joint.as_str());
+        info!(
+            joint,
+            interface = %address.interface,
+            device_id = address.device_id,
+            "enabling motor"
+        );
+        self.bus.enable_drive_at(address)?;
+        self.bus.set_run_mode_at(address, RunMode::Mit)?;
+        Ok(())
+    }
+
+    /// Write the next staggered Enable wave once its control period is due.
+    /// Half of `comm_watchdog_ms` after activation every remaining target is
+    /// written at once, so slow ticks never stretch the stagger into the
+    /// missing-echo bound; that bound still fails closed for any target whose
+    /// echo does not follow.
+    fn issue_due_enable_writes(&mut self, now: Instant) -> Result<(), DavoutError> {
+        if self.mode != OperationalMode::Active || self.enable_writes_pending.is_empty() {
+            return Ok(());
+        }
+        let Some(active_since) = self.active_since else {
+            return Ok(());
+        };
+        let catch_up = now.saturating_duration_since(active_since)
+            >= Duration::from_millis(self.control.control.comm_watchdog_ms) / 2;
+        if !catch_up && self.enable_write_due.is_some_and(|due| now < due) {
+            return Ok(());
+        }
+        for address in self.take_enable_wave(catch_up) {
+            self.write_enable(&address)?;
+        }
+        self.enable_write_due = Some(now + self.loop_period());
+        Ok(())
+    }
+
+    /// True while some target of the current enable session has not had its
+    /// staggered Enable written yet. Controllers keep their first-feedback
+    /// grace open until this clears.
+    pub fn enable_writes_pending(&self) -> bool {
+        self.mode == OperationalMode::Active && !self.enable_writes_pending.is_empty()
     }
 
     /// Type-0 round trip for each physical target, bounded by
@@ -1579,6 +1669,17 @@ impl<B: MotorBus> Supervisor<B> {
                     .any(|joint| !self.reference_authority.contains(joint)));
         if self.mode != OperationalMode::Active {
             let _ = self.reference_binding_valid();
+        }
+        if !lost_active_reference {
+            if let Err(error) = self.issue_due_enable_writes(Instant::now()) {
+                warn!(error = %error, "staggered enable write failed — disable_all");
+                let already_stopped = self.has_latched_fault();
+                self.record_runtime_error(&error);
+                if !already_stopped {
+                    let _ = self.disable_all();
+                }
+                return Err(error);
+            }
         }
         let quiet = self.feedback_drain_quiet();
         let report = self
@@ -2072,6 +2173,8 @@ impl<B: MotorBus> Supervisor<B> {
         self.control_mode = ControlMode::Disabled;
         self.active_since = None;
         self.enable_echo_pending.clear();
+        self.enable_writes_pending.clear();
+        self.enable_write_due = None;
         self.active_joints.clear();
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
@@ -4183,6 +4286,15 @@ mod tests {
             .collect()
     }
 
+    /// `sync` writes one type-24 frame per interface per control period;
+    /// call it once per period until every joint's change is written.
+    fn settle_active_reporting<B: MotorBus>(sup: &mut Supervisor<B>) {
+        for _ in 0..=sup.motors.motors.len() {
+            sup.sync_active_reporting();
+            std::thread::sleep(active_reporting::ACTIVE_REPORTING_WRITE_SPACING);
+        }
+    }
+
     #[test]
     fn active_reporting_default_false_sends_no_type24() {
         let bus = SimulationBus::default();
@@ -4191,10 +4303,10 @@ mod tests {
                 .expect("supervisor");
         // Repo bench yaml may enable the flag; force on then off to emit disables.
         sup.control.control.bench.active_reporting_diagnostics = true;
-        sup.sync_active_reporting();
+        settle_active_reporting(&mut sup);
         sup.bus.clear_trace();
         sup.control.control.bench.active_reporting_diagnostics = false;
-        sup.sync_active_reporting();
+        settle_active_reporting(&mut sup);
         let off = type24_tx_frames(sup.bus.frames());
         assert_eq!(off.len(), sup.motors.motors.len());
         for frame in off {
@@ -4215,13 +4327,13 @@ mod tests {
                 .expect("supervisor");
         // Normalize to off, then enable.
         sup.control.control.bench.active_reporting_diagnostics = false;
-        sup.sync_active_reporting();
+        settle_active_reporting(&mut sup);
         for m in &sup.motors.motors {
             assert!(!sup.active_reporting_applied(&m.joint));
         }
         sup.bus.clear_trace();
         sup.control.control.bench.active_reporting_diagnostics = true;
-        sup.sync_active_reporting();
+        settle_active_reporting(&mut sup);
         let type24 = type24_tx_frames(sup.bus.frames());
         assert_eq!(type24.len(), sup.motors.motors.len());
         for frame in type24 {
@@ -4229,6 +4341,8 @@ mod tests {
         }
         let tx_before = sup.bus.frames().len();
         bench_ready_active(&mut sup);
+        // Activation writes the first Off; the rest follow one per period.
+        settle_active_reporting(&mut sup);
         assert!(sup
             .motors
             .motors
@@ -4250,7 +4364,7 @@ mod tests {
             Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
                 .expect("supervisor");
         sup.control.control.bench.active_reporting_diagnostics = true;
-        sup.sync_active_reporting();
+        settle_active_reporting(&mut sup);
         bench_ready_active(&mut sup);
         let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
@@ -4284,13 +4398,13 @@ mod tests {
                 .expect("supervisor");
         // Normalize off then on so enable TX is observed.
         sup.control.control.bench.active_reporting_diagnostics = false;
-        sup.sync_active_reporting();
+        settle_active_reporting(&mut sup);
         for m in &sup.motors.motors {
             assert!(!sup.active_reporting_applied(&m.joint));
         }
         sup.bus.clear_trace();
         sup.control.control.bench.active_reporting_diagnostics = true;
-        sup.sync_active_reporting();
+        settle_active_reporting(&mut sup);
         assert!(sup
             .motors
             .motors

@@ -18,9 +18,13 @@ pub const DEFAULT_LEASE_TTL: Duration = Duration::from_secs(30);
 /// never retry and Set Limits would freeze on a stale near-zero sample.
 pub const ACTIVE_REPORTING_HEARTBEAT: Duration = Duration::from_secs(1);
 
-/// Separate healthy-stream refresh attempts by one 200 Hz control period.
-/// Initial enables, stale-feedback recovery and reporting Off are not delayed.
-const ACTIVE_REPORTING_HEARTBEAT_SPACING: Duration = Duration::from_millis(5);
+/// Every type-24 write solicits a drive reply, and turning a stream On also
+/// starts 100 Hz reports. The mcp251x keeps only two received frames, so a
+/// burst of writes overruns it (2026-10-03 startup: five Ons at once). `sync`
+/// therefore writes at most one type-24 frame per interface per 200 Hz control
+/// period: initial Ons, Offs, stale retries and healthy refreshes alike.
+/// Healthy refresh attempts are additionally spaced across all interfaces.
+pub(crate) const ACTIVE_REPORTING_WRITE_SPACING: Duration = Duration::from_millis(5);
 
 /// If desired-on and no feedback arrives within this window after enable (or after
 /// the last RX), clear the applied bit so the next sync re-asserts type-24.
@@ -46,6 +50,8 @@ pub struct ActiveReportingState {
     /// Rotate refresh attempts even when the selected route's write fails.
     heartbeat_cursor: usize,
     last_heartbeat_attempt: Option<Instant>,
+    /// Last `sync` type-24 write attempt per CAN interface (failed ones too).
+    last_write_by_interface: HashMap<String, Instant>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -232,8 +238,9 @@ impl ActiveReportingState {
     ///
     /// While sensing is desired, also re-asserts enable on heartbeat and when
     /// `last_feedback_rx` shows the joint has gone silent (free-drive dropout).
-    /// Healthy heartbeat attempts rotate with spacing across repeated callers;
-    /// initial enables, stale retries and reporting Off retain immediate handling.
+    /// At most one write per interface per [`ACTIVE_REPORTING_WRITE_SPACING`];
+    /// Offs, initial Ons and stale retries take that slot before a healthy
+    /// refresh, and anything deferred is written by a later call.
     pub fn sync<B: MotorBus, S: std::hash::BuildHasher>(
         &mut self,
         bus: &mut B,
@@ -246,7 +253,7 @@ impl ActiveReportingState {
         self.expire_stale(now);
         let spacing_elapsed = self
             .last_heartbeat_attempt
-            .map(|last| now.saturating_duration_since(last) >= ACTIVE_REPORTING_HEARTBEAT_SPACING)
+            .map(|last| now.saturating_duration_since(last) >= ACTIVE_REPORTING_WRITE_SPACING)
             .unwrap_or(true);
         let heartbeat_motor = if spacing_elapsed && !motors.motors.is_empty() {
             let count = motors.motors.len();
@@ -271,6 +278,8 @@ impl ActiveReportingState {
         } else {
             None
         };
+        // (index, want, healthy refresh only)
+        let mut due: Vec<(usize, bool, bool)> = Vec::new();
         for (index, motor) in motors.motors.iter().enumerate() {
             let joint = motor.joint.as_str();
             let want = self.desired(joint, mode_active, global_diagnostics, now);
@@ -290,15 +299,32 @@ impl ActiveReportingState {
                         .unwrap_or(false),
                 }
             };
-            let need_enable = want && (!have || heartbeat_motor == Some(index) || feedback_stale);
+            let refresh = heartbeat_motor == Some(index);
+            let need_enable = want && (!have || refresh || feedback_stale);
             let need_disable = !want && have;
-            if !need_enable && !need_disable {
+            if need_enable || need_disable {
+                due.push((index, want, want && have && !feedback_stale));
+            }
+        }
+        // Stable: configured order within each class.
+        due.sort_by_key(|(_, _, refresh_only)| *refresh_only);
+        for (index, want, refresh_only) in due {
+            let motor = &motors.motors[index];
+            let slot_free = self
+                .last_write_by_interface
+                .get(&motor.can_interface)
+                .map(|last| now.saturating_duration_since(*last) >= ACTIVE_REPORTING_WRITE_SPACING)
+                .unwrap_or(true);
+            if !slot_free {
                 continue;
             }
-            if heartbeat_motor == Some(index) {
+            self.last_write_by_interface
+                .insert(motor.can_interface.clone(), now);
+            if refresh_only {
                 self.last_heartbeat_attempt = Some(now);
                 self.heartbeat_cursor = (index + 1) % motors.motors.len();
             }
+            let joint = motor.joint.as_str();
             let address = MotorAddress::from(motor);
             let result = if want {
                 bus.enable_active_reporting_at(&address)
@@ -463,7 +489,11 @@ mod tests {
         let rx = HashMap::new();
         state.sync(&mut bus, &motors, false, false, now, &rx);
         bus.tx.clear();
+        // The On above holds can0's slot for one control period.
         state.sync(&mut bus, &motors, true, false, now, &rx);
+        assert!(type24_cmds(&bus).is_empty());
+        let next = now + ACTIVE_REPORTING_WRITE_SPACING;
+        state.sync(&mut bus, &motors, true, false, next, &rx);
         assert_eq!(type24_cmds(&bus), vec![(1, 0x00)]);
     }
 
