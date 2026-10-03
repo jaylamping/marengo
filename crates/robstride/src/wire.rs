@@ -260,13 +260,20 @@ mod tests {
 
     #[test]
     fn mit_neutrality_is_judged_on_raw_codes() {
-        let Some(WireFrame::Host {
-            device_id: 1,
-            command: HostCommand::Mit(fields),
-        }) = classify(0x017F_FF01, [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0])
-        else {
-            panic!("neutral MIT frame not classified");
+        let fields = MitCommandFields {
+            position: 0x7FFF,
+            velocity: 0x7FFF,
+            kp: 0,
+            kd: 0,
+            torque_ff: 0x7FFF,
         };
+        assert_eq!(
+            classify(0x017F_FF01, [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0]),
+            Some(WireFrame::Host {
+                device_id: 1,
+                command: HostCommand::Mit(fields),
+            })
+        );
         assert!(fields.is_neutral());
         assert!(MitCommandFields {
             torque_ff: 0x8000,

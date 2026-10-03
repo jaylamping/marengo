@@ -182,9 +182,11 @@ disables. The fault does not clear on its own.
   first Ons, so the reference baseline Off, which covered only applied
   streams, left right_lower_arm_yaw streaming through its Enable. At 14:55:24
   it failed with `unexpected drive mode Reset for Disabled`. Enable-to-Run reply
-  latency is 1.4-4.5 ms against a 10 ms report period, so a report the drive
-  built before acting on the Enable can be read after the Enable's echo, still
-  in Reset [INFERENCE: no candump of that run; 30 captured Enables show none].
+  latency is 1.4-5.2 ms against a 10 ms report period (245 measured Enables;
+  [behaviour doc](commissioning/firmware/robstride-firmware-behavior.md)), so a
+  report the drive built before acting on the Enable can be read after the
+  Enable's echo, still in Reset [INFERENCE: no candump of that run; with every
+  stream Off first, 245 captured Enables show no Reset frame after the echo].
   The Active stagger had the same exposure: at 14:51:40 the Enables of elbow
   and lower yaw went out while their streams ran. On SocketCAN a target's Enable
   is now written only after its type-24 Off has been read back from the wire
@@ -197,23 +199,28 @@ disables. The fault does not clear on its own.
   Enable echo is pending, grant liveness counts from activation (or its
   post-SetZero quiet end), because its traffic is withheld from pose and the
   echo bound covers that silence.
-- **No Enable inside the post-SetZero blackout:** About 535 ms after receiving
-  a SetZero (type 6) every Robstride drive transmits nothing for 48-57 ms and
-  never acts on a frame received in that window (bench candumps, rev 15542aa,
-  all five right-arm drives). An Enable written there leaves the drive in
-  Reset, and its later Reset report latches DriveState. Davout records each
-  address's latest SetZero at its host echo (`EchoedCommand::SetZero`; the
-  write time until the echo is read). On SocketCAN no Enable, and no gate Off
-  preceding it, goes to that address until `POST_SET_ZERO_QUIET` (650 ms) has
-  passed since. `enable_targets` keeps such a target pending, logs "Enable held
-  until the post-SetZero quiet elapses" and writes it once the quiet ends;
-  other targets are not delayed. That target's stagger catch-up, missing-echo
-  latch, neutral-bootstrap watchdog grace and grant liveness count from the
-  later of activation and its quiet end. A reference waits in
-  `AwaitReportingOff` before arming an address it zeroed less than 650 ms
-  earlier; arming a different joint is unaffected. A Reset report after the
-  held Enable's echo still latches DriveState. Type-0 identity admission retries
-  through the blackout separately (`IDENTITY_ADMISSION_RETRY`).
+- **No Enable inside the post-SetZero blackout:** After receiving a SetZero
+  (type 6) every Robstride drive transmits nothing for 45-61 ms, starting
+  511-543 ms later (614 ms once, right_elbow_pitch 2026-10-03 15:34), and never
+  acts on a frame received in that window (firmware 0.3.1.42, 124 measured
+  blackouts on all five right-arm drives;
+  [behaviour doc](commissioning/firmware/robstride-firmware-behavior.md)). An
+  Enable written there leaves the drive in Reset, and its later Reset report
+  latches DriveState. Davout records each address's latest SetZero at its host
+  echo (`EchoedCommand::SetZero`; the write time until the echo is read). On
+  SocketCAN no Enable, and no gate Off preceding it, goes to that address until
+  `POST_SET_ZERO_QUIET` (800 ms: latest measured blackout end 667 ms + 100 ms,
+  rounded up to 50 ms; `crates/davout/tests/firmware_profile.rs` holds that
+  margin against the committed profile) has passed since. `enable_targets`
+  keeps such a target pending, logs "Enable held until the post-SetZero quiet
+  elapses" and writes it once the quiet ends; other targets are not delayed.
+  That target's stagger catch-up, missing-echo latch, neutral-bootstrap
+  watchdog grace and grant liveness count from the later of activation and its
+  quiet end. A reference waits in `AwaitReportingOff` before arming an address
+  it zeroed less than 800 ms earlier; arming a different joint is unaffected. A
+  Reset report after the held Enable's echo still latches DriveState. Type-0
+  identity admission retries through the blackout separately
+  (`IDENTITY_ADMISSION_RETRY`).
 - **Position arms wait for enable completion:** Berthier reads 0.0 for a joint
   with no session pose, and `enable_targets` returns while Enables can still be
   held (stagger, post-SetZero quiet). A `hold-on` arriving then would have

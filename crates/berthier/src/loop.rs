@@ -36,7 +36,7 @@ use crate::torque_cmd::TorqueCmdLatch;
 
 /// Bound for an operator Enable or Position-mode arm waiting on
 /// [`ControlLoop::enable_completion`]. Covers a target held for its drive's
-/// post-SetZero quiet ([`davout::POST_SET_ZERO_QUIET`], 650 ms) right after a
+/// post-SetZero quiet ([`davout::POST_SET_ZERO_QUIET`], 800 ms) right after a
 /// home, the one-per-interface Enable stagger and the first session status,
 /// with margin. Exceeding it refuses the waiting command.
 pub const ENABLE_COMPLETION_TIMEOUT: Duration = Duration::from_secs(2);

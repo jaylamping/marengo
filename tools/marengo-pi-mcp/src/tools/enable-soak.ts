@@ -40,7 +40,7 @@ export const MAX_DWELL_SEC = 10;
 export const MAX_SOAK_SEC = 480;
 /**
  * Typical non-dwell time of one cycle: CAN settle (0.5–2 s), marengo-pi startup, reference
- * acquisition (~0.1 s per joint on the bench), the 650 ms post-SetZero Enable hold and Enable
+ * acquisition (~0.1 s per joint on the bench), the 800 ms post-SetZero Enable hold and Enable
  * completion, status/disable/quit and process exit.
  */
 export const CYCLE_OVERHEAD_SEC = 6;

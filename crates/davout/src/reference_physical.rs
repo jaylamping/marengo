@@ -15,16 +15,18 @@ use robstride::{
 use rustc_hash::FxHashMap;
 
 /// Upper bound for the type-0 identity round trip at each Enable admission,
-/// from the first request. A Robstride drive transmits nothing for 48-57 ms
-/// starting about 535 ms after a SetZero, and never answers a type-0 request
-/// it received meanwhile (bench candumps 2026-10-03 14:51:33 and 15:34:09,
-/// all five drives), so the window spans that blackout plus
-/// [`IDENTITY_ADMISSION_RETRY`]. Longer silence also exceeds the default
-/// `comm_watchdog_ms` liveness bound.
-pub(crate) const IDENTITY_ADMISSION_TIMEOUT: Duration = Duration::from_millis(100);
+/// from the first request. A Robstride drive transmits nothing for 45-61 ms
+/// starting 511-614 ms after a SetZero, and never answers a type-0 request it
+/// received meanwhile (firmware 0.3.1.42, 124 measured blackouts; profile
+/// `docs/commissioning/firmware/robstride-timing-profile.json`, replies
+/// otherwise within 0.5 ms), so the window spans that blackout plus
+/// [`IDENTITY_ADMISSION_RETRY`]; `tests/firmware_profile.rs` keeps that
+/// margin. Longer silence also exceeds the default `comm_watchdog_ms` liveness
+/// bound.
+pub const IDENTITY_ADMISSION_TIMEOUT: Duration = Duration::from_millis(100);
 /// A target that has not answered yet is asked again this often: a request
 /// that reached a drive inside its post-SetZero blackout is never answered.
-pub(crate) const IDENTITY_ADMISSION_RETRY: Duration = Duration::from_millis(10);
+pub const IDENTITY_ADMISSION_RETRY: Duration = Duration::from_millis(10);
 /// One identity admission poll; replies normally arrive within a millisecond.
 pub(crate) const IDENTITY_ADMISSION_POLL: Duration = Duration::from_millis(5);
 /// Retained replies per kind. A request only accepts replies popped after it.

@@ -3,11 +3,15 @@
 //! Each configured address owns an encoder, a volatile zero offset, enable and
 //! reporting flags, an MCU identifier and fault knobs. A host frame goes on
 //! the wire when written (or, while held, when released): its SocketCAN echo
-//! is queued first, then the drive's replies, in wire order. Type-24 reports
-//! are emitted only when the test pumps, or after an Enable when a drive models
-//! a report built before it acted on that Enable. Like the bench drives, each
-//! drive ignores every frame and transmits nothing in its post-SetZero
-//! blackout ([`SET_ZERO_BLACKOUT`] after receiving a SetZero). Inbound status/reply identifiers
+//! is queued first, then the drive's replies, in wire order (a reply with a
+//! modeled latency is delivered once that latency has passed, never ahead of
+//! an earlier reply from the same drive). Type-24 reports are emitted when the
+//! test pumps, at most once per the drive's report period, or after an Enable
+//! when a drive models a report built before it acted on that Enable. Like the
+//! bench drives, each drive ignores every frame and transmits nothing in its
+//! post-SetZero blackout (`Drive::set_zero_blackout` after receiving a
+//! SetZero). [`TIMING_MODEL`] bounds every timing knob; it covers the measured
+//! bench profile (`tests/firmware_profile.rs`). Inbound status/reply identifiers
 //! follow the documented wire layout (`type << 24 | extra << 8 | low`);
 //! outbound frames are produced by the supervisor through the robstride encoders.
 #![allow(dead_code, clippy::expect_used, clippy::panic)]
@@ -26,11 +30,57 @@ use robstride::{
 
 const RESET_MODE: u32 = 0;
 const RUN_MODE: u32 = 2;
-/// Bench candumps 2026-10-03 (all five drives): about 535 ms after receiving a
-/// SetZero a drive transmits nothing for 48-57 ms and never acts on a frame it
-/// receives meanwhile. Modeled as [535, 590] ms after the SetZero reached it.
+/// Timing ranges a drive's knobs may take. Each covers the range measured on
+/// the bench (firmware 0.3.1.42; `docs/commissioning/firmware/
+/// robstride-timing-profile.json`, asserted by `tests/firmware_profile.rs`).
+#[derive(Debug, Clone, Copy)]
+pub struct TimingModel {
+    /// Enable received → its Run status queued (measured 1.36-5.23 ms; 10.3 ms
+    /// when the Enable's own reply was lost and the next Run frame answered).
+    pub enable_to_run: (Duration, Duration),
+    /// Type-0 request → MCU UID reply (measured 0.13-0.47 ms).
+    pub identity_reply: (Duration, Duration),
+    /// Type-24 report period while streaming (measured 7.4-12.6 ms around 10 ms).
+    pub report_period: (Duration, Duration),
+    /// SetZero received → blackout start (measured last frame before it
+    /// 511-614 ms; the true start is up to one report period later).
+    pub set_zero_blackout_start: (Duration, Duration),
+    /// Blackout length (measured 45.4-60.7 ms).
+    pub set_zero_blackout_length: (Duration, Duration),
+}
+
+impl TimingModel {
+    fn admits(&self, drive: &Drive) -> bool {
+        let within =
+            |value: Duration, (low, high): (Duration, Duration)| (low..=high).contains(&value);
+        within(drive.enable_reply_delay, self.enable_to_run)
+            && within(drive.identity_reply_delay, self.identity_reply)
+            && within(drive.report_period, self.report_period)
+            && within(drive.set_zero_blackout.0, self.set_zero_blackout_start)
+            && within(drive.set_zero_blackout.1, self.set_zero_blackout_length)
+    }
+}
+
+pub const TIMING_MODEL: TimingModel = TimingModel {
+    enable_to_run: (Duration::ZERO, Duration::from_millis(11)),
+    identity_reply: (Duration::ZERO, Duration::from_millis(1)),
+    report_period: (Duration::from_millis(7), Duration::from_millis(13)),
+    set_zero_blackout_start: (Duration::from_millis(500), Duration::from_millis(625)),
+    set_zero_blackout_length: (Duration::from_millis(40), Duration::from_millis(65)),
+};
+
+/// Earliest start and latest end, after receiving a SetZero, of any blackout
+/// [`TIMING_MODEL`] admits.
 pub const SET_ZERO_BLACKOUT: (Duration, Duration) =
-    (Duration::from_millis(535), Duration::from_millis(590));
+    (Duration::from_millis(500), Duration::from_millis(690));
+
+/// The worst measured blackout (2026-10-03 15:34:08, right_elbow_pitch: last
+/// report 613.8 ms after its SetZero, silent for 53.0 ms) at the latest
+/// modeled start and length: (start, length).
+pub const LATEST_SET_ZERO_BLACKOUT: (Duration, Duration) = (
+    TIMING_MODEL.set_zero_blackout_start.1,
+    TIMING_MODEL.set_zero_blackout_length.1,
+);
 
 /// One emulated drive at one configured address.
 #[derive(Debug, Clone)]
@@ -51,6 +101,17 @@ pub struct Drive {
     pub silent_until: Option<Instant>,
     /// When this drive last received a SetZero (starts its blackout).
     pub set_zero_at: Option<Instant>,
+    /// Blackout after receiving a SetZero: (start, length), within [`TIMING_MODEL`].
+    pub set_zero_blackout: (Duration, Duration),
+    /// Enable received → Run status queued, within [`TIMING_MODEL`].
+    pub enable_reply_delay: Duration,
+    /// Type-0 request received → UID reply queued, within [`TIMING_MODEL`].
+    pub identity_reply_delay: Duration,
+    /// Minimum interval between periodic type-24 reports, within [`TIMING_MODEL`].
+    pub report_period: Duration,
+    last_report_at: Option<Instant>,
+    /// Latest instant a reply of this drive is scheduled for (keeps reply order).
+    reply_ready_at: Option<Instant>,
     // Fault knobs.
     pub answer_identity: bool,
     pub drop_set_zero_ack: bool,
@@ -72,7 +133,7 @@ pub struct Drive {
     /// While reporting, a periodic type-24 report the drive built before it
     /// acted on an Enable follows that Enable on the wire: it still carries the
     /// pre-Enable mode and precedes the Enable reply (Enable-to-Run reply
-    /// latency is 1.4-4.5 ms on the bench against a 10 ms report period).
+    /// latency is 1.4-5.2 ms on the bench against a 10 ms report period).
     pub stale_report_after_enable: bool,
 }
 
@@ -99,9 +160,10 @@ impl Drive {
 
     /// Inside the post-SetZero blackout: no reception, no transmission.
     pub fn in_set_zero_blackout(&self, now: Instant) -> bool {
+        let (start, length) = self.set_zero_blackout;
         self.set_zero_at.is_some_and(|at| {
             let since = now.saturating_duration_since(at);
-            since >= SET_ZERO_BLACKOUT.0 && since <= SET_ZERO_BLACKOUT.1
+            since >= start && since <= start + length
         })
     }
 
@@ -161,6 +223,7 @@ impl Drive {
         self.held_reply = None;
         self.silent_until = silent_until;
         self.set_zero_at = None;
+        self.reply_ready_at = None;
     }
 }
 
@@ -181,6 +244,8 @@ pub struct Firmware {
     held_tx: Option<VecDeque<CanFrame>>,
     /// Communication types whose echo the host never reads (lost on RX).
     pub lost_echoes: Vec<u8>,
+    /// Drive replies with a modeled latency, in scheduling order.
+    scheduled: Vec<(Instant, CanFrame)>,
 }
 
 pub type SharedFirmware = Rc<RefCell<Firmware>>;
@@ -217,6 +282,12 @@ impl Firmware {
                     reporting: false,
                     silent_until: None,
                     set_zero_at: None,
+                    set_zero_blackout: (Duration::from_millis(535), Duration::from_millis(55)),
+                    enable_reply_delay: Duration::ZERO,
+                    identity_reply_delay: Duration::ZERO,
+                    report_period: Duration::from_millis(10),
+                    last_report_at: None,
+                    reply_ready_at: None,
                     answer_identity: true,
                     drop_set_zero_ack: false,
                     hold_enable_reply_until_set_zero: false,
@@ -251,16 +322,36 @@ impl Firmware {
             .expect("emulated joint")
     }
 
-    /// Periodic type-24 reports from every live drive whose reporting is on.
+    /// Periodic type-24 reports from every live drive whose reporting is on
+    /// and whose report period has elapsed since its last periodic report.
     pub fn emit_reports(&mut self) {
         let now = Instant::now();
-        let frames: Vec<_> = self
-            .drives
-            .iter()
-            .filter(|drive| drive.reporting && drive.responsive(now))
-            .map(|drive| drive.status(CommunicationType::ActiveReporting))
-            .collect();
+        let mut frames = Vec::new();
+        for drive in &mut self.drives {
+            assert!(TIMING_MODEL.admits(drive), "{}: timing knobs", drive.joint);
+            let due = drive
+                .last_report_at
+                .is_none_or(|at| now.saturating_duration_since(at) >= drive.report_period);
+            if drive.reporting && drive.responsive(now) && due {
+                drive.last_report_at = Some(now);
+                frames.push(drive.status(CommunicationType::ActiveReporting));
+            }
+        }
         self.rx.extend(frames);
+    }
+
+    /// Move scheduled replies whose latency has passed to the receive queue.
+    fn release_due(&mut self) {
+        if self.scheduled.is_empty() {
+            return;
+        }
+        let now = Instant::now();
+        let (mut due, pending): (Vec<_>, Vec<_>) =
+            self.scheduled.drain(..).partition(|(at, _)| *at <= now);
+        self.scheduled = pending;
+        // Stable: one drive's replies keep their order at equal instants.
+        due.sort_by_key(|(at, _)| *at);
+        self.rx.extend(due.into_iter().map(|(_, frame)| frame));
     }
 
     /// One type-24 report from `joint` in its current drive mode, unless the
@@ -352,41 +443,55 @@ impl Firmware {
         if !drive.responsive(now) {
             return;
         }
+        assert!(TIMING_MODEL.admits(drive), "{}: timing knobs", drive.joint);
         drive.silent_until = None;
+        // (latency, frame); a zero latency reply follows the echo directly.
         let mut replies = Vec::new();
         match CommunicationType::from_u8(comm_type) {
             Some(CommunicationType::GetDeviceId) => {
                 if drive.answer_identity {
-                    replies.push(drive.identity_reply());
+                    replies.push((drive.identity_reply_delay, drive.identity_reply()));
                 }
             }
             Some(CommunicationType::OperationControl) => {
-                replies.push(drive.status(CommunicationType::OperationStatus));
+                replies.push((
+                    Duration::ZERO,
+                    drive.status(CommunicationType::OperationStatus),
+                ));
             }
             Some(CommunicationType::Enable) => {
                 if drive.stale_report_after_enable && drive.reporting {
-                    replies.push(drive.status(CommunicationType::ActiveReporting));
+                    replies.push((
+                        Duration::ZERO,
+                        drive.status(CommunicationType::ActiveReporting),
+                    ));
                 }
                 drive.enabled = !drive.ignore_enable;
                 let reply = drive.status(CommunicationType::OperationStatus);
                 if drive.hold_enable_reply_until_set_zero {
                     drive.held_reply = Some(reply);
                 } else {
-                    replies.push(reply);
+                    replies.push((drive.enable_reply_delay, reply));
                 }
             }
             Some(CommunicationType::Disable) => {
                 drive.enabled = false;
-                replies.push(drive.status(CommunicationType::OperationStatus));
+                replies.push((
+                    Duration::ZERO,
+                    drive.status(CommunicationType::OperationStatus),
+                ));
             }
             Some(CommunicationType::SetZeroPosition) => {
                 drive.zero_offset_motor_rad = drive.raw_motor_rad;
                 drive.set_zero_at = Some(now);
                 if let Some(stale) = drive.held_reply.take() {
-                    replies.push(stale);
+                    replies.push((Duration::ZERO, stale));
                 }
                 if !drive.drop_set_zero_ack {
-                    replies.push(drive.status(CommunicationType::OperationStatus));
+                    replies.push((
+                        Duration::ZERO,
+                        drive.status(CommunicationType::OperationStatus),
+                    ));
                 }
                 if let Some(silence) = drive.reboot_after_ack {
                     drive.reboot(Some(now + silence));
@@ -397,23 +502,43 @@ impl Firmware {
                 if index == ParameterId::MechPos.as_u16() {
                     let joint = drive.position_joint_rad() + drive.readback_offset_joint_rad;
                     let value = ((joint * drive.scale) as f32).to_le_bytes();
-                    replies.push(drive.read_reply(index, drive.readback_status, value));
+                    let reply = drive.read_reply(index, drive.readback_status, value);
+                    replies.push((Duration::ZERO, reply));
                     let armed = std::mem::take(&mut drive.fail_writes_after_readback);
                     drive.fail_writes.extend(armed);
                 } else if index == ParameterId::RunMode.as_u16() {
-                    replies.push(drive.read_reply(index, 0, [0; 4]));
+                    replies.push((Duration::ZERO, drive.read_reply(index, 0, [0; 4])));
                 } else {
-                    replies.push(drive.read_reply(index, 1, [0; 4]));
+                    replies.push((Duration::ZERO, drive.read_reply(index, 1, [0; 4])));
                 }
             }
             Some(CommunicationType::ActiveReporting) => {
                 // Bench candump: every type-24 write is answered by a type-2 status.
                 drive.reporting = frame.data[6] == 0x01;
-                replies.push(drive.status(CommunicationType::OperationStatus));
+                replies.push((
+                    Duration::ZERO,
+                    drive.status(CommunicationType::OperationStatus),
+                ));
             }
             _ => {}
         }
-        self.rx.extend(replies);
+        // A drive answers in receive order: no reply overtakes an earlier one.
+        let mut ready = drive.reply_ready_at.filter(|at| *at > now);
+        let mut immediate = Vec::new();
+        let mut later = Vec::new();
+        for (latency, frame) in replies {
+            match ready {
+                None if latency.is_zero() => immediate.push(frame),
+                Some(at) if at >= now + latency => later.push((at, frame)),
+                _ => {
+                    ready = Some(now + latency);
+                    later.push((now + latency, frame));
+                }
+            }
+        }
+        drive.reply_ready_at = ready;
+        self.rx.extend(immediate);
+        self.scheduled.extend(later);
     }
 }
 
@@ -432,7 +557,9 @@ impl CanBus for FirmwareBus {
     }
 
     fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-        Ok(match self.0.borrow_mut().rx.pop_front() {
+        let mut firmware = self.0.borrow_mut();
+        firmware.release_due();
+        Ok(match firmware.rx.pop_front() {
             Some(frame) => ReceiveAttempt::Frame(TimedCanFrame {
                 received_at: Instant::now(),
                 received: ReceivedCanFrame::full_data(None, frame),

@@ -1,0 +1,446 @@
+{
+  "firmware": "0.3.1.42",
+  "bench": "right arm, 5 Robstride drives (can0 device ids 1-5, host id 0xFD), MCP2515/mcp251x on Pi 5",
+  "generated_by": "marengo-log-cli firmware-timing --json candump-20261003T011358Z.log candump-20261003T141027Z.log candump-20261003T153408Z.log cd-20261003T024855Z.log cd-20261003T031759Z.log cd-20261003T142407Z.log cd-20261003T145133Z.log soak-20261003T163227Z.log",
+  "definitions": "bins/marengo-log-cli/src/firmware_timing.rs; docs/commissioning/firmware/robstride-firmware-behavior.md",
+  "captures": [
+    {
+      "file": "candump-20261003T011358Z.log",
+      "frames": 19662,
+      "span_s": 38.344872,
+      "set_zero_frames": 0,
+      "enable_frames": 0,
+      "set_zero_silences_measured": 0
+    },
+    {
+      "file": "candump-20261003T141027Z.log",
+      "frames": 131,
+      "span_s": 0.02432,
+      "set_zero_frames": 0,
+      "enable_frames": 0,
+      "set_zero_silences_measured": 0
+    },
+    {
+      "file": "candump-20261003T153408Z.log",
+      "frames": 28453,
+      "span_s": 55.243208,
+      "set_zero_frames": 5,
+      "enable_frames": 5,
+      "set_zero_silences_measured": 5
+    },
+    {
+      "file": "cd-20261003T024855Z.log",
+      "frames": 8114,
+      "span_s": 14.996863,
+      "set_zero_frames": 5,
+      "enable_frames": 10,
+      "set_zero_silences_measured": 5
+    },
+    {
+      "file": "cd-20261003T031759Z.log",
+      "frames": 14748,
+      "span_s": 17.995623,
+      "set_zero_frames": 5,
+      "enable_frames": 10,
+      "set_zero_silences_measured": 5
+    },
+    {
+      "file": "cd-20261003T142407Z.log",
+      "frames": 23283,
+      "span_s": 44.999241,
+      "set_zero_frames": 5,
+      "enable_frames": 10,
+      "set_zero_silences_measured": 5
+    },
+    {
+      "file": "cd-20261003T145133Z.log",
+      "frames": 56933,
+      "span_s": 44.998878,
+      "set_zero_frames": 5,
+      "enable_frames": 10,
+      "set_zero_silences_measured": 5
+    },
+    {
+      "file": "soak-20261003T163227Z.log",
+      "frames": 243563,
+      "span_s": 155.055108,
+      "set_zero_frames": 100,
+      "enable_frames": 200,
+      "set_zero_silences_measured": 99
+    }
+  ],
+  "excluded_captures": [
+    {
+      "file": "cd-20261003T142319Z.log",
+      "reason": "empty (0 bytes)"
+    }
+  ],
+  "files": [
+    "candump-20261003T011358Z.log",
+    "candump-20261003T141027Z.log",
+    "candump-20261003T153408Z.log",
+    "cd-20261003T024855Z.log",
+    "cd-20261003T031759Z.log",
+    "cd-20261003T142407Z.log",
+    "cd-20261003T145133Z.log",
+    "soak-20261003T163227Z.log"
+  ],
+  "frames": 394887,
+  "span_s": 371.658113,
+  "drives": {
+    "can0/1": {
+      "enable_to_run_ms": {
+        "n": 49,
+        "min": 1.406,
+        "p50": 1.548,
+        "p95": 4.602,
+        "max": 5.142
+      },
+      "enable_never_run": 0,
+      "reset_after_enable": 0,
+      "set_zero_silence_start_ms": {
+        "n": 24,
+        "min": 511.366,
+        "p50": 516.863,
+        "p95": 538.568,
+        "max": 539.899
+      },
+      "set_zero_silence_ms": {
+        "n": 24,
+        "min": 50.198,
+        "p50": 53.533,
+        "p95": 56.508,
+        "max": 56.695
+      },
+      "identity_reply_ms": {
+        "n": 49,
+        "min": 0.128,
+        "p50": 0.153,
+        "p95": 0.285,
+        "max": 0.473
+      },
+      "identity_unanswered": 61,
+      "param_read_reply_ms": {
+        "n": 25,
+        "min": 0.117,
+        "p50": 0.174,
+        "p95": 0.189,
+        "max": 0.189
+      },
+      "report_period_ms": {
+        "n": 21520,
+        "min": 8.971,
+        "p50": 10.004,
+        "p95": 10.029,
+        "max": 11.474
+      },
+      "report_off_to_last_ms": {
+        "n": 146,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "max": 0.299
+      },
+      "mit_reply_ms": {
+        "n": 26872,
+        "min": 0.126,
+        "p50": 0.18,
+        "p95": 0.199,
+        "max": 4.651
+      },
+      "mit_unanswered": 52,
+      "disable_to_reset_ms": {
+        "n": 312,
+        "min": 0.146,
+        "p50": 0.161,
+        "p95": 4.254,
+        "max": 48.677
+      }
+    },
+    "can0/2": {
+      "enable_to_run_ms": {
+        "n": 49,
+        "min": 1.358,
+        "p50": 1.563,
+        "p95": 4.888,
+        "max": 4.929
+      },
+      "enable_never_run": 0,
+      "reset_after_enable": 0,
+      "set_zero_silence_start_ms": {
+        "n": 25,
+        "min": 515.941,
+        "p50": 519.925,
+        "p95": 540.486,
+        "max": 541.914
+      },
+      "set_zero_silence_ms": {
+        "n": 25,
+        "min": 45.449,
+        "p50": 50.551,
+        "p95": 55.6,
+        "max": 55.601
+      },
+      "identity_reply_ms": {
+        "n": 50,
+        "min": 0.144,
+        "p50": 0.157,
+        "p95": 0.178,
+        "max": 0.439
+      },
+      "identity_unanswered": 0,
+      "param_read_reply_ms": {
+        "n": 25,
+        "min": 0.152,
+        "p50": 0.181,
+        "p95": 0.198,
+        "max": 0.301
+      },
+      "report_period_ms": {
+        "n": 21663,
+        "min": 8.096,
+        "p50": 10.005,
+        "p95": 10.031,
+        "max": 11.911
+      },
+      "report_off_to_last_ms": {
+        "n": 126,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "max": 0.447
+      },
+      "mit_reply_ms": {
+        "n": 26737,
+        "min": 0.058,
+        "p50": 0.185,
+        "p95": 0.205,
+        "max": 4.602
+      },
+      "mit_unanswered": 186,
+      "disable_to_reset_ms": {
+        "n": 311,
+        "min": 0.146,
+        "p50": 0.16,
+        "p95": 4.566,
+        "max": 23.251
+      }
+    },
+    "can0/3": {
+      "enable_to_run_ms": {
+        "n": 49,
+        "min": 1.439,
+        "p50": 1.587,
+        "p95": 5.018,
+        "max": 10.303
+      },
+      "enable_never_run": 0,
+      "reset_after_enable": 0,
+      "set_zero_silence_start_ms": {
+        "n": 25,
+        "min": 515.941,
+        "p50": 520.816,
+        "p95": 540.156,
+        "max": 540.255
+      },
+      "set_zero_silence_ms": {
+        "n": 25,
+        "min": 45.452,
+        "p50": 50.548,
+        "p95": 51.049,
+        "max": 51.088
+      },
+      "identity_reply_ms": {
+        "n": 50,
+        "min": 0.149,
+        "p50": 0.16,
+        "p95": 0.182,
+        "max": 0.287
+      },
+      "identity_unanswered": 0,
+      "param_read_reply_ms": {
+        "n": 25,
+        "min": 0.154,
+        "p50": 0.178,
+        "p95": 0.194,
+        "max": 0.195
+      },
+      "report_period_ms": {
+        "n": 22061,
+        "min": 8.193,
+        "p50": 10.004,
+        "p95": 10.029,
+        "max": 11.856
+      },
+      "report_off_to_last_ms": {
+        "n": 40,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "max": 0.155
+      },
+      "mit_reply_ms": {
+        "n": 26747,
+        "min": 0.15,
+        "p50": 0.219,
+        "p95": 0.245,
+        "max": 4.772
+      },
+      "mit_unanswered": 175,
+      "disable_to_reset_ms": {
+        "n": 311,
+        "min": 0.148,
+        "p50": 0.168,
+        "p95": 4.162,
+        "max": 20.764
+      }
+    },
+    "can0/4": {
+      "enable_to_run_ms": {
+        "n": 49,
+        "min": 1.46,
+        "p50": 1.667,
+        "p95": 5.009,
+        "max": 5.17
+      },
+      "enable_never_run": 0,
+      "reset_after_enable": 0,
+      "set_zero_silence_start_ms": {
+        "n": 25,
+        "min": 516.218,
+        "p50": 522.953,
+        "p95": 543.437,
+        "max": 613.761
+      },
+      "set_zero_silence_ms": {
+        "n": 25,
+        "min": 50.553,
+        "p50": 55.889,
+        "p95": 60.652,
+        "max": 60.701
+      },
+      "identity_reply_ms": {
+        "n": 50,
+        "min": 0.143,
+        "p50": 0.153,
+        "p95": 0.174,
+        "max": 0.277
+      },
+      "identity_unanswered": 0,
+      "param_read_reply_ms": {
+        "n": 25,
+        "min": 0.155,
+        "p50": 0.176,
+        "p95": 0.195,
+        "max": 0.198
+      },
+      "report_period_ms": {
+        "n": 22233,
+        "min": 7.854,
+        "p50": 10.003,
+        "p95": 10.029,
+        "max": 12.256
+      },
+      "report_off_to_last_ms": {
+        "n": 40,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "max": 0.145
+      },
+      "mit_reply_ms": {
+        "n": 26719,
+        "min": 0.063,
+        "p50": 0.218,
+        "p95": 0.245,
+        "max": 4.957
+      },
+      "mit_unanswered": 203,
+      "disable_to_reset_ms": {
+        "n": 311,
+        "min": 0.146,
+        "p50": 0.158,
+        "p95": 4.702,
+        "max": 23.282
+      }
+    },
+    "can0/5": {
+      "enable_to_run_ms": {
+        "n": 49,
+        "min": 1.451,
+        "p50": 1.677,
+        "p95": 4.769,
+        "max": 5.233
+      },
+      "enable_never_run": 0,
+      "reset_after_enable": 0,
+      "set_zero_silence_start_ms": {
+        "n": 25,
+        "min": 517.983,
+        "p50": 521.719,
+        "p95": 542.639,
+        "max": 543.506
+      },
+      "set_zero_silence_ms": {
+        "n": 25,
+        "min": 45.432,
+        "p50": 50.551,
+        "p95": 53.05,
+        "max": 56.234
+      },
+      "identity_reply_ms": {
+        "n": 50,
+        "min": 0.148,
+        "p50": 0.154,
+        "p95": 0.177,
+        "max": 0.225
+      },
+      "identity_unanswered": 0,
+      "param_read_reply_ms": {
+        "n": 25,
+        "min": 0.151,
+        "p50": 0.173,
+        "p95": 0.196,
+        "max": 0.199
+      },
+      "report_period_ms": {
+        "n": 22394,
+        "min": 7.419,
+        "p50": 10.003,
+        "p95": 10.028,
+        "max": 12.585
+      },
+      "report_off_to_last_ms": {
+        "n": 40,
+        "min": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "max": 0.157
+      },
+      "mit_reply_ms": {
+        "n": 26740,
+        "min": 0.137,
+        "p50": 0.207,
+        "p95": 0.244,
+        "max": 4.962
+      },
+      "mit_unanswered": 182,
+      "disable_to_reset_ms": {
+        "n": 311,
+        "min": 0.138,
+        "p50": 0.16,
+        "p95": 4.154,
+        "max": 24.625
+      }
+    }
+  },
+  "non_neutral_mit": {
+    "count": 24230,
+    "first_s": 118.611185,
+    "last_s": 201.910759
+  },
+  "bus": {
+    "max_frames_per_10ms": 69,
+    "gaps_over_5ms": 6558
+  }
+}
