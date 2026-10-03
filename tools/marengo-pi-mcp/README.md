@@ -151,7 +151,7 @@ Profiles without a joint subset (`bare_motor`, `weighted_single_arm`, `arm_attac
 `pi_hold_on` and `pi_bench_harness` run one shared gate (`src/gravity-gate.ts`) before anything can enable, for every bench profile. It applies the limb-playbook §4a/4b bar: a joint fails when its residual is **≥ 0.20 Nm**. On a failure the tool stops with `FAIL gravity_model_mismatch` and sends no reference, enable or hold line. `pi_hold_on` returns the report. The harness records `[FAIL] gravity_gate` and restores `marengo-pi.service`.
 
 1. Before taking CAN, the gate reads the Pi clock and the gateway's `/snapshot/robot/state`. This read never touches CAN.
-2. As sole CAN owner, it runs `motor-repl gravity-preview`. `pi_hold_on` runs it in its own `soleCanOwnerShell` session. The harness runs it as the `gravity_gate` step, after `can_up` and `motor_repl_status`. A non-zero pose is passed as a full robot.yaml-order vector; the gate reads the model's joint order first, so the CLI never zero-fills a partial vector.
+2. As sole CAN owner, it runs `motor-repl gravity-preview`. `pi_hold_on` runs it in its own `soleCanOwnerShell` session. The harness runs it as the `gravity_gate` step, after `can_up` and `motor_repl_status`. Non-zero poses use a full `robot.yaml`-order vector. Standalone `pi_gravity_preview` accepts no angles for the all-zero pose or exactly one angle per master joint in order; the harness's weighted previews also pass all five values.
 3. It compares results per gated joint. Gated joints are the referenced joints, plus the hold joint for `pi_hold_on`.
 
 | Basis | When | Residual |

@@ -56,7 +56,7 @@ describe("readonly CAN tools", () => {
 
   for (const [tool, command] of [
     ["pi_motor_repl_status", "bin/motor-repl status"],
-    ["pi_gravity_preview", "bin/motor-repl gravity-preview 0 0"],
+    ["pi_gravity_preview", "bin/motor-repl gravity-preview"],
   ] as const) {
     it(`${tool} runs ${command} only when no process owns CAN`, async () => {
       let script = "";
@@ -76,6 +76,22 @@ describe("readonly CAN tools", () => {
       assert.ok(runs(script.slice(elseAt)), `${command} runs when CAN free`);
     });
   }
+
+  it("accepts no pose or a full robot.yaml-order gravity pose only", async () => {
+    let script = "";
+    const tools = registerReadonlyTools(cfg, async (body) => {
+      script = body;
+      return body;
+    });
+    const schema = tools.pi_gravity_preview.inputSchema;
+
+    assert.equal(schema.safeParse({}).success, true);
+    assert.equal(schema.safeParse({ angles: [0, 1, 2, 3, 4] }).success, true);
+    assert.equal(schema.safeParse({ angles: [0, 1] }).success, false);
+
+    await tools.pi_gravity_preview.handler({ angles: [0, 1, 2, 3, 4] });
+    assert.match(script, /bin\/motor-repl gravity-preview 0 1 2 3 4/);
+  });
 
   it("pi_can_status and pi_candump_once never start motor-repl", async () => {
     const scripts: string[] = [];

@@ -71,6 +71,30 @@ describe("bench harness config", () => {
     );
   });
 
+  it("passes a full robot.yaml-order vector for weighted gravity previews", async () => {
+    const previews: string[] = [];
+    await runBenchHarness(
+      cfg,
+      async (body) => {
+        if (isGravityPreviewBody(body)) {
+          previews.push(body);
+          return gravityPreviewReply();
+        }
+        return "ok";
+      },
+      {
+        profile: "weighted_single_arm",
+        loaded_joint: "right_shoulder_pitch",
+        gravity_angles: [0.25],
+        ...OPT_IN,
+      },
+    );
+
+    assert.ok(
+      previews.some((body) => /bin\/motor-repl gravity-preview 0\.25 0 0 0 0/.test(body)),
+    );
+  });
+
   it("takes CAN before can_up and restores an active unit after the run", async () => {
     const bodies: string[] = [];
     const out = await runBenchHarness(

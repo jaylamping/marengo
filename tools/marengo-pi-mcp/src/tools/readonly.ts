@@ -3,6 +3,7 @@ import type { MarengoPiConfig } from "../config.js";
 import { unlessCanOwned } from "../can-owner.js";
 import { homingReportShell } from "../homing.js";
 import { renderRobotStateHoming } from "../robot-state.js";
+import { MASTER_JOINTS } from "../bench-profiles.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
 export function registerReadonlyTools(
@@ -90,16 +91,14 @@ export function registerReadonlyTools(
       inputSchema: z.object({
         angles: z
           .array(z.number())
+          .length(MASTER_JOINTS.length)
           .optional()
-          .describe("Joint angles rad; default [0, 0] for dual pitch"),
+          .describe("One angle per robot.yaml joint, in order; omit for the all-zero pose"),
       }),
       handler: async (args: { angles?: number[] }) => {
-        const angles = args.angles ?? [0, 0];
-        const angleArgs = angles.map((a) => String(a)).join(" ");
-        const body = wrapRemote(
-          cfg,
-          unlessCanOwned(`bin/motor-repl gravity-preview ${angleArgs}`),
-        );
+        const angleArgs = args.angles?.map((a) => String(a)).join(" ") ?? "";
+        const command = `bin/motor-repl gravity-preview${angleArgs ? ` ${angleArgs}` : ""}`;
+        const body = wrapRemote(cfg, unlessCanOwned(command));
         return runRemote(body, 30_000);
       },
     },
