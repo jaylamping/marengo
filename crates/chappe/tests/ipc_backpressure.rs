@@ -51,8 +51,11 @@ fn absent_peer_has_bounded_classes_and_honest_counters() {
     assert_eq!(stats.queued_bytes, 8 * MAX_PAYLOAD_BYTES + 10);
     assert_eq!(
         (stats.accepted, stats.coalesced, stats.dropped),
-        (11, 999, 994)
+        (11, 999, 992)
     );
+    // Unknown-topic and oversize admissions never queued: rejected, not
+    // transport-pressure loss.
+    assert_eq!((stats.expired, stats.rejected), (0, 2));
     assert_eq!(stats.admitted_disconnected, 1010);
     assert!(stats.queued_items <= QUEUE_ITEM_CAPACITY && stats.queued_bytes <= QUEUE_BYTE_CAPACITY);
     fanout.shutdown().expect("join fanout");
