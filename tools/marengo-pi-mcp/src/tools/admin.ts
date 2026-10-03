@@ -189,7 +189,11 @@ export function registerAdminTools(
           "sudo systemctl stop marengo-pi.service 2>/dev/null || true",
           "sudo systemctl disable marengo-pi.service 2>/dev/null || true",
           "sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true",
-          "sudo git config --global --add safe.directory \"$(pwd)\" 2>/dev/null || true",
+          // Root git trusts this tree once; `--add` alone appends a duplicate every run.
+          'TRUSTED_DIRS="$(sudo git config --global --get-all safe.directory 2>/dev/null || true)"',
+          'if ! grep -Fxq -- "$(pwd)" <<<"$TRUSTED_DIRS"; then',
+          '  sudo git config --global --add safe.directory "$(pwd)" 2>/dev/null || true',
+          "fi",
           "if [[ -f ./scripts/pi-native-build.sh ]]; then bash ./scripts/pi-native-build.sh; else",
           '  if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
           '  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',

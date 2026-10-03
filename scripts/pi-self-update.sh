@@ -100,7 +100,11 @@ write_job "running" "starting self-update" "init"
 
 ensure_staging_git
 cd "${STAGING}" || fail "staging root missing: ${STAGING}" "init"
-sudo git config --global --add safe.directory "${STAGING}" 2>/dev/null || true
+# Root install-pi runs git here; trust the checkout once (`--add` alone appends a duplicate every run).
+TRUSTED_DIRS="$(sudo git config --global --get-all safe.directory 2>/dev/null || true)"
+if ! grep -Fxq -- "${STAGING}" <<<"${TRUSTED_DIRS}"; then
+  sudo git config --global --add safe.directory "${STAGING}" 2>/dev/null || true
+fi
 
 if [[ -n "$(git status --porcelain)" ]]; then
   fail "dirty working tree:$(printf '\n%s' "$(git status --short)")" "dirty"
