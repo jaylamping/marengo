@@ -27,7 +27,7 @@ Moving the three +X offsets to −Y zeroes pitch but adds about −0.95 Nm on ro
    - joint origins and axes for right_shoulder_pitch → roll → upper_arm_yaw → elbow_pitch → lower_arm_yaw
    - mass, COM and inertia for each right-arm link (include actuators).
 2. Start from the **Pi's** URDF, not the repo copy (ADR 0017: it carries taught limits): `pi_read_file` `/opt/marengo/assets/urdf/marengo.urdf`, diff against the repo, keep the Pi limits.
-3. Edit only the right-arm origins/inertials. Run `./scripts/validate-urdf*` / `just check`.
+3. Edit only the right-arm origins/inertials. Run `./scripts/validate-urdf.sh` and `just check`.
 4. Gravity check before any motion: `pi_gravity_preview` (or `motor-repl gravity-preview`) at pitch 0 should give |τ_g| < 0.20 Nm on every joint, and pitch τ_g should be positive and rise as pitch goes positive. Reference: the 2026-08-12 hold measured about +0.57 Nm at q_pitch ≈ 0.48.
 5. `pi_sync_bench_urdf`, then confirm the arm is supported at mechanical zero and run `pi_hold_on` with `set_zero: true`, `at_mechanical_reference: true`, profile `arm_attached`. The gravity gate (`gravity_model_mismatch`) must now pass. Then check `pi_candump_summary` and `pi_logs_last_fault`.
 
