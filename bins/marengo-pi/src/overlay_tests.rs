@@ -907,3 +907,92 @@ fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
     );
     assert_eq!(snapshot.timestamp_ms, 1);
 }
+
+fn motion_operator(payload: Payload) -> OperatorCommand {
+    OperatorCommand {
+        timestamp_ms: 1,
+        session_id: "sess-test".to_string(),
+        operator_id: "bench".to_string(),
+        seq: 1,
+        command: Some(ActuatorCommand {
+            joint: "right_elbow_pitch".to_string(),
+            payload: Some(payload),
+        }),
+    }
+}
+
+/// L-armee-proto-06: the OperatorCommand motion arms stay inert end to end
+/// even when a raw Chappe publisher bypasses the gateway's 400.
+#[test]
+fn operator_motion_payloads_are_rejected_without_touching_the_controller() {
+    use armee_proto::{EnableChange, HoldCommand, JogCommand, ModeChange, PresetCommand};
+
+    let payloads = [
+        Payload::Enable(EnableChange { enable: true }),
+        Payload::Mode(ModeChange {
+            mode: armee_proto::ControlMode::Position as i32,
+        }),
+        Payload::Jog(JogCommand { delta_rad: 0.1 }),
+        Payload::Hold(HoldCommand {
+            engage: true,
+            position_rad: 0.2,
+        }),
+        Payload::Preset(PresetCommand {
+            preset_id: "home".to_string(),
+        }),
+    ];
+    for payload in payloads {
+        let mut overlay = test_overlay();
+        let mut loop_ctrl = test_loop();
+        let outcomes = overlay
+            .apply_operator_command(
+                &mut loop_ctrl,
+                &repo_root().join("config"),
+                &motion_operator(payload.clone()),
+            )
+            .expect("rejection is an audit event, not an error");
+        assert!(
+            matches!(
+                outcomes.as_slice(),
+                [OverlayOutcome::Action(event)]
+                    if !event.accepted && event.reject_reason.contains("gated")
+            ),
+            "{payload:?}: {outcomes:?}"
+        );
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
+        assert_eq!(
+            loop_ctrl.supervisor().mode(),
+            davout::OperationalMode::Disabled
+        );
+        assert!(loop_ctrl.position_setpoints().is_none());
+    }
+}
+
+/// Runtime kp/kd retunes move a held joint: only the motion owner may send them.
+#[test]
+fn runtime_tuning_from_non_owner_chappe_is_refused() {
+    use crate::motion_owner::{CommandSource, MotionLease};
+
+    let mut overlay = test_overlay();
+    overlay.set_motion_lease(MotionLease::new(CommandSource::Stdin));
+    let mut loop_ctrl = test_loop();
+    loop_ctrl.set_control_mode(ControlMode::Impedance);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        88.0,
+        TuningTier::RuntimeMit as i32,
+    );
+    let err = overlay
+        .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
+        .expect_err("non-owner runtime tuning");
+    assert!(matches!(err, OverlayError::Motion(_)), "{err}");
+    assert!(err.to_string().contains("owned by stdin"), "{err}");
+    assert!(loop_ctrl.gain_override("right_elbow_pitch").is_none());
+
+    overlay.set_motion_lease(MotionLease::new(CommandSource::Chappe));
+    overlay
+        .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
+        .expect("owner runtime tuning");
+    assert!(loop_ctrl.gain_override("right_elbow_pitch").is_some());
+}

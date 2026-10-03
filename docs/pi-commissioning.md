@@ -227,7 +227,7 @@ Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: 
 1. Build/install includes `marengo-gateway` and Consul static assets (`deploy-pi.sh` builds `consul/dist` → `www/`; `install-pi.sh` installs to `/opt/marengo/www`).
 2. After `install-pi.sh`, **`marengo-gateway`** and **`marengo-can`** are enabled on boot. Gateway listens on **`[::]:8080`** (HTTP API), **`[::]:8444`** (HTTPS Consul UI), **`[::]:8443`** (WebTransport/QUIC).
 3. On the bench LAN, open **`https://marengo.local:8444`** and accept the self-signed certificate once.
-4. Run `marengo-pi` manually for live telemetry (`MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock` in `/etc/marengo/env`). **`marengo-pi.service` stays disabled** by default — no automatic motor control after reboot.
+4. Run `marengo-pi` manually for live telemetry (`MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock` in `/etc/marengo/env`). **`marengo-pi.service` stays disabled** by default — no automatic motor control after reboot. A manual run started from SSH and driven by typed stdin commands must claim motion with `marengo-pi --motion-owner stdin` (or `MARENGO_MOTION_OWNER=stdin`); the default owner is Consul (Chappe), and stdin then only accepts `disable`/`quit`/`status`. MCP sessions claim stdin automatically. See [safety.md](safety.md#single-motion-owner-stdin-vs-chappe).
 
 **Boot state after power loss:** CAN up, gateway/UI up, `marengo-pi` stopped, motors not enabled.
 

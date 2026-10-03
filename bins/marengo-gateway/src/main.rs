@@ -21,6 +21,9 @@ mod gateway_access_public_test;
 #[cfg(test)]
 mod gateway_access_conformance_test;
 
+#[cfg(test)]
+mod command_hardening_test;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;

@@ -20,6 +20,11 @@ pub const DIAGNOSTICS_BURST: f64 = 20.0;
 pub const STATUS_POLL_REFILL_PER_SEC: f64 = 0.5;
 pub const STATUS_POLL_BURST: f64 = 2.0;
 
+/// Testing-MIT batch flood cap (global). Generous so Consul compound playback
+/// (batches every >=100 ms plus gain-slider updates) never trips it.
+pub const TESTING_REFILL_PER_SEC: f64 = 20.0;
+pub const TESTING_BURST: f64 = 40.0;
+
 /// Drop idle rate-limit keys after this idle period.
 const BUCKET_TTL: Duration = Duration::from_secs(600);
 
@@ -32,6 +37,8 @@ pub enum CommandBucket {
     Diagnostics,
     /// Light Disable (type-4) status solicit for Hardware-page Online facets.
     StatusPoll,
+    /// `/command/testing_mit` batches; global, never keyed by client-chosen ids.
+    Testing,
 }
 
 #[derive(Debug)]
@@ -99,13 +106,14 @@ impl RateLimiter {
             CommandBucket::Motion => "motion",
             CommandBucket::Diagnostics => "diagnostics",
             CommandBucket::StatusPoll => "status_poll",
+            CommandBucket::Testing => "testing",
         };
         match bucket {
             // Tuning stays per UI session so independent tabs don't starve each other.
             CommandBucket::Tuning => format!("{client_id}:{joint}:{kind}"),
             // Motion/calibration must not be keyed by attacker-chosen client_id —
             // rotating the field would otherwise bypass the flood cap on set-zero.
-            CommandBucket::Motion | CommandBucket::Diagnostics => {
+            CommandBucket::Motion | CommandBucket::Diagnostics | CommandBucket::Testing => {
                 format!("__global__:{joint}:{kind}")
             }
             // One global solicit for all motors — ignore joint and client_id rotation.
@@ -119,6 +127,7 @@ impl RateLimiter {
             CommandBucket::Motion => (MOTION_BURST, MOTION_REFILL_PER_SEC),
             CommandBucket::Diagnostics => (DIAGNOSTICS_BURST, DIAGNOSTICS_REFILL_PER_SEC),
             CommandBucket::StatusPoll => (STATUS_POLL_BURST, STATUS_POLL_REFILL_PER_SEC),
+            CommandBucket::Testing => (TESTING_BURST, TESTING_REFILL_PER_SEC),
         }
     }
 
@@ -241,5 +250,14 @@ mod tests {
         assert!(limiter.allow("client-a", "_", CommandBucket::StatusPoll));
         assert!(limiter.allow("client-b", "_", CommandBucket::StatusPoll));
         assert!(!limiter.allow("client-c", "_", CommandBucket::StatusPoll));
+    }
+
+    #[test]
+    fn testing_bucket_is_global_and_ignores_client_rotation() {
+        let limiter = RateLimiter::new();
+        for i in 0..40 {
+            assert!(limiter.allow(&format!("c{i}"), "j", CommandBucket::Testing));
+        }
+        assert!(!limiter.allow("fresh", "j", CommandBucket::Testing));
     }
 }

@@ -509,6 +509,9 @@ fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
                 actuator_rx: &mut actuator_rx,
                 actuator_overlay: &mut overlay,
                 shutdown: &shutdown,
+                motion: crate::motion_owner::MotionLease::new(
+                    crate::motion_owner::CommandSource::Stdin,
+                ),
             };
             run_control_loop(&mut controller, &mut runtime);
         } else {
@@ -1419,6 +1422,7 @@ fn run_actual_owner_flag_case(case: OwnerFlagCase) -> OwnerFlagObservation {
         actuator_rx: &mut actuator_rx,
         actuator_overlay: &mut overlay,
         shutdown: &shutdown,
+        motion: crate::motion_owner::MotionLease::new(crate::motion_owner::CommandSource::Stdin),
     };
     run_control_loop(&mut controller, &mut runtime);
     let _ = finished_tx.send(());

@@ -11,7 +11,7 @@ use robstride::CanFrame;
 use crate::enable_gate::{EnableGate, GateLine};
 use crate::{dispatch_stdin_command, PiCommand, PiReferenceQueue};
 
-const JOINT: &str = "right_elbow_pitch";
+pub(crate) const JOINT: &str = "right_elbow_pitch";
 /// Type-2 Run status from can0 device 4 (right_elbow_pitch), off zero.
 const RUN_STATUS_ID: u32 = 0x028004fd;
 const RUN_STATUS_DATA: [u8; 8] = [0x80, 0x40, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8];
@@ -21,7 +21,7 @@ fn repo_root() -> PathBuf {
 }
 
 /// Active on JOINT through the real Enable path, with no session pose yet.
-fn enabled_without_pose() -> ControlLoop<SimulationBus> {
+pub(crate) fn enabled_without_pose() -> ControlLoop<SimulationBus> {
     let mut loop_ctrl = ControlLoop::from_simulation(
         repo_root(),
         SimulationBus::default(),
@@ -38,7 +38,7 @@ fn enabled_without_pose() -> ControlLoop<SimulationBus> {
     loop_ctrl
 }
 
-fn first_session_status(loop_ctrl: &mut ControlLoop<SimulationBus>) -> f64 {
+pub(crate) fn first_session_status(loop_ctrl: &mut ControlLoop<SimulationBus>) -> f64 {
     loop_ctrl
         .supervisor_mut()
         .bus_mut()

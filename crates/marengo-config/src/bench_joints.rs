@@ -151,16 +151,31 @@ pub fn apply_joint_subset(
 }
 
 /// Resolve an operator/inventory joint name to a wired canonical name.
+///
+/// An exact wired name always wins. A bare inventory alias (`elbow`,
+/// `shoulder_roll`, …) resolves only when it names exactly one wired joint:
+/// once both arms are wired the same alias would command either side, so it is
+/// refused (`None`) and the operator must use the sided name.
 pub fn resolve_command_joint<'a>(
     input: &str,
     allowlist: &'a CommandJointAllowlist,
 ) -> Option<&'a str> {
-    for candidate in joint_lookup_candidates(input) {
-        if let Some(canonical) = allowlist.joints.get(candidate) {
-            return Some(canonical.as_str());
+    let mut candidates = joint_lookup_candidates(input).into_iter();
+    let exact = candidates.next()?;
+    if let Some(canonical) = allowlist.joints.get(exact) {
+        return Some(canonical.as_str());
+    }
+    let mut resolved: Option<&'a str> = None;
+    for candidate in candidates {
+        let Some(canonical) = allowlist.joints.get(candidate) else {
+            continue;
+        };
+        match resolved {
+            Some(previous) if previous != canonical.as_str() => return None,
+            _ => resolved = Some(canonical.as_str()),
         }
     }
-    None
+    resolved
 }
 
 fn joint_lookup_candidates(input: &str) -> Vec<&str> {
@@ -271,6 +286,27 @@ mod tests {
         assert_eq!(
             resolve_command_joint("elbow", &allowlist),
             Some("right_elbow_pitch")
+        );
+    }
+
+    /// L-marengo-config-14: with both arms wired a bare alias is ambiguous and
+    /// must not silently pick a side; sided names stay exact.
+    #[test]
+    fn bare_alias_is_refused_when_both_arms_are_wired() {
+        let both = CommandJointAllowlist::from_joints(["right_elbow_pitch", "left_elbow"]);
+        assert_eq!(resolve_command_joint("elbow", &both), None);
+        assert_eq!(
+            resolve_command_joint("right_elbow_pitch", &both),
+            Some("right_elbow_pitch")
+        );
+        assert_eq!(
+            resolve_command_joint("left_elbow", &both),
+            Some("left_elbow")
+        );
+        let left_only = CommandJointAllowlist::from_joints(["left_elbow"]);
+        assert_eq!(
+            resolve_command_joint("elbow", &left_only),
+            Some("left_elbow")
         );
     }
 

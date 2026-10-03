@@ -8,7 +8,7 @@ use armee_proto::MotorStatusPollRequest;
 use armee_proto::SetZeroRequest;
 use axum::{
     body::Body,
-    extract::{Query, State},
+    extract::{DefaultBodyLimit, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -152,8 +152,14 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         )
         .route("/version/status", get(deploy::get_version_status))
         .route("/control/deploy", post(deploy::post_control_deploy))
-        .route("/command/enable", post(command_enable))
-        .route("/command/testing_mit", post(command_testing_mit))
+        .route(
+            "/command/enable",
+            post(command_enable).layer(DefaultBodyLimit::max(COMMAND_BODY_LIMIT)),
+        )
+        .route(
+            "/command/testing_mit",
+            post(command_testing_mit).layer(DefaultBodyLimit::max(COMMAND_BODY_LIMIT)),
+        )
         // Retired: operator HomingComplete / Testing Home — use Hardware Set Zero.
         .route("/command/home", post(command_home_retired))
         .route("/command/set_zero", post(command_set_zero))
@@ -371,39 +377,122 @@ fn protobuf_snapshot<M: Message>(msg: Option<M>) -> Response {
     }
 }
 
+/// Rate-limit key for `/command/enable` (`enable == true` only); global Motion bucket.
+const ENABLE_RATE_KEY: &str = "__enable__";
+/// Rate-limit key for `/command/testing_mit`; global Testing bucket.
+const TESTING_MIT_RATE_KEY: &str = "__testing_mit__";
+/// Control payloads are tiny protobufs; 64 KiB is a generous ceiling.
+const COMMAND_BODY_LIMIT: usize = 64 * 1024;
+
 async fn command_enable(
     State(state): State<SharedState>,
     body: axum::body::Bytes,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
     let request = EnableRequest::decode(body.as_ref())
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    // Disable/stop must never be refused for rate reasons; only enabling is capped.
+    let bucket = crate::ratelimit::CommandBucket::Motion;
+    let limited = request.enable;
+    if limited
+        && !state
+            .rate_limiter
+            .allow(ENABLE_RATE_KEY, ENABLE_RATE_KEY, bucket)
+    {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            "enable rate limit exceeded".into(),
+        ));
+    }
     let payload = request.encode_to_vec();
-    state
-        .publish_command_envelope(
-            "robot/enable",
-            "consul",
-            "marengo.v1.EnableRequest",
-            payload,
-        )
-        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+    if let Err(e) = state.publish_command_envelope(
+        "robot/enable",
+        "consul",
+        "marengo.v1.EnableRequest",
+        payload,
+    ) {
+        if limited {
+            state
+                .rate_limiter
+                .refund(ENABLE_RATE_KEY, ENABLE_RATE_KEY, bucket);
+        }
+        return Err((StatusCode::BAD_GATEWAY, e));
+    }
     Ok(Json(OkResponse { ok: true }))
+}
+
+/// Resolve a testing-MIT entry name to its canonical wired form.
+///
+/// Plain names resolve directly; in-band `wave:<joint>:<min>:<max>:<cycles>:<half>` names
+/// resolve only the joint segment and keep the remaining fields verbatim.
+fn canonicalize_testing_mit_name(
+    name: &str,
+    state: &crate::state::AppState,
+) -> Result<String, (StatusCode, String)> {
+    let not_eligible = |joint: &str| {
+        (
+            StatusCode::FORBIDDEN,
+            format!("joint not command-eligible: {joint}"),
+        )
+    };
+    let Some(rest) = name.strip_prefix("wave:") else {
+        return marengo_config::resolve_command_joint(name, &state.command_joints)
+            .map(str::to_owned)
+            .ok_or_else(|| not_eligible(name));
+    };
+    let fields: Vec<&str> = rest.split(':').collect();
+    if fields.len() != 5 || fields[0].is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "malformed wave name; expected wave:<joint>:<min>:<max>:<cycles>:<half>".into(),
+        ));
+    }
+    let canonical = marengo_config::resolve_command_joint(fields[0], &state.command_joints)
+        .ok_or_else(|| not_eligible(fields[0]))?;
+    Ok(format!("wave:{canonical}:{}", fields[1..].join(":")))
 }
 
 async fn command_testing_mit(
     State(state): State<SharedState>,
     body: axum::body::Bytes,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
-    let request = MitCommandBatch::decode(body.as_ref())
+    let mut request = MitCommandBatch::decode(body.as_ref())
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    if request.joints.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "joints required".into()));
+    }
+    if request.joints.len() > state.command_joints.iter().count() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "too many joint entries in batch".into(),
+        ));
+    }
+    // Validate and rewrite every entry before any publication: all-or-nothing.
+    for joint in &mut request.joints {
+        joint.name = canonicalize_testing_mit_name(&joint.name, &state)?;
+    }
+
+    let bucket = crate::ratelimit::CommandBucket::Testing;
+    if !state
+        .rate_limiter
+        .allow(TESTING_MIT_RATE_KEY, TESTING_MIT_RATE_KEY, bucket)
+    {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            "testing MIT rate limit exceeded".into(),
+        ));
+    }
     let payload = request.encode_to_vec();
-    state
-        .publish_command_envelope(
-            "robot/testing/mit_command_batch",
-            "consul",
-            "marengo.v1.MitCommandBatch",
-            payload,
-        )
-        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+    if let Err(e) = state.publish_command_envelope(
+        "robot/testing/mit_command_batch",
+        "consul",
+        "marengo.v1.MitCommandBatch",
+        payload,
+    ) {
+        state
+            .rate_limiter
+            .refund(TESTING_MIT_RATE_KEY, TESTING_MIT_RATE_KEY, bucket);
+        return Err((StatusCode::BAD_GATEWAY, e));
+    }
     Ok(Json(OkResponse { ok: true }))
 }
 

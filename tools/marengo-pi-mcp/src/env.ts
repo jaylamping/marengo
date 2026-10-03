@@ -13,6 +13,9 @@ export function remotePreamble(cfg: MarengoPiConfig, debug = false): string {
     'export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
     `export MARENGO_ROOT=${shellQuote(cfg.piRoot)}`,
     `export MARENGO_CONFIG_DIR=${shellQuote(cfg.configDir)}`,
+    // Every marengo-pi started from MCP is a stdin-scripted session: claim motion
+    // ownership so a Consul tab (Chappe) can only disable/stop it, never steer it.
+    "export MARENGO_MOTION_OWNER=stdin",
     `export RUST_LOG=${shellQuote(rustLog)}`,
     `cd ${shellQuote(cfg.piRoot)}`,
   ].join("\n");

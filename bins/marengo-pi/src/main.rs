@@ -7,6 +7,9 @@ mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod imu;
 mod limit_persist;
+mod motion_owner;
+#[cfg(test)]
+mod motion_owner_chappe_tests;
 mod overlay;
 #[cfg(test)]
 mod reference_busy_overlay_tests;
@@ -37,9 +40,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
-    ActiveReportingLeaseAction, ActiveReportingLeaseRequest, EnableRequest, Fault, FaultSeverity,
-    Heartbeat, HomingComplete, MitCommandBatch, MotorStatusPollRequest,
-    OperationalMode as ProtoOpMode, SafetyState, SetZeroRequest,
+    ActiveReportingLeaseAction, ActiveReportingLeaseRequest, ControlMode as ProtoControlMode,
+    EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, MitCommandBatch,
+    MitJointCommand, MotorStatusPollRequest, OperationalMode as ProtoOpMode, SafetyState,
+    SetZeroRequest,
 };
 use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
@@ -58,6 +62,10 @@ use robstride::RuntimeBus;
 use tracing::{debug, error, info, warn};
 
 use crate::limit_persist::{PersistDrainReport, PersistDrainStatus};
+use crate::motion_owner::{
+    classify_stdin, publish_audit, report_refusal, resolve_owner, CommandClass, CommandSource,
+    MotionLease, MOTION_OWNER_ENV,
+};
 use crate::reference_queue::{ReferenceEvent, ReferenceQueue};
 
 /// Stdin reference queue: Davout handles in flight, stdin commands deferred.
@@ -315,6 +323,27 @@ fn dispatch_stdin_command<B: MotorBus>(
     handle_command(loop_ctrl, queue, gate, cmd, config_dir)
 }
 
+/// Admit a stdin command against the motion lease. Stop and observe commands
+/// always pass; a motion command from a non-owner stdin is refused with a
+/// reason on the console and as a published event.
+fn admit_stdin_command(lease: MotionLease, chappe: &Bus, cmd: &PiCommand) -> bool {
+    let (class, name) = classify_stdin(cmd);
+    match lease.admit(CommandSource::Stdin, class, name) {
+        Ok(()) => true,
+        Err(refusal) => {
+            let reason = refusal.to_string();
+            if name.starts_with("home") {
+                // `home failed:` is the stdout contract MCP scripts wait on.
+                println!("home failed: {reason}");
+            } else {
+                eprintln!("{reason}");
+            }
+            report_refusal(chappe, STDIN_REFERENCE_OPERATOR, "", name, &reason);
+            false
+        }
+    }
+}
+
 fn spawn_stdin_commands(tx: Sender<PiCommand>) {
     thread::spawn(move || {
         let stdin = io::stdin();
@@ -336,6 +365,41 @@ fn spawn_stdin_commands(tx: Sender<PiCommand>) {
     });
 }
 
+/// One non-blocking read of a Chappe command channel.
+enum Polled {
+    Message(Vec<u8>),
+    /// The channel dropped its `n` oldest messages because this loop fell behind.
+    Lagged(u64),
+    Empty,
+}
+
+fn poll_channel(rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>) -> Polled {
+    use tokio::sync::broadcast::error::TryRecvError;
+    match rx.try_recv() {
+        Ok(bytes) => Polled::Message(bytes),
+        Err(TryRecvError::Lagged(skipped)) => Polled::Lagged(skipped),
+        Err(TryRecvError::Empty | TryRecvError::Closed) => Polled::Empty,
+    }
+}
+
+/// Decode `Envelope` → `M`; an undecodable command is logged, never silent.
+fn decode_chappe_payload<M: Message + Default>(bytes: &[u8], topic: &str) -> Option<M> {
+    let envelope = match armee_proto::Envelope::decode(bytes) {
+        Ok(envelope) => envelope,
+        Err(error) => {
+            warn!(topic, %error, "undecodable Chappe envelope dropped");
+            return None;
+        }
+    };
+    match M::decode(envelope.payload.as_slice()) {
+        Ok(message) => Some(message),
+        Err(error) => {
+            warn!(topic, %error, "undecodable Chappe payload dropped");
+            None
+        }
+    }
+}
+
 fn handle_chappe_enable<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     queue: &mut PiReferenceQueue,
@@ -355,6 +419,8 @@ fn handle_chappe_enable<B: MotorBus>(
             .supervisor_mut()
             .enable_targets(&targets)
             .map_err(|e| e.to_string())?;
+        // An explicit enable is what lets later motion commands re-arm drives.
+        loop_ctrl.allow_implicit_enable();
         info!(
             operator = %request.operator_id,
             target_count = targets.len(),
@@ -362,6 +428,8 @@ fn handle_chappe_enable<B: MotorBus>(
             "enable via Chappe (targeted)"
         );
     } else {
+        // An operator disable stands until an explicit enable (L-berthier-28).
+        loop_ctrl.forbid_implicit_enable();
         let result = loop_ctrl.supervisor_mut().disable_all();
         emit_reference_events(queue.cancel());
         result.map_err(|e| e.to_string())?;
@@ -371,10 +439,58 @@ fn handle_chappe_enable<B: MotorBus>(
     Ok(())
 }
 
+/// Most queued `robot/enable` messages discarded after a lag in one tick.
+const LAGGED_ENABLE_DISCARD_BOUND: usize = 4096;
+
+/// `robot/enable` dropped messages. A Disable may be among them and cannot be
+/// recovered, so fail closed: stop every drive, cancel the reference queue and
+/// refuse implicit re-enable. The surviving messages cannot be ordered against
+/// the lost ones, so they are discarded; an operator who still wants motion
+/// enables again explicitly (L-marengo-pi-06).
+fn stop_after_lagged_enable<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    queue: &mut PiReferenceQueue,
+    chappe: &Bus,
+    enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    skipped: u64,
+) {
+    error!(
+        skipped,
+        "Chappe robot/enable lagged; a disable may have been dropped — stopping drives"
+    );
+    loop_ctrl.forbid_implicit_enable();
+    let result = loop_ctrl.supervisor_mut().disable_all();
+    emit_reference_events(queue.cancel());
+    loop_ctrl.set_control_mode(ControlMode::Disabled);
+    if let Err(e) = &result {
+        error!(error = %e, "stop after lagged robot/enable failed");
+    }
+    let mut discarded = 0usize;
+    for _ in 0..LAGGED_ENABLE_DISCARD_BOUND {
+        if matches!(poll_channel(enable_rx), Polled::Empty) {
+            break;
+        }
+        discarded += 1;
+    }
+    publish_audit(
+        chappe,
+        "stop_on_lag",
+        result.is_ok(),
+        "marengo-pi",
+        "",
+        &format!(
+            "robot/enable lagged ({skipped} dropped, {discarded} queued discarded); drives \
+             stopped fail-closed; enable explicitly to resume"
+        ),
+    );
+}
+
 #[allow(clippy::too_many_arguments)]
 fn drain_chappe_commands<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     queue: &mut PiReferenceQueue,
+    lease: MotionLease,
+    chappe: &Bus,
     enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
@@ -388,16 +504,27 @@ fn drain_chappe_commands<B: MotorBus>(
         if shutdown.load(Ordering::SeqCst) {
             return;
         }
-        match set_zero_rx.try_recv() {
-            Ok(bytes) => {
-                let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
-                    continue;
-                };
-                let Ok(request) = SetZeroRequest::decode(envelope.payload.as_slice()) else {
+        match poll_channel(set_zero_rx) {
+            Polled::Message(bytes) => {
+                let Some(request) =
+                    decode_chappe_payload::<SetZeroRequest>(&bytes, "robot/set_zero")
+                else {
                     continue;
                 };
                 if shutdown.load(Ordering::SeqCst) {
                     return;
+                }
+                if let Err(refusal) =
+                    lease.admit(CommandSource::Chappe, CommandClass::Motion, "set-zero")
+                {
+                    report_refusal(
+                        chappe,
+                        &request.operator_id,
+                        &request.joint,
+                        "set-zero",
+                        &refusal.to_string(),
+                    );
+                    continue;
                 }
                 if let Err(e) = handle_chappe_set_zero(loop_ctrl, queue, &request) {
                     warn!(
@@ -407,14 +534,21 @@ fn drain_chappe_commands<B: MotorBus>(
                     );
                 }
             }
-            Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
-            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+            Polled::Lagged(n) => {
                 warn!(
                     skipped = n,
                     "Chappe set_zero lagged; dropped oldest commands"
                 );
+                publish_audit(
+                    chappe,
+                    "chappe_lagged",
+                    false,
+                    "marengo-pi",
+                    "",
+                    &format!("robot/set_zero lagged; {n} set-zero commands dropped; resend"),
+                );
             }
-            Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+            Polled::Empty => break,
         }
     }
     loop {
@@ -484,20 +618,34 @@ fn drain_chappe_commands<B: MotorBus>(
         }
     }
     while !shutdown.load(Ordering::SeqCst) {
-        let Ok(bytes) = enable_rx.try_recv() else {
-            break;
-        };
-        let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
-            continue;
-        };
-        let Ok(request) = EnableRequest::decode(envelope.payload.as_slice()) else {
-            continue;
-        };
-        if shutdown.load(Ordering::SeqCst) {
-            return;
-        }
-        if let Err(e) = handle_chappe_enable(loop_ctrl, queue, &request) {
-            warn!(error = %e, "Chappe enable request failed");
+        match poll_channel(enable_rx) {
+            Polled::Empty => break,
+            Polled::Lagged(skipped) => {
+                stop_after_lagged_enable(loop_ctrl, queue, chappe, enable_rx, skipped);
+                break;
+            }
+            Polled::Message(bytes) => {
+                let Some(request) = decode_chappe_payload::<EnableRequest>(&bytes, "robot/enable")
+                else {
+                    continue;
+                };
+                if shutdown.load(Ordering::SeqCst) {
+                    return;
+                }
+                // Disable is a stop: admitted from any source. Enable energises.
+                let (class, name) = if request.enable {
+                    (CommandClass::Motion, "enable")
+                } else {
+                    (CommandClass::Stop, "disable")
+                };
+                if let Err(refusal) = lease.admit(CommandSource::Chappe, class, name) {
+                    report_refusal(chappe, &request.operator_id, "", name, &refusal.to_string());
+                    continue;
+                }
+                if let Err(e) = handle_chappe_enable(loop_ctrl, queue, &request) {
+                    warn!(error = %e, "Chappe enable request failed");
+                }
+            }
         }
     }
     while !shutdown.load(Ordering::SeqCst) {
@@ -578,23 +726,85 @@ fn handle_chappe_set_zero<B: MotorBus>(
     Ok(())
 }
 
+/// Apply (or clear) one Testing joint's gain override. Must run after the
+/// control mode has been entered: overrides exist only in Impedance/Position,
+/// and Berthier refuses them elsewhere instead of silently dropping them.
+fn apply_testing_gains<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    joint: &MitJointCommand,
+) -> Result<(), LoopError> {
+    let has_gain = joint.kp != 0.0 || joint.kd != 0.0 || joint.ki != 0.0 || joint.fc != 0.0;
+    if has_gain {
+        loop_ctrl.apply_gain_override(
+            &joint.name,
+            GainOverride {
+                kp: joint.kp,
+                kd: joint.kd,
+                ki: joint.ki,
+                fc: joint.fc,
+            },
+        )
+    } else {
+        // Use control.yaml impedance gains for Position mode.
+        loop_ctrl.clear_gain_override(&joint.name);
+        Ok(())
+    }
+}
+
+/// Testing (`robot/testing/mit_command_batch`) is motion: it needs the motion
+/// lease and an idle reference queue. Batches are refused whole, with a
+/// published reason, before any gain, mode or enable side effect.
 fn drain_testing_commands<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
+    queue: &PiReferenceQueue,
+    lease: MotionLease,
+    chappe: &Bus,
     testing_cmd_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     shutdown: &AtomicBool,
 ) {
+    const TOPIC: &str = "robot/testing/mit_command_batch";
     while !shutdown.load(Ordering::SeqCst) {
-        let Ok(bytes) = testing_cmd_rx.try_recv() else {
-            break;
+        let bytes = match poll_channel(testing_cmd_rx) {
+            Polled::Message(bytes) => bytes,
+            Polled::Lagged(n) => {
+                warn!(skipped = n, "Chappe testing batches lagged; dropped oldest");
+                publish_audit(
+                    chappe,
+                    "chappe_lagged",
+                    false,
+                    "marengo-pi",
+                    "",
+                    &format!("{TOPIC} lagged; {n} testing batches dropped; resend"),
+                );
+                continue;
+            }
+            Polled::Empty => break,
         };
-        let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
+        let Some(batch) = decode_chappe_payload::<MitCommandBatch>(&bytes, TOPIC) else {
             continue;
         };
-        let Ok(batch) = MitCommandBatch::decode(envelope.payload.as_slice()) else {
+        if let Err(refusal) =
+            lease.admit(CommandSource::Chappe, CommandClass::Motion, "testing batch")
+        {
+            report_refusal(chappe, "consul", "", "testing batch", &refusal.to_string());
             continue;
-        };
-        // Proto ControlMode::POSITION = 4 (see marengo.proto).
-        let want_position = batch.mode == 4;
+        }
+        // Same gate as Chappe enable and stdin commands: nothing may energise,
+        // retune or move a drive while a reference acquisition owns the bus.
+        if queue.is_busy() || loop_ctrl.supervisor().reference_busy() {
+            report_refusal(
+                chappe,
+                "consul",
+                "",
+                "testing batch",
+                "testing batch refused: reference acquisition in progress",
+            );
+            continue;
+        }
+        let want_position = matches!(
+            ProtoControlMode::try_from(batch.mode),
+            Ok(ProtoControlMode::Position)
+        );
         for joint in &batch.joints {
             if shutdown.load(Ordering::SeqCst) {
                 return;
@@ -630,28 +840,7 @@ fn drain_testing_commands<B: MotorBus>(
                 }
                 continue;
             }
-            let has_gain = joint.kp != 0.0 || joint.kd != 0.0 || joint.ki != 0.0 || joint.fc != 0.0;
-            if has_gain {
-                if let Err(error) = loop_ctrl.apply_gain_override(
-                    &joint.name,
-                    GainOverride {
-                        kp: joint.kp,
-                        kd: joint.kd,
-                        ki: joint.ki,
-                        fc: joint.fc,
-                    },
-                ) {
-                    warn!(joint = %joint.name, error = %error, "testing gains rejected");
-                    continue;
-                }
-            } else {
-                // Use control.yaml impedance gains for Position mode.
-                loop_ctrl.clear_gain_override(&joint.name);
-            }
             if want_position {
-                if shutdown.load(Ordering::SeqCst) {
-                    return;
-                }
                 // Re-arm first; a fresh Enable refuses the target until its
                 // session feedback arrives (a later batch retries).
                 let result = if loop_ctrl.control_mode() == ControlMode::Position {
@@ -668,7 +857,13 @@ fn drain_testing_commands<B: MotorBus>(
                         error = %e,
                         "testing position hold rejected"
                     );
+                    continue;
                 }
+            }
+            // Gains last: they only exist once the requested mode is entered
+            // (CS19: applied first, a GravityComp → Position batch lost them).
+            if let Err(error) = apply_testing_gains(loop_ctrl, joint) {
+                warn!(joint = %joint.name, error = %error, "testing gains rejected");
             }
         }
     }
@@ -896,13 +1091,19 @@ fn handle_command<B: MotorBus>(
             match loop_ctrl.supervisor().resolve_enable_targets(repo_root()) {
                 Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
                     // `enabled` is printed once enable completes (EnableGate::poll).
-                    Ok(()) => emit(gate.begin_enable(operator_id, targets, Instant::now())),
+                    Ok(()) => {
+                        // An explicit enable lets later motion commands re-arm drives.
+                        loop_ctrl.allow_implicit_enable();
+                        emit(gate.begin_enable(operator_id, targets, Instant::now()));
+                    }
                     Err(e) => eprintln!("enable failed: {e}"),
                 },
                 Err(e) => eprintln!("enable blocked: {e}"),
             }
         }
         PiCommand::Disable => {
+            // An operator disable stands until an explicit enable (L-berthier-28).
+            loop_ctrl.forbid_implicit_enable();
             // Davout's disable_all also cancels a live reference transaction.
             if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
                 eprintln!("disable failed: {e}");
@@ -968,16 +1169,28 @@ fn handle_command<B: MotorBus>(
 fn usage() {
     eprintln!(
         "marengo-pi — Pi control runtime (Berthier → Davout → SocketCAN)\n\
-         Usage: marengo-pi [--config-dir PATH] [--no-stdin-ctl]\n\
+         Usage: marengo-pi [--config-dir PATH] [--no-stdin-ctl] [--motion-owner stdin|chappe]\n\
+         Motion owner: exactly one command source may enable/move the robot. Default chappe\n\
+         (Consul via the gateway); scripted stdin sessions claim it with `--motion-owner stdin`\n\
+         (or {MOTION_OWNER_ENV}=stdin). Disable/stop is accepted from either source.\n\
          Env:  MARENGO_ROOT, MARENGO_CONFIG_DIR (default /opt/marengo/config on Pi)\n\
          Dev:  unset MARENGO_CONFIG_DIR to use <repo>/config"
     );
 }
 
-fn parse_args() -> (Option<PathBuf>, bool) {
+struct CliArgs {
+    config_dir: Option<PathBuf>,
+    stdin_ctl: bool,
+    motion_owner: Option<String>,
+}
+
+fn parse_args() -> CliArgs {
     let mut args = env::args().skip(1);
-    let mut config_dir = None;
-    let mut stdin_ctl = true;
+    let mut cli = CliArgs {
+        config_dir: None,
+        stdin_ctl: true,
+        motion_owner: None,
+    };
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--config-dir" => {
@@ -985,9 +1198,16 @@ fn parse_args() -> (Option<PathBuf>, bool) {
                     eprintln!("--config-dir requires a path");
                     std::process::exit(1);
                 };
-                config_dir = Some(PathBuf::from(path));
+                cli.config_dir = Some(PathBuf::from(path));
             }
-            "--no-stdin-ctl" => stdin_ctl = false,
+            "--no-stdin-ctl" => cli.stdin_ctl = false,
+            "--motion-owner" => {
+                let Some(owner) = args.next() else {
+                    eprintln!("--motion-owner requires stdin or chappe");
+                    std::process::exit(1);
+                };
+                cli.motion_owner = Some(owner);
+            }
             "--help" | "-h" => {
                 usage();
                 std::process::exit(0);
@@ -999,13 +1219,29 @@ fn parse_args() -> (Option<PathBuf>, bool) {
             }
         }
     }
-    (config_dir, stdin_ctl)
+    cli
 }
 
 fn main() {
-    let (cli_config_dir, stdin_ctl) = parse_args();
+    let cli = parse_args();
+    let stdin_ctl = cli.stdin_ctl;
+    let motion_owner = match resolve_owner(
+        cli.motion_owner.as_deref(),
+        env::var(MOTION_OWNER_ENV).ok().as_deref(),
+    ) {
+        Ok(owner) => owner,
+        Err(message) => {
+            eprintln!("{message}");
+            std::process::exit(1);
+        }
+    };
+    if motion_owner == CommandSource::Stdin && !stdin_ctl {
+        eprintln!("--motion-owner stdin requires stdin control (drop --no-stdin-ctl)");
+        std::process::exit(1);
+    }
+    let motion = MotionLease::new(motion_owner);
     let root = repo_root();
-    if let Some(dir) = cli_config_dir {
+    if let Some(dir) = cli.config_dir {
         env::set_var("MARENGO_CONFIG_DIR", dir);
     }
     let config_dir = resolve_config_dir(&root);
@@ -1131,9 +1367,18 @@ fn main() {
     if stdin_ctl {
         spawn_stdin_commands(cmd_tx);
         print_usage();
+        eprintln!(
+            "motion owner: {motion_owner}{}",
+            if motion_owner == CommandSource::Stdin {
+                ""
+            } else {
+                " (stdin may only disable/stop; restart with --motion-owner stdin to command from stdin)"
+            }
+        );
     }
 
     info!(
+        motion_owner = %motion_owner,
         hz = control.control.loop_hz,
         chappe_hz = control.control.chappe_state_hz,
         motor_count = motors.motors.len(),
@@ -1159,6 +1404,7 @@ fn main() {
         actuator_rx: &mut actuator_rx,
         actuator_overlay: &mut actuator_overlay,
         shutdown: &shutdown,
+        motion,
     };
     run_control_loop(&mut loop_ctrl, &mut runtime);
 
@@ -1320,6 +1566,8 @@ struct ControlLoopRuntime<'a> {
     actuator_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_overlay: &'a mut overlay::ActuatorOverlay,
     shutdown: &'a Arc<AtomicBool>,
+    /// Process-lifetime claim on motion; see [`motion_owner`].
+    motion: MotionLease,
 }
 
 #[tracing::instrument(skip(loop_ctrl, runtime))]
@@ -1335,6 +1583,7 @@ fn run_control_loop<B: MotorBus>(
     let mut timing = LoopTimingWindow::new(loop_ctrl.tick_count());
     let mut reference_queue = PiReferenceQueue::new(format!("marengo-pi-{}", std::process::id()));
     let mut enable_gate = EnableGate::default();
+    runtime.actuator_overlay.set_motion_lease(runtime.motion);
 
     'control: while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
@@ -1344,12 +1593,19 @@ fn run_control_loop<B: MotorBus>(
             if runtime.shutdown.load(Ordering::SeqCst) {
                 break 'control;
             }
-            // Commands deferred behind a drained reference queue run first, in order.
-            let Some(cmd) = reference_queue
-                .take_ready_deferred()
-                .or_else(|| runtime.cmd_rx.try_recv().ok())
-            else {
-                break;
+            // Commands deferred behind a drained reference queue were admitted
+            // when first received; they run first, in order.
+            let cmd = match reference_queue.take_ready_deferred() {
+                Some(cmd) => cmd,
+                None => match runtime.cmd_rx.try_recv() {
+                    Ok(cmd) => {
+                        if !admit_stdin_command(runtime.motion, runtime.chappe.as_ref(), &cmd) {
+                            continue;
+                        }
+                        cmd
+                    }
+                    Err(_) => break,
+                },
             };
             if runtime.shutdown.load(Ordering::SeqCst) {
                 break 'control;
@@ -1370,6 +1626,8 @@ fn run_control_loop<B: MotorBus>(
         drain_chappe_commands(
             loop_ctrl,
             &mut reference_queue,
+            runtime.motion,
+            runtime.chappe.as_ref(),
             runtime.enable_rx,
             runtime.homing_rx,
             runtime.set_zero_rx,
@@ -1381,7 +1639,14 @@ fn run_control_loop<B: MotorBus>(
             break;
         }
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
-        drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx, runtime.shutdown);
+        drain_testing_commands(
+            loop_ctrl,
+            &reference_queue,
+            runtime.motion,
+            runtime.chappe.as_ref(),
+            runtime.testing_cmd_rx,
+            runtime.shutdown,
+        );
         if runtime.shutdown.load(Ordering::SeqCst) {
             break;
         }
