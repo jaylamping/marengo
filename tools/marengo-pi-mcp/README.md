@@ -102,7 +102,7 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` a
 
 ### One CAN owner
 
-Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting frames while starting up. That includes `status`, `homing-status` and `gravity-preview`. If `marengo-pi` already owns the bus, that extra traffic can latch a persistent Transport fault in `marengo-pi`. So while a `marengo-pi` or `motor-repl` process runs (`pgrep -x`), `pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` print `… skipped: <name> (pid N) owns CAN` and leave the bus alone.
+Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting **On** frames while starting up. That includes `status`, `homing-status` and `gravity-preview`. `motor-repl` sends no type-24 Off frame on exit, so reports may continue after the process ends. If `marengo-pi` already owns the bus, that extra traffic can latch a persistent Transport fault in `marengo-pi`. So while a `marengo-pi` or `motor-repl` process runs (`pgrep -x`), `pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` print `… skipped: <name> (pid N) owns CAN` and leave the bus alone.
 
 Homing reports never open CAN. Reference grants live only inside the `marengo-pi` that acquired them (ADR 0036), so a fresh `motor-repl homing-status` always reads `Unhomed` and tells you nothing. `pi_health`, `pi_homing_status` and `pi_sync_bench_config` (with `install_to_opt`) therefore:
 
@@ -216,6 +216,8 @@ Sync the Pi staging checkout (`MARENGO_PI_STAGING_ROOT`, default `~/marengo`) wi
 ## Session logs
 
 Motion runs tee to `$MARENGO_ROOT/var/log/bench-latest.log`. Read with `pi_logs_tail` / `pi_logs_last_fault`.
+
+Session registration calls `/opt/marengo/bin/marengo-log-cli` directly. If that binary is unavailable or registration/archive fails, MCP leaves the hot log, trace and candump files in place; it does not prune unarchived evidence.
 
 ### Motor recover (no Motor Studio)
 

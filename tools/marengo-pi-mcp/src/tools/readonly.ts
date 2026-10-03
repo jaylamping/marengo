@@ -76,7 +76,7 @@ export function registerReadonlyTools(
 
     pi_motor_repl_status: {
       description:
-        "motor-repl status (read-only, no sustained enable). Skipped while marengo-pi/motor-repl owns CAN.",
+        "motor-repl status (no sustained enable, but opens CAN and sends type-24 active-reporting On frames; it does not send a type-24 Off frame, so reporting can remain on after exit). Skipped while marengo-pi/motor-repl owns CAN.",
       inputSchema: z.object({}),
       handler: async () => {
         const body = wrapRemote(cfg, unlessCanOwned("bin/motor-repl status"));
@@ -86,7 +86,7 @@ export function registerReadonlyTools(
 
     pi_gravity_preview: {
       description:
-        "motor-repl gravity-preview for joint angles (read-only tau_g). Skipped while marengo-pi/motor-repl owns CAN.",
+        "motor-repl gravity-preview (model-only τ_g, but opens CAN and sends type-24 active-reporting On frames; it does not send a type-24 Off frame, so reporting can remain on after exit). Skipped while marengo-pi/motor-repl owns CAN.",
       inputSchema: z.object({
         angles: z
           .array(z.number())

@@ -13,7 +13,17 @@ const cfg: MarengoPiConfig = {
   piStagingRoot: "~/marengo",
 };
 
+
 describe("readonly CAN tools", () => {
+  it("discloses active-reporting CAN writes and that streams remain on", () => {
+    const tools = registerReadonlyTools(cfg, async () => "");
+
+    assert.match(tools.pi_motor_repl_status.description, /type-24.*active-reporting/i);
+    assert.match(tools.pi_motor_repl_status.description, /does not send.*off/i);
+    assert.match(tools.pi_gravity_preview.description, /type-24.*active-reporting/i);
+    assert.match(tools.pi_gravity_preview.description, /does not send.*off/i);
+  });
+
   it("queries each CAN interface with valid ip syntax", async () => {
     let script = "";
     const tools = registerReadonlyTools(cfg, async (body) => {
