@@ -57,6 +57,8 @@ scripts/daily-audit/__pycache__/
 var/log/
 # pi_gravity_calibrate captures (workstation; fitter inputs)
 var/gravity-calibration/
+# pi_enable_soak captures (workstation; candump + session log + firmware-timing)
+var/enable-soak/
 # Local deploy staging (docker cross-build rsync bundle)
 .pi-deploy-staging/
 .pi-deploy/

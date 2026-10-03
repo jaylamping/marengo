@@ -96,7 +96,7 @@ just mcp-ensure-enabled --write
 | Read-only | No | `pi_logs_tail`, `pi_health`, `pi_homing_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_imu_probe` |
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
 | Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
-| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog`, `pi_gravity_calibrate` |
+| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog`, `pi_gravity_calibrate`, `pi_enable_soak` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
 
@@ -111,7 +111,7 @@ Homing reports never open CAN. Reference grants live only inside the `marengo-pi
 
 `install-pi.sh` runs no homing check; it prints one line pointing at the in-process procedure in [docs/homing.md](../../docs/homing.md).
 
-Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_enable`, `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_jog`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate` and `pi_bench_harness`. Each session:
+Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_enable`, `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_jog`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_enable_soak` and `pi_bench_harness`. Each session:
 
 1. Stops `marengo-pi.service` with `sudo -n /usr/local/libexec/marengo/pi-restart-marengo-pi.sh stop`, the same helper `pi_restart_marengo_pi` uses. The service runs as `marengo` with `Restart=always`, so a bare `pkill` either fails or lets systemd start a second owner within 5 s.
 2. Kills leftover `marengo-pi` processes owned by the deploy user.
@@ -172,6 +172,21 @@ Repeatable right-arm gravity-model calibration (`src/tools/gravity-calibrate.ts`
 - **Limits.** Before any motion a read-only pre-flight (no CAN) reads the Pi `config_dir` `robot.yaml`, `control.yaml`, `motors.yaml` and the URDF `robot.urdf` names. Every target (overshoots included), the fixed pitch and the return pose 0 must lie in `[max(soft, hard) lower, min(soft, hard) upper]` (control.yaml `position_soft_*_rad` ∩ motors.yaml `bench.position_*_rad`), else it refuses naming joint, value and window. The session's sleep + reference budget must be ≤ 300 s.
 - **Outputs.** `var/gravity-calibration/<TS>/` on the workstation (gitignored): `plan.json` (steps = the session's `hold-at` lines in order), `position-trace.csv` (Pi trace verbatim), `pi-marengo.urdf` and `config/{robot,control,motors}.yaml` (captured before motion), `bench-session.txt`. With `run_fit` (default) it then runs `cargo run --release -q -p marengo-log-cli -- gravity-fit --dir <dir> [--fit mass:<link>|com:<link> …]`; exit 2 means the fitter refused.
 - **Never applied.** Review the proposed inertial patch, apply it to `assets/urdf/marengo.urdf`, then run `pi_sync_bench_urdf` as a separate explicit step (ADR 0017).
+
+### `pi_enable_soak`
+
+No-motion enable reliability check (`src/tools/enable-soak.ts`). Run it after firmware, wiring or software changes, before more supervised motion.
+
+- **Cycles.** Each of `cycles` (1–50, default 20) is a **fresh** marengo-pi process, launched after its own CAN settle, so startup type-24 sync, streams inherited from the previous process, the post-SetZero blackout and the staggered Enable are exercised every time. Stdin is exactly `home <profile joints> sign-tested` (awaited), `home` (awaited), `enable <operator>` (awaited, polled every 20 ms and timed), `sleep dwell_sec` (0.5–10, default 2), `status`, `disable`, `quit`. It never sends hold, gravity, torque, impedance or wave lines; `test/enable-soak.test.ts` checks the script and the generated remote command for motion verbs.
+- **Opt-ins.** `confirm`, `set_zero` and `at_mechanical_reference`. Every cycle re-zeroes at the current pose, so the arm must hang limp at its mechanical reference throughout. `profile` (default `arm_attached`) picks the referenced joints; subset profiles export their `MARENGO_JOINT_SUBSET`. `stop_on_fault` (default false) stops after the first unclean cycle. Plans estimated over 480 s (20 s + cycles × (6 s + dwell)) are refused.
+- **Why neutral.** While operational=Active and control=Disabled, Berthier sends only kp=0, kd=0, velocity=0, torque_ff=0 MIT per active joint (a status solicit at the current pose), and Davout's filter and stop path keep it neutral. Only stdin hold/gravity/impedance/torque/wave lines or a Chappe testing command (`robot/testing/mit_command_batch`, forwarded by the gateway from Consul Testing hold/wave) leave ControlMode::Disabled. So each soak marengo-pi runs under `env -u MARENGO_CHAPPE_SOCKET`: stdin is its only command source, and the gateway shows no RobotState during the soak.
+- **Per cycle.** References acquired (n of joints), the enable outcome line, fault or refusal lines (Transport, DriveState, homing verify, watchdog, non-zero `fault=0x…`, ERROR lines, feeder/settle refusals), enable → `enabled` ms, can0 `rx_over_errors` and `rx_errors` before and after, and the exit status. A cycle is clean when it exited 0, printed `enabled (operator=…)`, acquired every reference and logged no fault line.
+- **Outputs.** One candump covers the whole session, as for the other bench tools. The bench log and candump are copied to `var/enable-soak/<TS>/` (gitignored) with `soak-summary.txt`, and `cargo run --release -q -p marengo-log-cli -- firmware-timing --json candump.log` writes `firmware-timing.json` when the checkout has the analyzer.
+- **Verdict.** PASS only when every requested cycle ran clean and can0 `rx_over_errors` did not increase over the session. `non_neutral_mit.count > 0` from firmware-timing is FAIL regardless of anything else. If the analyzer is unavailable the report says the wire-level neutral check did not run.
+
+```json
+{ "confirm": true, "set_zero": true, "at_mechanical_reference": true, "cycles": 20, "dwell_sec": 2 }
+```
 
 ### `pi_sync_main`
 
