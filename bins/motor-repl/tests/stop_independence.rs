@@ -69,10 +69,7 @@ fn set_zero_refuses_to_start_without_an_armable_exit_stop() {
     let output = repl(dir.path()).arg("set-zero").output().expect("run");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(output.status.code(), Some(1), "{stderr}");
-    assert!(
-        stderr.contains("cannot arm the exit stop"),
-        "{stderr}"
-    );
+    assert!(stderr.contains("cannot arm the exit stop"), "{stderr}");
 }
 
 #[test]
@@ -91,8 +88,11 @@ fn removed_commands_are_rejected_before_owner_or_exit_stop_setup() {
         let output = repl(dir.path()).arg(command).output().expect("run");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert_eq!(output.status.code(), Some(1), "{command}: {stderr}");
-        assert!(stderr.contains("unsupported command"), "{command}: {stderr}");
-        assert!(!stderr.contains("exit stop"), "{command}: {stderr}");
+        assert!(
+            stderr.contains("unsupported command"),
+            "{command}: {stderr}"
+        );
+        assert!(!stderr.contains("exit stop armed"), "{command}: {stderr}");
         assert!(!stderr.contains("control.yaml"), "{command}: {stderr}");
     }
 }

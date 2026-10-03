@@ -22,7 +22,6 @@ fn repo_root() -> PathBuf {
     resolve_repo_root()
 }
 
-
 fn usage() {
     eprintln!(
         "motor-repl — one-shot bench motor CLI (Davout → robstride)\n\
@@ -84,7 +83,9 @@ fn parse_bus_args(args: &[String]) -> Result<BusArgs, String> {
                     .iter()
                     .find(|arg| matches!(arg.as_str(), "--can-interface" | "--config-dir"))
                 {
-                    return Err(format!("global option {option} must precede the subcommand"));
+                    return Err(format!(
+                        "global option {option} must precede the subcommand"
+                    ));
                 }
                 parsed.command_args.extend_from_slice(&args[i..]);
                 break;
@@ -113,95 +114,6 @@ fn parse_gravity_pose(args: &[String], joint_count: usize) -> Result<Vec<f64>, S
                 .map_err(|_| format!("invalid joint angle: {value}"))
         })
         .collect()
-}
-
-#[cfg(test)]
-mod argument_tests {
-    use super::*;
-
-    #[test]
-    fn global_options_are_parsed_before_the_subcommand_and_are_not_command_args() {
-        let args = strings(&[
-            "motor-repl",
-            "--config-dir",
-            "cfg",
-            "--can-interface",
-            "can1",
-            "set-zero",
-            "a",
-        ]);
-        let parsed = parse_bus_args(&args).expect("valid args");
-        assert_eq!(parsed.config_dir, Some(PathBuf::from("cfg")));
-        assert_eq!(parsed.can_interface.as_deref(), Some("can1"));
-        assert_eq!(parsed.command_args[1..], ["set-zero", "a"]);
-    }
-
-    #[test]
-    fn global_options_after_the_subcommand_are_rejected() {
-        let args = strings(&["motor-repl", "set-zero", "a", "--config-dir", "cfg"]);
-        assert!(parse_bus_args(&args)
-            .expect_err("late global option")
-            .contains("must precede"));
-    }
-
-    #[test]
-    fn gravity_preview_requires_an_empty_or_complete_pose() {
-        let args = strings(&["motor-repl", "gravity-preview", "0.1"]);
-        assert!(parse_gravity_pose(&args, 5)
-            .expect_err("partial pose")
-            .contains("expected either zero or 5"));
-        let default_pose = strings(&["motor-repl", "gravity-preview"]);
-        assert_eq!(parse_gravity_pose(&default_pose, 2), Ok(vec![0.0, 0.0]));
-        let complete_pose = strings(&["motor-repl", "gravity-preview", "0.1", "-0.2"]);
-        assert_eq!(parse_gravity_pose(&complete_pose, 2), Ok(vec![0.1, -0.2]));
-        let excess_pose = strings(&["motor-repl", "gravity-preview", "0.1", "-0.2", "0.3"]);
-        assert!(parse_gravity_pose(&excess_pose, 2)
-            .expect_err("excess pose")
-            .contains("expected either zero or 2"));
-    }
-
-    fn strings(values: &[&str]) -> Vec<String> {
-        values.iter().map(|value| (*value).to_string()).collect()
-    }
-
-    #[test]
-    fn read_only_commands_bypass_supervisor_construction() {
-        assert!(is_read_only_command("status"));
-        assert!(is_read_only_command("gravity-preview"));
-        assert!(!is_read_only_command("set-zero"));
-    }
-
-    #[test]
-    fn argument_parser_rejects_missing_program_or_command() {
-        assert!(parse_bus_args(&[]).is_err());
-        let program_only = strings(&["motor-repl"]);
-        assert_eq!(
-            parse_bus_args(&program_only)
-                .expect("program name")
-                .command_args
-                .len(),
-            1
-        );
-    }
-    #[test]
-    fn obsolete_motion_and_mode_commands_are_not_admitted() {
-        for command in [
-            "home",
-            "homing-status",
-            "enable",
-            "jog",
-            "speed",
-            "speed-stop",
-            "gravity-on",
-            "gravity-off",
-            "torque-cmd",
-        ] {
-            assert!(!is_supported_command(command), "{command}");
-        }
-        for command in ["status", "disable", "set-zero", "gravity-preview"] {
-            assert!(is_supported_command(command), "{command}");
-        }
-    }
 }
 
 /// `disable`: the independent stop. It reads only the drive addresses from
@@ -352,9 +264,12 @@ fn run_status(root: &std::path::Path, interface: Option<&str>) -> i32 {
         Some(interface) => RuntimeBus::socketcan(interface),
         None => RuntimeBus::socketcan_from_motors(&motors),
     };
-    if let Err(error) = bus {
-        eprintln!("open SocketCAN: {error}");
-        return 1;
+    match bus {
+        Ok(_bus) => {}
+        Err(error) => {
+            eprintln!("open SocketCAN: {error}");
+            return 1;
+        }
     }
     println!(
         "configuration: {} joints, loop_hz={}, SocketCAN opened (no Supervisor constructed)",
@@ -540,4 +455,93 @@ fn run_command(root: &std::path::Path, can_interface: Option<String>, args: &[St
         }
     }
     0
+}
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod argument_tests {
+    use super::*;
+
+    #[test]
+    fn global_options_are_parsed_before_the_subcommand_and_are_not_command_args() {
+        let args = strings(&[
+            "motor-repl",
+            "--config-dir",
+            "cfg",
+            "--can-interface",
+            "can1",
+            "set-zero",
+            "a",
+        ]);
+        let parsed = parse_bus_args(&args).expect("valid args");
+        assert_eq!(parsed.config_dir, Some(PathBuf::from("cfg")));
+        assert_eq!(parsed.can_interface.as_deref(), Some("can1"));
+        assert_eq!(parsed.command_args[1..], ["set-zero", "a"]);
+    }
+
+    #[test]
+    fn global_options_after_the_subcommand_are_rejected() {
+        let args = strings(&["motor-repl", "set-zero", "a", "--config-dir", "cfg"]);
+        assert!(parse_bus_args(&args)
+            .expect_err("late global option")
+            .contains("must precede"));
+    }
+
+    #[test]
+    fn gravity_preview_requires_an_empty_or_complete_pose() {
+        let args = strings(&["motor-repl", "gravity-preview", "0.1"]);
+        assert!(parse_gravity_pose(&args, 5)
+            .expect_err("partial pose")
+            .contains("expected either zero or 5"));
+        let default_pose = strings(&["motor-repl", "gravity-preview"]);
+        assert_eq!(parse_gravity_pose(&default_pose, 2), Ok(vec![0.0, 0.0]));
+        let complete_pose = strings(&["motor-repl", "gravity-preview", "0.1", "-0.2"]);
+        assert_eq!(parse_gravity_pose(&complete_pose, 2), Ok(vec![0.1, -0.2]));
+        let excess_pose = strings(&["motor-repl", "gravity-preview", "0.1", "-0.2", "0.3"]);
+        assert!(parse_gravity_pose(&excess_pose, 2)
+            .expect_err("excess pose")
+            .contains("expected either zero or 2"));
+    }
+
+    fn strings(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_string()).collect()
+    }
+
+    #[test]
+    fn read_only_commands_bypass_supervisor_construction() {
+        assert!(is_read_only_command("status"));
+        assert!(is_read_only_command("gravity-preview"));
+        assert!(!is_read_only_command("set-zero"));
+    }
+
+    #[test]
+    fn argument_parser_rejects_missing_program_or_command() {
+        assert!(parse_bus_args(&[]).is_err());
+        let program_only = strings(&["motor-repl"]);
+        assert_eq!(
+            parse_bus_args(&program_only)
+                .expect("program name")
+                .command_args
+                .len(),
+            1
+        );
+    }
+    #[test]
+    fn obsolete_motion_and_mode_commands_are_not_admitted() {
+        for command in [
+            "home",
+            "homing-status",
+            "enable",
+            "jog",
+            "speed",
+            "speed-stop",
+            "gravity-on",
+            "gravity-off",
+            "torque-cmd",
+        ] {
+            assert!(!is_supported_command(command), "{command}");
+        }
+        for command in ["status", "disable", "set-zero", "gravity-preview"] {
+            assert!(is_supported_command(command), "{command}");
+        }
+    }
 }

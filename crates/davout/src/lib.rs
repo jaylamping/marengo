@@ -204,7 +204,6 @@ pub enum ControlMode {
     TorqueOnly,
 }
 
-
 /// Joint-space feedback sample for one actuated joint.
 ///
 /// Cache values are already joint-space after the installed-policy [`Supervisor`] poll.
@@ -228,7 +227,6 @@ pub struct MitJointCommand {
     pub velocity_rad_s: f64,
     pub torque_ff_nm: f64,
 }
-
 
 #[derive(Debug, Error)]
 pub enum DavoutError {
@@ -2096,7 +2094,6 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-
     /// Filter and send one MIT command.
     pub fn send_mit_joint(
         &mut self,
@@ -2261,7 +2258,6 @@ impl<B: MotorBus> Supervisor<B> {
         scratch.wires.truncate(scratch.staged.len());
         self.check_comm_watchdog(neutral)
     }
-
 
     /// Raw firmware SetZero is unavailable without a qualified owner transaction.
     pub fn set_zero_position(&mut self, joint: &str) -> Result<(), DavoutError> {
@@ -2777,7 +2773,6 @@ impl<B: MotorBus> Supervisor<B> {
         Some((state, Ok(())))
     }
 
-
     fn apply_danger_zone_clamps(
         &self,
         cmd: &mut MitJointCommand,
@@ -2813,7 +2808,6 @@ impl<B: MotorBus> Supervisor<B> {
         }
         torque_cap
     }
-
 }
 
 fn validate_finite(joint: &str, field: &str, value: f64) -> Result<(), DavoutError> {
@@ -3701,7 +3695,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn send_mit_records_extended_frame_when_active() {
         let bus = SimulationBus::default();
@@ -3980,7 +3973,6 @@ mod tests {
             robstride::CommunicationType::WriteParameter.as_u8()
         );
     }
-
 
     #[test]
     fn motor_transform_converts_feedback_to_joint_space() {
@@ -4665,7 +4657,6 @@ mod tests {
             .expect_err("watchdog");
         assert!(matches!(err, DavoutError::CommWatchdog { ms: 50, .. }));
     }
-
 
     #[test]
     fn mit_filter_clamps_position_into_the_live_envelope() {

@@ -460,7 +460,6 @@ fn all_nonfinite_mit_fields_and_negative_gains_are_rejected_before_clamping() {
     );
 }
 
-
 #[test]
 fn rejected_batch_emits_nothing_and_does_not_advance_output_history() {
     let mut supervisor = supervisor();
@@ -623,4 +622,3 @@ fn replayed_sample_cannot_poison_current_pose_or_velocity_policy() {
         .expect("replay did not trip current position/velocity policy");
     assert_eq!(supervisor.bus().frames().len(), 1);
 }
-
