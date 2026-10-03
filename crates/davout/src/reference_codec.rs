@@ -661,6 +661,103 @@ pub(super) fn decode<T: de::DeserializeOwned + Serialize>(bytes: &[u8]) -> Resul
     Ok(decoded)
 }
 
+/// Version-tolerant identity view of a stored body. History integrity checks
+/// use only these two fields so config-schema evolution (retired or renamed keys
+/// in policy, robot or URDF payloads) never blocks opening the journal.
+/// Payload semantics belong to the writing binary; parsed data cannot grant.
+#[derive(Debug)]
+pub(super) struct BodyIdentity {
+    pub(super) diagnostic_session: u64,
+    pub(super) job_sequence: u64,
+}
+
+impl BodyIdentity {
+    pub(super) fn matches(&self, session: u64, job: u64) -> bool {
+        self.diagnostic_session == session && self.job_sequence == job
+    }
+}
+
+fn identity_field(fields: &BTreeMap<String, Value>, key: &str) -> Result<u64, CodecError> {
+    match fields.get(key) {
+        Some(Value::U64(value)) if *value > 0 => Ok(*value),
+        _ => Err(invalid("event identity/body mismatch")),
+    }
+}
+
+/// Decode only the row-key identity of a stored body, skipping every payload
+/// (capture, policy, robot, URDF). Envelope, width and positivity rules stay
+/// exact: corruption, missing identity or non-positive ids fail closed, just
+/// like the typed decode would.
+pub(super) fn decode_identity(bytes: &[u8]) -> Result<BodyIdentity, CodecError> {
+    if bytes.len() > BODY_CAPACITY || !bytes.starts_with(MAGIC) {
+        return Err(invalid("body capacity or version"));
+    }
+    let mut reader = Reader {
+        bytes,
+        cursor: MAGIC.len(),
+        nodes: 0,
+    };
+    let value = reader.value(0)?;
+    if reader.cursor != bytes.len() {
+        return Err(invalid("trailing body data"));
+    }
+    let Value::Map(fields) = &value else {
+        return Err(invalid("body envelope"));
+    };
+    Ok(BodyIdentity {
+        diagnostic_session: identity_field(fields, "diagnostic_session")?,
+        job_sequence: identity_field(fields, "job_sequence")?,
+    })
+}
+
+/// Test-only schema-drift fixture: insert one extra boolean field into the map
+/// at `map_path`, preserving canonical order and exact widths everywhere else.
+/// The result keeps a valid envelope but no longer decodes under the current
+/// typed schema, like a row written by an older binary.
+#[cfg(test)]
+pub(super) fn splice_bool_field(
+    body: &[u8],
+    map_path: &[&str],
+    key: &str,
+    value: bool,
+) -> Result<Vec<u8>, CodecError> {
+    if body.len() > BODY_CAPACITY || !body.starts_with(MAGIC) {
+        return Err(invalid("body capacity or version"));
+    }
+    let mut reader = Reader {
+        bytes: body,
+        cursor: MAGIC.len(),
+        nodes: 0,
+    };
+    let mut tree = reader.value(0)?;
+    if reader.cursor != body.len() {
+        return Err(invalid("trailing body data"));
+    }
+    let mut node = &mut tree;
+    for segment in map_path {
+        let Value::Map(fields) = node else {
+            return Err(invalid("splice path"));
+        };
+        node = fields
+            .get_mut(*segment)
+            .ok_or_else(|| invalid("splice path"))?;
+    }
+    let Value::Map(fields) = node else {
+        return Err(invalid("splice target"));
+    };
+    if fields.contains_key(key) {
+        return Err(invalid("splice field present"));
+    }
+    fields.insert(key.to_owned(), Value::Bool(value));
+    let mut spliced = Vec::new();
+    spliced.extend_from_slice(MAGIC);
+    write_value(&tree, &mut spliced)?;
+    if spliced.len() > BODY_CAPACITY {
+        return Err(invalid("encoding size mismatch"));
+    }
+    Ok(spliced)
+}
+
 #[cfg(test)]
 #[path = "reference_codec_tests.rs"]
 mod tests;

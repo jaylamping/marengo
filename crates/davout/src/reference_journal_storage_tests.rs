@@ -59,7 +59,10 @@ fn actual_sql_unsigned_key_equal_retry_and_conflicting_body_are_exact() {
     drop(database);
     let records = inspect(&path, 8).expect("actual reopened unsigned history");
     assert_eq!(records[0].job_sequence(), u64::MAX);
-    assert_eq!(records[0].audit().session, "fixture-session");
+    assert_eq!(
+        records[0].audit().expect("typed audit").session,
+        "fixture-session"
+    );
 }
 
 #[test]

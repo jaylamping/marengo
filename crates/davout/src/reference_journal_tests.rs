@@ -243,11 +243,15 @@ fn durable_history_is_real_readback_and_never_a_current_reference() {
     let records = Supervisor::<SimulationBus>::inspect_reference_journal(&path, 8)
         .expect("reopen actual committed SQL");
     assert_eq!(records.len(), 1);
-    assert_eq!(records[0].audit(), &audit());
-    assert_eq!(records[0].joint(), TARGET);
-    assert_eq!(records[0].position_rad().to_bits(), 0x8000_0000);
-    assert_eq!(records[0].motors().motors.len(), 5);
-    assert_eq!(records[0].urdf().name, owner.urdf_robot.name);
+    assert!(!records[0].is_legacy_schema());
+    assert_eq!(records[0].audit(), Some(&audit()));
+    assert_eq!(records[0].joint(), Some(TARGET));
+    assert_eq!(records[0].position_rad(), Some(f32::from_bits(0x8000_0000)));
+    assert_eq!(records[0].motors().expect("typed motors").motors.len(), 5);
+    assert_eq!(
+        records[0].urdf().expect("typed urdf").name,
+        owner.urdf_robot.name
+    );
     drop(owner);
     let mut recovered = journal_owner(&tree, None);
     assert!(recovered.enable_targets(&[TARGET.into()]).is_err());
@@ -768,7 +772,7 @@ fn exact_urdf_optional_fields_and_policy_scalars_survive_real_sql_reopen() {
         8,
     )
     .expect("real owned decoded URDF");
-    let actual = records[0].urdf();
+    let actual = records[0].urdf().expect("typed urdf");
     assert_eq!(format!("{actual:?}"), format!("{expected_urdf:?}"));
     assert_eq!(
         actual.links[0].inertial.origin.xyz.0.map(f64::to_bits),
@@ -821,7 +825,11 @@ fn exact_urdf_optional_fields_and_policy_scalars_survive_real_sql_reopen() {
         1
     );
     assert_eq!(
-        records[0].control().control.comm_watchdog_ms,
+        records[0]
+            .control()
+            .expect("typed control")
+            .control
+            .comm_watchdog_ms,
         9_007_199_254_740_993
     );
 }
@@ -866,6 +874,152 @@ fn corrupt_checksum_incompatible_schema_and_session_exhaustion_are_preserved() {
             original,
             "{alteration}"
         );
+    }
+}
+
+/// The bench regression: a row written by an older binary (here, with the
+/// retired `allow_firmware_speed_mode` bench key restored inside the control
+/// payload) must still open. History integrity runs on the identity view, so
+/// the new commit appends in a fresh session without touching the old row.
+#[test]
+fn older_schema_row_with_retired_control_key_still_opens_and_appends() {
+    let tree = tree();
+    let path = tree.path().join("reference.sqlite3");
+    let mut first = journal_owner(&tree, None);
+    let acquired = acquire(&mut first);
+    let handle = first
+        .begin_reference_commit(&acquired, audit())
+        .expect("real baseline event");
+    assert!(matches!(
+        finish(&mut first, &handle).journal,
+        ReferenceJournalResult::DurableHistory { .. }
+    ));
+    close(&mut first);
+    drift_control_bench(&path, "allow_firmware_speed_mode", true);
+    let mut second = journal_owner(&tree, None);
+    let acquired = acquire(&mut second);
+    let handle = second
+        .begin_reference_commit(&acquired, audit())
+        .expect("worker admission after schema drift");
+    assert!(
+        matches!(
+            finish(&mut second, &handle).journal,
+            ReferenceJournalResult::DurableHistory {
+                diagnostic_session: 2,
+                job_sequence: 1,
+                ..
+            }
+        ),
+        "old-schema history must not block the new commit"
+    );
+    close(&mut second);
+    let records =
+        Supervisor::<SimulationBus>::inspect_reference_journal(&path, 8).expect("mixed history");
+    assert_eq!(records.len(), 2);
+    assert!(!records[0].is_legacy_schema());
+    assert_eq!(records[0].diagnostic_session(), 2);
+    let legacy = &records[1];
+    assert!(legacy.is_legacy_schema());
+    assert_eq!(legacy.diagnostic_session(), 1);
+    assert_eq!(legacy.job_sequence(), 1);
+    assert_eq!(legacy.joint(), None);
+    assert_eq!(legacy.audit(), None);
+}
+
+/// Fail-closed behaviour survives schema tolerance: a checksum mismatch or a
+/// row-key identity mismatch inside an old-schema row is still refused on
+/// open, and the stored bytes are preserved.
+#[test]
+fn corrupt_old_schema_row_is_refused_and_preserved() {
+    for tamper_checksum in [false, true] {
+        let tree = tree();
+        let path = tree.path().join("reference.sqlite3");
+        let mut first = journal_owner(&tree, None);
+        let acquired = acquire(&mut first);
+        let handle = first
+            .begin_reference_commit(&acquired, audit())
+            .expect("real baseline event");
+        assert!(matches!(
+            finish(&mut first, &handle).journal,
+            ReferenceJournalResult::DurableHistory { .. }
+        ));
+        close(&mut first);
+        drift_control_bench(&path, "allow_firmware_speed_mode", true);
+        if tamper_checksum {
+            Connection::open(&path)
+                .expect("owned fixture SQL connection")
+                .execute_batch("UPDATE reference_events SET checksum=zeroblob(32)")
+                .expect("explicit fixture corruption");
+        } else {
+            Connection::open(&path)
+                .expect("owned fixture SQL connection")
+                .execute_batch("UPDATE reference_events SET job=zeroblob(8)")
+                .expect("explicit fixture identity mismatch");
+        }
+        let original = std::fs::read(&path).expect("exact altered resource");
+        let mut second = journal_owner(&tree, None);
+        let acquired = acquire(&mut second);
+        let handle = second
+            .begin_reference_commit(&acquired, audit())
+            .expect("worker admission");
+        assert!(
+            matches!(
+                finish(&mut second, &handle).journal,
+                ReferenceJournalResult::Failed { .. }
+            ),
+            "tamper checksum={tamper_checksum}"
+        );
+        close(&mut second);
+        assert_eq!(
+            std::fs::read(&path).expect("preserved evidence"),
+            original,
+            "tamper checksum={tamper_checksum}"
+        );
+    }
+}
+
+/// Rewrite every stored body with one extra boolean control bench key and a
+/// matching checksum, like rows written by an older binary. The envelope stays
+/// valid, so the identity view still verifies; the typed body no longer
+/// decodes under the current schema.
+fn drift_control_bench(path: &std::path::Path, key: &str, value: bool) {
+    let database = Connection::open(path).expect("owned fixture SQL connection");
+    let mut query = database
+        .prepare("SELECT session,job,body FROM reference_events")
+        .expect("fixture row query");
+    let mut rows = query.query([]).expect("fixture row scan");
+    let mut drifted = Vec::new();
+    while let Some(row) = rows.next().expect("fixture row") {
+        let session: i64 = row.get(0).expect("fixture session");
+        let job: Vec<u8> = row.get(1).expect("fixture job");
+        let body: Vec<u8> = row.get(2).expect("fixture body");
+        let spliced = crate::reference_codec::splice_bool_field(
+            &body,
+            &["policy", "control", "control", "bench"],
+            key,
+            value,
+        )
+        .expect("schema-drift fixture keeps a valid envelope");
+        assert!(
+            crate::reference_codec::decode::<crate::reference_journal_event::Body>(&spliced)
+                .is_err(),
+            "drifted body must fail the current typed decode"
+        );
+        use sha2::Digest;
+        let checksum: [u8; 32] = sha2::Sha256::digest(&spliced).into();
+        drifted.push((session, job, spliced, checksum.to_vec()));
+    }
+    drop(rows);
+    drop(query);
+    drop(database);
+    let database = Connection::open(path).expect("owned fixture SQL connection");
+    for (session, job, body, checksum) in drifted {
+        database
+            .execute(
+                "UPDATE reference_events SET body=?1,checksum=?2 WHERE session=?3 AND job=?4",
+                rusqlite::params![body, checksum, session, job],
+            )
+            .expect("fixture drift write");
     }
 }
 
