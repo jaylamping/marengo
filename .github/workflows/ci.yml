@@ -30,6 +30,8 @@ jobs:
           filters: |
             sim:
               - 'sim/**'
+              - 'assets/**'
+              - 'config/**'
               - 'crates/sim-harness/**'
               - 'docker/Dockerfile.sim'
               - 'scripts/check-sim.sh'

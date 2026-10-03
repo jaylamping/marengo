@@ -42,9 +42,15 @@ else
   echo "warn: buf not found, skipping lint (run inside dev container)"
 fi
 
-echo "==> buf breaking (PR only)"
+echo "==> buf breaking (PR CI, plus local best-effort)"
+SHOULD_BREAK=false
 if [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
-  [[ -x "${BUF}" ]] || fail "buf not found; cannot run buf breaking"
+  SHOULD_BREAK=true
+elif [[ "${CI_MODE}" != true ]]; then
+  # Local runs also gate on breaking changes when the base is available.
+  SHOULD_BREAK=true
+fi
+if [[ "${SHOULD_BREAK}" == true ]] && [[ -x "${BUF}" ]]; then
   AGAINST="${BUF_BREAKING_AGAINST:-}"
   AGAINST_DIR=""
   if [[ -z "${AGAINST}" ]]; then
@@ -61,12 +67,20 @@ if [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]
     fi
   fi
   if [[ -z "${AGAINST}" ]] || [[ ! -f "${AGAINST}/marengo/v1/marengo.proto" ]]; then
-    fail "could not materialize base proto for buf breaking (AGAINST=${AGAINST:-<empty>})"
+    if [[ "${CI_MODE}" == true ]]; then
+      fail "could not materialize base proto for buf breaking (AGAINST=${AGAINST:-<empty>})"
+    else
+      echo "warn: no origin/main proto base available — skipping buf breaking (fetch origin main to enable it)"
+    fi
+  else
+    "${BUF}" breaking proto --against "${AGAINST}"
   fi
-  "${BUF}" breaking proto --against "${AGAINST}"
   if [[ -n "${AGAINST_DIR}" ]]; then
     rm -rf "${AGAINST_DIR}"
   fi
+elif [[ "${SHOULD_BREAK}" == true ]]; then
+  # Local run without buf (lint above already warned).
+  echo "warn: buf not found — skipping buf breaking (run inside dev container)"
 fi
 
 echo "==> consul: gen:proto, build, audit"
@@ -103,6 +117,12 @@ echo "==> node tooling (marengo-pi-mcp, hooks, limit-sync, research launch)"
   npm ci
   npm run typecheck
 )
+(
+  cd "${ROOT}/tools/compound-auto-learn"
+  npm ci
+  npm run typecheck
+  npm test
+)
 
 echo "==> research MCP: locked offline Python tests"
 command -v uv >/dev/null 2>&1 || fail "uv not found (run setup-cloud.sh or rebuild dev container)"
@@ -120,6 +140,12 @@ python3 -m unittest discover -s "${ROOT}/scripts/daily-audit" -p 'test_*.py'
 
 echo "==> reference journal reader (offline, read-only SQLite)"
 python3 -m unittest "${ROOT}/scripts/test_reference_journal_tail.py"
+
+echo "==> bench script tests (position-trace analyzer, taught-limits preservation)"
+python3 -m pytest --version >/dev/null 2>&1 || fail "pytest not found (pip install pytest pyyaml; the dev container has both)"
+python3 -c "import yaml" 2>/dev/null || fail "pyyaml not found (pip install pyyaml; the dev container has it)"
+python3 -m pytest "${ROOT}/scripts/test_analyze_position_trace.py" -q
+python3 "${ROOT}/scripts/test_preserve_taught_limits.py"
 
 if [[ -f /.dockerenv ]]; then
   echo "==> disposable actual-installer permissions"
@@ -174,6 +200,10 @@ echo "==> deploy script contracts"
 bash "${ROOT}/scripts/deploy-consul-rebuild.test.sh"
 bash "${ROOT}/scripts/deploy-rev.test.sh"
 bash "${ROOT}/scripts/deploy-job-contract.test.sh"
+bash "${ROOT}/scripts/deploy-log-cli-enrich.test.sh"
+
+echo "==> proto checksum gate contract"
+bash "${ROOT}/scripts/proto-checksum.test.sh"
 
 echo "==> cross-build smoke (aarch64)"
 if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
@@ -184,9 +214,9 @@ if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
   if [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_REF:-}" != "refs/heads/main" ]]; then
     echo "skip: aarch64 cross-build (main branch only in CI)"
   elif [[ "${CI_MODE}" == true ]]; then
-    cargo build --workspace --release --target aarch64-unknown-linux-gnu -p marengo-pi -p imu-probe --features socketcan,linux-i2c
+    cargo build --release --target aarch64-unknown-linux-gnu -p marengo-pi -p imu-probe --features socketcan,linux-i2c
   else
-    cargo build --workspace --release --target aarch64-unknown-linux-gnu -p marengo-pi -p imu-probe --features socketcan,linux-i2c || \
+    cargo build --release --target aarch64-unknown-linux-gnu -p marengo-pi -p imu-probe --features socketcan,linux-i2c || \
       echo "warn: aarch64 cross-build failed (non-fatal locally)"
   fi
 else
