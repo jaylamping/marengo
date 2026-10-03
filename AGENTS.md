@@ -1,328 +1,259 @@
 # Repository Guidelines
 
-Practical guide for AI assistants working in the Marengo repository.
+Marengo is a personal humanoid robot in one repo: CAD manifests, wiring docs, URDF, the Rust runtime (**Armée**), and the operator UI (**Consul**). The current execution slice is a **5-DOF right bench arm** on a Raspberry Pi 5. The full humanoid is the roadmap target (`docs/roadmap.md`).
 
-**Before editing:** read [`docs/rust-patterns.md`](docs/rust-patterns.md); for control/CAN/enable paths also read [`docs/safety.md`](docs/safety.md). For navigation, start at [`codemap.md`](codemap.md). Deeper per-folder guides: [`crates/AGENTS.md`](crates/AGENTS.md), [`bins/AGENTS.md`](bins/AGENTS.md), [`consul/AGENTS.md`](consul/AGENTS.md), [`config/AGENTS.md`](config/AGENTS.md), [`scripts/AGENTS.md`](scripts/AGENTS.md).
+**Before editing:** read `docs/rust-patterns.md`. For control, CAN, enable or reference code, also read `docs/safety.md`. Navigation starts at `codemap.md`. Per-folder guides: `crates/AGENTS.md`, `bins/AGENTS.md`, `consul/AGENTS.md`, `config/AGENTS.md`, `scripts/AGENTS.md`. Vocabulary (Set Zero vs Home, Joint/Limb/Robot Ready): `CONTEXT.md`.
 
 ---
 
 ## Project Overview
 
-Marengo is a **personal humanoid robot** in one repo: CAD, wiring, URDF, and the Rust runtime. SolidWorks and harness docs define joints, frames, and limits; control, safety, planning, and the operator UI consume that same definition.
-
 | Name | Role |
-|------|------|
-| **Marengo** | The robot (mechanical + electrical + software) |
-| **Armée** | Rust workspace (`Cargo.toml`) — 16 crates + 6 bins |
-| **Chappe** | Inter-process message bus (binary protobuf) |
-| **Berthier** | Realtime control loop |
-| **Davout** | Safety supervisor — **sole path to motors** |
-| **Talleyrand**, **Fouché** | Planner and Jetson vision/LLM — not in the workspace; crates, `marengo-jetson` and `teleop` were removed (2026-10-03 crate audit). [ADR 0014](docs/decisions/0014-jetson-perception-semantic-motion.md) holds the design |
+|---|---|
+| **Armée** | Rust workspace (`Cargo.toml`): 16 crates + 6 bins |
+| **Chappe** | Topic bus (protobuf envelopes) + Unix-socket IPC between `marengo-pi` and `marengo-gateway` |
+| **Berthier** | 200 Hz control loop (`ControlLoop::tick`): trajectories, τ_g, hold law, fuses |
+| **Davout** | Safety supervisor (`Supervisor`): **sole path to motors**, reference authority |
+| **robstride** | Robstride CAN driver: MIT packing, lifecycle/param/identity frames |
 | **Consul** | Operator web UI (Vite + React + TS) |
 
-Current execution slice is a **5-DOF right bench arm** defined by the master
-[`config/`](config/) tree and [`assets/urdf/marengo.urdf`](assets/urdf/marengo.urdf);
-full humanoid is the long-term target ([`docs/roadmap.md`](docs/roadmap.md)).
+Removed on 2026-10-03 (crate audit), so do not resurrect them: `fouche`, `talleyrand`, `teleop`, `marengo-jetson`, `probe`, `wave-demo`, `chappe/src/transport.rs`, `config/network.yaml`, `homing-preflight.sh`, motor-repl `home/enable/jog/speed`, and MCP `pi_motor_enable`/`pi_jog`. ADR 0014 keeps the Jetson design as documentation only.
 
 ---
 
 ## Architecture & Data Flow
 
-### Control stack (fixed motor path)
-
 ```
-Consul (React) ←HTTP/WebTransport→ marengo-gateway ←IPC→ Chappe ← marengo-pi
-                                                              ↓
-                                                      Berthier (control)
-                                                              ↓
-                                                      Davout (safety)
-                                                              ↓
-                                                      robstride (CAN)
-                                                              ↓
-                                                      Robstride motors
+Consul ──HTTP / WebTransport──▶ marengo-gateway (tokio; Chappe IPC *listener*)
+                                     ▲  /run/marengo/chappe.sock
+                                     │  (client only if MARENGO_CHAPPE_SOCKET is set)
+stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
+                       └─ Berthier ControlLoop ─▶ Davout Supervisor ─▶ robstride ─▶ SocketCAN can0/can1 ─▶ drives
 ```
 
-**Berthier → Davout → robstride.** No shortcuts. Berthier never opens CAN.
+**Fixed motor path: Berthier → Davout → robstride.** Berthier never opens CAN. Only `marengo-pi` and `motor-repl` open SocketCAN. `motor-repl disable` intentionally **bypasses Davout**: it sends one type-4 Disable per `motors.yaml` address (`bins/motor-repl/src/stop.rs`) so it can stop drives when no owner is running.
 
 | Layer | Owns | Must not |
-|-------|------|----------|
-| `berthier` | Joint-space trajectory, τ_g + impedance → MIT batch | CAN, limits, IK |
-| `davout` | Enable FSM, filter, watchdog, send | Trajectories, URDF dynamics |
-| `robstride` | MIT encode/decode, CAN I/O | Policy, safety |
-| `armee-dynamics` | `gravity_torques(q)` | CAN, commands |
-| `chappe` | Topic pub/sub (protobuf envelopes) | Control policy |
+|---|---|---|
+| `berthier` | Joint-space trajectory, τ_g + impedance → MIT batch, ascent/hold/wave fuses | CAN, limits, IK |
+| `davout` | Enable/reference sequencing, limit envelope, caps, watchdog, joint↔motor transform | Trajectories, URDF dynamics |
+| `robstride` | Wire encode/decode, CAN I/O, receive budget (64 frames / 256 reads per poll) | Policy, safety |
+| `armee-dynamics` | `gravity_torques(q)` from URDF; calibration fit | CAN, commands |
+| `armee-kinematics` | URDF limits, velocity-scaled envelope (ADR 0009) | Commands |
+| `chappe` | Pub/sub + IPC; 7 allowlisted command topics, rejected if >1000 ms old (`ipc.rs`) | Control policy |
 
-### Control tick (200 Hz on Pi)
+**marengo-pi loop** (`bins/marengo-pi/src/main.rs` `run_control_loop`), paced by `sleep(period − elapsed)`:
+1. Drain stdin, then the Chappe command topics, testing MIT batches and the actuator overlay.
+2. `loop_ctrl.tick()`. On error: `stop_after_tick_error`, which disables all and sets mode Disabled.
+3. Pump reference-queue events, then `enable_gate.poll`.
+4. At `chappe_state_hz` (25), publish `SafetyState` and limits. Publish a heartbeat at 1 Hz.
 
-1. Davout drains CAN feedback → joint positions (joint space)
-2. Berthier computes τ_g, friction/impedance, planner output
-3. MIT batch → Davout filters (limits, caps, danger zones) → robstride CAN
-4. `marengo-pi` publishes `RobotState` on Chappe → gateway → Consul
+**`ControlLoop::tick`** (`crates/berthier/src/loop.rs`):
+- If Davout reference work is pending, the tick only advances the reference and publishes state.
+- Otherwise: drain feedback → q → τ_g → Position hold or MIT feed-forward → `filter_mit_to_active` → `send_mit_batch` → drain again → publish `RobotState` (Berthier publishes it, not marengo-pi).
+- Listed `LoopError`s latch a controller fault and discard motion intent.
 
-### Coordinate spaces
+**Spaces:** joint space everywhere except robstride. Davout owns `direction`/`gear_ratio`.
 
-- **Joint space:** Berthier, armee-dynamics, Chappe, Davout limits (URDF)
-- **Motor space:** robstride only — Davout owns `direction` / `gear_ratio` transforms
+**Wire types:** proto-first (ADR 0001). The single schema is `proto/marengo/v1/marengo.proto`.
 
-### Wire types
+### Runtime contracts (scripts and MCP depend on these)
 
-Proto-first ([ADR 0001](docs/decisions/0001-protobuf-wire-types.md)): edit `proto/` → regenerate Rust (`armee-proto`) and TS (`consul/src/gen/`). Never hand-edit generated code.
+- **Reference grants are process-local (ADR 0036).** `home <joint>... sign-tested` acquires physical evidence: stop, UID, SetZero, a type-2 ack, a 0x7019 readback, and a journal commit. Enable must happen **in the same marengo-pi process**. Calibration history, the journal and caller flags never grant. A `motor-repl set-zero` grant dies when that process exits.
+- **Motion-owner lease:** `--motion-owner stdin|chappe` or `MARENGO_MOTION_OWNER` (default `chappe`), fixed for the process lifetime. Stop/observe commands are accepted from either source; motion is accepted only from the owner, and refusals publish `motion_refused` on `robot/audit/action`. Ad-hoc ssh sessions must set `MARENGO_MOTION_OWNER=stdin`; MCP tools already export it.
+- **stdin grammar** (`parse_command`): `home <joints> sign-tested`, `enable [operator]` (a `force` token is ignored; nothing bypasses the gravity preflight), `disable`, `gravity-on|off`, `torque-cmd`, `impedance-on|off`, `hold-on`, `hold-at [joint] <rad>`, `hold-off`, `wave`, `status`, `quit`. EOF behaves like `quit`.
+- **stdout lines scripts wait for:**
+  - `reference <j> current pos=…`, `reference <j> failed: …`, `skipped: …`
+  - `waiting for enable to complete`, then `enabled (operator=…)`
+  - `enable failed: …`, `enable blocked: …`, `home failed: …`
+- **Enable completion gate:** `enabled` prints only after every target is Active, has no pending Enable writes, and has fresh feedback (`ENABLE_COMPLETION_TIMEOUT` = 2 s, after which all drives stop). `hold-on`/`hold-at`/`wave` sent earlier are deferred.
+- **motor-repl** supports only `status | disable | set-zero <joint> [--sign-tested] | gravity-preview <q × all joints>`. A partial angle vector is refused.
 
 ---
 
 ## Key Directories
 
-| Directory | Purpose |
-|-----------|---------|
-| `crates/` | Armée libraries — control, safety, CAN, config, Chappe, dynamics |
-| `bins/` | Thin runtimes: `marengo-pi`, `marengo-gateway`, `motor-repl`, probes |
-| `proto/` | Protobuf wire schemas (`marengo.v1`) |
-| `consul/` | Operator UI — telemetry, enable, URDF viewer |
-| `config/` | Master `robot.yaml`, `motors.yaml`, `control.yaml`, and `homing.yaml`; use `MARENGO_JOINT_SUBSET` for ephemeral limb narrowing |
-| `assets/urdf/` | URDF + meshes exported from CAD |
-| `scripts/` | CI (`check.sh`), deploy, vcan, Pi remote, URDF validation |
-| `docs/` | Architecture, safety, ADRs (`docs/decisions/`), bench runbooks |
-| `docker/` | Dev, check, sim, vcan container images |
-| `tools/` | Vendored MCP servers (`marengo-pi-mcp`, `marengo-research-mcp`) |
-| `hardware/`, `cad/` | Electrical, prints, BOM, SolidWorks (CAD binaries local-only) |
+| Path | Purpose |
+|---|---|
+| `crates/` | Libraries (control, safety, CAN, config, dynamics, store, deploy, IMU, metrics) |
+| `bins/` | Thin runtimes: `marengo-pi`, `marengo-gateway`, `motor-repl`, `marengo-log-cli` (`firmware-timing`, `gravity-fit`), `marengo-limit-sync`, `imu-probe` |
+| `proto/` | Protobuf schema (`buf` STANDARD lint, FILE breaking) |
+| `consul/` | Operator UI; `src/gen/` is generated and gitignored (except `.checksum`) |
+| `config/` | Master `robot/motors/control/homing.yaml`; `*_humanoid.yaml` are 23-joint templates used only in tests |
+| `assets/urdf/marengo.urdf` | Kinematic + inertial source of truth (no meshes); `assets/mjcf/` holds the sim models |
+| `tools/` | `marengo-pi-mcp` (Pi bench tools), `marengo-research-mcp` (Python/uv), `limit-sync-local`, `compound-auto-learn` |
+| `scripts/` | `check.sh`, deploy/install, `pi-remote.sh`, vcan, systemd units (`scripts/systemd/`) |
+| `docs/` | `safety.md`, `rust-patterns.md`, ADRs `decisions/0001–0036`, `commissioning/`, `reviews/` |
+| `sim/` | MuJoCo smoke (`sim/scripts/smoke_test.py`, `sim/fixtures/minimal.xml`) |
+| `cad/`, `hardware/` | Manifests and docs only; SolidWorks binaries are local to the Windows host |
+| `var/` | Runtime output; `var/log`, `var/enable-soak`, `var/gravity-calibration` and `var/firmware-captures` are gitignored |
 
 ---
 
 ## Development Commands
 
-### Primary gate (run before finishing)
-
 ```bash
-just check              # CI-parity in Docker: lint + fmt + clippy + test + deny + audit
-just check-native       # Host-native: ./scripts/check.sh (cloud VMs)
+just check                 # CI parity in Docker (authoritative gate) → scripts/check.sh
+just check-native          # same script on the host (needs cargo, node 24, uv, python3, cargo-deny/audit)
+just bootstrap             # consul npm ci + gen:proto + cargo build
+just --list                # all recipes (vcan, sim-check, deploy-pi*, mcp-build, consul-lock, …)
 ```
 
-### Build & test
+`scripts/check.sh` runs, in order:
+- Consul `npm ci`; `buf lint` (plus `buf breaking` on CI PRs)
+- Consul `gen:proto`, proto checksum, `build:qualified`, `npm test -- --run`, dist leak check, `npm audit`
+- MCP and limit-sync node tests; research MCP pytest (uv, `-m 'not integration'`)
+- daily-audit and reference-journal `unittest`
+- `.cursor/hooks` JS drift check; println guard
+- `cargo fmt --check`, `clippy -D warnings`, `cargo test --workspace`
+- Shell contract tests; `scripts/check-dependencies.sh` (cargo deny + audit)
+- aarch64 cross-build smoke (main-only in CI)
+
+It does **not** run `validate-urdf.sh`, because `cargo test` covers URDF.
 
 ```bash
-cargo build --workspace
-cargo test --workspace                    # No hardware required
-cargo fmt --all -- --check
+# Rust
+cargo test -p davout --test physical_reference -- <name> --exact
 cargo clippy --workspace --all-targets -- -D warnings
+# On macOS, host clippy of marengo-pi/marengo-host-metrics hits Linux-only dead code; use:
+cargo clippy --workspace --all-targets --exclude marengo-host-metrics --exclude marengo-pi -- -D warnings
+cargo clippy -p marengo-pi --all-targets --target aarch64-unknown-linux-gnu -- -D warnings
+
+# Proto: Rust regenerates in armee-proto/build.rs (needs protoc 28.3). TS:
+cd consul && npm run gen:proto      # then commit consul/src/gen/.checksum (scripts/proto-checksum.sh)
+
+# Consul
+cd consul && npm test -- --run      # bare `npm test` is vitest watch mode
+cd consul && npm run build
+
+# MCP tools (after editing tools/*/src or .cursor/hooks/*.ts), then restart the MCP server
+just mcp-build
+
+# SocketCAN (Linux): virtual CAN, then serial ignored tests
+just vcan && just check-vcan        # = cargo test --locked -p robstride --features socketcan -- --include-ignored --test-threads=1
+
+# Sim
+just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
 ```
 
-### Consul (TypeScript)
-
-```bash
-cd consul && npm ci && npm run gen:proto && npm run build
-cd consul && npm test                     # vitest
-```
-
-### Simulation & virtual CAN
-
-```bash
-just sim-check            # MuJoCo smoke + sim-harness tests
-just vcan                 # Bring up vcan0/vcan1
-just check-vcan           # robstride SocketCAN integration tests
-cargo test -p robstride --features socketcan -- --ignored
-```
-
-### Pi deploy
-
-```bash
-just deploy-pi host=joey@marengo.local           # macOS cross-build + rsync
-just deploy-pi-docker host=joey@marengo.local    # Windows / no native aarch64 GCC
-MARENGO_SKIP_CONSUL=1 just deploy-pi-docker-binaries host=...  # binaries only
-```
-
-### Cloud / Pi bench (no MCP)
-
-```bash
-./scripts/setup-cloud.sh              # First-time cloud VM
-./scripts/pi-remote.sh verify
-./scripts/pi-remote.sh health
-./scripts/pi-remote.sh logs-last-fault
-./scripts/pi-remote.sh deploy --install
-```
-
-See [`docs/cloud-pi-tailscale.md`](docs/cloud-pi-tailscale.md) for Tailscale secrets.
+**Pi deploy:** prefer MCP `pi_sync_main`, which cross-builds, installs and polls `.deploy-rev` plus gateway `/health`. Manual paths: `just deploy-pi host=user@host` (macOS needs Bash ≥ 4) or `just deploy-pi-docker` (Windows). Cloud agents use `./scripts/pi-remote.sh deploy --install`.
 
 ---
 
 ## Code Conventions & Common Patterns
 
-### Crate boundaries
+- **Errors:** every library uses `thiserror` enums with `?`, with no `unwrap`/`expect`/`panic` in `crates/`. Bins report with `eprintln!` + exit code (the gateway uses `Box<dyn Error>`). There is **no `anyhow`** in the workspace.
+- **Lints** (`Cargo.toml` `[workspace.lints]`): `unsafe_code = forbid`; clippy `unwrap_used`, `expect_used`, `panic` = warn, so `-D warnings` blocks them. Tests opt out with a file-level `#![allow(clippy::expect_used)]` (or `mod tests { #![allow(...)] }`).
+- **Fail closed:** invalid limits, NaN, model errors and unknown YAML keys (`#[serde(deny_unknown_fields)]` on all config structs) are refused with an error, never defaulted to 0 or a midpoint.
+- **Async:** tokio runtimes exist only in `marengo-gateway` and `marengo-deploy`. `marengo-pi` and CAN are **synchronous** (non-blocking polls; Chappe receivers via `try_recv`). Do not block gateway handlers; use `spawn_blocking` for file/SQL I/O.
+- **Realtime loop:** never call `PositionTrace::flush()` or do synchronous persists in the tick. Config persistence goes through the `ConfigPersistQueue` worker (memory is the source of truth plus write-behind, ADR 0012/0024). The tick still allocates today, but don't add more.
+- **Tracing:** Chappe producers (`marengo-pi`, `marengo-gateway`) use `chappe::tracing_layer::init_subscriber`; CLIs use `marengo_support::init_tracing()`. No `println!` in `crates/`.
+- **CAN frames:** build arbitration IDs only through `robstride::encode_*`. The encoder **refuses** out-of-range MIT values; ZeroSta/AddOffset writes and type-22 saves are refused by design.
+- **Velocity caps:** resolve only via `marengo_config::resolve_joint_velocity_cap` (control.yaml joint, then actuator group, then motor-type default; ADR 0010). Bench YAML velocity fields are ignored.
+- **Config resolution:** `MARENGO_CONFIG_DIR`, else `/opt/marengo/config` **if it exists**, else `<repo>/config`. A stray `/opt/marengo/config` on a dev host silently wins. `MARENGO_ROOT` defaults to the compile-time repo path.
+- **Ephemeral limb narrowing:** `MARENGO_JOINT_SUBSET=a,b` (unknown names fail closed). Never fork master config per profile.
+- **Config/URDF writes:** hold `ProfileWriteLock` and write through `write_atomic` / `write_profile_file_atomic` (unique temp + fsync + rename + dir fsync, `crates/marengo-config/src/atomic_file.rs`). Revisions are SHA-256 over the four master YAMLs (`config_revision.rs`). Clients send the revision they read, and an empty or stale revision is refused (CAS). The lock file `config/.marengo-profile.lock` is gitignored.
+- **Naming:** Napoleonic codenames for the core (Berthier, Davout, Chappe, Consul) and `marengo-*` for infrastructure. Read each crate's `src/lib.rs` `//!` before editing. Keep bins thin and logic in `crates/`.
+- **Tests:** large suites live in `#[cfg(test)] #[path = "x_tests/<topic>.rs"] mod …`. Shared fixtures are reused via `#[path]` (e.g. `marengo-homing/tests/support/mod.rs` `TestDirectory`). Never mutate the parent test process env; re-exec a child with env (see `bins/marengo-gateway/src/gateway_access_conformance_test.rs`).
 
-```rust
-// BAD — Berthier opens CAN
-socketcan::CanSocket::open("can0")?;
+### Safety hard rules (sources: `docs/safety.md`, ADRs)
 
-// GOOD — Davout owns filtering, transform and Robstride delivery
-supervisor.send_mit_batch(joint_space_cmds)?;
-```
-
-### Error handling
-
-- **Libraries:** `thiserror` enums, `Result` in public APIs — no `unwrap()` / `expect()` (clippy `warn`)
-- **Bins:** `anyhow::Result` in `main` is fine
-
-### Async (Tokio)
-
-- Async at Chappe, network, and CAN boundaries
-- Do not block inside async without `spawn_blocking` or a dedicated thread
-
-### Logging
-
-| Binary type | Init |
-|-------------|------|
-| Chappe producers (`marengo-pi`, `marengo-gateway`) | `chappe::tracing_layer::init_subscriber` |
-| CLI / scaffolds | `marengo_support::init_tracing()` |
-
-No `println!` in `crates/` library code or Chappe producers — use `tracing`.
-
-### Control law
-
-Single-pass trapezoidal planner + MIT setpoint clamp ([`docs/rust-patterns.md`](docs/rust-patterns.md) §7). Velocity caps resolve only from `config/control.yaml` via `marengo-config::resolve_joint_velocity_cap`.
-
-### Naming
-
-- Crates use Napoleonic codenames (Berthier, Davout, Talleyrand, …)
-- Read each crate's `src/lib.rs` `//!` doc before editing
-- Thin `bins/`, logic in `crates/`
-
-### Hard rules (never)
-
-- Hand-edit `consul/src/gen/` — run `cd consul && npm run gen:proto`
-- Add JSON as Chappe wire format
-- Skip Davout for motor commands
-- Position-hold an elevated arm without GravityComp (`kp=0, kd=0, torque_ff=τ_g`)
-- Enable motors without homing Verified + Davout state machine
-- Call synchronous `PositionTrace::flush()` in the Berthier 200 Hz loop (SD fsync trips watchdog)
-- Block on `control.yaml` persist (`ConfigOverlay` / `persist=true`) on the outer control loop — queue async SD writes (same watchdog class as `PositionTrace::flush`)
-- Reconstruct Robstride arbitration IDs at call sites — use `robstride::encode_*` helpers
-
-### Hard rules (always)
-
-- Proto-first API changes under `proto/`; regenerate Rust + TS
-- Workspace forbids `unsafe` unless an ADR says otherwise
-- Default `cargo test` must not require hardware
-- Update `docs/rust-patterns.md` when introducing a recurring pattern
+- Every motor command goes through Davout. Enable requires a live **process-local physical reference grant** (ADR 0036).
+- An elevated arm holds in **GravityComp** (`kp=0, kd=0, torque_ff=τ_g`). A HoldTracking/AscentStall trip at home means a model fault: fix the URDF, never raise kp/ki.
+- **Transport latch:** any CAN error frame (including an mcp251x RX overflow) latches persistently. Relaxing it needs an ADR.
+- **The bench mcp251x holds only 2 RX frames.**
+  - Pace TX bursts with `BURST_GROUP_SPACING` = 2 ms (`davout/src/burst.rs`) and stagger Enables to one target per interface per period.
+  - Fault, E-stop and shutdown stops are never paced.
+- **Write a type-24 Off and read its echo** before any Enable. Only own-TX echoes (`CAN_RAW_RECV_OWN_MSGS`) order wire events.
+- **Post-SetZero blackout** (firmware 0.3.1.42): drives go silent for about 45–61 ms, starting 511–614 ms after a SetZero.
+  - No Enable or type-24 write before `POST_SET_ZERO_QUIET` = 800 ms. Type-24 writes are held from 450 ms.
+  - `cargo test -p davout --test firmware_profile` guards the margin against `docs/commissioning/firmware/robstride-timing-profile.json`.
+- **RS03 MIT velocity scale is ±20 rad/s.** control.yaml values tuned under the old ±50 need bench re-checks. Never change physical tuning (gains, velocities, caps, limits) without bench evidence.
+- **E-stop GPIO is not wired;** the physical E-stop is authoritative. `marengo-pi.service` runs `ExecStopPost=-/opt/marengo/bin/motor-repl disable` on every exit. There is no drive-side CAN timeout.
 
 ---
 
 ## Important Files
 
 | File | Role |
-|------|------|
-| `Cargo.toml` | Workspace root — members, lints, shared deps |
-| `rust-toolchain.toml` | Rust 1.88.0 + rustfmt + clippy |
-| `justfile` | Developer task runner |
-| `compose.yaml` | Docker dev/check/sim/vcan services |
-| `scripts/check.sh` | CI-parity gate script |
-| `proto/marengo/v1/marengo.proto` | Wire schema source of truth |
-| `config/{robot,motors,control,homing}.yaml` | Master 5-DOF right bench configuration |
-| `assets/urdf/marengo.urdf` | Kinematic source of truth |
-| `bins/marengo-pi/src/main.rs` | Pi control loop entry |
-| `bins/marengo-gateway/src/main.rs` | HTTP/WebTransport gateway |
-| `bins/motor-repl/src/main.rs` | Bench motor CLI |
-| `crates/berthier/src/loop.rs` | `ControlLoop::tick` |
-| `crates/davout/src/lib.rs` | `Supervisor` safety gateway |
-| `deny.toml` | cargo-deny license/advisory policy |
-| `.pre-commit-config.yaml` | fmt + buf lint hooks |
-
-**Deploy layout on Pi:** `/opt/marengo` (binaries + config), `/etc/marengo/env`, systemd units in `scripts/systemd/`.
+|---|---|
+| `bins/marengo-pi/src/main.rs` | Pi runtime, stdin REPL, control loop; see also `motion_owner.rs`, `enable_gate.rs`, `reference_queue.rs`, `limit_persist.rs` |
+| `crates/berthier/src/loop.rs` | `ControlLoop::tick`, enable completion, fuses wiring |
+| `crates/davout/src/lib.rs` | `Supervisor`; `reference_transaction.rs`, `reference_physical.rs`, `burst.rs`, `active_reporting.rs` |
+| `crates/robstride/src/{bus,mit,motor_type,params}.rs` | Wire layer and MIT ranges |
+| `crates/marengo-config/src/lib.rs` | Typed config, velocity cap, `profile_txn.rs` writes |
+| `bins/marengo-gateway/src/{main,http,state,restart}.rs` | Gateway, auth, management gates |
+| `proto/marengo/v1/marengo.proto` | Wire schema |
+| `config/{robot,motors,control,homing}.yaml` | Master 5-DOF config (can0 IDs 1–5: pitch, roll, upper-arm yaw, elbow, lower-arm yaw) |
+| `scripts/check.sh`, `justfile`, `compose.yaml` | Gate, tasks, containers |
+| `scripts/install-pi.sh`, `scripts/systemd/*.service` | Pi install and units |
+| `tools/marengo-pi-mcp/src/tools/*.ts` | MCP bench tools (`launch.ts` holds defaults) |
+| `docs/reviews/2026-10-03-crate-audit/` | Intent cards, leads, prune register, `phase-b/WP-*.md` open decisions |
 
 ---
 
 ## Runtime/Tooling Preferences
 
-| Tool | Version / choice |
-|------|------------------|
-| Rust | **1.88** (pinned in `rust-toolchain.toml`) |
-| Node | **24.x** for Consul (`consul/package.json` engines) |
-| Package manager | **npm** (not Bun) for Consul and MCP tools |
-| Task runner | **just** (`just --list`) |
-| Proto tooling | **buf** + **protoc** 28.x |
-| Dev environment | **Container-first** — `docker compose` + `just check` ([`docs/onboarding.md`](docs/onboarding.md)) |
-| Native host | Windows checkout `J:\code\marengo`; macOS host checkout. Use Docker for Linux runtime checks ([ADR 0018](docs/decisions/0018-windows-macos-software-home.md)). No Ubuntu software checkout is required. |
-| Windows shell | PowerShell default — no `&&`/`||` (see `.cursor/rules/windows-shell.mdc`) |
-| Windows Rust tests | `chappe` currently does not compile natively because its IPC implementation uses Unix-only types — use `just check` in container for the full workspace; pure portable crates can be tested natively. |
-| Windows Pi Docker | Set `$env:DOCKER_HOST='npipe:////./pipe/dockerDesktopLinuxEngine'` before deploy scripts |
-| Formatting | rustfmt: 100 cols, Unix newlines (`rustfmt.toml`) |
-| Lint | clippy `-D warnings`; buf STANDARD lint on proto |
-| Cross-compile | `aarch64-unknown-linux-gnu` via Docker or `aarch64-linux-gnu-gcc` |
+| Tool | Choice |
+|---|---|
+| Rust | **1.88.0** (`rust-toolchain.toml`), edition 2021, rustfmt 100 cols. `.tool-versions` is stale; trust `rust-toolchain.toml` / `mise.toml` |
+| Node | **24.16** (`.nvmrc`), **npm** with lockfiles, never bun. Regenerate the Consul lock with `just consul-lock` (Linux) |
+| Proto | buf from `consul/node_modules` (`@bufbuild/buf`), protoc **28.3** |
+| Python | uv (research MCP), `python3 -m unittest` for scripts |
+| Dependencies | cargo-deny 0.20.2, cargo-audit 0.22.2 via `scripts/check-dependencies.sh` |
+| Cross target | `aarch64-unknown-linux-gnu` (`aarch64-linux-gnu-gcc`); features `socketcan`, `linux-i2c` are off by default |
+| Hosts | ADR 0018: Windows `J:\code\marengo` (software + local CAD), macOS host checkout. No WSL checkout. Docker for the Linux gate |
+| Windows shell | PowerShell; no `&&`/`||` (`.cursor/rules/windows-shell.mdc`). chappe IPC is Unix-only, so native Windows cannot build the full workspace |
 
-**Cloud VMs:** no Docker — use `./scripts/check.sh` after `./scripts/setup-cloud.sh`. Pi access via Tailscale + `pi-remote.sh`, not mDNS.
+**Pi layout:**
+- `~/marengo` is the deploy staging tree. Always install from it: `sudo -n ~/marengo/scripts/install-pi.sh`.
+- `/opt/marengo` is the sealed install (root-owned, not git). Only `config/`, `assets/` and `var/` are writable by `marengo`.
+- `/etc/marengo/env` holds the environment; helpers live in `/usr/local/libexec/marengo/`.
+- `joey` may run `sudo -n` only for `can-up.sh`, `pi-restart-marengo-pi.sh` and the two `install-pi.sh` paths. Never use bare sudo or `pkill`: `Restart=always` spawns a second CAN owner. Stop the unit with `pi-restart-marengo-pi.sh stop`.
 
-**MCP:** rebuild with `just mcp-build`; restart MCP servers after. Motion on Pi requires `confirm: true` on MCP tools.
-
-### Agent tooling (Cursor)
-
-- **Never** call `Grep` / `search` with an empty `pattern` — it fails with `Pattern must not be empty`.
-- To **list or discover files**, use `Glob`, `find`, or `Read` — not grep with `""`.
-- Repo root is the opened workspace (`J:\code\marengo` on this Windows machine). Software, local CAD, and exported assets all live here. macOS uses its own host checkout of the same repository. Do not relocate work into WSL or invent paths from handoff context.
+**MCP-first (`.cursor/rules/pi-mcp-first.mdc`):** use `pi_*` tools for Pi actions; never ask the user to run deploys or paste logs.
+- After `just mcp-build`, restart the server, because a stale server exposes stale tools.
+- Motion tools need `confirm: true`. Weighted profiles, including the default `elbow_attached`, also need `confirm_weighted_motion: true`.
+- Reference sessions (`pi_hold_on`, `pi_bench_harness`, `pi_gravity_calibrate`, `pi_enable_soak`) need `set_zero` + `at_mechanical_reference`.
+- A gravity gate (residual < 0.20 Nm) runs before enable.
+- `pi_sync_bench_config` syncs YAML only; use `pi_sync_bench_urdf` for the URDF (ADR 0017).
+- Never put env in `.cursor/mcp.json`; defaults live in `tools/marengo-pi-mcp/src/launch.ts`.
+- Cloud agents (`CURSOR_AGENT=1`) fall back to `scripts/pi-remote.sh` (`docs/cloud-pi-tailscale.md`).
 
 ---
 
 ## Testing & QA
 
-### Frameworks
+| Area | Framework | Command |
+|---|---|---|
+| Rust | `cargo test` (+ one `proptest` in `berthier/src/mode_isolation.rs`) | `cargo test --workspace` / `-p <crate>` |
+| Consul | vitest + jsdom + testing-library (`__tests__/` and colocated `*.test.ts`) | `cd consul && npm test -- --run` |
+| Pi MCP, limit-sync-local | Node built-in `node --test` | `cd tools/marengo-pi-mcp && npm test` |
+| Research MCP | pytest via uv | see `scripts/check.sh` |
+| Scripts | `unittest`, `scripts/*.test.sh` | `python3 -m unittest discover -s scripts/daily-audit -p 'test_*.py'` |
 
-| Language | Framework | Scope |
-|----------|-----------|-------|
-| Rust | `cargo test` | Unit tests (`#[cfg(test)]`) + `crates/*/tests/` integration |
-| Rust | `proptest` | Mode isolation in `berthier/src/mode_isolation.rs` |
-| TypeScript | `vitest` + testing-library | `consul/src/**/__tests__/` |
-| Python | `unittest` / `pytest` | Daily audit, research MCP |
-| Shell | assert-based runners | `scripts/*.test.sh` |
+**Rust fixtures:**
+- `davout::simulation::SimulationBus` + `Supervisor::from_simulation(root, bus, InitialVirtualReference::…)`, mirrored by `ControlLoop::from_simulation*`. A virtual initial reference is a declared start condition, not an acquisition.
+- `robstride::bus::MemoryBus` for unit-level frame tests.
+- **`FirmwareBus` emulator** (`crates/davout/tests/physical_firmware/`): echoes, reply latency, post-SetZero blackout, a 2-buffer RX FIFO overrun. It is the authority for echo/enable sequencing; SimulationBus never echoes.
+- Safety tests **copy** master config + URDF into a `TestDirectory` and pass explicit calibration-record/journal paths. Master `homing.yaml` points at `/opt/marengo/...`, so never let tests write into `config/` or `/opt`. A leaked `MARENGO_JOINT_SUBSET` / `MARENGO_CONFIG_DIR` changes `cargo test` results.
 
-### Running tests
+**Hardware-gated:** `#![cfg(all(feature = "socketcan", target_os = "linux"))]` plus `#[ignore]`, run via `just check-vcan`. Default `cargo test` needs no hardware. The `vcan` feature is just an alias for `socketcan`.
 
-```bash
-cargo test --workspace                           # Default — no hardware
-cargo test -p berthier                         # Single crate
-cargo test -p robstride --features socketcan -- --ignored   # Needs vcan
-just sim-check                                 # MuJoCo + sim-harness
-cd consul && npm test
-python3 -m unittest scripts/daily-audit/test_audit.py
-```
+**Regression expectation:** each bug fix ships with a test that fails on the baseline (record red → green). Don't write tests that pin wording or wiring.
 
-### CI (`.github/workflows/ci.yml`)
+**Bench verification** complements tests and never replaces them:
+- `pi_enable_soak`: 20 fresh-process no-motion cycles. PASS = all clean, no `rx_over_errors` growth, and `marengo-log-cli firmware-timing` `non_neutral_mit == 0`.
+- After motion troubleshooting: `pi_candump_summary` + the position trace.
+- Limb commissioning: `docs/commissioning/limb-playbook.md`.
 
-1. **check** — Docker dev image → `scripts/check.sh` (buf lint, consul build, URDF validation, fmt, clippy, test, deny, audit, aarch64 smoke)
-2. **sim** (path-filtered) — MuJoCo smoke + `sim-harness`
-3. **vcan** — SocketCAN integration on virtual interfaces
-
-No coverage tooling is configured. Expectation: `just check` passes before merge.
-
-### Hardware-gated tests
-
-- Marked `#[ignore]` or require `--features socketcan`
-- Use `just vcan` / `just check-vcan` — never required for default `cargo test`
-- Physical limb commissioning: [`docs/commissioning/limb-playbook.md`](docs/commissioning/limb-playbook.md)
-
-### Bench commissioning notes
-
-- Master `config/`: pitch CAN id 1, roll CAN id 2, upper-arm yaw CAN id 3, elbow pitch CAN id 4, lower-arm yaw CAN id 5 on `can0`
-- For the 3-DOF smoke slice, set `MARENGO_JOINT_SUBSET=right_shoulder_pitch,right_shoulder_roll,right_upper_arm_yaw` (the harness profile metadata does this automatically)
-- **Pitch** raises arm (~π–2.8 rad); **roll** oscillates; **yaw** twists upper arm — do not swap roles
-- Re–set-zero at mechanical home when arm configuration changes
-- `pi_sync_bench_config` syncs YAML only — not `assets/urdf/`; use **`pi_sync_bench_urdf`** after URDF/COM edits, then verify gravity
-- Position-hold / mode gates: follow [`docs/commissioning/limb-playbook.md`](docs/commissioning/limb-playbook.md) and current `config/control.yaml`
+**Coverage:** no CI threshold. The ad-hoc `cargo llvm-cov` baseline is in `docs/reviews/2026-10-03-crate-audit/metrics/`.
 
 ---
 
-## Repository Map
+## Agent Workflow Notes
 
-Full hierarchical codemap at [`codemap.md`](codemap.md). Read it before starting any task; for deep work, also read that folder's `codemap.md`.
-
----
-
-## Agent skills
-
-### Issue tracker
-
-GitHub Issues on `jaylamping/marengo` via `gh`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: root `CONTEXT.md` + ADRs in `docs/decisions/`. See `docs/agents/domain.md`.
+- **Issues:** GitHub Issues on `jaylamping/marengo` via `gh`. Labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix` (`docs/agents/`).
+- **Commits:** conventional commits, with no AI attribution.
+- **Search:** `Grep` with an empty pattern fails; list files with `Glob`.
+- **Parallel agents:** git worktrees (e.g. `../marengo-wt/<name>`) must use absolute worktree paths. Tools default to the main checkout.
