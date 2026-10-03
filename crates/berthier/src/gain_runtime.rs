@@ -149,35 +149,8 @@ impl GainRuntime {
         self.overrides.insert(joint_name.to_string(), clamped);
     }
 
-    /// Batch apply. Same mode gate as [`Self::apply`].
-    ///
-    /// Joints without an entry in `limits` are skipped (never unclamped).
-    pub fn apply_batch(
-        &mut self,
-        mode: ControlMode,
-        overrides: &HashMap<String, GainOverride>,
-        limits: &HashMap<String, GainClampLimits>,
-    ) {
-        if !mode_allows_gain_override(mode) {
-            debug!(?mode, "ignore batch gain overrides in this control mode");
-            return;
-        }
-        for (joint, ov) in overrides {
-            let Some(lim) = limits.get(joint).copied() else {
-                debug!(joint = %joint, "skip gain override without clamp limits");
-                continue;
-            };
-            let clamped = clamp_override(joint, ov.clone(), lim);
-            self.overrides.insert(joint.clone(), clamped);
-        }
-    }
-
     pub fn clear(&mut self, joint_name: &str) {
         self.overrides.remove(joint_name);
-    }
-
-    pub fn clear_all(&mut self) {
-        self.overrides.clear();
     }
 
     /// Mode enter: clear sticky overrides when policy says so; arm kp/kd ramp
@@ -426,7 +399,6 @@ pub fn effective_wire_gains(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     /// Characterization pin: override beats ramp; ramp beats YAML; G-comp ignores override.
     #[test]
@@ -660,35 +632,6 @@ mod tests {
             .unwrap();
         assert!((from[0].0 - 18.0).abs() < 1e-12);
         assert!((from[0].1 - 3.0).abs() < 1e-12);
-    }
-
-    #[test]
-    fn apply_batch_skips_joints_without_limits() {
-        let mut rt = runtime();
-        let mut overrides = HashMap::new();
-        overrides.insert(
-            "known".to_string(),
-            GainOverride {
-                kp: 10.0,
-                kd: 1.0,
-                ki: 0.0,
-                fc: 0.0,
-            },
-        );
-        overrides.insert(
-            "unknown".to_string(),
-            GainOverride {
-                kp: 99.0,
-                kd: 9.0,
-                ki: 0.0,
-                fc: 0.0,
-            },
-        );
-        let mut limits_map = HashMap::new();
-        limits_map.insert("known".to_string(), limits());
-        rt.apply_batch(ControlMode::Impedance, &overrides, &limits_map);
-        assert!(rt.get("known").is_some());
-        assert!(rt.get("unknown").is_none());
     }
 
     /// L-berthier-06: a non-parallel input is an `Err`, never a tick-path panic.

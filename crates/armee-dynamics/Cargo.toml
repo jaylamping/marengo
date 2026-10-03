@@ -17,4 +17,5 @@ urdf-rs = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+armee-kinematics = { workspace = true, features = ["test-support"] }
 marengo-config = { workspace = true }

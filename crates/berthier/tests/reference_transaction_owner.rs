@@ -16,7 +16,7 @@ use davout::{
     ReferencePhase, ReferenceRequest, ReferenceSnapshot, SafetySnapshot, StopAction,
 };
 use robstride::{CanFrame, MotorAddress, ReceiveCompletion, ReceivedCanFrame};
-use support::FixtureTree;
+use support::fixture_tree_without_diagnostics;
 
 const TARGET: &str = "right_elbow_pitch";
 const ZERO_SPEED: [u8; 8] = [0x0a, 0x70, 0, 0, 0, 0, 0, 0];
@@ -71,23 +71,7 @@ struct Observed {
 
 fn exercise_controller(peer_fault: bool) -> Observed {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let fixture = FixtureTree::new("reference-owner-tick", &source);
-    let control_path = fixture.path().join("config/control.yaml");
-    let control = std::fs::read_to_string(&control_path).expect("copied control policy");
-    assert_eq!(
-        control
-            .matches("active_reporting_diagnostics: true")
-            .count(),
-        1
-    );
-    std::fs::write(
-        control_path,
-        control.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("disable diagnostics only in exclusive fixture before construction");
+    let fixture = fixture_tree_without_diagnostics("reference-owner-tick", &source);
     let mut ctrl = ControlLoop::from_simulation(
         fixture.path(),
         SimulationBus::default(),

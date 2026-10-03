@@ -89,7 +89,7 @@ fn finite_phase_deadline_is_capped_before_overflow_after_target_arming() {
         (path, bytes)
     })
     .collect();
-    let fixture = support::FixtureTree::new("reference-clock-boundary", &root);
+    let fixture = support::fixture_tree_without_diagnostics("reference-clock-boundary", &root);
     let fixture_path = fixture.path().to_path_buf();
     let history = fixture.path().join("history.yaml");
     let homing_path = fixture.path().join("config/homing.yaml");
@@ -108,20 +108,6 @@ fn finite_phase_deadline_is_capped_before_overflow_after_target_arming() {
         serde_yaml::to_string(&homing).expect("only selected copied timeout changed"),
     )
     .expect("copied selected policy");
-    let control_path = fixture.path().join("config/control.yaml");
-    let text = std::fs::read_to_string(&control_path).expect("copied control");
-    assert_eq!(
-        text.matches("active_reporting_diagnostics: true").count(),
-        1
-    );
-    std::fs::write(
-        control_path,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("copied diagnostics disabled before construction");
     let mut owner = Supervisor::from_simulation(
         fixture.path(),
         SimulationBus::default(),

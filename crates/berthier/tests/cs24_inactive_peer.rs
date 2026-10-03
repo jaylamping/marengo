@@ -40,22 +40,8 @@ fn measured_inactive_peer_does_not_trip_selected_position_owner() {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let original_control =
         std::fs::read(source.join("config/control.yaml")).expect("immutable master control input");
-    let fixture = support::FixtureTree::new("cs24-inactive-peer", &source);
+    let fixture = support::fixture_tree_without_diagnostics("cs24-inactive-peer", &source);
     let fixture_path = fixture.path().to_path_buf();
-    let copied_control = fixture.path().join("config/control.yaml");
-    let text = std::fs::read_to_string(&copied_control).expect("copied control input");
-    assert_eq!(
-        text.matches("active_reporting_diagnostics: true").count(),
-        1
-    );
-    std::fs::write(
-        &copied_control,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("only copied diagnostic policy changes before construction");
 
     let mut ctrl = ControlLoop::from_simulation(
         fixture.path(),

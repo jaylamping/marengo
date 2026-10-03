@@ -64,7 +64,7 @@ scripts/
 - Pi scripts assume Tailscale SSH in cloud, `marengo.local` mDNS on LAN.
 - `pi-remote.sh` is the cloud fallback when marengo-pi MCP is unavailable.
 - systemd units in `systemd/` are the production runtime definitions.
-- Python scripts use plain stdlib — no venv required for diagnostics.
+- Python diagnostics use plain stdlib — no venv required. The two gated test files need more: `test_analyze_position_trace.py` (pytest) and `test_preserve_taught_limits.py` (pyyaml); `check.sh` fails with the install command when they are missing.
 
 ## ANTI-PATTERNS
 

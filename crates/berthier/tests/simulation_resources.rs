@@ -104,23 +104,7 @@ fn public_simulation_constructors_ignore_competing_config() {
                 continue;
             }
             let case = format!("{constructor}{suffix}");
-            let fixture = support::FixtureTree::new("simulation-selected", &source);
-            let control_path = fixture.path().join("config/control.yaml");
-            let control = std::fs::read_to_string(&control_path).expect("copied control");
-            assert_eq!(
-                control
-                    .matches("active_reporting_diagnostics: true")
-                    .count(),
-                1
-            );
-            std::fs::write(
-                &control_path,
-                control.replace(
-                    "active_reporting_diagnostics: true",
-                    "active_reporting_diagnostics: false",
-                ),
-            )
-            .expect("copied diagnostics off");
+            let fixture = support::fixture_tree_without_diagnostics("simulation-selected", &source);
             let output = Command::new(std::env::current_exe().expect("test executable"))
                 .args([
                     "--exact",

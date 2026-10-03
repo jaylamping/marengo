@@ -19,7 +19,9 @@
 //! URDF is the geometric source of truth; keep [`hardware/docs/kinematics.md`](../../hardware/docs/kinematics.md)
 //! in sync when joints change.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(any(test, feature = "test-support"))]
+use std::path::PathBuf;
 
 use thiserror::Error;
 use urdf_rs::{read_file, JointType};
@@ -46,6 +48,7 @@ pub enum UrdfError {
 }
 
 /// Paths to checked-in test fixtures under `sim/fixtures/`.
+#[cfg(any(test, feature = "test-support"))]
 pub mod fixtures {
     use super::PathBuf;
 
@@ -78,19 +81,9 @@ pub mod fixtures {
         repo_root().join("assets/mjcf/marengo.xml")
     }
 
-    /// 4-DOF arm bring-up MJCF (`assets/mjcf/arm_4dof.xml`).
-    pub fn arm_4dof_mjcf() -> PathBuf {
-        repo_root().join("assets/mjcf/arm_4dof.xml")
-    }
-
     /// Right 4-DOF bench URDF (archived slice; live master is [`production_urdf`](fn@production_urdf)).
     pub fn arm_4dof_right_urdf() -> PathBuf {
         repo_root().join("assets/urdf/archive/seed-arm_4dof_right/contributor.urdf")
-    }
-
-    /// Right 4-DOF bench MJCF (`assets/mjcf/arm_4dof_right.xml`).
-    pub fn arm_4dof_right_mjcf() -> PathBuf {
-        repo_root().join("assets/mjcf/arm_4dof_right.xml")
     }
 }
 
@@ -175,11 +168,6 @@ pub fn load_urdf(path: impl AsRef<Path>) -> Result<urdf_rs::Robot, UrdfError> {
     })
 }
 
-/// All joint entries in the URDF (includes fixed, mimic, etc.).
-pub fn joint_entry_count(robot: &urdf_rs::Robot) -> usize {
-    robot.joints.len()
-}
-
 /// Actuated joint names in URDF document order.
 pub fn actuated_joint_names(robot: &urdf_rs::Robot) -> Vec<String> {
     robot
@@ -218,7 +206,6 @@ mod tests {
     #[test]
     fn loads_minimal_fixture() {
         let robot = load_urdf(fixtures::minimal_urdf()).expect("parse");
-        assert_eq!(joint_entry_count(&robot), 2);
         assert_eq!(actuated_joint_count(&robot), 2);
     }
 
@@ -281,20 +268,19 @@ mod tests {
         assert!((b.soft_upper - 3.141593).abs() < 1e-6);
     }
 
+    /// The bench `robot.yaml` joint list must match the actuated joints of the
+    /// live bench URDF it points at. (The 23-joint `robot_humanoid.yaml`
+    /// template is future scope and intentionally does not match the 5-DOF
+    /// bench URDF, so it is not asserted here.)
     #[test]
-    #[ignore = "marengo.urdf is placeholder until Brawner export; run when commissioning full humanoid"]
-    fn humanoid_urdf_actuated_joints_match_robot_config() {
-        use marengo_config::{resolve_repo_root, resolve_urdf_path, RobotConfigFile};
-        use std::fs;
+    fn bench_robot_config_joints_match_bench_urdf() {
+        use marengo_config::{load_robot_config, resolve_repo_root, resolve_urdf_path};
 
         let root = resolve_repo_root();
-        let robot_path = root.join("config/robot_humanoid.yaml");
-        let text = fs::read_to_string(&robot_path).expect("robot_humanoid.yaml");
-        let robot: RobotConfigFile =
-            serde_yaml::from_str(&text).expect("parse robot_humanoid.yaml");
+        let robot = load_robot_config(&root).expect("robot.yaml");
 
-        let urdf_path = resolve_urdf_path(&root, &robot).expect("marengo.urdf");
-        let parsed = load_urdf(&urdf_path).expect("parse marengo.urdf");
+        let urdf_path = resolve_urdf_path(&root, &robot).expect("bench urdf");
+        let parsed = load_urdf(&urdf_path).expect("parse bench urdf");
 
         let mut config_joints = robot.robot.joints;
         config_joints.sort();
@@ -305,7 +291,7 @@ mod tests {
         assert_eq!(
             urdf_joints,
             config_joints,
-            "actuated joints in {} must match config/robot_humanoid.yaml",
+            "actuated joints in {} must match config/robot.yaml",
             urdf_path.display()
         );
     }

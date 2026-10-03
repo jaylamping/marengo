@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rsync \
     openssh-client \
     && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir --break-system-packages pytest pyyaml \
     && case "${TARGETARCH}" in \
          arm64|aarch64) PROTOC_ARCH="aarch_64" ;; \
          *) PROTOC_ARCH="x86_64" ;; \

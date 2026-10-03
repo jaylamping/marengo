@@ -188,77 +188,11 @@ pub fn position_hold_mit_velocity(
 }
 
 /// MIT `kd` while arm is moving — firmware velocity damping while the arm has speed.
-pub fn position_hold_mit_kd(
-    kd: f64,
-    _q: f64,
-    _target: f64,
-    dq_filtered: f64,
-    velocity_deadband: f64,
-) -> f64 {
+pub fn position_hold_mit_kd(kd: f64, dq_filtered: f64, velocity_deadband: f64) -> f64 {
     if dq_filtered.abs() < velocity_deadband {
         return 0.0;
     }
     kd
-}
-
-/// Outbound friction-knee stall: lead saturated, no motion, target still in low-angle band.
-/// Retained for unit tests; production ascent recovery advances the bounded planner (no MIT pull).
-#[allow(dead_code)]
-pub fn outbound_low_angle_stuck(
-    q: f64,
-    target: f64,
-    to_target: f64,
-    dq_filtered: f64,
-    velocity_deadband: f64,
-    lag: f64,
-    effective_max_lead: f64,
-) -> bool {
-    const LOW_ANGLE_SPAN_MAX_RAD: f64 = 0.30;
-    to_target > POSITION_RETURN_DESCENT_SEED_RAD
-        && target <= LOW_ANGLE_SPAN_MAX_RAD
-        && q > POSITION_HOME_SETTLE_RAD
-        && q <= LOW_ANGLE_SPAN_MAX_RAD
-        && dq_filtered.abs() < velocity_deadband
-        && lag >= effective_max_lead - 1e-6
-}
-
-/// MIT pull-up lead while stuck in [`outbound_low_angle_stuck`].
-#[allow(dead_code)]
-pub fn outbound_low_angle_stuck_pull_rad(to_target: f64, effective_max_lead: f64) -> f64 {
-    to_target
-        .min(effective_max_lead)
-        .max(POSITION_DESCENT_STUCK_LEAD_RAD)
-}
-
-/// Ascent MIT pull-harder — **disabled**.
-///
-/// Increasing `q_des` outside the planner worsens open-loop grind. Ascent stalls use bounded
-/// planner recovery via [`planner_should_recover_ascent_stall`]; descent uses
-/// [`descent_stuck_mit_pull`].
-/// Helpers [`outbound_low_angle_stuck`] / [`approach_stuck_mit_pull_lead_rad`] remain for tests.
-#[allow(dead_code, clippy::too_many_arguments)]
-pub fn approach_stuck_mit_pull(
-    _to_target: f64,
-    _q: f64,
-    _target: f64,
-    _q_traj: f64,
-    _dq_filtered: f64,
-    _dq_traj: f64,
-    _velocity_deadband: f64,
-    _effective_max_lead: f64,
-) -> bool {
-    false
-}
-
-/// Pull-up lead for disabled [`approach_stuck_mit_pull`] (kept for helper/tests).
-#[allow(dead_code)]
-pub fn approach_stuck_mit_pull_lead_rad(to_target: f64, lag: f64, effective_max_lead: f64) -> f64 {
-    if lag >= effective_max_lead - 1e-6 {
-        outbound_low_angle_stuck_pull_rad(to_target, effective_max_lead)
-    } else {
-        (lag + POSITION_HOME_FINAL_PULL_THROUGH_RAD)
-            .clamp(POSITION_DESCENT_STUCK_LEAD_RAD, effective_max_lead)
-    }
 }
 
 /// MIT pull-down while descending and stuck (cleared by [`descent_breakaway_confirmed`]).

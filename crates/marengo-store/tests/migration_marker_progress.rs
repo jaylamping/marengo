@@ -2,11 +2,10 @@
 //! A literal supported-v2 fixture bounds a marker rewrite with a SQL tripwire.
 #![allow(clippy::expect_used, clippy::panic)]
 
-use std::io::Read;
+mod common;
+
+use common::bounded;
 use std::path::Path;
-use std::process::{Command, Stdio};
-use std::sync::mpsc;
-use std::time::Duration;
 
 use marengo_store::{LogEventInsert, Store, StoreError, StructuredLogQuery};
 use rusqlite::{Connection, Row};
@@ -56,42 +55,6 @@ WHEN NEW.key='schema_version' AND NEW.value_json='3' BEGIN
  UPDATE settings SET value_json='2',updated_ms=17 WHERE key='schema_version';
 END;
 "#;
-
-fn bounded(name: &str, worker: fn()) {
-    const ENV: &str = "MARENGO_G15_CONTRACT_WORKER";
-    if std::env::var(ENV).ok().as_deref() == Some(name) {
-        worker();
-        return;
-    }
-    let mut child = Command::new(std::env::current_exe().expect("test executable"))
-        .args(["--exact", name, "--nocapture"])
-        .env(ENV, name)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .expect("bounded marker progress child");
-    let mut stdout = child.stdout.take().expect("child output pipe");
-    let (finished, completion) = mpsc::channel();
-    let reader = std::thread::spawn(move || {
-        let mut output = String::new();
-        let read = stdout.read_to_string(&mut output);
-        let _ = finished.send((read, output));
-    });
-    match completion.recv_timeout(Duration::from_secs(15)) {
-        Ok((read, output)) => {
-            read.expect("child pipe read");
-            let status = child.wait().expect("reap completed child");
-            reader.join().expect("completed output reader");
-            assert!(status.success(), "G15 progress child failed: {output}");
-        }
-        Err(error) => {
-            let _ = child.kill();
-            let _ = child.wait();
-            let _ = reader.join();
-            panic!("G15 progress child exceeded safety deadline: {error}");
-        }
-    }
-}
 
 type Setting = (String, String, i64);
 type Event = (

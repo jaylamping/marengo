@@ -457,10 +457,8 @@ async fn commissioning_scope_read_open_mutations_gated_widen_and_unknown() {
         config_dir.join("robot.yaml"),
         r#"
 robot:
-  name: test
   urdf: assets/urdf/marengo.urdf
   bench:
-    max_joint_velocity_rad_s: 1.0
     max_joint_torque_nm: 10.0
   joints:
     - right_shoulder_roll

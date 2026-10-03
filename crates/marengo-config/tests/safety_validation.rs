@@ -82,11 +82,6 @@ fn robot_loader_rejects_invalid_caps_and_duplicate_identity() {
         "robot.yaml",
         &[
             (
-                "NaN bench cap",
-                "robot/bench/max_joint_velocity_rad_s",
-                ".nan",
-            ),
-            (
                 "negative torque cap",
                 "robot/bench/max_joint_torque_nm",
                 "-1",

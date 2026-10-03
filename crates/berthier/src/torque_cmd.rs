@@ -29,11 +29,6 @@ impl TorqueCmdLatch {
         self.cmds.insert(joint_name.to_string(), tau_nm);
     }
 
-    /// Remove one joint's latch (reverts to 0).
-    pub fn clear(&mut self, joint_name: &str) {
-        self.cmds.remove(joint_name);
-    }
-
     /// Clear all latched torque commands.
     pub fn clear_all(&mut self) {
         self.cmds.clear();
@@ -56,8 +51,6 @@ mod tests {
         assert!((latch.get("j0")).abs() < 1e-12);
         latch.set("j0", 0.25);
         assert!((latch.get("j0") - 0.25).abs() < 1e-12);
-        latch.clear("j0");
-        assert!((latch.get("j0")).abs() < 1e-12);
     }
 
     #[test]

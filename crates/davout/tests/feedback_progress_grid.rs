@@ -15,23 +15,7 @@ use robstride::{CanFrame, ReceivedCanFrame};
 const JOINT: &str = "right_shoulder_pitch";
 
 fn numeric_fixture(source: &Path, gear: f64, direction: i8) -> support::FixtureTree {
-    let fixture = support::FixtureTree::new("feedback-progress-grid", source);
-    let control_path = fixture.path().join("config/control.yaml");
-    let control = std::fs::read_to_string(&control_path).expect("copied control");
-    assert_eq!(
-        control
-            .matches("active_reporting_diagnostics: true")
-            .count(),
-        1
-    );
-    std::fs::write(
-        &control_path,
-        control.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("copied diagnostics disabled before construction");
+    let fixture = support::fixture_tree_without_diagnostics("feedback-progress-grid", source);
     let motors_path = fixture.path().join("config/motors.yaml");
     let mut motors: serde_yaml::Value =
         serde_yaml::from_str(&std::fs::read_to_string(&motors_path).expect("copied motors"))

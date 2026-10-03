@@ -55,21 +55,10 @@ fn raw_zero() -> CanFrame {
     }
 }
 fn tree() -> support::FixtureTree {
-    let tree = support::FixtureTree::new(
+    support::fixture_tree_without_diagnostics(
         "current-grant-controller",
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
-    );
-    let path = tree.path().join("config/control.yaml");
-    let text = std::fs::read_to_string(&path).expect("owned policy");
-    std::fs::write(
-        path,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
     )
-    .expect("isolated policy");
-    tree
 }
 fn setup<'a>(
     tree: &support::FixtureTree,

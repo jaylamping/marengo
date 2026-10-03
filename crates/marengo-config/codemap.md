@@ -18,7 +18,7 @@ Typed loaders for master `config/*.yaml`.
 | `lib.rs` | YAML structs, loaders, validation |
 | `safety_validation.rs` | Shared numeric, identity, timing and full-profile admission |
 | `config_revision.rs` | `profile_content_revision` CAS hash |
-| `profile_txn.rs` | Limit upsert, master YAML atomic writes |
+| `profile_txn.rs` | Master YAML atomic writes (validate-then-commit) |
 | `urdf_expand.rs` | Expand-only URDF hard envelope (ADR 0017) |
 | `bench_joints.rs` | Command joint allowlist from `robot.joints` |
 | `completeness.rs` | Warn-only hardware completeness v1 |

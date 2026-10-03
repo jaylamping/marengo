@@ -5,7 +5,11 @@
 use berthier::{ControlLoop, ControlMode, LoopError};
 use davout::simulation::{InitialVirtualReference, SimulationBus};
 mod support;
-use marengo_config::LimitPatch;
+use marengo_config::{
+    apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
+    load_control_config_from, load_motors_config_from, validate_limit_patch,
+    write_motors_control_and_urdf, LimitPatch,
+};
 use support::{queue_joint_status, FixtureTree};
 
 fn enabled_controller() -> ControlLoop<SimulationBus> {
@@ -153,21 +157,34 @@ fn neutral_bootstrap_supports_taught_ranges_that_exclude_zero() {
         let joint = "right_elbow_pitch";
         // Reference-relevant policy is installed before declaring the virtual
         // initial condition. A live limit edit must revoke that condition.
-        marengo_config::upsert_joint_limits(
-            fixture.path(),
-            fixture.path().join("config"),
-            &LimitPatch {
-                joint: joint.into(),
-                position_lower_rad: lower,
-                position_upper_rad: upper,
-                position_soft_lower_rad: Some(lower + 0.025),
-                position_soft_upper_rad: Some(upper - 0.025),
-                velocity_max_rad_s: None,
-                torque_limit_nm: None,
-            },
-            None,
-        )
-        .expect("fixture taught range");
+        let config_dir = fixture.path().join("config");
+        let mut patch = LimitPatch {
+            joint: joint.into(),
+            position_lower_rad: lower,
+            position_upper_rad: upper,
+            position_soft_lower_rad: Some(lower + 0.025),
+            position_soft_upper_rad: Some(upper - 0.025),
+            velocity_max_rad_s: None,
+            torque_limit_nm: None,
+        };
+        validate_limit_patch(&patch).expect("fixture taught range validates");
+        ensure_soft_inset(&mut patch);
+        let mut motors = load_motors_config_from(&config_dir).expect("fixture motors");
+        let mut control = load_control_config_from(&config_dir).expect("fixture control");
+        let motor = motors
+            .motors
+            .iter_mut()
+            .find(|motor| motor.joint == joint)
+            .expect("fixture joint");
+        apply_limit_patch_to_motor(motor, &patch).expect("fixture motor patch");
+        let entry = control
+            .control
+            .joints
+            .get_mut(joint)
+            .expect("fixture control entry");
+        apply_limit_patch_to_control(entry, &patch).expect("fixture control patch");
+        write_motors_control_and_urdf(fixture.path(), &config_dir, &motors, &control)
+            .expect("fixture taught range");
         let mut controller = ControlLoop::from_simulation(
             fixture.path(),
             SimulationBus::default(),

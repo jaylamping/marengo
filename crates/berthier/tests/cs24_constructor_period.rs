@@ -17,22 +17,8 @@ fn zero_rounded_loop_period_is_rejected_by_public_simulation_factory() {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let master_control =
         std::fs::read(source.join("config/control.yaml")).expect("immutable master control input");
-    let fixture = support::FixtureTree::new("cs24-constructor-period", &source);
+    let fixture = support::fixture_tree_without_diagnostics("cs24-constructor-period", &source);
     let fixture_path = fixture.path().to_path_buf();
-    let copied_control = fixture.path().join("config/control.yaml");
-    let text = std::fs::read_to_string(&copied_control).expect("copied fixture control");
-    assert_eq!(
-        text.matches("active_reporting_diagnostics: true").count(),
-        1
-    );
-    std::fs::write(
-        &copied_control,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("copied diagnostics off before either public constructor");
 
     // Positive control uses the same valid root/reference declaration as the bad
     // period case. Fully construct and DROP it before calling the invalid case.

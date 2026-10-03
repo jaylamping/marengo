@@ -79,22 +79,8 @@ struct CaseObservation {
 }
 
 fn run_case(source: &Path, label: &str, ticks: u32, crawl: bool) -> CaseObservation {
-    let fixture = support::FixtureTree::new(label, source);
+    let fixture = support::fixture_tree_without_diagnostics(label, source);
     let fixture_path = fixture.path().to_path_buf();
-    let copied_control = fixture.path().join("config/control.yaml");
-    let text = std::fs::read_to_string(&copied_control).expect("copied control input");
-    assert_eq!(
-        text.matches("active_reporting_diagnostics: true").count(),
-        1
-    );
-    std::fs::write(
-        copied_control,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("only copied diagnostic policy changes before construction");
 
     let mut ctrl = ControlLoop::from_simulation(
         fixture.path(),

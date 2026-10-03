@@ -36,7 +36,6 @@ fn repo_root() -> PathBuf {
 
 struct Channels {
     enable: Rx,
-    homing: Rx,
     set_zero: Rx,
     lease: Rx,
     status_poll: Rx,
@@ -47,7 +46,6 @@ struct Channels {
 fn channels(bus: &Bus) -> Channels {
     Channels {
         enable: bus.subscribe("robot/enable"),
-        homing: bus.subscribe("robot/homing"),
         set_zero: bus.subscribe("robot/set_zero"),
         lease: bus.subscribe("robot/active_reporting_lease"),
         status_poll: bus.subscribe("robot/motor_status_poll"),
@@ -69,7 +67,6 @@ fn drain_chappe(
         lease,
         bus,
         &mut rx.enable,
-        &mut rx.homing,
         &mut rx.set_zero,
         &mut rx.lease,
         &mut rx.status_poll,
@@ -124,6 +121,9 @@ fn publish_enable(bus: &Bus, enable: bool) {
     .expect("publish enable");
 }
 
+/// B13 (P-armee-proto-04): `timestamp_ms` is deprecated (written, never read).
+/// Kept in the fixture so envelope bytes match production during the window.
+#[allow(deprecated)]
 fn gain_batch(mode: ProtoControlMode, position: f64, kp: f64) -> MitCommandBatch {
     MitCommandBatch {
         timestamp_ms: 1,

@@ -119,7 +119,6 @@ name = "armee-kinematics"
 version = "0.1.0"
 dependencies = [
  "marengo-config",
- "serde_yaml",
  "thiserror 1.0.69",
  "urdf-rs",
 ]
@@ -1483,8 +1482,11 @@ dependencies = [
 name = "marengo-limit-sync"
 version = "0.1.0"
 dependencies = [
+ "assert_cmd",
  "clap",
  "marengo-config",
+ "marengo-support",
+ "tracing",
 ]
 
 [[package]]

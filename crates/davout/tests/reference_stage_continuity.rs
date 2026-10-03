@@ -212,21 +212,7 @@ impl Owner {
             (path, bytes)
         })
         .collect();
-        let tree = support::FixtureTree::new(label, &source);
-        let control = tree.path().join("config/control.yaml");
-        let text = std::fs::read_to_string(&control).expect("copied control");
-        assert_eq!(
-            text.matches("active_reporting_diagnostics: true").count(),
-            1
-        );
-        std::fs::write(
-            control,
-            text.replace(
-                "active_reporting_diagnostics: true",
-                "active_reporting_diagnostics: false",
-            ),
-        )
-        .expect("disable copied diagnostics before construction");
+        let tree = support::fixture_tree_without_diagnostics(label, &source);
         let history = tree.path().join("history.yaml");
         std::fs::write(&history, HISTORY)
             .expect("literal historical row, never current permission");

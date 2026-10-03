@@ -77,7 +77,7 @@ fn numeric_state(hold: &PositionHold) -> NumericState {
     NumericState {
         armed: hold.is_armed(),
         targets: hold.targets().map(<[f64]>::to_vec),
-        raw_targets: hold.targets_raw().map(<[f64]>::to_vec),
+        raw_targets: hold.setpoints_raw.clone(),
         planner: hold.planner_state(0),
         filtered_velocity: hold.dq_filtered_at(0),
         stalled_ms: hold.ascent_stall_ms_at(0),

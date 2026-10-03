@@ -11,10 +11,6 @@ interface HostMetricsStore {
   piMetrics: HostMetrics | null;
   piUpdatedAt: number | null;
   setPiMetrics: (metrics: HostMetrics | null) => void;
-
-  jetsonMetrics: HostMetrics | null;
-  jetsonUpdatedAt: number | null;
-  setJetsonMetrics: (metrics: HostMetrics | null) => void;
 }
 
 export const useHostMetricsStore = create<HostMetricsStore>((set) => ({
@@ -25,11 +21,6 @@ export const useHostMetricsStore = create<HostMetricsStore>((set) => ({
   piUpdatedAt: null,
   setPiMetrics: (piMetrics) =>
     set({ piMetrics, piUpdatedAt: piMetrics ? Date.now() : null }),
-
-  jetsonMetrics: null,
-  jetsonUpdatedAt: null,
-  setJetsonMetrics: (jetsonMetrics) =>
-    set({ jetsonMetrics, jetsonUpdatedAt: jetsonMetrics ? Date.now() : null }),
 }));
 
 export function hostMetricsStale(updatedAt: number | null, maxAgeMs = 5000): boolean {
