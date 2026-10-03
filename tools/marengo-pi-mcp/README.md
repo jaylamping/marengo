@@ -102,9 +102,18 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` a
 
 ### One CAN owner
 
-Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting **On** frames while starting up. That includes `status`, `homing-status` and `gravity-preview`. `motor-repl` sends no type-24 Off frame on exit, so reports may continue after the process ends. If `marengo-pi` already owns the bus, that extra traffic can latch a persistent Transport fault in `marengo-pi`. So while a `marengo-pi` or `motor-repl` process runs (`pgrep -x`), `pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` print `… skipped: <name> (pid N) owns CAN` and leave the bus alone.
+`motor-repl status` opens SocketCAN for its probe but bypasses Davout Supervisor
+construction, so it sends no startup type-24 active-reporting burst.
+`gravity-preview` reads the configured URDF model locally and does not open
+CAN. `disable` and `set-zero` are CAN-owning commands; the latter uses Davout's
+qualified reference workflow and an independent exit stop. MCP's ownership
+guard remains conservative: while `marengo-pi` or any `motor-repl` process runs,
+`pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` skip rather than
+compete for the bus.
 
-Homing reports never open CAN. Reference grants live only inside the `marengo-pi` that acquired them (ADR 0036), so a fresh `motor-repl homing-status` always reads `Unhomed` and tells you nothing. `pi_health`, `pi_homing_status` and `pi_sync_bench_config` (with `install_to_opt`) therefore:
+Reference grants live only inside the `marengo-pi` process that acquired them
+(ADR 0036). `pi_health`, `pi_homing_status` and `pi_sync_bench_config` (with
+`install_to_opt`) therefore:
 
 - while `marengo-pi` runs (`pgrep -x marengo-pi`), show per-joint homing from its own `RobotState`, read from the gateway's `/snapshot/robot/state`;
 - otherwise print `no live marengo-pi session: reference grants are process-local (ADR 0036)` and the latest reference journal rows from `scripts/reference-journal-tail.py`, which opens `/opt/marengo/var/calibration/reference-journal.sqlite3` read-only. Journal rows are history and never grant a reference.

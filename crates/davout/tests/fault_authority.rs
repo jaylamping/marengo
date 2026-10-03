@@ -3,7 +3,7 @@
 #![allow(clippy::expect_used)]
 use davout::simulation::{SimulationBus, SimulationReceive, TxMatcher, TxOccurrence, TxRule};
 
-use davout::{JointCommand, MitJointCommand, OperationalMode, SpeedCommand, Supervisor};
+use davout::{MitJointCommand, OperationalMode, Supervisor};
 use marengo_config::MotorEntry;
 use robstride::CanFrame;
 
@@ -265,9 +265,9 @@ fn hardware_input_assertion_attempts_disable_for_every_configured_motor() {
 }
 
 #[test]
-fn every_motion_enable_and_calibration_route_remains_blocked_after_fault() {
+fn every_supported_motion_enable_and_calibration_route_remains_blocked_after_fault() {
     let mut accepted = Vec::new();
-    for route in 0..9 {
+    for route in [0, 1, 4, 5, 6, 7, 8] {
         let mut supervisor = supervisor();
         let pitch = motor(&supervisor, "right_shoulder_pitch");
         activate(&mut supervisor, &pitch);
@@ -281,7 +281,6 @@ fn every_motion_enable_and_calibration_route_remains_blocked_after_fault() {
             .queue_frame(status(&pitch))
             .expect("finite closed script");
         let _ = supervisor.drain_feedback();
-        supervisor.control.control.bench.allow_firmware_speed_mode = true;
         if route >= 7 {
             let _ = supervisor.disable_all();
         }
@@ -289,18 +288,6 @@ fn every_motion_enable_and_calibration_route_remains_blocked_after_fault() {
         let result = match route {
             0 => supervisor.send_mit_joint(command(&pitch), &pitch),
             1 => supervisor.send_mit_batch(vec![command(&pitch)]),
-            2 => supervisor.send_joint_command(JointCommand {
-                joint: pitch.joint.clone(),
-                position_rad: 0.0,
-                velocity_rad_s: 0.0,
-                torque_nm: 0.1,
-            }),
-            3 => supervisor
-                .send_speed_command(SpeedCommand {
-                    joint: pitch.joint.clone(),
-                    velocity_rad_s: 0.1,
-                })
-                .map(|_| ()),
             4 => supervisor.set_zero_position(&pitch.joint),
             5 => supervisor.request_enable(true),
             6 => supervisor.enable_targets(std::slice::from_ref(&pitch.joint)),

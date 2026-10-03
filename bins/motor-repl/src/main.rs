@@ -28,13 +28,12 @@ fn usage() {
         "motor-repl — one-shot bench motor CLI (Davout → robstride)\n\
          Usage:\n  \
          motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
-           motor-repl homing-status\n  \
            motor-repl disable\n  \
            motor-repl set-zero <joint> [--sign-tested]\n  \
            motor-repl gravity-preview [q...]  (robot.yaml joint order)\n\
-         Homing: saved calibration is history; every fresh process starts Unhomed.\n\
+         Reference grants are process-local; reference and enable in one long-running marengo-pi process.\n\
          set-zero runs the qualified physical reference workflow (ADR 0036); its current grant\n\
-         ends with this process, so home and enable in one long-running marengo-pi process.\n\
+         ends with this process.\n\
          disable reads only drive addresses from motors.yaml and sends one Disable to each.\n\
          set-zero arms an independent exit stop on SIGTERM/SIGINT/SIGHUP and error exit.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
@@ -188,6 +187,7 @@ mod argument_tests {
     fn obsolete_motion_and_mode_commands_are_not_admitted() {
         for command in [
             "home",
+            "homing-status",
             "enable",
             "jog",
             "speed",
@@ -198,13 +198,7 @@ mod argument_tests {
         ] {
             assert!(!is_supported_command(command), "{command}");
         }
-        for command in [
-            "status",
-            "homing-status",
-            "disable",
-            "set-zero",
-            "gravity-preview",
-        ] {
+        for command in ["status", "disable", "set-zero", "gravity-preview"] {
             assert!(is_supported_command(command), "{command}");
         }
     }
@@ -420,7 +414,7 @@ fn is_read_only_command(command: &str) -> bool {
 fn is_supported_command(command: &str) -> bool {
     matches!(
         command,
-        "status" | "homing-status" | "disable" | "set-zero" | "gravity-preview"
+        "status" | "disable" | "set-zero" | "gravity-preview"
     )
 }
 
@@ -518,24 +512,6 @@ fn run_command(root: &std::path::Path, can_interface: Option<String>, args: &[St
     };
 
     match args[1].as_str() {
-        "homing-status" => {
-            let joints: Vec<String> = loop_ctrl
-                .supervisor_mut()
-                .motors
-                .motors
-                .iter()
-                .map(|m| m.joint.clone())
-                .collect();
-            for joint in &joints {
-                let state = loop_ctrl.supervisor_mut().joint_homing_state(joint);
-                let pos = loop_ctrl.supervisor_mut().joint_position_rad(joint);
-                println!(
-                    "{joint}: homing={state:?} pos={}",
-                    pos.map(|p| format!("{p:.4} rad"))
-                        .unwrap_or_else(|| "n/a".into())
-                );
-            }
-        }
         "set-zero" => {
             let Some(joint) = args.get(2).map(String::as_str) else {
                 eprintln!("missing joint name");

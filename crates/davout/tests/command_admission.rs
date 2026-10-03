@@ -3,7 +3,7 @@
 use davout::simulation::{SimulationBus, SimulationReceive, TxMatcher, TxOccurrence, TxRule};
 use std::time::{Duration, Instant};
 
-use davout::{JointCommand, MitJointCommand, SpeedCommand, Supervisor};
+use davout::{MitJointCommand, Supervisor};
 use marengo_config::{MotorEntry, MotorType};
 use robstride::{
     CanFrame, DetailedFaultFeedback, DriveMode, FeedbackEvent, FeedbackObservation, FeedbackReport,
@@ -460,42 +460,6 @@ fn all_nonfinite_mit_fields_and_negative_gains_are_rejected_before_clamping() {
     );
 }
 
-#[test]
-fn nonfinite_legacy_and_speed_requests_are_rejected() {
-    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
-        let supervisor = supervisor();
-        let pitch = motor(&supervisor, "right_shoulder_pitch");
-        assert!(
-            supervisor
-                .filter_speed_command(
-                    SpeedCommand {
-                        joint: pitch.joint.clone(),
-                        velocity_rad_s: value
-                    },
-                    &pitch
-                )
-                .is_err(),
-            "speed {value} accepted"
-        );
-        for field in 0..3 {
-            let mut request = JointCommand {
-                joint: pitch.joint.clone(),
-                position_rad: 0.0,
-                velocity_rad_s: 0.0,
-                torque_nm: 0.1,
-            };
-            match field {
-                0 => request.position_rad = value,
-                1 => request.velocity_rad_s = value,
-                _ => request.torque_nm = value,
-            }
-            assert!(
-                supervisor.filter_command(request).is_err(),
-                "legacy field{field}={value} accepted"
-            );
-        }
-    }
-}
 
 #[test]
 fn rejected_batch_emits_nothing_and_does_not_advance_output_history() {
@@ -660,38 +624,3 @@ fn replayed_sample_cannot_poison_current_pose_or_velocity_policy() {
     assert_eq!(supervisor.bus().frames().len(), 1);
 }
 
-#[test]
-fn invalid_speed_admission_emits_no_run_mode_or_parameter_writes() {
-    for (velocity, gear_ratio) in [
-        (f64::NAN, 1.0),
-        (f64::INFINITY, 1.0),
-        (f64::NEG_INFINITY, 1.0),
-        (0.1, 1e40),
-    ] {
-        let mut supervisor = supervisor();
-        let pitch = motor(&supervisor, "right_shoulder_pitch");
-        activate(&mut supervisor, std::slice::from_ref(&pitch));
-        receive(&mut supervisor, std::slice::from_ref(&pitch));
-        supervisor.control.control.bench.allow_firmware_speed_mode = true;
-        supervisor
-            .motors
-            .motors
-            .iter_mut()
-            .find(|motor| motor.joint == pitch.joint)
-            .expect("pitch")
-            .gear_ratio = gear_ratio;
-        supervisor.bus_mut().clear_trace();
-        assert!(supervisor
-            .send_speed_command(SpeedCommand {
-                joint: pitch.joint,
-                velocity_rad_s: velocity,
-            })
-            .is_err());
-        if gear_ratio == 1.0 {
-            assert!(supervisor.bus().frames().is_empty());
-        } else {
-            assert_only_stop_traffic(supervisor.bus().frames());
-            assert_eq!(supervisor.mode(), davout::OperationalMode::Disabled);
-        }
-    }
-}

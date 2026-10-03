@@ -1,11 +1,11 @@
 # bins/motor-repl/
 
 ## Responsibility
-**One-shot bench motor CLI** — status, homing-status, disable, set-zero, and gravity-preview. All drive commands use Davout; independent `disable` uses the minimal stop path.
+**One-shot bench motor CLI** — status, disable, set-zero, and gravity-preview. All drive commands use Davout; independent `disable` uses the minimal stop path.
 
 ## Design
-- Subcommands: `status`, `homing-status`, `disable`, `set-zero`, `gravity-preview`
-- `status` and `gravity-preview` bypass Supervisor construction; gravity preview uses `armee-dynamics` directly
+- Subcommands: `status`, `disable`, `set-zero`, `gravity-preview`
+- `status` opens SocketCAN without constructing a Supervisor or sending type-24 startup reports; `gravity-preview` loads the robot model without CAN
 - `set-zero` uses `ControlLoop<RuntimeBus>` with the physical-reference owner
 - `--config-dir` and `MARENGO_CONFIG_DIR` select the bring-up profile
 

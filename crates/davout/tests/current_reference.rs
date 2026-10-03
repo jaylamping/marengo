@@ -3,9 +3,7 @@
 #![allow(clippy::expect_used)]
 
 use davout::simulation::{InitialVirtualReference, SimulationBus, TxMatcher, TxOccurrence, TxRule};
-use davout::{
-    DavoutError, JointHomingState, MemoryBus, MitJointCommand, OperationalMode, Supervisor,
-};
+use davout::{DavoutError, JointHomingState, MemoryBus, MitJointCommand, OperationalMode, Supervisor};
 use robstride::CanFrame;
 
 #[path = "../../marengo-homing/tests/support/mod.rs"]

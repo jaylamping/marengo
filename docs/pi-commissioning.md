@@ -129,10 +129,10 @@ Single-shoulder bench profiles use conservative position hold tuning while feedb
 
 Until Hall sensors are installed on shoulder roll (see [hardware/docs/homing-sensors.md](../hardware/docs/homing-sensors.md)):
 
-1. Place arm at mechanical reference (arm down for pitch).
-2. **`pi_set_zero`** with `confirm: true` — verifies |pos| < tolerance, writes calibration record.
-3. **`motor-repl home`** or `marengo-pi` stdin `home` — all joints must be Verified before Ready.
-4. **`enable`** only after homing succeeds.
+1. Place the arm at mechanical reference (arm down for pitch).
+2. Start one long-running `marengo-pi` process.
+3. In that process, run `home <joints> sign-tested`; wait for each `reference <joint> current pos=` result, then run `home` and wait for Ready.
+4. Run `enable` only after homing succeeds, in the same process.
 
 Do not use `pi_hold_on` with `set_zero: true` unless intentionally recalibrating at mechanical zero.
 
@@ -146,14 +146,18 @@ Trim `motors.yaml` joint list to only wired actuators while building the arm inc
 cd /opt/marengo
 export MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual
 
-RUST_LOG=robstride=trace,davout=debug \
-  ./target/release/motor-repl status
+./target/release/motor-repl status
 
 # Single bus debug:
 MARENGO_CAN_INTERFACE=can0 ./target/release/motor-repl --can-interface can0 status
 ```
 
-**Pass:** both interfaces open; trace shows TX/RX for id **1** on can0 (robot right) and id **12** on can1 (robot left).
+`status` opens SocketCAN but bypasses Davout Supervisor construction and type-24
+active-reporting startup writes. `gravity-preview` reads the configured URDF
+model locally and does not open CAN.
+
+**Pass:** `status` reports the configured joint count and loop rate, and confirms
+SocketCAN opened. It does not send a probe or active-reporting frame.
 
 Raw bus (motor power on):
 
@@ -165,11 +169,11 @@ cansend can0 0400FF0C#0000000000000000   # disable
 
 ## Phase 5 — Safe motor test ([safety.md](safety.md))
 
-Each `motor-repl` command is a **separate process**, and a current reference lives only inside the process that acquired it ([ADR 0036](decisions/0036-physical-robstride-reference.md)). A fresh `motor-repl` (including `homing-status`) therefore always reads `Unhomed`, and a `motor-repl set-zero` grant ends when it exits. Reference and enable inside **one** `marengo-pi`; do not run `motor-repl homing-status` to check readiness — it only opens SocketCAN. Without a live `marengo-pi`, MCP `pi_health` / `pi_homing_status` say `no live marengo-pi session` and list the latest reference journal rows (history only).
+Each `motor-repl` command is a **separate process**, and a current reference lives only inside the process that acquired it ([ADR 0036](decisions/0036-physical-robstride-reference.md)). `motor-repl set-zero` grants end when that command exits. Do not use a separate Set Zero process as readiness for a later owner: acquire the reference and enable inside **one** `marengo-pi`. Without a live `marengo-pi`, MCP `pi_health` / `pi_homing_status` say `no live marengo-pi session` and list the latest reference journal rows (history only).
 
 1. E-stop reachable; shoulder supported
 2. Sign test per joint (small torque_ff; fix `direction` in YAML if inverted)
-3. `gravity-preview` with two angles (defaults 0,0)
+3. `gravity-preview` with no angles (zero pose) or a complete angle vector in `robot.yaml` joint order
 4. `marengo-pi` with stdin, each joint at its mechanical reference: `home <joints> sign-tested` (wait for `reference <joint> current pos=` per joint), `home` (Ready), `enable bench`, `gravity-on` — **not** `motor-repl gravity-on` alone. Full procedure: [homing.md](homing.md#pi-bench-procedure).
 
 ```bash

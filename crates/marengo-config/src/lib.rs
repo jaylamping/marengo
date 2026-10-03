@@ -443,8 +443,6 @@ pub struct ActuatorGroupEntry {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ControlBenchSection {
-    #[serde(default)]
-    pub allow_firmware_speed_mode: bool,
     #[serde(default = "default_active_reporting_diagnostics")]
     pub active_reporting_diagnostics: bool,
 }

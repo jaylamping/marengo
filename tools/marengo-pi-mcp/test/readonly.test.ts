@@ -15,13 +15,14 @@ const cfg: MarengoPiConfig = {
 
 
 describe("readonly CAN tools", () => {
-  it("discloses active-reporting CAN writes and that streams remain on", () => {
+  it("documents read-only motor-repl CAN ownership accurately", () => {
     const tools = registerReadonlyTools(cfg, async () => "");
 
-    assert.match(tools.pi_motor_repl_status.description, /type-24.*active-reporting/i);
-    assert.match(tools.pi_motor_repl_status.description, /does not send.*off/i);
-    assert.match(tools.pi_gravity_preview.description, /type-24.*active-reporting/i);
-    assert.match(tools.pi_gravity_preview.description, /does not send.*off/i);
+    assert.match(tools.pi_motor_repl_status.description, /opens CAN.*bypasses Davout Supervisor/i);
+    assert.match(tools.pi_motor_repl_status.description, /sends no type-24/i);
+    assert.doesNotMatch(tools.pi_motor_repl_status.description, /does not send.*off/i);
+    assert.match(tools.pi_gravity_preview.description, /does not open CAN/i);
+    assert.doesNotMatch(tools.pi_gravity_preview.description, /type-24.*active-reporting/i);
   });
 
   it("queries each CAN interface with valid ip syntax", async () => {
