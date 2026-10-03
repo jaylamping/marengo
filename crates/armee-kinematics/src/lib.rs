@@ -7,7 +7,7 @@
 //!
 //! - [`load_urdf`], [`joint_limits`], [`joint_limit_bounds`]: position/velocity/effort limits per joint name.
 //! - [`limits`]: velocity-scaled command envelope (ADR 0009).
-//! - [`actuated_joint_names`] / [`actuated_joint_count`]: revolute/prismatic joints only.
+//! - [`actuated_joint_names`] / [`actuated_joint_count`]: revolute, continuous and prismatic joints.
 //! - [`fixtures`]: paths to `arm_4dof.urdf`, `marengo.urdf`, sim fixtures.
 //!
 //! ## Does not
@@ -30,13 +30,19 @@ pub use expand::expand_urdf_joint_hard;
 pub use limits::{
     approach_velocity_cap, clamp_hold_target, clamp_position_in_envelope, effective_command_bounds,
     limit_margin_rad, measured_position_fault, JointLimitBounds, JointLimitPolicy,
-    LimitMarginConfig,
+    LimitBoundsError, LimitMarginConfig,
 };
 
 #[derive(Debug, Error)]
 pub enum UrdfError {
     #[error("failed to read URDF at {path}: {message}")]
     Read { path: String, message: String },
+    #[error("joint {joint}: unusable limits: {source}")]
+    InvalidLimits {
+        joint: String,
+        #[source]
+        source: LimitBoundsError,
+    },
 }
 
 /// Paths to checked-in test fixtures under `sim/fixtures/`.
@@ -125,6 +131,14 @@ pub fn joint_limits(robot: &urdf_rs::Robot, name: &str) -> Result<JointLimits, U
 }
 
 /// Hard limits plus URDF `safety_controller` soft bounds when present.
+///
+/// The URDF soft bounds are only a **fallback**: Davout's `build_limits` overwrites them from
+/// `control.yaml` (`position_soft_{lower,upper}_rad`) and intersects the hard bounds with
+/// `motors.yaml` bench bounds, so the runtime policy can differ from what this returns.
+///
+/// Fails closed ([`UrdfError::InvalidLimits`]) for non-finite or inverted hard limits, or
+/// non-finite soft limits. A `continuous` joint without a usable `<limit>` (URDF default
+/// `0/0`) is therefore rejected here rather than yielding an empty range.
 pub fn joint_limit_bounds(
     robot: &urdf_rs::Robot,
     name: &str,
@@ -143,9 +157,12 @@ pub fn joint_limit_bounds(
         .as_ref()
         .map(|s| (Some(s.soft_lower_limit), Some(s.soft_upper_limit)))
         .unwrap_or((None, None));
-    Ok(JointLimitBounds::from_hard_and_soft(
-        hard.lower, hard.upper, soft_lower, soft_upper,
-    ))
+    JointLimitBounds::from_hard_and_soft(hard.lower, hard.upper, soft_lower, soft_upper).map_err(
+        |source| UrdfError::InvalidLimits {
+            joint: name.to_string(),
+            source,
+        },
+    )
 }
 
 /// Load and parse a URDF file.
@@ -291,5 +308,60 @@ mod tests {
             "actuated joints in {} must match config/robot_humanoid.yaml",
             urdf_path.display()
         );
+    }
+
+    fn robot_with_limit(joint_type: &str, limit: &str) -> urdf_rs::Robot {
+        urdf_rs::read_from_string(&format!(
+            r#"<robot name="t">
+              <link name="a"/><link name="b"/>
+              <joint name="j" type="{joint_type}">
+                <parent link="a"/><child link="b"/><axis xyz="0 1 0"/>{limit}
+              </joint>
+            </robot>"#
+        ))
+        .expect("test urdf")
+    }
+
+    #[test]
+    fn joint_limit_bounds_refuses_inverted_and_non_finite_urdf_limits() {
+        let inverted = robot_with_limit(
+            "revolute",
+            r#"<limit lower="1.0" upper="-1.0" effort="1" velocity="1"/>"#,
+        );
+        assert!(matches!(
+            joint_limit_bounds(&inverted, "j"),
+            Err(UrdfError::InvalidLimits {
+                source: LimitBoundsError::InvertedHard { .. },
+                ..
+            })
+        ));
+        let nan = robot_with_limit(
+            "revolute",
+            r#"<limit lower="NaN" upper="1.0" effort="1" velocity="1"/>"#,
+        );
+        assert!(matches!(
+            joint_limit_bounds(&nan, "j"),
+            Err(UrdfError::InvalidLimits { .. })
+        ));
+    }
+
+    #[test]
+    fn continuous_joint_without_limit_has_no_bounds() {
+        let robot = robot_with_limit("continuous", "");
+        assert_eq!(actuated_joint_count(&robot), 1);
+        assert!(matches!(
+            joint_limit_bounds(&robot, "j"),
+            Err(UrdfError::InvalidLimits {
+                source: LimitBoundsError::InvertedHard { .. },
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn joint_limits_refuses_fixed_and_unknown_joints() {
+        let robot = robot_with_limit("fixed", "");
+        assert!(joint_limits(&robot, "j").is_err());
+        assert!(joint_limits(&robot, "nope").is_err());
     }
 }

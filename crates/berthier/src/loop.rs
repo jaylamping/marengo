@@ -2995,7 +2995,7 @@ mod tests {
         use armee_kinematics::{JointLimitBounds, JointLimitPolicy, LimitMarginConfig};
 
         let policy = JointLimitPolicy {
-            bounds: JointLimitBounds::from_hard_and_soft(0.0, 3.14159, None, None),
+            bounds: JointLimitBounds::from_hard_and_soft(0.0, 3.14159, None, None).expect("bounds"),
             margin: LimitMarginConfig {
                 min_rad: 0.01,
                 k_v_s: 0.02,
@@ -3184,7 +3184,8 @@ mod tests {
                 3.17,
                 Some(-0.872665),
                 Some(3.141593),
-            ),
+            )
+            .expect("bounds"),
             margin: armee_kinematics::LimitMarginConfig {
                 min_rad: 0.01,
                 k_v_s: 0.02,
