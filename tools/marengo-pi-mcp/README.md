@@ -96,7 +96,7 @@ just mcp-ensure-enabled --write
 | Read-only | No | `pi_logs_tail`, `pi_health`, `pi_homing_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_imu_probe` |
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
 | Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
-| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog`, `pi_gravity_calibrate`, `pi_enable_soak` |
+| Motion | Yes | `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_enable_soak` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
 
@@ -111,7 +111,7 @@ Homing reports never open CAN. Reference grants live only inside the `marengo-pi
 
 `install-pi.sh` runs no homing check; it prints one line pointing at the in-process procedure in [docs/homing.md](../../docs/homing.md).
 
-Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_enable`, `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_jog`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_enable_soak` and `pi_bench_harness`. Each session:
+Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_enable_soak` and `pi_bench_harness`. Each session:
 
 1. Stops `marengo-pi.service` with `sudo -n /usr/local/libexec/marengo/pi-restart-marengo-pi.sh stop`, the same helper `pi_restart_marengo_pi` uses. The service runs as `marengo` with `Restart=always`, so a bare `pkill` either fails or lets systemd start a second owner within 5 s.
 2. Kills leftover `marengo-pi` processes owned by the deploy user.

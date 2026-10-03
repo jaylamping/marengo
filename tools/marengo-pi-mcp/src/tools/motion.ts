@@ -623,31 +623,6 @@ export function registerMotionTools(
   }
 
   return {
-    pi_motor_enable: {
-      description:
-        "motor-repl enable bench (short probe only — use marengo-pi for sustained control). " +
-        SOLE_CAN_OWNER_NOTE,
-      inputSchema: motionConfirmSchema.extend({
-        operator: z.string().default("bench"),
-      }),
-      handler: async (args: {
-        confirm: true;
-        confirm_weighted_motion?: true;
-        profile?: BenchProfile;
-        operator?: string;
-      }) => {
-        const check = gate(args);
-        if (!check.ok) return check.message;
-        const body = wrapRemote(
-          cfg,
-          soleCanOwnerShell(`bin/motor-repl enable ${args.operator ?? "bench"}`),
-        );
-        const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_motor_enable", args, out, 0);
-        return out;
-      },
-    },
-
     pi_motor_disable: {
       description:
         "motor-repl disable all joints: one Robstride type-4 Disable (Byte[0]=0) per configured drive, read from motors.yaml only. " +
@@ -788,30 +763,6 @@ export function registerMotionTools(
       },
     },
 
-    pi_jog: {
-      description: `motor-repl jog joint to position_rad. ${SOLE_CAN_OWNER_NOTE}`,
-      inputSchema: motionConfirmSchema.extend({
-        joint: z.string(),
-        position_rad: z.number(),
-      }),
-      handler: async (args: {
-        confirm: true;
-        confirm_weighted_motion?: true;
-        profile?: BenchProfile;
-        joint: string;
-        position_rad: number;
-      }) => {
-        const check = gate(args);
-        if (!check.ok) return check.message;
-        const body = wrapRemote(
-          cfg,
-          soleCanOwnerShell(`bin/motor-repl jog ${args.joint} ${args.position_rad}`),
-        );
-        const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_jog", args, out, 0);
-        return out;
-      },
-    },
 
     pi_hold_on: {
       description:

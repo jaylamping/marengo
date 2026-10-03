@@ -109,6 +109,15 @@ const cfg: MarengoPiConfig = {
   piStagingRoot: "~/marengo",
 };
 
+describe("removed motor-repl tools", () => {
+  it("does not advertise enable or jog without a working reference admission path", () => {
+    const tools = registerMotionTools(cfg, async () => "", () => {});
+
+    assert.equal("pi_motor_enable" in tools, false);
+    assert.equal("pi_jog" in tools, false);
+  });
+});
+
 describe("marengo-pi script tool", () => {
   it("uses timeout_sec as total pipe budget", () => {
     assert.equal(scriptSleepTotalSec(["hold-at 0", "sleep 2", "sleep 1.5"]), 3.5);
