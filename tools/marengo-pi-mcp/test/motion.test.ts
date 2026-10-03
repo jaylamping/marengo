@@ -10,12 +10,14 @@ import {
   benchCanKernelSnapshotShell,
   benchLogPruneShell,
   expandScriptWithWaveWaits,
+  holdSessionRemoteBody,
   marengoPiPipeLine,
   marengoPiPipeTimeoutSec,
   referenceAcquireLine,
   registerMotionTools,
   scriptSleepTotalSec,
 } from "../src/tools/motion.js";
+import { MASTER_JOINTS } from "../src/bench-profiles.js";
 import { encodeRobotState } from "./robot-state-fixture.js";
 import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
 
@@ -539,5 +541,168 @@ describe("marengo-pi script tool", () => {
     assert.match(benchCanKernelDeltaShell(), /can kernel delta/);
     assert.match(benchCanKernelDeltaShell(), /_rx0=\$\{_rx0:-0\}/);
     assert.match(benchCanKernelDeltaShell(), /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
+  });
+});
+
+/**
+ * Run the hold session body against fake bin/motor-repl and bin/marengo-pi that append to
+ * $TRACE, with instant `sleep`, pass-through `timeout`, silent `ip` and sysfs CAN counters
+ * under MARENGO_CAN_SYSFS. `lingerPgrep` makes pgrep report marengo-pi for that many calls
+ * after marengo-pi exits; `bumpOnSleep` raises rx_over_errors on every sleep (overrunning bus).
+ */
+function runHoldBody(opts: { lingerPgrep?: number; bumpOnSleep?: boolean } = {}) {
+  const dir = mkdtempSync(path.join(tmpdir(), "hold-body-"));
+  const fake = path.join(dir, "fakebin");
+  const stats = path.join(dir, "sys", "can0", "statistics");
+  mkdirSync(path.join(dir, "bin"));
+  mkdirSync(fake);
+  mkdirSync(stats, { recursive: true });
+  for (const counter of ["rx_errors", "rx_over_errors", "tx_errors"]) {
+    writeFileSync(path.join(stats, counter), "0\n");
+  }
+  const owners = path.join(dir, "owners");
+  const scripts: Record<string, string> = {
+    "bin/motor-repl": 'echo "motor-repl $*" >> "$TRACE"',
+    "bin/marengo-pi": [
+      'echo "marengo-pi start" >> "$TRACE"',
+      'while IFS= read -r l; do',
+      '  case "$l" in',
+      '    *sign-tested) for j in ${l#home }; do [[ $j == sign-tested ]] || echo "reference $j current pos=0.0000" >> "$LOG"; done ;;',
+      "    quit) break ;;",
+      "  esac",
+      "done",
+      'echo "marengo-pi exit" >> "$TRACE"',
+      `echo ${opts.lingerPgrep ?? 0} > ${owners}`,
+    ].join("\n"),
+    "fakebin/sleep": opts.bumpOnSleep
+      ? `f=${path.join(stats, "rx_over_errors")}; echo $(( $(cat "$f") + 1 )) > "$f"`
+      : "exit 0",
+    "fakebin/timeout": 'shift; exec "$@"',
+    "fakebin/ip": "exit 0",
+    "fakebin/pgrep": [
+      `n=$(cat ${owners} 2>/dev/null || echo 0)`,
+      "if (( n > 0 )); then",
+      `  echo $((n - 1)) > ${owners}`,
+      '  echo "4242 marengo-pi"',
+      "  exit 0",
+      "fi",
+      "exit 1",
+    ].join("\n"),
+  };
+  for (const [rel, body] of Object.entries(scripts)) {
+    writeFileSync(path.join(dir, rel), `#!/bin/bash\n${body}\n`);
+    chmodSync(path.join(dir, rel), 0o755);
+  }
+  const trace = path.join(dir, "trace");
+  const log = path.join(dir, "log");
+  writeFileSync(trace, "");
+  writeFileSync(log, "");
+  const body = holdSessionRemoteBody(cfg, {
+    joint: "right_shoulder_pitch",
+    referenceJoints: [...MASTER_JOINTS],
+    operator: "bench",
+    timeoutSec: 1,
+    returnHomeSec: 1,
+  });
+  const r = spawnSync("bash", ["-c", `set -uo pipefail\n${body}`], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      LOG: log,
+      TRACE: trace,
+      MARENGO_CAN_SYSFS: path.join(dir, "sys"),
+      PATH: `${fake}:${process.env.PATH ?? ""}`,
+    },
+    encoding: "utf8",
+  });
+  return {
+    status: r.status,
+    stdout: r.stdout,
+    stderr: r.stderr,
+    trace: readFileSync(trace, "utf8").trim().split("\n").filter(Boolean),
+  };
+}
+
+describe("hold session CAN ownership (Transport race)", () => {
+  it("arm_attached gates and references all five right-arm joints", async () => {
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
+        script = body;
+        return "hold session ran";
+      },
+      () => {},
+    );
+
+    const out = await tools.pi_hold_on.handler({
+      confirm: true,
+      confirm_weighted_motion: true,
+      profile: "arm_attached",
+      set_zero: true,
+      at_mechanical_reference: true,
+    });
+
+    for (const joint of MASTER_JOINTS) {
+      assert.match(out, new RegExp(`  ${joint}: q=0\\.0000 rad τ_g=0\\.0000 Nm residual=0\\.0000 Nm ok`));
+    }
+    assert.doesNotMatch(out, /left_shoulder_pitch|not in the gravity model/);
+    assert.match(script, new RegExp(`"home ${MASTER_JOINTS.join(" ")} sign-tested"`));
+  });
+
+  it("runs exactly one motor-repl before marengo-pi, then settles CAN before launch", async () => {
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
+        script = body;
+        return body;
+      },
+      () => {},
+    );
+    await tools.pi_hold_on.handler({
+      confirm: true,
+      set_zero: true,
+      at_mechanical_reference: true,
+    });
+
+    const launch = script.indexOf("} | timeout ");
+    assert.ok(launch > 0);
+    const beforeLaunch = script.slice(0, launch);
+    assert.equal(beforeLaunch.match(/bin\/motor-repl /g)?.length, 1);
+    // lastIndexOf: the EXIT-trap restore also defines a settle, ahead of the session body.
+    assert.ok(
+      beforeLaunch.indexOf("bin/motor-repl disable") < beforeLaunch.lastIndexOf("can_error_counters() {"),
+      "the pre-session disable precedes the CAN settle",
+    );
+    assert.match(script.slice(launch), /can errors after marengo-pi[\s\S]*bin\/motor-repl disable/);
+  });
+
+  it("starts marengo-pi on a settled bus and disables only after marengo-pi exits", () => {
+    const r = runHoldBody();
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.trace[0], "marengo-pi start");
+    assert.ok(!r.trace.slice(0, r.trace.indexOf("marengo-pi exit")).some((l) => l.startsWith("motor-repl")));
+    assert.deepEqual(r.trace.slice(-2), ["marengo-pi exit", "motor-repl disable"]);
+    assert.match(r.stdout, /^can settle: ok \(0\.5s quiet, no CAN owner\) can0 rx_errors=0 rx_over=0 tx_errors=0 /m);
+    assert.match(r.stdout, /^can errors after marengo-pi: can0 rx_errors=0 rx_over=0 /m);
+  });
+
+  it("refuses to start marengo-pi while CAN error counters keep moving", () => {
+    const r = runHoldBody({ bumpOnSleep: true });
+    assert.equal(r.status, 1);
+    assert.deepEqual(r.trace, []);
+    assert.match(r.stderr, /can settle: FAIL/);
+    assert.match(r.stderr, /refusing to start marengo-pi/);
+  });
+
+  it("skips the post-session motor-repl disable while marengo-pi still owns CAN", () => {
+    const r = runHoldBody({ lingerPgrep: 40 });
+    assert.equal(r.status, 1);
+    assert.equal(r.trace[r.trace.length - 1], "marengo-pi exit");
+    assert.ok(!r.trace.some((l) => l.startsWith("motor-repl")));
+    assert.match(r.stdout, /post-session bin\/motor-repl disable skipped: marengo-pi \(pid 4242\) owns CAN/);
   });
 });

@@ -84,7 +84,11 @@ describe("sole CAN owner session", () => {
       unitState: "active",
     });
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /restore after session: true\n[\s\S]*BODY\n=== restoring marengo-pi\.service/);
+    // The restore waits for a settled bus before marengo-pi.service starts on it.
+    assert.match(
+      r.stdout,
+      /restore after session: true\n[\s\S]*BODY\ncan settle: ok [^\n]*\n=== restoring marengo-pi\.service/,
+    );
     assert.deepEqual(r.calls.trim().split("\n"), [
       `sudo -n ${helper} stop`,
       "pkill -x marengo-pi",

@@ -6,7 +6,14 @@ import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { effectiveProfile, validateMotionConfirm } from "../safety.js";
 import { homingStatusShell } from "../homing-preflight.js";
 import { renderRobotStateHoming } from "../robot-state.js";
-import { soleCanOwnerShell } from "../can-owner.js";
+import {
+  REFUSE_UNSETTLED_MARENGO_PI,
+  canOwnedSkipLine,
+  canOwnerBranch,
+  canSettleShell,
+  soleCanOwnerShell,
+  waitCanReleasedShell,
+} from "../can-owner.js";
 import { gravityGateSnapshotShell, runGravityGate } from "../gravity-gate.js";
 
 /** Explicit operator opt-in for in-process reference acquisition (SetZero at the current pose). */
@@ -192,6 +199,8 @@ const benchLogWrapper = (
     'export MARENGO_POSITION_TRACE_HZ="${MARENGO_POSITION_TRACE_HZ:-50}"',
     'export MARENGO_LOG_SESSION_ID="$TS"',
     `LABEL=${shellQuote(label)}`,
+    // The one pre-session disable: stops every drive, including joints this marengo-pi session
+    // will not reference. marengo-pi launches only after canSettleShell (marengoPiLaunchShell).
     "bin/motor-repl disable 2>/dev/null || true",
     'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
     benchCandumpStartShell(),
@@ -230,6 +239,14 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
   ].join("\n");
 }
 
+/**
+ * Last step before every marengo-pi pipe: pick the binary, then wait for the bus to settle
+ * (canSettleShell). Refuses with exit 1 rather than start marengo-pi into a CAN error frame.
+ */
+function marengoPiLaunchShell(cfg: MarengoPiConfig): string {
+  return [marengoPiBinarySelector(cfg), canSettleShell(REFUSE_UNSETTLED_MARENGO_PI)].join("\n");
+}
+
 /** Default dwell at target before hold-at 0 (Layer 2 0.1 rad gate: brief settle). */
 const DEFAULT_HOLD_DWELL_SEC = 5;
 
@@ -242,8 +259,11 @@ const DEFAULT_MOTION_TIMEOUT_SEC = DEFAULT_HOLD_DWELL_SEC;
 /** SSH wrapper slack beyond pipe timeout. */
 const REMOTE_SSH_SLACK_MS = 10_000;
 
-/** soleCanOwnerShell overhead: helper stop + owner wait + marengo-pi.service restore. */
-const CAN_SESSION_SLACK_MS = 15_000;
+/**
+ * soleCanOwnerShell overhead: helper stop + owner wait, the pre-launch CAN settle, the
+ * post-session release wait and the settle before restoring marengo-pi.service.
+ */
+const CAN_SESSION_SLACK_MS = 20_000;
 
 const SOLE_CAN_OWNER_NOTE =
   "Runs as sole CAN owner: stops marengo-pi.service via the pi_restart_marengo_pi helper, " +
@@ -402,7 +422,13 @@ function marengoPiTimedPipe(
   return marengoPiPipe(lines, scriptSleepTotalSec(lines) + 10);
 }
 
-function holdSessionRemoteBody(
+/**
+ * Hold session body (inside benchLogWrapper, after its pre-session disable). Every drive is
+ * already disabled and marengo-pi starts Disabled, so no motor-repl runs between the settle
+ * and marengo-pi. The trailing motor-repl disable runs only once marengo-pi has released
+ * can0; it never becomes a second writer beside a marengo-pi still shutting down.
+ */
+export function holdSessionRemoteBody(
   cfg: MarengoPiConfig,
   args: {
     joint: string;
@@ -418,8 +444,7 @@ function holdSessionRemoteBody(
       ? `hold-at ${args.joint} ${args.positionRad}`
       : "hold-on";
   return [
-    "bin/motor-repl disable 2>/dev/null || true",
-    marengoPiBinarySelector(cfg),
+    marengoPiLaunchShell(cfg),
     "set +e",
     marengoPiTimedPipe(
       [referenceAcquireLine(args.referenceJoints), "home", `enable ${args.operator}`, holdLine],
@@ -428,8 +453,13 @@ function holdSessionRemoteBody(
       args.joint,
     ),
     "PIPE_STATUS=$?",
+    'echo "can errors after marengo-pi: $(can_error_counters)"',
+    waitCanReleasedShell(25),
     "set -e",
-    "bin/motor-repl disable",
+    canOwnerBranch(
+      "bin/motor-repl disable",
+      [canOwnedSkipLine("post-session bin/motor-repl disable"), "PIPE_STATUS=1"].join("\n"),
+    ),
     'exit "$PIPE_STATUS"',
   ].join("\n");
 }
@@ -442,8 +472,7 @@ function holdSessionRemoteBody(
 function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
   return [
     "bin/motor-repl disable 2>/dev/null || true",
-    "sleep 0.5",
-    marengoPiBinarySelector(cfg),
+    marengoPiLaunchShell(cfg),
     '{ sleep 1; echo status; echo disable; echo quit; } | timeout 10 "$PI_BIN"',
   ].join("\n");
 }
@@ -877,7 +906,7 @@ export function registerMotionTools(
         const script = ensureScriptQuit(expanded);
         const pipeTimeoutSec = marengoPiPipeTimeoutSec(script, controlTimeoutSec);
         const pipeCmd = [
-          marengoPiBinarySelector(cfg),
+          marengoPiLaunchShell(cfg),
           marengoPiPipe(script, pipeTimeoutSec),
         ].join("\n");
         const configDir =

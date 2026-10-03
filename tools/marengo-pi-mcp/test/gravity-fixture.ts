@@ -1,12 +1,6 @@
 /** Test-only `motor-repl gravity-preview` stdout for the right 5-DOF master (robot.yaml order). */
 
-const MASTER_JOINTS = [
-  "right_shoulder_pitch",
-  "right_shoulder_roll",
-  "right_upper_arm_yaw",
-  "right_elbow_pitch",
-  "right_lower_arm_yaw",
-];
+import { MASTER_JOINTS } from "../src/bench-profiles.js";
 
 /** Every master joint prints `tau_g`; joints missing from `tauG` read 0. */
 export function gravityPreviewReply(tauG: Record<string, number> = {}): string {

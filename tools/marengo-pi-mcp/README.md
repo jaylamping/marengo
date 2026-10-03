@@ -113,7 +113,8 @@ Motion tools that open CAN take sole ownership of the bus for the session. These
 1. Stops `marengo-pi.service` with `sudo -n /usr/local/libexec/marengo/pi-restart-marengo-pi.sh stop`, the same helper `pi_restart_marengo_pi` uses. The service runs as `marengo` with `Restart=always`, so a bare `pkill` either fails or lets systemd start a second owner within 5 s.
 2. Kills leftover `marengo-pi` processes owned by the deploy user.
 3. Refuses to run (exit 1) if any `marengo-pi` or `motor-repl` is still running.
-4. Restarts the unit when the session ends if it was active before, the same way `install-pi.sh` restores state. The unit comes back Disabled. The restart runs on every exit path, including errors and SIGHUP/SIGTERM. `pi_bench_harness` restarts it in a final `restore_marengo_pi_service` step.
+4. Waits for the bus to settle before every marengo-pi launch (`pi_hold_on`, `pi_marengo_pi_script`, `pi_motor_recover`, the harness session) and before restoring the unit. No `marengo-pi`/`motor-repl` may run, and the kernel CAN error counters (`rx_errors`, `rx_over_errors`, `tx_errors`, bus errors, error-passive, bus-off) must hold still for 0.5 s. The log shows `can settle: ok … <counters>`. marengo-pi latches a persistent Transport fault on any CAN error frame, and the mcp251x reports an RX FIFO overrun as one. A motor-repl run ending right before marengo-pi started (two `motor-repl disable`s, then marengo-pi's own type-24 burst) overran it at startup on 2026-10-03. If no window settles within 2 s, the session logs `can settle: FAIL` and refuses to start marengo-pi (exit 1); the unit restore warns and restarts anyway. Bench sessions run one pre-session `motor-repl disable` before the settle. `pi_hold_on` also logs `can errors after marengo-pi: …`, and runs its trailing `motor-repl disable` only once marengo-pi has exited. If marengo-pi still owns CAN, it prints `post-session bin/motor-repl disable skipped: …` and exits 1.
+5. Restarts the unit when the session ends if it was active before, the same way `install-pi.sh` restores state. The unit comes back Disabled. The restart runs on every exit path, including errors and SIGHUP/SIGTERM. `pi_bench_harness` restarts it in a final `restore_marengo_pi_service` step.
 
 To keep control off after a session, run `pi_restart_marengo_pi` with `mode: stop`.
 
@@ -138,6 +139,8 @@ A current reference is granted only inside the process that acquires it. When th
 ```
 
 `config_dir` defaults to `/opt/marengo/config`. For a 3-DOF harness run, select the harness profile that exports `MARENGO_JOINT_SUBSET`. Don't point `MARENGO_CONFIG_DIR` at a separate bringup tree.
+
+Profiles without a joint subset (`bare_motor`, `weighted_single_arm`, `arm_attached`) reference and gravity-gate exactly the master `config/robot.yaml` joints, `MASTER_JOINTS` in `src/bench-profiles.ts`: right shoulder pitch, shoulder roll, upper-arm yaw, elbow pitch and lower-arm yaw. Subset profiles use robot.yaml-order prefixes of that list. `test/bench-profiles.test.ts` fails when these drift from `config/robot.yaml` or `config/motors.yaml`.
 
 ### Gravity-model gate
 

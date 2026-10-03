@@ -18,15 +18,23 @@ export const BENCH_PROFILES = [
 
 export type BenchProfile = (typeof BENCH_PROFILES)[number];
 
-const ROLL = "right_shoulder_roll";
 const PITCH = "right_shoulder_pitch";
+const ROLL = "right_shoulder_roll";
 const YAW = "right_upper_arm_yaw";
 const ELBOW = "right_elbow_pitch";
+const LOWER_YAW = "right_lower_arm_yaw";
 
-// Pitch-first — matches robot.yaml / URDF chain order.
-const RIGHT_ARM_THREE_DOF = [PITCH, ROLL, YAW] as const;
-const RIGHT_ARM_FOUR_DOF = [PITCH, ROLL, YAW, ELBOW] as const;
-const DUAL_PITCH = ["left_shoulder_pitch", PITCH] as const;
+/**
+ * Master `config/robot.yaml` `robot.joints`, in order (pitch → roll → … — URDF chain and
+ * motors.yaml list order). Profiles without a `jointSubset` run on the full master, so they
+ * reference (and gravity-gate) exactly these joints; test/bench-profiles.test.ts fails when
+ * this drifts from the repo config.
+ */
+export const MASTER_JOINTS = [PITCH, ROLL, YAW, ELBOW, LOWER_YAW] as const;
+
+// Limb subsets are order-preserving prefixes of the master chain.
+const RIGHT_ARM_THREE_DOF = MASTER_JOINTS.slice(0, 3);
+const RIGHT_ARM_FOUR_DOF = MASTER_JOINTS.slice(0, 4);
 
 /** Every joint at its mechanical reference (arm/load hanging straight down = 0 rad). */
 function hangingAtReference(joints: readonly string[]): Readonly<Record<string, number>> {
@@ -50,19 +58,19 @@ export interface BenchProfileMeta {
 /** Exhaustive map — TypeScript fails if a BenchProfile key is missing. */
 export const BENCH_PROFILE_META: Record<BenchProfile, BenchProfileMeta> = {
   bare_motor: {
-    setZeroJoints: [...DUAL_PITCH],
+    setZeroJoints: [...MASTER_JOINTS],
     weighted: false,
-    hangingRestRad: hangingAtReference(DUAL_PITCH),
+    hangingRestRad: hangingAtReference(MASTER_JOINTS),
   },
   weighted_single_arm: {
-    setZeroJoints: [...DUAL_PITCH],
+    setZeroJoints: [...MASTER_JOINTS],
     weighted: true,
-    hangingRestRad: hangingAtReference(DUAL_PITCH),
+    hangingRestRad: hangingAtReference(MASTER_JOINTS),
   },
   arm_attached: {
-    setZeroJoints: [...DUAL_PITCH],
+    setZeroJoints: [...MASTER_JOINTS],
     weighted: true,
-    hangingRestRad: hangingAtReference(DUAL_PITCH),
+    hangingRestRad: hangingAtReference(MASTER_JOINTS),
   },
   roll_attached: {
     jointSubset: RIGHT_ARM_THREE_DOF,

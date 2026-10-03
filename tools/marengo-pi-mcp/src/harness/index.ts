@@ -1,7 +1,12 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
 import { harnessJointSubset, profileMeta } from "../bench-profiles.js";
-import { restoreCanOwnerShell, takeCanOwnershipShell } from "../can-owner.js";
+import {
+  REFUSE_UNSETTLED_MARENGO_PI,
+  canSettleShell,
+  restoreCanOwnerShell,
+  takeCanOwnershipShell,
+} from "../can-owner.js";
 import { gravityGateSnapshotShell, runGravityGate } from "../gravity-gate.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
 import {
@@ -161,6 +166,7 @@ function benchSessionWrapper(
       benchCandumpStartShell(),
       "set +e",
       "{",
+      canSettleShell(REFUSE_UNSETTLED_MARENGO_PI),
       pipeCmd,
       "} 2>&1 | tee -a \"$LOG\"",
       "PIPE_STATUS=${PIPESTATUS[0]}",
