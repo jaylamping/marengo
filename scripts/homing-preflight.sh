@@ -70,7 +70,7 @@ echo "$STATUS"
 if echo "$STATUS" | grep -qE 'homing=(Unhomed|Homing|Faulted)'; then
   echo ""
   echo "warning: one or more joints not Verified — place arm at mechanical reference," >&2
-  echo "  then: motor-repl set-zero <joint>  (or pi_set_zero via MCP)" >&2
+  echo "  then: marengo-pi stdin 'home <joint>... sign-tested' (or pi_hold_on set_zero via MCP)" >&2
   echo "  docs: docs/homing.md" >&2
   if [[ "$STRICT" == true ]]; then
     exit 1
