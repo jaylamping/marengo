@@ -4,6 +4,7 @@
 //! state. [`ControlLoop`](crate::ControlLoop) builds a [`HoldWorld`] each tick and sends the
 //! returned MIT batch through Davout.
 
+use std::fmt;
 use std::time::Duration;
 
 use armee_kinematics::{
@@ -20,13 +21,14 @@ use crate::position_profile::{position_hold_v_max, PlannerEvent};
 use crate::position_setpoint::{
     apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
     descent_stuck_mit_pull, downward_return_seed_velocity, home_final_approach_stuck_pull_rad,
-    lead_follow_stuck_residual, low_angle_breakaway_active, planner_drifted_from_measurement,
-    planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
-    planner_should_lead_follow_hold_short, planner_should_recover_ascent_stall,
-    planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
-    position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
-    reopen_planner_from_premature_hold, return_settle_band, POSITION_HOME_FINAL_PULL_THROUGH_RAD,
-    POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
+    home_target_tolerance, lead_follow_stuck_residual, low_angle_breakaway_active,
+    planner_drifted_from_measurement, planner_should_freeze_on_descent,
+    planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
+    planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
+    planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
+    position_hold_mit_velocity, reopen_planner_from_premature_hold, return_settle_band,
+    POSITION_HOME_FINAL_PULL_THROUGH_RAD, POSITION_RETURN_DESCENT_SEED_RAD,
+    POSITION_RETURN_RESYNC_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
 use crate::position_trajectory::{
     filter_dq_ema, JointPositionPlanner, TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
@@ -38,15 +40,61 @@ use crate::position_wave::PositionWave;
 pub const ADVANCE_MAX_LEAD_DEFAULT: f64 = 0.10;
 
 /// Outstanding ascent without measured progress before tick faults (disable path).
+/// The hold-tracking fuse shares this budget.
 pub const POSITION_ASCENT_STALL_FAULT_MS: u64 = 2000;
+
+/// Hold-tracking fuse arms only while `|q − target|` exceeds this band (both directions).
+pub const POSITION_HOLD_TRACKING_BAND_RAD: f64 = POSITION_RETURN_RESYNC_RAD;
 
 const MAX_INTEGRAL_NM: f64 = 0.5;
 
+/// No-progress budget: only a new best measured level renews it; retreat cannot rebase it.
 #[derive(Debug, Clone, Copy)]
-struct AscentProgress {
-    /// Only a new measured high level can renew the budget; retreat cannot rebase it.
-    credited_q: f64,
+struct ProgressBudget {
+    /// Best credited value of the progress measure (larger is closer to done).
+    credited: f64,
     stalled: Duration,
+}
+
+impl ProgressBudget {
+    fn stalled_ms(slot: Option<Self>) -> u64 {
+        slot.map_or(0, |budget| {
+            u64::try_from(budget.stalled.as_millis()).unwrap_or(u64::MAX)
+        })
+    }
+
+    /// Observe one tick of `measure` and return the stalled time (ms).
+    fn observe(
+        slot: &mut Option<Self>,
+        measure: f64,
+        progress_threshold: f64,
+        period: Duration,
+    ) -> u64 {
+        match slot.as_mut() {
+            Some(budget) => {
+                // Direct law callers have ideal continuous measurements. Installed controllers
+                // supply Davout's decoded-grid threshold; this floor only bounds f64 roundoff.
+                let threshold = if progress_threshold == 0.0 {
+                    8.0 * f64::EPSILON * measure.abs().max(budget.credited.abs()).max(1.0)
+                } else {
+                    progress_threshold
+                };
+                if measure - budget.credited > threshold {
+                    budget.credited = measure;
+                    budget.stalled = Duration::ZERO;
+                } else {
+                    budget.stalled = budget.stalled.saturating_add(period);
+                }
+            }
+            None => {
+                *slot = Some(Self {
+                    credited: measure,
+                    stalled: period,
+                });
+            }
+        }
+        Self::stalled_ms(*slot)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -54,7 +102,8 @@ struct AscentRecovery {
     /// Planner recovery retains its existing velocity/lead policy.
     planner_active: bool,
     /// The safety budget has a geometric lifetime independent of that policy.
-    progress: Option<AscentProgress>,
+    /// Progress measure: measured `q` (a new encoder high level).
+    progress: Option<ProgressBudget>,
 }
 
 impl AscentRecovery {
@@ -63,9 +112,7 @@ impl AscentRecovery {
     }
 
     fn stalled_ms(self) -> u64 {
-        self.progress.map_or(0, |progress| {
-            u64::try_from(progress.stalled.as_millis()).unwrap_or(u64::MAX)
-        })
+        ProgressBudget::stalled_ms(self.progress)
     }
 
     fn update(
@@ -81,37 +128,86 @@ impl AscentRecovery {
             self.progress = None;
             return 0;
         }
-        match self.progress.as_mut() {
-            Some(progress) => {
-                // Direct law callers have ideal continuous measurements. Installed controllers
-                // supply Davout's decoded-grid threshold; this floor only bounds f64 roundoff.
-                let threshold = if progress_threshold == 0.0 {
-                    8.0 * f64::EPSILON * q.abs().max(progress.credited_q.abs()).max(1.0)
-                } else {
-                    progress_threshold
-                };
-                if q - progress.credited_q > threshold {
-                    progress.credited_q = q;
-                    progress.stalled = Duration::ZERO;
-                } else {
-                    progress.stalled = progress.stalled.saturating_add(period);
-                }
-            }
-            None => {
-                self.progress = Some(AscentProgress {
-                    credited_q: q,
-                    stalled: period,
-                });
-            }
+        ProgressBudget::observe(&mut self.progress, q, progress_threshold, period)
+    }
+}
+
+/// Hold-tracking fuse: off target beyond [`POSITION_HOLD_TRACKING_BAND_RAD`] while the net
+/// commanded torque (`tau_p + tau_ff`) pushes away from the target.
+///
+/// Progress measure: `−|q − target|` (a new closest encoder level to the target).
+#[derive(Debug, Clone, Copy, Default)]
+struct HoldTracking {
+    progress: Option<ProgressBudget>,
+}
+
+impl HoldTracking {
+    #[cfg(test)]
+    fn stalled_ms(self) -> u64 {
+        ProgressBudget::stalled_ms(self.progress)
+    }
+
+    fn update(
+        &mut self,
+        armed: bool,
+        q: f64,
+        target: f64,
+        progress_threshold: f64,
+        period: Duration,
+    ) -> u64 {
+        if !armed {
+            self.progress = None;
+            return 0;
         }
-        self.stalled_ms()
+        let closeness = -(q - target).abs();
+        ProgressBudget::observe(&mut self.progress, closeness, progress_threshold, period)
+    }
+}
+
+/// Hold-tracking arms when the arm is outside the band and net commanded torque opposes target.
+fn hold_tracking_opposed(q: f64, target: f64, net_commanded_torque: f64) -> bool {
+    let to_target = target - q;
+    to_target.abs() > POSITION_HOLD_TRACKING_BAND_RAD && net_commanded_torque * to_target < 0.0
+}
+
+/// Joint-space controller state when a position-hold fuse trips.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HoldFuseTrip {
+    pub q: f64,
+    pub target: f64,
+    pub tau_p: f64,
+    pub tau_ff: f64,
+    pub tau_g: f64,
+}
+
+impl fmt::Display for HoldFuseTrip {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "q={:.4} rad, target={:.4} rad, tau_p={:+.3} Nm, tau_ff={:+.3} Nm, tau_g={:+.3} Nm",
+            self.q, self.target, self.tau_p, self.tau_ff, self.tau_g
+        )
     }
 }
 
 #[derive(Debug, Error)]
 pub enum HoldError {
-    #[error("position hold: ascent stall on {joint}: no measured progress for {ms} ms")]
-    AscentStall { joint: String, ms: u64 },
+    #[error(
+        "position hold: outbound ascent stall on {joint}: no measured progress toward target for {ms} ms ({trip})"
+    )]
+    AscentStall {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
+    #[error(
+        "position hold: hold tracking failure on {joint}: off target with net commanded torque opposing it and no measured progress for {ms} ms ({trip})"
+    )]
+    HoldTracking {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
     #[error("position hold: no setpoint latched for joint {joint}")]
     MissingSetpoint { joint: String },
     #[error("position hold: length mismatch")]
@@ -209,6 +305,8 @@ pub struct HoldJointDiag {
     pub retarget_tick: Option<u64>,
     /// Nominal time without a qualifying new encoder high level (ms); 0 when exempt.
     pub ascent_stall_ms: u64,
+    /// Nominal time off target with opposing net commanded torque and no progress (ms).
+    pub hold_tracking_ms: u64,
 }
 
 /// Output of [`PositionHold::tick`]: MIT batch + per-joint diag.
@@ -229,6 +327,7 @@ pub struct PositionHold {
     dq_filtered: Option<Vec<f64>>,
     planner_frozen: Option<Vec<bool>>,
     ascent_recovery: Option<Vec<AscentRecovery>>,
+    hold_tracking: Vec<HoldTracking>,
     /// Davout's immutable installed feedback grid; zero denotes ideal continuous law inputs.
     progress_thresholds: Vec<f64>,
     /// Only joints commanded by the position owner can exhaust its watchdog budget.
@@ -253,6 +352,7 @@ impl PositionHold {
             dq_filtered: None,
             planner_frozen: None,
             ascent_recovery: None,
+            hold_tracking: vec![HoldTracking::default(); n_joints],
             progress_thresholds: vec![0.0; n_joints],
             commanded_joints: vec![true; n_joints],
             descent_breakaway: None,
@@ -303,11 +403,33 @@ impl PositionHold {
         Some((planner.q_traj, planner.dq_traj))
     }
 
+    /// Clamped target as latched: within the joint's grid-aware home tolerance it is home.
+    ///
+    /// Every home/outbound classifier compares against `0.0`, so a latch one feedback count
+    /// off zero behaves exactly like an exact-zero latch (planner, settle bands and fuses).
+    fn home_classified(&self, joint_idx: usize, target: f64) -> f64 {
+        let threshold = self
+            .progress_thresholds
+            .get(joint_idx)
+            .copied()
+            .unwrap_or(0.0);
+        if target.abs() <= home_target_tolerance(threshold) {
+            0.0
+        } else {
+            target
+        }
+    }
+
     /// Latch targets and initialize planners at measured `q`.
     pub fn arm(&mut self, q: &[f64], targets: &[f64], tick: u64) {
-        let mut sp = targets.to_vec();
-        sp.resize(self.n_joints, 0.0);
-        self.setpoints_raw = Some(sp.clone());
+        let mut raw = targets.to_vec();
+        raw.resize(self.n_joints, 0.0);
+        let sp = raw
+            .iter()
+            .enumerate()
+            .map(|(i, &target)| self.home_classified(i, target))
+            .collect();
+        self.setpoints_raw = Some(raw);
         self.setpoints = Some(sp);
         self.init_planners(q, tick);
     }
@@ -327,20 +449,21 @@ impl PositionHold {
         if cmd.joint_idx >= self.n_joints {
             return false;
         }
+        let clamped = self.home_classified(cmd.joint_idx, cmd.clamped);
         // Refuse half-apply: ensure clamped setpoints exist before writing raw.
         let was_unarmed = self.setpoints.is_none();
         if was_unarmed {
             let q = vec![cmd.q; self.n_joints];
             let mut targets = vec![cmd.q; self.n_joints];
-            targets[cmd.joint_idx] = cmd.clamped;
+            targets[cmd.joint_idx] = clamped;
             self.arm(&q, &targets, cmd.tick);
         }
         self.setpoints_raw
             .get_or_insert_with(|| vec![0.0; self.n_joints])[cmd.joint_idx] = cmd.requested;
-        let changed = self.set_clamped_target(cmd.joint_idx, cmd.clamped, cmd.tick);
+        let changed = self.set_clamped_target(cmd.joint_idx, clamped, cmd.tick);
         // First arm sees equal targets after `arm`, so treat unarmed as a full retarget apply.
         if was_unarmed || changed {
-            self.sync_retarget_planner(cmd.joint_idx, cmd.q, cmd.clamped, cmd.downward_seed);
+            self.sync_retarget_planner(cmd.joint_idx, cmd.q, clamped, cmd.downward_seed);
             if let Some(dq) = cmd.dq_seed {
                 self.seed_dq_filter(cmd.joint_idx, dq);
             }
@@ -450,14 +573,23 @@ impl PositionHold {
     }
 
     #[cfg(test)]
+    pub fn hold_tracking_ms_at(&self, joint_idx: usize) -> u64 {
+        self.hold_tracking
+            .get(joint_idx)
+            .copied()
+            .unwrap_or_default()
+            .stalled_ms()
+    }
+
+    #[cfg(test)]
     pub fn set_ascent_stall_ms_for_test(&mut self, joint_idx: usize, ms: u64) {
         self.init_latch_state();
         if let Some(recovery) = self.ascent_recovery.as_mut() {
             if joint_idx < recovery.len() {
                 recovery[joint_idx] = AscentRecovery {
                     planner_active: true,
-                    progress: Some(AscentProgress {
-                        credited_q: self
+                    progress: Some(ProgressBudget {
+                        credited: self
                             .planners
                             .as_ref()
                             .and_then(|planners| planners.get(joint_idx))
@@ -533,7 +665,7 @@ impl PositionHold {
         }
 
         self.advance(&mut world, period)?;
-        self.compose(&world)
+        self.compose(&world, period)
     }
 
     fn init_planners(&mut self, q: &[f64], tick: u64) {
@@ -554,6 +686,7 @@ impl PositionHold {
         if let Some(recovery) = self.ascent_recovery.as_mut() {
             recovery.fill(AscentRecovery::default());
         }
+        self.hold_tracking.fill(HoldTracking::default());
         Self::fill_bool(&mut self.descent_breakaway, false);
         Self::fill_bool(&mut self.descent_was_stuck, false);
     }
@@ -599,9 +732,10 @@ impl PositionHold {
 
     /// Latch clamped + raw targets together (wave drive / wave end).
     fn latch_joint_target(&mut self, idx: usize, target: f64) {
+        let clamped = self.home_classified(idx, target);
         if let (Some(setpoints), Some(raw)) = (self.setpoints.as_mut(), self.setpoints_raw.as_mut())
         {
-            setpoints[idx] = target;
+            setpoints[idx] = clamped;
             raw[idx] = target;
         }
     }
@@ -613,6 +747,9 @@ impl PositionHold {
         Self::set_bool_at(&mut self.planner_frozen, joint_idx, false);
         if let Some(recovery) = self.ascent_recovery.as_mut() {
             recovery[joint_idx] = AscentRecovery::default();
+        }
+        if let Some(tracking) = self.hold_tracking.get_mut(joint_idx) {
+            *tracking = HoldTracking::default();
         }
         Self::set_bool_at(&mut self.descent_breakaway, joint_idx, false);
         Self::set_bool_at(&mut self.descent_was_stuck, joint_idx, false);
@@ -924,27 +1061,24 @@ impl PositionHold {
                 event = PlannerEvent::FreezeExit;
             }
             Self::set_bool_at(&mut self.planner_frozen, i, freeze);
+            // Home targets are latched as exactly 0.0 (`home_classified`), so this outbound
+            // classification does not hinge on a single feedback count near zero.
             let commanded_ascent = self.commanded_joints[i]
                 && targets[i].abs() > POSITION_SETTLE_TOLERANCE_RAD
                 && to_target > return_settle_band(targets[i]);
+            // Budget only; compose trips the fuse once it knows this tick's torques.
             if let Some(recovery) = self
                 .ascent_recovery
                 .as_mut()
                 .and_then(|states| states.get_mut(i))
             {
-                let stalled_ms = recovery.update(
+                recovery.update(
                     ascent_recovering,
                     commanded_ascent,
                     world.q[i],
                     self.progress_thresholds[i],
                     period,
                 );
-                if stalled_ms >= POSITION_ASCENT_STALL_FAULT_MS {
-                    return Err(HoldError::AscentStall {
-                        joint: name.clone(),
-                        ms: stalled_ms,
-                    });
-                }
             }
             if planner_should_latch_on_overshoot_hold(
                 world.q[i],
@@ -1000,11 +1134,16 @@ impl PositionHold {
         Ok(())
     }
 
-    fn compose(&mut self, world: &HoldWorld<'_>) -> Result<HoldTickOut, HoldError> {
+    fn compose(
+        &mut self,
+        world: &HoldWorld<'_>,
+        period: Duration,
+    ) -> Result<HoldTickOut, HoldError> {
         let n = self.n_joints;
         let mut mit = Vec::with_capacity(n);
         let mut diag = Vec::with_capacity(n);
         self.init_latch_state();
+        let wave_joint_index = world.wave.as_ref().map(|w| w.joint_index);
 
         for i in 0..n {
             let name = &world.joint_names[i];
@@ -1120,6 +1259,45 @@ impl PositionHold {
             }
             let lead_sat = lead.abs() >= effective_max_lead - 1e-6;
             let tau_p = jp.kp * lead;
+            let trip = HoldFuseTrip {
+                q: world.q[i],
+                target,
+                tau_p,
+                tau_ff: tau_ff_cmd,
+                tau_g: world.tau_g[i],
+            };
+            let ascent_stall_ms = self
+                .ascent_recovery
+                .as_ref()
+                .and_then(|v| v.get(i).copied())
+                .unwrap_or_default()
+                .stalled_ms();
+            if ascent_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
+                return Err(HoldError::AscentStall {
+                    joint: name.clone(),
+                    ms: ascent_stall_ms,
+                    trip,
+                });
+            }
+            // Symmetric to the ascent fuse and independent of home/outbound classification:
+            // a latched hold that sags (or is pushed) off target by its own net command.
+            let tracking_armed = self.commanded_joints[i]
+                && wave_joint_index != Some(i)
+                && hold_tracking_opposed(world.q[i], target, tau_p + tau_ff_cmd);
+            let hold_tracking_ms = self.hold_tracking[i].update(
+                tracking_armed,
+                world.q[i],
+                target,
+                self.progress_thresholds[i],
+                period,
+            );
+            if hold_tracking_ms >= POSITION_ASCENT_STALL_FAULT_MS {
+                return Err(HoldError::HoldTracking {
+                    joint: name.clone(),
+                    ms: hold_tracking_ms,
+                    trip,
+                });
+            }
             let mit_velocity = position_hold_mit_velocity(
                 dq,
                 dq_traj,
@@ -1179,12 +1357,8 @@ impl PositionHold {
                 q_env_lo,
                 q_env_hi,
                 retarget_tick,
-                ascent_stall_ms: self
-                    .ascent_recovery
-                    .as_ref()
-                    .and_then(|v| v.get(i).copied())
-                    .unwrap_or_default()
-                    .stalled_ms(),
+                ascent_stall_ms,
+                hold_tracking_ms,
             });
             mit.push(DavoutMit {
                 joint: name.clone(),
@@ -1215,6 +1389,10 @@ mod period_contract_tests;
 #[cfg(test)]
 #[path = "position_hold_tests/numeric_contract.rs"]
 mod numeric_contract_tests;
+
+#[cfg(test)]
+#[path = "position_hold_tests/hold_tracking.rs"]
+mod hold_tracking_tests;
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

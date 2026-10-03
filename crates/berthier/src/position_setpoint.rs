@@ -12,6 +12,21 @@ pub(crate) const POSITION_RETURN_DESCENT_SEED_RAD: f64 = 0.05;
 /// Resync planner only when arm is far from latched target (not small hold overshoot).
 pub(crate) const POSITION_RETURN_RESYNC_RAD: f64 = 0.03;
 
+/// Latched targets within this many feedback counts of zero classify as home.
+pub(crate) const POSITION_HOME_TARGET_FEEDBACK_COUNTS: f64 = 2.0;
+
+/// Home-classification tolerance for one joint's installed feedback grid.
+///
+/// `progress_threshold` is Davout's joint-space progress threshold (half a feedback count plus
+/// rounding allowance; zero for ideal continuous law inputs). The encoder cannot tell a target
+/// within [`POSITION_HOME_TARGET_FEEDBACK_COUNTS`] counts of zero from home, so a hold-on latch
+/// one count off zero must classify exactly like an exact-zero latch. Never below
+/// [`POSITION_SETTLE_TOLERANCE_RAD`].
+pub fn home_target_tolerance(progress_threshold: f64) -> f64 {
+    let feedback_count = 2.0 * progress_threshold;
+    POSITION_SETTLE_TOLERANCE_RAD.max(POSITION_HOME_TARGET_FEEDBACK_COUNTS * feedback_count)
+}
+
 /// Settle/resync band: home returns use [`POSITION_HOME_SETTLE_RAD`], other targets use resync.
 pub fn return_settle_band(target: f64) -> f64 {
     if target.abs() <= POSITION_SETTLE_TOLERANCE_RAD {

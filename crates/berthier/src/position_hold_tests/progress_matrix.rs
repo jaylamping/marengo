@@ -191,7 +191,7 @@ fn matrix_observe(
                         observation.last_sequence_q = Some(diag.q);
                     }
                 }
-                Err(HoldError::AscentStall { joint, ms }) => {
+                Err(HoldError::AscentStall { joint, ms, .. }) => {
                     observation.terminal = MatrixTerminal::AscentStall {
                         joint,
                         ms,

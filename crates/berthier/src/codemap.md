@@ -9,8 +9,9 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 | `loop.rs` | `ControlLoop<B>` — shared private initialization for ordinary and concrete closed simulation constructors, checked gain setters, enable-session neutral bootstrap, main tick, mode dispatch, Chappe publish |
 | `friction.rs` | Velocity-based friction feedforward |
 | `position_feedforward.rs` | PD torque for position hold |
+| `position_hold.rs` | `PositionHold`: latched targets, planners, recovery latches, MIT compose, and the two position-hold fuses (below) |
 | `position_profile.rs` | Trapezoidal/s-curve position profiles |
-| `position_setpoint.rs` | Target angle management |
+| `position_setpoint.rs` | Target angle management; grid-aware home tolerance (`home_target_tolerance`) |
 | `position_trajectory.rs` | Time-parameterized position paths |
 | `position_wave.rs` | Sine-wave bench excitation |
 | `position_trace.rs` | Position command logging |
@@ -26,6 +27,19 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 4. Mode branch: gravity-only / impedance / position / torque
 5. `supervisor.send_mit_batch(commands)`
 6. Optional `publish_robot_state(chappe_bus)`
+
+### Position-hold fuses (`position_hold.rs`)
+Both use a 2000 ms no-progress budget (`POSITION_ASCENT_STALL_FAULT_MS`) and credit progress only on a
+new best encoder level beyond Davout's feedback-grid threshold (ADR 0025). Either trip makes `tick`
+return an error; `ControlLoop::tick` latches a Davout control fault and disables.
+- **`AscentStall`** (outbound ascent stall): non-home target, `target − q` > 0.03 rad, no new high `q`.
+- **`HoldTracking`** (hold tracking failure): any target, `|q − target|` > 0.03 rad
+  (`POSITION_HOLD_TRACKING_BAND_RAD`) while net commanded torque `tau_p + tau_ff` opposes the
+  direction to target, no new closest `q`. Covers a home latch that sags under a wrong `τ_g` model.
+- Errors carry `HoldFuseTrip` (`q`, `target`, `tau_p`, `tau_ff`, `tau_g` at trip).
+- Home classification: a clamped target within two feedback counts of zero
+  (`home_target_tolerance` of the joint's progress threshold) is latched as exactly `0.0`
+  (raw request kept in `targets_raw`), so a hold-on one count off zero behaves as an exact-zero latch.
 
 ## Integration
 - Imports `davout::{Supervisor, ControlMode, MitJointCommand}`

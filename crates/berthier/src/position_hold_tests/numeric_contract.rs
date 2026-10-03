@@ -291,7 +291,7 @@ fn invalid_periods_preserve_state_and_zero_composition_preserves_budget() {
             109 + u64::from(step),
         ) {
             Ok(out) => tail_valid &= numeric_output_valid(&out, 0.021, 0.0),
-            Err(HoldError::AscentStall { joint, ms }) => {
+            Err(HoldError::AscentStall { joint, ms, .. }) => {
                 terminal = Some((joint, ms, step));
                 break;
             }

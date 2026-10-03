@@ -167,7 +167,7 @@ fn run_case(source: &Path, label: &str, ticks: u32, crawl: bool) -> CaseObservat
         });
         match result {
             Ok(()) => completed = step,
-            Err(LoopError::AscentStall { joint, ms }) => {
+            Err(LoopError::AscentStall { joint, ms, .. }) => {
                 stall = Some((joint, ms, step));
                 break;
             }

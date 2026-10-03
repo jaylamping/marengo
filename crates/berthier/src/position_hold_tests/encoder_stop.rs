@@ -164,7 +164,7 @@ fn coherent_motion_then_stationary_encoder_trips_stall_fuse() -> Result<(), Hold
                     );
                 }
             }
-            Err(HoldError::AscentStall { joint, ms }) => {
+            Err(HoldError::AscentStall { joint, ms, .. }) => {
                 fault = Some((joint, ms, step));
                 break;
             }

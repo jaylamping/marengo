@@ -147,7 +147,7 @@ fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
                     assert_eq!(q.velocity_rad_s, 0.0);
                     assert!(ctrl.supervisor().joint_feedback(PEER).is_none());
                 }
-                Err(LoopError::AscentStall { joint, ms }) => {
+                Err(LoopError::AscentStall { joint, ms, .. }) => {
                     observed_stall = Some((joint, ms, step));
                     break;
                 }

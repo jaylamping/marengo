@@ -101,7 +101,7 @@ fn period_observe(moving: bool) -> PeriodObservation {
                 observation.last_q = Some(diag.q);
                 observation.last_raw_dq = Some(diag.dq_raw);
             }
-            Err(HoldError::AscentStall { joint, ms }) => {
+            Err(HoldError::AscentStall { joint, ms, .. }) => {
                 observation.terminal = PeriodTerminal::AscentStall {
                     joint,
                     ms,

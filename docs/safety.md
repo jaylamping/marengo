@@ -127,6 +127,26 @@ not establish client delivery or physical stop/support acceptance. See
 [ADR0024](decisions/0024-stop-before-persistence-shutdown.md) and the
 [software evidence](reviews/2026-09-29/batch07-stop-before-persistence.md).
 
+## Position-hold fuses (Berthier)
+
+In `ControlMode::Position`, Berthier trips two fuses on a 2000 ms no-progress budget. Progress
+counts only when the encoder reaches a new best level by more than Davout's feedback-grid threshold
+([ADR 0025](decisions/0025-measured-ascent-progress.md)). A trip latches a controller fault and
+disables. The fault does not clear on its own.
+
+- **Outbound ascent stall** (`AscentStall`): a non-home target sits more than 0.03 rad above `q`
+  and the encoder makes no new high.
+- **Hold tracking failure** (`HoldTracking`): this fuse covers any target, home included. It trips
+  when `|q − target|` is more than 0.03 rad, the net commanded torque `tau_p + tau_ff` (which
+  includes model `τ_g`) points away from the target, and `q` makes no new closest approach. This
+  is the case where a wrong gravity model pushes a latched hold off target, including an
+  exact-zero hold-on. Wave-driven joints and uncommanded peers are exempt.
+- Both errors report `q`, `target`, `tau_p`, `tau_ff` and `tau_g` at the trip.
+- A latched target within two feedback counts of zero counts as home and is commanded as exactly
+  `0.0`. Home/outbound classification therefore never depends on a single encoder count.
+- A tracking trip at home points to a gravity or model fault. Do not raise kp or ki to get past
+  it; fix the model first (bench 2026-10-03 pitch trip).
+
 ## Known software gaps (see also [position-hold-control-review.md](position-hold-control-review.md))
 
 - **Hardware E-stop wiring:** `Supervisor::set_hardware_estop` exists but Pi GPIO/input is not yet connected at runtime. Treat physical E-stop as authoritative; do not assume software `Disabled` reflects the hardware line until wired.

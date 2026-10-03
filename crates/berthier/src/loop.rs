@@ -25,7 +25,8 @@ use crate::gain_runtime::{
 };
 use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
-    HoldError, HoldJointParams, HoldRetarget, HoldWorld, PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
+    HoldError, HoldFuseTrip, HoldJointParams, HoldRetarget, HoldWorld, PositionHold,
+    ADVANCE_MAX_LEAD_DEFAULT,
 };
 use crate::position_profile::position_profile_v_max;
 use crate::position_setpoint::{downward_return_seed_velocity, envelope_dq_cmd_for_hold_clamp};
@@ -57,8 +58,22 @@ pub enum LoopError {
     InvalidWavePeriod,
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
-    #[error("position hold: ascent stall on {joint}: no measured progress for {ms} ms")]
-    AscentStall { joint: String, ms: u64 },
+    #[error(
+        "position hold: outbound ascent stall on {joint}: no measured progress toward target for {ms} ms ({trip})"
+    )]
+    AscentStall {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
+    #[error(
+        "position hold: hold tracking failure on {joint}: off target with net commanded torque opposing it and no measured progress for {ms} ms ({trip})"
+    )]
+    HoldTracking {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
     #[error("torque cmd: non-finite τ_cmd for joint {joint}")]
     NonFiniteTorqueCmd { joint: String },
     #[error("invalid gain override for {joint}: {field} must be finite and nonnegative")]
@@ -70,7 +85,8 @@ pub enum LoopError {
 impl From<HoldError> for LoopError {
     fn from(err: HoldError) -> Self {
         match err {
-            HoldError::AscentStall { joint, ms } => Self::AscentStall { joint, ms },
+            HoldError::AscentStall { joint, ms, trip } => Self::AscentStall { joint, ms, trip },
+            HoldError::HoldTracking { joint, ms, trip } => Self::HoldTracking { joint, ms, trip },
             HoldError::MissingSetpoint { joint } => Self::MissingSetpoint { joint },
             HoldError::LenMismatch => Self::MissingSetpoint {
                 joint: "len_mismatch".to_string(),
@@ -1020,7 +1036,11 @@ impl<B: MotorBus> ControlLoop<B> {
                     Some(joint),
                 ),
                 LoopError::AscentStall { joint, .. } => self.supervisor.latch_control_fault(
-                    "position recovery stalled without measured progress",
+                    "position ascent stalled without measured progress",
+                    Some(joint),
+                ),
+                LoopError::HoldTracking { joint, .. } => self.supervisor.latch_control_fault(
+                    "position hold off target with opposing commanded torque and no progress",
                     Some(joint),
                 ),
                 _ => {}
@@ -1030,6 +1050,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 LoopError::Safety(_)
                     | LoopError::MissingFeedback { .. }
                     | LoopError::AscentStall { .. }
+                    | LoopError::HoldTracking { .. }
             ) {
                 self.discard_motion_intent();
                 self.last_stop_generation = self.supervisor.stop_generation();
@@ -1232,6 +1253,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 joint_stuck = d.joint_stuck,
                                 planner_frozen = d.planner_frozen,
                                 ascent_stall_ms = d.ascent_stall_ms,
+                                hold_tracking_ms = d.hold_tracking_ms,
                                 planner_event = d.planner_event.as_str(),
                                 phase = %d.phase,
                                 kp = d.kp,
@@ -1595,6 +1617,7 @@ mod tests {
         planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
         planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
         position_hold_mit_velocity, reopen_planner_from_premature_hold,
+        POSITION_SETTLE_TOLERANCE_RAD,
     };
     use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
     use crate::test_support::queue_all_status;
@@ -2565,6 +2588,41 @@ mod tests {
     }
 
     #[test]
+    fn hold_on_one_feedback_count_off_zero_latches_home() {
+        let joint = "right_shoulder_pitch";
+        // (raw hold-on q, latched target) through Davout's installed RS03 grid.
+        let hold_on = |counts: f64| {
+            let mut loop_ctrl = test_loop();
+            let count = 2.0
+                * loop_ctrl
+                    .supervisor()
+                    .joint_position_progress_threshold(joint)
+                    .expect("installed grid");
+            virtual_ready_active_at(&mut loop_ctrl, Some((joint, counts * count, 0.0)));
+            loop_ctrl.enter_position_hold().expect("hold-on");
+            let i = loop_ctrl
+                .joint_names()
+                .iter()
+                .position(|name| name == joint)
+                .expect("configured joint");
+            let raw = loop_ctrl.position_hold.targets_raw().expect("raw latch")[i];
+            let latched = loop_ctrl.position_setpoints().expect("latch")[i];
+            (raw, latched)
+        };
+        let (exact_raw, exact) = hold_on(0.0);
+        assert_eq!((exact_raw, exact), (0.0, 0.0));
+        let (one_raw, one) = hold_on(1.0);
+        assert!(
+            one_raw.abs() > POSITION_SETTLE_TOLERANCE_RAD,
+            "precondition: one count is above the old 1e-4 home test; got {one_raw}"
+        );
+        assert_eq!(one, exact, "one-count hold-on must classify as home");
+        let (five_raw, five) = hold_on(5.0);
+        assert_eq!(five, five_raw, "outbound latches keep their value");
+        assert!(five.abs() > 4.0 * one_raw.abs());
+    }
+
+    #[test]
     fn ascent_stall_faults_tick_after_bounded_recovery() {
         let mut loop_ctrl = test_loop();
         let joint = "right_shoulder_pitch";
@@ -2590,7 +2648,7 @@ mod tests {
                     assert!(
                         matches!(
                             &err,
-                            LoopError::AscentStall { joint: j, ms }
+                            LoopError::AscentStall { joint: j, ms, .. }
                                 if j == joint && *ms >= POSITION_ASCENT_STALL_FAULT_MS
                         ),
                         "unexpected tick error: {err:?}"
@@ -2667,7 +2725,7 @@ mod tests {
         assert!(
             matches!(
                 fault,
-                Some(LoopError::AscentStall { joint: ref j, ms })
+                Some(LoopError::AscentStall { joint: ref j, ms, .. })
                     if j == joint && ms >= POSITION_ASCENT_STALL_FAULT_MS
             ),
             "lead-follow stuck residual must AscentStall within 2.5s; got {fault:?}"

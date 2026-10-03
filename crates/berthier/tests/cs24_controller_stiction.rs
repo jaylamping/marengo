@@ -197,7 +197,7 @@ fn raw_velocity_then_stiction_faults_controller_and_preserves_stop_latch() {
                 assert_eq!(observed.position_rad, entry.position_rad);
                 assert_eq!(observed.velocity_rad_s, 0.0);
             }
-            Err(LoopError::AscentStall { joint, ms }) => {
+            Err(LoopError::AscentStall { joint, ms, .. }) => {
                 fault = Some((joint, ms, step));
                 // Capture only actual automatic fault writes, BEFORE any cleanup.
                 automatic_stop = ctrl.supervisor().bus().transmissions()[trace_start..].to_vec();
