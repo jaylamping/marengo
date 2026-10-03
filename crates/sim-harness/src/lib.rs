@@ -12,7 +12,6 @@
 //! XML comments, and one level of `<default class="…">` joint-type defaults.
 //! Anything fancier belongs behind a real MJCF dependency, not string matching.
 
-
 #[cfg(test)]
 use std::collections::HashMap;
 
@@ -306,7 +305,6 @@ fn mjcf_body_masses(xml: &str) -> Vec<(String, f64)> {
 }
 
 #[cfg(test)]
-#[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
     #![allow(clippy::panic)]
@@ -510,6 +508,4 @@ mod tests {
             "counts still agree — a count-only check would miss the rename"
         );
     }
-
-
 }

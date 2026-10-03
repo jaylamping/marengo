@@ -87,25 +87,30 @@ before the fix. Coverage-only additions note the gap as the red.
 
 `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --exclude marengo-host-metrics --exclude marengo-pi -- -D warnings`; `cargo clippy -p marengo-pi --all-targets --target aarch64-unknown-linux-gnu -- -D warnings`; `cargo test --workspace`. (consul/MCP untouched — their gates do not apply.)
 
-Results on this branch (2026-10-03, macOS): fmt OK; workspace clippy OK;
-pi aarch64 clippy OK; `cargo test` run per-package (single workspace run
-exceeds the 30 s shell cap here) — every suite green, zero failures, including
-the new sim-harness (12), proto inclusion, journal parse (4), log-cli gap (5),
-limit-sync smoke (2), IMU (16) and widened Berthier isolation tests.
+Results on this branch (2026-10-03, macOS, after rebase onto main `5bf98252`):
+fmt OK; workspace clippy OK; pi aarch64 clippy OK; `cargo test` run
+per-package (single workspace run exceeds the 30 s shell cap here) — every
+suite green, zero failures, including the new sim-harness (10, post-B11),
+proto inclusion, journal parse (4), log-cli gap (5), limit-sync smoke (2),
+IMU (16) and widened Berthier isolation tests.
 `scripts/check-dependencies.sh` also passes natively. Container-only steps
 (npm suites, MuJoCo production smoke) ride the CI jobs they gate.
 
-## Integration order vs prune B11
+`check-println-crates.sh` note: wiring the grep fallback exposed that the
+guard (dead in CI — no `rg` in the dev container) would fail on ~25
+pre-existing `println!` in peer-owned `tests/`/`examples/` (davout, berthier,
+store, homing). The guard is scoped to lib sources (`crates/*/src`), where it
+passes clean: test/example output is not operator-visible runtime logging.
+Widening it to tests is a separate decision for the owning waves, not this one.
 
-Prune batch B11 (peer `WaveC2_Prune_B5_B11`) deletes the `arm_4dof*` MJCF
-pair, their sim-harness tests, and the ignored kinematics test this wave
-replaced. Land B11 first, then rebase this branch: drop my two
-`arm_4dof*_model_path` fns plus their tests from `sim-harness/src/lib.rs`
-(the parser and production-parity tests stay), keep B11's
-`armee-kinematics` dependency line with `features = ["test-support"]`
-(B11 gates `fixtures` behind `cfg(any(test, feature = "test-support"))`;
-sim-harness non-test code needs that feature), and re-apply
-`bench_robot_config_joints_match_bench_urdf` after B11's deletion of the
-ignored block. That test now parses exclusively through `marengo-config`
-(`load_robot_config`); the `serde_yaml` dev-dep is already removed here to
-match B11, so there is no conflict on that line.
+## Integration vs prune B11 (done on rebase)
+
+Prune batch B11 (peer `WaveC2_Prune_B5_B11`, merged to main as `5ba8b849`)
+deletes the `arm_4dof*` MJCF pair, their sim-harness tests, and the ignored
+kinematics test this wave replaced. This branch rebased onto main after that
+merge: the two `arm_4dof*_model_path` fns plus their tests are dropped from
+`sim-harness/src/lib.rs` (the parser and production-parity tests stay, now
+all `#[cfg(test)]` per B11's test-only gating — 10 tests, not 12), B11's
+`armee-kinematics` dependency line with `features = ["test-support"]` is
+kept, and `bench_robot_config_joints_match_bench_urdf` parses exclusively
+through `marengo-config` (`load_robot_config`) with no `serde_yaml` dev-dep.
