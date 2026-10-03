@@ -243,6 +243,12 @@ fn write_with_deadline(
 }
 
 fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate::Bus) {
+    // Bound the parked time of the reader thread (L-chappe-06): without a
+    // read deadline this blocks forever, so an idle outbox with a hung
+    // gateway goes unnoticed. Commands are rare, so idle timeouts are
+    // normal and just resume the read; full hung-peer detection via a
+    // heartbeat remains NEEDS-DECISION (see WP-M).
+    set_read_deadline(stream);
     let mut buf = Vec::new();
     let mut scratch = [0u8; 4096];
     loop {
@@ -253,6 +259,10 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
                     break;
                 }
                 buf.extend_from_slice(&scratch[..n]);
+            }
+            Err(e) if is_read_idle_timeout(e.kind()) => {
+                debug!("ipc command read idle");
+                continue;
             }
             Err(e) => {
                 warn!(error = %e, "ipc command read");
@@ -279,6 +289,14 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
     }
 }
 
+/// Command admission: allowlisted topic with an envelope no older than 1 s.
+///
+/// NEEDS-DECISION (L-chappe-07): both ends use wall clocks (`SystemTime`),
+/// so an NTP step can refuse or admit commands, and a captured frame can
+/// replay within the 1000 ms window. A real fix needs a monotonic sequence
+/// or boot-epoch in the envelope — a wire change requiring a coordinated
+/// gateway+Pi deploy — so behavior is unchanged here and the window stays
+/// documented rather than silently widened.
 fn command_is_current(topic: &str, payload: &[u8]) -> bool {
     const COMMAND_TOPICS: [&str; 7] = crate::topics::COMMAND_TOPICS;
     if !COMMAND_TOPICS.contains(&topic) {
@@ -633,6 +651,10 @@ fn read_connection(
     mut stream: std::os::unix::net::UnixStream,
     on_runtime_frame: Arc<dyn Fn(String, Vec<u8>) + Send + Sync>,
 ) {
+    // Same idle bound as the client reader (L-chappe-06): telemetry is
+    // frequent, so a timeout here is unusual but still resumes the read
+    // rather than dropping a healthy connection.
+    set_read_deadline(&mut stream);
     let mut buf = Vec::new();
     let mut scratch = [0u8; 4096];
     loop {
@@ -643,6 +665,10 @@ fn read_connection(
                     break;
                 }
                 buf.extend_from_slice(&scratch[..n]);
+            }
+            Err(e) if is_read_idle_timeout(e.kind()) => {
+                debug!("ipc read idle");
+                continue;
             }
             Err(e) => {
                 warn!(error = %e, "ipc read");
@@ -670,6 +696,25 @@ fn read_connection(
             }
         }
     }
+}
+
+/// Idle bound for IPC readers (L-chappe-06): reader threads wake
+/// periodically instead of parking in `read` forever.
+const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn set_read_deadline(stream: &mut std::os::unix::net::UnixStream) {
+    if let Err(error) = stream.set_read_timeout(Some(READ_IDLE_TIMEOUT)) {
+        warn!(error = %error, "ipc read deadline not set; reader may park");
+    }
+}
+
+/// Idle read timeouts resume the read; every other read error drops it.
+/// Pure predicate so the classification is unit-testable.
+fn is_read_idle_timeout(kind: std::io::ErrorKind) -> bool {
+    matches!(
+        kind,
+        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+    )
 }
 
 fn take_frame(buf: &mut Vec<u8>) -> Result<Option<Vec<u8>>, IpcError> {
@@ -778,6 +823,41 @@ mod tests {
         buf.extend_from_slice(&3_u32.to_le_bytes());
         buf.extend_from_slice(b"ro");
         assert!(take_frame(&mut buf).expect("frame").is_none());
+    }
+
+    #[test]
+    fn read_idle_timeout_classification() {
+        // L-chappe-06: only idle timeouts resume the read; every other
+        // error still drops the connection.
+        assert!(is_read_idle_timeout(std::io::ErrorKind::WouldBlock));
+        assert!(is_read_idle_timeout(std::io::ErrorKind::TimedOut));
+        assert!(!is_read_idle_timeout(std::io::ErrorKind::ConnectionReset));
+        assert!(!is_read_idle_timeout(std::io::ErrorKind::BrokenPipe));
+        assert!(!is_read_idle_timeout(std::io::ErrorKind::Interrupted));
+    }
+
+    #[test]
+    fn command_flow_survives_read_deadline() {
+        // The idle deadline must not break a healthy command stream: with
+        // a deadline armed, a queued command is still admitted.
+        use std::os::unix::net::UnixStream;
+
+        let bus = crate::Bus::default();
+        let mut commands = bus.subscribe(crate::topics::TOPIC_MOTOR_STATUS_POLL);
+        let (mut client, mut server) = UnixStream::pair().expect("socketpair");
+        server
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .expect("test deadline");
+        client
+            .write_all(&fresh_command_frame(
+                crate::topics::TOPIC_MOTOR_STATUS_POLL,
+            ))
+            .expect("valid command");
+        client
+            .shutdown(std::net::Shutdown::Write)
+            .expect("client eof");
+        read_inbound_commands(&mut server, bus);
+        assert!(commands.try_recv().is_ok());
     }
 
     fn fresh_command_frame(topic: &str) -> Vec<u8> {

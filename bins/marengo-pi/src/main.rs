@@ -2011,6 +2011,13 @@ fn latest_motor_status_poll<'a>(
 
 fn debug_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, timing: &mut LoopTimingWindow) {
     timing.log_and_reset(loop_ctrl);
+    // M06 budget evidence at 1 Hz: tick overruns and dropped-telemetry
+    // counts alongside the phase averages (L-marengo-pi-12, L-berthier-24).
+    debug!(
+        tick_overruns = loop_ctrl.tick_overruns(),
+        telemetry_failures = loop_ctrl.telemetry_failures(),
+        "loop budget counters"
+    );
     let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();
