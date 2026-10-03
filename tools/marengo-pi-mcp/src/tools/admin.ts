@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand, sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
 import { wrapRemote } from "../env.js";
+import { canOwnedSkipLine, canOwnerBranch } from "../can-owner.js";
 import { runSyncMain } from "./deploy.js";
 import { waitForDeployReady } from "./deploy-wait.js";
 import { cleanTreeSchema, runCleanTree } from "./clean-tree.js";
@@ -23,10 +24,18 @@ export function registerAdminTools(
 ) {
   return {
     pi_can_up: {
-      description: "Bring up CAN interfaces can0 and can1",
+      description:
+        "Bring up CAN interfaces can0 and can1 (can-up.sh bounces each link). " +
+        "Refused while marengo-pi/motor-repl owns CAN; current link state is shown instead.",
       inputSchema: z.object({}),
       handler: async () => {
-        const body = wrapRemote(cfg, sudoCanUpCommand(cfg));
+        const body = wrapRemote(
+          cfg,
+          canOwnerBranch(
+            sudoCanUpCommand(cfg),
+            [canOwnedSkipLine("can-up.sh link bounce"), "ip -br link show type can || true"].join("\n"),
+          ),
+        );
         return runRemote(body, 60_000);
       },
     },

@@ -1,7 +1,8 @@
 import path from "node:path";
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { homingPreflightShell } from "../homing-preflight.js";
+import { homingReportShell } from "../homing-preflight.js";
+import { renderRobotStateHoming } from "../robot-state.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { sshTarget } from "../config.js";
 import { execLocal, formatRemoteResult } from "../ssh.js";
@@ -93,13 +94,9 @@ export function benchUrdfInstallBody(
       '    echo "--- $DST/$asset"',
       '    grep -A3 "<inertial>" "$DST/$asset" | sed -n "1,4p"',
       "  done",
-      "elif sudo -n /opt/marengo/scripts/can-up.sh can0 can1 2>/dev/null; then",
-      '  echo "warn: $DST not writable; run pi_install_staging to refresh /opt from ~/marengo"',
-      "  exit 1",
       "else",
-      '  echo "warn: cannot write $DST and passwordless sudo is unavailable"',
-      '  echo "run once on the Pi:"',
-      '  echo "  cd $HOME/marengo && sudo ./scripts/install-pi.sh"',
+      '  echo "warn: cannot write $DST; run pi_install_staging to refresh /opt from ~/marengo"',
+      '  echo "  (without passwordless sudo, once on the Pi: cd $HOME/marengo && sudo ./scripts/install-pi.sh)"',
       "  exit 1",
       "fi",
     ].join("\n"),
@@ -175,24 +172,17 @@ export async function runSyncBenchConfig(
         `  ${directInstallRsyncLine}`,
         '  echo "installed to $DST (direct write)"',
         '  grep -A3 impedance "$DST/control.yaml"',
-        'elif sudo -n /opt/marengo/scripts/can-up.sh can0 can1 2>/dev/null; then',
-        '  echo "warn: $DST not writable; run pi_install_staging to refresh /opt from ~/marengo"',
         "else",
-        '  echo "warn: cannot write $DST and passwordless sudo is unavailable"',
-        '  echo "run once on the Pi:"',
-        '  echo "  cd $HOME/marengo && sudo ./scripts/install-pi.sh"',
+        '  echo "warn: cannot write $DST; run pi_install_staging to refresh /opt from ~/marengo"',
+        '  echo "  (without passwordless sudo, once on the Pi: cd $HOME/marengo && sudo ./scripts/install-pi.sh)"',
         "fi",
       ].join("\n"),
     );
     const install = await runRemote(installBody, 30_000);
     steps.push(`[install → ${remoteOpt}]\n${install}`);
 
-    const homingBody = wrapRemoteWithConfig(
-      cfg,
-      homingPreflightShell(false),
-      remoteOpt,
-    );
-    const homing = await runRemote(homingBody, 30_000);
+    const homingBody = wrapRemoteWithConfig(cfg, homingReportShell(), remoteOpt);
+    const homing = renderRobotStateHoming(await runRemote(homingBody, 30_000));
     steps.push(`[homing preflight → ${remoteOpt}]\n${homing}`);
   } else {
     steps.push(

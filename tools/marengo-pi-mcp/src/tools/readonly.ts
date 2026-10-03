@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { homingHealthShell } from "../homing-preflight.js";
+import { unlessCanOwned } from "../can-owner.js";
+import { homingReportShell } from "../homing-preflight.js";
+import { renderRobotStateHoming } from "../robot-state.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
 export function registerReadonlyTools(
@@ -10,7 +12,8 @@ export function registerReadonlyTools(
   return {
     pi_health: {
       description:
-        "Pi health: CAN links, marengo-pi binary, deploy rev, homing/calibration, commissioned motors.yaml map",
+        "Pi health: CAN links, marengo-pi binary, deploy rev, homing/calibration, commissioned motors.yaml map. " +
+        "Never opens CAN: while marengo-pi owns the bus, homing comes from its RobotState via the gateway.",
       inputSchema: z.object({}),
       handler: async () => {
         const body = wrapRemote(
@@ -30,7 +33,8 @@ export function registerReadonlyTools(
             "echo",
             "echo '=== commissioned motors (from motors.yaml) ==='",
             `grep -E 'can_interface|device_id|joint:' ${shellQuote(`${cfg.configDir}/motors.yaml`)} 2>/dev/null || echo '(motors.yaml not found)'`,
-            homingHealthShell(),
+            "echo",
+            homingReportShell(),
             "echo",
             "echo '=== marengo-pi/motor-repl running? ==='",
             "pgrep -af 'marengo-pi|motor-repl' || echo '(none)'",
@@ -47,7 +51,7 @@ export function registerReadonlyTools(
             "i2cdetect -y 1 2>&1 | grep -E '4b|--' || i2cdetect -y 1 2>&1 || echo '(i2cdetect unavailable)'",
           ].join("\n"),
         );
-        return runRemote(body, 30_000);
+        return renderRobotStateHoming(await runRemote(body, 30_000));
       },
     },
 
@@ -70,16 +74,18 @@ export function registerReadonlyTools(
     },
 
     pi_motor_repl_status: {
-      description: "motor-repl status (read-only, no sustained enable)",
+      description:
+        "motor-repl status (read-only, no sustained enable). Skipped while marengo-pi/motor-repl owns CAN.",
       inputSchema: z.object({}),
       handler: async () => {
-        const body = wrapRemote(cfg, "bin/motor-repl status");
+        const body = wrapRemote(cfg, unlessCanOwned("bin/motor-repl status"));
         return runRemote(body, 30_000);
       },
     },
 
     pi_gravity_preview: {
-      description: "motor-repl gravity-preview for joint angles (read-only tau_g)",
+      description:
+        "motor-repl gravity-preview for joint angles (read-only tau_g). Skipped while marengo-pi/motor-repl owns CAN.",
       inputSchema: z.object({
         angles: z
           .array(z.number())
@@ -89,7 +95,10 @@ export function registerReadonlyTools(
       handler: async (args: { angles?: number[] }) => {
         const angles = args.angles ?? [0, 0];
         const angleArgs = angles.map((a) => String(a)).join(" ");
-        const body = wrapRemote(cfg, `bin/motor-repl gravity-preview ${angleArgs}`);
+        const body = wrapRemote(
+          cfg,
+          unlessCanOwned(`bin/motor-repl gravity-preview ${angleArgs}`),
+        );
         return runRemote(body, 30_000);
       },
     },

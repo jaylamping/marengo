@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Read-only homing preflight: calibration record + motor-repl homing-status.
 # Does not set-zero (operator must place arm at reference first).
+# Skips homing-status while marengo-pi or motor-repl holds SocketCAN: motor-repl
+# transmits type-24 active-reporting frames at startup, and a second writer
+# beside marengo-pi can latch its persistent Transport fault.
 #
 # Usage:
 #   MARENGO_ROOT=/opt/marengo MARENGO_CONFIG_DIR=... ./scripts/homing-preflight.sh
@@ -48,6 +51,16 @@ cd "$ROOT"
 
 if [[ ! -x "${ROOT}/bin/motor-repl" ]]; then
   echo "homing-preflight: motor-repl not installed — skip" >&2
+  exit 0
+fi
+
+CAN_OWNER="$(pgrep -l -x 'marengo-pi|motor-repl' | head -n 1 || true)"
+if [[ -n "$CAN_OWNER" ]]; then
+  echo "homing-status skipped: ${CAN_OWNER#* } (pid ${CAN_OWNER%% *}) owns CAN; motor-repl would open SocketCAN beside it"
+  echo "  live homing: Consul, or MCP pi_homing_status (marengo-pi RobotState via gateway)"
+  if [[ "$STRICT" == true ]]; then
+    exit 1
+  fi
   exit 0
 fi
 

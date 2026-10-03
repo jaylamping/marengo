@@ -56,4 +56,41 @@ describe("readonly CAN tools", () => {
     assert.match(script, /homing-preflight\.sh/);
     assert.match(script, /\/opt\/marengo\/config/);
   });
+
+  for (const [tool, command] of [
+    ["pi_health", "./scripts/homing-preflight.sh"],
+    ["pi_motor_repl_status", "bin/motor-repl status"],
+    ["pi_gravity_preview", "bin/motor-repl gravity-preview 0 0"],
+  ] as const) {
+    it(`${tool} runs ${command} only when no process owns CAN`, async () => {
+      let script = "";
+      const tools = registerReadonlyTools(cfg, async (body) => {
+        script = body;
+        return body;
+      });
+
+      await tools[tool].handler({});
+
+      assert.match(script, /pgrep -l -x 'marengo-pi\|motor-repl'/);
+      const runs = (branch: string) => branch.split("\n").some((line) => line.trim() === command);
+      const ownedStart = script.indexOf('if [[ -n "$CAN_OWNER" ]]; then');
+      const elseAt = script.indexOf("\nelse\n", ownedStart);
+      assert.ok(ownedStart >= 0 && elseAt > ownedStart, "owner branch present");
+      assert.ok(!runs(script.slice(ownedStart, elseAt)), `${command} absent while CAN owned`);
+      assert.ok(runs(script.slice(elseAt)), `${command} runs when CAN free`);
+    });
+  }
+
+  it("pi_can_status and pi_candump_once never start motor-repl", async () => {
+    const scripts: string[] = [];
+    const tools = registerReadonlyTools(cfg, async (body) => {
+      scripts.push(body);
+      return body;
+    });
+
+    await tools.pi_can_status.handler();
+    await tools.pi_candump_once.handler();
+
+    for (const script of scripts) assert.doesNotMatch(script, /motor-repl|marengo-pi /);
+  });
 });

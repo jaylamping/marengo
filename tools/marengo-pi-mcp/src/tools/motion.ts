@@ -4,6 +4,8 @@ import { BENCH_PROFILES } from "../bench-profiles.js";
 import { appendAudit } from "../audit.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { validateMotionConfirm } from "../safety.js";
+import { homingStatusShell } from "../homing-preflight.js";
+import { renderRobotStateHoming } from "../robot-state.js";
 
 const benchProfileZod = z.enum(BENCH_PROFILES);
 
@@ -527,7 +529,8 @@ export function registerMotionTools(
 
     pi_homing_status: {
       description:
-        "Read-only homing state per joint (motor-repl homing-status). No motion.",
+        "Read-only homing state per joint (motor-repl homing-status). No motion. " +
+        "While marengo-pi owns CAN, reports marengo-pi's RobotState homing via the gateway instead of opening CAN.",
       inputSchema: z.object({
         config_dir: z.string().optional(),
       }),
@@ -535,12 +538,8 @@ export function registerMotionTools(
         const configDir =
           benchConfigDirForJoint(cfg, undefined, args.config_dir) ??
           BENCH_CONFIG_MASTER;
-        const body = wrapRemoteWithConfig(
-          cfg,
-          "bin/motor-repl homing-status",
-          configDir,
-        );
-        return runRemote(body, 20_000);
+        const body = wrapRemoteWithConfig(cfg, homingStatusShell(), configDir);
+        return renderRobotStateHoming(await runRemote(body, 20_000));
       },
     },
 

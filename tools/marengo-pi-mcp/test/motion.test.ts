@@ -170,6 +170,28 @@ describe("marengo-pi script tool", () => {
     );
   });
 
+  it("reads homing from the gateway instead of motor-repl while CAN is owned", async () => {
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        script = body;
+        return "robot_state_b64=";
+      },
+      () => {},
+    );
+
+    const out = await tools.pi_homing_status.handler({});
+
+    const ownedStart = script.indexOf('if [[ -n "$CAN_OWNER" ]]; then');
+    const elseAt = script.indexOf("\nelse\n", ownedStart);
+    assert.ok(ownedStart >= 0 && elseAt > ownedStart);
+    assert.doesNotMatch(script.slice(ownedStart, elseAt), /^bin\/motor-repl/m);
+    assert.match(script.slice(ownedStart, elseAt), /snapshot\/robot\/state/);
+    assert.match(script.slice(elseAt), /^bin\/motor-repl homing-status$/m);
+    assert.match(out, /RobotState: unavailable/);
+  });
+
   it("treats sleep N script lines as shell dwell between marengo-pi commands", async () => {
     let script = "";
     const tools = registerMotionTools(

@@ -1,8 +1,18 @@
 /** Shared homing preflight helpers for MCP tools (mirrors scripts/homing-preflight.sh). */
 
-/** motor-repl homing-status for the active MARENGO_CONFIG_DIR. */
-export function homingStatusCommand(): string {
-  return "bin/motor-repl homing-status";
+import { canOwnedSkipLine, canOwnerBranch } from "./can-owner.js";
+import { robotStateSnapshotShell } from "./robot-state.js";
+
+/**
+ * Remote shell: per-joint homing readback that never opens CAN beside a running
+ * owner — then it prints marengo-pi's own homing from the gateway snapshot
+ * (render the output with renderRobotStateHoming).
+ */
+export function homingStatusShell(): string {
+  return canOwnerBranch(
+    "bin/motor-repl homing-status",
+    [canOwnedSkipLine("motor-repl homing-status"), robotStateSnapshotShell()].join("\n"),
+  );
 }
 
 /** Shell block: calibration record path + homing-status (warn-only). */
@@ -22,10 +32,13 @@ export function homingStatusOutputOk(output: string): boolean {
   return true;
 }
 
-/** Remote shell lines for pi_health homing section. */
-export function homingHealthShell(): string {
-  return [
-    "echo",
+/**
+ * Warn-only homing report (pi_health, pi_sync_bench_config). Same CAN-owner
+ * fallback as {@link homingStatusShell}; render with renderRobotStateHoming.
+ */
+export function homingReportShell(): string {
+  return canOwnerBranch(
     homingPreflightShell(false),
-  ].join("\n");
+    [canOwnedSkipLine("homing preflight"), robotStateSnapshotShell()].join("\n"),
+  );
 }

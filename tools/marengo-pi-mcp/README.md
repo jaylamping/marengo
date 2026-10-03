@@ -100,6 +100,14 @@ just mcp-ensure-enabled --write
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
 
+### One CAN owner
+
+Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting frames while starting up. That includes `status`, `homing-status` and `gravity-preview`. If `marengo-pi` already owns the bus, that extra traffic can latch a persistent Transport fault in `marengo-pi`. So while a `marengo-pi` or `motor-repl` process runs (`pgrep -x`):
+
+- `pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` print `… skipped: <name> (pid N) owns CAN` and leave the bus alone.
+- `pi_health`, `pi_homing_status` and `pi_sync_bench_config` show per-joint homing from marengo-pi's own `RobotState`, read from the gateway's `/snapshot/robot/state`. They don't run `motor-repl homing-status`.
+- `scripts/homing-preflight.sh`, which `install-pi.sh` runs, skips `homing-status` (strict mode exits 1).
+
 ### Encoder zero (no Motor Studio)
 
 1. Position shaft at mechanical zero (arm down).
