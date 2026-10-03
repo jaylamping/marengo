@@ -75,6 +75,14 @@ pub fn limb_ready(members: &[JointFacetInput]) -> bool {
 
 /// Robot Ready over master actuated joints: every built joint Ready+healthy.
 /// Unbuilt Offline inventory does not block. Scope must not be used here.
+///
+/// Subset semantics (L-marengo-homing-05): the *loaded* motors define the Ready
+/// universe. Davout applies `MARENGO_JOINT_SUBSET` to robot/motors/control at
+/// construction, so subset-excluded joints arrive here as unbuilt
+/// (`motor_mapped = false`, no feedback) and intentionally do not block Robot
+/// Ready. They are inventory outside the loaded robot — not silently healthy
+/// joints. Callers must build facets from the same subset-filtered motors that
+/// [`select_enable_targets`] draws its targets from.
 pub fn robot_ready(master_joints: &[JointFacetInput]) -> bool {
     let built: Vec<&JointFacetInput> = master_joints.iter().filter(|j| j.is_built()).collect();
     if built.is_empty() {
@@ -423,5 +431,28 @@ mod tests {
         let scope = vec!["a".to_string()];
         let err = select_enable_targets(&loaded, &loaded, Some(&scope)).expect_err("empty");
         assert!(err.contains("no Verified"));
+    }
+
+    #[test]
+    fn subset_excluded_joints_neither_block_ready_nor_become_targets() {
+        // L-marengo-homing-05: MARENGO_JOINT_SUBSET narrows the loaded robot, so
+        // excluded joints arrive as unbuilt inventory. Unscoped enable must pass
+        // Robot Ready on the loaded joints and must not target the excluded ones.
+        let master = vec![
+            facet("a", JointHomingState::Verified, true, true, false, false),
+            facet(
+                "excluded",
+                JointHomingState::Unhomed,
+                false,
+                false,
+                false,
+                false,
+            ),
+        ];
+        assert!(robot_ready(&master));
+        let loaded: Vec<JointFacetInput> =
+            master.iter().filter(|j| j.motor_mapped).cloned().collect();
+        let targets = select_enable_targets(&master, &loaded, None).expect("targets");
+        assert_eq!(targets, vec!["a".to_string()]);
     }
 }

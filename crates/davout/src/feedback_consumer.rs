@@ -826,6 +826,12 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
+    /// Fail-closed coupling (L-marengo-homing-01): marking OutOfLimits here does
+    /// NOT latch a fault by itself. Every production caller routes the returned
+    /// `Limit` error through `record_runtime_error`, which latches a permanent
+    /// Feedback-class fault in the same call — that latch is the recovery story
+    /// (restart; faults never clear in-process). Do not call this outside a path
+    /// that records the error, or the flag would wedge without the fault gate.
     pub(super) fn check_feedback_position(
         &mut self,
         motor: &MotorEntry,

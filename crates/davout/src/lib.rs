@@ -3383,6 +3383,56 @@ mod tests {
         let (_, _, ool) = sup.joint_commissioning_wire(&joint);
         assert!(ool);
     }
+    #[test]
+    fn measured_position_fault_latches_and_needs_restart_for_recovery() {
+        // L-marengo-homing-01 recovery story: through the production consume
+        // path, an OutOfLimits facet is always accompanied by a permanent
+        // Feedback-class fault latch recorded in the same call, so nothing the
+        // flag gates can pass without the fault gating it too. Recovery is a
+        // fresh process: a rebuilt supervisor starts with no flags and no
+        // latched fault.
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        bench_ready_active(&mut sup);
+        let joint = "right_elbow_pitch".to_string();
+        let lim = *sup.joint_limit_policy(&joint).expect("policy");
+        let outside = (lim.hard_upper() + lim.margin.measured_fault_slack_rad + 0.5) as f32;
+        // Same framing as receive_pose, but the out-of-limits drain refuses by
+        // design, so the drain result is observed, not unwrapped.
+        let motor = marengo_config::motor_for_joint(&sup.motors, &joint)
+            .expect("motor")
+            .clone();
+        let scale = f32::from(motor.direction) * motor.gear_ratio as f32;
+        sup.bus
+            .queue_received(ReceivedCanFrame::full_data(
+                Some(motor.can_interface),
+                status_frame_motor_space(
+                    motor.device_id,
+                    motor.motor_type,
+                    outside * scale,
+                    0.0,
+                    0.0,
+                    25.0,
+                ),
+            ))
+            .expect("finite raw fixture");
+        let _ = sup.drain_feedback();
+        assert!(sup.joint_out_of_limits(&joint));
+        assert!(sup.has_latched_fault());
+        assert!(sup.check_fault_authority().is_err());
+        // Restart equivalence: fresh construction clears both the facet and the
+        // latch, since neither is persisted.
+        let fresh = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        assert!(!fresh.joint_out_of_limits(&joint));
+        assert!(!fresh.has_latched_fault());
+    }
 
     #[test]
     fn scoped_watchdog_ignores_cached_motor_fault_on_inactive_peer() {

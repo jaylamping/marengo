@@ -83,10 +83,24 @@ impl HomingRegistry {
             .unwrap_or(JointHomingState::Unhomed)
     }
 
+    /// Whether measured feedback for `joint` breached its hard limits (+ slack).
+    ///
+    /// Recovery story (L-marengo-homing-01): this flag is a process-local health
+    /// facet with no in-process clear path by design. Every production set goes
+    /// through Davout's feedback consumer, which returns a `Limit` error that
+    /// [`record_runtime_error`](../../../davout/src/lib.rs) latches as a permanent
+    /// Feedback-class fault in the same call. Faults never clear in-process
+    /// (ADR 0020), and reference acquisition requires fault-clear, so no fresh
+    /// grant can exist while this flag is set. Recovery is a process restart,
+    /// which constructs a fresh registry with empty flags.
     pub fn is_out_of_limits(&self, joint: &str) -> bool {
         self.out_of_limits.get(joint).copied().unwrap_or(false)
     }
 
+    /// Latch the OutOfLimits facet for a configured joint. Unknown joints are
+    /// ignored. See [`Self::is_out_of_limits`] for the recovery story: there is
+    /// deliberately no standalone clear — the accompanying fault latch (recorded
+    /// by Davout in the same call) gates everything this flag gates.
     pub fn mark_out_of_limits(&mut self, joint: &str) {
         if self.configured_joints.iter().any(|j| j == joint) {
             self.out_of_limits.insert(joint.to_string(), true);
