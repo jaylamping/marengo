@@ -8,8 +8,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use armee_proto::{ImuAccuracy as ProtoImuAccuracy, ImuSample};
 use chappe::Bus;
-use marengo_imu::{Bno085, LinuxI2cBus, DEFAULT_I2C_ADDRESS};
-use tracing::{debug, info, warn};
+use marengo_imu::{parse_i2c_address, Bno085, LinuxI2cBus, DEFAULT_I2C_ADDRESS};
+use tracing::{debug, error, info, warn};
 
 pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
 const DEFAULT_FRAME_ID: &str = "torso_imu";
@@ -42,15 +42,25 @@ fn load_config() -> Option<ImuConfig> {
     if bus_path.trim().is_empty() {
         return None;
     }
-    let address = env::var("MARENGO_IMU_ADDRESS")
-        .ok()
-        .and_then(|raw| u16::from_str_radix(raw.trim_start_matches("0x"), 16).ok())
-        .unwrap_or(DEFAULT_I2C_ADDRESS);
+    // A malformed address disables the IMU loudly; it never falls back to the
+    // default address (a wrong sensor would publish as the torso IMU).
+    let address = match env::var("MARENGO_IMU_ADDRESS") {
+        Ok(raw) => match parse_i2c_address(&raw) {
+            Some(address) => address,
+            None => {
+                error!(value = %raw, "MARENGO_IMU_ADDRESS is not a 7-bit hex I2C address; IMU disabled");
+                return None;
+            }
+        },
+        Err(_) => DEFAULT_I2C_ADDRESS,
+    };
+    // Clamp the report rate: above 1 kHz the interval rounds to 0 and the
+    // poll loop spins. The BNO085 rotation vector tops out far below this.
     let report_hz = env::var("MARENGO_IMU_REPORT_HZ")
         .ok()
         .and_then(|raw| raw.parse::<u32>().ok())
         .unwrap_or(50)
-        .max(1);
+        .clamp(1, 1000);
     let report_interval_us = 1_000_000 / report_hz;
     let frame_id =
         env::var("MARENGO_IMU_FRAME_ID").unwrap_or_else(|_| DEFAULT_FRAME_ID.to_string());
@@ -108,15 +118,22 @@ fn run_imu_session(
 ) -> Result<(), String> {
     let bus = LinuxI2cBus::open(&cfg.bus_path, cfg.address).map_err(|e| e.to_string())?;
     let mut imu = Bno085::new(bus);
-    imu.initialize().map_err(|e| e.to_string())?;
+    // Cancellable init: an absent sensor must not wedge shutdown for ~22 s.
+    imu.initialize_while(|| !shutdown.load(Ordering::SeqCst))
+        .map_err(|e| e.to_string())?;
+    if shutdown.load(Ordering::SeqCst) {
+        return Ok(());
+    }
     imu.enable_rotation_vector(cfg.report_interval_us)
         .map_err(|e| e.to_string())?;
 
     let poll_period = Duration::from_micros(u64::from(cfg.report_interval_us));
+    let mut consecutive_errors = 0u32;
     while !shutdown.load(Ordering::SeqCst) {
         let tick = Instant::now();
         match imu.poll() {
             Ok(Some(sample)) => {
+                consecutive_errors = 0;
                 let q = sample.quaternion;
                 let msg = ImuSample {
                     timestamp_ms: timestamp_ms(),
@@ -134,6 +151,9 @@ fn run_imu_session(
                     gyro_z_rad_s: 0.0,
                     has_accel: false,
                     has_gyro: false,
+                    // Only fresh samples are published; a repeated seq (or
+                    // silence) means the sensor stopped, never a held pose.
+                    sample_seq: imu.sample_seq(),
                 };
                 if let Err(err) =
                     chappe.publish(TOPIC_IMU_TORSO, "marengo-pi", "marengo.v1.ImuSample", &msg)
@@ -143,8 +163,18 @@ fn run_imu_session(
                     debug!(real = q.real, "published ImuSample");
                 }
             }
-            Ok(None) => {}
-            Err(err) => warn!(error = %err, "IMU poll failed"),
+            Ok(None) => {
+                consecutive_errors = 0;
+            }
+            Err(err) => {
+                consecutive_errors += 1;
+                warn!(error = %err, consecutive_errors, "IMU poll failed");
+                if consecutive_errors >= 10 {
+                    return Err(format!(
+                        "IMU poll failed {consecutive_errors} times in a row: {err}"
+                    ));
+                }
+            }
         }
 
         let elapsed = tick.elapsed();

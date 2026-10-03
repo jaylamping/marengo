@@ -3,23 +3,16 @@ use std::path::Path;
 use i2cdev::core::I2CDevice;
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 
-use crate::bus::{BusError, I2cBus};
+use crate::bus::{errno_is_no_packet, BusError, I2cBus};
 
-/// Linux errno values (`errno.h`). `i2cdev` surfaces raw errnos, so match
-/// them numerically instead of parsing locale-dependent message text.
-const EREMOTEIO: i32 = 121;
-const ENODEV: i32 = 19;
-const EAGAIN: i32 = 11;
-
-/// EREMOTEIO (NACK / no response) and EAGAIN mean "no packet available".
-/// ENODEV ("no such device") means the sensor is gone: that is an error,
-/// never idle, so the session restarts instead of reporting stale data.
+/// `i2cdev` surfaces raw errnos: classify numerically, never by
+/// locale-dependent message text.
 fn err_is_no_packet(err: &LinuxI2CError) -> bool {
     let code = match err {
         LinuxI2CError::Errno(code) => Some(*code),
         LinuxI2CError::Io(io) => io.raw_os_error(),
     };
-    matches!(code, Some(c) if c == EREMOTEIO || c == EAGAIN)
+    code.is_some_and(errno_is_no_packet)
 }
 
 /// Linux `/dev/i2c-*` backend using `i2cdev`.

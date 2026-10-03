@@ -4,7 +4,7 @@ use std::env;
 use std::process;
 use std::time::Duration;
 
-use marengo_imu::{DEFAULT_I2C_ADDRESS, DEFAULT_REPORT_INTERVAL_US};
+use marengo_imu::{parse_i2c_address, DEFAULT_I2C_ADDRESS, DEFAULT_REPORT_INTERVAL_US};
 use marengo_support::init_tracing;
 
 const DEFAULT_BUS: &str = "/dev/i2c-1";
@@ -46,9 +46,10 @@ fn parse_args() -> Result<Args, String> {
             "--address" => {
                 let raw = iter
                     .next()
-                    .ok_or_else(|| "--address requires a hex value".to_string())?;
-                address = u16::from_str_radix(raw.trim_start_matches("0x"), 16)
-                    .map_err(|_| format!("invalid --address: {raw}"))?;
+                    .ok_or_else(|| "--address requires a 7-bit hex value".to_string())?;
+                address = parse_i2c_address(&raw).ok_or_else(|| {
+                    format!("invalid --address (7-bit hex, e.g. 4b or 0x4b): {raw}")
+                })?;
             }
             "--samples" => {
                 let raw = iter
@@ -84,6 +85,9 @@ fn parse_args() -> Result<Args, String> {
 
     if samples == 0 {
         return Err("--samples must be > 0".to_string());
+    }
+    if report_interval_us == 0 {
+        return Err("--report-interval-us must be > 0".to_string());
     }
 
     Ok(Args {
@@ -130,23 +134,44 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         imu.initialize()?;
         imu.enable_rotation_vector(args.report_interval_us)?;
 
+        // `poll` yields only samples that arrived since the previous poll, so
+        // each count is a distinct sensor report (CS17). Transient bus errors
+        // are tolerated like the runtime publisher; a run of them aborts.
+        const MAX_CONSECUTIVE_ERRORS: u32 = 10;
+        // Poll at twice the report rate so consecutive reports are not
+        // coalesced into one count; floor 1 ms keeps the loop from spinning.
+        let poll_period =
+            Duration::from_micros((u64::from(args.report_interval_us) / 2).max(1_000));
         let mut collected = 0usize;
+        let mut consecutive_errors = 0u32;
         let deadline = std::time::Instant::now() + args.timeout;
         while collected < args.samples && std::time::Instant::now() < deadline {
-            if let Some(sample) = imu.poll()? {
-                let q = sample.quaternion;
-                println!(
-                    "sample={} i={:.6} j={:.6} k={:.6} real={:.6} accuracy={:?}",
-                    collected + 1,
-                    q.i,
-                    q.j,
-                    q.k,
-                    q.real,
-                    sample.accuracy
-                );
-                collected += 1;
+            match imu.poll() {
+                Ok(Some(sample)) => {
+                    consecutive_errors = 0;
+                    let q = sample.quaternion;
+                    println!(
+                        "sample={} seq={} i={:.6} j={:.6} k={:.6} real={:.6} accuracy={:?}",
+                        collected + 1,
+                        imu.sample_seq(),
+                        q.i,
+                        q.j,
+                        q.k,
+                        q.real,
+                        sample.accuracy
+                    );
+                    collected += 1;
+                }
+                Ok(None) => consecutive_errors = 0,
+                Err(err) => {
+                    consecutive_errors += 1;
+                    eprintln!("warning: poll failed ({consecutive_errors} in a row): {err}");
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS {
+                        return Err(err.into());
+                    }
+                }
             }
-            std::thread::sleep(Duration::from_millis(10));
+            std::thread::sleep(poll_period);
         }
 
         if collected == 0 {

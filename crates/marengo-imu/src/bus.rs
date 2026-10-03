@@ -21,6 +21,34 @@ pub trait I2cBus {
     fn read_packet(&mut self, total_len: usize, out: &mut [u8]) -> Result<(), BusError>;
 }
 
+/// Linux errno values (`errno.h`) seen on BNO085 I2C reads.
+const EAGAIN: i32 = 11;
+#[cfg(test)]
+const ENODEV: i32 = 19;
+const EREMOTEIO: i32 = 121;
+
+/// EREMOTEIO (NACK while the hub has nothing queued) and EAGAIN mean "no
+/// packet available". Everything else, notably ENODEV ("no such device",
+/// sensor unplugged), is a bus error: the session restarts instead of the
+/// sensor looking idle-but-present.
+#[cfg_attr(not(all(target_os = "linux", feature = "linux-i2c")), allow(dead_code))]
+pub(crate) fn errno_is_no_packet(code: i32) -> bool {
+    code == EREMOTEIO || code == EAGAIN
+}
+
+#[cfg(test)]
+mod errno_tests {
+    use super::*;
+
+    #[test]
+    fn unplugged_sensor_is_an_error_not_idle() {
+        assert!(!errno_is_no_packet(ENODEV));
+        assert!(errno_is_no_packet(EREMOTEIO));
+        assert!(errno_is_no_packet(EAGAIN));
+        assert!(!errno_is_no_packet(5)); // EIO
+    }
+}
+
 #[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TransactionKind {

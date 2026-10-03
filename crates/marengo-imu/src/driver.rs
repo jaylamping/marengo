@@ -147,10 +147,6 @@ impl<B: I2cBus> Bno085<B> {
         Ok(())
     }
 
-    fn check_product_id(&mut self) -> Result<(), ImuError> {
-        self.check_product_id_while(|| true)
-    }
-
     fn check_product_id_while(&mut self, keep_going: impl Fn() -> bool) -> Result<(), ImuError> {
         if self.id_verified {
             return Ok(());
