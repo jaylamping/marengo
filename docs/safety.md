@@ -342,6 +342,23 @@ disables. The fault does not clear on its own.
   sent after that drain. A revocation logs `physical reference grant revoked`
   with the joint, cause and counted silence; marengo-pi logs the preflight
   duration (`gravity preflight sweep`, debug).
+- **Owed On during Enable admission (re-soak at ad1eb887, cycle 14):** 1 of
+  20 cycles failed `enable failed: joint right_shoulder_pitch: no private
+  current-reference permission`. Later references' baselines had turned
+  pitch's stream Off (type-24 Off at +413 ms after its SetZero), so its On was
+  held from 450 ms. After its last stop reply (+699.5 ms) the host sent pitch
+  nothing until the identity request at +852 ms. The quiet ended at +800 ms
+  inside the gravity preflight (66 ms). Identity admission then waited 52 ms
+  for roll, which was in its own blackout. No reporting sync ran in that time,
+  so the On stayed unwritten. Silence counted from the quiet's end reached
+  100.6 ms and pitch's grant was revoked. The excuse rule is unchanged: a
+  held On is excused only until the quiet's end. Instead,
+  `resolve_enable_targets` and every identity-admission poll now run the
+  reporting sync, so the owed On goes out during that synchronous work. A
+  drive that stays silent after its On still loses its grant. Residual risk:
+  synchronous work of 100 ms or more that starts before a held quiet ends
+  (the preflight measured 66-96 ms) still revokes, because the first sync
+  comes too late.
 - **Paced reference bursts:** the all-address stop (speed zero, neutral MIT,
   Disable per address) answers 15 frames; written back to back at the end of a
   reference it overran the mcp251x once in three runs (17:09:07, `rx_over_errors`

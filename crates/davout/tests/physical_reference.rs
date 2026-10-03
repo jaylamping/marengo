@@ -1986,6 +1986,111 @@ fn a_drive_silent_through_a_host_stall_still_loses_its_grant() {
     }
 }
 
+// 2026-10-03 re-soak at ad1eb887, cycle 14: `enable failed: joint
+// right_shoulder_pitch: no private current-reference permission`. Later
+// references' baselines had turned pitch's stream Off, and its On was held in
+// the 450-800 ms window after pitch's SetZero. The quiet ended (22:51:29.704)
+// while marengo-pi ran the gravity preflight, and identity admission then
+// waited 52 ms for roll, which was in its own blackout. No reporting sync ran
+// in that time, so the On the host owed stayed unwritten. Silence counted
+// from the quiet's end reached 100.6 ms inside admission, and pitch lost its
+// grant. The host never asked pitch to speak.
+
+impl Bench {
+    fn tick_until(&mut self, deadline: Instant) {
+        while Instant::now() < deadline {
+            self.runtime_tick();
+            std::thread::sleep(PUMP_PERIOD);
+        }
+    }
+
+    /// The cycle-14 geometry. Pitch's stream is Off with its On held at its
+    /// quiet end. Then the host does synchronous work, reading nothing while
+    /// the drives keep reporting, from just before that quiet end until roll
+    /// enters its blackout. Roll's blackout is placed (within the measured
+    /// range) so admission waits in it past pitch's quiet end plus
+    /// `comm_watchdog_ms`.
+    fn hold_pitch_stream_off_across_its_quiet(&mut self) {
+        self.home_in_sequence(&[PITCH]);
+        let pitch_zeroed = set_zero_written_at(self, PITCH);
+        let quiet_end = pitch_zeroed + POST_SET_ZERO_QUIET;
+        let window = millis(self.supervisor.control.control.comm_watchdog_ms);
+        self.tick_until(pitch_zeroed + millis(150));
+        self.home_in_sequence(&[ROLL]);
+        // This reference's baseline turns pitch's stream Off before pitch's
+        // 450 ms hold starts, and its commit's On falls inside the hold.
+        self.tick_until(pitch_zeroed + millis(400));
+        self.home_in_sequence(&["right_upper_arm_yaw"]);
+        assert!(
+            !self.firmware.borrow().drive(PITCH).reporting,
+            "precondition: pitch's stream is Off with its On held; pitch type-24 writes after its SetZero: {:?}",
+            reporting_writes_since_set_zero(self, PITCH),
+        );
+        let roll_blackout = {
+            let mut firmware = self.firmware.borrow_mut();
+            let roll = firmware.drive_mut(ROLL);
+            let roll_zeroed = roll.set_zero_at.expect("roll zeroed");
+            let length = millis(65);
+            let end = quiet_end + window + millis(20);
+            let start = end
+                .saturating_duration_since(roll_zeroed)
+                .saturating_sub(length)
+                .clamp(millis(500), millis(625));
+            roll.set_zero_blackout = (start, length);
+            roll_zeroed + start
+        };
+        assert!(
+            roll_blackout > quiet_end && roll_blackout + millis(65) > quiet_end + window,
+            "precondition: admission waits on roll past pitch's quiet end + {window:?}"
+        );
+        self.tick_until(quiet_end - millis(5));
+        let report_period = self.firmware.borrow().drive(ROLL).report_period;
+        while Instant::now() < roll_blackout + millis(2) {
+            self.firmware.borrow_mut().emit_reports();
+            std::thread::sleep(report_period);
+        }
+    }
+}
+
+#[test]
+fn a_reporting_on_due_during_enable_admission_is_written_and_the_grant_kept() {
+    let mut bench = Bench::physical("physical-held-on-admission");
+    bench.hold_pitch_stream_off_across_its_quiet();
+    bench
+        .supervisor
+        .enable_targets(&[PITCH.to_owned(), ROLL.to_owned()])
+        .expect("both targets keep their grants through admission");
+    assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+    assert_eq!(bench.state(ROLL), JointHomingState::Verified);
+    assert!(!bench.supervisor.has_latched_fault());
+    bench.supervisor.disable_all().expect("stop");
+}
+
+#[test]
+fn a_drive_silent_after_its_owed_on_still_loses_its_grant_in_admission() {
+    let mut bench = Bench::physical("physical-held-on-admission-silent");
+    bench.hold_pitch_stream_off_across_its_quiet();
+    let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
+    bench.firmware.borrow_mut().drive_mut(PITCH).silent_until = Some(Instant::now() + window * 4);
+    let error = bench
+        .supervisor
+        .enable_targets(&[PITCH.to_owned(), ROLL.to_owned()])
+        .expect_err("a silent drive is not enabled");
+    assert!(
+        matches!(
+            error,
+            DavoutError::Homing { .. } | DavoutError::HomingVerify { .. }
+        ),
+        "{error}"
+    );
+    assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
+    // Roll is not asserted. The emulator emits no reports inside a
+    // synchronous call, and pitch's missing identity runs admission to its
+    // deadline.
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    bench.assert_all_drives_stopped();
+}
+
 #[test]
 fn a_grant_survives_the_gap_between_the_enable_echo_and_the_first_run_reply() {
     // Enable-to-Run reply latency is 1.4-5.2 ms (behaviour doc). The write tick

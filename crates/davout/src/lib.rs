@@ -1338,10 +1338,12 @@ impl<B: MotorBus> Supervisor<B> {
     /// No scope file → full-master Robot Ready required. Persisted scope → Verified
     /// in-scope joints only. Never calls [`Self::set_homing_complete`].
     ///
-    /// Drains pending feedback first ([`Self::drain_feedback`]), so the facets
-    /// judge what the drives sent, not how long the caller went without reading:
-    /// a caller's synchronous work (marengo-pi's gravity preflight runs ~65 ms)
-    /// would otherwise revoke the grant of a drive whose reports are queued.
+    /// Runs the reporting sync, then drains pending feedback
+    /// ([`Self::drain_feedback`]), so the facets judge what the drives sent,
+    /// not how long the caller went without reading. A caller's synchronous
+    /// work (marengo-pi's gravity preflight runs 66-96 ms) would otherwise
+    /// revoke the grant of a drive whose reports are queued. A type-24 On that
+    /// fell due meanwhile goes out first.
     pub fn resolve_enable_targets(
         &mut self,
         repo_root: impl AsRef<Path>,
@@ -1354,6 +1356,7 @@ impl<B: MotorBus> Supervisor<B> {
             .as_ref()
             .map(|scope| effective_commissioning_scope(&scope.joints, ceiling.as_ref()));
         let master_names = load_robot_config(repo_root.as_ref())?.robot.joints;
+        self.sync_active_reporting();
         self.drain_feedback()?;
         let (master, loaded) = self.commissioning_facets(&master_names);
         select_enable_targets(&master, &loaded, effective.as_deref())
@@ -1769,6 +1772,13 @@ impl<B: MotorBus> Supervisor<B> {
             let wait = deadline
                 .min(next_due)
                 .saturating_duration_since(Instant::now());
+            // Admission can outlast a control period many times over (a target
+            // in its post-SetZero blackout is asked again for up to the
+            // deadline). Keep writing type-24 that falls due meanwhile, such as
+            // an On held back until a peer's quiet ends: an Off stream is
+            // silence the host causes, and liveness does not excuse it past
+            // that quiet's end.
+            self.sync_active_reporting();
             self.poll_feedback(wait.min(reference_physical::IDENTITY_ADMISSION_POLL))?;
         }
     }
