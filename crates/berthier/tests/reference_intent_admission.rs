@@ -5,17 +5,12 @@ use berthier::{ControlLoop, ControlMode, GainOverride, LoopError};
 use davout::simulation::{InitialVirtualReference, SimulationBus};
 use davout::{DavoutError, ReferenceCancelReason, ReferencePhase, ReferenceRequest};
 
-#[path = "../../marengo-homing/tests/support/mod.rs"]
-mod directory;
-
 #[test]
 fn reserved_owner_refuses_new_torque_mode_and_gain_intent() {
-    let directory = directory::TestDirectory::new("reference-intent-entry");
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut controller = ControlLoop::from_simulation_with_calibration_record_path(
+    let mut controller = ControlLoop::from_simulation(
         root,
         SimulationBus::default(),
-        directory.path().join("history.yaml"),
         InitialVirtualReference::Unreferenced,
         200,
         50,
@@ -61,7 +56,6 @@ fn reserved_owner_refuses_new_torque_mode_and_gain_intent() {
     let outside_latched = controller.torque_cmd("right_elbow_pitch");
     controller.inhibit_motion_for_shutdown();
     drop(controller);
-    drop(directory);
 
     assert!(
         matches!(

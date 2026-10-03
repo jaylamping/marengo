@@ -88,3 +88,21 @@ firmware/reference capabilities must refuse success. Migrate Pi, gateway and
 clients through correlated request/receipt contracts before admitting recovery.
 No software test here establishes physical calibration, Hall wiring, accepted
 firmware evidence or a stopped drive; hardware acceptance remains separate.
+
+## Amendment (WP-T, 2026-10-03 — D-3)
+
+The startup history admission decided here is retired. Supervisors no longer
+read any history resource: `HomingRegistry::with_record_path`,
+`load_calibration`, the `MARENGO_CALIBRATION_RECORD` override in Davout
+composition, and the `from_repo_with_calibration_record_path` /
+`from_simulation_with_calibration_record_path` /
+`from_repo_with_physical_reference_and_record_path` constructors are deleted,
+along with the `CalibrationRecord` history type and its writer. Corrupt,
+directory-shaped or missing legacy files can no longer fail construction
+(`crates/davout/tests/reference_history.rs` pins the new contract), and no
+constructor creates a history resource. The "preserved for inspection" rows
+above are now inert bytes: Davout never inspects them either. The reserved
+history location (`homing.yaml calibration_record_path`) is still computed so
+the reference journal keeps a distinct path beside it, and it stays in the
+reference policy binding. The remaining R1a consequences (private receipt,
+target-only SetZero, stop before persistence) stand and are owned by ADR 0036.

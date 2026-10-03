@@ -82,10 +82,9 @@ fn exercise_observation(path: ObservationPath) -> Case {
     let history = fixture.path().join("history.yaml");
     std::fs::write(&history, HISTORY).expect("literal inspection history");
     let robot = load_robot_config_from(&config).expect("actual copied robot policy");
-    let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+    let mut owner = Supervisor::from_simulation(
         fixture.path(),
         SimulationBus::default(),
-        &history,
         InitialVirtualReference::AllConfigured,
     )
     .expect("real owner with explicit old INITIAL virtual coverage");

@@ -27,7 +27,16 @@ fn test_loop() -> ControlLoop<SimulationBus> {
 
 fn ready_active_at(ctrl: &mut ControlLoop<SimulationBus>, q: f64) {
     ctrl.supervisor_mut().set_homing_complete().expect("ready");
-    ctrl.supervisor_mut().request_enable(true).expect("enable");
+    let joints: Vec<String> = ctrl
+        .supervisor()
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
+    ctrl.supervisor_mut()
+        .enable_targets(&joints)
+        .expect("enable");
     queue_all_status(ctrl.supervisor_mut(), Some((JOINT, q, 0.0)));
     ctrl.supervisor_mut()
         .drain_feedback()

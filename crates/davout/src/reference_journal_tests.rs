@@ -421,10 +421,9 @@ fn actual_sql_lock_is_failure_and_does_not_replace_or_overwrite_history() {
 #[test]
 fn ordinary_constructors_and_foreign_handles_never_gain_journal_capability() {
     let tree = tree();
-    let mut ordinary = Supervisor::from_simulation_with_calibration_record_path(
+    let mut ordinary = Supervisor::from_simulation(
         tree.path(),
         SimulationBus::default(),
-        tree.path().join("default.yaml"),
         InitialVirtualReference::Unreferenced,
     )
     .expect("ordinary virtual factory");

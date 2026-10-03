@@ -294,12 +294,13 @@ fn current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joi
     assert_eq!(owner.bus().transmissions().len(), before);
     assert_eq!(owner.joint_homing_state(PEER), JointHomingState::Unhomed);
     assert!(owner.set_homing_complete().is_err());
-    assert!(owner.request_enable(true).is_err());
+    let joints = owner.robot.robot.joints.clone();
+    assert!(owner.enable_targets(&joints).is_err());
     assert!(owner.enable_targets(&[PEER.into()]).is_err());
     assert_eq!(owner.bus().transmissions().len(), before);
     actual_output(&mut owner);
     owner
-        .request_enable(true)
+        .enable_targets(&[TARGET.into()])
         .expect("same selected Active shortcut");
     let before = owner.bus().transmissions().len();
     assert!(owner.send_mit_batch(vec![command(PEER)]).is_err());

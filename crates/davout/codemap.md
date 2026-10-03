@@ -9,8 +9,8 @@ Enforces: joint position envelope (URDF hard/soft limits + velocity-scaled kinet
 
 ### Operational state machine (`OperationalMode`)
 ```
-Disabled ──[set_homing_complete]──► Ready ──[request_enable(true)]──► Active
-   ▲                                                                  │
+Disabled ──[set_homing_complete]──► Ready ──[enable_targets]──► Active
+   ▲                                    │                              │
    └────────────────────[disable_all / E-stop]────────────────────────┘
 ```
 - `Disabled`: no motion possible, firmware may be idle.
@@ -18,7 +18,7 @@ Disabled ──[set_homing_complete]──► Ready ──[request_enable(true)]
 - `Active`: motors enabled; servo/FF motion requires current-session pose from every active motor address.
 
 ### Core types
-- `Supervisor<B: MotorBus>` — owns installed state/motor/model policy, inspection-only homing history, pose cache, persistent `FaultAuthority`, private reference permission and the `MotorBus`. Ordinary repo constructors have no qualified acquisition capability.
+- `Supervisor<B: MotorBus>` — owns installed state/motor/model policy, the OutOfLimits latch, pose cache, persistent `FaultAuthority`, private reference permission and the `MotorBus`. Ordinary repo constructors have no qualified acquisition capability.
 - `ReferenceAuthority` (`reference.rs`) — private owner-local, nonserializable, noncloneable reference permission. Relevant installed motor/frame/envelope/effective homing policy and the closed backend realm are bound independently of ordinary motion-stop generation. A consumed virtual grant also retains exact job, immutable installed model, address and device epoch independently of diagnostic caches and the old transaction deadline.
 - `ReferenceOwner` (`reference_transaction.rs`) — one opaque reservation plus eight retained outcomes; one phase/one actual bounded report per advance, finite owner deadlines and immutable terminal cleanup. Closed virtual acquisition ends EvidenceStaged/CommitUnavailable without permission or history writes. Generic/physical owners remain Unsupported. The private consumer (`feedback_consumer.rs`) shares ordered hazard policy while each lifecycle owns its stop.
 - `CommitOwner` (`reference_commit.rs`) — explicit unreferenced virtual commit lifecycle with owner-bound handles, eight accepted credits and eight completed outcomes. A fresh bounded disabled report and sticky continuity checks precede consuming a private matching actual completion. Existing factories remain history-only; the explicit current-consuming factory may select only the acquired joint after actual durability. Lifecycle, eligibility and disk result remain separate (ADR0035).
@@ -46,9 +46,9 @@ Single-joint, legacy, and batch MIT sends share one admission path. Validate the
 
 Startup validates the combined robot/motor/control/homing policy. `validate_control_candidate` checks proposed control overlays against the installed companion configuration before installation or persistence; it does not install policy or rebuild limits.
 
-Calibration history is inspection data: every ordinary new Supervisor starts Unhomed, even with matching persisted rows. Ordinary and closed simulation construction share validation/initialization; simulation chooses the supplied root's `config/` independently of installed/ambient configuration (ADR0031). `from_repo` selects the legacy OS-path environment override or configured root-relative path; `from_repo_with_calibration_record_path` takes its path as supplied and ignores that override. Corrupt/unreadable history returns before startup reporting TX. Public mutable history, unchecked Ready, synthetic pose insertion and generic mutable transport access are removed (ADRs 0022/0023).
+Legacy calibration history is retired (WP-T): it is never read, no history path is accepted, and every new Supervisor starts Unhomed. Ordinary and closed simulation construction share validation/initialization; simulation chooses the supplied root's `config/` independently of installed/ambient configuration (ADR0031). The reserved history location (`homing.yaml calibration_record_path`, never read) must stay distinct from the reference journal. Public mutable history, unchecked Ready, synthetic pose insertion and generic mutable transport access are removed (ADRs 0022/0023).
 
-Ready, normal/scoped Enable, Active shortcuts, commissioning facets and output use the private permission. Legacy cached verification, raw SetZero and calibration arming refuse before TX/persistence; target, method and sign refusals remain specific. Unknown/unqualified physical protocols cannot produce a successful reference. Only `Supervisor<SimulationBus>::from_simulation` and its explicit-history counterpart can declare virtual INITIAL coverage. Ordinary `from_repo` remains unreferenced even for SimulationBus. Read-only `bus()` is generic; specialized `bus_mut()` returns a restricted script/trace facade without transport extraction/replacement.
+Ready, normal/scoped Enable, Active shortcuts, commissioning facets and output use the private permission. Legacy cached verification, raw SetZero and calibration arming refuse before TX/persistence; target, method and sign refusals remain specific. Unknown/unqualified physical protocols cannot produce a successful reference. Only `Supervisor<SimulationBus>::from_simulation` can declare virtual INITIAL coverage. Ordinary `from_repo` remains unreferenced even for SimulationBus. Read-only `bus()` is generic; specialized `bus_mut()` returns a restricted script/trace facade without transport extraction/replacement.
 
 Bounded virtual acquisition reserves without TX, stops every installed address,
 suspends actually applied reporting, completes old and post-arm flushes, Enables
@@ -125,7 +125,7 @@ Berthier MitJointCommand batch
 ```
 
 ## Integration
-- **Depends on**: `robstride` (MotorBus + CAN frames), `armee-kinematics` (limit envelope, URDF parsing), `marengo-config` (YAML configs), `marengo-homing` (homing registry), `chappe` (telemetry), `armee-proto` (wire types).
+- **Depends on**: `robstride` (MotorBus + CAN frames), `armee-kinematics` (limit envelope, URDF parsing), `marengo-config` (YAML configs), `chappe` (telemetry), `armee-proto` (wire types).
 - **Called by**: `berthier` (ControlLoop::tick → send_mit_batch), REPL binaries (motor-repl, homing tool).
 - **Does not**: compute tau_g, plan trajectories, encode CAN bytes, open SocketCAN.
 - **Intended safety contract**: application motion enters through Supervisor. Mutable configuration remains compatibility surface: observed reference-changing edits permanently revoke permission, while installed cleanup routes cannot be redirected. Generic raw mutable transport and synthetic grants are closed. Persistent Pi publication/command generation, fully immutable coordinated policy/model installation, qualified reference transactions/recovery, physical stop confirmation and drive-local readback remain separate work. Virtual INITIAL fixture tests prove admission/output behavior, never physical acquisition or persist ordering.

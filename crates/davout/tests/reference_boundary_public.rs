@@ -1,15 +1,11 @@
 //! Byte-identical old-public regression replay across closure of mutable bus access.
 #![allow(clippy::expect_used, clippy::panic)]
 
-#[path = "../../marengo-homing/tests/support/mod.rs"]
-mod support;
-
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use davout::{DavoutError, JointHomingState, OperationalMode, Supervisor};
 use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceiveAttempt};
-use support::TestDirectory;
 
 #[derive(Default, Debug)]
 struct Recording {
@@ -55,14 +51,7 @@ impl CanBus for RecordingBus {
 
 impl MotorBus for RecordingBus {}
 
-fn fixture(
-    label: &str,
-) -> (
-    TestDirectory,
-    PathBuf,
-    Supervisor<RecordingBus>,
-    Arc<Mutex<Recording>>,
-) {
+fn fixture() -> (Supervisor<RecordingBus>, Arc<Mutex<Recording>>) {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     // The baseline replay sets this to bind compilation to its exact archive.
     // Ordinary collection still executes every behavioral assertion below.
@@ -74,22 +63,17 @@ fn fixture(
                 .expect("expected manifest")
         );
     }
-    let owner = TestDirectory::new(label);
-    let history = owner.path().join("history.yaml");
     let witness = Arc::new(Mutex::new(Recording::default()));
     let bus = RecordingBus {
         inner: MemoryBus::default(),
         witness: Arc::clone(&witness),
     };
     let supervisor =
-        Supervisor::from_repo_with_calibration_record_path(manifest.join("../.."), bus, &history)
-            .expect("existing public explicit-path owner");
+        Supervisor::from_repo(manifest.join("../.."), bus).expect("ordinary unreferenced owner");
     assert_eq!(supervisor.mode(), OperationalMode::Disabled);
     assert_eq!(supervisor.motors.motors.len(), 5);
-    assert!(supervisor.homing_registry().calibration().joints.is_empty());
-    assert!(!history.exists());
     *witness.lock().expect("recording reset") = Recording::default();
-    (owner, history, supervisor, witness)
+    (supervisor, witness)
 }
 
 fn enables(recording: &Recording) -> Vec<u32> {
@@ -112,7 +96,7 @@ fn zeros(recording: &Recording) -> Vec<u32> {
 
 #[test]
 fn unhomed_direct_enable_cannot_arm_without_current_reference() {
-    let (_owner, history, mut supervisor, witness) = fixture("unchanged-direct-enable");
+    let (mut supervisor, witness) = fixture();
     let target = supervisor.motors.motors[0].joint.clone();
     assert_eq!(
         supervisor.joint_homing_state(&target),
@@ -124,7 +108,6 @@ fn unhomed_direct_enable_cannot_arm_without_current_reference() {
         "direct Unhomed Enable result={result:?}, mode={:?}, witness={recording:?}",
         supervisor.mode()
     );
-    assert!(!history.exists());
     assert!(
         result.is_err()
             && enables(&recording).is_empty()
@@ -135,7 +118,7 @@ fn unhomed_direct_enable_cannot_arm_without_current_reference() {
 
 #[test]
 fn false_sign_calibration_refuses_before_any_arming_or_zero() {
-    let (_owner, history, mut supervisor, witness) = fixture("unchanged-false-sign");
+    let (mut supervisor, witness) = fixture();
     let target = supervisor.motors.motors[0].joint.clone();
     assert!(
         supervisor
@@ -148,15 +131,13 @@ fn false_sign_calibration_refuses_before_any_arming_or_zero() {
     let result = supervisor.calibrate_joint_zero(&target, "unchanged-false-sign", false);
     let recording = witness.lock().expect("external witness");
     println!(
-        "false-sign calibration result={result:?}, mode={:?}, history={}, witness={recording:?}",
-        supervisor.mode(),
-        history.exists()
+        "false-sign calibration result={result:?}, mode={:?}, witness={recording:?}",
+        supervisor.mode()
     );
     assert!(
         result.is_err()
             && enables(&recording).is_empty()
             && zeros(&recording).is_empty()
-            && !history.exists()
             && supervisor.mode() == OperationalMode::Disabled,
         "false sign armed before refusal: result={result:?}, witness={recording:?}"
     );
@@ -164,23 +145,22 @@ fn false_sign_calibration_refuses_before_any_arming_or_zero() {
 
 #[test]
 fn arbitrary_bus_one_target_calibration_cannot_arm_peers_or_persist_reference() {
-    let (_owner, history, mut supervisor, witness) = fixture("unchanged-one-target");
+    let (mut supervisor, witness) = fixture();
     let target = supervisor.motors.motors[0].joint.clone();
     let result = supervisor.calibrate_joint_zero(&target, "unchanged-one-target", true);
     let recording = witness.lock().expect("external witness");
     println!(
-        "one-target calibration result={result:?}, mode={:?}, history={}, witness={recording:?}",
-        supervisor.mode(),
-        history.exists()
+        "one-target calibration result={result:?}, mode={:?}, witness={recording:?}",
+        supervisor.mode()
     );
     assert!(result.is_err() && enables(&recording).is_empty() && zeros(&recording).is_empty()
-        && !history.exists() && supervisor.mode() == OperationalMode::Disabled,
+        && supervisor.mode() == OperationalMode::Disabled,
         "ordinary arbitrary-bus owner acquired reference or armed peers: result={result:?}, witness={recording:?}");
 }
 
 #[test]
 fn unknown_target_preflight_refuses_without_output_control() {
-    let (_owner, history, mut supervisor, witness) = fixture("unchanged-unknown-target");
+    let (mut supervisor, witness) = fixture();
     let result = supervisor.calibrate_joint_zero("missing_joint", "control", true);
     let recording = witness.lock().expect("external witness");
     assert!(
@@ -190,17 +170,22 @@ fn unknown_target_preflight_refuses_without_output_control() {
     assert!(
         recording.tx.is_empty() && recording.zero_triggers == 0 && recording.delivered_frames == 0
     );
-    assert!(!history.exists());
 }
 
 #[test]
 fn unhomed_normal_enable_refuses_and_disable_remains_available_control() {
-    let (_owner, history, mut supervisor, witness) = fixture("unchanged-stop-control");
+    let (mut supervisor, witness) = fixture();
     assert!(supervisor.set_homing_complete().is_err());
-    assert!(supervisor.request_enable(true).is_err());
+    let joints: Vec<String> = supervisor
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
+    assert!(supervisor.enable_targets(&joints).is_err());
     assert!(enables(&witness.lock().expect("external witness")).is_empty());
     supervisor
-        .request_enable(false)
+        .disable_all()
         .expect("Disable requires no reference");
     let recording = witness.lock().expect("external witness");
     let disables = recording
@@ -214,5 +199,4 @@ fn unhomed_normal_enable_refuses_and_disable_remains_available_control() {
         [0x0400fd01, 0x0400fd02, 0x0400fd03, 0x0400fd04, 0x0400fd05]
     );
     assert_eq!(supervisor.mode(), OperationalMode::Disabled);
-    assert!(!history.exists());
 }

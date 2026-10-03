@@ -94,10 +94,6 @@ fn exercise(input: Vec<ReceivedCanFrame>, expected: Option<(FaultClass, &str)>) 
             .env("MARENGO_RECEIVE_DIAGNOSTIC_FIXTURE", fixture.path())
             .env("MARENGO_ROOT", fixture.path())
             .env("MARENGO_CONFIG_DIR", &config)
-            .env(
-                "MARENGO_CALIBRATION_RECORD",
-                fixture.path().join("missing-history.yaml"),
-            )
             .env_remove("MARENGO_JOINT_SUBSET")
             .env_remove("MARENGO_POSITION_TRACE")
             .env_remove("MARENGO_POSITION_TRACE_HZ")
@@ -116,13 +112,12 @@ fn exercise(input: Vec<ReceivedCanFrame>, expected: Option<(FaultClass, &str)>) 
     let mut frames = VecDeque::from(input);
     frames.push_back(healthy());
     let input = Arc::new(Mutex::new(frames));
-    let mut supervisor = Supervisor::from_repo_with_calibration_record_path(
+    let mut supervisor = Supervisor::from_repo(
         &root,
         InputBus {
             input: Arc::clone(&input),
             writes: Vec::new(),
         },
-        root.join("missing-history.yaml"),
     )
     .expect("isolated unreferenced owner");
     let result = supervisor.drain_feedback();

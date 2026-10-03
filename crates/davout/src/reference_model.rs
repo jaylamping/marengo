@@ -226,7 +226,6 @@ mod model_install_boundary_tests {
         failed_install: Result<(), DavoutError>,
         failed_before: Observation,
         failed_after: Observation,
-        history_absent: bool,
         master_unchanged: bool,
         fixture_removed: bool,
     }
@@ -275,11 +274,9 @@ mod model_install_boundary_tests {
                 ),
             )
             .expect("copied diagnostics disabled before construction");
-            let history = fixture.join("history.yaml");
-            let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+            let mut owner = Supervisor::from_simulation(
                 &fixture,
                 SimulationBus::default(),
-                &history,
                 InitialVirtualReference::Unreferenced,
             )
             .expect("actual installed model and closed unreferenced owner");
@@ -321,7 +318,6 @@ mod model_install_boundary_tests {
                 successful_install = install(&mut owner, model);
                 successful_after = observe(&owner);
             }
-            let history_absent = !history.try_exists().expect("no history side effect");
             let master_unchanged = master.iter().all(|(path, bytes)| {
                 std::fs::read(path).expect("unchanged master input") == *bytes
             });
@@ -336,7 +332,6 @@ mod model_install_boundary_tests {
                 failed_install,
                 failed_before,
                 failed_after,
-                history_absent,
                 master_unchanged,
                 fixture_removed: !fixture.try_exists().expect("actual resource cleanup"),
             });
@@ -382,7 +377,7 @@ mod model_install_boundary_tests {
                 .homing
                 .iter()
                 .all(|(_, state)| *state == JointHomingState::Unhomed));
-            assert!(case.history_absent && case.master_unchanged && case.fixture_removed);
+            assert!(case.master_unchanged && case.fixture_removed);
         }
     }
 }

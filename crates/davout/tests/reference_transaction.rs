@@ -360,10 +360,9 @@ fn reporting_on_trace(owner: &Supervisor<SimulationBus>) -> [bool; 5] {
 }
 
 fn owner(fixture: &Fixture) -> Supervisor<SimulationBus> {
-    Supervisor::from_simulation_with_calibration_record_path(
+    Supervisor::from_simulation(
         fixture.tree.path(),
         SimulationBus::default(),
-        &fixture.history_path,
         InitialVirtualReference::Unreferenced,
     )
     .expect("capable closed owner starts without permission")
@@ -560,11 +559,10 @@ fn assert_phases(
     }
 }
 
-fn normal_denials(owner: &mut Supervisor<SimulationBus>) -> [bool; 4] {
+fn normal_denials(owner: &mut Supervisor<SimulationBus>) -> [bool; 3] {
     [
         owner.set_homing_complete().is_err(),
         owner.enable_targets(&[TARGET.into()]).is_err(),
-        owner.request_enable(true).is_err(),
         owner
             .send_mit_batch(vec![MitJointCommand {
                 joint: TARGET.into(),
@@ -649,7 +647,7 @@ fn virtual_core_stages_only_after_exact_raw_pop_and_never_grants_motion() {
         "SetZero cleared the peer cache"
     );
     assert_eq!(proof_pops_before, 0);
-    assert_eq!(busy_denials, [true; 4]);
+    assert_eq!(busy_denials, [true; 3]);
     assert!(drain_denied, "ordinary drain stole the reserved report");
     assert_eq!(proof_pops_after_denied_drain, 0);
     assert_eq!(
@@ -677,7 +675,7 @@ fn virtual_core_stages_only_after_exact_raw_pop_and_never_grants_motion() {
         Some(result)
     );
     assert_eq!(&repeated_cancel.expect("immutable repeated cancel"), result);
-    assert_eq!(terminal_denials, [true; 4]);
+    assert_eq!(terminal_denials, [true; 3]);
     assert_trace(&observed.trace, &positive_trace(), &[]);
     assert!(!observed.safety.is_latched());
     assert_no_grant(&observed);
@@ -1665,12 +1663,9 @@ fn actual_reporting_off_precedes_flush_and_cannot_interfere_with_reference() {
 #[test]
 fn ordinary_capability_and_rejected_preflight_cannot_arm_or_consume_a_stamp() {
     let ordinary_fixture = fixture(false, true);
-    let mut ordinary = Supervisor::from_repo_with_calibration_record_path(
-        ordinary_fixture.tree.path(),
-        SimulationBus::default(),
-        &ordinary_fixture.history_path,
-    )
-    .expect("ordinary constructor even with concrete virtual transport");
+    let mut ordinary =
+        Supervisor::from_repo(ordinary_fixture.tree.path(), SimulationBus::default())
+            .expect("ordinary constructor even with concrete virtual transport");
     // Ordinary construction honors ambient/runtime configuration. Qualify its
     // startup diagnostics separately, then record every preflight write.
     assert!(ordinary
@@ -1739,10 +1734,9 @@ fn ordinary_capability_and_rejected_preflight_cannot_arm_or_consume_a_stamp() {
 #[test]
 fn an_actually_active_owner_refuses_reference_before_revoking_its_intact_permission() {
     let fixture = fixture(false, false);
-    let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+    let mut owner = Supervisor::from_simulation(
         fixture.tree.path(),
         SimulationBus::default(),
-        &fixture.history_path,
         InitialVirtualReference::Joints(vec![TARGET.into()]),
     )
     .expect("INITIAL fixture only qualifies existing Active admission");

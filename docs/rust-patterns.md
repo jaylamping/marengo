@@ -178,7 +178,7 @@ owner cutover remain unfinished. New registries start `Unhomed` and history
 loading cannot supply `Verified`; current cached Set Zero is not qualified
 reference evidence.
 
-- Resolve targets with `Supervisor::resolve_enable_targets` → `marengo_homing::select_enable_targets` (no scope file → full-master Robot Ready; persisted scope → Verified in-scope only). Never call `set_homing_complete` on Enable or motion re-arm — Verified is Set Zero only.
+- Resolve targets with `Supervisor::resolve_enable_targets` (no scope file → full-master Robot Ready; persisted scope → Verified in-scope only). Never call `set_homing_complete` on Enable or motion re-arm — Verified is Set Zero only.
 - Energize with `Supervisor::enable_targets`. While Active, a different joint set returns `ActiveSetChangeRefused` (Disable first). Partial enable failure still `disable_all`.
 - Berthier MIT keepalive / GravityComp / Position and MissingFeedback checks must cover only `supervisor.active_joints()` — never all loaded `joint_names` after a scoped Enable.
 - `RobotState` omits joints without CAN feedback so Consul Online ≠ mere protobuf membership.

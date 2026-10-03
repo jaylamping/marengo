@@ -230,10 +230,9 @@ impl Owner {
         let history = tree.path().join("history.yaml");
         std::fs::write(&history, HISTORY)
             .expect("literal historical row, never current permission");
-        let mut supervisor = Supervisor::from_simulation_with_calibration_record_path(
+        let mut supervisor = Supervisor::from_simulation(
             tree.path(),
             SimulationBus::default(),
-            &history,
             InitialVirtualReference::Unreferenced,
         )
         .expect("closed unreferenced owner");

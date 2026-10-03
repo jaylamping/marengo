@@ -4,7 +4,9 @@
 use davout::simulation::{SimulationBus, SimulationReceive, TxMatcher, TxOccurrence, TxRule};
 use std::time::Instant;
 
-use davout::{FaultClass, MitJointCommand, OperationalMode, StopAction, Supervisor};
+use davout::{
+    FaultClass, JointHomingState, MitJointCommand, OperationalMode, StopAction, Supervisor,
+};
 use marengo_config::MotorEntry;
 use robstride::{
     BusError, CanFrame, FeedbackReport, MalformedReason, MotorAddress, MotorBus, ReceiveCompletion,
@@ -234,7 +236,7 @@ fn every_short_status_shape_latches_without_installing_pose() {
             assert_all_stop_attempts(&supervisor);
             assert_eq!(
                 supervisor.joint_homing_state(&motor.joint),
-                marengo_homing::JointHomingState::Faulted
+                JointHomingState::Faulted
             );
             supervisor.bus_mut().clear_trace();
             assert!(supervisor

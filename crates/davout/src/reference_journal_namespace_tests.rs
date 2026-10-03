@@ -17,8 +17,9 @@ fn preexisting_calibration_history_cannot_be_admitted_as_a_sqlite_sidecar() {
         let history = PathBuf::from(filename);
         let bytes = b"joints: []\n";
         fs::write(&history, bytes).expect("owned valid calibration history");
-        marengo_homing::HomingRegistry::with_record_path(&history, Vec::<String>::new(), 0.05)
-            .expect("positive legacy YAML load");
+        // The fixture is well-formed YAML; the refusal below is about the
+        // sidecar slot, not about parse failure.
+        let _: serde_yaml::Value = serde_yaml::from_slice(bytes).expect("positive YAML fixture");
         let refused = match Supervisor::from_simulation_with_reference_journal(
             tree.path(),
             SimulationBus::default(),

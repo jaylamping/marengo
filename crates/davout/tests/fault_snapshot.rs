@@ -327,7 +327,7 @@ fn fault_only_without_pose_is_visible_in_commissioning_facets() {
     let (master, _) = supervisor.commissioning_facets(std::slice::from_ref(&pitch.joint));
     assert!(master[0].fault);
     assert!(!master[0].online);
-    assert!(!master[0].drive_active);
+    assert!(!supervisor.joint_drive_active(&pitch.joint));
     assert!(supervisor.joint_feedback(&pitch.joint).is_none());
 }
 

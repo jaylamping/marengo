@@ -865,7 +865,9 @@ impl<B: MotorBus> Supervisor<B> {
             })?;
         let position = f64::from(state.position_rad);
         if measured_position_fault(position, lim) {
-            self.homing.mark_out_of_limits(&motor.joint);
+            // The motor is a configured joint; the latch has no in-process
+            // clear (see `homing_facets::OutOfLimitsFlags`).
+            self.out_of_limits.mark(&motor.joint, true);
             return Err(DavoutError::Limit {
                 joint: motor.joint.clone(),
                 message: format!(

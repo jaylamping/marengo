@@ -681,8 +681,10 @@ impl MotorBus for SimulationBus {
 }
 
 impl Supervisor<SimulationBus> {
-    /// Explicit closed virtual history owner. Always starts unreferenced.
-    /// Opening/encoding/writing occurs only after an accepted commit, on its worker.
+    /// Explicit closed virtual journal owner. Always starts unreferenced.
+    /// `record_path` is the reserved history location (never read); it must be
+    /// distinct from the journal. Opening/encoding/writing occurs only after an
+    /// accepted commit, on its worker.
     pub fn from_simulation_with_reference_journal(
         repo_root: impl AsRef<std::path::Path>,
         bus: SimulationBus,
@@ -720,7 +722,7 @@ impl Supervisor<SimulationBus> {
 
     /// Closed virtual owner that may select one current reference only through
     /// actual acquisition, durable write/readback and fresh owner consumption.
-    /// Every startup begins unreferenced; disk history never grants permission.
+    /// Every startup begins unreferenced; disk history (never read) grants nothing.
     pub fn from_simulation_with_current_reference_journal(
         repo_root: impl AsRef<std::path::Path>,
         bus: SimulationBus,
@@ -766,18 +768,12 @@ impl Supervisor<SimulationBus> {
             crate::reference_journal::test_support::WorkerPause,
         >,
     ) -> Result<Self, DavoutError> {
-        let record =
-            crate::reference_journal::distinct_history_path(record, journal).map_err(|error| {
-                DavoutError::Homing {
-                    message: error.to_string(),
-                }
-            })?;
-        let mut owner = Self::from_simulation_with_calibration_record_path(
-            root,
-            bus,
-            &record,
-            InitialVirtualReference::Unreferenced,
-        )?;
+        crate::reference_journal::distinct_history_path(record, journal).map_err(|error| {
+            DavoutError::Homing {
+                message: error.to_string(),
+            }
+        })?;
+        let mut owner = Self::from_simulation(root, bus, InitialVirtualReference::Unreferenced)?;
         let journal = crate::reference_journal::Journal::spawn(
             journal.to_owned(),
             #[cfg(any(test, feature = "reference-journal-test-support"))]
@@ -808,27 +804,7 @@ impl Supervisor<SimulationBus> {
         initial_reference: InitialVirtualReference,
     ) -> Result<Self, DavoutError> {
         let root = repo_root.as_ref();
-        let record_path =
-            std::env::var_os("MARENGO_CALIBRATION_RECORD").map(std::path::PathBuf::from);
-        let mut supervisor =
-            Self::from_config_dir_inner(root, &root.join("config"), bus, record_path)?;
-        supervisor.install_initial_virtual_reference(initial_reference)?;
-        Ok(supervisor)
-    }
-
-    pub fn from_simulation_with_calibration_record_path(
-        repo_root: impl AsRef<std::path::Path>,
-        bus: SimulationBus,
-        record_path: impl AsRef<std::path::Path>,
-        initial_reference: InitialVirtualReference,
-    ) -> Result<Self, DavoutError> {
-        let root = repo_root.as_ref();
-        let mut supervisor = Self::from_config_dir_inner(
-            root,
-            &root.join("config"),
-            bus,
-            Some(record_path.as_ref().to_owned()),
-        )?;
+        let mut supervisor = Self::from_config_dir_inner(root, &root.join("config"), bus)?;
         supervisor.install_initial_virtual_reference(initial_reference)?;
         Ok(supervisor)
     }

@@ -67,3 +67,22 @@ Precheck (CAN, faults, E-stop)
 - [ODRI robot_fingers homing](https://open-dynamic-robot-initiative.github.io/robot_fingers/doc/homing.html)
 - [Kollmorgen AKD homing](https://webhelp.kollmorgen.com/AKD/English/Content/UsersManual/Homing.htm)
 - [homing.md](../homing.md)
+
+## Amendment (WP-T, 2026-10-03 — D-3/D-4)
+
+The scalar-verifier + YAML-history workflow this ADR introduced is retired
+after ADR 0036. `verify_manual_reference`, `record_verification`/`persist`,
+the startup history read (`load_calibration`,
+`MARENGO_CALIBRATION_RECORD`), the legacy registry lifecycle
+(`joint_states`, `all_verified`, `require_ready`, ...), `request_enable` and
+the Hall `sensor.rs` module are deleted; the `marengo-homing` crate is folded
+into `davout::homing_facets` (`JointHomingState`, Ready aggregation,
+Enable-target selection, OutOfLimits latch) and removed. The "Now"
+`manual_reference` row above (scalar check + calibration record) no longer
+exists — `manual_reference` now means the qualified physical workflow in
+[ADR 0036](0036-physical-robstride-reference.md). The "Next"
+`hall_three_sensor` row is deferred, not planned: there is no sensor health
+check, search, or offset workflow until a GPIO adapter exists. The Sensor
+policy section is aspirational until then. `homing.yaml`
+`calibration_record_path` is retained because it locates the reference
+journal, not because anything reads history.

@@ -64,7 +64,6 @@ struct Case {
     dispatch_writes: usize,
     drain: PersistDrainReport,
     actions: Vec<ActionEvent>,
-    history_absent: bool,
     resources_removed: bool,
     master_unchanged: bool,
 }
@@ -103,11 +102,9 @@ fn exercise_overlay(busy: bool, tier: TuningTier) -> Case {
     )
     .expect("only copied diagnostics disabled before construction");
     let before_disk = std::fs::read(&control_path).expect("actual pre-dispatch disk bytes");
-    let history = fixture.path().join("history.yaml");
-    let mut ctrl = ControlLoop::from_simulation_with_calibration_record_path(
+    let mut ctrl = ControlLoop::from_simulation(
         fixture.path(),
         SimulationBus::default(),
-        &history,
         InitialVirtualReference::Unreferenced,
         200,
         25,
@@ -182,7 +179,6 @@ fn exercise_overlay(busy: bool, tier: TuningTier) -> Case {
         let envelope = Envelope::decode(bytes.as_slice()).expect("real worker audit envelope");
         actions.push(ActionEvent::decode(envelope.payload.as_slice()).expect("real worker action"));
     }
-    let history_absent = !history.try_exists().expect("history resource observation");
     drop(overlay);
     drop(ctrl);
     drop(fixture);
@@ -208,7 +204,6 @@ fn exercise_overlay(busy: bool, tier: TuningTier) -> Case {
         dispatch_writes,
         drain,
         actions,
-        history_absent,
         resources_removed,
         master_unchanged,
     }
@@ -221,7 +216,7 @@ fn reserved_reference_refuses_actual_persist_and_runtime_overlay_before_mutation
     let healthy = exercise_overlay(false, TuningTier::ConfigOverlay);
     let cases = [TuningTier::ConfigOverlay, TuningTier::RuntimeMit]
         .map(|tier| exercise_overlay(true, tier));
-    assert!(healthy.resources_removed && healthy.master_unchanged && healthy.history_absent);
+    assert!(healthy.resources_removed && healthy.master_unchanged);
     assert_eq!(healthy.dispatch_writes, 0);
     assert_eq!(healthy.drain.status, PersistDrainStatus::Complete);
     assert!(healthy.drain.worker_terminated && !healthy.drain.in_flight);
@@ -258,7 +253,7 @@ fn reserved_reference_refuses_actual_persist_and_runtime_overlay_before_mutation
     assert_eq!(action.persist_status, PersistStatus::Durable as i32);
     for case in cases {
         assert!(case.busy);
-        assert!(case.resources_removed && case.master_unchanged && case.history_absent);
+        assert!(case.resources_removed && case.master_unchanged);
         assert!(
             case.still_reserved,
             "official refusal must preserve the live reservation"

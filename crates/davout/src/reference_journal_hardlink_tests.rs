@@ -36,8 +36,9 @@ fn existing_database_refuses_history_linked_to_its_rollback_resource() {
     let bytes = b"joints: []\n";
     fs::write(&history, bytes).expect("owned valid YAML");
     fs::hard_link(&history, &rollback).expect("actual shared file identity");
-    marengo_homing::HomingRegistry::with_record_path(&history, Vec::<String>::new(), 0.05)
-        .expect("positive legacy history load");
+    // The fixture is well-formed YAML; the refusal below is about file
+    // identity with the journal sidecar, not about parse failure.
+    let _: serde_yaml::Value = serde_yaml::from_slice(bytes).expect("positive YAML fixture");
     let mut actual_storage_result = None;
     let refused = match Supervisor::from_simulation_with_reference_journal(
         tree.path(),

@@ -14,8 +14,8 @@
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - Persistent [`SafetySnapshot`]: device/runtime faults survive pose replacement, disable and replay.
-//! - Private current-reference authority: history, cached pose and public scalar verification
-//!   cannot authorize Ready, scoped Enable or motion.
+//! - Private current-reference authority: retired history, cached pose and the
+//!   removed scalar verifier cannot authorize Ready, scoped Enable or motion.
 //! - Closed [`simulation::SimulationBus`] INITIAL virtual fixtures share admission/output logic;
 //!   they do not qualify reference acquisition, SetZero correlation or persistence ordering.
 //! - [`Supervisor::begin_reference`] / [`Supervisor::advance_reference`]: bounded owner
@@ -82,6 +82,7 @@ mod active_reporting_pacing_tests;
 mod burst;
 mod faults;
 mod feedback_consumer;
+pub(crate) mod homing_facets;
 #[cfg(test)]
 mod limit_build_tests;
 mod limit_envelope;
@@ -125,6 +126,8 @@ pub use faults::{
     ReceiveFaultEvidence, ReceiveFrameEvidence, SafetySnapshot, StopAction, StopAttempt,
     StopReport,
 };
+use homing_facets::select_enable_targets;
+pub use homing_facets::{JointFacetInput, JointHomingState};
 
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -179,7 +182,6 @@ use marengo_config::{
     validate_control_against_limits, validate_safety_config, ControlConfigFile, HomingConfigFile,
     MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
 };
-use marengo_homing::{select_enable_targets, HomingRegistry, JointFacetInput};
 use reference::ReferenceAuthority;
 use robstride::AddressedMitCommand;
 use robstride::{MitCommand, MotorState, RunMode};
@@ -292,7 +294,6 @@ pub enum DavoutError {
     ActiveSetChangeRefused,
 }
 
-pub use marengo_homing::JointHomingState;
 pub use robstride::bus::{BusError, MemoryBus, MotorAddress, MotorBus};
 
 fn map_lease_error(err: ActiveReportingLeaseError) -> DavoutError {
@@ -375,7 +376,7 @@ pub struct Supervisor<B: MotorBus> {
     pub motors: MotorsConfigFile,
     pub control: ControlConfigFile,
     pub homing_config: HomingConfigFile,
-    homing: HomingRegistry,
+    out_of_limits: homing_facets::OutOfLimitsFlags,
     reference_authority: ReferenceAuthority,
     reference_owner: reference_transaction::ReferenceOwner<B>,
     reference_commits: reference_commit::CommitOwner,
@@ -431,69 +432,32 @@ pub struct Supervisor<B: MotorBus> {
 impl<B: MotorBus> Supervisor<B> {
     /// Build supervisor from repo `config/` and URDF limits.
     ///
-    /// `MARENGO_CALIBRATION_RECORD` overrides the configured history path, with
-    /// relative overrides interpreted from the process working directory.
+    /// Legacy calibration history is never read: every startup is Unreferenced
+    /// and only a qualified reference workflow grants current reference.
+    /// `homing.yaml calibration_record_path` is retained as the reserved
+    /// history location (it locates the reference journal beside it).
     pub fn from_repo(repo_root: impl AsRef<Path>, bus: B) -> Result<Self, DavoutError> {
-        let record_path = std::env::var_os("MARENGO_CALIBRATION_RECORD").map(PathBuf::from);
-        Self::from_repo_inner(repo_root.as_ref(), bus, record_path)
-    }
-
-    /// Build with an explicit calibration history path, ignoring the environment override.
-    ///
-    /// The path is used as supplied. History never grants current reference;
-    /// resource errors return before startup diagnostic traffic is transmitted.
-    pub fn from_repo_with_calibration_record_path(
-        repo_root: impl AsRef<Path>,
-        bus: B,
-        record_path: impl AsRef<Path>,
-    ) -> Result<Self, DavoutError> {
-        Self::from_repo_inner(
-            repo_root.as_ref(),
-            bus,
-            Some(record_path.as_ref().to_owned()),
-        )
+        Self::from_repo_inner(repo_root.as_ref(), bus)
     }
 
     /// Physical owner with the qualified Robstride reference workflow (ADR 0036):
     /// type-0 identity, target-only arming, SetZero, type-2 ack, type-17 `mechPos`
     /// readback, stop before storage, durable journal and per-joint selection.
-    /// Every startup is Unreferenced; history and the journal never grant.
+    /// Every startup is Unreferenced; the journal never grants.
     ///
-    /// `MARENGO_CALIBRATION_RECORD` overrides the history path as in [`Self::from_repo`].
-    /// `journal_path` must be absolute and distinct from that history; resource
-    /// errors return before startup diagnostic traffic is transmitted.
+    /// `journal_path` must be absolute and distinct from the reserved history
+    /// location; resource errors return before startup diagnostic traffic is
+    /// transmitted.
     pub fn from_repo_with_physical_reference(
         repo_root: impl AsRef<Path>,
         bus: B,
         journal_path: impl AsRef<Path>,
     ) -> Result<Self, DavoutError> {
-        let record_path = std::env::var_os("MARENGO_CALIBRATION_RECORD").map(PathBuf::from);
-        Self::from_repo_physical_inner(repo_root.as_ref(), bus, record_path, journal_path.as_ref())
+        Self::from_repo_physical_inner(repo_root.as_ref(), bus, journal_path.as_ref())
     }
 
-    /// [`Self::from_repo_with_physical_reference`] with an explicit history path.
-    pub fn from_repo_with_physical_reference_and_record_path(
-        repo_root: impl AsRef<Path>,
-        bus: B,
-        record_path: impl AsRef<Path>,
-        journal_path: impl AsRef<Path>,
-    ) -> Result<Self, DavoutError> {
-        Self::from_repo_physical_inner(
-            repo_root.as_ref(),
-            bus,
-            Some(record_path.as_ref().to_owned()),
-            journal_path.as_ref(),
-        )
-    }
-
-    fn from_repo_physical_inner(
-        root: &Path,
-        bus: B,
-        record_path: Option<PathBuf>,
-        journal: &Path,
-    ) -> Result<Self, DavoutError> {
-        let (mut owner, record) =
-            Self::build_unsynced(root, &resolve_config_dir(root), bus, record_path)?;
+    fn from_repo_physical_inner(root: &Path, bus: B, journal: &Path) -> Result<Self, DavoutError> {
+        let (mut owner, record) = Self::build_unsynced(root, &resolve_config_dir(root), bus)?;
         reference_journal::distinct_history_path(&record, journal).map_err(|error| {
             DavoutError::Homing {
                 message: error.to_string(),
@@ -530,21 +494,12 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(owner)
     }
 
-    fn from_repo_inner(
-        root: &Path,
-        bus: B,
-        record_path: Option<PathBuf>,
-    ) -> Result<Self, DavoutError> {
-        Self::from_config_dir_inner(root, &resolve_config_dir(root), bus, record_path)
+    fn from_repo_inner(root: &Path, bus: B) -> Result<Self, DavoutError> {
+        Self::from_config_dir_inner(root, &resolve_config_dir(root), bus)
     }
 
-    fn from_config_dir_inner(
-        root: &Path,
-        config_dir: &Path,
-        bus: B,
-        record_path: Option<PathBuf>,
-    ) -> Result<Self, DavoutError> {
-        let (mut supervisor, _) = Self::build_unsynced(root, config_dir, bus, record_path)?;
+    fn from_config_dir_inner(root: &Path, config_dir: &Path, bus: B) -> Result<Self, DavoutError> {
+        let (mut supervisor, _) = Self::build_unsynced(root, config_dir, bus)?;
         // Arm type-24 when configured so free-drive Set Limits can see motion while
         // limp (Disabled/Ready). MIT Active still turns reporting off in sync below.
         supervisor.sync_active_reporting();
@@ -552,12 +507,12 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Load and validate every resource without transmitting. Returns the owner
-    /// and its resolved calibration history path.
+    /// and the reserved calibration history path (never read; the reference
+    /// journal must occupy a distinct location).
     fn build_unsynced(
         root: &Path,
         config_dir: &Path,
         bus: B,
-        record_path: Option<PathBuf>,
     ) -> Result<(Self, PathBuf), DavoutError> {
         let mut robot = load_robot_config_from(config_dir)?;
         let mut motors = load_motors_config_from(config_dir)?;
@@ -571,17 +526,7 @@ impl<B: MotorBus> Supervisor<B> {
         }
         let homing_config = load_homing_config_from(config_dir)?;
         validate_safety_config(&robot, &motors, &control, &homing_config)?;
-        let homing_joints: Vec<String> = robot.robot.joints.clone();
-        let record_path =
-            record_path.unwrap_or_else(|| root.join(&homing_config.homing.calibration_record_path));
-        let homing = HomingRegistry::with_record_path(
-            record_path.clone(),
-            homing_joints,
-            homing_config.homing.zero_verify_tolerance_rad,
-        )
-        .map_err(|e| DavoutError::Homing {
-            message: e.to_string(),
-        })?;
+        let record_path = root.join(&homing_config.homing.calibration_record_path);
         let urdf_path = resolve_urdf_path(root, &robot)?;
         let urdf_robot = load_urdf(&urdf_path)?;
         validate_control_against_limits(&robot, &motors, &control)?;
@@ -609,7 +554,7 @@ impl<B: MotorBus> Supervisor<B> {
             motors,
             control,
             homing_config,
-            homing,
+            out_of_limits: homing_facets::OutOfLimitsFlags::default(),
             reference_authority: ReferenceAuthority::default(),
             reference_owner: reference_transaction::ReferenceOwner::default(),
             reference_commits: reference_commit::CommitOwner::default(),
@@ -637,10 +582,6 @@ impl<B: MotorBus> Supervisor<B> {
         Ok((supervisor, record_path))
     }
 
-    pub fn homing_registry(&self) -> &HomingRegistry {
-        &self.homing
-    }
-
     pub fn joint_homing_state(&self, joint: &str) -> JointHomingState {
         if self.has_latched_fault() {
             self.reference_authority.revoke();
@@ -666,12 +607,12 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     pub fn joint_out_of_limits(&self, joint: &str) -> bool {
-        self.homing.is_out_of_limits(joint)
+        self.out_of_limits.is_set(joint)
     }
 
     /// Wire facets for one joint: proto homing ordinal, drive_active, out_of_limits.
     pub fn joint_commissioning_wire(&self, joint: &str) -> (i32, bool, bool) {
-        let homing = marengo_homing::to_proto_homing_state(self.joint_homing_state(joint)) as i32;
+        let homing = homing_facets::to_proto_homing_state(self.joint_homing_state(joint)) as i32;
         (
             homing,
             self.joint_drive_active(joint),
@@ -1265,30 +1206,6 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn request_enable(&mut self, enable: bool) -> Result<(), DavoutError> {
-        if !enable {
-            return self.disable_all();
-        }
-        self.require_fault_clear()?;
-        if self.hardware_estop {
-            return Err(DavoutError::Estop);
-        }
-        let targets = if self.mode == OperationalMode::Active {
-            self.active_joints.iter().cloned().collect::<Vec<_>>()
-        } else {
-            self.robot.robot.joints.clone()
-        };
-        self.ensure_reference_for(&targets)?;
-        if self.mode == OperationalMode::Active {
-            return Ok(());
-        }
-        if self.mode != OperationalMode::Ready {
-            return Err(DavoutError::NotActive { mode: self.mode });
-        }
-        self.enable_targets_inner(&targets)
-    }
-
     /// Enable only the listed joints. On any enable/run-mode failure, [`disable_all`].
     ///
     /// Every requested joint needs private current-reference authority. Empty targets
@@ -1359,7 +1276,6 @@ impl<B: MotorBus> Supervisor<B> {
                 motor_mapped,
                 fault,
                 out_of_limits: self.joint_out_of_limits(name),
-                drive_active: self.joint_drive_active(name),
             });
         }
         let loaded: Vec<JointFacetInput> =
@@ -2966,7 +2882,7 @@ fn limit_margin_from_config(c: &marengo_config::JointControlEntry) -> LimitMargi
 }
 
 #[cfg(test)]
-#[path = "../../marengo-homing/tests/support/mod.rs"]
+#[path = "../tests/support/mod.rs"]
 mod test_directory;
 
 #[cfg(test)]
@@ -3000,7 +2916,8 @@ mod tests {
     fn bench_active(sup: &mut Supervisor<SimulationBus>) {
         bench_verify_all_joints(sup);
         sup.set_homing_complete().expect("ready");
-        sup.request_enable(true).expect("enable");
+        let joints = sup.robot.robot.joints.clone();
+        sup.enable_targets(&joints).expect("enable");
     }
 
     fn receive_pose(sup: &mut Supervisor<SimulationBus>, joint: &str, q: f32, dq: f32) {
@@ -3082,10 +2999,9 @@ mod tests {
             fixture.path().join("assets/urdf/marengo.urdf"),
         )
         .expect("URDF");
-        Supervisor::from_simulation_with_calibration_record_path(
+        Supervisor::from_simulation(
             fixture.path(),
             SimulationBus::default(),
-            fixture.path().join("history.yaml"),
             InitialVirtualReference::AllConfigured,
         )
         .expect("installed initial policy")
@@ -3099,7 +3015,7 @@ mod tests {
         let (homing, drive, ool) = sup.joint_commissioning_wire(&joint);
         assert_eq!(
             homing,
-            marengo_homing::to_proto_homing_state(marengo_homing::JointHomingState::Unhomed) as i32
+            crate::homing_facets::to_proto_homing_state(crate::JointHomingState::Unhomed) as i32
         );
         assert!(!drive);
         assert!(!ool);
@@ -3114,8 +3030,7 @@ mod tests {
         let (homing, drive, ool) = sup.joint_commissioning_wire(&joint);
         assert_eq!(
             homing,
-            marengo_homing::to_proto_homing_state(marengo_homing::JointHomingState::Verified)
-                as i32
+            crate::homing_facets::to_proto_homing_state(crate::JointHomingState::Verified) as i32
         );
         assert!(drive);
         assert!(!ool);
@@ -3921,7 +3836,8 @@ mod tests {
         bench_verify_all_joints(&mut sup);
         sup.set_homing_complete().expect("ready");
         sup.bus.clear_trace();
-        sup.request_enable(true).expect("enable");
+        let joints = sup.robot.robot.joints.clone();
+        sup.enable_targets(&joints).expect("enable");
         assert_eq!(sup.mode(), OperationalMode::Active);
         assert_eq!(sup.bus.frames().len(), sup.motors.motors.len() * 2);
         let first = robstride::unpack_ext_id(sup.bus.frames()[0].id).expect("enable id");
@@ -4381,7 +4297,8 @@ mod tests {
         sup.control.control.comm_watchdog_ms = 1;
         bench_verify_all_joints(&mut sup);
         sup.set_homing_complete().expect("ready");
-        sup.request_enable(true).expect("enable");
+        let joints = sup.robot.robot.joints.clone();
+        sup.enable_targets(&joints).expect("enable");
         std::thread::sleep(Duration::from_millis(2));
         let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
@@ -4796,7 +4713,8 @@ mod tests {
         assert!(sup.wrong_sign_state.is_empty());
         // Re-enable clears state on the enable path too.
         sup.set_homing_complete().expect("ready");
-        sup.request_enable(true).expect("enable");
+        let joints = sup.robot.robot.joints.clone();
+        sup.enable_targets(&joints).expect("enable");
         assert!(sup.wrong_sign_state.is_empty());
     }
 
@@ -4883,7 +4801,8 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(50));
         // Re-enable (mirrors the recovery path the Pi would take).
         sup.set_homing_complete().expect("ready");
-        sup.request_enable(true).expect("enable");
+        let joints = sup.robot.robot.joints.clone();
+        sup.enable_targets(&joints).expect("enable");
         // Large τ_ff step — must be rate-limited, NOT passed through.
         let cmd_big = MitJointCommand {
             joint: "right_shoulder_pitch".to_string(),

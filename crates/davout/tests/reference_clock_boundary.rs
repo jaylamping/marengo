@@ -122,10 +122,9 @@ fn finite_phase_deadline_is_capped_before_overflow_after_target_arming() {
         ),
     )
     .expect("copied diagnostics disabled before construction");
-    let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+    let mut owner = Supervisor::from_simulation(
         fixture.path(),
         SimulationBus::default(),
-        &history,
         InitialVirtualReference::Unreferenced,
     )
     .expect("actual closed owner with isolated history");
