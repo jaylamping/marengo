@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, profileMeta } from "../bench-profiles.js";
 import { appendAudit } from "../audit.js";
+import { exitCodeOfRemoteOutput } from "../ssh.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { effectiveProfile, validateMotionConfirm } from "../safety.js";
 import { homingReportShell } from "../homing.js";
@@ -207,7 +208,12 @@ export const benchLogWrapper = (
     `LABEL=${shellQuote(label)}`,
     // The one pre-session disable: stops every drive, including joints this marengo-pi session
     // will not reference. marengo-pi launches only after canSettleShell (marengoPiLaunchShell).
-    "bin/motor-repl disable 2>/dev/null || true",
+    // A disable that did not reach every drive is not a confirmed stop: do not start a motion
+    // session behind it (motor-repl exits non-zero and names each unreached drive).
+    "if ! bin/motor-repl disable; then",
+    '  echo "PRE-SESSION DISABLE INCOMPLETE: motor-repl did not reach every drive; marengo-pi NOT launched. Use the physical E-stop if any drive may be enabled."',
+    "  exit 1",
+    "fi",
     'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
     benchCandumpStartShell(),
     "set +e",
@@ -559,13 +565,16 @@ export function holdSessionRemoteBody(
 }
 
 /**
- * Disable drives (clears most Robstride faults), then read fault= from marengo-pi
- * `status` while Disabled (type-24 reporting). No reference, no enable: after a
- * fault the arm is not attested at the mechanical reference.
+ * Disable drives, then read fault= from marengo-pi `status` while Disabled
+ * (type-24 reporting). The Disable frame stops torque; it is NOT a fault clear
+ * (that is a different type-4 payload, Byte[0]=1, which Marengo never sends,
+ * ADR 0020), so a latched drive fault persists and RECOVER_FAIL says so. No
+ * reference, no enable: after a fault the arm is not attested at the mechanical
+ * reference.
  */
 function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
   return [
-    "bin/motor-repl disable 2>/dev/null || true",
+    'if ! bin/motor-repl disable; then echo "RECOVER_DISABLE_INCOMPLETE: motor-repl did not reach every drive"; fi',
     marengoPiLaunchShell(cfg),
     '{ sleep 1; echo status; echo disable; echo quit; } | timeout 10 "$PI_BIN"',
   ].join("\n");
@@ -575,7 +584,9 @@ function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
 const motorRecoverSummaryShell = [
   'echo "--- RECOVER_SUMMARY ---"',
   'grep -E "fault=0x|operational:|enabled|disabled" "$LOG" 2>/dev/null | tail -15 || true',
-  'if grep -qE "fault=0x[0-9a-fA-F]*[1-9a-fA-F]" "$LOG" 2>/dev/null; then',
+  'if grep -q "RECOVER_DISABLE_INCOMPLETE" "$LOG" 2>/dev/null; then',
+  '  echo "RECOVER_FAIL: disable did not reach every drive — use the physical E-stop, fix CAN, run pi_motor_recover again"',
+  'elif grep -qE "fault=0x[0-9a-fA-F]*[1-9a-fA-F]" "$LOG" 2>/dev/null; then',
   '  echo "RECOVER_FAIL: non-zero motor fault — power-cycle arm drive, then run pi_motor_recover again"',
   'elif grep -q "fault=0x0000" "$LOG" 2>/dev/null; then',
   '  echo "RECOVER_OK: fault=0x0000 — safe to re-enable / hold test"',
@@ -585,10 +596,15 @@ const motorRecoverSummaryShell = [
 ].join("\n");
 
 /** motor-repl set-zero (its own qualified SetZero + mechPos readback), then disable. */
-function zeroActuatorRemoteBody(joint: string): string {
+export function zeroActuatorRemoteBody(joint: string): string {
   return [
-    `bin/motor-repl set-zero ${shellQuote(joint)} --sign-tested`,
-    "bin/motor-repl disable 2>/dev/null || true",
+    "SET_ZERO_STATUS=0",
+    `bin/motor-repl set-zero ${shellQuote(joint)} --sign-tested || SET_ZERO_STATUS=$?`,
+    "DISABLE_STATUS=0",
+    "bin/motor-repl disable || DISABLE_STATUS=$?",
+    'if [ "$DISABLE_STATUS" -ne 0 ]; then echo "POST-SET-ZERO DISABLE INCOMPLETE: motor-repl did not reach every drive; use the physical E-stop if any drive may be enabled."; fi',
+    'if [ "$SET_ZERO_STATUS" -ne 0 ]; then exit "$SET_ZERO_STATUS"; fi',
+    'exit "$DISABLE_STATUS"',
   ].join("\n");
 }
 
@@ -634,7 +650,9 @@ export function registerMotionTools(
 
     pi_motor_disable: {
       description:
-        "motor-repl disable all joints (Robstride DISABLE frame — primary fault clear; no Motor Studio). " +
+        "motor-repl disable all joints: one Robstride type-4 Disable (Byte[0]=0) per configured drive, read from motors.yaml only. " +
+        "It stops torque; it does NOT clear a latched drive fault (no Byte[0]=1 fault-clear frame is sent, ADR 0020). " +
+        "Per-drive outcomes are printed; exit 1 if any drive was not reached. " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         config_dir: z
@@ -659,7 +677,7 @@ export function registerMotionTools(
           configDir,
         );
         const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_motor_disable", args, out, 0);
+        auditMotion("pi_motor_disable", args, out, exitCodeOfRemoteOutput(out));
         return out;
       },
     },
@@ -940,7 +958,7 @@ export function registerMotionTools(
           configDir,
         );
         const out = await runRemote(body, 20_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_hold_off", args, out, 0);
+        auditMotion("pi_hold_off", args, out, exitCodeOfRemoteOutput(out));
         return out;
       },
     },
