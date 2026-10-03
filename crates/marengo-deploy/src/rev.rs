@@ -8,13 +8,12 @@ pub struct ParsedDeployRev {
 }
 
 /// Parse `SHA` or `SHA ISO8601` as written by the deploy scripts.
+///
+/// A first token that is not ≥7 hex chars is not a revision: the result
+/// carries an empty `sha` (Unknown) instead of echoing the line back, so a
+/// hand-edited or corrupt `.deploy-rev` can never match a real target.
 pub fn parse_deploy_rev(raw: &str) -> ParsedDeployRev {
-    let cleaned = raw
-        .trim()
-        .replace("\\n", "")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
+    let cleaned = raw.split_whitespace().collect::<Vec<_>>().join(" ");
     let mut parts = cleaned.split(' ');
     let rev = match parts.next() {
         Some(value) => value.to_string(),
@@ -28,9 +27,15 @@ pub fn parse_deploy_rev(raw: &str) -> ParsedDeployRev {
         };
     }
     ParsedDeployRev {
-        sha: cleaned,
+        sha: String::new(),
         deployed_at: None,
     }
+}
+
+/// True for a complete 40-hex git SHA (what `install_deploy_rev` writes).
+pub fn is_full_sha(value: &str) -> bool {
+    let value = value.trim();
+    value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 /// Return whether two full or abbreviated SHAs identify the same revision.
@@ -69,6 +74,23 @@ mod tests {
         let parsed = parse_deploy_rev("abcdef0123456789 2026-08-11T12:00:00Z\n");
         assert_eq!(parsed.sha, "abcdef0123456789");
         assert_eq!(parsed.deployed_at.as_deref(), Some("2026-08-11T12:00:00Z"));
+    }
+
+    #[test]
+    fn non_hex_first_token_is_not_a_revision() {
+        // A hand-edited or corrupt `.deploy-rev` (or a literal backslash-n
+        // from a broken writer) must parse as Unknown, never as a SHA that
+        // could prefix-match a real target.
+        for raw in [
+            "not-a-sha 2026-08-11T12:00:00Z\n",
+            "abcdef0\\n2026-08-11T12:00:00Z",
+            "xyz",
+            "",
+        ] {
+            let parsed = parse_deploy_rev(raw);
+            assert_eq!(parsed.sha, "", "no revision in {raw:?}");
+            assert_eq!(parsed.deployed_at, None);
+        }
     }
 
     #[test]

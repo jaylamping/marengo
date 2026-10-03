@@ -69,33 +69,27 @@ pub(crate) fn inspect_path(
     enrichment: &EnrichmentMode,
     visit: Option<FrameVisitor<'_>>,
 ) -> Result<Inspection, Error> {
-    let meta_len = std::fs::metadata(path)
-        .map(|m| m.len())
-        .map_err(|source| Error::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
     let file = File::open(path).map_err(|source| Error::Io {
         path: path.to_path_buf(),
         source,
     })?;
-    let mut header = [0u8; 2];
-    let mut file = file;
-    let n = file.read(&mut header).map_err(|source| Error::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    // Re-open after peeking magic so BufRead starts at byte 0.
-    drop(file);
-    let file = File::open(path).map_err(|source| Error::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    let gzipped = n >= 2 && header == GZIP_MAGIC;
+    // Sniff gzip magic through a buffered peek: one open, no TOCTOU between
+    // a metadata peek and the read, and the stream starts at byte 0.
+    let mut reader = BufReader::new(file);
+    let gzipped = match reader.fill_buf() {
+        Ok(peek) => peek.len() >= 2 && peek[0..2] == GZIP_MAGIC,
+        Err(source) => {
+            return Err(Error::Io {
+                path: path.to_path_buf(),
+                source,
+            });
+        }
+    };
+    let meta_len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
     let reader: Box<dyn BufRead + '_> = if gzipped {
-        Box::new(BufReader::new(GzDecoder::new(file)))
+        Box::new(BufReader::new(GzDecoder::new(reader)))
     } else {
-        Box::new(BufReader::new(file))
+        Box::new(reader)
     };
     scan_reader(reader, meta_len, request, enrichment, visit)
 }

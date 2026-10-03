@@ -421,8 +421,9 @@ async fn command_enable(
         ));
     }
     let payload = request.encode_to_vec();
-    if let Err(e) =
-        state.publish_command_envelope(TOPIC_ENABLE, "consul", "marengo.v1.EnableRequest", payload)
+    if let Err(e) = state
+        .publish_command_envelope(TOPIC_ENABLE, "consul", "marengo.v1.EnableRequest", payload)
+        .await
     {
         if limited {
             state
@@ -496,12 +497,15 @@ async fn command_testing_mit(
         ));
     }
     let payload = request.encode_to_vec();
-    if let Err(e) = state.publish_command_envelope(
-        chappe::topics::TOPIC_TESTING_MIT_BATCH,
-        "consul",
-        "marengo.v1.MitCommandBatch",
-        payload,
-    ) {
+    if let Err(e) = state
+        .publish_command_envelope(
+            chappe::topics::TOPIC_TESTING_MIT_BATCH,
+            "consul",
+            "marengo.v1.MitCommandBatch",
+            payload,
+        )
+        .await
+    {
         state
             .rate_limiter
             .refund(TESTING_MIT_RATE_KEY, TESTING_MIT_RATE_KEY, bucket);
@@ -583,12 +587,15 @@ async fn command_set_zero(
         sign_test_passed: true,
     };
     let payload = request.encode_to_vec();
-    if let Err(e) = state.publish_command_envelope(
-        TOPIC_SET_ZERO,
-        "consul",
-        "marengo.v1.SetZeroRequest",
-        payload,
-    ) {
+    if let Err(e) = state
+        .publish_command_envelope(
+            TOPIC_SET_ZERO,
+            "consul",
+            "marengo.v1.SetZeroRequest",
+            payload,
+        )
+        .await
+    {
         state.rate_limiter.refund(client_id, &canonical, bucket);
         return Err((StatusCode::BAD_GATEWAY, e));
     }
@@ -673,12 +680,15 @@ async fn command_active_reporting_lease(
         lease_id: lease_id.to_string(),
     };
     let payload = request.encode_to_vec();
-    if let Err(e) = state.publish_command_envelope(
-        TOPIC_ACTIVE_REPORTING_LEASE,
-        "consul",
-        "marengo.v1.ActiveReportingLeaseRequest",
-        payload,
-    ) {
+    if let Err(e) = state
+        .publish_command_envelope(
+            TOPIC_ACTIVE_REPORTING_LEASE,
+            "consul",
+            "marengo.v1.ActiveReportingLeaseRequest",
+            payload,
+        )
+        .await
+    {
         if !is_release {
             state.rate_limiter.refund(client_id, &canonical, bucket);
         }
@@ -723,12 +733,15 @@ async fn command_motor_status_poll(
         operator_id: "consul".into(),
     };
     let payload = request.encode_to_vec();
-    if let Err(e) = state.publish_command_envelope(
-        TOPIC_MOTOR_STATUS_POLL,
-        "consul",
-        "marengo.v1.MotorStatusPollRequest",
-        payload,
-    ) {
+    if let Err(e) = state
+        .publish_command_envelope(
+            TOPIC_MOTOR_STATUS_POLL,
+            "consul",
+            "marengo.v1.MotorStatusPollRequest",
+            payload,
+        )
+        .await
+    {
         state.rate_limiter.refund(client_id, "_", bucket);
         return Err((StatusCode::BAD_GATEWAY, e));
     }

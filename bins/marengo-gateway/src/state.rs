@@ -298,7 +298,13 @@ impl AppState {
         self.envelope_tx.subscribe()
     }
 
-    pub fn publish_command_envelope(
+    /// Publish a command envelope to the Pi runtime and the local bus.
+    ///
+    /// The IPC write is a blocking Unix write holding a std Mutex (up to a
+    /// 1 s deadline), so it runs on the blocking pool: awaiting this from a
+    /// command handler never stalls a Tokio worker when the Pi reader
+    /// stalls. The in-process bus publish stays inline (non-blocking).
+    pub async fn publish_command_envelope(
         &self,
         topic: &str,
         source_node: &str,
@@ -317,7 +323,14 @@ impl AppState {
         };
         let bytes = envelope.encode_to_vec();
         if let Some(ipc) = &self.ipc {
-            ipc.send_command(topic, &bytes).map_err(|e| e.to_string())?;
+            let ipc = std::sync::Arc::clone(ipc);
+            let topic = topic.to_string();
+            let frame = bytes.clone();
+            tokio::task::spawn_blocking(move || {
+                ipc.send_command(&topic, &frame).map_err(|e| e.to_string())
+            })
+            .await
+            .map_err(|error| format!("ipc send task failed: {error}"))??;
         }
         self.bus
             .publish_bytes(topic, bytes)

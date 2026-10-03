@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::job::{load_reconciled_job, DeployJob, DeployJobState, DeployPhase};
+use crate::job::{load_reconciled_job, DeployJob, DeployJobState, DeployPhase, JobFileRead};
 use crate::paths::resolve_self_update_log_path;
 use crate::rev::{shas_match, ParsedDeployRev};
 use crate::upstream::fetch_upstream_sha;
@@ -75,7 +75,9 @@ fn derive_ui_state(
 /// Return whether the installed target is ready to serve: the revision matches
 /// and the Consul web root is present, for every job state.
 fn ready_for_target(deploy_sha: &str, target: &str) -> bool {
-    if target.is_empty() || !shas_match(deploy_sha, target) {
+    // Readiness is promotion-grade: a short or hand-edited `.deploy-rev`
+    // prefix never counts as ready, even when it prefix-matches the target.
+    if target.is_empty() || !crate::job::promotion_match(deploy_sha, target) {
         return false;
     }
     web_root_ready()
@@ -101,14 +103,29 @@ fn assemble_version_status(
     let ready_for_target =
         ready_for_target(&deploy.sha, &target_for_ready) && job.state == DeployJobState::Succeeded;
     // Persist a retryable failure when install "succeeded" without a web root.
+    // Compare-and-swap on job_id: if a newer phase landed after our read,
+    // keep it and display the fresh ledger instead of overwriting it.
     if job.state == DeployJobState::Succeeded && !ready_for_target {
-        job.state = DeployJobState::Failed;
-        job.phase = DeployPhase::Error;
-        job.message =
+        let mut demoted = job.clone();
+        demoted.state = DeployJobState::Failed;
+        demoted.phase = DeployPhase::Error;
+        demoted.message =
             "install finished but www/index.html missing — retry Update after building Consul"
                 .to_string();
-        job.updated_at = crate::job::format_unix_iso(crate::job::unix_now());
-        let _ = crate::job::write_job_file(&crate::paths::resolve_job_file_path(), &job);
+        demoted.updated_at = crate::job::format_unix_iso(crate::job::unix_now());
+        match crate::job::compare_and_write_job(
+            &crate::paths::resolve_job_file_path(),
+            &job.job_id,
+            &demoted,
+        ) {
+            Ok(true) => job = demoted,
+            Ok(false) => {
+                job = crate::job::read_job_file(&crate::paths::resolve_job_file_path());
+            }
+            Err(error) => {
+                tracing::warn!(%error, "demote write failed; displaying in-memory state");
+            }
+        }
     }
     let ui_state = derive_ui_state(
         &deploy.sha,
@@ -133,11 +150,31 @@ fn assemble_version_status(
 }
 
 /// Read, reconcile, fetch, and assemble the current version status.
+///
+/// Blocking ledger/systemctl/log-tail I/O runs on the blocking pool: this
+/// future never holds a Tokio worker across a filesystem or `systemctl`
+/// call. Only the GitHub-tip fetch stays on the async worker.
 pub async fn current_version_status(refresh: bool) -> VersionStatus {
-    let (deploy, job) = load_reconciled_job();
+    let (deploy, read) = tokio::task::spawn_blocking(load_reconciled_job)
+        .await
+        .unwrap_or_else(|error| {
+            tracing::warn!(%error, "reconcile task failed; serving unreconciled empty status");
+            (
+                ParsedDeployRev {
+                    sha: String::new(),
+                    deployed_at: None,
+                },
+                JobFileRead::Missing,
+            )
+        });
+    let job = read.job_or_sentinel();
     let (upstream_sha, upstream_ok, fetched_at) = fetch_upstream_sha(refresh).await;
     let log_tail = if job.state == DeployJobState::Failed {
-        read_log_tail(&resolve_self_update_log_path(), 4000)
+        let log_path = resolve_self_update_log_path();
+        tokio::task::spawn_blocking(move || read_log_tail(&log_path, 4000))
+            .await
+            .ok()
+            .flatten()
     } else {
         None
     };
@@ -237,16 +274,18 @@ mod tests {
     #[test]
     fn assemble_status_serializes_typed_phase_and_ui_state() {
         std::env::set_var("MARENGO_SKIP_WWW_READY", "1");
+        // Readiness is promotion-grade: the installed rev must be a full SHA.
+        let installed = "abcdef0123456789abcdef0123456789abcdef01";
         let status = assemble_version_status(
             ParsedDeployRev {
-                sha: "abcdef0".to_string(),
+                sha: installed.to_string(),
                 deployed_at: None,
             },
-            "abcdef0".to_string(),
+            installed.to_string(),
             true,
             0,
             DeployJob {
-                target_sha: "abcdef0".to_string(),
+                target_sha: installed.to_string(),
                 phase: DeployPhase::Done,
                 ..job(DeployJobState::Succeeded)
             },

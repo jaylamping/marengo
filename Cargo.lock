@@ -1460,6 +1460,7 @@ dependencies = [
 name = "marengo-deploy"
 version = "0.1.0"
 dependencies = [
+ "fs2",
  "serde",
  "serde_json",
  "tempfile",
@@ -1601,6 +1602,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "time",
+ "tracing",
 ]
 
 [[package]]

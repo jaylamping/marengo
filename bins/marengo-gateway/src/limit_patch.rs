@@ -123,12 +123,15 @@ pub async fn apply_limit_patch_async(
         }),
     };
     let payload = operator.encode_to_vec();
-    if let Err(error) = state.publish_command_envelope(
-        TOPIC_ACTUATOR_COMMAND,
-        "marengo-gateway",
-        "marengo.v1.OperatorCommand",
-        payload,
-    ) {
+    if let Err(error) = state
+        .publish_command_envelope(
+            TOPIC_ACTUATOR_COMMAND,
+            "marengo-gateway",
+            "marengo.v1.OperatorCommand",
+            payload,
+        )
+        .await
+    {
         return limit_patch_error(
             format!("failed to publish limit_patch: {error}"),
             PersistStatus::Failed,

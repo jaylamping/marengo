@@ -369,6 +369,11 @@ fn cert_sha256_from_der(cert_der: &[u8]) -> [u8; 32] {
 }
 
 /// Demo publisher for local testing without `marengo-pi`.
+/// Publish synthetic demo traffic at 20 Hz for UI work without a runtime.
+///
+/// A live IPC peer owns the pipeline when connected: the demo loop skips its
+/// ticks while connected so synthetic frames can never interleave with real
+/// runtime observations (demo still owns an ephemeral Store regardless).
 pub fn spawn_demo_publisher(state: SharedState) {
     use armee_proto::{
         BuildInfo, ChappeHealth, ClockMetrics, CpuMetrics, Heartbeat, HostMetrics, HostNodeRole,
@@ -377,7 +382,20 @@ pub fn spawn_demo_publisher(state: SharedState) {
     };
     tokio::spawn(async move {
         let mut t = 0u64;
+        let mut yielded = false;
         loop {
+            if state.runtime_connected() {
+                // A live runtime owns the pipeline: hold demo traffic until
+                // it disconnects rather than interleaving synthetic frames.
+                if !yielded {
+                    tracing::info!("demo publisher yielding to live IPC peer");
+                    yielded = true;
+                }
+                t += 1;
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+            yielded = false;
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_millis() as u64)
@@ -511,6 +529,40 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
+
+    #[tokio::test]
+    async fn demo_publisher_yields_to_a_live_peer() {
+        let state: SharedState = std::sync::Arc::new(crate::state::AppState::new(
+            std::sync::Arc::new(chappe::Bus::default()),
+        ));
+        // Live peer first: subscribe after the connection event so the
+        // channel holds only demo traffic, then assert demo stays silent.
+        state.runtime_connection_changed(true);
+        let mut rx = state.subscribe_envelopes();
+        spawn_demo_publisher(Arc::clone(&state));
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        assert!(
+            rx.try_recv().is_err(),
+            "demo must not interleave with a live runtime"
+        );
+
+        // Peer gone: the same publisher resumes synthetic traffic. The
+        // disconnect itself emits a connection frame first; skip ahead to
+        // the next demo frame.
+        state.runtime_connection_changed(false);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            assert!(!remaining.is_zero(), "demo resumes after disconnect");
+            let (topic, _) = tokio::time::timeout(remaining, rx.recv())
+                .await
+                .expect("channel live")
+                .expect("channel open");
+            if topic == crate::state::TOPIC_STATE {
+                break;
+            }
+        }
+    }
 
     #[test]
     fn tls_material_retains_certificate_chain_and_matching_key() {

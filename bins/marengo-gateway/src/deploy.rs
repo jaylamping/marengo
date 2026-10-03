@@ -8,8 +8,9 @@ use axum::{
     Json,
 };
 use marengo_deploy::{
-    current_version_status, enqueue_self_update, fetch_upstream_sha, load_reconciled_job,
-    new_job_id, shas_match, web_root_ready, DeployJobState,
+    current_version_status, enqueue_self_update, fetch_upstream_sha, is_full_sha,
+    load_reconciled_job, new_job_id, shas_match, web_root_ready, DeployJob, DeployJobState,
+    JobFileRead,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -133,7 +134,28 @@ pub async fn post_control_deploy(
         ));
     }
 
-    let (deploy, job) = load_reconciled_job();
+    // Ledger/systemctl I/O must not hold a Tokio worker: reconcile on the
+    // blocking pool. A failed join still refuses fail-closed below.
+    let (deploy, read) = tokio::task::spawn_blocking(load_reconciled_job)
+        .await
+        .unwrap_or_else(|_| marengo_deploy::empty_reconciled());
+    let JobFileRead::Ok(job) = read else {
+        return Ok((
+            StatusCode::CONFLICT,
+            Json(DeployResponseJson {
+                ok: false,
+                message: "corrupt deploy-job.json — refusing enqueue until the ledger is repaired"
+                    .to_string(),
+                already_current: None,
+                job_id: None,
+                target_sha: None,
+            }),
+        ));
+    };
+    // Corrupt ledgers never reach here as Running: `load_reconciled_job`
+    // returns them as `Corrupt` above instead of coercing to a Failed
+    // sentinel, so a torn write blocks enqueue fail-closed.
+    let job: DeployJob = job;
     if job.state == DeployJobState::Running {
         return Ok((
             StatusCode::CONFLICT,
@@ -162,7 +184,8 @@ pub async fn post_control_deploy(
     }
 
     // Matching rev alone is not "current" if Consul www is missing — allow repair enqueue.
-    if !deploy.sha.is_empty() && shas_match(&deploy.sha, &upstream_sha) && web_root_ready() {
+    // The installed rev must be a full SHA: a short prefix never counts as current.
+    if is_full_sha(&deploy.sha) && shas_match(&deploy.sha, &upstream_sha) && web_root_ready() {
         return Ok((
             StatusCode::OK,
             Json(DeployResponseJson {
@@ -218,9 +241,108 @@ mod tests {
 
     const TOKEN: &str = "deploy-gate-test-token";
 
+    /// Both deploy tests take the process-wide `DEPLOY_LOCK` via `try_lock`
+    /// and mutate `MARENGO_DEPLOY_JOB_FILE`: run them one at a time.
+    static TEST_SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    struct JobFileEnv {
+        prior: Option<String>,
+    }
+
+    impl JobFileEnv {
+        fn point_at(path: &std::path::Path) -> Self {
+            let prior = std::env::var("MARENGO_DEPLOY_JOB_FILE").ok();
+            std::env::set_var("MARENGO_DEPLOY_JOB_FILE", path);
+            Self { prior }
+        }
+    }
+
+    impl Drop for JobFileEnv {
+        fn drop(&mut self) {
+            match self.prior.take() {
+                Some(value) => std::env::set_var("MARENGO_DEPLOY_JOB_FILE", value),
+                None => std::env::remove_var("MARENGO_DEPLOY_JOB_FILE"),
+            }
+        }
+    }
+
+    fn envelope_bytes(message_type: &str, payload: Vec<u8>) -> Vec<u8> {
+        use armee_proto::prost::Message;
+        armee_proto::Envelope {
+            timestamp_ms: 1,
+            source_node: "deploy-test".into(),
+            message_type: message_type.into(),
+            payload,
+        }
+        .encode_to_vec()
+    }
+
+    #[tokio::test]
+    async fn deploy_refuses_enqueue_on_corrupt_ledger() {
+        use crate::access::{AccessPolicy, Capability};
+        use armee_proto::{Heartbeat, OperationalMode, SafetyState};
+
+        let _serial = TEST_SERIAL.lock().await;
+        let dir = tempfile::tempdir().expect("fixture");
+        let job_path = dir.path().join("deploy-job.json");
+        std::fs::write(&job_path, b"{ torn ledger").expect("corrupt fixture");
+        let _env = JobFileEnv::point_at(&job_path);
+
+        let state = std::sync::Arc::new(
+            crate::state::AppState::new(std::sync::Arc::new(chappe::Bus::default())).with_access(
+                AccessPolicy::role_fixture(TOKEN, Capability::Management)
+                    .expect("management grant"),
+            ),
+        );
+        {
+            use armee_proto::prost::Message;
+            let mut snap = state.snapshots.write().expect("snapshots");
+            snap.safety_state = Some(envelope_bytes(
+                "marengo.v1.SafetyState",
+                SafetyState {
+                    timestamp_ms: 1,
+                    mode: OperationalMode::Disabled as i32,
+                    hardware_estop_asserted: false,
+                    software_estop_latched: false,
+                    active_faults: vec![],
+                }
+                .encode_to_vec(),
+            ));
+            snap.heartbeat = Some(envelope_bytes(
+                "marengo.v1.Heartbeat",
+                Heartbeat {
+                    timestamp_ms: crate::restart::now_ms(),
+                    node_id: "deploy-test".to_string(),
+                }
+                .encode_to_vec(),
+            ));
+        }
+        let app = crate::http::router(state, None);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/control/deploy")
+                    .header("authorization", format!("Bearer {TOKEN}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"confirm":true}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("body");
+        assert!(
+            String::from_utf8_lossy(&body).contains("corrupt"),
+            "corrupt ledger refuses enqueue: {body:?}"
+        );
+    }
+
     #[tokio::test]
     async fn deploy_refuses_when_runtime_evidence_is_missing() {
         use crate::access::{AccessPolicy, Capability};
+        let _serial = TEST_SERIAL.lock().await;
 
         let state = std::sync::Arc::new(
             crate::state::AppState::new(std::sync::Arc::new(chappe::Bus::default())).with_access(
