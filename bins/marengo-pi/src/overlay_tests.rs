@@ -512,6 +512,39 @@ fn rejects_unwired_joint_with_not_wired_error() {
 }
 
 #[test]
+fn limit_patch_refuses_empty_expected_revision() {
+    let (tmp, config_dir, _) = copy_profile_to_temp();
+    let mut overlay = test_overlay_at(tmp.path().to_path_buf());
+    let mut loop_ctrl =
+        ControlLoop::from_repo(repo_root(), MemoryBus::default(), 200, 50).expect("loop");
+
+    let error = overlay
+        .apply_operator_command(&mut loop_ctrl, &config_dir, &limit_patch_op(String::new()))
+        .expect_err("empty revision must not bypass compare-and-swap");
+
+    assert!(matches!(error, OverlayError::Config(_)));
+    assert!(error.to_string().contains("expected_revision is required"));
+}
+
+#[test]
+fn limit_patch_refuses_stale_expected_revision() {
+    let (tmp, config_dir, _) = copy_profile_to_temp();
+    let mut overlay = test_overlay_at(tmp.path().to_path_buf());
+    let mut loop_ctrl =
+        ControlLoop::from_repo(repo_root(), MemoryBus::default(), 200, 50).expect("loop");
+
+    let error = overlay
+        .apply_operator_command(
+            &mut loop_ctrl,
+            &config_dir,
+            &limit_patch_op("stale".to_string()),
+        )
+        .expect_err("stale revision must not apply");
+
+    assert!(matches!(error, OverlayError::Config(_)));
+    assert!(error.to_string().contains("profile revision mismatch"));
+}
+#[test]
 fn limit_snapshot_marks_wired_joints() {
     let bus = MemoryBus::default();
     let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");

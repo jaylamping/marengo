@@ -346,7 +346,7 @@ async fn activate_archives_replaced_active_and_promotes_merge() {
 }
 
 #[tokio::test]
-async fn activate_saves_manifest_before_failed_live_promote() {
+async fn activation_uses_unique_temp_and_warns_on_failed_completeness_check() {
     let _env = lock_test_env();
     std::env::set_var(TOKEN_ENV, TEST_TOKEN);
     let root = marengo_config::resolve_repo_root();
@@ -359,15 +359,17 @@ async fn activate_saves_manifest_before_failed_live_promote() {
         assets.join("marengo.urdf"),
     )
     .expect("urdf");
+    let config_dir = tmp.path().join("config");
+    fs::create_dir_all(&config_dir).expect("config dir");
     std::env::set_var("MARENGO_ROOT", tmp.path());
-
+    std::env::set_var("MARENGO_CONFIG_DIR", &config_dir);
     let master_before = fs::read_to_string(assets.join("marengo.urdf")).expect("master");
     let (contributor, _) = raise_elbow_upper(&master_before);
     let upload_id = "upload-test-promote-failure";
     let staging = assets.join("staging").join(upload_id);
     fs::create_dir_all(&staging).expect("staging dir");
     fs::write(staging.join("contributor.urdf"), contributor).expect("contributor");
-    fs::create_dir(assets.join("marengo.urdf.tmp")).expect("block live temp write");
+    fs::create_dir(assets.join("marengo.urdf.tmp")).expect("block legacy temp path");
 
     let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
     let app = test_app(state);
@@ -398,25 +400,28 @@ async fn activate_saves_manifest_before_failed_live_promote() {
         .expect("body");
     let result: serde_json::Value = serde_json::from_slice(&body).expect("json");
 
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(result["ok"], false);
-    assert!(result["message"]
-        .as_str()
-        .expect("message")
-        .contains("archive was saved but activate failed"));
-    assert_eq!(
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(result["ok"], true);
+    assert!(result["completeness"]["warnings"]
+        .as_array()
+        .expect("warnings")
+        .iter()
+        .any(|warning| warning["code"] == "post_activate_check_failed"));
+    assert_ne!(
         fs::read_to_string(assets.join("marengo.urdf")).expect("live"),
         master_before
     );
+    assert!(assets.join("marengo.urdf.tmp").is_dir());
     assert!(assets
         .join("archive")
         .join(upload_id)
         .join("manifest.json")
         .is_file());
-    assert!(staging.is_dir());
+    assert!(!staging.exists());
 
     std::env::remove_var(TOKEN_ENV);
     std::env::remove_var("MARENGO_ROOT");
+    std::env::remove_var("MARENGO_CONFIG_DIR");
 }
 
 #[test]

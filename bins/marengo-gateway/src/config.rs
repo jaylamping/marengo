@@ -62,6 +62,7 @@ pub struct ConfigSnapshotJson {
 #[serde(deny_unknown_fields)]
 pub struct ConfigPatchJson {
     pub joint: String,
+    pub expected_revision: String,
     pub position_lower_rad: Option<f64>,
     pub position_upper_rad: Option<f64>,
     pub torque_limit_nm: Option<f64>,
@@ -71,7 +72,6 @@ pub struct ConfigPatchJson {
     #[serde(default)]
     pub operator_id: String,
 }
-
 #[derive(Serialize)]
 pub struct ConfigPatchResultJson {
     pub ok: bool,
@@ -200,7 +200,6 @@ pub async fn post_config_patch(
         }));
     }
     let config_dir = resolve_config_dir();
-    let revision = profile_content_revision(&config_dir).ok();
     let apply = LimitPatchRequest {
         joint: patch.joint.clone(),
         operator_id: if patch.operator_id.is_empty() {
@@ -208,7 +207,7 @@ pub async fn post_config_patch(
         } else {
             patch.operator_id.clone()
         },
-        expected_revision: revision,
+        expected_revision: patch.expected_revision.clone(),
         position_lower_rad: patch.position_lower_rad,
         position_upper_rad: patch.position_upper_rad,
         torque_limit_nm: patch.torque_limit_nm,

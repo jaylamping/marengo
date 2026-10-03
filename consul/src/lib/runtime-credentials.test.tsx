@@ -40,7 +40,7 @@ it('actual command/configuration/log/management clients select the runtime capab
     [() => postTestingMitCommandBatch(create(MitCommandBatchSchema)),'control'],
     [() => postActuatorCommand(create(OperatorCommandSchema)),'control'],
     [() => postSetZeroCommand('right_shoulder_pitch',{signTestPassed:true}),'calibration'],
-    [() => patchConfig({joint:'right_shoulder_pitch'}),'configuration'],
+    [() => patchConfig({joint:'right_shoulder_pitch', expected_revision:'fixture-revision'}),'configuration'],
     [() => putCommissioningScope({joints:[],confirm_widen:false}),'configuration'],
     [() => deleteCommissioningScope(),'configuration'],
     [() => fetchUrdfArchiveList(),'configuration'],

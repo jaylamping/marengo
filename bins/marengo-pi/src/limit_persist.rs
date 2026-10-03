@@ -187,6 +187,57 @@ pub(crate) struct PersistRequest {
     pub joint: String,
     pub param: String,
 }
+fn carry_pending_limit_patch(
+    pending: &PersistRequest,
+    latest: &mut PersistRequest,
+) -> Result<(), PersistError> {
+    if pending.config_dir != latest.config_dir {
+        return Err(PersistError::Queue(
+            "cannot coalesce limit patches across config directories".into(),
+        ));
+    }
+    let Some(previous_motors) = pending.motors.as_ref() else {
+        return Err(PersistError::Queue(
+            "pending limit patch has no motors snapshot".into(),
+        ));
+    };
+    let previous_motor = previous_motors
+        .motors
+        .iter()
+        .find(|motor| motor.joint == pending.joint)
+        .ok_or_else(|| PersistError::Queue("pending limit patch motor is missing".into()))?;
+    let previous_control = pending
+        .control
+        .control
+        .joints
+        .get(&pending.joint)
+        .ok_or_else(|| PersistError::Queue("pending limit patch control is missing".into()))?;
+    let patch = marengo_config::LimitPatch {
+        joint: pending.joint.clone(),
+        position_lower_rad: previous_motor.bench.position_lower_rad,
+        position_upper_rad: previous_motor.bench.position_upper_rad,
+        torque_limit_nm: None,
+        position_soft_lower_rad: previous_control.position_soft_lower_rad,
+        position_soft_upper_rad: previous_control.position_soft_upper_rad,
+        velocity_max_rad_s: previous_control.velocity_max_rad_s,
+    };
+    let motors = latest.motors.get_or_insert_with(|| previous_motors.clone());
+    let motor = motors
+        .motors
+        .iter_mut()
+        .find(|motor| motor.joint == pending.joint)
+        .ok_or_else(|| PersistError::Queue("latest motors snapshot lacks patched joint".into()))?;
+    marengo_config::apply_limit_patch_to_motor(motor, &patch)
+        .map_err(|error| PersistError::Queue(error.to_string()))?;
+    let control = latest
+        .control
+        .control
+        .joints
+        .get_mut(&pending.joint)
+        .ok_or_else(|| PersistError::Queue("latest control snapshot lacks patched joint".into()))?;
+    marengo_config::apply_limit_patch_to_control(control, &patch)
+        .map_err(|error| PersistError::Queue(error.to_string()))
+}
 
 impl ConfigPersistQueue {
     /// Spawn a worker that serializes YAML writes; latest enqueued draft wins.
@@ -262,9 +313,17 @@ impl ConfigPersistQueue {
         }
         match self.wake_tx.try_send(()) {
             Ok(()) | Err(TrySendError::Full(())) => {
-                if slot.request.replace(request).is_some() {
+                let mut latest = request;
+                if let Some(pending) = slot.request.take() {
+                    if pending.param == "limit_patch" {
+                        if let Err(error) = carry_pending_limit_patch(&pending, &mut latest) {
+                            slot.request = Some(pending);
+                            return Err(error);
+                        }
+                    }
                     slot.coalesced_requests = slot.coalesced_requests.saturating_add(1);
                 }
+                slot.request = Some(latest);
                 self.changed.notify_all();
                 Ok(())
             }

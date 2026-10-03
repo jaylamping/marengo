@@ -7,8 +7,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use marengo_config::{
-    apply_local_limit_patch, ensure_soft_inset, soft_limits_with_inset, LimitPatch,
-    DEFAULT_SOFT_INSET_RAD,
+    apply_local_limit_patch, soft_limits_with_inset, LimitPatch, DEFAULT_SOFT_INSET_RAD,
 };
 
 #[derive(Debug, Parser)]
@@ -42,9 +41,13 @@ fn main() -> ExitCode {
     let args = Args::parse();
     let (soft_lo, soft_hi) = match (args.soft_lower, args.soft_upper) {
         (Some(lo), Some(hi)) => (lo, hi),
-        _ => soft_limits_with_inset(args.lower, args.upper, args.soft_inset),
+        (None, None) => soft_limits_with_inset(args.lower, args.upper, args.soft_inset),
+        _ => {
+            eprintln!("--soft-lower and --soft-upper must be supplied together");
+            return ExitCode::FAILURE;
+        }
     };
-    let mut patch = LimitPatch {
+    let patch = LimitPatch {
         joint: args.joint,
         position_lower_rad: args.lower,
         position_upper_rad: args.upper,
@@ -53,7 +56,6 @@ fn main() -> ExitCode {
         position_soft_upper_rad: Some(soft_hi),
         velocity_max_rad_s: None,
     };
-    ensure_soft_inset(&mut patch);
 
     match apply_local_limit_patch(&args.repo_root, &patch) {
         Ok(()) => {

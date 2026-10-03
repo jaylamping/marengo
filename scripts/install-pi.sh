@@ -198,7 +198,7 @@ if [[ "${MARENGO_REPLACE_LIMITS:-0}" != "1" ]] && [[ -f "${INSTALL_ROOT}/config/
   echo "install-pi: backed up taught limits for preserve merge"
 fi
 
-rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
+rsync -a --exclude=.marengo-profile.lock --chown=root:root --chmod=Dgo-w,Fgo-w --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
 rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
 rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
 

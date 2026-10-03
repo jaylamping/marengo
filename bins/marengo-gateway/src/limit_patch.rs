@@ -1,18 +1,19 @@
 //! Live limit patch via Pi ACK (Set Limits / POST /config/patch).
 
-use std::path::Path;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
 use armee_proto::prost::Message;
 use armee_proto::{
     actuator_command, ActuatorCommand, LimitPatchCommand, OperatorCommand,
     PersistStatus as ProtoPersistStatus,
 };
 use marengo_config::{limit_patch_from_motor, profile_content_revision, LimitPatch};
+use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
 
 use crate::action_ack::{recv_action_ack, LIMIT_PATCH_PERSIST_ACTION, LIVE_LIMIT_PATCH_ACTION};
 use crate::state::{SharedState, TOPIC_ACTUATOR_COMMAND};
+static LIMIT_PATCH_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 const LIVE_APPLY_TIMEOUT: Duration = Duration::from_secs(8);
 const LIMIT_PATCH_PERSIST_TIMEOUT: Duration = Duration::from_secs(12);
@@ -36,7 +37,7 @@ pub struct LimitPatchResult {
 pub struct LimitPatchRequest {
     pub joint: String,
     pub operator_id: String,
-    pub expected_revision: Option<String>,
+    pub expected_revision: String,
     pub position_lower_rad: Option<f64>,
     pub position_upper_rad: Option<f64>,
     pub torque_limit_nm: Option<f64>,
@@ -70,30 +71,30 @@ pub async fn apply_limit_patch_async(
             return limit_patch_error(error.to_string(), PersistStatus::Failed);
         }
     };
-    if let Some(expected) = request.expected_revision.as_deref() {
-        if expected != current_revision {
-            return limit_patch_error(
-                format!("config revision mismatch: expected {expected}, found {current_revision}"),
-                PersistStatus::Failed,
-            );
-        }
+    if request.expected_revision.is_empty() {
+        return limit_patch_error(
+            "expected_revision is required".to_string(),
+            PersistStatus::Failed,
+        );
     }
-    if before == after {
-        return LimitPatchResult {
-            ok: true,
-            message: format!("No limit changes for {joint}"),
-            restart_required: false,
-            persist_status: PersistStatus::Durable,
-        };
+    if request.expected_revision != current_revision {
+        return limit_patch_error(
+            format!(
+                "config revision mismatch: expected {}, found {current_revision}",
+                request.expected_revision
+            ),
+            PersistStatus::Failed,
+        );
     }
 
     let session_id = format!(
-        "limit-{}-{}",
+        "limit-{}-{}-{}",
         joint,
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis())
-            .unwrap_or(0)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0),
+        LIMIT_PATCH_SEQUENCE.fetch_add(1, Ordering::Relaxed)
     );
     let mut rx = state.subscribe_envelopes();
     let operator = OperatorCommand {
@@ -113,10 +114,7 @@ pub async fn apply_limit_patch_async(
                 position_soft_lower_rad: after.position_soft_lower_rad,
                 position_soft_upper_rad: after.position_soft_upper_rad,
                 velocity_max_rad_s: after.velocity_max_rad_s,
-                expected_revision: request
-                    .expected_revision
-                    .clone()
-                    .unwrap_or(current_revision.clone()),
+                expected_revision: request.expected_revision.clone(),
             })),
         }),
     };
