@@ -65,8 +65,9 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 - **stdout lines scripts wait for:**
   - `reference <j> current pos=…`, `reference <j> failed: …`, `skipped: …`
   - `waiting for enable to complete`, then `enabled (operator=…)`
-  - `enable failed: …`, `enable blocked: …`, `home failed: …`
+  - `enable failed: …`, `enable blocked: …`, `enable refused: …` (stderr), `home failed: …`
 - **Enable completion gate:** `enabled` prints only after every target is Active, has no pending Enable writes, and has fresh feedback (`ENABLE_COMPLETION_TIMEOUT` = 2 s, after which all drives stop). `hold-on`/`hold-at`/`wave` sent earlier are deferred.
+- **Gravity preflight:** stdin/Chappe Enable and Testing Position auto-enable first run the gravity saturation sweep, at most 2 ms per tick (`bins/marengo-pi/src/gravity_preflight.rs`), so `waiting for enable to complete` arrives about 0.2 s after `enable` on the Pi. Commands sent meanwhile, except `disable`/`quit`, wait and then run in order. If the sweep refuses or is voided (stop, new fault, reference work, limit change), the waiting commands are discarded: `enable refused: …` is printed, followed by `discarded N deferred command(s)`.
 - **motor-repl** supports only `status | disable | set-zero <joint> [--sign-tested] | gravity-preview <q × all joints>`. A partial angle vector is refused.
 
 ---
