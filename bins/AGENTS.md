@@ -12,8 +12,6 @@
 | `marengo-log-cli` | Dev | Query archived bench sessions (SQL store) | Active |
 | `motor-repl` | Dev (bench) | Interactive motor exercise: status/enable/jog/set-zero/gravity | Active |
 | `imu-probe` | Pi | BNO085 I2C quaternion probe | Active |
-| `probe` | Dev | Bus / diagnostics | Scaffold |
-| `wave-demo` | Dev | Demo trajectories | Scaffold |
 | `teleop` | Dev | Teleoperation input | Scaffold |
 
 ## WHERE TO LOOK

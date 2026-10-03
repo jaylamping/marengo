@@ -71,9 +71,7 @@ ONNX policies use Git LFS when present. See [.gitattributes](.gitattributes). CA
 |--------|------|---------|
 | `marengo-pi` | Raspberry Pi | Control, CAN, Chappe |
 | `marengo-jetson` | Jetson | Planner, Fouché, Chappe |
-| `probe` | Dev | Bus / diagnostics |
 | `motor-repl` | Dev | Interactive motor exercise |
-| `wave-demo` | Dev | Demo trajectories |
 
 ### Frontend
 

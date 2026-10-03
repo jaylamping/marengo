@@ -12,9 +12,7 @@ Thin **runtime binaries** — entry points for Pi control, gateway, bench tools,
 | `marengo-jetson` | Jetson vision/planning runtime | [marengo-jetson/codemap.md](marengo-jetson/codemap.md) |
 | `marengo-log-cli` | Query archived bench sessions | [marengo-log-cli/codemap.md](marengo-log-cli/codemap.md) |
 | `imu-probe` | Read-only BNO085 hardware check | [imu-probe/codemap.md](imu-probe/codemap.md) |
-| `probe` | Low-level CAN/hardware probe | [probe/codemap.md](probe/codemap.md) |
 | `teleop` | Operator teleoperation input | [teleop/codemap.md](teleop/codemap.md) |
-| `wave-demo` | Sine-wave position excitation demo | [wave-demo/codemap.md](wave-demo/codemap.md) |
 
 ## Flow
 Typical Pi bench session:

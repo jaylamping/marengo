@@ -2045,14 +2045,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "probe"
-version = "0.1.0"
-dependencies = [
- "marengo-support",
- "tracing",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3370,15 +3362,6 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "semver",
-]
-
-[[package]]
-name = "wave-demo"
-version = "0.1.0"
-dependencies = [
- "berthier",
- "marengo-support",
- "tracing",
 ]
 
 [[package]]
