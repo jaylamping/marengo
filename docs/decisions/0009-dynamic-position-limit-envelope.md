@@ -55,6 +55,16 @@ margin = min_rad + k_v_s * |dq_cmd| + k_stop * dq_cmd² / (2 * decel_rad_s2)
 - Existing `danger_zones` rules unchanged (semantic upright-pose guards); envelope handles limit approach.
 - Talleyrand / Cartesian IK still resolves upstream; Berthier executes clamped joint targets.
 
+## Amendments
+
+**2026-10-03 (crate audit WP-E).**
+
+- `JointLimitBounds::from_hard_and_soft` returns `Result`: non-finite or inverted hard limits are refused, not clamped (`f64::clamp` panics on them).
+- Envelope collapse (`lo > hi`) returns the soft-range point nearest the measured `q`, not the soft midpoint, so a clamp never commands a jump across the range.
+- Every clamp is finite-in, finite-out: a non-finite target holds `q`; `measured_position_fault` treats a non-finite `q` as a fault.
+- `clamp_hold_target` exempts a target from the kinetic margin only when it is within 5 mrad of the soft bottom or of zero-home (`|target| ≤ 5 mrad`). The earlier gate `max(hard_lower + 5 mrad, 5 mrad)` exempted every target ≤ +5 mrad on joints with a negative `hard_lower`. Berthier's `envelope_dq_cmd_for_hold_clamp` still uses the wider gate to pick the slew-speed `dq_cmd`; aligning it would change which soft-bottom targets are reachable in one leg and needs a bench decision.
+- There is one margin-default table (marengo-config). `LimitMarginConfig` has no `Default`; a joint without a `control.joints` entry is a Davout construction error.
+
 ## Alternatives considered
 
 - **Static script margins** (`hold-at -0.85`): rejected — breaks when tuning or speed changes.

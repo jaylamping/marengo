@@ -1,6 +1,6 @@
 //! Gravity torques via virtual work (numerical ∂COM/∂q).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use armee_kinematics::load_urdf;
@@ -19,10 +19,22 @@ pub struct LinkInertial {
     pub com_m: [f64; 3],
 }
 
+/// A zero-length joint axis cannot be normalised (NaN torques); anything shorter is refused.
+const MIN_AXIS_NORM: f64 = 1e-9;
+
 /// Gravity compensation model built from URDF kinematics and link masses.
+///
+/// Construction validates the model and fails closed, so [`gravity_torques`] never has to
+/// guess: every actuated joint is either modelled (an angle in `q`) or explicitly held at a
+/// stated angle, no joint kind the model cannot represent (prismatic, mimic, floating) is
+/// present, the link tree is acyclic, and axes, origins and inertials are finite.
+///
+/// [`gravity_torques`]: crate::DynamicsModel::gravity_torques
 #[derive(Clone)]
 pub struct UrdfGravityModel {
     joint_names: Vec<String>,
+    /// Actuated joints outside `joint_names`, locked at the stated angle (rad).
+    held: Vec<(String, f64)>,
     robot: Robot,
     /// Cached: for each link name, the ordered list of joint indices (root→leaf).
     /// Eliminates the O(n) `joints.iter().find()` scan per link_transform call.
@@ -30,18 +42,32 @@ pub struct UrdfGravityModel {
 }
 
 impl UrdfGravityModel {
+    /// Load the model from a URDF file. `joint_names` (robot.yaml order) must name **every**
+    /// actuated URDF joint exactly once.
     pub fn from_urdf(
         urdf_path: impl AsRef<Path>,
         joint_names: &[String],
     ) -> Result<Self, DynamicsError> {
-        let robot = load_urdf(urdf_path)?;
-        for name in joint_names {
-            if !robot.joints.iter().any(|j| &j.name == name) {
-                return Err(DynamicsError::UnknownJoint {
-                    joint: name.clone(),
-                });
-            }
-        }
+        Self::from_urdf_with_held(urdf_path, joint_names, &[])
+    }
+
+    /// Like [`from_urdf`](Self::from_urdf) for a bench slice that models only some joints:
+    /// every actuated joint not in `joint_names` must be listed in `held` with the angle (rad)
+    /// it is locked at. The angle is stated, never assumed.
+    pub fn from_urdf_with_held(
+        urdf_path: impl AsRef<Path>,
+        joint_names: &[String],
+        held: &[(String, f64)],
+    ) -> Result<Self, DynamicsError> {
+        Self::from_robot(load_urdf(urdf_path)?, joint_names, held)
+    }
+
+    fn from_robot(
+        robot: Robot,
+        joint_names: &[String],
+        held: &[(String, f64)],
+    ) -> Result<Self, DynamicsError> {
+        validate_model(&robot, joint_names, held)?;
 
         // Precompute the parent joint chain (root→leaf) for each link so that
         // link_transform can do a direct index lookup instead of an O(n) scan.
@@ -49,11 +75,13 @@ impl UrdfGravityModel {
         for link in &robot.links {
             let mut chain = Vec::new();
             let mut current = link.name.clone();
-            loop {
-                let joint_idx = robot.joints.iter().position(|j| j.child.link == current);
-                let Some(idx) = joint_idx else {
-                    break;
-                };
+            while let Some(idx) = robot.joints.iter().position(|j| j.child.link == current) {
+                // A tree path is never longer than the joint count; more means a cycle.
+                if chain.len() >= robot.joints.len() {
+                    return Err(DynamicsError::CyclicChain {
+                        link: link.name.clone(),
+                    });
+                }
                 chain.push(idx);
                 current = robot.joints[idx].parent.link.clone();
             }
@@ -63,6 +91,7 @@ impl UrdfGravityModel {
 
         Ok(Self {
             joint_names: joint_names.to_vec(),
+            held: held.to_vec(),
             robot,
             link_chains,
         })
@@ -147,6 +176,11 @@ impl UrdfGravityModel {
             q_map[i].1 = q0;
             *t = dpe_dq;
         }
+        if let Some(i) = tau.iter().position(|t| !t.is_finite()) {
+            return Err(DynamicsError::NonFiniteTorque {
+                joint: self.joint_names[i].clone(),
+            });
+        }
         Ok(tau)
     }
 
@@ -160,6 +194,8 @@ impl UrdfGravityModel {
             })
     }
 
+    /// Joint-name → angle map: the modelled joints first (so index `i` is `q[i]`), then the
+    /// held joints at their stated angles.
     fn q_map(&self, q: &[f64]) -> Result<Vec<(String, f64)>, DynamicsError> {
         if q.len() != self.joint_names.len() {
             return Err(DynamicsError::JointCount {
@@ -167,11 +203,17 @@ impl UrdfGravityModel {
                 got: q.len(),
             });
         }
+        if q.iter().any(|v| !v.is_finite()) {
+            return Err(DynamicsError::NonFiniteInput {
+                what: "joint angles q",
+            });
+        }
         Ok(self
             .joint_names
             .iter()
             .cloned()
             .zip(q.iter().copied())
+            .chain(self.held.iter().cloned())
             .collect())
     }
 
@@ -202,13 +244,15 @@ impl UrdfGravityModel {
         let mut t = Isometry3::identity();
         for joint in chain {
             t *= pose_to_isometry(&joint.origin);
-            let q = q_map
-                .iter()
-                .find(|(n, _)| n == &joint.name)
-                .map(|(_, v)| *v)
-                .unwrap_or(0.0);
             if joint.joint_type == JointType::Revolute || joint.joint_type == JointType::Continuous
             {
+                // Construction guarantees every revolute/continuous joint is in `q_map`; a
+                // miss is a bug, and a NaN angle makes the torque non-finite (refused by the
+                // caller) instead of silently evaluating the joint at 0 rad.
+                let q = q_map
+                    .iter()
+                    .find(|(n, _)| n == &joint.name)
+                    .map_or(f64::NAN, |(_, v)| *v);
                 let axis = Vector3::new(
                     joint.axis.xyz.0[0],
                     joint.axis.xyz.0[1],
@@ -223,6 +267,145 @@ impl UrdfGravityModel {
         }
         t
     }
+}
+
+fn joint_kind(joint_type: &JointType) -> &'static str {
+    match joint_type {
+        JointType::Revolute => "revolute",
+        JointType::Continuous => "continuous",
+        JointType::Prismatic => "prismatic",
+        JointType::Fixed => "fixed",
+        JointType::Floating => "floating",
+        JointType::Planar => "planar",
+        JointType::Spherical => "spherical",
+    }
+}
+
+fn finite_all(values: &[f64]) -> bool {
+    values.iter().all(|v| v.is_finite())
+}
+
+/// Refuse any URDF/joint-list combination the gravity model would silently mis-evaluate.
+fn validate_model(
+    robot: &Robot,
+    joint_names: &[String],
+    held: &[(String, f64)],
+) -> Result<(), DynamicsError> {
+    let invalid = |what: String| DynamicsError::InvalidModel { what };
+
+    // Names: unique in the URDF, unique across modelled + held.
+    let mut seen_urdf: HashSet<&str> = HashSet::new();
+    for joint in &robot.joints {
+        if !seen_urdf.insert(joint.name.as_str()) {
+            return Err(invalid(format!("duplicate URDF joint {}", joint.name)));
+        }
+    }
+    let mut seen: HashSet<&str> = HashSet::new();
+    for name in joint_names.iter().chain(held.iter().map(|(n, _)| n)) {
+        if !seen.insert(name.as_str()) {
+            return Err(DynamicsError::DuplicateJoint {
+                joint: name.clone(),
+            });
+        }
+    }
+    if let Some((joint, _)) = held.iter().find(|(_, angle)| !angle.is_finite()) {
+        return Err(invalid(format!(
+            "held joint {joint} has a non-finite angle"
+        )));
+    }
+
+    // Joint kinds the model can represent: fixed, revolute, continuous; no mimic.
+    for joint in &robot.joints {
+        let what = match joint.joint_type {
+            JointType::Fixed | JointType::Revolute | JointType::Continuous => None,
+            JointType::Prismatic => Some("prismatic motion"),
+            JointType::Floating | JointType::Planar | JointType::Spherical => {
+                Some("floating/planar/spherical motion")
+            }
+        };
+        if let Some(what) = what {
+            return Err(DynamicsError::UnsupportedJoint {
+                joint: joint.name.clone(),
+                what,
+            });
+        }
+        if joint.mimic.is_some() {
+            return Err(DynamicsError::UnsupportedJoint {
+                joint: joint.name.clone(),
+                what: "mimic coupling",
+            });
+        }
+        if !finite_all(&joint.origin.xyz.0) || !finite_all(&joint.origin.rpy.0) {
+            return Err(invalid(format!(
+                "joint {} has a non-finite origin",
+                joint.name
+            )));
+        }
+    }
+
+    // Listed joints must exist and be revolute/continuous.
+    for name in joint_names.iter().chain(held.iter().map(|(n, _)| n)) {
+        let joint = robot
+            .joints
+            .iter()
+            .find(|j| &j.name == name)
+            .ok_or_else(|| DynamicsError::UnknownJoint {
+                joint: name.clone(),
+            })?;
+        if !matches!(
+            joint.joint_type,
+            JointType::Revolute | JointType::Continuous
+        ) {
+            return Err(DynamicsError::NotActuated {
+                joint: name.clone(),
+                kind: joint_kind(&joint.joint_type),
+            });
+        }
+    }
+
+    // Every actuated joint is accounted for, and has a usable axis.
+    for joint in &robot.joints {
+        if !matches!(
+            joint.joint_type,
+            JointType::Revolute | JointType::Continuous
+        ) {
+            continue;
+        }
+        if !seen.contains(joint.name.as_str()) {
+            return Err(DynamicsError::UnmodelledJoint {
+                joint: joint.name.clone(),
+            });
+        }
+        let a = joint.axis.xyz.0;
+        let norm = (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt();
+        if !finite_all(&a) || !norm.is_finite() || norm < MIN_AXIS_NORM {
+            return Err(invalid(format!(
+                "joint {} has a zero or non-finite axis {a:?}",
+                joint.name
+            )));
+        }
+    }
+
+    // Link tree: one parent joint per link; inertials finite and non-negative.
+    let mut children: HashSet<&str> = HashSet::new();
+    for joint in &robot.joints {
+        if !children.insert(joint.child.link.as_str()) {
+            return Err(DynamicsError::CyclicChain {
+                link: joint.child.link.clone(),
+            });
+        }
+    }
+    for link in &robot.links {
+        let mass = link.inertial.mass.value;
+        let com = link.inertial.origin.xyz.0;
+        if !mass.is_finite() || mass < 0.0 || !finite_all(&com) {
+            return Err(invalid(format!(
+                "link {} has a non-finite or negative mass ({mass}) or COM {com:?}",
+                link.name
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn pose_to_isometry(pose: &urdf_rs::Pose) -> Isometry3<f64> {
@@ -253,6 +436,11 @@ impl super::DynamicsModel for UrdfGravityModel {
             }
             q_map[i].1 = q0;
             tau[i] = dpe_dq;
+        }
+        if let Some(i) = tau.iter().position(|t| !t.is_finite()) {
+            return Err(DynamicsError::NonFiniteTorque {
+                joint: self.joint_names[i].clone(),
+            });
         }
         Ok(PureGravityTorque(tau))
     }

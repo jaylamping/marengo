@@ -81,6 +81,8 @@ mod active_reporting;
 mod active_reporting_pacing_tests;
 mod faults;
 mod feedback_consumer;
+#[cfg(test)]
+mod limit_build_tests;
 mod limit_envelope;
 mod reference;
 mod reference_codec;
@@ -3019,13 +3021,20 @@ pub(crate) fn build_limits(
                 ),
             });
         }
-        if let Some(joint_cfg) = control.control.joints.get(joint_name) {
-            if let Some(lo) = joint_cfg.position_soft_lower_rad {
-                bounds.soft_lower = lo.clamp(bounds.hard_lower, bounds.hard_upper);
-            }
-            if let Some(hi) = joint_cfg.position_soft_upper_rad {
-                bounds.soft_upper = hi.clamp(bounds.hard_lower, bounds.hard_upper);
-            }
+        let joint_cfg =
+            control
+                .control
+                .joints
+                .get(joint_name)
+                .ok_or_else(|| DavoutError::Limit {
+                    joint: joint_name.clone(),
+                    message: format!("missing control.joints.{joint_name}"),
+                })?;
+        if let Some(lo) = joint_cfg.position_soft_lower_rad {
+            bounds.soft_lower = lo.clamp(bounds.hard_lower, bounds.hard_upper);
+        }
+        if let Some(hi) = joint_cfg.position_soft_upper_rad {
+            bounds.soft_upper = hi.clamp(bounds.hard_lower, bounds.hard_upper);
         }
         bounds.soft_lower = bounds
             .soft_lower
@@ -3051,7 +3060,6 @@ pub(crate) fn build_limits(
                 joint: joint_name.clone(),
                 message: format!("missing motor_type_defaults.{type_key}"),
             })?;
-        let joint_cfg = control.control.joints.get(joint_name);
         let margin = limit_margin_from_config(joint_cfg);
         let velocity = resolve_joint_velocity_cap(joint_name, motor.motor_type, &control.control)?;
         let effort = urdf_lim
@@ -3075,19 +3083,14 @@ pub(crate) fn build_limits(
     Ok(map)
 }
 
-fn limit_margin_from_config(
-    joint_cfg: Option<&marengo_config::JointControlEntry>,
-) -> LimitMarginConfig {
-    match joint_cfg {
-        Some(c) => LimitMarginConfig {
-            min_rad: c.position_limit_margin_min_rad,
-            k_v_s: c.position_limit_margin_k_v_s,
-            k_stop: c.position_limit_margin_k_stop,
-            velocity_deadband_rad_s: c.position_trajectory_velocity_deadband_rad,
-            measured_fault_slack_rad: c.position_limit_measured_fault_slack_rad,
-            decel_rad_s2: c.position_trajectory_accel_rad_s2,
-        },
-        None => LimitMarginConfig::default(),
+fn limit_margin_from_config(c: &marengo_config::JointControlEntry) -> LimitMarginConfig {
+    LimitMarginConfig {
+        min_rad: c.position_limit_margin_min_rad,
+        k_v_s: c.position_limit_margin_k_v_s,
+        k_stop: c.position_limit_margin_k_stop,
+        velocity_deadband_rad_s: c.position_trajectory_velocity_deadband_rad,
+        measured_fault_slack_rad: c.position_limit_measured_fault_slack_rad,
+        decel_rad_s2: c.position_trajectory_accel_rad_s2,
     }
 }
 

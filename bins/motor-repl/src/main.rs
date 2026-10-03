@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::env;
 use std::path::PathBuf;
 
-use armee_dynamics::max_gravity_torque_over_range;
+use armee_dynamics::{check_gravity_range, GravityRangeVerdict};
 use berthier::{ControlLoop, ControlMode};
 use davout::{JointCommand, SpeedCommand};
 use marengo_config::{
@@ -46,16 +46,23 @@ fn preflight_gravity_saturation(loop_ctrl: &mut ControlLoop<RuntimeBus>) -> Resu
     let model = loop_ctrl.dynamics_model();
     let mut saturated = false;
     for (joint, i, q_min, q_max, motor_tau_limit) in &joint_specs {
-        let tau_max = max_gravity_torque_over_range(model, *i, *q_min, *q_max, 20).unwrap_or(0.0);
-        if tau_max > *motor_tau_limit {
-            eprintln!(
-                "ERROR: gravity torque {tau_max:.3} Nm exceeds motor limit {motor_tau_limit:.3} Nm for joint {joint}. Use --force to override."
-            );
-            saturated = true;
-        } else if tau_max > 0.8 * *motor_tau_limit {
-            eprintln!(
-                "WARN: gravity torque {tau_max:.3} Nm is >80% of motor limit {motor_tau_limit:.3} Nm for joint {joint}"
-            );
+        match check_gravity_range(model, *i, *q_min, *q_max, *motor_tau_limit, 20) {
+            GravityRangeVerdict::Within { .. } => {}
+            GravityRangeVerdict::Near { tau_max_nm } => eprintln!(
+                "WARN: gravity torque {tau_max_nm:.3} Nm is >80% of motor limit {motor_tau_limit:.3} Nm for joint {joint}"
+            ),
+            GravityRangeVerdict::Saturated { tau_max_nm } => {
+                eprintln!(
+                    "ERROR: gravity torque {tau_max_nm:.3} Nm exceeds motor limit {motor_tau_limit:.3} Nm for joint {joint}. Use --force to override."
+                );
+                saturated = true;
+            }
+            GravityRangeVerdict::Unevaluable(error) => {
+                eprintln!(
+                    "ERROR: gravity model could not be evaluated for joint {joint}: {error}. Use --force to override."
+                );
+                saturated = true;
+            }
         }
     }
     if saturated {

@@ -24,7 +24,10 @@
 //! `min Σ (r/σ_τ)² + Σ ((θ − θ_cad)/σ_θ)²`. The problem is bilinear only when a link has both
 //! parameters, so it converges in a few iterations.
 //!
-//! A proposal is refused ([`FitVerdict`]) when the data cannot identify the parameters:
+//! A proposal is refused ([`FitVerdict`]) when Gauss–Newton does not reach a stationary point
+//! (singular normal equations, a non-finite step, or the iteration limit), when the posterior
+//! covariance is not finite and positive (σ is then `NaN`, never 0), or when the data cannot
+//! identify the parameters:
 //! with each Jacobian column scaled by a *plausible hardware change*
 //! ([`FitOptions::ident_mass_scale_step`], [`FitOptions::ident_com_offset_step_m`]), the
 //! smallest singular value must reach [`FitOptions::min_identifiable_nm`] (every such change,
@@ -211,15 +214,29 @@ pub enum CalibrationError {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FitVerdict {
     Accepted,
-    IllConditioned { reason: String },
-    ImplausibleParameter { param: String, value: f64 },
-    ResidualTooHigh { max_abs_nm: f64, limit_nm: f64 },
+    /// Gauss–Newton did not reach a stationary point (singular normal equations, non-finite
+    /// step, or iteration limit): the reported θ is not a fit.
+    NotConverged {
+        reason: String,
+    },
+    IllConditioned {
+        reason: String,
+    },
+    ImplausibleParameter {
+        param: String,
+        value: f64,
+    },
+    ResidualTooHigh {
+        max_abs_nm: f64,
+        limit_nm: f64,
+    },
 }
 
 impl fmt::Display for FitVerdict {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Accepted => write!(f, "accepted"),
+            Self::NotConverged { reason } => write!(f, "refused: not converged ({reason})"),
             Self::IllConditioned { reason } => write!(f, "refused: ill-conditioned ({reason})"),
             Self::ImplausibleParameter { param, value } => {
                 write!(f, "refused: implausible {param} = {value:.4}")
@@ -477,23 +494,40 @@ pub fn fit_gravity_params(
     let lambda = sigma.map(|s| 1.0 / (s * s));
     let w = 1.0 / (opts.torque_sigma_nm * opts.torque_sigma_nm);
     let mut theta = theta0.clone();
-    let mut normal = DMatrix::zeros(params.len(), params.len());
-    for _ in 0..MAX_ITERATIONS {
+    let mut convergence = Convergence::MaxIterations {
+        last_step: f64::NAN,
+    };
+    for iteration in 0..MAX_ITERATIONS {
         let r = residual(&links, &theta, samples, &tau_cad, &fit_idx);
         let jac = jacobian(&links, &theta, &fit_idx, params.len());
-        normal = jac.transpose() * &jac * w + DMatrix::from_diagonal(&lambda);
+        let normal = normal_matrix(&jac, w, &lambda);
         let rhs = jac.transpose() * &r * w - lambda.component_mul(&(&theta - &theta0));
-        let Some(step) = normal.clone().lu().solve(&rhs) else {
+        let Some(step) = normal.lu().solve(&rhs) else {
+            convergence = Convergence::Singular { iteration };
             break;
         };
-        theta += &step;
-        if step.norm() < STEP_TOLERANCE {
+        if step.iter().any(|v| !v.is_finite()) {
+            convergence = Convergence::NonFinite { iteration };
             break;
         }
+        theta += &step;
+        let step_norm = step.norm();
+        if step_norm < STEP_TOLERANCE {
+            convergence = Convergence::Converged;
+            break;
+        }
+        convergence = Convergence::MaxIterations {
+            last_step: step_norm,
+        };
     }
-    let posterior = normal
-        .try_inverse()
-        .unwrap_or_else(|| DMatrix::from_element(params.len(), params.len(), f64::NAN));
+    // Posterior covariance at the *final* θ (not the last pre-step iterate). A singular or
+    // non-finite normal matrix yields NaN σ, never a confident 0.
+    let posterior = normal_matrix(
+        &jacobian(&links, &theta, &fit_idx, params.len()),
+        w,
+        &lambda,
+    )
+    .try_inverse();
 
     let estimates = params
         .iter()
@@ -502,7 +536,7 @@ pub fn fit_gravity_params(
             param: p.clone(),
             cad: theta0[i],
             fitted: theta[i],
-            sigma: posterior[(i, i)].max(0.0).sqrt(),
+            sigma: posterior_sigma(posterior.as_ref(), i),
         })
         .collect::<Vec<_>>();
 
@@ -529,7 +563,7 @@ pub fn fit_gravity_params(
         .flat_map(|p| fit_idx.iter().map(|&j| p.tau_meas[j] - p.tau_fit[j]))
         .collect();
 
-    let verdict = verdict(&identifiability, &estimates, &after, opts);
+    let verdict = verdict(&convergence, &identifiability, &estimates, &after, opts);
     let fitted_links = links
         .iter()
         .map(|l| FittedLink {
@@ -859,12 +893,73 @@ fn unidentifiable_reason(ident: &Identifiability, opts: &FitOptions) -> Option<S
     None
 }
 
+/// How the Gauss–Newton iteration ended.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Convergence {
+    Converged,
+    /// The normal equations could not be solved (LU found no solution).
+    Singular {
+        iteration: usize,
+    },
+    /// A step contained NaN/inf.
+    NonFinite {
+        iteration: usize,
+    },
+    /// Still stepping after [`MAX_ITERATIONS`].
+    MaxIterations {
+        last_step: f64,
+    },
+}
+
+impl Convergence {
+    fn failure(&self) -> Option<String> {
+        match *self {
+            Self::Converged => None,
+            Self::Singular { iteration } => Some(format!(
+                "normal equations singular at iteration {iteration}; θ is not a solution"
+            )),
+            Self::NonFinite { iteration } => Some(format!(
+                "non-finite Gauss–Newton step at iteration {iteration}"
+            )),
+            Self::MaxIterations { last_step } => Some(format!(
+                "no convergence after {MAX_ITERATIONS} iterations (last step norm {last_step:.3e})"
+            )),
+        }
+    }
+}
+
+/// `JᵀJ / σ_τ² + diag(λ)`: the MAP normal matrix (and, inverted, the posterior covariance).
+fn normal_matrix(jac: &DMatrix<f64>, w: f64, lambda: &DVector<f64>) -> DMatrix<f64> {
+    jac.transpose() * jac * w + DMatrix::from_diagonal(lambda)
+}
+
+/// Posterior σ of parameter `i`; NaN (never 0) when the covariance is missing or its
+/// diagonal is not a finite positive variance.
+fn posterior_sigma(posterior: Option<&DMatrix<f64>>, i: usize) -> f64 {
+    match posterior.map(|p| p[(i, i)]) {
+        Some(variance) if variance.is_finite() && variance > 0.0 => variance.sqrt(),
+        _ => f64::NAN,
+    }
+}
+
 fn verdict(
+    convergence: &Convergence,
     ident: &Identifiability,
     estimates: &[ParamEstimate],
     after: &[f64],
     opts: &FitOptions,
 ) -> FitVerdict {
+    if let Some(reason) = convergence.failure() {
+        return FitVerdict::NotConverged { reason };
+    }
+    if let Some(e) = estimates.iter().find(|e| !e.sigma.is_finite()) {
+        return FitVerdict::IllConditioned {
+            reason: format!(
+                "posterior covariance of {} is not finite and positive; the fit has no usable uncertainty",
+                e.param
+            ),
+        };
+    }
     if let Some(reason) = unidentifiable_reason(ident, opts) {
         return FitVerdict::IllConditioned { reason };
     }

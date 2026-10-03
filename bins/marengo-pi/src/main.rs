@@ -37,7 +37,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use armee_dynamics::max_gravity_torque_over_range;
+use armee_dynamics::{check_gravity_range, GravityRangeVerdict};
 use armee_proto::prost::Message;
 use armee_proto::{
     ActiveReportingLeaseAction, ActiveReportingLeaseRequest, ControlMode as ProtoControlMode,
@@ -1033,20 +1033,29 @@ fn preflight_gravity_saturation<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>) -> 
     let model = loop_ctrl.dynamics_model();
     let mut saturated = false;
     for (joint, i, q_min, q_max, motor_tau_limit) in &joint_specs {
-        let tau_max = max_gravity_torque_over_range(model, *i, *q_min, *q_max, 20).unwrap_or(0.0);
-        if tau_max > *motor_tau_limit {
-            error!(
+        match check_gravity_range(model, *i, *q_min, *q_max, *motor_tau_limit, 20) {
+            GravityRangeVerdict::Within { .. } => {}
+            GravityRangeVerdict::Near { tau_max_nm } => warn!(
                 joint = %joint,
-                tau_max, motor_tau_limit = *motor_tau_limit,
-                "gravity saturation: tau_g exceeds motor torque limit"
-            );
-            saturated = true;
-        } else if tau_max > 0.8 * *motor_tau_limit {
-            warn!(
-                joint = %joint,
-                tau_max, motor_tau_limit = *motor_tau_limit,
+                tau_max = tau_max_nm, motor_tau_limit = *motor_tau_limit,
                 "gravity torque >80% of motor limit"
-            );
+            ),
+            GravityRangeVerdict::Saturated { tau_max_nm } => {
+                error!(
+                    joint = %joint,
+                    tau_max = tau_max_nm, motor_tau_limit = *motor_tau_limit,
+                    "gravity saturation: tau_g exceeds motor torque limit"
+                );
+                saturated = true;
+            }
+            GravityRangeVerdict::Unevaluable(error) => {
+                error!(
+                    joint = %joint,
+                    %error,
+                    "gravity preflight: model could not be evaluated over the joint range; refusing enable"
+                );
+                saturated = true;
+            }
         }
     }
     if saturated {
