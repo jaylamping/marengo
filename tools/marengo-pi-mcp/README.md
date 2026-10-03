@@ -139,6 +139,23 @@ A current reference is granted only inside the process that acquires it. When th
 
 `config_dir` defaults to `/opt/marengo/config`. For a 3-DOF harness run, select the harness profile that exports `MARENGO_JOINT_SUBSET`. Don't point `MARENGO_CONFIG_DIR` at a separate bringup tree.
 
+### Gravity-model gate
+
+`pi_hold_on` and `pi_bench_harness` run one shared gate (`src/gravity-gate.ts`) before anything can enable, for every bench profile. It applies the limb-playbook §4a/4b bar: a joint fails when its residual is **≥ 0.20 Nm**. On a failure the tool stops with `FAIL gravity_model_mismatch` and sends no reference, enable or hold line. `pi_hold_on` returns the report. The harness records `[FAIL] gravity_gate` and restores `marengo-pi.service`.
+
+1. Before taking CAN, the gate reads the Pi clock and the gateway's `/snapshot/robot/state`. This read never touches CAN.
+2. As sole CAN owner, it runs `motor-repl gravity-preview`. `pi_hold_on` runs it in its own `soleCanOwnerShell` session. The harness runs it as the `gravity_gate` step, after `can_up` and `motor_repl_status`. A non-zero pose is passed as a full robot.yaml-order vector; the gate reads the model's joint order first, so the CLI never zero-fills a partial vector.
+3. It compares results per gated joint. Gated joints are the referenced joints, plus the hold joint for `pi_hold_on`.
+
+| Basis | When | Residual |
+|---|---|---|
+| `measured` | Snapshot is at most 1 s old, and every gated joint is `drive_active` and `Verified` (marengo-pi is holding the arm) | `\|τ_meas − τ_g(q_published)\|`, where τ_meas is the gateway `effort` |
+| `hanging_rest` | All other cases: no gateway, stale snapshot, or drives disabled | `\|τ_g\|` at the profile's `hangingRestRad` (every joint at its mechanical reference, arm down = 0, where physical gravity torque is ~0) |
+
+In practice `hanging_rest` is the basis that applies. Both tools disable drives before their session, and a disabled Robstride carries no phase current: it reports ~0 Nm whatever the arm weighs, so a disabled reading is not a gravity measurement. `at_mechanical_reference: true` attests that the arm is at that rest pose. If none of the gated joints is in the gravity model, or the preview prints nothing (for example CAN is still owned), the gate fails closed with `FAIL gravity_gate_unavailable`.
+
+Do not raise gains to get past this gate. Fix the URDF instead.
+
 ### `pi_sync_main`
 
 1. Local `git pull --ff-only` on `main` (fails if dirty)

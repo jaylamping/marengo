@@ -4,7 +4,6 @@ import {
   BENCH_PROFILES,
   BENCH_PROFILE_META,
   harnessJointSubset,
-  isRightArmBenchProfile,
   weightedProfiles,
   type BenchProfile,
 } from "../src/bench-profiles.js";
@@ -30,7 +29,9 @@ describe("bench profile metadata", () => {
       assert.ok(Array.isArray(meta.setZeroJoints));
       assert.ok(meta.setZeroJoints.length > 0);
       assert.equal(typeof meta.weighted, "boolean");
-      assert.equal(typeof meta.skipGravityPreview, "boolean");
+      for (const joint of meta.setZeroJoints) {
+        assert.equal(meta.hangingRestRad[joint], 0, `${profile} ${joint} hangs at its reference`);
+      }
     }
   });
 
@@ -41,7 +42,6 @@ describe("bench profile metadata", () => {
   it("uses master config dir for right-arm profiles", () => {
     const right3: BenchProfile[] = ["roll_attached", "arm_2dof_smoke"];
     for (const p of right3) {
-      assert.equal(isRightArmBenchProfile(p), true);
       assert.equal(harnessConfigDir(cfg, p), "/opt/marengo/config");
       assert.equal(
         harnessJointSubset(p),
@@ -49,7 +49,6 @@ describe("bench profile metadata", () => {
       );
     }
     for (const p of ["yaw_attached", "elbow_attached"] as BenchProfile[]) {
-      assert.equal(isRightArmBenchProfile(p), true);
       assert.equal(harnessConfigDir(cfg, p), "/opt/marengo/config");
       assert.ok(harnessJointSubset(p)?.includes("right_elbow_pitch"));
     }

@@ -26,6 +26,12 @@ const ELBOW = "right_elbow_pitch";
 // Pitch-first — matches robot.yaml / URDF chain order.
 const RIGHT_ARM_THREE_DOF = [PITCH, ROLL, YAW] as const;
 const RIGHT_ARM_FOUR_DOF = [PITCH, ROLL, YAW, ELBOW] as const;
+const DUAL_PITCH = ["left_shoulder_pitch", PITCH] as const;
+
+/** Every joint at its mechanical reference (arm/load hanging straight down = 0 rad). */
+function hangingAtReference(joints: readonly string[]): Readonly<Record<string, number>> {
+  return Object.fromEntries(joints.map((j) => [j, 0]));
+}
 
 export interface BenchProfileMeta {
   /** Ephemeral `MARENGO_JOINT_SUBSET` for harness runs on master config. */
@@ -33,50 +39,54 @@ export interface BenchProfileMeta {
   setZeroJoints: string[];
   /** Requires confirm_weighted_motion. */
   weighted: boolean;
-  /** Skip motor-repl gravity-preview in harness preflight. */
-  skipGravityPreview: boolean;
+  /**
+   * Pose (joint → rad) where this profile's load hangs at rest, so the physical gravity
+   * torque on every joint is ~0. The gravity gate checks |τ_g| here when no live drive
+   * torque is available. Model joints not listed are evaluated at 0.
+   */
+  hangingRestRad: Readonly<Record<string, number>>;
 }
 
 /** Exhaustive map — TypeScript fails if a BenchProfile key is missing. */
 export const BENCH_PROFILE_META: Record<BenchProfile, BenchProfileMeta> = {
   bare_motor: {
-    setZeroJoints: ["left_shoulder_pitch", "right_shoulder_pitch"],
+    setZeroJoints: [...DUAL_PITCH],
     weighted: false,
-    skipGravityPreview: false,
+    hangingRestRad: hangingAtReference(DUAL_PITCH),
   },
   weighted_single_arm: {
-    setZeroJoints: ["left_shoulder_pitch", "right_shoulder_pitch"],
+    setZeroJoints: [...DUAL_PITCH],
     weighted: true,
-    skipGravityPreview: false,
+    hangingRestRad: hangingAtReference(DUAL_PITCH),
   },
   arm_attached: {
-    setZeroJoints: ["left_shoulder_pitch", "right_shoulder_pitch"],
+    setZeroJoints: [...DUAL_PITCH],
     weighted: true,
-    skipGravityPreview: false,
+    hangingRestRad: hangingAtReference(DUAL_PITCH),
   },
   roll_attached: {
     jointSubset: RIGHT_ARM_THREE_DOF,
     setZeroJoints: [...RIGHT_ARM_THREE_DOF],
     weighted: true,
-    skipGravityPreview: true,
+    hangingRestRad: hangingAtReference(RIGHT_ARM_THREE_DOF),
   },
   arm_2dof_smoke: {
     jointSubset: RIGHT_ARM_THREE_DOF,
     setZeroJoints: [...RIGHT_ARM_THREE_DOF],
     weighted: true,
-    skipGravityPreview: true,
+    hangingRestRad: hangingAtReference(RIGHT_ARM_THREE_DOF),
   },
   yaw_attached: {
     jointSubset: RIGHT_ARM_FOUR_DOF,
     setZeroJoints: [...RIGHT_ARM_FOUR_DOF],
     weighted: true,
-    skipGravityPreview: true,
+    hangingRestRad: hangingAtReference(RIGHT_ARM_FOUR_DOF),
   },
   elbow_attached: {
     jointSubset: RIGHT_ARM_FOUR_DOF,
     setZeroJoints: [...RIGHT_ARM_FOUR_DOF],
     weighted: true,
-    skipGravityPreview: true,
+    hangingRestRad: hangingAtReference(RIGHT_ARM_FOUR_DOF),
   },
 };
 
@@ -86,10 +96,6 @@ export function isBenchProfile(value: string): value is BenchProfile {
 
 export function profileMeta(profile: BenchProfile): BenchProfileMeta {
   return BENCH_PROFILE_META[profile];
-}
-
-export function isRightArmBenchProfile(profile: BenchProfile): boolean {
-  return profileMeta(profile).setZeroJoints.some((j) => j.startsWith("right_"));
 }
 
 /** Comma-separated `MARENGO_JOINT_SUBSET` for harness SSH sessions. */

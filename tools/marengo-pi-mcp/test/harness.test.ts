@@ -5,6 +5,7 @@ import { harnessConfigDir, runBenchHarness } from "../src/harness/index.js";
 import { harnessJointSubset } from "../src/bench-profiles.js";
 import { wrapRemoteWithConfig } from "../src/env.js";
 import { harnessScriptSuite } from "../src/harness/scripts.js";
+import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
 
 const OPT_IN = { set_zero: true, at_mechanical_reference: true } as const;
 
@@ -57,7 +58,7 @@ describe("bench harness config", () => {
       cfg,
       async (body) => {
         bodies.push(body);
-        return "ok";
+        return isGravityPreviewBody(body) ? gravityPreviewReply() : "ok";
       },
       { profile: "arm_2dof_smoke", ...OPT_IN },
     );
@@ -133,6 +134,7 @@ describe("bench harness config", () => {
       cfg,
       async (body) => {
         bodies.push(body);
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
         if (!body.includes("sign-tested")) return "ok";
         return [
           "reference right_shoulder_pitch current pos=0.0000",
@@ -161,6 +163,51 @@ describe("bench harness config", () => {
     assert.match(out, new RegExp(`\\[PASS\\] ${names[0]}\\n`));
     assert.match(out, new RegExp(`\\[FAIL\\] ${names[1]}\\n`));
     for (const name of names.slice(2)) assert.match(out, new RegExp(`\\[FAIL\\] ${name}\\n`));
+  });
+
+  it("refuses on a gravity model mismatch before any enable, then restores the unit", async () => {
+    const bodies: string[] = [];
+    const out = await runBenchHarness(
+      cfg,
+      async (body) => {
+        bodies.push(body);
+        if (body.includes("restore after session")) {
+          return "marengo-pi.service restore after session: true";
+        }
+        // Live-URDF regression from the ascent-stall diagnosis: hanging arm, model says -1.6 Nm.
+        return isGravityPreviewBody(body)
+          ? gravityPreviewReply({ right_shoulder_pitch: -1.5951 })
+          : "ok";
+      },
+      { profile: "arm_2dof_smoke", ...OPT_IN },
+    );
+
+    const take = bodies.findIndex((b) => b.includes("pi-restart-marengo-pi.sh' stop"));
+    const preview = bodies.findIndex(isGravityPreviewBody);
+    assert.ok(take >= 0 && take < preview);
+    assert.ok(
+      !bodies.some((b) => /sign-tested|enable bench|hold-on|gravity-on|=== bench harness/.test(b)),
+      "no motion session may start after a gravity_model_mismatch",
+    );
+    assert.match(out, /\[FAIL\] gravity_gate/);
+    assert.match(out, /FAIL gravity_model_mismatch: \|τ_g\| at the hanging rest ≥ 0\.20 Nm on right_shoulder_pitch/);
+    assert.match(out, /\[PASS\] restore_marengo_pi_service/);
+  });
+
+  it("runs the gravity gate for every profile, including right-arm ones", async () => {
+    for (const profile of ["bare_motor", "roll_attached", "yaw_attached", "elbow_attached"] as const) {
+      const bodies: string[] = [];
+      const out = await runBenchHarness(
+        cfg,
+        async (body) => {
+          bodies.push(body);
+          return isGravityPreviewBody(body) ? gravityPreviewReply() : "ok";
+        },
+        { profile, ...OPT_IN },
+      );
+      assert.ok(bodies.some(isGravityPreviewBody), profile);
+      assert.match(out, /\[PASS\] gravity_gate/, profile);
+    }
   });
 
   it("clears a sourced joint subset when no override is supplied", () => {

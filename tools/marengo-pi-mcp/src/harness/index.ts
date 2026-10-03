@@ -1,7 +1,8 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
-import { harnessJointSubset, isRightArmBenchProfile, profileMeta } from "../bench-profiles.js";
+import { harnessJointSubset, profileMeta } from "../bench-profiles.js";
 import { restoreCanOwnerShell, takeCanOwnershipShell } from "../can-owner.js";
+import { gravityGateSnapshotShell, runGravityGate } from "../gravity-gate.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
 import {
   REFERENCE_OPT_IN_REQUIRED,
@@ -241,7 +242,7 @@ export async function runBenchHarness(
       const faultLines = out
         .split("\n")
         .filter((l) =>
-          /\berror\b|\bwarn\b|fault=0x[0-9a-fA-F]*[1-9a-fA-F]|watchdog|outside \[|failed:|blocked:/i.test(
+          /\berror\b|\bwarn\b|fault=0x[0-9a-fA-F]*[1-9a-fA-F]|watchdog|outside \[|failed:|blocked:|gravity_model_mismatch|gravity_gate_unavailable/i.test(
             l,
           ),
         );
@@ -303,6 +304,9 @@ export async function runBenchHarness(
     return finish();
   }
 
+  // Gravity-gate measured torque must be read before take_can_ownership stops marengo-pi.
+  const gateSnapshot = await runRemote(remote(gravityGateSnapshotShell()), 15_000);
+
   const tookCan = await step("take_can_ownership", remote(takeCanOwnershipShell()), 30_000);
   restoreUnit = /^marengo-pi\.service restore after session: true$/m.test(
     steps[steps.length - 1].output,
@@ -321,25 +325,15 @@ export async function runBenchHarness(
     return finish();
   }
 
-  // 3. gravity-preview 0 0 (single-joint / dual-pitch profiles only)
-  if (!profileMeta(profile).skipGravityPreview) {
-    if (
-      !(await step(
-        "gravity_preview_0_0",
-        remote("bin/motor-repl gravity-preview 0 0"),
-        30_000,
-      ))
-    ) {
-      return finish();
-    }
-  } else {
-    steps.push({
-      name: "gravity_preview_skipped",
-      ok: true,
-      output: isRightArmBenchProfile(profile)
-        ? "right-arm bench profile — no gravity preview step"
-        : "profile metadata skipGravityPreview",
-    });
+  // 3. gravity-model gate (every profile) before any enable
+  const gate = await runGravityGate({
+    profile,
+    joints: referenceJoints,
+    snapshotOutput: gateSnapshot,
+    runPreview: (shell) => runRemote(remote(shell), 30_000),
+  });
+  if (!record("gravity_gate", gate.report, gate.ok)) {
+    return finish();
   }
 
   if (scriptSuite?.note) {

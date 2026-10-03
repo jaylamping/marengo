@@ -16,6 +16,8 @@ import {
   registerMotionTools,
   scriptSleepTotalSec,
 } from "../src/tools/motion.js";
+import { encodeRobotState } from "./robot-state-fixture.js";
+import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
 
 /**
  * Feed `lines` (through marengoPiPipeLine) into a fake marengo-pi that records stdin and
@@ -161,6 +163,7 @@ describe("marengo-pi script tool", () => {
     const tools = registerMotionTools(
       cfg,
       async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
         script = body;
         return body;
       },
@@ -213,6 +216,7 @@ describe("marengo-pi script tool", () => {
     const tools = registerMotionTools(
       cfg,
       async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
         script = body;
         return body;
       },
@@ -232,6 +236,110 @@ describe("marengo-pi script tool", () => {
       /"home right_shoulder_pitch right_shoulder_roll right_upper_arm_yaw sign-tested"/,
     );
     assert.match(script, /printf '%s\\n' "hold-on";/);
+  });
+
+  it("refuses a gravity model mismatch with zero motion calls", async () => {
+    const bodies: string[] = [];
+    const audits: number[] = [];
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        bodies.push(body);
+        return isGravityPreviewBody(body)
+          ? gravityPreviewReply({ right_shoulder_pitch: -1.5951, right_shoulder_roll: 0.02 })
+          : "";
+      },
+      (_tool, _args, _out, exitCode) => audits.push(exitCode),
+    );
+
+    const out = await tools.pi_hold_on.handler({
+      confirm: true,
+      confirm_weighted_motion: true,
+      profile: "roll_attached",
+      set_zero: true,
+      at_mechanical_reference: true,
+    });
+
+    assert.match(out, /^FAIL gravity_model_mismatch: \|τ_g\| at the hanging rest ≥ 0\.20 Nm on right_shoulder_pitch\./m);
+    assert.match(out, /right_shoulder_pitch: q=0\.0000 rad τ_g=-1\.5951 Nm residual=1\.5951 Nm FAIL/);
+    assert.match(out, /right_shoulder_roll: .* ok/);
+    assert.deepEqual(audits, [1]);
+    // Only the CAN-free snapshot read and the read-only preview (as sole CAN owner) ran.
+    assert.equal(bodies.length, 2);
+    assert.doesNotMatch(bodies[0], /motor-repl|marengo-pi\.sh' stop/);
+    assert.match(bodies[1], /pi-restart-marengo-pi\.sh' stop[\s\S]*\nbin\/motor-repl gravity-preview$/);
+    assert.ok(
+      !bodies.some((b) => /sign-tested|enable|hold-on|hold-at|PI_BIN/.test(b)),
+      "no motion command may reach the Pi",
+    );
+  });
+
+  it("proceeds to the hold when the model matches the hanging arm", async () => {
+    const bodies: string[] = [];
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        bodies.push(body);
+        return isGravityPreviewBody(body)
+          ? gravityPreviewReply({ right_shoulder_pitch: 0.012, right_shoulder_roll: -0.03 })
+          : "hold session ran";
+      },
+      () => {},
+    );
+
+    const out = await tools.pi_hold_on.handler({
+      confirm: true,
+      confirm_weighted_motion: true,
+      profile: "roll_attached",
+      set_zero: true,
+      at_mechanical_reference: true,
+    });
+
+    assert.match(out, /PASS gravity gate: \|τ_g\| at the hanging rest < 0\.20 Nm on every modeled joint\nhold session ran$/);
+    assert.equal(bodies.length, 3);
+    assert.match(bodies[2], /printf '%s\\n' "hold-on";/);
+  });
+
+  it("compares live drive torque with τ_g at the published pose while marengo-pi holds the arm", async () => {
+    const nowMs = 1_790_000_000_000;
+    const joints = [
+      { name: "right_shoulder_pitch", homing: 3, driveActive: true, position: 0.48, effort: 0.57 },
+      { name: "right_shoulder_roll", homing: 3, driveActive: true, position: 0, effort: 0.01 },
+    ];
+    const snapshot = Buffer.from(encodeRobotState(nowMs - 40, joints)).toString("base64");
+    for (const [tauPitch, ok] of [[-0.1, false], [0.5, true]] as const) {
+      const bodies: string[] = [];
+      const tools = registerMotionTools(
+        cfg,
+        async (body) => {
+          bodies.push(body);
+          if (body.includes("snapshot/robot/state")) {
+            return `pi_now_ms=${nowMs}\nrobot_state_b64=${snapshot}`;
+          }
+          return isGravityPreviewBody(body)
+            ? gravityPreviewReply({ right_shoulder_pitch: tauPitch })
+            : "hold session ran";
+        },
+        () => {},
+      );
+      const out = await tools.pi_hold_on.handler({
+        confirm: true,
+        joint: "right_shoulder_pitch",
+        set_zero: true,
+        at_mechanical_reference: true,
+      });
+      // The preview evaluates the published pose in robot.yaml order, not the zero pose.
+      assert.match(bodies[1], /right_shoulder_pitch\) GG_Q="\$GG_Q 0\.48" ;;/);
+      assert.match(out, /basis=measured/);
+      if (ok) {
+        assert.match(out, /PASS gravity gate: \|τ_meas − τ_g\| < 0\.20 Nm/);
+        assert.equal(bodies.length, 3);
+      } else {
+        assert.match(out, /τ_meas=0\.5700 Nm residual=0\.6700 Nm FAIL/);
+        assert.match(out, /FAIL gravity_model_mismatch: \|τ_meas − τ_g\| ≥ 0\.20 Nm on right_shoulder_pitch/);
+        assert.equal(bodies.length, 2);
+      }
+    }
   });
 
   it("pi_motor_recover reads status while Disabled without reference or enable", async () => {
@@ -257,6 +365,7 @@ describe("marengo-pi script tool", () => {
     const tools = registerMotionTools(
       cfg,
       async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
         script = body;
         return body;
       },
@@ -283,6 +392,7 @@ describe("marengo-pi script tool", () => {
     const tools = registerMotionTools(
       cfg,
       async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
         script = body;
         return body;
       },

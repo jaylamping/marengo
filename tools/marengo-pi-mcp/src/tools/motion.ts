@@ -7,6 +7,7 @@ import { effectiveProfile, validateMotionConfirm } from "../safety.js";
 import { homingStatusShell } from "../homing-preflight.js";
 import { renderRobotStateHoming } from "../robot-state.js";
 import { soleCanOwnerShell } from "../can-owner.js";
+import { gravityGateSnapshotShell, runGravityGate } from "../gravity-gate.js";
 
 /** Explicit operator opt-in for in-process reference acquisition (SetZero at the current pose). */
 export const referenceOptInShape = {
@@ -247,6 +248,11 @@ const CAN_SESSION_SLACK_MS = 15_000;
 const SOLE_CAN_OWNER_NOTE =
   "Runs as sole CAN owner: stops marengo-pi.service via the pi_restart_marengo_pi helper, " +
   "refuses if any marengo-pi/motor-repl remains, restarts the unit afterwards if it was active.";
+
+const GRAVITY_GATE_NOTE =
+  "Before any enable, a gravity-model gate runs motor-repl gravity-preview (as sole CAN owner) and refuses " +
+  "with `FAIL gravity_model_mismatch` when |τ_meas − τ_g| ≥ 0.20 Nm on any joint (gateway drive torque " +
+  "while marengo-pi holds the arm), or else when |τ_g| ≥ 0.20 Nm at the profile's hanging rest pose.";
 
 /**
  * Wait budget per joint for marengo-pi `home <joints> sign-tested`; the backend
@@ -683,6 +689,8 @@ export function registerMotionTools(
         "plus at_mechanical_reference: true (otherwise refused before touching the Pi). " +
         "Uses kp/kd/slew/trim from master /opt/marengo/config/control.yaml. Logs to var/log. " +
         "Call pi_sync_bench_config first if control.yaml was edited locally. " +
+        GRAVITY_GATE_NOTE +
+        " " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         config_dir: z
@@ -742,12 +750,28 @@ export function registerMotionTools(
         const timeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
         const returnHomeSec = args.return_home_sec ?? DEFAULT_RETURN_HOME_SEC;
         const joint = args.joint ?? "right_shoulder_pitch";
+        const profile = effectiveProfile(cfg.benchProfile, args.profile);
         const referenceJoints =
-          args.joint !== undefined
-            ? [args.joint]
-            : profileMeta(effectiveProfile(cfg.benchProfile, args.profile)).setZeroJoints;
+          args.joint !== undefined ? [args.joint] : profileMeta(profile).setZeroJoints;
         const configDir =
           benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const gravity = await runGravityGate({
+          profile,
+          joints: [...new Set([...referenceJoints, joint])],
+          snapshotOutput: await runRemote(
+            wrapRemoteWithConfig(cfg, gravityGateSnapshotShell(), configDir),
+            15_000,
+          ),
+          runPreview: (shell) =>
+            runRemote(
+              wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir),
+              30_000 + CAN_SESSION_SLACK_MS,
+            ),
+        });
+        if (!gravity.ok) {
+          auditMotion("pi_hold_on", args, gravity.report, 1);
+          return gravity.report;
+        }
         const pipeCmd = holdSessionRemoteBody(cfg, {
           joint,
           referenceJoints,
@@ -757,12 +781,12 @@ export function registerMotionTools(
           returnHomeSec,
         });
         const body = benchLogWrapper(cfg, pipeCmd, "hold-on", configDir);
-        const out = await runRemote(
+        const out = `${gravity.report}\n${await runRemote(
           body,
           (timeoutSec + returnHomeSec + referenceJoints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT) * 1000 +
             20_000 +
             CAN_SESSION_SLACK_MS,
-        );
+        )}`;
         auditMotion("pi_hold_on", args, out, 0);
         return out;
       },
@@ -874,7 +898,8 @@ export function registerMotionTools(
         "Profile-aware bench test matrix (bare_motor, weighted, roll_attached, arm_2dof_smoke, yaw_attached). " +
         "Enable-requiring suites run in ONE marengo-pi session after a single awaited " +
         "`home <joints> sign-tested` (grants are in-process only); they need set_zero: true and " +
-        "at_mechanical_reference: true, otherwise the harness refuses them up front.",
+        "at_mechanical_reference: true, otherwise the harness refuses them up front. " +
+        GRAVITY_GATE_NOTE,
       inputSchema: motionConfirmSchema.extend({
         profile: benchProfileZod.optional(),
         config_dir: z.string().optional(),
