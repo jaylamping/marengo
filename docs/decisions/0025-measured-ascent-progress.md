@@ -71,3 +71,22 @@ Physical sensor noise/plant/stop/support acceptance, current reference
 acquisition, drive limit/timeout qualification and corrected-model
 commissioning remain external. Do not operate the robot, raise limits, change
 Wave sign-off or infer physical readiness from software checks.
+
+## Update 2026-10-03 (crate audit WP-D)
+
+- **Direction.** "Positive joint direction" is replaced by the outbound direction of the target's
+  own side of home: `sign(target)` for a non-home target, still ahead of `q` beyond the return
+  settle band. Progress is a new best `direction * q`. A target that flips the direction starts a
+  new episode. The rule uses only the latched target and measured `q`: it does not consult `τ_g`
+  (a wrong model must not disable the fuse) and needs no per-joint configuration. Joints whose
+  working range lies below home (upper-arm yaw, soft lower −0.72 rad) were previously unfused
+  outbound. The planner recovery and breakaway-pull policies remain positive-direction tuned.
+- **Retargets.** A true retarget no longer ends the episode. It ends the planner-recovery policy
+  episode only; the ascent and hold-tracking budgets keep their credited level and stalled time.
+  Only measured progress or the commanded condition ending renews them. This closes the
+  small-retarget stream. Residual: alternating direction retargets that each end the condition.
+- **Wave.** A wave-owned joint is still exempt from both fuses, and carries a third budget (wave
+  stall) that requires measured motion while the wave commands motion. Waves are admitted only
+  inside the soft envelope and the joint's speed/acceleration limits.
+- **Law kp.** The hold law's `kp` is the wire `kp`, so fuse torque, trip evidence and diagnostics
+  describe the torque actually sent during a mode-transition ramp.

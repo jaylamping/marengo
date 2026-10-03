@@ -134,13 +134,31 @@ counts only when the encoder reaches a new best level by more than Davout's feed
 ([ADR 0025](decisions/0025-measured-ascent-progress.md)). A trip latches a controller fault and
 disables. The fault does not clear on its own.
 
-- **Outbound ascent stall** (`AscentStall`): a non-home target sits more than 0.03 rad above `q`
-  and the encoder makes no new high.
+- **Outbound ascent stall** (`AscentStall`): a non-home target sits more than 0.03 rad ahead of `q`
+  in the direction of the target's own side of home (above `q` for a positive target, below `q`
+  for a negative one) and the encoder makes no new best level in that direction. The direction
+  comes from the latched target and measured `q`, never from `τ_g`, so a wrong gravity model
+  cannot switch the fuse off, and a joint whose range lies below home is covered.
 - **Hold tracking failure** (`HoldTracking`): this fuse covers any target, home included. It trips
   when `|q − target|` is more than 0.03 rad, the net commanded torque `tau_p + tau_ff` (which
   includes model `τ_g`) points away from the target, and `q` makes no new closest approach. This
   is the case where a wrong gravity model pushes a latched hold off target, including an
-  exact-zero hold-on. Wave-driven joints and uncommanded peers are exempt.
+  exact-zero hold-on. Uncommanded peers are exempt, and so are wave-driven joints, which carry
+  the wave-stall fuse instead. The torque it judges uses the `kp` on the wire, including during a
+  100 ms gain ramp.
+- **Wave stall** (`WaveStall`): while a wave commands at least 0.05 rad/s, measured `q` must
+  leave its credited level by 0.02 rad (or the grid threshold) within 2000 ms. A wave is refused at
+  start if an argument is non-finite, its range leaves the soft limit envelope, or its peak speed
+  or acceleration exceeds the joint's velocity cap, `position_trajectory_velocity_rad_s` or
+  `position_trajectory_accel_rad_s2`. The initial step to the wave's first target is not shaped;
+  it is bounded by the lead clamp and Davout.
+- **Retargets never renew a budget.** Only measured progress, or the commanded condition ending,
+  does (a target flipping the outbound direction starts a new episode). A stream of small
+  retargets cannot keep a stalled or sagging joint unfused. Residual: alternating up/down
+  retargets that each end the commanded condition still restart it.
+- **Controller invariants:** a Position tick without a latched setpoint, mismatched joint
+  vectors, a gravity-model error or non-parallel gain inputs latch a controller fault and discard
+  intent, instead of erroring every tick until a watchdog acts.
 - Both errors report `q`, `target`, `tau_p`, `tau_ff` and `tau_g` at the trip.
 - A latched target within two feedback counts of zero counts as home and is commanded as exactly
   `0.0`. Home/outbound classification therefore never depends on a single encoder count.
