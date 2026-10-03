@@ -364,6 +364,9 @@ compose_ssh_opts() {
   fi
   if [[ -n "$COMPOSE_SSH_IDENTITY" ]]; then
     _out+=(-i "$COMPOSE_SSH_IDENTITY")
+  elif [[ -n "${SSH_IDENTITY_FILE:-}" ]] && [[ -f "${SSH_IDENTITY_FILE}" ]]; then
+    # Native deploy: honor the same identity the marengo-pi MCP uses.
+    _out+=(-i "${SSH_IDENTITY_FILE}")
   fi
   if [[ -n "$COMPOSE_SSH_KNOWN" ]]; then
     _out+=(-o UserKnownHostsFile="$COMPOSE_SSH_KNOWN")
