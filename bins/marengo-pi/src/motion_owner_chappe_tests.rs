@@ -2,8 +2,7 @@
 //! drain functions (no hardware: SimulationBus / MemoryBus only).
 #![allow(clippy::expect_used, clippy::panic)]
 
-#[path = "../../../crates/berthier/tests/support/mod.rs"]
-mod feedback_support;
+use crate::test_support as feedback_support;
 
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;

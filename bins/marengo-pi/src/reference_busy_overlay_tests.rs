@@ -20,8 +20,7 @@ use marengo_config::load_control_config_from;
 use crate::limit_persist::{ConfigPersistQueue, PersistDrainReport, PersistDrainStatus};
 use crate::overlay::{ActuatorOverlay, OverlayError, OverlayOutcome, TOPIC_AUDIT_ACTION};
 
-#[path = "../../../crates/berthier/tests/support/mod.rs"]
-mod support;
+use crate::test_support as support;
 
 const TARGET: &str = "right_elbow_pitch";
 const BOUND: Duration = Duration::from_secs(2);

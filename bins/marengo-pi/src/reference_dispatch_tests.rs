@@ -106,7 +106,6 @@ fn stdin_discards_deferred_commands_after_reference_failure() {
         PiCommand::Status,
         PiCommand::Enable {
             operator_id: "bench".into(),
-            force: false,
         },
         PiCommand::HoldOn,
     ] {

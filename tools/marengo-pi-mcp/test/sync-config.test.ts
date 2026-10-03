@@ -70,11 +70,11 @@ describe("bench URDF sync", () => {
 });
 
 describe("bench config sync", () => {
-  it("avoids chmod/chown metadata writes during direct /opt installs", async () => {
-    assert.equal(
-      directInstallRsyncLine,
-      'rsync -r --no-owner --no-group --no-perms --omit-dir-times "$SRC/" "$DST/"',
-    );
+  it("copies config without chmod/chown metadata writes or the runtime profile lock", async () => {
     assert.doesNotMatch(directInstallRsyncLine, /rsync -a/);
+    for (const flag of ["--no-owner", "--no-group", "--no-perms", "--omit-dir-times"]) {
+      assert.ok(directInstallRsyncLine.includes(flag), `missing ${flag}`);
+    }
+    assert.match(directInstallRsyncLine, /--exclude="\.marengo-profile\.lock"/);
   });
 });

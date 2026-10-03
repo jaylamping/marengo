@@ -28,6 +28,10 @@ mod safety_receive_diagnostic_tests;
 mod shutdown_tests;
 #[cfg(test)]
 mod stop_path_tests;
+/// Berthier's feedback/fixture helpers, loaded once for every test module.
+#[cfg(test)]
+#[path = "../../../crates/berthier/tests/support/mod.rs"]
+mod test_support;
 
 use std::collections::BTreeSet;
 use std::env;
@@ -102,9 +106,10 @@ enum PiCommand {
         joints: Vec<String>,
         sign_tested: bool,
     },
+    /// `force`/`--force` tokens are accepted and ignored: nothing bypasses the
+    /// gravity saturation preflight (docs/safety.md).
     Enable {
         operator_id: String,
-        force: bool,
     },
     Disable,
     GravityOn,
@@ -166,16 +171,16 @@ fn parse_command(line: &str) -> Option<PiCommand> {
             }
         }
         "enable" => {
-            let mut force = false;
             let mut operator_id = "bench".to_string();
             for tok in parts {
                 if tok == "force" || tok == "--force" {
-                    force = true;
-                } else if operator_id == "bench" {
+                    continue;
+                }
+                if operator_id == "bench" {
                     operator_id = tok.to_string();
                 }
             }
-            Some(PiCommand::Enable { operator_id, force })
+            Some(PiCommand::Enable { operator_id })
         }
         "disable" => Some(PiCommand::Disable),
         "gravity-on" | "gravity_on" => Some(PiCommand::GravityOn),
@@ -1201,10 +1206,7 @@ fn handle_command<B: MotorBus>(
                 println!("home failed: {message}");
             }
         }
-        PiCommand::Enable {
-            operator_id,
-            force: _,
-        } => {
+        PiCommand::Enable { operator_id } => {
             if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
                 eprintln!("enable refused: gravity saturation preflight failed closed");
                 return true;
