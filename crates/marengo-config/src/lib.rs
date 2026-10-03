@@ -319,6 +319,52 @@ pub fn load_motors_config(repo_root: impl AsRef<Path>) -> Result<MotorsConfigFil
     load_motors_config_from(resolve_config_dir(repo_root))
 }
 
+/// CAN address of one configured drive, enough to send it a stop frame.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct MotorStopTarget {
+    pub can_interface: String,
+    pub device_id: u8,
+}
+
+#[derive(Deserialize)]
+struct MotorStopTargetsFile {
+    motors: Vec<MotorStopTargetRow>,
+}
+
+#[derive(Deserialize)]
+struct MotorStopTargetRow {
+    can_interface: String,
+    device_id: u8,
+}
+
+/// Every configured drive address from `motors.yaml` in `config_dir`, without
+/// semantic validation, so a stop can still reach the drives when limits,
+/// URDF, control or homing configuration are broken. Only `can_interface` and
+/// `device_id` of each row are read; duplicates collapse to one target.
+pub fn load_motor_stop_targets_from(
+    config_dir: impl AsRef<Path>,
+) -> Result<Vec<MotorStopTarget>, ConfigError> {
+    let file: MotorStopTargetsFile = read_yaml(&config_dir.as_ref().join("motors.yaml"))?;
+    let mut targets: Vec<MotorStopTarget> = Vec::with_capacity(file.motors.len());
+    for row in file.motors {
+        let target = MotorStopTarget {
+            can_interface: row.can_interface,
+            device_id: row.device_id,
+        };
+        if !targets.contains(&target) {
+            targets.push(target);
+        }
+    }
+    Ok(targets)
+}
+
+/// [`load_motor_stop_targets_from`] for the resolved config dir (honours `MARENGO_CONFIG_DIR`).
+pub fn load_motor_stop_targets(
+    repo_root: impl AsRef<Path>,
+) -> Result<Vec<MotorStopTarget>, ConfigError> {
+    load_motor_stop_targets_from(resolve_config_dir(repo_root))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ControlConfigFile {
     pub control: ControlSection,
@@ -1307,6 +1353,54 @@ mod tests {
 
     fn repo_root() -> PathBuf {
         resolve_repo_root()
+    }
+
+    #[test]
+    fn stop_targets_read_master_motors_and_keep_every_row() {
+        let targets = load_motor_stop_targets(repo_root()).expect("stop targets");
+        let motors = load_motors_config(repo_root()).expect("motors.yaml");
+        assert_eq!(targets.len(), motors.motors.len());
+        for motor in &motors.motors {
+            assert!(targets.contains(&MotorStopTarget {
+                can_interface: motor.can_interface.clone(),
+                device_id: motor.device_id,
+            }));
+        }
+    }
+
+    #[test]
+    fn stop_targets_survive_config_that_fails_full_validation() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        // No bench limits, firmware or recv id; a duplicate address; a second
+        // interface. Full validation rejects this, a stop must still address it.
+        std::fs::write(
+            dir.path().join("motors.yaml"),
+            "motors:\n  - {joint: a, can_interface: can0, device_id: 1}\n  - {joint: b, can_interface: can0, device_id: 1}\n  - {joint: c, can_interface: can1, device_id: 7, motor_type: nonsense}\n",
+        )
+        .expect("write");
+        assert!(load_motors_config_from(dir.path()).is_err());
+        let targets = load_motor_stop_targets_from(dir.path()).expect("lenient stop targets");
+        assert_eq!(
+            targets,
+            vec![
+                MotorStopTarget {
+                    can_interface: "can0".into(),
+                    device_id: 1
+                },
+                MotorStopTarget {
+                    can_interface: "can1".into(),
+                    device_id: 7
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn stop_targets_error_when_motors_yaml_is_unreadable() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        assert!(load_motor_stop_targets_from(dir.path()).is_err());
+        std::fs::write(dir.path().join("motors.yaml"), "motors: [not, rows]").expect("write");
+        assert!(load_motor_stop_targets_from(dir.path()).is_err());
     }
 
     #[test]
