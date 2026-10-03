@@ -22,7 +22,7 @@ use tracing::{debug, info};
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::gain_runtime::{
     mode_allows_gain_override, target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime,
-    JointModeGains,
+    GainShapeError, JointModeGains,
 };
 use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
@@ -64,6 +64,29 @@ pub enum LoopError {
     InvalidWaveCycles,
     #[error("position wave: half_period_sec must be positive")]
     InvalidWavePeriod,
+    #[error("position wave: {field} must be finite (got {value})")]
+    NonFiniteWave { field: &'static str, value: f64 },
+    #[error(
+        "position wave on {joint}: {min_rad:.4}..{max_rad:.4} rad leaves the commandable range {lower:.4}..{upper:.4} rad"
+    )]
+    WaveOutsideLimits {
+        joint: String,
+        min_rad: f64,
+        max_rad: f64,
+        lower: f64,
+        upper: f64,
+    },
+    #[error(
+        "position wave on {joint}: peak {quantity} {requested:.4} exceeds the joint limit {limit:.4}"
+    )]
+    WaveExceedsMotionLimit {
+        joint: String,
+        quantity: &'static str,
+        requested: f64,
+        limit: f64,
+    },
+    #[error("position hold: target for {joint} must be finite (got {value})")]
+    NonFiniteTarget { joint: String, value: f64 },
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
     /// A Position-mode arm latches measured `q`; it waits until every Active
@@ -86,6 +109,17 @@ pub enum LoopError {
         ms: u64,
         trip: HoldFuseTrip,
     },
+    #[error(
+        "position wave: wave stall on {joint}: no measured motion while the wave commanded motion for {ms} ms ({trip})"
+    )]
+    WaveStall {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
+    /// Internal invariant break: the hold law saw joint vectors of different lengths.
+    #[error("position hold: joint vector length mismatch")]
+    HoldLenMismatch,
     #[error("torque cmd: non-finite τ_cmd for joint {joint}")]
     NonFiniteTorqueCmd { joint: String },
     #[error("invalid gain override for {joint}: {field} must be finite and nonnegative")]
@@ -99,6 +133,9 @@ pub enum LoopError {
     GainOverrideNotApplicable { joint: String, mode: ControlMode },
     #[error("invalid nominal controller period {seconds} seconds")]
     InvalidLoopPeriod { seconds: f64 },
+    /// Internal invariant break: per-joint gain inputs were not parallel to the joint list.
+    #[error(transparent)]
+    GainShape(#[from] GainShapeError),
 }
 
 impl From<HoldError> for LoopError {
@@ -107,9 +144,8 @@ impl From<HoldError> for LoopError {
             HoldError::AscentStall { joint, ms, trip } => Self::AscentStall { joint, ms, trip },
             HoldError::HoldTracking { joint, ms, trip } => Self::HoldTracking { joint, ms, trip },
             HoldError::MissingSetpoint { joint } => Self::MissingSetpoint { joint },
-            HoldError::LenMismatch => Self::MissingSetpoint {
-                joint: "len_mismatch".to_string(),
-            },
+            HoldError::WaveStall { joint, ms, trip } => Self::WaveStall { joint, ms, trip },
+            HoldError::LenMismatch => Self::HoldLenMismatch,
             HoldError::InvalidPeriod { seconds } => Self::InvalidLoopPeriod { seconds },
         }
     }
@@ -442,7 +478,12 @@ impl<B: MotorBus> ControlLoop<B> {
         chappe_hz: u32,
         build_supervisor: impl FnOnce(&Path, B) -> Result<Supervisor<B>, DavoutError>,
     ) -> Result<Self, LoopError> {
-        let loop_hz = loop_hz.max(1);
+        if loop_hz == 0 {
+            // A zero rate has no period; never reinterpret it as 1 Hz.
+            return Err(LoopError::InvalidLoopPeriod {
+                seconds: f64::INFINITY,
+            });
+        }
         let seconds = 1.0 / f64::from(loop_hz);
         let loop_period = Duration::try_from_secs_f64(seconds)
             .map_err(|_| LoopError::InvalidLoopPeriod { seconds })?;
@@ -476,7 +517,7 @@ impl<B: MotorBus> ControlLoop<B> {
             last_enable_session: None,
             last_stop_generation: 0,
             active_feedback_grace_ticks: 0,
-            gains: GainRuntime::new(),
+            gains: GainRuntime::for_loop_hz(loop_hz),
             torque_cmds: TorqueCmdLatch::new(),
             position_wave: None,
             implicit_enable_forbidden: false,
@@ -545,12 +586,19 @@ impl<B: MotorBus> ControlLoop<B> {
                 joint: joint.to_string(),
             });
         };
+        let trimmed = self.hold_target_trim(joint, position_rad);
+        if !trimmed.is_finite() {
+            return Err(LoopError::NonFiniteTarget {
+                joint: joint.to_string(),
+                value: position_rad,
+            });
+        }
         let q_now = self.refresh_joint_positions()?;
         self.enable_completion()?;
         if !self.position_hold.is_armed() {
             self.latch_position_from_q(&q_now);
         }
-        let requested = self.hold_target_trim(joint, position_rad);
+        let requested = trimmed;
         let dq_cmd = self.estimated_retarget_dq_cmd(joint, q_now[i], requested);
         let slew = self
             .supervisor
@@ -689,6 +737,15 @@ impl<B: MotorBus> ControlLoop<B> {
         cycles: u32,
         half_period_sec: f64,
     ) -> Result<f64, LoopError> {
+        for (field, value) in [
+            ("min_rad", min_rad),
+            ("max_rad", max_rad),
+            ("half_period_sec", half_period_sec),
+        ] {
+            if !value.is_finite() {
+                return Err(LoopError::NonFiniteWave { field, value });
+            }
+        }
         if min_rad >= max_rad {
             return Err(LoopError::InvalidWaveRange);
         }
@@ -703,6 +760,8 @@ impl<B: MotorBus> ControlLoop<B> {
                 joint: joint.to_string(),
             });
         };
+        let half_period_ticks = (half_period_sec * f64::from(self.loop_hz)).round().max(1.0) as u64;
+        self.validate_wave_motion(joint, min_rad, max_rad, half_period_ticks)?;
         let q = self.motion_positions()?;
         let was_armed = self.position_hold.is_armed();
         self.position_hold.ensure_armed_from_q(&q, self.tick_count);
@@ -713,7 +772,6 @@ impl<B: MotorBus> ControlLoop<B> {
             }
         }
         self.set_control_mode(ControlMode::Position);
-        let half_period_ticks = (half_period_sec * f64::from(self.loop_hz)).round().max(1.0) as u64;
         let wave = PositionWave::new(
             i,
             min_rad,
@@ -734,6 +792,71 @@ impl<B: MotorBus> ControlLoop<B> {
             "position wave started"
         );
         Ok(duration_sec)
+    }
+
+    /// Admit a wave only if its whole raised-cosine reference stays inside what Berthier would
+    /// itself plan: the wave bypasses the trapezoid planner (its target is the reference), so
+    /// the planner's limits are enforced here, once, instead of per tick.
+    ///
+    /// - Range inside the joint's soft limit envelope (hold-at clamps; a wave is refused rather
+    ///   than silently reshaped).
+    /// - Peak speed `A·ω` within the Davout velocity cap and the joint's configured
+    ///   `position_trajectory_velocity_rad_s`.
+    /// - Peak acceleration `A·ω²` within `position_trajectory_accel_rad_s2`.
+    ///
+    /// `A = (max − min)/2` and `ω = π / T` use the tick-quantized half period `T`, so a tiny
+    /// `half_period_sec` that rounds to one tick is judged at its true speed.
+    fn validate_wave_motion(
+        &self,
+        joint: &str,
+        min_rad: f64,
+        max_rad: f64,
+        half_period_ticks: u64,
+    ) -> Result<(), LoopError> {
+        if let Some(policy) = self.supervisor.joint_limit_policy(joint) {
+            let (lower, upper) = (policy.soft_lower(), policy.soft_upper());
+            if min_rad < lower || max_rad > upper {
+                return Err(LoopError::WaveOutsideLimits {
+                    joint: joint.to_string(),
+                    min_rad,
+                    max_rad,
+                    lower,
+                    upper,
+                });
+            }
+        }
+        let half_period = half_period_ticks as f64 / f64::from(self.loop_hz);
+        let amplitude = 0.5 * (max_rad - min_rad);
+        let omega = std::f64::consts::PI / half_period;
+        let cfg = self.supervisor.control.control.joints.get(joint);
+        let speed_limit = [
+            self.supervisor.joint_velocity_cap(joint),
+            cfg.map(|c| c.position_trajectory_velocity_rad_s),
+        ]
+        .into_iter()
+        .flatten()
+        .fold(f64::INFINITY, f64::min);
+        let peak_speed = amplitude * omega;
+        if peak_speed > speed_limit {
+            return Err(LoopError::WaveExceedsMotionLimit {
+                joint: joint.to_string(),
+                quantity: "speed (rad/s)",
+                requested: peak_speed,
+                limit: speed_limit,
+            });
+        }
+        if let Some(accel_limit) = cfg.map(|c| c.position_trajectory_accel_rad_s2) {
+            let peak_accel = amplitude * omega * omega;
+            if peak_accel > accel_limit {
+                return Err(LoopError::WaveExceedsMotionLimit {
+                    joint: joint.to_string(),
+                    quantity: "acceleration (rad/s²)",
+                    requested: peak_accel,
+                    limit: accel_limit,
+                });
+            }
+        }
+        Ok(())
     }
 
     pub fn position_wave_active(&self) -> bool {
@@ -819,6 +942,15 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: Option<&str>,
         position_rad: f64,
     ) -> Result<(), LoopError> {
+        if !position_rad.is_finite() {
+            return Err(LoopError::NonFiniteTarget {
+                joint: joint
+                    .map(str::to_string)
+                    .or_else(|| self.joint_names.first().cloned())
+                    .unwrap_or_default(),
+                value: position_rad,
+            });
+        }
         let q = self.motion_positions()?;
         if !self.position_hold.is_armed() {
             self.position_hold.arm(&q, &q, self.tick_count);
@@ -884,6 +1016,12 @@ impl<B: MotorBus> ControlLoop<B> {
             let prev_targets = self.target_gains_for_mode(previous);
             self.gains
                 .wire_gains_now(previous, &self.joint_names, &prev_targets)
+                .unwrap_or_else(|error| {
+                    // Unreachable: targets are built from `joint_names`. Without ramp
+                    // startpoints the transition uses the YAML targets directly.
+                    tracing::error!(%error, "gain ramp startpoints unavailable; no ramp");
+                    Vec::new()
+                })
         };
         let to = self.target_gains_for_mode(mode);
         if mode != ControlMode::Position {
@@ -1141,14 +1279,40 @@ impl<B: MotorBus> ControlLoop<B> {
                     "position hold off target with opposing commanded torque and no progress",
                     Some(joint),
                 ),
+                LoopError::WaveStall { joint, .. } => self.supervisor.latch_control_fault(
+                    "position wave stalled without measured motion",
+                    Some(joint),
+                ),
+                // Internal invariant breaks: the loop can no longer compute a command it can
+                // vouch for, and every later tick would fail the same way before any MIT or
+                // keepalive is sent. Latch and discard instead of waiting for a watchdog.
+                LoopError::MissingSetpoint { .. } | LoopError::HoldLenMismatch => {
+                    self.supervisor.latch_control_fault(
+                        "position hold lost its setpoint latch (controller invariant)",
+                        None,
+                    )
+                }
+                LoopError::Dynamics(_) => self.supervisor.latch_control_fault(
+                    "gravity model failed on the control tick (controller invariant)",
+                    None,
+                ),
+                LoopError::GainShape(_) => self.supervisor.latch_control_fault(
+                    "gain resolution inputs not parallel to joints (controller invariant)",
+                    None,
+                ),
                 _ => {}
             }
             if matches!(
                 error,
                 LoopError::Safety(_)
+                    | LoopError::GainShape(_)
+                    | LoopError::Dynamics(_)
+                    | LoopError::MissingSetpoint { .. }
+                    | LoopError::HoldLenMismatch
                     | LoopError::MissingFeedback { .. }
                     | LoopError::AscentStall { .. }
                     | LoopError::HoldTracking { .. }
+                    | LoopError::WaveStall { .. }
             ) {
                 self.discard_motion_intent();
                 self.last_stop_generation = self.supervisor.stop_generation();
@@ -1256,7 +1420,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     let yaml = self.joint_mode_gains_yaml(&POSITION_DEFAULT_IMPEDANCE);
                     let resolved =
                         self.gains
-                            .resolve_all(self.control_mode, &self.joint_names, &yaml);
+                            .resolve_all(self.control_mode, &self.joint_names, &yaml)?;
                     let dq_meas: Vec<f64> = self
                         .joint_names
                         .iter()
@@ -1276,7 +1440,9 @@ impl<B: MotorBus> ControlLoop<B> {
                                 }
                             }
                             HoldJointParams {
-                                kp: r.law_kp,
+                                // The torque the law judges (fuses, evidence, diag) is the
+                                // torque on the wire: override > ramp > YAML.
+                                kp: r.wire_kp,
                                 kd: r.law_kd,
                                 ki: r.law_ki,
                                 max_lead: cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15),
@@ -1325,11 +1491,9 @@ impl<B: MotorBus> ControlLoop<B> {
                         self.position_hold.tick(world)?
                     };
                     (phase.planner_us, t) = phase_elapsed_us(t);
-                    for (i, mut cmd) in hold_out.mit.into_iter().enumerate() {
-                        // Position MIT wire: compose owns `kd` (`kd_mit`, usually 0).
-                        // Resolved `wire_kp` may scale kp (override > ramp > law);
-                        // never rewrite `kd`.
-                        cmd.kp = resolved[i].wire_kp;
+                    for cmd in hold_out.mit {
+                        // Compose already carries the wire `kp` (see `HoldJointParams.kp`)
+                        // and owns `kd` (`kd_mit`, usually 0).
                         batch.push(cmd);
                     }
                     for (i, d) in hold_out.diag.iter().enumerate() {
@@ -1452,7 +1616,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     let yaml = self.joint_mode_gains_yaml(&ZERO_IMPEDANCE);
                     let resolved =
                         self.gains
-                            .resolve_all(self.control_mode, &self.joint_names, &yaml);
+                            .resolve_all(self.control_mode, &self.joint_names, &yaml)?;
                     let ff_joints: Vec<MitFfJointIn> = self
                         .joint_names
                         .iter()
@@ -3613,3 +3777,7 @@ mod tests {
         assert!((stored.fc - 1.5).abs() < 1e-9);
     }
 }
+
+#[cfg(test)]
+#[path = "loop_wp_d_tests.rs"]
+mod wp_d_tests;

@@ -22,11 +22,11 @@ use crate::position_setpoint::{
     apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
     descent_stuck_mit_pull, downward_return_seed_velocity, home_final_approach_stuck_pull_rad,
     home_target_tolerance, lead_follow_stuck_residual, low_angle_breakaway_active,
-    planner_drifted_from_measurement, planner_should_freeze_on_descent,
+    outbound_stall_direction, planner_drifted_from_measurement, planner_should_freeze_on_descent,
     planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
     planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
     planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
-    position_hold_mit_velocity, reopen_planner_from_premature_hold, return_settle_band,
+    position_hold_mit_velocity, reopen_planner_from_premature_hold,
     POSITION_HOME_FINAL_PULL_THROUGH_RAD, POSITION_RETURN_DESCENT_SEED_RAD,
     POSITION_RETURN_RESYNC_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
@@ -101,8 +101,10 @@ impl ProgressBudget {
 struct AscentRecovery {
     /// Planner recovery retains its existing velocity/lead policy.
     planner_active: bool,
+    /// Outbound direction (`±1.0`) the credited level is measured in; `0.0` when no episode.
+    direction: f64,
     /// The safety budget has a geometric lifetime independent of that policy.
-    /// Progress measure: measured `q` (a new encoder high level).
+    /// Progress measure: `direction * q` (a new encoder level further outbound).
     progress: Option<ProgressBudget>,
 }
 
@@ -115,20 +117,75 @@ impl AscentRecovery {
         ProgressBudget::stalled_ms(self.progress)
     }
 
+    /// `outbound` is the direction of the commanded outbound move, or `None` when the joint is
+    /// not in a watched episode. A changed direction starts a new episode: the credited level of
+    /// the old direction is meaningless in the new one.
     fn update(
         &mut self,
         planner_active: bool,
-        commanded_ascent: bool,
+        outbound: Option<f64>,
         q: f64,
         progress_threshold: f64,
         period: Duration,
     ) -> u64 {
         self.planner_active = planner_active;
-        if !commanded_ascent {
+        let Some(direction) = outbound else {
+            self.direction = 0.0;
             self.progress = None;
             return 0;
+        };
+        if self.direction != direction {
+            self.direction = direction;
+            self.progress = None;
         }
-        ProgressBudget::observe(&mut self.progress, q, progress_threshold, period)
+        ProgressBudget::observe(
+            &mut self.progress,
+            direction * q,
+            progress_threshold,
+            period,
+        )
+    }
+}
+
+/// Commanded wave speed below this is a dwell (endpoint turn-around): the wave stall budget
+/// neither accrues nor renews there.
+pub const POSITION_WAVE_STALL_MIN_COMMANDED_SPEED_RAD_S: f64 = 0.05;
+
+/// Measured motion of at least this (or the installed feedback-grid threshold, if larger) away
+/// from the credited level renews the wave stall budget. Below the hold-tracking band.
+pub const POSITION_WAVE_STALL_PROGRESS_RAD: f64 = 0.02;
+
+/// Wave stall fuse: while the wave commands motion, the encoder must keep leaving its credited
+/// level. A joint that is jammed (or whose output is saturated against friction or an obstacle)
+/// shows no measured motion while the wave target keeps moving, which the hold-tracking
+/// closeness measure cannot see because the target sweeps through the stuck `q`.
+#[derive(Debug, Clone, Copy, Default)]
+struct WaveMotionWatch {
+    anchor: Option<f64>,
+    stalled: Duration,
+}
+
+impl WaveMotionWatch {
+    fn stalled_ms(self) -> u64 {
+        u64::try_from(self.stalled.as_millis()).unwrap_or(u64::MAX)
+    }
+
+    fn update(
+        &mut self,
+        q: f64,
+        commanded_speed: f64,
+        progress_threshold: f64,
+        period: Duration,
+    ) -> u64 {
+        let anchor = *self.anchor.get_or_insert(q);
+        let renew = POSITION_WAVE_STALL_PROGRESS_RAD.max(progress_threshold);
+        if (q - anchor).abs() > renew {
+            self.anchor = Some(q);
+            self.stalled = Duration::ZERO;
+        } else if commanded_speed.abs() >= POSITION_WAVE_STALL_MIN_COMMANDED_SPEED_RAD_S {
+            self.stalled = self.stalled.saturating_add(period);
+        }
+        self.stalled_ms()
     }
 }
 
@@ -204,6 +261,14 @@ pub enum HoldError {
         "position hold: hold tracking failure on {joint}: off target with net commanded torque opposing it and no measured progress for {ms} ms ({trip})"
     )]
     HoldTracking {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
+    #[error(
+        "position wave: wave stall on {joint}: no measured motion while the wave commanded motion for {ms} ms ({trip})"
+    )]
+    WaveStall {
         joint: String,
         ms: u64,
         trip: HoldFuseTrip,
@@ -328,6 +393,8 @@ pub struct PositionHold {
     planner_frozen: Option<Vec<bool>>,
     ascent_recovery: Option<Vec<AscentRecovery>>,
     hold_tracking: Vec<HoldTracking>,
+    /// Wave-owned joints are exempt from the ascent/tracking fuses; this budget replaces them.
+    wave_motion: Vec<WaveMotionWatch>,
     /// Davout's immutable installed feedback grid; zero denotes ideal continuous law inputs.
     progress_thresholds: Vec<f64>,
     /// Only joints commanded by the position owner can exhaust its watchdog budget.
@@ -353,6 +420,7 @@ impl PositionHold {
             planner_frozen: None,
             ascent_recovery: None,
             hold_tracking: vec![HoldTracking::default(); n_joints],
+            wave_motion: vec![WaveMotionWatch::default(); n_joints],
             progress_thresholds: vec![0.0; n_joints],
             commanded_joints: vec![true; n_joints],
             descent_breakaway: None,
@@ -445,8 +513,14 @@ impl PositionHold {
     ///
     /// Same-target (`|Δ| ≤ 1e-6`) is a full no-op on planner/latches/fuse (idempotent hold-at).
     /// Returns `true` when the clamped target changed, or when this call first armed the hold.
+    /// A non-finite target or measured `q` is refused without touching any state (`false`):
+    /// `NaN` would otherwise be latched, because `(old − NaN).abs() > 1e-6` is false.
     pub fn apply_retarget(&mut self, cmd: HoldRetarget) -> bool {
-        if cmd.joint_idx >= self.n_joints {
+        if cmd.joint_idx >= self.n_joints
+            || !cmd.clamped.is_finite()
+            || !cmd.requested.is_finite()
+            || !cmd.q.is_finite()
+        {
             return false;
         }
         let clamped = self.home_classified(cmd.joint_idx, cmd.clamped);
@@ -588,6 +662,7 @@ impl PositionHold {
             if joint_idx < recovery.len() {
                 recovery[joint_idx] = AscentRecovery {
                     planner_active: true,
+                    direction: 1.0,
                     progress: Some(ProgressBudget {
                         credited: self
                             .planners
@@ -608,6 +683,7 @@ impl PositionHold {
             if let Some(state) = recovery.get_mut(joint_idx) {
                 *state = AscentRecovery {
                     planner_active: active,
+                    direction: 0.0,
                     progress: None,
                 };
             }
@@ -634,6 +710,14 @@ impl PositionHold {
         self.dq_filtered
             .as_ref()
             .and_then(|v| v.get(joint_idx).copied())
+    }
+
+    #[cfg(test)]
+    pub fn integral_at(&self, joint_idx: usize) -> f64 {
+        self.integral_error
+            .as_ref()
+            .and_then(|v| v.get(joint_idx).copied())
+            .unwrap_or(0.0)
     }
 
     /// Advance planners then compose MIT for every joint.
@@ -687,6 +771,7 @@ impl PositionHold {
             recovery.fill(AscentRecovery::default());
         }
         self.hold_tracking.fill(HoldTracking::default());
+        self.wave_motion.fill(WaveMotionWatch::default());
         Self::fill_bool(&mut self.descent_breakaway, false);
         Self::fill_bool(&mut self.descent_was_stuck, false);
     }
@@ -745,11 +830,11 @@ impl PositionHold {
         self.retarget_tick
             .get_or_insert_with(|| vec![0; self.n_joints])[joint_idx] = tick;
         Self::set_bool_at(&mut self.planner_frozen, joint_idx, false);
+        // A retarget ends the planner-recovery policy episode but never renews a safety budget:
+        // only measured progress (or the commanded condition ending) does. Otherwise a stream of
+        // retargets, however small or frequent, keeps a stalled or sagging joint unfused.
         if let Some(recovery) = self.ascent_recovery.as_mut() {
-            recovery[joint_idx] = AscentRecovery::default();
-        }
-        if let Some(tracking) = self.hold_tracking.get_mut(joint_idx) {
-            *tracking = HoldTracking::default();
+            recovery[joint_idx].planner_active = false;
         }
         Self::set_bool_at(&mut self.descent_breakaway, joint_idx, false);
         Self::set_bool_at(&mut self.descent_was_stuck, joint_idx, false);
@@ -919,6 +1004,16 @@ impl PositionHold {
                 {
                     *recovery = AscentRecovery::default();
                 }
+                if self.commanded_joints[i] {
+                    self.wave_motion[i].update(
+                        world.q[i],
+                        dq_raw,
+                        self.progress_thresholds[i],
+                        period,
+                    );
+                } else {
+                    self.wave_motion[i] = WaveMotionWatch::default();
+                }
                 let settle = targets[i] - world.q[i];
                 let approaching = planners[i].dq_traj * settle > POSITION_HOLD_ERROR_DEADBAND_RAD;
                 self.tick_effective_max_lead[i] = position_hold_effective_max_lead(
@@ -934,6 +1029,7 @@ impl PositionHold {
                 continue;
             }
 
+            self.wave_motion[i] = WaveMotionWatch::default();
             let v_max = v_max_caps[i];
             let move_dist = (targets[i] - world.q[i]).abs();
             trace!(
@@ -1063,9 +1159,11 @@ impl PositionHold {
             Self::set_bool_at(&mut self.planner_frozen, i, freeze);
             // Home targets are latched as exactly 0.0 (`home_classified`), so this outbound
             // classification does not hinge on a single feedback count near zero.
-            let commanded_ascent = self.commanded_joints[i]
-                && targets[i].abs() > POSITION_SETTLE_TOLERANCE_RAD
-                && to_target > return_settle_band(targets[i]);
+            let outbound = if self.commanded_joints[i] {
+                outbound_stall_direction(targets[i], to_target)
+            } else {
+                None
+            };
             // Budget only; compose trips the fuse once it knows this tick's torques.
             if let Some(recovery) = self
                 .ascent_recovery
@@ -1074,7 +1172,7 @@ impl PositionHold {
             {
                 recovery.update(
                     ascent_recovering,
-                    commanded_ascent,
+                    outbound,
                     world.q[i],
                     self.progress_thresholds[i],
                     period,
@@ -1251,11 +1349,15 @@ impl PositionHold {
             );
             let mut tau_ff_cmd = ff.tau_ff_cmd;
             if jp.ki > 0.0 && settle_error.abs() < 0.1 && retarget_age_ms > 1000 {
-                if let Some(ref mut integral) = self.integral_error {
+                if let Some(integral) = self.integral_error.as_mut() {
                     integral[i] = (integral[i] + settle_error * world.dt)
                         .clamp(-MAX_INTEGRAL_NM / jp.ki, MAX_INTEGRAL_NM / jp.ki);
                     tau_ff_cmd += jp.ki * integral[i];
                 }
+            } else if let Some(integral) = self.integral_error.as_mut() {
+                // Outside its window the integral is not applied; it must not survive to
+                // re-apply a stale torque on re-entry.
+                integral[i] = 0.0;
             }
             let lead_sat = lead.abs() >= effective_max_lead - 1e-6;
             let tau_p = jp.kp * lead;
@@ -1276,6 +1378,14 @@ impl PositionHold {
                 return Err(HoldError::AscentStall {
                     joint: name.clone(),
                     ms: ascent_stall_ms,
+                    trip,
+                });
+            }
+            let wave_stall_ms = self.wave_motion[i].stalled_ms();
+            if wave_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
+                return Err(HoldError::WaveStall {
+                    joint: name.clone(),
+                    ms: wave_stall_ms,
                     trip,
                 });
             }
@@ -1395,6 +1505,10 @@ mod numeric_contract_tests;
 mod hold_tracking_tests;
 
 #[cfg(test)]
+#[path = "position_hold_tests/fuse_audit.rs"]
+mod fuse_audit_tests;
+
+#[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
@@ -1481,7 +1595,10 @@ mod tests {
             dq_seed: Some(0.0),
             downward_seed: None,
         }));
-        assert_eq!(hold.ascent_stall_ms_at(0), 0);
+        assert!(
+            hold.ascent_stall_ms_at(0) >= 1500,
+            "a true retarget ends the planner-recovery policy episode but never renews the budget"
+        );
         assert_eq!(hold.retarget_tick_at(0), Some(300));
     }
 

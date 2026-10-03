@@ -35,6 +35,27 @@ pub fn return_settle_band(target: f64) -> f64 {
         POSITION_RETURN_RESYNC_RAD
     }
 }
+
+/// Direction (`+1.0` / `-1.0`) of an outbound stall-fuse episode, or `None` when none applies.
+///
+/// The law is home-referenced: home is `0.0` and "outbound" is the side of home the target sits
+/// on. A commanded move watches the fuse when the target is non-home and still ahead of `q`
+/// (beyond [`return_settle_band`]) in the direction of the target's own sign. That is the
+/// positive direction for a positive target and the negative direction for a negative one, so a
+/// joint whose working range lies below home (e.g. an upper-arm yaw with a −0.72 soft lower
+/// bound) is covered exactly like a positive-range joint. The rule uses only latched target and
+/// measured `q`: it never consults the gravity model, so a wrong `τ_g` cannot switch the fuse off.
+///
+/// Moves from beyond the target back toward home are not watched (as before): those are the
+/// freeze / stuck-pull / `HoldTracking` domain.
+pub fn outbound_stall_direction(target: f64, to_target: f64) -> Option<f64> {
+    if target.abs() <= POSITION_SETTLE_TOLERANCE_RAD {
+        return None;
+    }
+    let direction = target.signum();
+    (to_target * direction > return_settle_band(target)).then_some(direction)
+}
+
 /// Return planner-freeze only below this |q| — high-angle descent needs continuous q_ref.
 pub(crate) const POSITION_RETURN_FREEZE_Q_MAX_RAD: f64 = 0.12;
 /// MIT pull-down lead while stuck on descent (until breakaway latch clears).

@@ -105,7 +105,7 @@ fn incident_sag(step: u32) -> f64 {
 }
 
 #[test]
-fn retarget_clears_hold_tracking_budget() {
+fn retarget_preserves_hold_tracking_budget() {
     let mut hold = PositionHold::with_progress_thresholds(vec![rs03_progress_threshold()]);
     hold.arm(&[0.0], &[0.0], 0);
     let params = [pitch_params()];
@@ -136,10 +136,9 @@ fn retarget_clears_hold_tracking_budget() {
         dq_seed: Some(0.0),
         downward_seed: None,
     }));
-    assert_eq!(
-        hold.hold_tracking_ms_at(0),
-        0,
-        "a new target starts a new budget"
+    assert!(
+        hold.hold_tracking_ms_at(0) >= 900,
+        "a retarget never renews a safety budget; only progress or the condition ending does"
     );
 }
 

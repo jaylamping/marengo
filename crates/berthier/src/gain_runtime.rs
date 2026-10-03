@@ -8,7 +8,47 @@ use std::collections::HashMap;
 
 use davout::ControlMode;
 use marengo_config::ModeGains;
+use thiserror::Error;
 use tracing::debug;
+
+/// Duration of the kp/kd mode-transition ramp.
+pub const GAIN_RAMP_SECONDS: f64 = 0.1;
+
+/// A per-joint input slice was not parallel to `joint_names`.
+///
+/// The caller builds every slice from `joint_names`, so this is an internal
+/// invariant break. It is returned (never panicked) so the tick path fails
+/// closed through `LoopError`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("gain runtime: {what} has {actual} entries but there are {expected} joints")]
+pub struct GainShapeError {
+    pub what: &'static str,
+    pub expected: usize,
+    pub actual: usize,
+}
+
+fn require_parallel(
+    what: &'static str,
+    actual: usize,
+    expected: usize,
+) -> Result<(), GainShapeError> {
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(GainShapeError {
+            what,
+            expected,
+            actual,
+        })
+    }
+}
+
+/// Ramp length in control ticks for a loop rate: [`GAIN_RAMP_SECONDS`] rounded to
+/// the nearest tick, never fewer than one.
+pub fn ramp_ticks_for_loop_hz(loop_hz: u32) -> u32 {
+    // `as` saturates; the product of a u32 and 0.1 is finite and non-negative.
+    ((f64::from(loop_hz) * GAIN_RAMP_SECONDS).round() as u32).max(1)
+}
 
 /// Per-joint runtime gain override for Testing page.
 ///
@@ -41,13 +81,13 @@ pub struct JointModeGains<'a> {
 
 /// Per-joint resolved gains for one tick.
 ///
-/// `law_*` feeds PositionHold / Impedance friction. `wire_kp` / `wire_kd` feed
-/// the MIT bus. Position: wire may scale kp only; bus kd stays compose's
-/// `kd_mit` (caller ignores `wire_kd` on the Position path). Ramp does **not**
-/// enter HoldJointParams law fields.
+/// `wire_kp` / `wire_kd` are what the MIT bus carries (override > ramp > YAML). The Position
+/// law takes `wire_kp` as its `kp`, so hold-tracking torque evidence and the diag/trace `kp`
+/// describe the torque actually sent, including during a mode-transition ramp. `law_kd`,
+/// `law_ki` and `law_fc` feed PositionHold / Impedance friction and ignore the ramp. On the
+/// Position path bus kd stays compose's `kd_mit` (caller ignores `wire_kd`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResolvedGains {
-    pub law_kp: f64,
     pub law_kd: f64,
     pub law_ki: f64,
     /// Coulomb fc when sticky override present; else `None` (caller uses YAML fc).
@@ -56,7 +96,7 @@ pub struct ResolvedGains {
     pub wire_kd: f64,
 }
 
-/// Linear kp/kd ramp across mode transitions (~100 ms at 200 Hz).
+/// Linear kp/kd ramp across mode transitions ([`GAIN_RAMP_SECONDS`] long).
 #[derive(Debug, Clone)]
 struct GainRamp {
     /// Per-joint: (from_kp, from_kd, to_kp, to_kd), joint_names order.
@@ -66,15 +106,22 @@ struct GainRamp {
 }
 
 /// Owns override map + optional ramp; single resolve path for both Position and Mit FF.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct GainRuntime {
     overrides: HashMap<String, GainOverride>,
     ramp: Option<GainRamp>,
+    /// Ramp length in control ticks (>= 1), fixed by the loop rate.
+    ramp_ticks: u32,
 }
 
 impl GainRuntime {
-    pub fn new() -> Self {
-        Self::default()
+    /// Runtime whose mode-transition ramp lasts [`GAIN_RAMP_SECONDS`] at `loop_hz`.
+    pub fn for_loop_hz(loop_hz: u32) -> Self {
+        Self {
+            overrides: HashMap::new(),
+            ramp: None,
+            ramp_ticks: ramp_ticks_for_loop_hz(loop_hz),
+        }
     }
 
     pub fn get(&self, joint_name: &str) -> Option<&GainOverride> {
@@ -134,7 +181,7 @@ impl GainRuntime {
     }
 
     /// Mode enter: clear sticky overrides when policy says so; arm kp/kd ramp
-    /// for non-Disabled ↔ non-Disabled transitions (20 ticks).
+    /// for non-Disabled ↔ non-Disabled transitions (`ramp_ticks`, ~100 ms).
     ///
     /// `from_gains` / `to_gains` are parallel to joint order (caller supplies
     /// current effective and YAML targets so ControlLoop keeps tau_ff seeding).
@@ -155,17 +202,14 @@ impl GainRuntime {
             return;
         }
         if previous != ControlMode::Disabled {
-            let n = from_gains.len().min(to_gains.len());
             self.ramp = Some(GainRamp {
-                joints: (0..n)
-                    .map(|i| {
-                        let (from_kp, from_kd) = from_gains[i];
-                        let (to_kp, to_kd) = to_gains[i];
-                        (from_kp, from_kd, to_kp, to_kd)
-                    })
+                joints: from_gains
+                    .iter()
+                    .zip(to_gains)
+                    .map(|(&(from_kp, from_kd), &(to_kp, to_kd))| (from_kp, from_kd, to_kp, to_kd))
                     .collect(),
-                ticks_remaining: 20,
-                total_ticks: 20,
+                ticks_remaining: self.ramp_ticks,
+                total_ticks: self.ramp_ticks,
             });
         }
     }
@@ -188,37 +232,33 @@ impl GainRuntime {
 
     /// Effective per-joint wire (kp, kd) for `mode`: override > ramp > `targets`.
     ///
-    /// `targets.len()` must equal `joint_names.len()`. Used to capture ramp
+    /// Errors when `targets.len() != joint_names.len()`. Used to capture ramp
     /// startpoints before a mode transition mutates overrides / mode.
     pub fn wire_gains_now(
         &self,
         mode: ControlMode,
         joint_names: &[String],
         targets: &[(f64, f64)],
-    ) -> Vec<(f64, f64)> {
-        assert_eq!(
-            targets.len(),
-            joint_names.len(),
-            "GainRuntime::wire_gains_now: targets must be parallel to joint_names"
-        );
+    ) -> Result<Vec<(f64, f64)>, GainShapeError> {
+        require_parallel("targets", targets.len(), joint_names.len())?;
         let ramp = self.ramp_gains();
-        joint_names
+        Ok(joint_names
             .iter()
+            .zip(targets)
             .enumerate()
-            .map(|(i, name)| {
-                let (target_kp, target_kd) = targets[i];
+            .map(|(i, (name, &(target_kp, target_kd)))| {
                 let ov = if mode_allows_gain_override(mode) {
                     self.overrides.get(name).map(|o| (o.kp, o.kd))
                 } else {
                     None
                 };
-                let (ramp_kp, ramp_kd) = match ramp.as_ref() {
-                    Some(r) if i < r.len() => (Some(r[i].0), Some(r[i].1)),
-                    _ => (None, None),
+                let (ramp_kp, ramp_kd) = match ramp.as_ref().and_then(|r| r.get(i)) {
+                    Some(&(kp, kd)) => (Some(kp), Some(kd)),
+                    None => (None, None),
                 };
                 effective_wire_gains(mode, target_kp, target_kd, ov, ramp_kp, ramp_kd)
             })
-            .collect()
+            .collect())
     }
 
     /// Decrement ramp after MIT send; clear when finished.
@@ -233,25 +273,22 @@ impl GainRuntime {
 
     /// One resolve for every joint in `joint_names` order.
     ///
-    /// `yaml.len()` must equal `joint_names.len()`. Law gains ignore ramp;
-    /// wire gains use override (if mode allows) > ramp > YAML target.
+    /// Errors when `yaml.len() != joint_names.len()`; on `Ok` the result has
+    /// exactly one entry per joint. Law gains ignore ramp; wire gains use
+    /// override (if mode allows) > ramp > YAML target.
     pub fn resolve_all(
         &self,
         mode: ControlMode,
         joint_names: &[String],
         yaml: &[JointModeGains<'_>],
-    ) -> Vec<ResolvedGains> {
-        assert_eq!(
-            yaml.len(),
-            joint_names.len(),
-            "GainRuntime::resolve_all: yaml must be parallel to joint_names"
-        );
+    ) -> Result<Vec<ResolvedGains>, GainShapeError> {
+        require_parallel("yaml gains", yaml.len(), joint_names.len())?;
         let ramp = self.ramp_gains();
-        joint_names
+        Ok(joint_names
             .iter()
+            .zip(yaml)
             .enumerate()
-            .map(|(i, name)| {
-                let y = yaml[i];
+            .map(|(i, (name, y))| {
                 let (target_kp, target_kd) =
                     target_gains_from_yaml(mode, y.gravity_comp, y.impedance);
                 let ov = if mode_allows_gain_override(mode) {
@@ -259,9 +296,9 @@ impl GainRuntime {
                 } else {
                     None
                 };
-                let (ramp_kp, ramp_kd) = match ramp.as_ref() {
-                    Some(r) if i < r.len() => (Some(r[i].0), Some(r[i].1)),
-                    _ => (None, None),
+                let (ramp_kp, ramp_kd) = match ramp.as_ref().and_then(|r| r.get(i)) {
+                    Some(&(kp, kd)) => (Some(kp), Some(kd)),
+                    None => (None, None),
                 };
                 let (wire_kp, wire_kd) = effective_wire_gains(
                     mode,
@@ -273,12 +310,11 @@ impl GainRuntime {
                 );
                 // Law: override OR impedance YAML (never ramp). GravityComp etc.
                 // still expose impedance fields; callers pick the right path.
-                let (law_kp, law_kd, law_ki, law_fc) = match ov {
-                    Some(o) => (o.kp, o.kd, o.ki, Some(o.fc)),
-                    None => (y.impedance.kp, y.impedance.kd, y.impedance.ki, None),
+                let (law_kd, law_ki, law_fc) = match ov {
+                    Some(o) => (o.kd, o.ki, Some(o.fc)),
+                    None => (y.impedance.kd, y.impedance.ki, None),
                 };
                 ResolvedGains {
-                    law_kp,
                     law_kd,
                     law_ki,
                     law_fc,
@@ -286,7 +322,7 @@ impl GainRuntime {
                     wire_kd,
                 }
             })
-            .collect()
+            .collect())
     }
 }
 
@@ -457,10 +493,15 @@ mod tests {
         }
     }
 
+    /// 200 Hz bench rate: 20-tick ramp.
+    fn runtime() -> GainRuntime {
+        GainRuntime::for_loop_hz(200)
+    }
+
     #[test]
     fn resolve_all_gravity_comp_ignores_override_but_accepts_ramp() {
         let joint = "j0".to_string();
-        let mut rt = GainRuntime::new();
+        let mut rt = runtime();
         rt.apply(
             ControlMode::Impedance,
             &joint,
@@ -487,7 +528,9 @@ mod tests {
             gravity_comp: &g,
             impedance: &z,
         }];
-        let out = rt.resolve_all(ControlMode::GravityComp, &[joint.clone()], &yaml);
+        let out = rt
+            .resolve_all(ControlMode::GravityComp, &[joint.clone()], &yaml)
+            .unwrap();
         assert_eq!(out.len(), 1);
         // First tick of ramp: progress 0 → wire = from (18, 3), not override.
         assert!((out[0].wire_kp - 18.0).abs() < 1e-12);
@@ -496,9 +539,9 @@ mod tests {
     }
 
     #[test]
-    fn resolve_all_law_ignores_ramp_while_wire_uses_it() {
+    fn resolve_all_wire_kp_follows_ramp_while_law_kd_ignores_it() {
         let joint = "j0".to_string();
-        let mut rt = GainRuntime::new();
+        let mut rt = runtime();
         rt.on_mode_enter(
             ControlMode::Impedance,
             ControlMode::Position,
@@ -511,8 +554,9 @@ mod tests {
             gravity_comp: &g,
             impedance: &z,
         }];
-        let out = rt.resolve_all(ControlMode::Position, &[joint], &yaml);
-        assert!((out[0].law_kp - 20.0).abs() < 1e-12);
+        let out = rt
+            .resolve_all(ControlMode::Position, &[joint], &yaml)
+            .unwrap();
         assert!((out[0].law_kd - 1.0).abs() < 1e-12);
         assert!((out[0].wire_kp - 5.0).abs() < 1e-12);
         assert!((out[0].wire_kd - 0.5).abs() < 1e-12);
@@ -521,7 +565,7 @@ mod tests {
     #[test]
     fn on_mode_enter_clears_overrides_before_arming_ramp() {
         let joint = "j0".to_string();
-        let mut rt = GainRuntime::new();
+        let mut rt = runtime();
         rt.apply(
             ControlMode::Impedance,
             &joint,
@@ -545,7 +589,7 @@ mod tests {
 
     #[test]
     fn disabled_enter_clears_stale_ramp() {
-        let mut rt = GainRuntime::new();
+        let mut rt = runtime();
         rt.on_mode_enter(
             ControlMode::Impedance,
             ControlMode::GravityComp,
@@ -568,7 +612,7 @@ mod tests {
     #[test]
     fn wire_gains_now_uses_override_before_mode_enter_clears() {
         let joint = "j0".to_string();
-        let mut rt = GainRuntime::new();
+        let mut rt = runtime();
         rt.apply(
             ControlMode::Impedance,
             &joint,
@@ -580,7 +624,9 @@ mod tests {
             },
             limits(),
         );
-        let from = rt.wire_gains_now(ControlMode::Impedance, &[joint.clone()], &[(18.0, 3.0)]);
+        let from = rt
+            .wire_gains_now(ControlMode::Impedance, &[joint.clone()], &[(18.0, 3.0)])
+            .unwrap();
         assert!((from[0].0 - 40.0).abs() < 1e-12);
         assert!((from[0].1 - 4.0).abs() < 1e-12);
 
@@ -597,7 +643,9 @@ mod tests {
             gravity_comp: &g,
             impedance: &z,
         }];
-        let out = rt.resolve_all(ControlMode::GravityComp, &[joint], &yaml);
+        let out = rt
+            .resolve_all(ControlMode::GravityComp, &[joint], &yaml)
+            .unwrap();
         // First ramp tick: progress 0 → wire = from (override), not YAML zeros.
         assert!((out[0].wire_kp - 40.0).abs() < 1e-12);
         assert!((out[0].wire_kd - 4.0).abs() < 1e-12);
@@ -606,15 +654,17 @@ mod tests {
     #[test]
     fn wire_gains_now_falls_back_to_yaml_without_override() {
         let joint = "j0".to_string();
-        let rt = GainRuntime::new();
-        let from = rt.wire_gains_now(ControlMode::Impedance, &[joint], &[(18.0, 3.0)]);
+        let rt = runtime();
+        let from = rt
+            .wire_gains_now(ControlMode::Impedance, &[joint], &[(18.0, 3.0)])
+            .unwrap();
         assert!((from[0].0 - 18.0).abs() < 1e-12);
         assert!((from[0].1 - 3.0).abs() < 1e-12);
     }
 
     #[test]
     fn apply_batch_skips_joints_without_limits() {
-        let mut rt = GainRuntime::new();
+        let mut rt = runtime();
         let mut overrides = HashMap::new();
         overrides.insert(
             "known".to_string(),
@@ -639,5 +689,133 @@ mod tests {
         rt.apply_batch(ControlMode::Impedance, &overrides, &limits_map);
         assert!(rt.get("known").is_some());
         assert!(rt.get("unknown").is_none());
+    }
+
+    /// L-berthier-06: a non-parallel input is an `Err`, never a tick-path panic.
+    #[test]
+    fn mismatched_vectors_return_error_instead_of_panicking() {
+        let rt = runtime();
+        let names = ["a".to_string(), "b".to_string()];
+
+        for targets in [&[(1.0, 1.0)][..], &[(1.0, 1.0); 3][..], &[][..]] {
+            let err = rt
+                .wire_gains_now(ControlMode::Impedance, &names, targets)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                GainShapeError {
+                    what: "targets",
+                    expected: 2,
+                    actual: targets.len()
+                }
+            );
+        }
+
+        let g = gravity_yaml(0.0, 0.0);
+        let z = impedance_yaml(1.0, 1.0, 0.0);
+        let one = JointModeGains {
+            gravity_comp: &g,
+            impedance: &z,
+        };
+        for yaml in [&[one][..], &[one, one, one][..], &[][..]] {
+            let err = rt
+                .resolve_all(ControlMode::Impedance, &names, yaml)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                GainShapeError {
+                    what: "yaml gains",
+                    expected: 2,
+                    actual: yaml.len()
+                }
+            );
+        }
+
+        // Parallel input still resolves, one entry per joint.
+        let ok = rt
+            .resolve_all(ControlMode::Impedance, &names, &[one, one])
+            .unwrap();
+        assert_eq!(ok.len(), 2);
+    }
+
+    /// L-berthier-12: the ramp is ~100 ms at any loop rate, not 20 ticks.
+    #[test]
+    fn ramp_ticks_scale_with_loop_hz() {
+        for (hz, ticks) in [
+            (0, 1),
+            (1, 1),
+            (10, 1),
+            (50, 5),
+            (100, 10),
+            (200, 20),
+            (500, 50),
+            (1000, 100),
+        ] {
+            assert_eq!(ramp_ticks_for_loop_hz(hz), ticks, "loop_hz {hz}");
+        }
+    }
+
+    #[test]
+    fn ramp_lasts_about_100_ms_at_other_loop_rates() {
+        for hz in [50_u32, 100, 200, 500, 1000] {
+            let mut rt = GainRuntime::for_loop_hz(hz);
+            rt.on_mode_enter(
+                ControlMode::Impedance,
+                ControlMode::GravityComp,
+                &[(18.0, 3.0)],
+                &[(0.0, 0.0)],
+            );
+            let mut ticks = 0_u32;
+            while rt.ramp_gains().is_some() {
+                rt.advance_tick();
+                ticks += 1;
+                assert!(ticks <= hz, "ramp never finished at {hz} Hz");
+            }
+            let seconds = f64::from(ticks) / f64::from(hz);
+            assert!(
+                (seconds - GAIN_RAMP_SECONDS).abs() < 1.0 / f64::from(hz),
+                "{hz} Hz ramp lasted {seconds} s"
+            );
+        }
+    }
+
+    /// L-berthier-11 characterization: leaving Impedance for GravityComp slews the
+    /// previous mode's wire kp/kd down to the YAML 0/0 over one ramp, never above
+    /// the starting gains, and lands on exactly 0/0.
+    #[test]
+    fn impedance_to_gravity_comp_ramp_is_monotone_and_ends_at_zero() {
+        let joint = "j0".to_string();
+        let mut rt = runtime();
+        let g = gravity_yaml(0.0, 0.0);
+        let z = impedance_yaml(18.0, 3.0, 0.0);
+        let yaml = [JointModeGains {
+            gravity_comp: &g,
+            impedance: &z,
+        }];
+        rt.on_mode_enter(
+            ControlMode::Impedance,
+            ControlMode::GravityComp,
+            &[(18.0, 3.0)],
+            &[(0.0, 0.0)],
+        );
+        let mut prev = (f64::INFINITY, f64::INFINITY);
+        let mut nonzero_ticks = 0;
+        for _ in 0..ramp_ticks_for_loop_hz(200) {
+            let r = rt
+                .resolve_all(ControlMode::GravityComp, &[joint.clone()], &yaml)
+                .unwrap()[0];
+            assert!(r.wire_kp <= 18.0 && r.wire_kd <= 3.0);
+            assert!(r.wire_kp <= prev.0 && r.wire_kd <= prev.1, "monotone");
+            if r.wire_kp > 0.0 || r.wire_kd > 0.0 {
+                nonzero_ticks += 1;
+            }
+            prev = (r.wire_kp, r.wire_kd);
+            rt.advance_tick();
+        }
+        assert_eq!(nonzero_ticks, 20, "documented transient: one full ramp");
+        let settled = rt
+            .resolve_all(ControlMode::GravityComp, &[joint], &yaml)
+            .unwrap()[0];
+        assert_eq!((settled.wire_kp, settled.wire_kd), (0.0, 0.0));
     }
 }
