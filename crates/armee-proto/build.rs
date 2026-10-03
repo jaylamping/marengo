@@ -16,6 +16,9 @@ fn collect_protos(dir: &Path, protos: &mut Vec<PathBuf>) -> Result<(), Box<dyn s
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proto_root = Path::new("../../proto");
+    // Watch the whole tree: per-file directives alone never fire when a new
+    // .proto is added (L-armee-proto-01).
+    println!("cargo:rerun-if-changed={}", proto_root.display());
     let mut protos = Vec::new();
     collect_protos(proto_root, &mut protos)?;
     prost_build::Config::new().compile_protos(&protos, &[proto_root])?;

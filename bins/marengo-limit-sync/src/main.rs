@@ -9,6 +9,7 @@ use clap::Parser;
 use marengo_config::{
     apply_local_limit_patch, soft_limits_with_inset, LimitPatch, DEFAULT_SOFT_INSET_RAD,
 };
+use marengo_support::init_tracing;
 
 #[derive(Debug, Parser)]
 #[command(name = "marengo-limit-sync")]
@@ -38,12 +39,13 @@ struct Args {
 }
 
 fn main() -> ExitCode {
+    init_tracing();
     let args = Args::parse();
     let (soft_lo, soft_hi) = match (args.soft_lower, args.soft_upper) {
         (Some(lo), Some(hi)) => (lo, hi),
         (None, None) => soft_limits_with_inset(args.lower, args.upper, args.soft_inset),
         _ => {
-            eprintln!("--soft-lower and --soft-upper must be supplied together");
+            tracing::error!("--soft-lower and --soft-upper must be supplied together");
             return ExitCode::FAILURE;
         }
     };
@@ -59,14 +61,16 @@ fn main() -> ExitCode {
 
     match apply_local_limit_patch(&args.repo_root, &patch) {
         Ok(()) => {
-            eprintln!(
-                "local limit sync ok: joint={} hard=[{}, {}] soft=[{}, {}]",
-                patch.joint, patch.position_lower_rad, patch.position_upper_rad, soft_lo, soft_hi
+            tracing::info!(
+                joint = patch.joint,
+                hard = ?(patch.position_lower_rad, patch.position_upper_rad),
+                soft = ?(soft_lo, soft_hi),
+                "local limit sync ok",
             );
             ExitCode::SUCCESS
         }
         Err(error) => {
-            eprintln!("local limit sync failed: {error}");
+            tracing::error!(%error, "local limit sync failed");
             ExitCode::FAILURE
         }
     }

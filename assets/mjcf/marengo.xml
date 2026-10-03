@@ -1,23 +1,31 @@
 <mujoco model="marengo">
   <!-- Mirrors assets/urdf/marengo.urdf (right 5-DOF bench). -->
+  <!-- Body <inertial> blocks are the URDF CAD values (docs/commissioning/right-arm-urdf-from-cad-2026-10-03.md),
+       so sim gravity matches the dynamics model. MuJoCo fullinertia order is Ixx Iyy Izz Ixy Ixz Iyz. -->
   <compiler angle="radian"/>
   <option gravity="0 0 -9.81"/>
   <worldbody>
     <body name="base_link">
+      <inertial pos="0 0 0" mass="0.001" fullinertia="1e-6 1e-6 1e-6 0 0 0"/>
       <geom type="cylinder" size="0.04 0.05" rgba="0.5 0.5 0.5 1"/>
       <body name="right_shoulder_pitch_link" pos="0 0 0">
+        <inertial pos="-0.00378 0.06933 -0.00005" mass="1.0101" fullinertia="0.001536 0.0009527 0.001158 1.603e-05 -2.844e-08 2.068e-07"/>
         <joint name="right_shoulder_pitch" type="hinge" axis="0 1 0" range="-0.9 3.25"/>
         <geom type="sphere" size="0.03" rgba="0.6 0.6 0.6 1"/>
         <body name="right_shoulder_roll_link" pos="0.05 0 0">
+          <inertial pos="-0.00209 -0.00001 -0.07141" mass="0.4925" fullinertia="0.0004919 0.0005279 0.0004215 4.083e-07 0.0001046 2.811e-08"/>
           <joint name="right_shoulder_roll" type="hinge" axis="1 0 0" range="-0.05 3.14159"/>
           <geom type="sphere" size="0.03" rgba="0.65 0.65 0.65 1"/>
           <body name="right_upper_arm_link" pos="0.08 0 0">
+            <inertial pos="0.00003 -0.00779 -0.21516" mass="0.5075" fullinertia="0.000923 0.001014 0.0003144 -6.824e-09 -4.374e-07 -5.757e-05"/>
             <joint name="right_upper_arm_yaw" type="hinge" axis="0 0 1" range="-1.57 1.57"/>
             <geom type="capsule" fromto="0 0 0 0 0 -0.24" size="0.03" rgba="0.23 0.51 0.96 1"/>
             <body name="right_forearm_link" pos="0 0 -0.24">
+              <inertial pos="0.00066 0.00342 -0.06048" mass="0.3910" fullinertia="0.000469 0.0004819 0.0001943 1.038e-06 -9.693e-06 -7.524e-05"/>
               <joint name="right_elbow_pitch" type="hinge" axis="0 1 0" range="-0.50 1.2"/>
               <geom type="capsule" fromto="0 0 0 0 0 -0.2" size="0.025" rgba="0.35 0.6 0.95 1"/>
               <body name="right_hand_link" pos="0 0 -0.20">
+                <inertial pos="-0.00003 0 -0.04123" mass="0.0822" fullinertia="0.0001839 0.0001838 6.152e-05 -5.002e-10 -1.688e-07 1.74e-09"/>
                 <joint name="right_lower_arm_yaw" type="hinge" axis="0 1 0" range="-1.6 1.6"/>
                 <geom type="capsule" fromto="0 0 0 0 0 -0.06" size="0.02" rgba="0.45 0.7 0.98 1"/>
               </body>

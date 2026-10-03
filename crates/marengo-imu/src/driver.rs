@@ -314,4 +314,33 @@ mod tests {
             .expect("send");
         assert_eq!(driver.sequence[CHANNEL_CONTROL as usize], 1);
     }
+
+    #[test]
+    fn poll_with_no_packets_returns_none() {
+        let mut driver = Bno085::new(MockI2cBus::default());
+        assert!(driver.poll().expect("empty bus polls").is_none());
+        assert!(driver.last_rotation().is_none());
+    }
+
+    #[test]
+    fn send_packet_rejects_an_invalid_channel() {
+        let mut driver = Bno085::new(MockI2cBus::default());
+        let err = driver
+            .send_packet(9, &[0xFD])
+            .expect_err("channel 9 has no sequence slot");
+        assert!(matches!(err, ImuError::Protocol(_)));
+    }
+
+    #[test]
+    fn oversize_packet_header_is_a_protocol_error() {
+        // Header claims more than DATA_BUFFER_SIZE bytes; the driver must
+        // refuse before allocating or reading the body.
+        let total = (DATA_BUFFER_SIZE + 1) as u16;
+        let header = [total.to_le_bytes()[0], total.to_le_bytes()[1], 3, 0];
+        let mut bus = MockI2cBus::default();
+        bus.push_read_packet(&header);
+        let mut driver = Bno085::new(bus);
+        let err = driver.poll().expect_err("oversize header must not poll");
+        assert!(matches!(err, ImuError::Protocol(_)));
+    }
 }

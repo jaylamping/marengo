@@ -13,14 +13,9 @@ fi
 ACTUAL="$(shasum -a 256 "${GEN}" | awk '{print $1}')"
 
 if [[ ! -f "${CHECKSUM_FILE}" ]]; then
-  if [[ "${CI:-}" == "true" ]]; then
-    echo "proto-checksum: missing ${CHECKSUM_FILE} — commit checksum after gen:proto" >&2
-    exit 1
-  fi
-  echo "proto-checksum: no ${CHECKSUM_FILE} — writing checksum (local only)"
-  mkdir -p "$(dirname "${CHECKSUM_FILE}")"
-  echo "${ACTUAL}" > "${CHECKSUM_FILE}"
-  exit 0
+  echo "proto-checksum: missing ${CHECKSUM_FILE} — regenerate and commit it:" >&2
+  echo "  cd consul && npm run gen:proto && shasum -a 256 src/gen/marengo/v1/marengo_pb.ts | awk '{print \$1}' > src/gen/.checksum" >&2
+  exit 1
 fi
 
 EXPECTED="$(tr -d '[:space:]' < "${CHECKSUM_FILE}")"
