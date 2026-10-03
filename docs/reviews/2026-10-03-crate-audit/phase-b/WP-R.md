@@ -65,7 +65,9 @@ before the fix. Coverage-only additions note the gap as the red.
 ## Cross-package edits (all minimal, test-only except where noted)
 
 - `crates/armee-proto/tests/proto_inclusion.rs` (new), `build.rs` dir watch is in-ownership.
-- `crates/armee-kinematics/src/lib.rs`: ignored-test replacement only.
+- `crates/armee-kinematics/src/lib.rs`: ignored-test replacement only (parses
+  via `marengo-config::load_robot_config`, no `serde_yaml`); `Cargo.toml`
+  drops the `serde_yaml` dev-dep to match B11.
 - `crates/berthier/src/mode_isolation.rs`: proptest strategies only.
 - `crates/marengo-store/src/journal.rs`: pure-function extraction (identical skip semantics) + tests.
 - `crates/marengo-imu/src/driver.rs`: 3 new unit tests only.
@@ -99,8 +101,11 @@ Prune batch B11 (peer `WaveC2_Prune_B5_B11`) deletes the `arm_4dof*` MJCF
 pair, their sim-harness tests, and the ignored kinematics test this wave
 replaced. Land B11 first, then rebase this branch: drop my two
 `arm_4dof*_model_path` fns plus their tests from `sim-harness/src/lib.rs`
-(the parser and production-parity tests stay), and re-apply
+(the parser and production-parity tests stay), keep B11's
+`armee-kinematics` dependency line with `features = ["test-support"]`
+(B11 gates `fixtures` behind `cfg(any(test, feature = "test-support"))`;
+sim-harness non-test code needs that feature), and re-apply
 `bench_robot_config_joints_match_bench_urdf` after B11's deletion of the
-ignored block. Open questions to that peer: whether B11 feature-gates the
-`armee-kinematics` `fixtures` module (sim-harness uses it un-gated) and
-whether `serde_yaml` stays an armee-kinematics dev-dependency.
+ignored block. That test now parses exclusively through `marengo-config`
+(`load_robot_config`); the `serde_yaml` dev-dep is already removed here to
+match B11, so there is no conflict on that line.
