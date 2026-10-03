@@ -165,18 +165,16 @@ cansend can0 0400FF0C#0000000000000000   # disable
 
 ## Phase 5 — Safe motor test ([safety.md](safety.md))
 
-Each `motor-repl` command is a **separate process**. **`enable` requires verified homing** — run `set-zero` then `home` first. Use **`marengo-pi`** for gravity comp (running control loop).
+Each `motor-repl` command is a **separate process**, and a current reference lives only inside the process that acquired it ([ADR 0036](decisions/0036-physical-robstride-reference.md)). A fresh `motor-repl` (including `homing-status`) therefore always reads `Unhomed`, and a `motor-repl set-zero` grant ends when it exits. Reference and enable inside **one** `marengo-pi`; do not run `motor-repl homing-status` to check readiness — it only opens SocketCAN. Without a live `marengo-pi`, MCP `pi_health` / `pi_homing_status` say `no live marengo-pi session` and list the latest reference journal rows (history only).
 
 1. E-stop reachable; shoulder supported
 2. Sign test per joint (small torque_ff; fix `direction` in YAML if inverted)
-3. `set-zero <joint>` at mechanical zero (writes calibration + marks Verified)
-4. `motor-repl home` (supervisor Ready when all joints Verified)
-5. `gravity-preview` with two angles (defaults 0,0)
-6. `marengo-pi` with stdin: `enable`, `gravity-on` — **not** `motor-repl gravity-on` alone
+3. `gravity-preview` with two angles (defaults 0,0)
+4. `marengo-pi` with stdin, each joint at its mechanical reference: `home <joints> sign-tested` (wait for `reference <joint> current pos=` per joint), `home` (Ready), `enable bench`, `gravity-on` — **not** `motor-repl gravity-on` alone. Full procedure: [homing.md](homing.md#pi-bench-procedure).
 
 ```bash
 MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual ./target/release/marengo-pi
-# stdin: home / enable bench / gravity-on / status / disable / quit
+# stdin: home <joints> sign-tested / home / enable bench / gravity-on / status / disable / quit
 ```
 
 ### Phase 5b — Limb commissioning

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { homingReportShell } from "../homing-preflight.js";
+import { homingReportShell } from "../homing.js";
 import { renderRobotStateHoming } from "../robot-state.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { sshTarget } from "../config.js";
@@ -183,7 +183,7 @@ export async function runSyncBenchConfig(
 
     const homingBody = wrapRemoteWithConfig(cfg, homingReportShell(), remoteOpt);
     const homing = renderRobotStateHoming(await runRemote(homingBody, 30_000));
-    steps.push(`[homing preflight → ${remoteOpt}]\n${homing}`);
+    steps.push(`[homing → ${remoteOpt}]\n${homing}`);
   } else {
     steps.push(
       `[note] Staging only. Bench with MARENGO_CONFIG_DIR=${remoteStaging} or install_to_opt: true.`,

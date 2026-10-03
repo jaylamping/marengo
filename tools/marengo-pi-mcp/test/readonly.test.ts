@@ -44,21 +44,7 @@ describe("readonly CAN tools", () => {
     assert.doesNotMatch(script, /can0,can1/);
   });
 
-  it("pi_health runs homing preflight for active config", async () => {
-    let script = "";
-    const tools = registerReadonlyTools(cfg, async (body) => {
-      script = body;
-      return body;
-    });
-
-    await tools.pi_health.handler();
-
-    assert.match(script, /homing-preflight\.sh/);
-    assert.match(script, /\/opt\/marengo\/config/);
-  });
-
   for (const [tool, command] of [
-    ["pi_health", "./scripts/homing-preflight.sh"],
     ["pi_motor_repl_status", "bin/motor-repl status"],
     ["pi_gravity_preview", "bin/motor-repl gravity-preview 0 0"],
   ] as const) {

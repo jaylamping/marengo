@@ -93,20 +93,23 @@ just mcp-ensure-enabled --write
 
 | Class | Confirm | Examples |
 |-------|---------|----------|
-| Read-only | No | `pi_logs_tail`, `pi_health`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_imu_probe` |
+| Read-only | No | `pi_logs_tail`, `pi_health`, `pi_homing_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_imu_probe` |
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
 | Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
-| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_homing_status`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog`, `pi_gravity_calibrate` |
+| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog`, `pi_gravity_calibrate` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
 
 ### One CAN owner
 
-Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting frames while starting up. That includes `status`, `homing-status` and `gravity-preview`. If `marengo-pi` already owns the bus, that extra traffic can latch a persistent Transport fault in `marengo-pi`. So while a `marengo-pi` or `motor-repl` process runs (`pgrep -x`):
+Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting frames while starting up. That includes `status`, `homing-status` and `gravity-preview`. If `marengo-pi` already owns the bus, that extra traffic can latch a persistent Transport fault in `marengo-pi`. So while a `marengo-pi` or `motor-repl` process runs (`pgrep -x`), `pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` print `… skipped: <name> (pid N) owns CAN` and leave the bus alone.
 
-- `pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` print `… skipped: <name> (pid N) owns CAN` and leave the bus alone.
-- `pi_health`, `pi_homing_status` and `pi_sync_bench_config` show per-joint homing from marengo-pi's own `RobotState`, read from the gateway's `/snapshot/robot/state`. They don't run `motor-repl homing-status`.
-- `scripts/homing-preflight.sh`, which `install-pi.sh` runs, skips `homing-status` (strict mode exits 1).
+Homing reports never open CAN. Reference grants live only inside the `marengo-pi` that acquired them (ADR 0036), so a fresh `motor-repl homing-status` always reads `Unhomed` and tells you nothing. `pi_health`, `pi_homing_status` and `pi_sync_bench_config` (with `install_to_opt`) therefore:
+
+- while `marengo-pi` runs (`pgrep -x marengo-pi`), show per-joint homing from its own `RobotState`, read from the gateway's `/snapshot/robot/state`;
+- otherwise print `no live marengo-pi session: reference grants are process-local (ADR 0036)` and the latest reference journal rows from `scripts/reference-journal-tail.py`, which opens `/opt/marengo/var/calibration/reference-journal.sqlite3` read-only. Journal rows are history and never grant a reference.
+
+`install-pi.sh` runs no homing check; it prints one line pointing at the in-process procedure in [docs/homing.md](../../docs/homing.md).
 
 Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_enable`, `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_jog`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate` and `pi_bench_harness`. Each session:
 
@@ -126,7 +129,7 @@ A current reference is granted only inside the process that acquires it. When th
   `pi_hold_on` and `pi_gravity_calibrate` also await the plain `home` (until `homing verified`) and `enable` (until `enabled (operator=…)`). On `home failed:`, `enable failed|blocked|refused:` or no answer within 10 s, the session sends `disable` and `quit` instead of any hold line and exits 1, and the tool result names marengo-pi's refusal line.
   `pi_marengo_pi_script` applies the reference wait to any `home <joints> sign-tested` line in its script.
 - Both tools require `set_zero: true` **and** `at_mechanical_reference: true`. Without them they refuse before contacting the Pi, so a session never re-zeros at an arbitrary pose. `pi_hold_on` references only `joint` when you give one. If you omit it, it references every joint of the bench profile and holds `right_shoulder_pitch`. `pi_bench_harness` references `joints`, or every joint of the profile, once. It then runs all enable-requiring suites in **one** marengo-pi process: grants survive a clean `disable` but not the process, and re-zeroing per suite would accumulate the return-to-0 tracking error. Before each later suite it checks `$LOG` and stops if an earlier suite failed.
-- `pi_set_zero` runs `motor-repl set-zero <joint> --sign-tested` and then `homing-status`. That checks SetZero and the readback, but the grant ends when motor-repl exits. It doesn't let a later marengo-pi enable.
+- `pi_set_zero` runs `motor-repl set-zero <joint> --sign-tested`, which prints its own qualified readback (`set-zero <joint> verified pos=…`), then `motor-repl disable`. The grant ends when motor-repl exits, so it doesn't let a later marengo-pi enable.
 - `pi_motor_recover` never acquires a reference and never enables. After a fault the arm isn't attested at the reference, so it disables and reads `fault=` from `status` while Disabled.
 
 ```json

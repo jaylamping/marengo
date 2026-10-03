@@ -118,6 +118,9 @@ trap - EXIT
 echo "==> daily audit: offline Python and runner contracts"
 python3 -m unittest discover -s "${ROOT}/scripts/daily-audit" -p 'test_*.py'
 
+echo "==> reference journal reader (offline, read-only SQLite)"
+python3 -m unittest "${ROOT}/scripts/test_reference_journal_tail.py"
+
 if [[ -f /.dockerenv ]]; then
   echo "==> disposable actual-installer permissions"
   sudo -n /usr/bin/python3 "${ROOT}/scripts/test_install_permissions.py"
