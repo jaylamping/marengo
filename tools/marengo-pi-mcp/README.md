@@ -155,7 +155,7 @@ Canonical remote body: [`scripts/pi-restart-marengo-pi.sh`](../../scripts/pi-res
 
 ### `pi_sync_tree`
 
-Sync the Pi Marengo repo with `origin/main` without building or installing. Fails if the Pi working tree is dirty.
+Sync the Pi staging checkout (`MARENGO_PI_STAGING_ROOT`, default `~/marengo`) with `origin/main` without building or installing. Fails if that tree is dirty. `pi_git_pull`, `pi_clean_tree` and `pi_build` work in the same checkout. `/opt/marengo` is the root-owned install tree and isn't a git checkout.
 
 1. `git fetch origin`
 2. `git checkout main`

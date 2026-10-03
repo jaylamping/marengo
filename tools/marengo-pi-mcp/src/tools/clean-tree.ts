@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { wrapRemote } from "../env.js";
+import { wrapStagingRemote } from "../env.js";
 
 export const cleanTreeSchema = z.object({
   confirm: z.literal(true).describe("Must be true to modify the Pi working tree"),
@@ -38,5 +38,5 @@ export async function runCleanTree(
       break;
   }
 
-  return runRemote(wrapRemote(cfg, body), 60_000);
+  return runRemote(wrapStagingRemote(cfg, body), 60_000);
 }

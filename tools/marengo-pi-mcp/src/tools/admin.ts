@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { piStagingAbs, sudoCanUpCommand, sudoStagingInstallCommand } from "../config.js";
-import { shellQuote, wrapRemote } from "../env.js";
+import { sudoCanUpCommand, sudoStagingInstallCommand } from "../config.js";
+import { wrapRemote, wrapStagingRemote } from "../env.js";
 import { canOwnedSkipLine, canOwnerBranch } from "../can-owner.js";
 import { runSyncMain } from "./deploy.js";
 import { waitForDeployReady } from "./deploy-wait.js";
@@ -66,8 +66,8 @@ export function registerAdminTools(
 
     pi_sync_tree: {
       description:
-        "Sync the Marengo Pi working tree with origin/main: fetch, checkout main, pull --ff-only. " +
-        "Fails if the Pi working tree is dirty. Does not build or install.",
+        "Sync the Pi staging checkout (~/marengo) with origin/main: fetch, checkout main, pull --ff-only. " +
+        "Fails if that tree is dirty. Does not build or install.",
       inputSchema: syncTreeSchema,
       handler: async () => {
         return runSyncTree(cfg, runRemote);
@@ -137,7 +137,7 @@ export function registerAdminTools(
 
     pi_clean_tree: {
       description:
-        "Clean the Marengo Pi working tree so pi_sync_main / pi_git_pull can run. " +
+        "Clean the Pi staging checkout (~/marengo) so pi_sync_tree / pi_git_pull / pi_sync_main pi_native can run. " +
         "Default mode stashes changes; use reset-hard or clean-untracked to discard. " +
         "Requires confirm: true.",
       inputSchema: cleanTreeSchema,
@@ -161,10 +161,10 @@ export function registerAdminTools(
     },
 
     pi_git_pull: {
-      description: "git pull in MARENGO_PI_ROOT on Pi (fails if dirty)",
+      description: "git pull --ff-only in the Pi staging checkout (~/marengo; fails if dirty)",
       inputSchema: z.object({}),
       handler: async () => {
-        const body = wrapRemote(
+        const body = wrapStagingRemote(
           cfg,
           [
             "if ! git diff --quiet || ! git diff --cached --quiet; then",
@@ -187,10 +187,9 @@ export function registerAdminTools(
       inputSchema: z.object({}),
       handler: async () => {
         // Only install-pi.sh is sudo-allowed (deploy-user sudoers); it owns every root step.
-        const body = wrapRemote(
+        const body = wrapStagingRemote(
           cfg,
           [
-            `cd ${shellQuote(piStagingAbs(cfg))}`,
             "bash ./scripts/pi-native-build.sh",
             sudoStagingInstallCommand(cfg),
           ].join("\n"),

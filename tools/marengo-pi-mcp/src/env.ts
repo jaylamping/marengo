@@ -1,4 +1,4 @@
-import type { MarengoPiConfig } from "./config.js";
+import { type MarengoPiConfig, piStagingAbs } from "./config.js";
 
 /** Remote shell preamble for Pi SSH sessions. */
 export function remotePreamble(cfg: MarengoPiConfig, debug = false): string {
@@ -20,6 +20,14 @@ export function remotePreamble(cfg: MarengoPiConfig, debug = false): string {
 
 export function wrapRemote(cfg: MarengoPiConfig, body: string, debug = false): string {
   return `${remotePreamble(cfg, debug)}\n${body}`;
+}
+
+/**
+ * Remote script run in the staging git checkout (~/marengo). MARENGO_PI_ROOT
+ * (/opt/marengo) is the sealed root-owned install tree, not a checkout.
+ */
+export function wrapStagingRemote(cfg: MarengoPiConfig, body: string): string {
+  return `${remotePreamble(cfg)}\ncd ${shellQuote(piStagingAbs(cfg))}\n${body}`;
 }
 
 /** Remote script with optional config-dir and joint-subset overrides. */

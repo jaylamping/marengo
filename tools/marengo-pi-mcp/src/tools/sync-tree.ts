@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { wrapRemote } from "../env.js";
+import { wrapStagingRemote } from "../env.js";
 
 export const syncTreeSchema = z.object({}).strict();
 
@@ -8,7 +8,7 @@ export async function runSyncTree(
   cfg: MarengoPiConfig,
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
 ): Promise<string> {
-  const body = wrapRemote(
+  const body = wrapStagingRemote(
     cfg,
     [
       "if ! git diff --quiet || ! git diff --cached --quiet; then",
