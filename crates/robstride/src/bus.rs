@@ -245,10 +245,12 @@ impl ReceivedCanFrame {
     }
 }
 
-/// Frame stamped when read by a concrete backend. Compatibility backends that
-/// provide only `ReceivedCanFrame` stamp each frame at handoff. Clock resolution
-/// may give consecutive observations equal times; list order still distinguishes
-/// them. These timestamps do not prove physical acquisition times or epochs.
+/// Frame with the host instant it was received. SocketCAN maps the kernel's
+/// receive stamp onto `Instant` (never later than the read, see
+/// [`crate::rx_time`]); other backends stamp at read or handoff. Clock
+/// resolution may give consecutive observations equal times; list order still
+/// distinguishes them. These timestamps do not prove physical acquisition
+/// times or epochs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TimedCanFrame {
     pub received_at: Instant,
@@ -980,13 +982,19 @@ fn socketcan_unavailable() -> BusError {
 mod socketcan {
     use super::*;
     use std::collections::{BTreeSet, HashMap, HashSet};
-    use std::io::{ErrorKind, Write};
-    use std::os::fd::AsFd;
+    use std::io::{ErrorKind, IoSliceMut, Write};
+    use std::os::fd::{AsFd, AsRawFd};
+    use std::time::SystemTime;
 
     use ::socketcan::{
-        frame::AsPtr, CanFdSocket, CanFrame as SocketFrame, CanSocket, EmbeddedFrame, ExtendedId,
-        Socket, SocketOptions,
+        frame::AsPtr, CanAnyFrame, CanFdSocket, CanFrame as SocketFrame, CanSocket, EmbeddedFrame,
+        ExtendedId, Socket, SocketOptions,
     };
+    use nix::libc::{CANFD_MTU, CAN_MTU};
+    use nix::sys::socket::{recvmsg, setsockopt, sockopt, ControlMessageOwned, MsgFlags, RecvMsg};
+    use nix::sys::time::TimeSpec;
+
+    use crate::rx_time::{wall_time_from_timespec, RxClock, RxTimestampCounts};
 
     /// Own transmissions come back in wire order (`IFF_ECHO` drivers echo on
     /// TX completion), so consumers can order drive traffic against a frame's
@@ -998,19 +1006,64 @@ mod socketcan {
             .map_err(|e| BusError::Driver(format!("configure SocketCAN own-message echo: {e}")))
     }
 
+    /// Software RX timestamps (`SO_TIMESTAMPNS`): the kernel stamps each skb,
+    /// drive frames and own-TX echoes alike, when the driver hands it to the
+    /// network stack, so a delayed read does not make old traffic look fresh.
+    fn configure_receive_timestamps(socket: &CanFdSocket) -> Result<(), BusError> {
+        setsockopt(socket.as_raw_socket(), sockopt::ReceiveTimestampns, &true)
+            .map_err(|e| BusError::Driver(format!("configure SocketCAN receive timestamps: {e}")))
+    }
+
+    /// The `SCM_TIMESTAMPNS` realtime stamp, if delivered intact.
+    fn kernel_rx_time(message: &RecvMsg<'_, '_, ()>) -> Option<SystemTime> {
+        message.cmsgs().ok()?.find_map(|control| match control {
+            ControlMessageOwned::ScmTimestampns(stamp) => wall_time_from_timespec(
+                u64::try_from(stamp.tv_sec()).ok()?,
+                u32::try_from(stamp.tv_nsec()).ok()?,
+            ),
+            _ => None,
+        })
+    }
+
+    /// Classic `struct can_frame` bytes as the dependency's typed frame, or the
+    /// reason the envelope is foreign. The socket never enables CAN FD, so the
+    /// kernel delivers exactly `CAN_MTU` per classic frame.
+    fn classic_frame(datagram: &[u8; CANFD_MTU]) -> Result<CanAnyFrame, &'static str> {
+        let (head, _) = datagram
+            .split_first_chunk::<CAN_MTU>()
+            .ok_or("truncated classic CAN datagram")?;
+        let [i0, i1, i2, i3, len, _pad, _res0, len8_dlc, data @ ..] = *head;
+        let mut raw = ::socketcan::frame::can_frame_default();
+        raw.can_id = u32::from_ne_bytes([i0, i1, i2, i3]);
+        raw.can_dlc = len;
+        raw.len8_dlc = len8_dlc;
+        raw.data = data;
+        match CanAnyFrame::from(raw) {
+            CanAnyFrame::Remote(remote) if remote.dlc() > 8 => {
+                Err("oversized classic CAN remote frame")
+            }
+            frame => Ok(frame),
+        }
+    }
+
     #[derive(Debug)]
     pub struct SocketCanBus {
         interface: String,
         socket: CanFdSocket,
+        /// Reused `SCM_TIMESTAMPNS` control buffer: no per-read allocation.
+        control: Vec<u8>,
+        rx_clock: RxClock,
     }
 
     impl SocketCanBus {
         pub fn open(interface: &str) -> Result<Self, BusError> {
             tracing::debug!(interface, "opening SocketCAN interface");
+            // Before bind: no frame can be queued on this socket earlier.
+            let opened = Instant::now();
             let classic = CanSocket::open(interface)
                 .map_err(|error| BusError::Driver(format!("SocketCAN open failed: {error}")))?;
-            // EINTR internally. CanFdSocket::read_frame uses a single read. Wrap
-            // a duplicate descriptor of the classic socket without enabling FD:
+            // Reads are one recvmsg each (see recv_one_nonblocking). Wrap a
+            // duplicate descriptor of the classic socket without enabling FD:
             // neither CanFdSocket::open nor its FD-enabling TryFrom is used.
             let descriptor = classic
                 .as_fd()
@@ -1019,6 +1072,7 @@ mod socketcan {
             let socket = CanFdSocket::from(descriptor);
             drop(classic);
             configure_own_message_echo(&socket)?;
+            configure_receive_timestamps(&socket)?;
             // Error subscriptions default to drop-all in socketcan. Preserve
             // every kernel error class as transport evidence; failures to
             // configure the subscription prevent this socket from being used.
@@ -1032,7 +1086,14 @@ mod socketcan {
             Ok(Self {
                 interface: interface.to_string(),
                 socket,
+                control: nix::cmsg_space!(TimeSpec),
+                rx_clock: RxClock::new(opened),
             })
+        }
+
+        /// How this socket's received frames were stamped since it opened.
+        pub fn rx_timestamp_counts(&self) -> RxTimestampCounts {
+            self.rx_clock.counts()
         }
     }
 
@@ -1101,20 +1162,45 @@ mod socketcan {
         }
 
         fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-            match self.socket.read_frame() {
-                Ok(frame) => {
-                    let ignored_reason = match &frame {
-                        ::socketcan::CanAnyFrame::Fd(_) => Some("unsupported CAN FD frame"),
-                        ::socketcan::CanAnyFrame::Remote(remote) if remote.dlc() > 8 => {
-                            Some("oversized classic CAN remote frame")
+            let before_read = Instant::now();
+            let mut datagram = [0_u8; CANFD_MTU];
+            let read = {
+                let mut iov = [IoSliceMut::new(&mut datagram)];
+                recvmsg::<()>(
+                    self.socket.as_raw_fd(),
+                    &mut iov,
+                    Some(&mut self.control),
+                    MsgFlags::empty(),
+                )
+                .map(|message| (message.bytes, kernel_rx_time(&message)))
+                .map_err(std::io::Error::from)
+            };
+            match read {
+                Ok((bytes, kernel)) => {
+                    // Wall clock before the monotonic read instant: the gap can
+                    // only move the mapped time toward the read.
+                    let wall_at_read = SystemTime::now();
+                    let read_instant = Instant::now();
+                    let frame = match bytes {
+                        CAN_MTU => classic_frame(&datagram),
+                        CANFD_MTU => Err("unsupported CAN FD frame"),
+                        _ => {
+                            return Err(BusError::Driver(format!(
+                                "SocketCAN {} receive: unexpected {bytes}-byte datagram",
+                                self.interface
+                            )))
                         }
-                        _ => None,
                     };
-                    if let Some(reason) = ignored_reason {
-                        tracing::warn!(interface = %self.interface, reason, "skipping foreign CAN frame");
-                        return Ok(ReceiveAttempt::Ignored);
-                    }
-                    let received_at = Instant::now();
+                    let frame = match frame {
+                        Ok(frame) => frame,
+                        Err(reason) => {
+                            tracing::warn!(interface = %self.interface, reason, "skipping foreign CAN frame");
+                            return Ok(ReceiveAttempt::Ignored);
+                        }
+                    };
+                    let received_at =
+                        self.rx_clock
+                            .stamp(&self.interface, kernel, wall_at_read, read_instant);
                     let interface = Some(self.interface.clone());
                     let received = ReceivedCanFrame::from_socketcan(interface, frame)?;
                     tracing::trace!(
@@ -1133,6 +1219,7 @@ mod socketcan {
                 Err(error)
                     if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) =>
                 {
+                    self.rx_clock.observe_empty(before_read);
                     Ok(ReceiveAttempt::Idle)
                 }
                 Err(error) if error.kind() == ErrorKind::Interrupted => {

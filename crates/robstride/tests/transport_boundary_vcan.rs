@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use marengo_config::MotorType;
-use robstride::{FeedbackEvent, MotorAddress, MotorBus, RuntimeBus};
+use robstride::{CanBus, FeedbackEvent, MotorAddress, MotorBus, RuntimeBus};
 use socketcan::{CanFrame, CanSocket, EmbeddedFrame, ExtendedId, Socket};
 
 const POSE: [u8; 8] = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x00, 0xc8];

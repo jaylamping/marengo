@@ -2295,6 +2295,7 @@ name = "robstride"
 version = "0.1.0"
 dependencies = [
  "marengo-config",
+ "nix 0.29.0",
  "socketcan",
  "thiserror 1.0.69",
  "tracing",
