@@ -130,13 +130,29 @@ pub(crate) trait Sources {
     fn read_file(&self, path: &str) -> Option<String>;
 }
 
+/// Path-fallback disk collection (attributes the covering mount). Kept for
+/// the frozen mount-flag regressions; production uses [`collect_mounts`].
+#[cfg(test)]
 pub(crate) fn collect_disks(
     source: &impl Sources,
     mounts: &[&str],
 ) -> Vec<armee_proto::DiskMetrics> {
-    let table = source
-        .read_file("/proc/self/mountinfo")
-        .and_then(|text| text.lines().map(parse_mount).collect::<Option<Vec<_>>>());
+    let table = read_mount_table(source);
+    mounts
+        .iter()
+        .map(|mount| disk_for_path(source, table.as_ref(), mount))
+        .collect()
+}
+
+/// Mount-point collection for the production sampler: identity and capacity
+/// require the mount itself to appear in mountinfo. An unmounted path (e.g.
+/// `/boot/firmware`) yields an explicitly unknown row, never the parent
+/// filesystem's identity or usage.
+pub(crate) fn collect_mounts(
+    source: &impl Sources,
+    mounts: &[&str],
+) -> Vec<armee_proto::DiskMetrics> {
+    let table = read_mount_table(source);
     mounts
         .iter()
         .map(|mount| {
@@ -144,6 +160,48 @@ pub(crate) fn collect_disks(
                 mount_point: (*mount).into(),
                 ..Default::default()
             };
+            let mounted = table
+                .as_ref()
+                .and_then(|entries| entries.iter().find(|entry| entry.path == *mount));
+            let Some(entry) = mounted else {
+                return metric;
+            };
+            metric.filesystem = entry.filesystem.clone();
+            metric.source_device = entry.source.clone();
+            if let Some(read_only) = entry.read_only {
+                metric.mount_status_known = true;
+                metric.read_only = read_only;
+            }
+            if let Some((total, used)) = source
+                .command("df", &["-B1", mount])
+                .and_then(|text| parse_capacity(&text))
+            {
+                metric.total_bytes = total;
+                metric.used_bytes = used;
+                metric.capacity_known = true;
+                metric.nearly_full = used as f64 / total as f64 >= 0.9;
+            }
+            metric
+        })
+        .collect()
+}
+
+fn read_mount_table(source: &impl Sources) -> Option<Vec<Mount>> {
+    source
+        .read_file("/proc/self/mountinfo")
+        .and_then(|text| text.lines().map(parse_mount).collect::<Option<Vec<_>>>())
+}
+
+#[cfg(test)]
+fn disk_for_path(
+    source: &impl Sources,
+    table: Option<&Vec<Mount>>,
+    mount: &str,
+) -> armee_proto::DiskMetrics {
+    let mut metric = armee_proto::DiskMetrics {
+        mount_point: mount.into(),
+        ..Default::default()
+    };
             if let Some(entries) = table.as_ref() {
                 let candidates: Vec<_> = entries
                     .iter()
@@ -179,8 +237,6 @@ pub(crate) fn collect_disks(
                 metric.nearly_full = used as f64 / total as f64 >= 0.9;
             }
             metric
-        })
-        .collect()
 }
 
 struct Mount {
@@ -326,6 +382,17 @@ mod mount_collector_tests {
             .disks
             .remove(0)
     }
+    fn published_mount(source: Fixture, mount: &str) -> DiskMetrics {
+        let wire = HostMetrics {
+            disks: collect_mounts(&source, &[mount]),
+            ..Default::default()
+        }
+        .encode_to_vec();
+        HostMetrics::decode(wire.as_slice())
+            .expect("wire")
+            .disks
+            .remove(0)
+    }
     const DF: &str =
         "Filesystem 1B-blocks Used Available Use% Mounted on\n/dev/root 100 90 10 90% /\n";
     const RW: &str = "36 35 98:0 / / rw,noatime shared:1 - ext4 /dev/root rw,errors=continue\n";
@@ -390,6 +457,35 @@ mod mount_collector_tests {
             assert!(metric.capacity_known);
         }
     }
+    #[test]
+    fn unmounted_mount_point_is_unknown_not_the_parent_filesystem() {
+        // /boot/firmware absent from mountinfo: no root identity, no
+        // parent-fs capacity, even though df would succeed on the path.
+        let metric = published_mount(
+            Fixture {
+                mountinfo: Some(RW),
+                df: Some(DF),
+            },
+            "/boot/firmware",
+        );
+        assert_eq!(metric.mount_point, "/boot/firmware");
+        assert!(metric.filesystem.is_empty());
+        assert!(metric.source_device.is_empty());
+        assert!(!metric.mount_status_known);
+        assert!(!metric.capacity_known);
+        assert_eq!((metric.total_bytes, metric.used_bytes), (0, 0));
+        // The mounted root still reports fully.
+        let root = published_mount(
+            Fixture {
+                mountinfo: Some(RW),
+                df: Some(DF),
+            },
+            "/",
+        );
+        assert!(root.mount_status_known && root.capacity_known);
+        assert_eq!(root.filesystem, "ext4");
+    }
+
     #[test]
     fn command_failures_and_invalid_capacity_do_not_fabricate_writable_or_zero_capacity() {
         for df in [

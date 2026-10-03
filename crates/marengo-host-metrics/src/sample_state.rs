@@ -1,11 +1,16 @@
+#[cfg(any(target_os = "linux", test))]
 use std::collections::HashMap;
 use std::time::Instant;
 
+/// Delta state for the Linux collectors. Gated off macOS non-test builds,
+/// where the collectors do not compile and these items would warn as dead.
+#[cfg(any(target_os = "linux", test))]
 #[derive(Clone, Copy, Default)]
 pub(crate) struct CpuLineValues {
     pub counters: [u64; 8],
 }
 
+#[cfg(any(target_os = "linux", test))]
 impl CpuLineValues {
     pub(crate) fn rates(&self, prev: &Self) -> Option<(f64, f64)> {
         let mut deltas = [0; 8];
@@ -26,6 +31,8 @@ impl CpuLineValues {
     }
 }
 
+#[cfg(any(target_os = "linux", test))]
+#[cfg_attr(test, allow(dead_code))]
 #[derive(Clone, Default)]
 pub(crate) struct NetCounters {
     pub rx_bytes: u64,
@@ -36,8 +43,12 @@ pub(crate) struct NetCounters {
 #[derive(Default)]
 pub struct SampleState {
     pub sample_at: Option<Instant>,
+    #[cfg(any(target_os = "linux", test))]
     pub(crate) cpu_aggregate: Option<CpuLineValues>,
+    #[cfg(any(target_os = "linux", test))]
     pub(crate) cpu_per_core: HashMap<u32, CpuLineValues>,
+    #[cfg(any(target_os = "linux", test))]
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) network: HashMap<String, NetCounters>,
 }
 
@@ -47,11 +58,18 @@ pub struct ChappeHealthInput {
     pub ipc_connected: bool,
     pub gateway_reachable: bool,
     pub last_publish_age_ms: u64,
-    pub gateway_rtt_ms: f64,
+    /// Measured TCP-connect latency of the probe that sets
+    /// `gateway_reachable`. `None` when the probe fails: unknown, never zero.
+    pub gateway_probe_latency_ms: Option<f64>,
     pub ipc_queue: Option<IpcQueueHealthInput>,
 }
 
 /// Primitive transport observations supplied by the runtime; no socket ownership.
+///
+/// `dropped_total` counts transport-pressure loss only (lock contention,
+/// event overflow, expiry past the age bound). Admissions never queued
+/// (unknown topic, oversize payload, closed outbox) count as
+/// `rejected_total`, never as dropped.
 #[derive(Clone, Copy, Default)]
 pub struct IpcQueueHealthInput {
     pub queued_items: u64,
@@ -62,6 +80,8 @@ pub struct IpcQueueHealthInput {
     pub accepted_total: u64,
     pub coalesced_total: u64,
     pub dropped_total: u64,
+    pub expired_total: u64,
+    pub rejected_total: u64,
     pub admitted_disconnected_total: u64,
     pub max_payload_bytes: u64,
     pub max_in_flight_payload_bytes: u64,
@@ -79,6 +99,8 @@ impl IpcQueueHealthInput {
             accepted_total: self.accepted_total,
             coalesced_total: self.coalesced_total,
             dropped_total: self.dropped_total,
+            expired_total: self.expired_total,
+            rejected_total: self.rejected_total,
             admitted_disconnected_total: self.admitted_disconnected_total,
             max_payload_bytes: self.max_payload_bytes,
             max_in_flight_payload_bytes: self.max_in_flight_payload_bytes,
@@ -93,6 +115,7 @@ impl ChappeHealthInput {
             ipc_connected: self.ipc_connected,
             gateway_reachable: self.gateway_reachable,
             last_publish_age_ms: self.last_publish_age_ms,
+            gateway_probe_latency_ms: self.gateway_probe_latency_ms,
             ipc_queue: self.ipc_queue.map(IpcQueueHealthInput::into_proto),
         }
     }
@@ -110,7 +133,7 @@ mod ipc_health_wire_tests {
             ipc_connected: false,
             gateway_reachable: true,
             last_publish_age_ms: 31,
-            gateway_rtt_ms: 0.0,
+            gateway_probe_latency_ms: Some(1.5),
             ipc_queue: Some(IpcQueueHealthInput {
                 queued_items: 7,
                 queued_payload_bytes: 129,
@@ -120,6 +143,8 @@ mod ipc_health_wire_tests {
                 accepted_total: 100,
                 coalesced_total: 999,
                 dropped_total: 82,
+                expired_total: 5,
+                rejected_total: 2,
                 admitted_disconnected_total: 41,
                 max_payload_bytes: 65536,
                 max_in_flight_payload_bytes: 65536,
@@ -131,6 +156,7 @@ mod ipc_health_wire_tests {
             armee_proto::ChappeHealth::decode(encoded.as_slice()).expect("host health wire");
         assert!(!decoded.ipc_connected && decoded.gateway_reachable);
         assert_eq!(decoded.last_publish_age_ms, 31);
+        assert_eq!(decoded.gateway_probe_latency_ms, Some(1.5));
         let queue = decoded.ipc_queue.expect("explicit queue evidence");
         assert_eq!(
             (
@@ -149,10 +175,12 @@ mod ipc_health_wire_tests {
                 queue.accepted_total,
                 queue.coalesced_total,
                 queue.dropped_total,
+                queue.expired_total,
+                queue.rejected_total,
                 queue.admitted_disconnected_total,
                 queue.write_failures_total
             ),
-            (100, 999, 82, 41, 3)
+            (100, 999, 82, 5, 2, 41, 3)
         );
         assert_eq!(
             (queue.max_payload_bytes, queue.max_in_flight_payload_bytes),
