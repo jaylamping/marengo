@@ -319,6 +319,7 @@ fn map_lease_error(err: ActiveReportingLeaseError) -> DavoutError {
         ActiveReportingLeaseError::UnknownJoint { joint } => DavoutError::UnknownJoint { joint },
         ActiveReportingLeaseError::InvalidLeaseId
         | ActiveReportingLeaseError::InvalidClientId
+        | ActiveReportingLeaseError::InvalidTtl
         | ActiveReportingLeaseError::TooManyLeases { .. }
         | ActiveReportingLeaseError::MissingLease { .. } => DavoutError::Homing {
             message: format!("active reporting lease: {err:?}"),
@@ -1480,7 +1481,10 @@ impl<B: MotorBus> Supervisor<B> {
         self.ensure_reference_for(joints)?;
         // Physical admission re-reads every target's MCU identifier before any
         // enable write (ADR 0036); a changed or missing identity revokes it.
-        self.verify_physical_identities(joints)?;
+        if let Err(error) = self.verify_physical_identities(joints) {
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
         // Status has no command-generation field. Drain already queued traffic
         // before activation; only later received poses may authorize this session.
         self.poll_feedback(Duration::ZERO)?;
