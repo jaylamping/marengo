@@ -11,7 +11,11 @@ if [[ ! -d "${DIST}" ]]; then
   exit 1
 fi
 
-mapfile -t JS_FILES < <(find "${DIST}" -type f -name '*.js' 2>/dev/null || true)
+# Read loop instead of mapfile: macOS ships bash 3.2 (deploy-pi.sh runs there).
+JS_FILES=()
+while IFS= read -r file; do
+  JS_FILES+=("${file}")
+done < <(find "${DIST}" -type f -name '*.js' 2>/dev/null || true)
 if [[ "${#JS_FILES[@]}" -eq 0 ]]; then
   echo "error: no .js files under ${DIST}" >&2
   exit 1
