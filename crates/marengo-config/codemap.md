@@ -23,3 +23,6 @@ Typed loaders for master `config/*.yaml`.
 | `bench_joints.rs` | Command joint allowlist from `robot.joints` |
 | `completeness.rs` | Warn-only hardware completeness v1 |
 | `urdf_merge.rs` | Joint-keyed URDF merge preview + apply |
+`profile_content_revision` hashes the canonical robot/motors/control/homing YAML
+with SHA-256. Profile writes use same-directory atomic replacement and a shared
+profile lock; replacement is per-file, not a crash-atomic multi-file transaction.

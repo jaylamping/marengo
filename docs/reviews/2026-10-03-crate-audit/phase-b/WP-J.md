@@ -1,0 +1,57 @@
+# Phase B — WP-J: config write atomicity & limit persistence
+
+Branch `audit/wp-j`; baseline `edbaebaf90e4b4bf6b61d13943b3b6df5d3d11b3` (`git merge-base HEAD main`). The uncommitted implementation diff covered 29 files. This report uses the required verdict vocabulary; **OPEN-not-investigated** means the lead remains and was not fixed, while **NEEDS-DECISION** means implementation choice/risk acceptance is required. No Pi hardware behavior was exercised.
+
+## Verdicts
+
+| Lead | Verdict | Evidence |
+|---|---|---|
+| L-marengo-config-10 | **OPEN-not-investigated** | `urdf_expand::find_joint_range` now matches actual `<joint>` elements and has `rewrite_matches_joint_element_not_an_earlier_name_attribute`; the separate `urdf_merge::extract_xml_block` rewrite path still needs review for the same link/transmission-name collision. |
+| L-marengo-config-02 | **NEEDS-DECISION** | Unique `create_new` temporary files, `ProfileWriteLock`, file+directory sync, and the shared URDF/YAML writer are implemented. The Pi validates revision before write-behind and locks during profile operations; decide whether URDF belongs in the CAS hash and how the control-thread revision check avoids blocking on fsync/lock contention. Recommendation: include the durable URDF generation in CAS and check a cached/nonblocking revision on the realtime path; keep filesystem work off that path. |
+| L-marengo-gateway-03 | **CONFIRMED-fixed** | Consul sends `expected_revision`; gateway requires and checks it; Pi refuses missing/empty or stale revision; the former before==after Durable shortcut is removed. Tests cover stale/empty rejection. Residual Pi live-vs-disk write-behind window belongs to L-marengo-config-02 decision. |
+| L-marengo-gateway-04 | **OPEN-not-investigated** | Session identifiers now combine joint, nanoseconds and an atomic sequence, avoiding same-time collisions. `apply_limit_patch_async` timeout/Pending/Failed outcome tests remain absent. |
+| L-marengo-pi-15 | **NEEDS-DECISION** | `carry_pending_limit_patch` and `later_control_save_preserves_pending_limit_patch` preserve bounds in a later tuning write. Completion is currently published against the latest request, not every carried session; repeated limit-patch coalescing also needs a defined policy. Recommendation: do not coalesce a newer limit patch with an older one; preserve each accepted session and publish a terminal outcome for each. |
+| L-marengo-config-01 | **NEEDS-DECISION** | Each file uses atomic replacement, sync, and rollback on a later-file error. This is not a crash-atomic multi-file transaction. ADR 0032 already disclaims multi-file power-loss durability. Recommendation: accept the documented limitation for this phase; use a manifest/generation swap only if crash-atomic profile-wide updates become a requirement. |
+| L-marengo-config-03 | **CONFIRMED-fixed** | URDF restore is atomic, under the profile lock, and conditional on the file still containing this writer's expanded bytes. |
+| L-marengo-config-06 | **OPEN-not-investigated** | Reference-journal path resolution still lexically collapses `..`; no canonical-existing-parent/rejection change or regression test was part of this work. |
+| L-marengo-pi-20 | **CONFIRMED-fixed** | Pi rejects an empty expected revision (`limit_patch_refuses_empty_expected_revision`); gateway also requires the field. |
+| L-marengo-config-04 | **NEEDS-DECISION** | Stable canonical YAML hashing avoids key-order-only revision changes. Serde serialization still removes operator comments from motors/control YAML. Recommendation: document that comments are not preserved on writes unless comment-preserving edits become a stated contract. `write_profile` currently serializes and writes all four profile files (robot, motors, control, homing), so the scout's claimed dropped robot/homing update is **REFUTED** by current source (`profile_txn.rs:262-293`); `add_joint_from_source` passes all four mutated models. |
+| L-marengo-config-07 | **OPEN-not-investigated** | Config-dir and commissioning-scope path resolution still use different precedence; no resolver consolidation was included. |
+| L-marengo-config-11 | **OPEN-not-investigated** | Soft bounds can still clamp to the hard boundary; existing tests pin equal-to-hard behavior. No inset/reject policy was selected. |
+| L-marengo-config-19 | **NEEDS-DECISION** | Existing `control.yaml` trajectory caps and `motors.yaml` bench velocity values remain contradictory. Recommendation: decide which field is authoritative, then validate the relationship; no physical values were changed. |
+| L-marengo-limit-sync-01 | **OPEN-not-investigated** | Consul mirrors the requested values; no durable response containing the Pi's actual stored values was added. Recommendation: return committed values in the durable ACK and mirror that receipt. |
+| L-marengo-config-05 | **CONFIRMED-fixed** | CAS revision is now SHA-256 over canonicalized YAML with sorted mappings and length framing; tests cover stability under mapping reorder. |
+| L-marengo-gateway-08 | **NEEDS-DECISION** | Restore receives a fresh upload ID and upload IDs use nanoseconds plus sequence. Abandoned staging directories are not swept. Recommendation: decide a bounded TTL cleanup policy; keep this as open maintenance if staging growth is acceptable short-term. |
+| L-marengo-gateway-09 | **CONFIRMED-fixed** | Failure of the post-promotion completeness check is returned as a successful activation with `post_activate_check_failed` warning, rather than 500 after promotion. |
+| L-marengo-limit-sync-02 | **CONFIRMED-fixed** | CLI refuses a one-sided `--soft-lower` / `--soft-upper`; both-or-neither is enforced before writing. |
+| L-marengo-limit-sync-04 | **OPEN-not-investigated** | No checkout-vs-Pi revision/generation or branch check was added to local sync. Recommendation: carry the durable revision and refuse if checkout's starting revision differs. |
+| L-marengo-limit-sync-05 | **NEEDS-DECISION** | Local server checks approved Origin, bearer credential and rate limiting, but authentication alone does not prove a durable Pi receipt. Options: require a verifiable durable receipt/revision (recommended), or revise the safety contract to explicitly make this browser-only. |
+| L-marengo-pi-19 | **CONFIRMED-fixed** | `apply_limit_patch` errors convert to typed `OverlayError::Davout`, preserving Davout refusal detail instead of wrapping as config parse error. |
+| L-marengo-config-09 | **CONFIRMED-fixed** | URDF parse-error path removes the temporary file before returning the parse result. |
+| L-marengo-config-08 | **OPEN-not-investigated** | Expand-only URDF formatting now round-trips f64 values with `to_string()` and has a sub-micro precision test. The separate merge formatting path still formats to six decimals, so the lead is not fully closed. |
+| L-marengo-config-13 | **CONFIRMED-fixed** | Robot joint without a motors entry now fails with a clear invalid-safety-config error; a regression test covers the mismatch. |
+| L-marengo-config-21 | **NEEDS-DECISION** | Naming/unit mismatch remains (`position_trajectory_velocity_deadband_rad` is used as rad/s). Options: schema-preserving docs now (recommended) or a serde alias plus rename at schema bump. |
+| L-marengo-limit-sync-03 | **OPEN-not-investigated** | Local CLI still constructs torque and velocity fields as `None`; currently Consul doesn't submit those fields. Recommendation: include them when durable receipt mirroring is implemented, or reject unsupported fields explicitly. |
+
+## Red → green evidence
+
+A detached worktree was created at `/tmp/wp-j-baseline` from `edbaebaf`. Baseline command `cargo test -p marengo-config upsert_rejects_stale_revision_without_writing` **passed** (the old stale-revision test checks the old behavior and is not a new WP-J regression). The requested regression names were not all present on baseline; filtered cargo invocations that found no matching test are **not** counted as red. The branch adds the following regression coverage, and the supplied branch-gate result reports the relevant suites passing:
+
+| Behavior | Baseline evidence | Branch regression test |
+|---|---|---|
+| G04 carry-forward | Baseline lacks `later_control_save_preserves_pending_limit_patch`; baseline API did not carry limit snapshots to a later tuning request. No isolated red test executed. | `limit_persist_tests::later_control_save_preserves_pending_limit_patch` |
+| Stale revision CAS refusal | Old profile upsert stale test passes on baseline because that check already existed; this is **not** valid red evidence for the new gateway/Pi end-to-end CAS. | `profile_txn::tests::upsert_rejects_stale_revision_without_writing`; Pi overlay stale revision test; gateway request requires revision. |
+| Empty revision refusal | Baseline contains no Pi expected-revision contract/test; exact regression was absent. | `overlay_tests::limit_patch_refuses_empty_expected_revision` |
+| Atomic write/no torn target | Baseline lacked `write_profile_file_atomic` and its failure-cleanup test; no isolated red test executed. | `atomic_file::tests::failed_rename_preserves_target_and_removes_temporary_file` verifies original target contents and temp cleanup on failure. |
+| Exact-joint URDF rewrite | Baseline test absent; no isolated red test executed. | `urdf_expand::tests::rewrite_matches_joint_element_not_an_earlier_name_attribute` |
+| Stable revision | Baseline had DefaultHasher revision, so stability across mapping order/toolchain was not guaranteed; exact baseline regression was absent. | `config_revision::tests::revision_is_stable_across_serde_mapping_reorder` and `revision_stable_for_master_config_without_touching_repo` |
+
+**Evidence limitation:** only the baseline stale-revision test's pass is captured in the detached run output; the other baseline cases are reported as absent/not executed, not fabricated as observed failures. Re-run the red phase with test-only scratch patches if strict per-test fail output is required. The detached baseline worktree must be removed after review.
+
+## Cross-package changes and decisions
+
+The implementation spans `marengo-config` (atomic/profile locking, stable revision, URDF edits), gateway (revision CAS, activation handling and staging IDs), Pi (empty-revision refusal and limit persistence carry-forward), `marengo-limit-sync` (paired soft arguments), Consul (revision sent with Set Limits), MCP sync configuration, and Pi install dependency configuration. No generated Consul files or physical `config/*.yaml` values were changed. ADR 0012 and ADR 0032 now record the stable canonical SHA-256 revision, shared profile lock, atomic per-file semantics, and explicit lack of crash-atomic multi-file writes / checkout-to-Pi generation check. `crates/marengo-config/codemap.md` now documents the revision and write guarantees.
+
+## Gate
+
+Final gate run on the committed branch: `cargo fmt --all -- --check`; workspace clippy excluding `marengo-host-metrics`/`marengo-pi`; Pi cross-target clippy (`aarch64-unknown-linux-gnu`); `cargo test --workspace` (**1,158 passed, 1 ignored**, 10 warnings); `cd consul && npm test` (**374 passed**, 75 files); `npm run build` (**tsc + Vite build passed**). Vite reported the existing ineffective dynamic-import warning for telemetry; build exited successfully. The detached-baseline targeted run observed `upsert_rejects_stale_revision_without_writing` pass on baseline and the full `marengo-config` baseline suite pass (77 tests; 8 warnings); see red→green evidence limitation above.

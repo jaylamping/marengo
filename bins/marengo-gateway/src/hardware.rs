@@ -20,6 +20,7 @@ use marengo_config::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::restart::{now_ms, refuse_unsafe_management_state, HEARTBEAT_FRESH_MS};
 
@@ -116,11 +117,15 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 fn new_upload_id() -> String {
-    let ms = SystemTime::now()
+    static UPLOAD_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+    let ns = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
+        .map(|duration| duration.as_nanos())
         .unwrap_or(0);
-    format!("upload-{ms}")
+    format!(
+        "upload-{ns}-{}",
+        UPLOAD_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    )
 }
 
 fn validate_upload_id(id: &str) -> Result<&str, StatusCode> {
@@ -149,16 +154,11 @@ fn validate_upload_id(id: &str) -> Result<&str, StatusCode> {
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StatusCode> {
-    let tmp = path.with_extension("tmp");
-    if fs::write(&tmp, bytes).is_err() {
-        let _ = fs::remove_file(&tmp);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-    if fs::rename(&tmp, path).is_err() {
-        let _ = fs::remove_file(&tmp);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-    Ok(())
+    let parent = path.parent().ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+    let _lock = marengo_config::ProfileWriteLock::acquire(parent)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    marengo_config::write_profile_file_atomic(path, bytes)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 pub async fn get_completeness() -> Result<Json<CompletenessJson>, StatusCode> {
@@ -179,7 +179,7 @@ pub async fn post_urdf_upload(body: Bytes) -> Result<Json<UrdfUploadResultJson>,
     let staging = staging_dir(&root, &upload_id);
     fs::create_dir_all(&staging).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let contributor_path = staging.join(CONTRIBUTOR_NAME);
-    fs::write(&contributor_path, &body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    write_atomic(&contributor_path, &body)?;
 
     let master_path = live_urdf_path(&root);
     let preview = merge_preview_from_paths(&master_path, &contributor_path)
@@ -260,6 +260,8 @@ pub async fn post_activate(
         return Err(StatusCode::NOT_FOUND);
     }
 
+    let _profile_lock = marengo_config::ProfileWriteLock::acquire(config_dir())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let master_path = live_urdf_path(&root);
     let master_xml =
         fs::read_to_string(&master_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -314,23 +316,7 @@ pub async fn post_activate(
         serde_json::to_vec_pretty(&manifest).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     write_atomic(&archive.join("manifest.json"), &manifest_bytes)?;
 
-    let tmp = master_path.with_extension("urdf.tmp");
-    if fs::write(&tmp, &merged).is_err() {
-        let _ = fs::remove_file(&tmp);
-        return Ok((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ActivateUrdfResultJson {
-                ok: false,
-                message: "archive was saved but activate failed: could not write live URDF"
-                    .to_string(),
-                checksum_sha256: String::new(),
-                completeness: CompletenessReport { warnings: vec![] },
-                restart_required: false,
-            }),
-        ));
-    }
-    if fs::rename(&tmp, &master_path).is_err() {
-        let _ = fs::remove_file(&tmp);
+    if write_atomic(&master_path, merged.as_bytes()).is_err() {
         return Ok((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ActivateUrdfResultJson {
@@ -346,8 +332,18 @@ pub async fn post_activate(
 
     let _ = fs::remove_dir_all(&staging);
 
-    let completeness =
-        completeness_report(&root, config_dir()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let completeness = match completeness_report(&root, config_dir()) {
+        Ok(report) => report,
+        Err(error) => CompletenessReport {
+            warnings: vec![marengo_config::CompletenessWarning {
+                code: "post_activate_check_failed".to_string(),
+                severity: "error".to_string(),
+                joint: None,
+                link: None,
+                message: format!("URDF activated, but completeness check failed: {error}"),
+            }],
+        },
+    };
 
     Ok((
         StatusCode::OK,
@@ -410,17 +406,19 @@ pub async fn post_archive_restore(
     if !contributor_path.is_file() {
         return Err(StatusCode::NOT_FOUND);
     }
-    let staging = staging_dir(&root, upload_id);
+    let restored_upload_id = new_upload_id();
+    let staging = staging_dir(&root, &restored_upload_id);
     fs::create_dir_all(&staging).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let dest = staging.join(CONTRIBUTOR_NAME);
-    fs::copy(&contributor_path, &dest).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let bytes = fs::read(&contributor_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    write_atomic(&dest, &bytes)?;
 
     let master_path = live_urdf_path(&root);
     let preview =
         merge_preview_from_paths(&master_path, &dest).map_err(|_| StatusCode::BAD_REQUEST)?;
     Ok(Json(UrdfUploadResultJson {
         ok: true,
-        upload_id: upload_id.to_string(),
+        upload_id: restored_upload_id,
         preview,
     }))
 }

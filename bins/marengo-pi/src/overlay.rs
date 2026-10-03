@@ -58,8 +58,10 @@ pub enum OverlayError {
     NonFinite(String),
     #[error(transparent)]
     PersistQueue(#[from] PersistError),
-    #[error("config: {0}")]
+    #[error(transparent)]
     Config(#[from] marengo_config::ConfigError),
+    #[error(transparent)]
+    Davout(#[from] davout::DavoutError),
     #[error("chappe: {0}")]
     Chappe(#[from] chappe::BusError),
     #[error(transparent)]
@@ -417,10 +419,14 @@ impl ActuatorOverlay {
         joint: &str,
         patch_cmd: &LimitPatchCommand,
     ) -> Result<Vec<OverlayOutcome>, OverlayError> {
+        if patch_cmd.expected_revision.is_empty() {
+            return Err(OverlayError::Config(marengo_config::ConfigError::Parse {
+                path: config_dir.to_path_buf(),
+                message: "expected_revision is required for limit patches".to_string(),
+            }));
+        }
         let current_revision = profile_content_revision(config_dir)?;
-        if !patch_cmd.expected_revision.is_empty()
-            && patch_cmd.expected_revision != current_revision
-        {
+        if patch_cmd.expected_revision != current_revision {
             return Err(OverlayError::Config(marengo_config::ConfigError::Parse {
                 path: config_dir.to_path_buf(),
                 message: format!(
@@ -444,15 +450,7 @@ impl ActuatorOverlay {
         let motors_before = loop_ctrl.supervisor().motors.clone();
         let control_before = loop_ctrl.supervisor().control.clone();
         let urdf_before = loop_ctrl.supervisor().urdf_robot().clone();
-        loop_ctrl
-            .supervisor_mut()
-            .apply_limit_patch(&patch)
-            .map_err(|e| {
-                OverlayError::Config(marengo_config::ConfigError::Parse {
-                    path: config_dir.to_path_buf(),
-                    message: e.to_string(),
-                })
-            })?;
+        loop_ctrl.supervisor_mut().apply_limit_patch(&patch)?;
 
         let motors = loop_ctrl.supervisor().motors.clone();
         let control = loop_ctrl.supervisor().control.clone();

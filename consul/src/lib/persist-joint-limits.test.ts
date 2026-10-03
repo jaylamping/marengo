@@ -43,7 +43,7 @@ describe('persistJointLimits', () => {
     const result = await persistJointLimits(
       'right_shoulder_pitch',
       { lower: -0.5, upper: 1.2 },
-      { patchConfig },
+      { expectedRevision: 'revision-fixture', patchConfig },
     );
 
     expect(result.ok).toBe(true);
@@ -69,7 +69,7 @@ describe('persistJointLimits', () => {
     const result = await persistJointLimits(
       'right_shoulder_pitch',
       { lower: -0.5, upper: 1.2 },
-      { patchConfig },
+      { expectedRevision: 'revision-fixture', patchConfig },
     );
 
     expect(result.ok).toBe(true);
@@ -101,7 +101,7 @@ describe('persistJointLimits', () => {
     const result = await persistJointLimits(
       'right_shoulder_pitch',
       { lower: -0.5, upper: 1.2 },
-      { patchConfig },
+      { expectedRevision: 'revision-fixture', patchConfig },
     );
 
     expect(result.ok).toBe(true);
@@ -122,7 +122,7 @@ describe('persistJointLimits', () => {
       persist_status: 'durable',
     });
     const result = await persistJointLimits(
-      'right_shoulder_pitch', { lower: -0.5, upper: 1.2 }, { patchConfig },
+      'right_shoulder_pitch', { lower: -0.5, upper: 1.2 }, { expectedRevision: 'revision-fixture', patchConfig },
     );
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.localSync).toBe('failed');
@@ -141,7 +141,7 @@ describe('persistJointLimits', () => {
     const result = await persistJointLimits(
       'right_shoulder_pitch',
       { lower: -1.4, upper: 3.19 },
-      { patchConfig, localSync },
+      { expectedRevision: 'revision-fixture', patchConfig, localSync },
     );
 
     const hardLower = -1.4;
@@ -160,6 +160,7 @@ describe('persistJointLimits', () => {
     expect(patchConfig).toHaveBeenCalledWith(
       {
         joint: 'right_shoulder_pitch',
+        expected_revision: 'revision-fixture',
         position_lower_rad: hardLower,
         position_upper_rad: hardUpper,
         position_soft_lower_rad: soft.softLower,
@@ -181,7 +182,7 @@ describe('persistJointLimits', () => {
     const result = await persistJointLimits(
       'right_elbow_pitch',
       { lower: -0.5, upper: 0.95 },
-      { patchConfig, localSync },
+      { expectedRevision: 'revision-fixture', patchConfig, localSync },
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -195,7 +196,7 @@ describe('persistJointLimits', () => {
     const result = await persistJointLimits(
       'right_shoulder_roll',
       { lower: 1, upper: 0 },
-      { patchConfig },
+      { expectedRevision: 'revision-fixture', patchConfig },
     );
     expect(result.ok).toBe(false);
     expect(patchConfig).not.toHaveBeenCalled();
@@ -206,7 +207,7 @@ describe('persistJointLimits', () => {
     const result = await persistJointLimits(
       'right_shoulder_roll',
       { lower: -1.57, upper: 1.57 },
-      { patchConfig },
+      { expectedRevision: 'revision-fixture', patchConfig },
     );
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -223,7 +224,7 @@ describe('persistJointLimits', () => {
     const result = await persistJointLimits(
       'missing_joint',
       { lower: -1, upper: 1 },
-      { patchConfig },
+      { expectedRevision: 'revision-fixture', patchConfig },
     );
     expect(result).toEqual({ ok: false, message: 'joint unknown' });
   });
@@ -239,7 +240,7 @@ describe('persistJointLimits', () => {
     const pending = persistJointLimits(
       'right_shoulder_roll',
       { lower: -1, upper: 1 },
-      { patchConfig, timeoutMs: 50 },
+      { expectedRevision: 'revision-fixture', patchConfig, timeoutMs: 50 },
     );
     await vi.advanceTimersByTimeAsync(60);
     const result = await pending;

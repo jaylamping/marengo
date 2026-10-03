@@ -16,6 +16,8 @@ Operators need to change joint hard/soft limits and gains from Consul without tr
 5. **`marengo.db` `config_overrides` / `settings`** remain audit / operator prefs — not the motor limit SoT.
 6. **One persist coordinator** on the Pi queues motors+control (and control-only overlay) writes; restart drains or refuses while pending.
 
+7. Profile-file writes use unique same-directory temporary files, fsync the file and parent directory, and serialize cooperating writers with a profile lock. CAS revisions are stable SHA-256 hashes of canonical YAML. Per-file replacement is atomic; the four YAML files plus URDF are not one crash-atomic transaction.
+
 ## Consequences
 
 - Set Limits no longer opens the NeedsRestart dialog on success.

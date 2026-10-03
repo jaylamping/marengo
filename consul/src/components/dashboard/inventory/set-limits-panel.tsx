@@ -216,10 +216,22 @@ export function SetLimitsPanel({
     setApplyError(null);
     setApplyOk(false);
     try {
-      const result = await persistJointLimits(jointName, {
-        lower: proposal.lower,
-        upper: proposal.upper,
-      });
+      const configSnapshot = queryClient.getQueryData<ConfigSnapshotDto | null>(
+        queryKeys.configSnapshot,
+      );
+      const expectedRevision = configSnapshot?.revision;
+      if (!expectedRevision) {
+        setApplyError('Config revision unavailable — refresh the Hardware page before applying.');
+        return;
+      }
+      const result = await persistJointLimits(
+        jointName,
+        {
+          lower: proposal.lower,
+          upper: proposal.upper,
+        },
+        { expectedRevision },
+      );
       if (!result.ok) {
         setApplyError(result.message);
         return;

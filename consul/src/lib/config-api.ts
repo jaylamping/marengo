@@ -33,6 +33,7 @@ export type ConfigSnapshotDto = {
 
 export type ConfigPatchDto = {
   joint: string;
+  expected_revision: string;
   position_lower_rad?: number;
   position_upper_rad?: number;
   torque_limit_nm?: number;

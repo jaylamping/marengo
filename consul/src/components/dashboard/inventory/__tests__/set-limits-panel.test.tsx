@@ -35,11 +35,11 @@ vi.mock('@/lib/persist-joint-limits', () => ({
 
 vi.mock('@/lib/query-client', () => ({
   queryClient: {
+    getQueryData: vi.fn(() => ({ revision: 'rev-test' })),
     setQueryData: vi.fn(),
     invalidateQueries: vi.fn(async () => undefined),
   },
 }));
-
 import { postSetZeroCommand } from '@/lib/gateway-api';
 import { persistJointLimits } from '@/lib/persist-joint-limits';
 import { queryClient } from '@/lib/query-client';
@@ -202,10 +202,11 @@ describe('SetLimitsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply Limits' }));
     await vi.waitFor(() => {
-      expect(persistJointLimits).toHaveBeenCalledWith('right_shoulder_pitch', {
-        lower: -0.5,
-        upper: 1.2,
-      });
+      expect(persistJointLimits).toHaveBeenCalledWith(
+        'right_shoulder_pitch',
+        { lower: -0.5, upper: 1.2 },
+        { expectedRevision: 'rev-test' },
+      );
     });
     await vi.waitFor(() => {
       expect(queryClient.setQueryData).toHaveBeenCalled();

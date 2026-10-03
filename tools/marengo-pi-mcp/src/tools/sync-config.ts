@@ -46,7 +46,7 @@ function remotePathExpr(path: string): string {
 }
 
 export const directInstallRsyncLine =
-  'rsync -r --no-owner --no-group --no-perms --omit-dir-times "$SRC/" "$DST/"';
+  'rsync -r --exclude=".marengo-profile.lock" --no-owner --no-group --no-perms --omit-dir-times "$SRC/" "$DST/"';
 
 export function benchUrdfStagingVerifyBody(
   cfg: MarengoPiConfig,

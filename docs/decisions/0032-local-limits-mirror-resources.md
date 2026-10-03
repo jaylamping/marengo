@@ -24,3 +24,9 @@ Mirroring the accepted values does not establish a Pi generation transaction,
 multi-file power-loss durability or physical commissioning. Those remain T03
 and the reference/deployment work. No test may redirect writes into the robot's
 installed tree or authorize motors.
+
+Implementation amendment (2026-10-03): profile updates use a stable SHA-256
+revision over canonical YAML and atomic per-file replacement under the shared
+profile lock. This does not make the multi-file mirror crash-atomic, nor does
+the checkout writer verify that its starting revision matches the Pi's revision;
+those remain explicit limitations.

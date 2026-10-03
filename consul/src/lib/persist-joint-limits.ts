@@ -65,6 +65,7 @@ export async function persistJointLimits(
   joint: string,
   bounds: JointRangeBounds,
   deps?: {
+    expectedRevision?: string;
     patchConfig?: PatchConfigFn;
     timeoutMs?: number;
     profile?: string;
@@ -77,6 +78,9 @@ export async function persistJointLimits(
     bounds.lower >= bounds.upper
   ) {
     return { ok: false, message: 'Invalid limit bounds.' };
+  }
+  if (!deps?.expectedRevision) {
+    return { ok: false, message: 'Config revision unavailable; refresh before applying limits.' };
   }
 
   // Persist taught hard as SoT (what the operator swept). Enable-at-stop jitter
@@ -94,6 +98,7 @@ export async function persistJointLimits(
     result = await patch(
       {
         joint,
+        expected_revision: deps.expectedRevision,
         position_lower_rad: hardLower,
         position_upper_rad: hardUpper,
         position_soft_lower_rad: softLower,

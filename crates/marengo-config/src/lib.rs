@@ -25,6 +25,7 @@
 //! Change joint names, motor types, or bench caps here — then update URDF and
 //! `hardware/docs/kinematics.md` together.
 
+mod atomic_file;
 mod bench_joints;
 mod commissioning_scope;
 mod completeness;
@@ -35,6 +36,7 @@ mod safety_validation;
 mod urdf_expand;
 mod urdf_merge;
 
+pub use atomic_file::{write_profile_file_atomic, ProfileWriteLock};
 pub use bench_joints::{
     apply_joint_subset, joint_subset_from_env, load_command_joint_allowlist,
     load_command_joint_allowlist_from, resolve_command_joint, validate_joint_subset,
@@ -816,8 +818,9 @@ pub fn validate_control_against_limits(
                     joint: joint.clone(),
                 })?;
         let motor =
-            motor_for_joint(motors, joint).ok_or_else(|| ConfigError::UnknownMotorJoint {
-                joint: joint.clone(),
+            motor_for_joint(motors, joint).ok_or_else(|| ConfigError::InvalidSafetyConfig {
+                field: "robot.joints".to_string(),
+                message: format!("joint {joint} has no matching motors.yaml entry"),
             })?;
         if joint_cfg.motor_type != motor.motor_type {
             return Err(ConfigError::InvalidSafetyConfig {
@@ -1127,21 +1130,15 @@ pub fn write_control_config_from(
     config_dir: impl AsRef<Path>,
     cfg: &ControlConfigFile,
 ) -> Result<(), ConfigError> {
+    let config_dir = config_dir.as_ref();
+    let _lock = ProfileWriteLock::acquire(config_dir)?;
     validate_control_config(cfg)?;
-    let path = control_config_path(&config_dir);
+    let path = control_config_path(config_dir);
     let text = serde_yaml::to_string(cfg).map_err(|e| ConfigError::Parse {
         path: path.clone(),
         message: e.to_string(),
     })?;
-    let tmp = path.with_extension("yaml.tmp");
-    std::fs::write(&tmp, &text).map_err(|e| ConfigError::Io {
-        path: tmp.clone(),
-        message: e.to_string(),
-    })?;
-    std::fs::rename(&tmp, &path).map_err(|e| ConfigError::Io {
-        path: path.clone(),
-        message: e.to_string(),
-    })
+    atomic_file::write_atomic(&path, text.as_bytes())
 }
 
 /// Apply a config-tier tuning parameter; returns the previous value.
@@ -1476,6 +1473,29 @@ mod tests {
         let err = validate_motors_against_robot(&robot, &motors).expect_err("duplicate address");
 
         assert!(matches!(err, ConfigError::DuplicateMotorAddress { .. }));
+    }
+
+    #[test]
+    fn missing_motor_error_names_the_robot_joint_direction() {
+        let root = repo_root();
+        let config_dir = resolve_config_dir(&root);
+        let robot = load_robot_config_from(&config_dir).expect("robot");
+        let mut motors = load_motors_config_from(&config_dir).expect("motors");
+        let control = load_control_config_from(&config_dir).expect("control");
+        motors
+            .motors
+            .retain(|motor| motor.joint != "right_elbow_pitch");
+
+        let error = validate_control_against_limits(&robot, &motors, &control)
+            .expect_err("robot joint without motor");
+
+        assert!(matches!(
+            error,
+            ConfigError::InvalidSafetyConfig { field, message }
+                if field == "robot.joints"
+                    && message.contains("right_elbow_pitch")
+                    && message.contains("no matching motors.yaml entry")
+        ));
     }
 
     #[test]

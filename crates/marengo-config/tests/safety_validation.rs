@@ -501,7 +501,7 @@ fn aggregate_policy_requires_motor_control_and_homing_for_each_active_joint() {
     let mut missing_motor = motors.clone();
     missing_motor.motors.retain(|entry| entry.joint != joint);
     assert!(
-        matches!(validate_safety_config(&robot, &missing_motor, &control, &homing), Err(ConfigError::UnknownMotorJoint { joint: name }) if name == joint)
+        matches!(validate_safety_config(&robot, &missing_motor, &control, &homing), Err(ConfigError::InvalidSafetyConfig { field, message }) if field == "robot.joints" && message.contains(joint))
     );
     let mut missing_control = control.clone();
     missing_control.control.joints.remove(joint);

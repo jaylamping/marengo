@@ -10,9 +10,12 @@ use std::time::Duration;
 use armee_proto::prost::Message;
 use armee_proto::{ActionEvent, Envelope, PersistStatus};
 use chappe::Bus;
-use marengo_config::load_control_config_from;
+use marengo_config::{load_control_config_from, load_motors_config_from};
 
-use super::{ConfigPersistQueue, PersistRequest, PersistTestHooks, TOPIC_AUDIT_ACTION};
+use super::{
+    carry_pending_limit_patch, ConfigPersistQueue, PersistRequest, PersistTestHooks,
+    TOPIC_AUDIT_ACTION,
+};
 
 const CLEANUP_BOUND: Duration = Duration::from_secs(2);
 
@@ -361,4 +364,50 @@ fn queue_stays_busy_until_the_real_terminal_action_is_published() {
         busy_before_publication,
         "worker must remain busy until the matching terminal action is published"
     );
+}
+#[test]
+fn later_control_save_preserves_pending_limit_patch() {
+    let (_temp, config_dir) = copied_config();
+    let mut pending = request(&config_dir, 41.0, 8011, "pending-limit");
+    let mut motors = load_motors_config_from(&config_dir).expect("motors fixture");
+    let motor = motors
+        .motors
+        .iter_mut()
+        .find(|motor| motor.joint == pending.joint)
+        .expect("fixture joint");
+    motor.bench.position_lower_rad = -1.23;
+    motor.bench.position_upper_rad = 2.34;
+    pending.motors = Some(motors);
+    pending.param = "limit_patch".into();
+    let entry = pending
+        .control
+        .control
+        .joints
+        .get_mut(&pending.joint)
+        .expect("fixture control");
+    entry.position_soft_lower_rad = Some(-1.1);
+    entry.position_soft_upper_rad = Some(2.2);
+
+    let mut later = request(&config_dir, 47.0, 8012, "later-control-save");
+    carry_pending_limit_patch(&pending, &mut later).expect("carry pending limits");
+
+    let motor = later
+        .motors
+        .as_ref()
+        .expect("limits require motors write")
+        .motors
+        .iter()
+        .find(|motor| motor.joint == pending.joint)
+        .expect("fixture motor");
+    assert_eq!(motor.bench.position_lower_rad, -1.23);
+    assert_eq!(motor.bench.position_upper_rad, 2.34);
+    let control = later
+        .control
+        .control
+        .joints
+        .get(&pending.joint)
+        .expect("fixture control");
+    assert_eq!(control.position_soft_lower_rad, Some(-1.1));
+    assert_eq!(control.position_soft_upper_rad, Some(2.2));
+    assert_eq!(control.impedance.kp, 47.0);
 }
