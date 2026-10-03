@@ -429,12 +429,9 @@ async fn command_enable(
         ));
     }
     let payload = request.encode_to_vec();
-    if let Err(e) = state.publish_command_envelope(
-        TOPIC_ENABLE,
-        "consul",
-        "marengo.v1.EnableRequest",
-        payload,
-    ) {
+    if let Err(e) =
+        state.publish_command_envelope(TOPIC_ENABLE, "consul", "marengo.v1.EnableRequest", payload)
+    {
         if limited {
             state
                 .rate_limiter

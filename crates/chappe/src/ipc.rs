@@ -798,7 +798,7 @@ mod tests {
                 .expect("bound fits")
                 .to_le_bytes(),
         );
-        buf.extend_from_slice(&vec![b'x'; MAX_TOPIC_BYTES + 1]);
+        buf.extend_from_slice(&[b'x'; MAX_TOPIC_BYTES + 1]);
         buf.extend_from_slice(&0_u32.to_le_bytes());
         assert!(take_frame(&mut buf).is_err());
     }
@@ -849,9 +849,7 @@ mod tests {
             .set_read_timeout(Some(Duration::from_millis(500)))
             .expect("test deadline");
         client
-            .write_all(&fresh_command_frame(
-                crate::topics::TOPIC_MOTOR_STATUS_POLL,
-            ))
+            .write_all(&fresh_command_frame(crate::topics::TOPIC_MOTOR_STATUS_POLL))
             .expect("valid command");
         client
             .shutdown(std::net::Shutdown::Write)
@@ -895,7 +893,7 @@ mod tests {
                 .expect("bound fits")
                 .to_le_bytes(),
         );
-        oversize.extend_from_slice(&vec![b'y'; MAX_TOPIC_BYTES + 1]);
+        oversize.extend_from_slice(&[b'y'; MAX_TOPIC_BYTES + 1]);
         oversize.extend_from_slice(&0_u32.to_le_bytes());
         client.write_all(&oversize).expect("oversize frame");
         client

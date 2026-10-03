@@ -42,12 +42,7 @@ impl PositionTrace {
     }
 
     fn open(path: &Path, loop_hz: u32) -> std::io::Result<Self> {
-        Self::open_inner(
-            path,
-            loop_hz,
-            TRACE_BUFFER_BYTES,
-            TRACE_SESSION_CAP_BYTES,
-        )
+        Self::open_inner(path, loop_hz, TRACE_BUFFER_BYTES, TRACE_SESSION_CAP_BYTES)
     }
 
     fn open_inner(
@@ -96,6 +91,8 @@ impl PositionTrace {
     }
 
     /// Write failures observed since open (tick writes stop after the first).
+    /// Test-observation seam for the counted-disable path.
+    #[cfg(test)]
     pub fn write_errors(&self) -> u64 {
         self.write_errors
     }
@@ -117,11 +114,7 @@ impl PositionTrace {
             return;
         }
         let line = row.format_csv_with_meta(tick, t_ms);
-        if self
-            .bytes_written
-            .saturating_add(line.len() as u64)
-            > self.byte_cap
-        {
+        if self.bytes_written.saturating_add(line.len() as u64) > self.byte_cap {
             self.failed = true;
             tracing::warn!(
                 cap_bytes = self.byte_cap,
@@ -134,9 +127,7 @@ impl PositionTrace {
         if self.failed {
             return;
         }
-        self.bytes_written = self
-            .bytes_written
-            .saturating_add(line.len() as u64);
+        self.bytes_written = self.bytes_written.saturating_add(line.len() as u64);
     }
 
     #[allow(dead_code)]
@@ -236,7 +227,7 @@ pub fn log_trace_enabled_once(path: &Path) {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::approx_constant)]
+    #![allow(clippy::approx_constant, clippy::expect_used)]
 
     use super::*;
 

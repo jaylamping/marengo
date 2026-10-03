@@ -2041,9 +2041,9 @@ mod tests {
         // L-berthier-24: a Chappe publish error must not become a tick error.
         let mut loop_ctrl = test_loop();
         assert_eq!(loop_ctrl.telemetry_failures(), 0);
-        loop_ctrl.note_telemetry_outcome(Err(LoopError::Chappe(
-            chappe::BusError::Publish("receiver race".to_string()),
-        )));
+        loop_ctrl.note_telemetry_outcome(Err(LoopError::Chappe(chappe::BusError::Publish(
+            "receiver race".to_string(),
+        ))));
         assert_eq!(loop_ctrl.telemetry_failures(), 1);
         loop_ctrl.note_telemetry_outcome(Ok(()));
         assert_eq!(loop_ctrl.telemetry_failures(), 1);
