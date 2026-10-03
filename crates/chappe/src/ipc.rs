@@ -278,9 +278,8 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
 }
 
 fn command_is_current(topic: &str, payload: &[u8]) -> bool {
-    const COMMAND_TOPICS: [&str; 7] = [
+    const COMMAND_TOPICS: [&str; 6] = [
         "robot/enable",
-        "robot/homing",
         "robot/set_zero",
         "robot/active_reporting_lease",
         "robot/motor_status_poll",

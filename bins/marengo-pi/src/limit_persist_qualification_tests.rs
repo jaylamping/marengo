@@ -44,12 +44,8 @@ fn zero_budget_close_reports_live_work_and_rejects_later_valid_admission() {
     let gate_rx = Mutex::new(release_rx);
     let gate_timed_out = Arc::new(AtomicBool::new(false));
     let timeout_in_hook = Arc::clone(&gate_timed_out);
-    // The archived hook API retains this explicitly ignored legacy flag.
-    // It is not the admission/termination oracle for the new close/drain API.
-    let legacy_owner_flag = Arc::new(AtomicBool::new(false));
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&chappe),
-        legacy_owner_flag,
         temp.path().to_path_buf(),
         PersistTestHooks {
             before_write: Some(Arc::new(move |draft| {
@@ -172,7 +168,6 @@ fn publication_unwind_retains_written_disk_and_reports_unfinished_local_completi
     let timeout_in_hook = Arc::clone(&gate_timed_out);
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&chappe),
-        Arc::new(AtomicBool::new(false)), // Explicitly ignored archived owner flag.
         temp.path().to_path_buf(),
         PersistTestHooks {
             before_publish: Some(Arc::new(move |draft| {

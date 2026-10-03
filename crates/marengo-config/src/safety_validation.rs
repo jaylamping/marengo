@@ -51,16 +51,11 @@ fn named(field: &str, value: &str) -> Result<(), ConfigError> {
     Ok(())
 }
 
-/// Validate robot identity and finite, nonnegative bench caps.
+/// Validate robot URDF path and finite, nonnegative bench caps.
 /// Limb inventory may include joints that have not been built yet.
-pub fn validate_robot_config(robot: &RobotConfigFile) -> Result<(), ConfigError> {
+pub(crate) fn validate_robot_config(robot: &RobotConfigFile) -> Result<(), ConfigError> {
     let robot = &robot.robot;
-    named("robot.name", &robot.name)?;
     named("robot.urdf", &robot.urdf)?;
-    nonnegative(
-        "robot.bench.max_joint_velocity_rad_s",
-        robot.bench.max_joint_velocity_rad_s,
-    )?;
     nonnegative(
         "robot.bench.max_joint_torque_nm",
         robot.bench.max_joint_torque_nm,
@@ -75,7 +70,7 @@ pub fn validate_robot_config(robot: &RobotConfigFile) -> Result<(), ConfigError>
 }
 
 /// Validate unique motor identity, transforms, and hard bench envelopes.
-pub fn validate_motors_config(motors: &MotorsConfigFile) -> Result<(), ConfigError> {
+pub(crate) fn validate_motors_config(motors: &MotorsConfigFile) -> Result<(), ConfigError> {
     for (index, motor) in motors.motors.iter().enumerate() {
         let seen = &motors.motors[..index];
         named("motors.joint", &motor.joint)?;
@@ -326,7 +321,7 @@ fn validate_homing_numbers(
 }
 
 /// Validate homing defaults and the effective values after per-joint overrides.
-pub fn validate_homing_config(cfg: &HomingConfigFile) -> Result<(), ConfigError> {
+pub(crate) fn validate_homing_config(cfg: &HomingConfigFile) -> Result<(), ConfigError> {
     let homing = &cfg.homing;
     nonnegative(
         "homing.zero_verify_tolerance_rad",

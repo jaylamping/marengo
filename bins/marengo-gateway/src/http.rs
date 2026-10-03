@@ -100,10 +100,6 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/snapshot/sensors/imu/torso", get(snapshot_imu_torso))
         .route("/snapshot/host/metrics/pi", get(snapshot_host_metrics_pi))
         .route(
-            "/snapshot/host/metrics/jetson",
-            get(snapshot_host_metrics_jetson),
-        )
-        .route(
             "/snapshot/actuator/limits",
             get(actuator::snapshot_actuator_limits),
         )
@@ -381,10 +377,6 @@ async fn snapshot_imu_torso(State(state): State<SharedState>) -> Response {
 
 async fn snapshot_host_metrics_pi(State(state): State<SharedState>) -> Response {
     protobuf_snapshot(state.snapshot_host_metrics_pi())
-}
-
-async fn snapshot_host_metrics_jetson(State(state): State<SharedState>) -> Response {
-    protobuf_snapshot(state.snapshot_host_metrics_jetson())
 }
 
 fn protobuf_snapshot<M: Message>(msg: Option<M>) -> Response {
