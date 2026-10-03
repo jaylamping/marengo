@@ -1,4 +1,7 @@
 //! Actuator harness HTTP: limits snapshot + tuning-only command path.
+//! D-11 KEEP (B13 P-armee-proto-03): the planned gain-tuning path, currently UNWIRED —
+//! no production client posts /command/actuator (Consul helper is test-only) and no
+//! subscriber consumes robot/audit/tuning. Do not remove without a new D-11 decision.
 
 use armee_proto::prost::Message;
 use armee_proto::{ActuatorLimitSnapshot, Envelope, OperatorCommand};
@@ -231,6 +234,9 @@ mod tests {
         )
     }
 
+    /// B13 (P-armee-proto-04): `wired` is deprecated (write-only). Seeded during
+    /// the deprecation window so snapshot bytes do not change.
+    #[allow(deprecated)]
     fn seed_limits(state: &SharedState, joint: &str, kp_max: f64, kd_max: f64) {
         let snapshot = ActuatorLimitSnapshot {
             timestamp_ms: 42,
@@ -259,6 +265,9 @@ mod tests {
         );
     }
 
+    /// B13 (P-armee-proto-04): `seq` is deprecated (always 1, never read).
+    /// Written during the deprecation window so envelope bytes do not change.
+    #[allow(deprecated)]
     fn operator_envelope(joint: &str, payload: armee_proto::actuator_command::Payload) -> Vec<u8> {
         let operator = OperatorCommand {
             timestamp_ms: 1,

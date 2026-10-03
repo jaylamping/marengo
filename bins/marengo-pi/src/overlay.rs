@@ -34,15 +34,18 @@ use marengo_config::{
 use thiserror::Error;
 use tracing::warn;
 
-use crate::limit_persist::{next_audit_revision, PersistDrainReport, PersistError, PersistRequest};
+use crate::limit_persist::{
+    next_audit_revision, publish_action_event, PersistDrainReport, PersistError, PersistRequest,
+};
 use crate::motion_owner::{CommandClass, CommandSource, MotionLease};
 
 pub use crate::limit_persist::ConfigPersistQueue;
+#[cfg(test)]
+pub(crate) use crate::limit_persist::TOPIC_AUDIT_ACTION;
 
 pub const TOPIC_ACTUATOR_COMMAND: &str = "robot/actuator/command";
 pub const TOPIC_ACTUATOR_LIMITS: &str = "robot/actuator/limits";
 pub const TOPIC_AUDIT_TUNING: &str = "robot/audit/tuning";
-pub const TOPIC_AUDIT_ACTION: &str = "robot/audit/action";
 
 #[derive(Debug, Error)]
 pub enum OverlayError {
@@ -112,24 +115,6 @@ impl ActuatorOverlay {
     /// The runtime's motion lease; Chappe runtime tuning needs ownership.
     pub(crate) fn set_motion_lease(&mut self, motion: MotionLease) {
         self.motion = motion;
-    }
-
-    /// Archived subsystem probes exercise this same dispatch with no owner exit.
-    #[cfg(test)]
-    pub fn drain_commands<B: MotorBus>(
-        &mut self,
-        loop_ctrl: &mut ControlLoop<B>,
-        config_dir: &Path,
-        chappe: &Arc<Bus>,
-        rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    ) {
-        self.drain_commands_until_shutdown(
-            loop_ctrl,
-            config_dir,
-            chappe,
-            rx,
-            &AtomicBool::new(false),
-        );
     }
 
     pub fn drain_commands_until_shutdown<B: MotorBus>(
@@ -293,12 +278,6 @@ impl ActuatorOverlay {
 
     pub(crate) fn close_persist_and_drain(&self, timeout: Duration) -> PersistDrainReport {
         self.persist.close_and_drain(timeout)
-    }
-
-    /// Nonclosing idle observation retained for unchanged regression probes.
-    #[cfg(test)]
-    pub fn wait_persist_idle(&self, timeout: Duration) -> bool {
-        self.persist.wait_idle(timeout)
     }
 
     pub fn maybe_publish_limits<B: MotorBus>(
@@ -566,6 +545,10 @@ fn apply_runtime_param<B: MotorBus>(
     Ok(())
 }
 
+/// B13 (P-armee-proto-04): `JointActuatorLimit.wired` is deprecated (write-only,
+/// never read). Written during the deprecation window so snapshot bytes do not
+/// change; drop it at the reserve step.
+#[allow(deprecated)]
 pub fn build_limit_snapshot<B: MotorBus>(
     supervisor: &Supervisor<B>,
     allowlist: &CommandJointAllowlist,
@@ -688,16 +671,6 @@ pub fn publish_tuning_event(
         event,
     )
 }
-
-pub fn publish_action_event(chappe: &Bus, event: &ActionEvent) -> Result<(), chappe::BusError> {
-    chappe.publish(
-        TOPIC_AUDIT_ACTION,
-        "marengo-pi",
-        "marengo.v1.ActionEvent",
-        event,
-    )
-}
-
 #[cfg(test)]
 #[path = "overlay_tests.rs"]
 mod tests;

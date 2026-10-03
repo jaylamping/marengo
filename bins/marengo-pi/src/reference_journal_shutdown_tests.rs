@@ -179,7 +179,6 @@ fn both_writers_share_one_shutdown_budget_after_the_required_stop() {
         let timeout_in_worker = Arc::clone(&config_gate_timeout);
         let queue = ConfigPersistQueue::spawn_with_test_hooks(
             Arc::new(Bus::new(16)),
-            Arc::new(AtomicBool::new(false)),
             tree.path().to_owned(),
             PersistTestHooks {
                 before_write: Some(Arc::new(move |_| {

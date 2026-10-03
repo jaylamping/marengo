@@ -30,8 +30,7 @@ use chappe::Bus;
 use thiserror::Error;
 use tracing::warn;
 
-use crate::limit_persist::next_audit_revision;
-use crate::overlay::publish_action_event;
+use crate::limit_persist::{next_audit_revision, publish_action_event};
 use crate::{timestamp_ms, PiCommand};
 
 /// Audit `ActionEvent.action` for every refused motion command.

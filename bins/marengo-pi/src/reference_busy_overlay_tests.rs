@@ -25,6 +25,9 @@ use crate::test_support as support;
 const TARGET: &str = "right_elbow_pitch";
 const BOUND: Duration = Duration::from_secs(2);
 
+/// B13 (P-armee-proto-04): `seq` is deprecated (never read). Fixtures keep
+/// writing it so envelope bytes match production during the window.
+#[allow(deprecated)]
 fn command(tier: TuningTier, session: &str) -> OperatorCommand {
     OperatorCommand {
         timestamp_ms: 10421,

@@ -46,6 +46,10 @@ pub struct LimitPatchRequest {
     pub velocity_max_rad_s: Option<f64>,
 }
 
+/// B13 (P-armee-proto-04): `OperatorCommand.seq` is deprecated (always 1, never
+/// read). The write stays during the deprecation window so wire bytes do not
+/// change; drop it at the reserve step.
+#[allow(deprecated)]
 pub async fn apply_limit_patch_async(
     state: SharedState,
     config_dir: &Path,

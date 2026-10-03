@@ -287,7 +287,6 @@ fn run_case(disable_on_exit: bool, failed_target_write: bool) -> Case {
     let timed_out_in_hook = Arc::clone(&timed_out);
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&chappe),
-        Arc::clone(&shutdown),
         temp.path().to_path_buf(),
         PersistTestHooks {
             before_write: Some(Arc::new(move |request| {
