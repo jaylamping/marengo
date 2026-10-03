@@ -129,23 +129,10 @@ fn observed_reserved_or_armed_mapping_mismatch_cannot_resume_after_restoration()
             (path, bytes)
         })
         .collect();
-        let fixture = support::FixtureTree::new("reference-busy-observed-mismatch", &root);
+        let fixture =
+            support::fixture_tree_without_diagnostics("reference-busy-observed-mismatch", &root);
         let fixture_path = fixture.path().to_path_buf();
         let config = fixture.path().join("config");
-        let control_path = config.join("control.yaml");
-        let text = std::fs::read_to_string(&control_path).expect("copied control");
-        assert_eq!(
-            text.matches("active_reporting_diagnostics: true").count(),
-            1
-        );
-        std::fs::write(
-            control_path,
-            text.replace(
-                "active_reporting_diagnostics: true",
-                "active_reporting_diagnostics: false",
-            ),
-        )
-        .expect("only copied diagnostics disabled before construction");
         let history = fixture.path().join("history.yaml");
         std::fs::write(&history, HISTORY).expect("inspection-only historical neighbor");
         let robot = load_robot_config_from(&config).expect("actual copied robot policy");

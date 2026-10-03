@@ -11,4 +11,4 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-armee-kinematics = { path = "../armee-kinematics" }
+armee-kinematics = { path = "../armee-kinematics", features = ["test-support"] }

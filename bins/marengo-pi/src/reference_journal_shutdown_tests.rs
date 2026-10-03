@@ -160,16 +160,7 @@ fn both_writers_share_one_shutdown_budget_after_the_required_stop() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let tree = support::FixtureTree::new("journal-shutdown", &root);
         let config = tree.path().join("config");
-        let path = config.join("control.yaml");
-        let text = std::fs::read_to_string(&path).expect("copied source policy");
-        std::fs::write(
-            path,
-            text.replace(
-                "active_reporting_diagnostics: true",
-                "active_reporting_diagnostics: false",
-            ),
-        )
-        .expect("isolated diagnostics");
+        crate::test_support::disable_copied_diagnostics(&tree.path());
         let pause = JournalTestPause::new(JournalPausePoint::AfterCommit, 1)
             .expect("actual committed history gate");
         let (entered_tx, entered_rx) = mpsc::channel();

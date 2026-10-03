@@ -85,23 +85,10 @@ fn exercise_overlay(busy: bool, tier: TuningTier) -> Case {
         (path, bytes)
     })
     .collect();
-    let fixture = support::FixtureTree::new("reference-busy-overlay", &source);
+    let fixture = support::fixture_tree_without_diagnostics("reference-busy-overlay", &source);
     let fixture_path = fixture.path().to_path_buf();
     let config = fixture.path().join("config");
     let control_path = config.join("control.yaml");
-    let text = std::fs::read_to_string(&control_path).expect("copied control input");
-    assert_eq!(
-        text.matches("active_reporting_diagnostics: true").count(),
-        1
-    );
-    std::fs::write(
-        &control_path,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("only copied diagnostics disabled before construction");
     let before_disk = std::fs::read(&control_path).expect("actual pre-dispatch disk bytes");
     let history = fixture.path().join("history.yaml");
     let mut ctrl = ControlLoop::from_simulation_with_calibration_record_path(

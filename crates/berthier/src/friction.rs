@@ -199,45 +199,6 @@ pub fn position_settle_friction_torque(
     coulomb + fv * dq + fo
 }
 
-/// Trajectory Coulomb assist follows commanded velocity when moving; near hold uses settle error.
-#[allow(dead_code)] // unit tests in this crate
-pub fn trajectory_friction_torque(
-    dq: f64,
-    dq_des: f64,
-    settle_error: f64,
-    velocity_deadband: f64,
-    gains: &FrictionGains,
-) -> f64 {
-    if dq_des.abs() > velocity_deadband {
-        if dq_des * settle_error > 0.0 {
-            gains.fc * dq_des.signum() + gains.fv * dq + gains.fo
-        } else {
-            position_settle_friction_torque(
-                dq,
-                settle_error,
-                POSITION_HOLD_FRICTION_FADE_RAD,
-                gains.fc,
-                gains.fv,
-                gains.fo,
-                gains.k,
-            )
-        }
-    } else if dq_des * settle_error > 0.0 {
-        let scale = (dq_des.abs() / velocity_deadband).clamp(0.0, 1.0);
-        gains.fc * dq_des.signum() * scale + gains.fv * dq + gains.fo
-    } else {
-        position_settle_friction_torque(
-            dq,
-            settle_error,
-            POSITION_HOLD_FRICTION_FADE_RAD,
-            gains.fc,
-            gains.fv,
-            gains.fo,
-            gains.k,
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -605,22 +566,6 @@ mod tests {
     fn settle_friction_scales_with_settle_error() {
         let tau = position_settle_friction_torque(0.0, 0.02, 0.05, 1.8, 0.0, 0.0, 10.0);
         assert!((tau - 0.72).abs() < 1e-6);
-    }
-
-    #[test]
-    fn trajectory_friction_ramps_below_velocity_deadband() {
-        let gains = test_gains();
-        let tau = trajectory_friction_torque(0.0, 0.01, 0.08, 0.02, &gains);
-        assert!((tau - 0.125).abs() < 1e-6);
-    }
-
-    #[test]
-    fn trajectory_friction_fades_when_crossed_target() {
-        let gains = test_gains();
-        let toward = trajectory_friction_torque(0.08, 0.10, 0.05, 0.02, &gains);
-        let crossed = trajectory_friction_torque(0.08, 0.10, -0.0028, 0.02, &gains);
-        assert!((toward - 0.25).abs() < 1e-6);
-        assert!((crossed + 0.035).abs() < 1e-6);
     }
 
     #[test]

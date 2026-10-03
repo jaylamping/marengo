@@ -201,7 +201,7 @@ fn one_count_latch_classifies_exactly_like_exact_zero() {
     hold.arm(&[one_count], &[one_count], 0);
     assert_eq!(hold.targets().map(<[f64]>::to_vec), Some(vec![0.0]));
     assert_eq!(
-        hold.targets_raw().map(<[f64]>::to_vec),
+        hold.setpoints_raw.clone(),
         Some(vec![one_count]),
         "operator request stays visible"
     );

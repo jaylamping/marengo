@@ -112,6 +112,35 @@ impl FixtureTree {
     }
 }
 
+/// Flip `active_reporting_diagnostics` to `false` in an already-copied tree
+/// (for fixtures that build the tree first and decide about diagnostics later).
+pub fn disable_copied_diagnostics(root: &Path) {
+    let path = root.join("config/control.yaml");
+    let text = std::fs::read_to_string(&path).expect("copied control config");
+    assert_eq!(
+        text.matches("active_reporting_diagnostics: true").count(),
+        1
+    );
+    std::fs::write(
+        path,
+        text.replace(
+            "active_reporting_diagnostics: true",
+            "active_reporting_diagnostics: false",
+        ),
+    )
+    .expect("disable copied diagnostics");
+}
+
+/// Fixture tree with `active_reporting_diagnostics` flipped to `false` in the
+/// copied `config/control.yaml`: diagnostics-off coverage without touching the repo.
+/// Replaces the ~10-line read/assert/rewrite block that was duplicated in every
+/// reference-journal test setup across davout, berthier and marengo-pi.
+pub fn fixture_tree_without_diagnostics(label: &str, source: &Path) -> FixtureTree {
+    let tree = FixtureTree::new(label, source);
+    disable_copied_diagnostics(tree.path());
+    tree
+}
+
 impl Drop for FixtureTree {
     fn drop(&mut self) {
         let Ok(actual) = self.root.canonicalize() else {
