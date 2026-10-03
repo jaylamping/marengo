@@ -52,7 +52,8 @@ pub struct TimingModel {
     /// SetZero received → blackout start (measured last frame before it
     /// 511-614 ms; the true start is up to one report period later).
     pub set_zero_blackout_start: (Duration, Duration),
-    /// Blackout length (measured 45.4-60.7 ms).
+    /// Blackout length (measured 44.5-66.1 ms across original captures and
+    /// three 2026-10-03 enable soaks).
     pub set_zero_blackout_length: (Duration, Duration),
 }
 
@@ -73,13 +74,13 @@ pub const TIMING_MODEL: TimingModel = TimingModel {
     identity_reply: (Duration::ZERO, Duration::from_millis(1)),
     report_period: (Duration::from_millis(7), Duration::from_millis(13)),
     set_zero_blackout_start: (Duration::from_millis(500), Duration::from_millis(625)),
-    set_zero_blackout_length: (Duration::from_millis(40), Duration::from_millis(65)),
+    set_zero_blackout_length: (Duration::from_millis(40), Duration::from_millis(67)),
 };
 
 /// Earliest start and latest end, after receiving a SetZero, of any blackout
 /// [`TIMING_MODEL`] admits.
 pub const SET_ZERO_BLACKOUT: (Duration, Duration) =
-    (Duration::from_millis(500), Duration::from_millis(690));
+    (Duration::from_millis(500), Duration::from_millis(692));
 
 /// The worst measured blackout (2026-10-03 15:34:08, right_elbow_pitch: last
 /// report 613.8 ms after its SetZero, silent for 53.0 ms) at the latest

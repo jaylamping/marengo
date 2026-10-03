@@ -15,16 +15,17 @@
 //! - `reset_after_enable`: drive status/report frames in Reset mode inside an
 //!   open Enable window (after the Enable, before its first Run frame).
 //! - `set_zero_silence_start_ms` / `set_zero_silence_ms`: for each host SetZero,
-//!   the longest gap between two consecutive drive frames whose first frame is
-//!   at most [`SET_ZERO_WINDOW_S`] after the SetZero, that is at least
-//!   [`SILENCE_MIN_S`] long, and throughout which the drive owed the host
-//!   frames: either its report stream was running at the gap start (a type-24
-//!   report seen, no host Off since) and no host type-24 write fell in the gap,
-//!   or host requests to it fell in the gap with no stretch between the gap
-//!   start, the requests and the gap end longer than [`SILENCE_MIN_S`]. A gap
-//!   where the host itself went idle is unobservable and does not count.
-//!   Start = first frame of the gap − SetZero; silence = gap length (the true
-//!   silence lies inside it). A SetZero without such a gap records nothing.
+//!   the longest gap between consecutive drive frames within
+//!   [`SET_ZERO_WINDOW_S`] after SetZero and at least [`SILENCE_MIN_S`] long.
+//!   A gap is observable only if periodic reports were running (and neither
+//!   an Off nor another reporting write intervened), or both boundary status
+//!   frames answer host requests with requests throughout the gap no more than
+//!   [`SILENCE_MIN_S`] apart. A delayed report after an Off cannot re-arm
+//!   streaming evidence. Gaps in reply-only traffic with sparse solicits
+//!   cannot establish a blackout and are counted as
+//!   `set_zero_silence_unobservable`, not as samples. Start = first frame of
+//!   the gap − SetZero; silence = gap length (the true silence lies inside it).
+//!   A SetZero with no observable qualifying gap is unobservable.
 //! - `identity_reply_ms`: host type-0 request → type-0 reply from the drive,
 //!   paired with the latest outstanding request. A request superseded by
 //!   another, or unanswered after [`REPLY_TIMEOUT_S`], is `identity_unanswered`.
@@ -127,6 +128,7 @@ pub struct DriveTiming {
     pub reset_after_enable: u64,
     pub set_zero_silence_start_ms: Stats,
     pub set_zero_silence_ms: Stats,
+    pub set_zero_silence_unobservable: u64,
     pub identity_reply_ms: Stats,
     pub identity_unanswered: u64,
     pub param_read_reply_ms: Stats,
@@ -176,6 +178,7 @@ struct DriveSamples {
     reset_after_enable: u64,
     set_zero_silence_start: Vec<f64>,
     set_zero_silence: Vec<f64>,
+    set_zero_silence_unobservable: u64,
     identity_reply: Vec<f64>,
     identity_unanswered: u64,
     param_read_reply: Vec<f64>,
@@ -194,6 +197,7 @@ impl DriveSamples {
             reset_after_enable: self.reset_after_enable,
             set_zero_silence_start_ms: Stats::from_ms(self.set_zero_silence_start),
             set_zero_silence_ms: Stats::from_ms(self.set_zero_silence),
+            set_zero_silence_unobservable: self.set_zero_silence_unobservable,
             identity_reply_ms: Stats::from_ms(self.identity_reply),
             identity_unanswered: self.identity_unanswered,
             param_read_reply_ms: Stats::from_ms(self.param_read_reply),
@@ -235,6 +239,10 @@ struct DriveState {
     last_frame: Option<f64>,
     /// Stream believed running at `last_frame` (report seen, no Off since).
     stream_on: bool,
+    /// An explicit Off remains authoritative even if a delayed report arrives.
+    reporting_off: bool,
+    /// Whether the last drive frame answered a host status-soliciting frame.
+    last_frame_answered: bool,
     /// Latest of `last_frame` and the host requests to the drive since then.
     obligation_at: Option<f64>,
     /// Since `last_frame`: a host request, a host type-24 write, and a stretch
@@ -260,13 +268,15 @@ impl DriveState {
     }
 
     fn close_set_zero(&mut self, samples: &mut DriveSamples) {
-        if let Some(SetZeroWindow {
-            at,
-            best: Some((start, end)),
-        }) = self.set_zero.take()
-        {
-            samples.set_zero_silence_start.push((start - at) * 1e3);
-            samples.set_zero_silence.push((end - start) * 1e3);
+        if let Some(window) = self.set_zero.take() {
+            if let Some((start, end)) = window.best {
+                samples
+                    .set_zero_silence_start
+                    .push((start - window.at) * 1e3);
+                samples.set_zero_silence.push((end - start) * 1e3);
+            } else {
+                samples.set_zero_silence_unobservable += 1;
+            }
         }
     }
 
@@ -380,6 +390,7 @@ impl DriveState {
             HostCommand::ActiveReporting { on } => {
                 self.close_off(Some(t), samples);
                 self.report_chain_valid = false;
+                self.reporting_off = !on;
                 if !on {
                     let running = self
                         .last_report
@@ -402,30 +413,43 @@ impl DriveState {
     }
 
     fn on_drive(&mut self, t: f64, frame: DriveFrame, samples: &mut DriveSamples) {
+        let answered = matches!(frame, DriveFrame::Status { .. })
+            && self
+                .status_pending
+                .front()
+                .is_some_and(|(at, _)| t - at <= STATUS_REPLY_WINDOW_S);
         // Silence candidate: the gap that this frame ends.
         if let (Some(window), Some(previous)) = (self.set_zero.as_mut(), self.last_frame) {
             let gap = t - previous;
-            let stream_owed = self.stream_on && !self.gap_report_write;
-            let requests_owed = self.gap_requested
+            let stream_owed = self.stream_on
+                && !self.reporting_off
+                && !self.gap_report_write
+                && self
+                    .last_report
+                    .is_some_and(|last| previous - last <= STREAM_RUNNING_S)
+                && matches!(frame, DriveFrame::Report { .. });
+            let requests_owed = self.last_frame_answered
+                && answered
+                && self.gap_requested
+                && !self.gap_report_write
                 && !self.gap_sparse
                 && self
                     .obligation_at
                     .is_some_and(|last| t - last <= SILENCE_MIN_S);
-            let owed = stream_owed || requests_owed;
             if previous >= window.at
                 && gap >= SILENCE_MIN_S
-                && owed
+                && (stream_owed || requests_owed)
                 && window.best.is_none_or(|(start, end)| gap > end - start)
             {
                 window.best = Some((previous, t));
             }
         }
         self.last_frame = Some(t);
+        self.last_frame_answered = answered;
         self.obligation_at = Some(t);
         self.gap_requested = false;
         self.gap_report_write = false;
         self.gap_sparse = false;
-
         match frame {
             DriveFrame::Status { mode, .. } | DriveFrame::Report { mode, .. } => {
                 if let Some(window) = self.enable {
@@ -479,7 +503,7 @@ impl DriveState {
                 }
                 self.last_report = Some(t);
                 self.report_chain_valid = true;
-                self.stream_on = true;
+                self.stream_on = !self.reporting_off;
                 if let Some(off) = self.off.as_mut() {
                     off.previous_report = off.last_report;
                     off.last_report = Some(t);
@@ -673,6 +697,10 @@ pub fn format_text(timing: &FirmwareTiming) -> String {
             &d.set_zero_silence_start_ms,
         );
         push_stats(&mut out, "set_zero_silence_ms", &d.set_zero_silence_ms);
+        out.push_str(&format!(
+            "  set_zero_silence_unobservable={}\n",
+            d.set_zero_silence_unobservable
+        ));
         push_stats(&mut out, "identity_reply_ms", &d.identity_reply_ms);
         push_stats(&mut out, "param_read_reply_ms", &d.param_read_reply_ms);
         push_stats(&mut out, "report_period_ms", &d.report_period_ms);
@@ -769,8 +797,57 @@ mod tests {
         assert_eq!(d1.set_zero_silence_ms.n, 1);
         assert!((d1.set_zero_silence_start_ms.max - 538.364).abs() < 1e-6);
         assert!((d1.set_zero_silence_ms.max - 54.978).abs() < 1e-6);
+        assert_eq!(d1.set_zero_silence_unobservable, 0);
         // Report intervals within the SetZero window are not periods.
         assert_eq!(d1.report_period_ms.n, 0);
+    }
+
+    #[test]
+    fn reply_only_unanswered_solicit_is_unobservable_not_silence() {
+        let timing = run("\
+(0.980000) can0 180001FD#7FFF80537F9200E6
+(0.990000) can0 180001FD#7FFF80537F9200E6
+(0.990100) can0 1800FD01#0000000000000000
+(0.990200) can0 180001FD#7FFF80537F9200E6
+(1.000000) can0 0600FD01#0100000000000000
+(1.000200) can0 020001FD#7FFF80537F9200E6
+(1.490000) can0 0400FD01#0000000000000000
+(1.490200) can0 020001FD#7FFF80537F9200E6
+(1.550000) can0 0400FD01#0000000000000000
+(1.610000) can0 0400FD01#0000000000000000
+(1.610200) can0 020001FD#7FFF80537F9200E6
+(2.510000) can0 0400FD02#0000000000000000
+");
+        let d1 = drive(&timing, "can0/1");
+        assert_eq!(d1.set_zero_silence_ms.n, 0);
+        assert_eq!(d1.set_zero_silence_unobservable, 1);
+    }
+
+    #[test]
+    fn answered_solicits_bound_a_real_blackout_without_streaming() {
+        let timing = run("\
+(1.000000) can0 0600FD01#0100000000000000
+(1.000200) can0 020001FD#7FFF80537F9200E6
+(1.510000) can0 0400FD01#0000000000000000
+(1.510200) can0 020001FD#7FFF80537F9200E6
+(1.520000) can0 0400FD01#0000000000000000
+(1.520200) can0 020001FD#7FFF80537F9200E6
+(1.530000) can0 0400FD01#0000000000000000
+(1.540000) can0 0400FD01#0000000000000000
+(1.550000) can0 0400FD01#0000000000000000
+(1.560000) can0 0400FD01#0000000000000000
+(1.570000) can0 0400FD01#0000000000000000
+(1.580000) can0 0400FD01#0000000000000000
+(1.590000) can0 0400FD01#0000000000000000
+(1.600000) can0 0400FD01#0000000000000000
+(1.600200) can0 020001FD#7FFF80537F9200E6
+(2.510000) can0 0400FD02#0000000000000000
+");
+        let d1 = drive(&timing, "can0/1");
+        assert_eq!(d1.set_zero_silence_ms.n, 1);
+        assert_eq!(d1.set_zero_silence_start_ms.max, 520.2);
+        assert_eq!(d1.set_zero_silence_ms.max, 80.0);
+        assert_eq!(d1.set_zero_silence_unobservable, 0);
     }
 
     // candump-20261003T153408Z.log (`candump -t z` ASCII), drive 1: Off while
@@ -897,6 +974,7 @@ mod tests {
             "enable_never_run",
             "reset_after_enable",
             "set_zero_silence_start_ms",
+            "set_zero_silence_unobservable",
             "set_zero_silence_ms",
             "identity_reply_ms",
             "identity_unanswered",
@@ -914,5 +992,6 @@ mod tests {
         }
         assert!(value["non_neutral_mit"]["first_s"].is_null());
         assert!(value["bus"]["max_frames_per_10ms"].is_u64());
+        assert!(d1["set_zero_silence_unobservable"].is_u64());
     }
 }

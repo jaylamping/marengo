@@ -1,8 +1,35 @@
 {
   "firmware": "0.3.1.42",
   "bench": "right arm, 5 Robstride drives (can0 device ids 1-5, host id 0xFD), MCP2515/mcp251x on Pi 5",
-  "generated_by": "marengo-log-cli firmware-timing --json candump-20261003T011358Z.log candump-20261003T141027Z.log candump-20261003T153408Z.log cd-20261003T024855Z.log cd-20261003T031759Z.log cd-20261003T142407Z.log cd-20261003T145133Z.log soak-20261003T163227Z.log",
+  "generated_by": "Historical aggregate: marengo-log-cli firmware-timing --json on the eight captures listed in files. Blackout extrema extended using the corrected analyzer on var/enable-soak/{20261003T221010Z,20261003T225034Z,20261003T230806Z}/candump.log.",
   "definitions": "bins/marengo-log-cli/src/firmware_timing.rs; docs/commissioning/firmware/robstride-firmware-behavior.md",
+  "blackout_stats_scope": "drives.*.set_zero_silence_*: n/p50/p95 describe the original eight captures; min/max are the observed envelope across those captures and the three additional soaks below. Additional-soak per-drive distributions and unobservable counts are in robstride-firmware-behavior.md; do not infer missing blackouts from reply-only traffic.",
+  "additional_soaks": [
+    {
+      "directory": "var/enable-soak/20261003T221010Z",
+      "revision": "84e80653",
+      "frames": 85644,
+      "span_s": 67.847672,
+      "set_zero_silences_measured": 82,
+      "set_zero_silences_unobservable": 18
+    },
+    {
+      "directory": "var/enable-soak/20261003T225034Z",
+      "revision": "7dbc4870 (ad1eb887)",
+      "frames": 108595,
+      "span_s": 80.232137,
+      "set_zero_silences_measured": 81,
+      "set_zero_silences_unobservable": 19
+    },
+    {
+      "directory": "var/enable-soak/20261003T230806Z",
+      "revision": "aa773418",
+      "frames": 112345,
+      "span_s": 84.701035,
+      "set_zero_silences_measured": 67,
+      "set_zero_silences_unobservable": 33
+    }
+  ],
   "captures": [
     {
       "file": "candump-20261003T011358Z.log",
@@ -169,7 +196,7 @@
       "reset_after_enable": 0,
       "set_zero_silence_start_ms": {
         "n": 25,
-        "min": 515.941,
+        "min": 512.992,
         "p50": 519.925,
         "p95": 540.486,
         "max": 541.914
@@ -238,14 +265,14 @@
       "reset_after_enable": 0,
       "set_zero_silence_start_ms": {
         "n": 25,
-        "min": 515.941,
+        "min": 515.297,
         "p50": 520.816,
         "p95": 540.156,
         "max": 540.255
       },
       "set_zero_silence_ms": {
         "n": 25,
-        "min": 45.452,
+        "min": 44.455,
         "p50": 50.548,
         "p95": 51.049,
         "max": 51.088
@@ -317,7 +344,7 @@
         "min": 50.553,
         "p50": 55.889,
         "p95": 60.652,
-        "max": 60.701
+        "max": 66.128
       },
       "identity_reply_ms": {
         "n": 50,
@@ -379,7 +406,7 @@
         "min": 517.983,
         "p50": 521.719,
         "p95": 542.639,
-        "max": 543.506
+        "max": 547.609
       },
       "set_zero_silence_ms": {
         "n": 25,
