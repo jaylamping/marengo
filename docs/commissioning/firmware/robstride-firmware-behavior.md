@@ -172,6 +172,23 @@ and 133 ms over the actual latest end. On SocketCAN, no Enable and no gate Off
 goes to a drive within the quiet after its SetZero echo (a2b55b3). The quiet
 stays anchored on SetZero.
 
+**Type-24 writes in the blackout.** The same drop applies to a type-24 On or
+Off. Candump `decay-20261003T170858Z.log` (rev e6add09, three manual
+`home` x5 runs, `-L` timestamps): in the first run pitch's SetZero is
+40.029061; its baseline Offs for the next references are at +0.267, +0.364,
++0.456 and +0.554 s and the Ons after each commit at +0.319, +0.414, +0.507
+and +0.605 s. Its blackout is the gap in its 10 ms stream from 40.562069
+(+0.533) to 40.615508 (+0.586), 53.4 ms. The last Off (+0.554) fell inside it,
+was dropped and the stream kept running, so that run passed; so did the second
+(SetZero 43.34724, Off +0.542 inside the gap +0.516 to +0.569). A cadence 30-50
+ms earlier puts the Off before the blackout and the On inside it, and the drive
+then streams nothing until the host's 200 ms stale retry. The 14 failures of
+the 20-cycle soak at the same revision are that case [INFERENCE: no candump
+of a failing cycle exists; the soak runs did not capture one].
+`POST_SET_ZERO_BLACKOUT_FROM` is 450 ms (earliest measured start 511.4 ms, less
+a 50 ms margin held by `firmware_profile.rs`): from there to
+`POST_SET_ZERO_QUIET` no type-24 On or Off is written to the drive.
+
 **Cost.** The cost is 150 ms of enable latency. A target zeroed less than
 800 ms earlier has its Enable held up to 150 ms longer than before. In a soak
 cycle, the deferred enable completes about 800 ms after the last SetZero
@@ -292,6 +309,22 @@ are staggered: one target per interface per tick, and type-24 writes paced
 5 ms per interface (6a1bb9d). The mcp251x keeps only two RX buffers. Bus
 density peaked at 69 frames in any 10 ms window. The soak had zero RX
 overruns.
+
+**Stop burst overrun.** Type 18 (`spd_ref` zero) is also answered, so the
+all-address stop (type 18, MIT, Disable per address) is 15 frames and 15
+replies (3.3 received frames/ms over 4.5 ms). Candump `decay-...Z.log`, third
+run (delay 3 s): the reference's finishing stop at 47.8910-47.8955 went out
+back to back and the next drain read a `CAN_ERR_CRTL_RX_OVERFLOW` frame
+(`rx_over_errors` 5 to 6, Transport latched, the reference failed
+`Invalidated(SafetyHazard)` at 17:09:07.901). The baseline stop of that run
+(47.8385-47.8432, the same 15 frames) did not overrun. Davout now starts one
+address group per 2 ms per interface in the reference's baseline and finishing
+stops (1.5 received frames/ms), and the same for the baseline's type-24 Offs,
+the Enable-admission type-0 requests and the status solicit. The emulator
+models the receive path (`RxFifo`: bus slot per frame, two buffers, 350 us
+driver service per frame); calibrated on these observations, it overruns from
+the ninth reply of an unpaced 15-frame stop and not on five-drive MIT batches
+or the paced soak traffic.
 
 ## Disable → Reset
 

@@ -305,6 +305,14 @@ impl<B: MotorBus> Supervisor<B> {
                         EchoedCommand::Enable => {
                             if !self.enable_writes_pending.contains(&echo.address) {
                                 self.enable_echo_pending.remove(&echo.address);
+                                // Until now the address's traffic was withheld
+                                // from pose, and liveness counted from
+                                // activation. Its first Run reply follows the
+                                // echo by 1.4-5.2 ms and can be read a tick
+                                // later, so its silence counts from the echo.
+                                self.reference_owner
+                                    .physical
+                                    .count_silence_from(&echo.address, echo.received_at);
                             }
                         }
                         EchoedCommand::ReportingOff => {

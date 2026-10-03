@@ -14,6 +14,13 @@
 //! bench profile (`tests/firmware_profile.rs`). Inbound status/reply identifiers
 //! follow the documented wire layout (`type << 24 | extra << 8 | low`);
 //! outbound frames are produced by the supervisor through the robstride encoders.
+//!
+//! [`RxFifo`] models the bench controller's receive path: a serialized 1 Mbit/s
+//! bus and two receive buffers emptied by a driver that needs 0.5 ms per frame.
+//! It counts every frame the controller would drop (a burst of host frames
+//! answers faster than the driver empties the buffers) and, once
+//! [`RxFifo::enforce`] is set, delivers the kernel's RX-overflow error frame in
+//! place of the lost frame, which latches Transport in Davout.
 #![allow(dead_code, clippy::expect_used, clippy::panic)]
 
 use std::cell::RefCell;
@@ -25,7 +32,7 @@ use marengo_config::{MotorEntry, MotorType};
 use robstride::motor_type::MitRanges;
 use robstride::{
     pack_ext_id, BusError, CanBus, CanFrame, CommunicationType, MotorBus, ParameterId,
-    ReceiveAttempt, ReceivedCanFrame, TimedCanFrame, DEFAULT_HOST_ID,
+    ReceiveAttempt, ReceivedCanFrame, RxFrameKind, TimedCanFrame, DEFAULT_HOST_ID,
 };
 
 const RESET_MODE: u32 = 0;
@@ -81,6 +88,82 @@ pub const LATEST_SET_ZERO_BLACKOUT: (Duration, Duration) = (
     TIMING_MODEL.set_zero_blackout_start.1,
     TIMING_MODEL.set_zero_blackout_length.1,
 );
+
+/// Time one 8-byte extended frame occupies a 1 Mbit/s bus.
+pub const RX_FRAME_TIME: Duration = Duration::from_micros(130);
+/// Bus time a host frame holds before its drive's reply can follow: the frame
+/// itself plus the controller driver loading the next transmit buffer.
+pub const RX_HOST_SLOT: Duration = Duration::from_micros(170);
+/// Receive buffers of the bench mcp251x.
+pub const RX_BUFFERS: usize = 2;
+/// Time the driver needs to move one frame out of a buffer (IRQ thread wake-up
+/// plus SPI read). Replies to back-to-back host frames arrive every
+/// `RX_HOST_SLOT + RX_FRAME_TIME` = 300 us, so with 350 us per frame a burst
+/// overruns two buffers from its ninth reply on. That matches the bench: the
+/// 15-frame stop (15 replies) and Enable + RunMode to five drives overran the
+/// controller, while five-drive MIT batches every 5 ms and the staggered
+/// Enables and type-24 writes of the 20-cycle soak (zero overruns) do not.
+/// The model is calibrated on those observations, not on the chip's timing.
+pub const RX_DRIVER_SERVICE: Duration = Duration::from_micros(350);
+/// SocketCAN error frame class bit for controller problems.
+const CAN_ERR_CRTL: u32 = 0x0000_0004;
+const CAN_ERR_FLAG: u32 = 0x2000_0000;
+const CAN_ERR_CRTL_RX_OVERFLOW: u8 = 0x01;
+
+/// Receive path of the controller: frames from drives only (host echoes are
+/// built in software and never pass through it).
+#[derive(Debug, Default)]
+pub struct RxFifo {
+    /// Deliver an RX-overflow error frame in place of every lost frame. Frames
+    /// are lost in the count either way; without this they still reach the host.
+    pub enforce: bool,
+    /// Frames the controller dropped.
+    pub overruns: usize,
+    /// When each dropped frame was due on the wire (diagnostics).
+    pub overrun_at: Vec<Instant>,
+    bus_free: Option<Instant>,
+    /// Driver completion time of each frame still held in a buffer.
+    buffered: VecDeque<Instant>,
+}
+
+impl RxFifo {
+    /// A host frame occupies the bus from `now`.
+    fn host_frame(&mut self, now: Instant) {
+        let start = self.bus_free.map_or(now, |free| free.max(now));
+        self.bus_free = Some(start + RX_HOST_SLOT);
+    }
+
+    /// A drive frame ready to send at `ready`: whether the controller kept it.
+    fn drive_frame(&mut self, ready: Instant) -> bool {
+        let start = self.bus_free.map_or(ready, |free| free.max(ready));
+        let arrival = start + RX_FRAME_TIME;
+        self.bus_free = Some(arrival);
+        while self.buffered.front().is_some_and(|done| *done <= arrival) {
+            self.buffered.pop_front();
+        }
+        if self.buffered.len() >= RX_BUFFERS {
+            self.overruns += 1;
+            self.overrun_at.push(ready);
+            return false;
+        }
+        let begin = self
+            .buffered
+            .back()
+            .map_or(arrival, |done| (*done).max(arrival));
+        self.buffered.push_back(begin + RX_DRIVER_SERVICE);
+        true
+    }
+}
+
+fn rx_overflow_frame() -> CanFrame {
+    let mut data = [0u8; 8];
+    data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
+    CanFrame {
+        id: CAN_ERR_FLAG | CAN_ERR_CRTL,
+        data,
+        extended: true,
+    }
+}
 
 /// One emulated drive at one configured address.
 #[derive(Debug, Clone)]
@@ -246,6 +329,8 @@ pub struct Firmware {
     pub lost_echoes: Vec<u8>,
     /// Drive replies with a modeled latency, in scheduling order.
     scheduled: Vec<(Instant, CanFrame)>,
+    /// The controller's receive path.
+    pub rx_fifo: RxFifo,
 }
 
 pub type SharedFirmware = Rc<RefCell<Firmware>>;
@@ -337,7 +422,25 @@ impl Firmware {
                 frames.push(drive.status(CommunicationType::ActiveReporting));
             }
         }
-        self.rx.extend(frames);
+        // Bench drives do not report at one instant: in the 2026-10-03 17:08:59
+        // candump five streams' reports lie within 4.3 ms of each other, 10 ms
+        // apart per drive. The reports of one call were on the wire 1 ms
+        // apart, the last one now.
+        let count = frames.len() as u32;
+        for (rank, frame) in frames.into_iter().enumerate() {
+            let ago = Duration::from_millis(1) * (count - 1 - rank as u32);
+            self.deliver_from_drive(frame, now.checked_sub(ago).unwrap_or(now));
+        }
+    }
+
+    /// Queue a drive frame ready to send at `ready` for the host, unless the
+    /// controller loses it.
+    fn deliver_from_drive(&mut self, frame: CanFrame, ready: Instant) {
+        if self.rx_fifo.drive_frame(ready) || !self.rx_fifo.enforce {
+            self.rx.push_back(frame);
+        } else {
+            self.rx.push_back(rx_overflow_frame());
+        }
     }
 
     /// Move scheduled replies whose latency has passed to the receive queue.
@@ -351,7 +454,9 @@ impl Firmware {
         self.scheduled = pending;
         // Stable: one drive's replies keep their order at equal instants.
         due.sort_by_key(|(at, _)| *at);
-        self.rx.extend(due.into_iter().map(|(_, frame)| frame));
+        for (at, frame) in due {
+            self.deliver_from_drive(frame, at);
+        }
     }
 
     /// One type-24 report from `joint` in its current drive mode, unless the
@@ -362,7 +467,7 @@ impl Firmware {
             return;
         }
         let frame = drive.status(CommunicationType::ActiveReporting);
-        self.rx.push_back(frame);
+        self.deliver_from_drive(frame, Instant::now());
     }
 
     /// Deliver `frame` to the host receive queue as is (e.g. a stale echo).
@@ -430,6 +535,7 @@ impl Firmware {
         let comm_type = ((frame.id >> 24) & 0x1f) as u8;
         let device_id = (frame.id & 0xff) as u8;
         let now = Instant::now();
+        self.rx_fifo.host_frame(now);
         if !self.lost_echoes.contains(&comm_type) {
             self.rx.push_back(frame.clone());
         }
@@ -473,6 +579,13 @@ impl Firmware {
                 } else {
                     replies.push((drive.enable_reply_delay, reply));
                 }
+            }
+            Some(CommunicationType::WriteParameter) => {
+                // Bench candump: every type-18 write is answered by a type-2 status.
+                replies.push((
+                    Duration::ZERO,
+                    drive.status(CommunicationType::OperationStatus),
+                ));
             }
             Some(CommunicationType::Disable) => {
                 drive.enabled = false;
@@ -537,7 +650,9 @@ impl Firmware {
             }
         }
         drive.reply_ready_at = ready;
-        self.rx.extend(immediate);
+        for frame in immediate {
+            self.deliver_from_drive(frame, now);
+        }
         self.scheduled.extend(later);
     }
 }
@@ -560,10 +675,16 @@ impl CanBus for FirmwareBus {
         let mut firmware = self.0.borrow_mut();
         firmware.release_due();
         Ok(match firmware.rx.pop_front() {
-            Some(frame) => ReceiveAttempt::Frame(TimedCanFrame {
-                received_at: Instant::now(),
-                received: ReceivedCanFrame::full_data(None, frame),
-            }),
+            Some(frame) => {
+                let mut received = ReceivedCanFrame::full_data(None, frame);
+                if received.frame.id & CAN_ERR_FLAG != 0 {
+                    received.kind = RxFrameKind::Error;
+                }
+                ReceiveAttempt::Frame(TimedCanFrame {
+                    received_at: Instant::now(),
+                    received,
+                })
+            }
             None => ReceiveAttempt::Idle,
         })
     }

@@ -10,13 +10,19 @@ mod physical_firmware;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use davout::{IDENTITY_ADMISSION_RETRY, IDENTITY_ADMISSION_TIMEOUT, POST_SET_ZERO_QUIET};
+use davout::{
+    IDENTITY_ADMISSION_RETRY, IDENTITY_ADMISSION_SPACING, IDENTITY_ADMISSION_TIMEOUT,
+    POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
+};
 use marengo_config::load_control_config_from;
 use physical_firmware::{SET_ZERO_BLACKOUT, TIMING_MODEL};
 use serde_json::Value;
 
 /// Margin of the post-SetZero quiet over the latest measured blackout end.
 const QUIET_MARGIN: Duration = Duration::from_millis(100);
+/// Margin of the blackout hold's start under the earliest measured blackout
+/// start (host tick and pacing jitter).
+const BLACKOUT_FROM_MARGIN: Duration = Duration::from_millis(50);
 
 fn repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -142,6 +148,23 @@ fn post_set_zero_quiet_clears_the_latest_blackout_end_with_margin() {
 }
 
 #[test]
+fn type_24_hold_starts_before_the_earliest_blackout_start_with_margin() {
+    let profile = profile();
+    let (_, earliest, _) = measured(&profile, "set_zero_silence_start_ms");
+    // The drive acts on a type-24 write until the blackout begins; a write
+    // held back from POST_SET_ZERO_BLACKOUT_FROM on never lands inside one.
+    assert!(
+        ms(POST_SET_ZERO_BLACKOUT_FROM) + ms(BLACKOUT_FROM_MARGIN) <= earliest,
+        "POST_SET_ZERO_BLACKOUT_FROM {} ms + {} ms > earliest measured start {earliest} ms",
+        ms(POST_SET_ZERO_BLACKOUT_FROM),
+        ms(BLACKOUT_FROM_MARGIN)
+    );
+    // ... and every blackout the emulator can model.
+    assert!(POST_SET_ZERO_BLACKOUT_FROM < SET_ZERO_BLACKOUT.0);
+    assert!(POST_SET_ZERO_BLACKOUT_FROM < POST_SET_ZERO_QUIET);
+}
+
+#[test]
 fn identity_admission_outlasts_a_blackout_and_a_reply() {
     let profile = profile();
     let (_, _, reply) = measured(&profile, "identity_reply_ms");
@@ -151,13 +174,20 @@ fn identity_admission_outlasts_a_blackout_and_a_reply() {
     // A first request lost at the start of the longest blackout is re-sent
     // every retry period; the first one after the blackout must still be
     // answered inside the admission window.
-    let worst = silence + ms(IDENTITY_ADMISSION_RETRY) + reply;
-    assert!(
-        ms(IDENTITY_ADMISSION_TIMEOUT) > worst,
-        "IDENTITY_ADMISSION_TIMEOUT {} ms <= blackout {silence} + retry {} + reply {reply} ms",
-        ms(IDENTITY_ADMISSION_TIMEOUT),
-        ms(IDENTITY_ADMISSION_RETRY)
-    );
+    // Requests leave one spacing apart: the last of n targets starts (n - 1)
+    // spacings late, and a retry waits for its turn among the missing targets.
+    // The deadline grows by two spacings per further target.
+    let spacing = ms(IDENTITY_ADMISSION_SPACING);
+    for targets in [1_u32, 5, 19, 40] {
+        let n = f64::from(targets);
+        let retry = ms(IDENTITY_ADMISSION_RETRY).max(n * spacing);
+        let worst = (n - 1.0) * spacing + silence + retry + reply;
+        let deadline = ms(IDENTITY_ADMISSION_TIMEOUT) + 2.0 * (n - 1.0) * spacing;
+        assert!(
+            deadline > worst,
+            "{targets} targets: deadline {deadline} ms <= stagger + blackout {silence} + retry {retry} + reply {reply} ms"
+        );
+    }
 }
 
 #[test]
