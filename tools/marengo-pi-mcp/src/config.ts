@@ -74,14 +74,6 @@ export function sudoCanUpCommand(cfg: MarengoPiConfig): string {
   return `sudo -n ${piScriptPath(cfg, "can-up.sh")} can0 can1`;
 }
 
-/** Passwordless sudo install-pi; optional root when script lives outside piRoot (deploy staging). */
-export function sudoInstallCommand(
-  cfg: MarengoPiConfig,
-  scriptRoot = cfg.piRoot,
-): string {
-  return `sudo -n ${scriptRoot}/scripts/install-pi.sh`;
-}
-
 /** Staging tree on Pi (~/marengo → /home/joey/marengo). */
 export function piStagingAbs(cfg: MarengoPiConfig): string {
   if (cfg.piStagingRoot.startsWith("~/")) {
@@ -90,9 +82,9 @@ export function piStagingAbs(cfg: MarengoPiConfig): string {
   return cfg.piStagingRoot;
 }
 
-/** Install from deploy staging into /opt/marengo (passwordless sudo). */
+/** Install from deploy staging into /opt/marengo (deploy-user NOPASSWD sudoers entry). */
 export function sudoStagingInstallCommand(cfg: MarengoPiConfig): string {
-  return sudoInstallCommand(cfg, piStagingAbs(cfg));
+  return `sudo -n ${piStagingAbs(cfg)}/scripts/install-pi.sh`;
 }
 
 export function auditLogPath(): string {

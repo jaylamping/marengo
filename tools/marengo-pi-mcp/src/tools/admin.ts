@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { sudoCanUpCommand, sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
-import { wrapRemote } from "../env.js";
+import { piStagingAbs, sudoCanUpCommand, sudoStagingInstallCommand } from "../config.js";
+import { shellQuote, wrapRemote } from "../env.js";
 import { canOwnedSkipLine, canOwnerBranch } from "../can-owner.js";
 import { runSyncMain } from "./deploy.js";
 import { waitForDeployReady } from "./deploy-wait.js";
@@ -181,32 +181,19 @@ export function registerAdminTools(
 
     pi_build: {
       description:
-        "Native cargo build on Pi + install-pi.sh (slow fallback). install-pi.sh stops marengo-pi " +
-        "and restores the unit's prior enabled/active state.",
+        "Native cargo build in the Pi staging checkout (~/marengo) + passwordless `sudo -n` install-pi.sh " +
+        "from it (slow fallback). install-pi.sh installs bins and Consul www, writes .deploy-rev, " +
+        "restarts the gateway, and stops marengo-pi then restores its prior unit state.",
       inputSchema: z.object({}),
       handler: async () => {
+        // Only install-pi.sh is sudo-allowed (deploy-user sudoers); it owns every root step.
         const body = wrapRemote(
           cfg,
-        [
-          // Root git trusts this tree once; `--add` alone appends a duplicate every run.
-          'TRUSTED_DIRS="$(sudo git config --global --get-all safe.directory 2>/dev/null || true)"',
-          'if ! grep -Fxq -- "$(pwd)" <<<"$TRUSTED_DIRS"; then',
-          '  sudo git config --global --add safe.directory "$(pwd)" 2>/dev/null || true',
-          "fi",
-          "if [[ -f ./scripts/pi-native-build.sh ]]; then bash ./scripts/pi-native-build.sh; else",
-          '  if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
-          '  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
-          "  command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",
-          "  cargo build -p marengo-pi -p marengo-gateway -p marengo-log-cli -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
-          "  if command -v npm >/dev/null && [[ -f consul/package-lock.json ]]; then",
-          "    (cd consul && npm ci && env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build)",
-          "  fi",
-          "fi",
-          sudoInstallCommand(cfg),
-          'SHA="$(git rev-parse HEAD)"; TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; printf "%s %s\\n" "$SHA" "$TS" | sudo tee /opt/marengo/.deploy-rev >/dev/null',
-          "if [[ -f consul/dist/index.html ]]; then sudo rsync -a --delete consul/dist/ /opt/marengo/www/; fi",
-          "sudo systemctl restart marengo-gateway.service 2>/dev/null || true",
-        ].join("\n"),
+          [
+            `cd ${shellQuote(piStagingAbs(cfg))}`,
+            "bash ./scripts/pi-native-build.sh",
+            sudoStagingInstallCommand(cfg),
+          ].join("\n"),
         );
         return runRemote(body, 900_000);
       },

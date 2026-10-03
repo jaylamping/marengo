@@ -100,11 +100,6 @@ write_job "running" "starting self-update" "init"
 
 ensure_staging_git
 cd "${STAGING}" || fail "staging root missing: ${STAGING}" "init"
-# Root install-pi runs git here; trust the checkout once (`--add` alone appends a duplicate every run).
-TRUSTED_DIRS="$(sudo git config --global --get-all safe.directory 2>/dev/null || true)"
-if ! grep -Fxq -- "${STAGING}" <<<"${TRUSTED_DIRS}"; then
-  sudo git config --global --add safe.directory "${STAGING}" 2>/dev/null || true
-fi
 
 if [[ -n "$(git status --porcelain)" ]]; then
   fail "dirty working tree:$(printf '\n%s' "$(git status --short)")" "dirty"
@@ -147,14 +142,10 @@ else
 fi
 
 write_job "running" "install window" "install"
-# Bench: stop/disable control before install replaces binaries.
-sudo systemctl stop marengo-pi.service 2>/dev/null || true
-sudo systemctl disable marengo-pi.service 2>/dev/null || true
-sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true
-
 INSTALL_SCRIPT="${STAGING}/scripts/install-pi.sh"
 [[ -x "${INSTALL_SCRIPT}" ]] || fail "install script missing: ${INSTALL_SCRIPT}" "install"
-# install-pi owns .deploy-rev, www/, and gateway/pi unit restarts.
+# install-pi owns every root step: stopping marengo-pi and restoring its prior
+# enabled/active state, .deploy-rev, www/, and the gateway restart.
 sudo -n "${INSTALL_SCRIPT}" || fail "install-pi.sh failed" "install"
 
 # Job file after install returns — gateway already restarted inside install-pi;
