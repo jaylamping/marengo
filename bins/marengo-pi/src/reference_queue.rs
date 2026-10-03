@@ -66,8 +66,8 @@ impl fmt::Display for ReferenceEvent {
             Self::DeferredDiscarded { count } => {
                 write!(f, "discarded {count} deferred command(s)")
             }
+        }
     }
-}
 }
 
 pub(crate) const MAX_DEFERRED_COMMANDS: usize = 64;

@@ -240,11 +240,17 @@ fn cancel_fails_unfinished_joints_and_discards_deferred() {
     assert!(queue.pump(&mut driver).is_empty());
     queue.defer("enable");
     assert_eq!(
-        lines(&queue.cancel()),
+        queue.cancel(),
         vec![
-            "reference a failed: cancelled",
-            "reference b failed: cancelled",
-            "discarded 1 deferred command(s): reference queue cancelled",
+            ReferenceEvent::Failed {
+                joint: "a".into(),
+                message: super::CANCELLED.into(),
+            },
+            ReferenceEvent::Failed {
+                joint: "b".into(),
+                message: super::CANCELLED.into(),
+            },
+            ReferenceEvent::DeferredDiscarded { count: 1 },
         ]
     );
     assert!(!queue.is_busy());

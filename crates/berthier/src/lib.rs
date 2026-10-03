@@ -78,4 +78,3 @@ pub use position_hold::HoldFuseTrip;
 pub use r#loop::{
     proto_control_mode, ControlLoop, LoopError, TickPhaseAverages, ENABLE_COMPLETION_TIMEOUT,
 };
-

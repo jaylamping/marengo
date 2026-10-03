@@ -581,7 +581,7 @@ describe("marengo-pi script tool", () => {
     );
 
     assert.equal(r.status, 0, r.stderr);
-    assert.match(shell, new RegExp(`${root}/bin/marengo-log-cli session register`));
+    assert.ok(shell.includes(`${root}/bin/marengo-log-cli' session register`));
     assert.doesNotMatch(shell, /command -v marengo-log-cli|rm -f/);
     assert.equal(readFileSync(log, "utf8"), "unarchived evidence");
   });
@@ -597,9 +597,9 @@ describe("marengo-pi script tool", () => {
       path.join(bin, "marengo-log-cli"),
       [
         "#!/bin/bash",
-        'printf "%s\\n" "$1" >> "$CALLS"',
-        'if [[ "$1" == register ]]; then exit 1; fi',
-        'if [[ "$1" == archive ]]; then rm -f "$LOG"; fi',
+        'printf "%s %s\\n" "$1" "$2" >> "$CALLS"',
+        'if [[ "$2" == register ]]; then exit 1; fi',
+        'if [[ "$2" == archive ]]; then rm -f "$LOG"; fi',
       ].join("\n"),
     );
     chmodSync(path.join(bin, "marengo-log-cli"), 0o755);
@@ -609,13 +609,13 @@ describe("marengo-pi script tool", () => {
       "bash",
       [
         "-c",
-        `set -euo pipefail\nTS=20261003T120000Z LABEL=test LOG=${log} TRACE=${log}.csv CANDUMP= CALLS=${calls}\n${shell}`,
+        `set -euo pipefail\nTS=20261003T120000Z LABEL=test LOG=${log} TRACE=${log}.csv CANDUMP= CALLS=${calls}\nexport LOG CALLS\n${shell}`,
       ],
       { encoding: "utf8" },
     );
 
     assert.equal(r.status, 0, r.stderr);
-    assert.equal(readFileSync(calls, "utf8"), "register\n");
+    assert.equal(readFileSync(calls, "utf8"), "session register\n");
     assert.equal(readFileSync(log, "utf8"), "unarchived evidence");
   });
 
