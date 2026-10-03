@@ -136,6 +136,7 @@ if ! id "$RUN_USER" &>/dev/null; then
 fi
 usermod -aG dialout "$RUN_USER" || true
 usermod -aG i2c "$RUN_USER" || true
+usermod -aG systemd-journal "$RUN_USER" || true
 if id "$DEPLOY_USER" &>/dev/null; then
   usermod -aG "$RUN_USER" "$DEPLOY_USER" || true
   usermod -aG i2c "$DEPLOY_USER" || true
