@@ -106,6 +106,8 @@ message SafetyState {
   uint64 timestamp_ms = 1;
   OperationalMode mode = 2;
   bool hardware_estop_asserted = 3;
+  // Davout's retained fault authority is latched: motion is refused until a
+  // restart. `active_faults` may also carry a non-latched tick error.
   bool software_estop_latched = 4;
   repeated Fault active_faults = 5;
 }

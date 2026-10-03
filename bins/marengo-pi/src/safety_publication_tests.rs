@@ -400,3 +400,20 @@ fn periodic_wire_state_reports_observed_hardware_estop_authority() {
     // Existing simulated owner input only: actual Pi GPIO wiring remains open.
     exercise(vec![], &[(FaultClass::HardwareEstop, "")], true);
 }
+
+#[test]
+fn one_tick_error_is_retained_until_a_publication_succeeds() {
+    // 200 Hz ticks, 25 Hz publication: a non-latched tick error followed by
+    // healthy ticks must still reach the next SafetyState (CS13 residual).
+    let mut pending = crate::UnpublishedTickFault::default();
+    assert!(pending.message().is_none());
+    pending.record("tick 1 failed".into());
+    // Healthy ticks record nothing; the first error survives them.
+    pending.record("tick 5 failed".into());
+    assert_eq!(
+        pending.message().as_deref(),
+        Some("tick 1 failed (+1 more tick errors)")
+    );
+    pending.clear();
+    assert!(pending.message().is_none());
+}
