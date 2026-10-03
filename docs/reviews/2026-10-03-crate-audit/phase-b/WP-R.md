@@ -84,3 +84,23 @@ before the fix. Coverage-only additions note the gap as the red.
 ## Gate
 
 `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --exclude marengo-host-metrics --exclude marengo-pi -- -D warnings`; `cargo clippy -p marengo-pi --all-targets --target aarch64-unknown-linux-gnu -- -D warnings`; `cargo test --workspace`. (consul/MCP untouched — their gates do not apply.)
+
+Results on this branch (2026-10-03, macOS): fmt OK; workspace clippy OK;
+pi aarch64 clippy OK; `cargo test` run per-package (single workspace run
+exceeds the 30 s shell cap here) — every suite green, zero failures, including
+the new sim-harness (12), proto inclusion, journal parse (4), log-cli gap (5),
+limit-sync smoke (2), IMU (16) and widened Berthier isolation tests.
+`scripts/check-dependencies.sh` also passes natively. Container-only steps
+(npm suites, MuJoCo production smoke) ride the CI jobs they gate.
+
+## Integration order vs prune B11
+
+Prune batch B11 (peer `WaveC2_Prune_B5_B11`) deletes the `arm_4dof*` MJCF
+pair, their sim-harness tests, and the ignored kinematics test this wave
+replaced. Land B11 first, then rebase this branch: drop my two
+`arm_4dof*_model_path` fns plus their tests from `sim-harness/src/lib.rs`
+(the parser and production-parity tests stay), and re-apply
+`bench_robot_config_joints_match_bench_urdf` after B11's deletion of the
+ignored block. Open questions to that peer: whether B11 feature-gates the
+`armee-kinematics` `fixtures` module (sim-harness uses it un-gated) and
+whether `serde_yaml` stays an armee-kinematics dev-dependency.
