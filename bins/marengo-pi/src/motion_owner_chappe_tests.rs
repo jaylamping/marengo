@@ -41,6 +41,8 @@ struct Channels {
     status_poll: Rx,
     testing: Rx,
     audit: Rx,
+    /// The runtime's gate, shared by the Chappe and Testing drains.
+    gate: EnableGate,
 }
 
 fn channels(bus: &Bus) -> Channels {
@@ -51,6 +53,7 @@ fn channels(bus: &Bus) -> Channels {
         status_poll: bus.subscribe("robot/motor_status_poll"),
         testing: bus.subscribe("robot/testing/mit_command_batch"),
         audit: bus.subscribe("robot/audit/action"),
+        gate: EnableGate::default(),
     }
 }
 
@@ -64,6 +67,7 @@ fn drain_chappe(
     drain_chappe_commands(
         loop_ctrl,
         queue,
+        &mut rx.gate,
         lease,
         bus,
         &mut rx.enable,
@@ -84,6 +88,7 @@ fn drain_testing(
     drain_testing_commands(
         loop_ctrl,
         queue,
+        &mut rx.gate,
         lease,
         bus,
         &mut rx.testing,

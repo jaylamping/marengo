@@ -3,6 +3,9 @@
 mod enable_gate;
 #[cfg(test)]
 mod enable_gate_tests;
+mod gravity_preflight;
+#[cfg(test)]
+mod gravity_preflight_tests;
 #[cfg(target_os = "linux")]
 mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
@@ -64,7 +67,8 @@ use davout::{
     DavoutError, MotorBus, OperationalMode, ReferenceHandle, ReferenceTerminal, StopReport,
     DEFAULT_LEASE_TTL,
 };
-use enable_gate::{emit, EnableGate};
+use enable_gate::{emit, EnableGate, PreflightFor, PreflightRefusal};
+use gravity_preflight::{GravitySweep, SliceBudget, SweepAbort, SweepStats, SweepStep};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
@@ -346,6 +350,17 @@ fn dispatch_stdin_command<B: MotorBus>(
         }
         return true;
     }
+    // A pending gravity sweep stands for an Enable that, before it was swept
+    // across ticks, completed before the next command ran. Only Disable and
+    // Quit overtake it; they void it.
+    if gate.preflight_pending() && !matches!(cmd, PiCommand::Disable | PiCommand::Quit) {
+        if !gate.defer_stdin(cmd) {
+            eprintln!(
+                "gravity preflight in progress: deferred command limit reached; command refused"
+            );
+        }
+        return true;
+    }
     handle_command(loop_ctrl, queue, gate, cmd, config_dir)
 }
 
@@ -492,9 +507,13 @@ impl UnpublishedTickFault {
     }
 }
 
+/// `enable(true)` starts the gravity sweep; the Enable itself runs from
+/// [`advance_gravity_preflight`] once the sweep passes. While another sweep
+/// is pending the request waits behind it.
 fn handle_chappe_enable<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     queue: &mut PiReferenceQueue,
+    gate: &mut EnableGate,
     request: &EnableRequest,
 ) -> Result<(), String> {
     if request.enable {
@@ -502,25 +521,19 @@ fn handle_chappe_enable<B: MotorBus>(
         if queue.is_busy() {
             return Err("reference queue busy; enable refused".into());
         }
-        preflight_gravity_saturation(loop_ctrl)
+        if gate.preflight_pending() {
+            if !gate.defer_chappe_enable(request.clone()) {
+                return Err(
+                    "gravity preflight in progress: deferred enable limit reached; enable refused"
+                        .into(),
+                );
+            }
+            return Ok(());
+        }
+        let sweep = GravitySweep::start(loop_ctrl)
             .map_err(|()| "gravity saturation preflight refused enable".to_string())?;
-        // Never call set_homing_complete on enable — Verified is Set Zero only.
-        let targets = loop_ctrl
-            .supervisor_mut()
-            .resolve_enable_targets(repo_root())
-            .map_err(|e| e.to_string())?;
-        loop_ctrl
-            .supervisor_mut()
-            .enable_targets(&targets)
-            .map_err(|e| e.to_string())?;
-        // An explicit enable is what lets later motion commands re-arm drives.
-        loop_ctrl.allow_implicit_enable();
-        info!(
-            operator = %request.operator_id,
-            target_count = targets.len(),
-            targets = ?targets,
-            "enable via Chappe (targeted)"
-        );
+        gate.begin_preflight(sweep, PreflightFor::ChappeEnable(request.clone()))
+            .map_err(|_| "gravity preflight already in progress; enable refused".to_string())?;
     } else {
         // An operator disable stands until an explicit enable (L-berthier-28).
         loop_ctrl.forbid_implicit_enable();
@@ -529,9 +542,35 @@ fn handle_chappe_enable<B: MotorBus>(
         // stop must never leave GravityComp/Position armed (L-marengo-pi-16).
         loop_ctrl.set_control_mode(ControlMode::Disabled);
         emit_reference_events(queue.cancel());
+        emit(gate.end_preflight(Some(SweepAbort::Disabled)));
         result.map_err(|e| e.to_string())?;
         info!(operator = %request.operator_id, "disable via Chappe");
     }
+    Ok(())
+}
+
+/// A Chappe Enable whose gravity sweep passed.
+fn enable_after_chappe_preflight<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    request: &EnableRequest,
+) -> Result<(), String> {
+    // Never call set_homing_complete on enable — Verified is Set Zero only.
+    let targets = loop_ctrl
+        .supervisor_mut()
+        .resolve_enable_targets(repo_root())
+        .map_err(|e| e.to_string())?;
+    loop_ctrl
+        .supervisor_mut()
+        .enable_targets(&targets)
+        .map_err(|e| e.to_string())?;
+    // An explicit enable is what lets later motion commands re-arm drives.
+    loop_ctrl.allow_implicit_enable();
+    info!(
+        operator = %request.operator_id,
+        target_count = targets.len(),
+        targets = ?targets,
+        "enable via Chappe (targeted)"
+    );
     Ok(())
 }
 
@@ -585,6 +624,7 @@ fn stop_after_lagged_enable<B: MotorBus>(
 fn drain_chappe_commands<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     queue: &mut PiReferenceQueue,
+    gate: &mut EnableGate,
     lease: MotionLease,
     chappe: &Bus,
     enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
@@ -711,11 +751,23 @@ fn drain_chappe_commands<B: MotorBus>(
             );
         }
     }
+    // Enables held behind a sweep that passed run first, in arrival order
+    // (each may start a sweep of its own, which holds the rest again).
+    while !shutdown.load(Ordering::SeqCst) {
+        let Some(request) = gate.take_ready_chappe_enable() else {
+            break;
+        };
+        if let Err(e) = handle_chappe_enable(loop_ctrl, queue, gate, &request) {
+            warn!(error = %e, "Chappe enable request failed");
+        }
+    }
     while !shutdown.load(Ordering::SeqCst) {
         match poll_channel(enable_rx) {
             Polled::Empty => break,
             Polled::Lagged(skipped) => {
                 stop_after_lagged_enable(loop_ctrl, queue, chappe, enable_rx, skipped);
+                // Held enables cannot be ordered against the lost messages either.
+                emit(gate.end_preflight(Some(SweepAbort::Stopped)));
                 break;
             }
             Polled::Message(bytes) => {
@@ -736,7 +788,7 @@ fn drain_chappe_commands<B: MotorBus>(
                     report_refusal(chappe, &request.operator_id, "", name, &refusal.to_string());
                     continue;
                 }
-                if let Err(e) = handle_chappe_enable(loop_ctrl, queue, &request) {
+                if let Err(e) = handle_chappe_enable(loop_ctrl, queue, gate, &request) {
                     warn!(error = %e, "Chappe enable request failed");
                 }
             }
@@ -834,17 +886,21 @@ fn apply_testing_gains<B: MotorBus>(
 
 /// Testing (`robot/testing/mit_command_batch`) is motion: it needs the motion
 /// lease and an idle reference queue. Batches are refused whole, with a
-/// published reason, before any gain, mode or enable side effect.
+/// published reason, before any gain, mode or enable side effect. A Position
+/// batch that would auto-enable waits for the gravity sweep (applied from
+/// [`advance_gravity_preflight`]); later batches stay in the channel until
+/// the sweep ends, so batch order holds.
 fn drain_testing_commands<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     queue: &PiReferenceQueue,
+    gate: &mut EnableGate,
     lease: MotionLease,
     chappe: &Bus,
     testing_cmd_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     shutdown: &AtomicBool,
 ) {
     const TOPIC: &str = TOPIC_TESTING_MIT_BATCH;
-    while !shutdown.load(Ordering::SeqCst) {
+    while !shutdown.load(Ordering::SeqCst) && !gate.preflight_pending() {
         let bytes = match poll_channel(testing_cmd_rx) {
             Polled::Message(bytes) => bytes,
             Polled::Lagged(n) => {
@@ -886,79 +942,89 @@ fn drain_testing_commands<B: MotorBus>(
             ProtoControlMode::try_from(batch.mode),
             Ok(ProtoControlMode::Position)
         );
-        if want_position
-            && loop_ctrl.supervisor().mode() != OperationalMode::Active
-            && preflight_gravity_saturation(loop_ctrl).is_err()
-        {
-            report_refusal(
-                chappe,
-                "consul",
-                "",
-                "testing batch",
-                "gravity saturation preflight refused motion",
-            );
+        if want_position && loop_ctrl.supervisor().mode() != OperationalMode::Active {
+            let started = GravitySweep::start(loop_ctrl)
+                .map_err(|()| "gravity saturation preflight refused motion");
+            let begun = started.and_then(|sweep| {
+                gate.begin_preflight(sweep, PreflightFor::TestingBatch(batch))
+                    .map_err(|_| "gravity preflight already in progress; testing batch refused")
+            });
+            if let Err(reason) = begun {
+                report_refusal(chappe, "consul", "", "testing batch", reason);
+            }
             continue;
         }
-        for joint in &batch.joints {
-            if shutdown.load(Ordering::SeqCst) {
-                return;
-            }
-            // Consul Wave: `wave:<joint>:<min>:<max>:<cycles>:<half_period_sec>`
-            // starts Berthier in-loop triangle (continuous; no endpoint holds).
-            if let Some(wave) = parse_testing_wave_command(&joint.name) {
-                match loop_ctrl.start_position_wave(
-                    wave.joint,
-                    wave.min_rad,
-                    wave.max_rad,
-                    wave.cycles,
-                    wave.half_period_sec,
-                ) {
-                    Ok(duration_sec) => {
-                        info!(
-                            joint = wave.joint,
-                            min_rad = wave.min_rad,
-                            max_rad = wave.max_rad,
-                            cycles = wave.cycles,
-                            half_period_sec = wave.half_period_sec,
-                            duration_sec,
-                            "testing position wave started"
-                        );
-                    }
-                    Err(e) => {
-                        warn!(
-                            joint = %joint.name,
-                            error = %e,
-                            "testing position wave rejected"
-                        );
-                    }
+        apply_testing_batch(loop_ctrl, &batch, want_position, shutdown);
+    }
+}
+
+/// Apply an admitted Testing batch: waves, Position setpoints (re-arming
+/// drives when needed), then gains.
+fn apply_testing_batch<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    batch: &MitCommandBatch,
+    want_position: bool,
+    shutdown: &AtomicBool,
+) {
+    for joint in &batch.joints {
+        if shutdown.load(Ordering::SeqCst) {
+            return;
+        }
+        // Consul Wave: `wave:<joint>:<min>:<max>:<cycles>:<half_period_sec>`
+        // starts Berthier in-loop triangle (continuous; no endpoint holds).
+        if let Some(wave) = parse_testing_wave_command(&joint.name) {
+            match loop_ctrl.start_position_wave(
+                wave.joint,
+                wave.min_rad,
+                wave.max_rad,
+                wave.cycles,
+                wave.half_period_sec,
+            ) {
+                Ok(duration_sec) => {
+                    info!(
+                        joint = wave.joint,
+                        min_rad = wave.min_rad,
+                        max_rad = wave.max_rad,
+                        cycles = wave.cycles,
+                        half_period_sec = wave.half_period_sec,
+                        duration_sec,
+                        "testing position wave started"
+                    );
                 }
-                continue;
-            }
-            if want_position {
-                // Re-arm first; a fresh Enable refuses the target until its
-                // session feedback arrives (a later batch retries).
-                let result = if loop_ctrl.control_mode() == ControlMode::Position {
-                    loop_ctrl.ensure_active_for_motion().and_then(|()| {
-                        loop_ctrl.set_joint_position_setpoint(joint.name.as_str(), joint.position)
-                    })
-                } else {
-                    loop_ctrl.enter_position_hold_at(Some(joint.name.as_str()), joint.position)
-                };
-                if let Err(e) = result {
+                Err(e) => {
                     warn!(
                         joint = %joint.name,
-                        position = joint.position,
                         error = %e,
-                        "testing position hold rejected"
+                        "testing position wave rejected"
                     );
-                    continue;
                 }
             }
-            // Gains last: they only exist once the requested mode is entered
-            // (CS19: applied first, a GravityComp → Position batch lost them).
-            if let Err(error) = apply_testing_gains(loop_ctrl, joint) {
-                warn!(joint = %joint.name, error = %error, "testing gains rejected");
+            continue;
+        }
+        if want_position {
+            // Re-arm first; a fresh Enable refuses the target until its
+            // session feedback arrives (a later batch retries).
+            let result = if loop_ctrl.control_mode() == ControlMode::Position {
+                loop_ctrl.ensure_active_for_motion().and_then(|()| {
+                    loop_ctrl.set_joint_position_setpoint(joint.name.as_str(), joint.position)
+                })
+            } else {
+                loop_ctrl.enter_position_hold_at(Some(joint.name.as_str()), joint.position)
+            };
+            if let Err(e) = result {
+                warn!(
+                    joint = %joint.name,
+                    position = joint.position,
+                    error = %e,
+                    "testing position hold rejected"
+                );
+                continue;
             }
+        }
+        // Gains last: they only exist once the requested mode is entered
+        // (CS19: applied first, a GravityComp → Position batch lost them).
+        if let Err(error) = apply_testing_gains(loop_ctrl, joint) {
+            warn!(joint = %joint.name, error = %error, "testing gains rejected");
         }
     }
 }
@@ -1099,116 +1165,107 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
     }
 }
 
-fn preflight_gravity_saturation<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>) -> Result<(), ()> {
-    const GRID_POINTS: usize = 5;
-    const MAX_GRID_SAMPLES: usize = 1_000_000;
-    // The sweep reads no CAN; its duration is the read gap before Enable resolution.
-    let started = Instant::now();
-    let joint_names = loop_ctrl.joint_names().to_vec();
-    let joint_specs: Vec<(String, f64, f64, f64)> = {
-        let supervisor = loop_ctrl.supervisor();
-        let mut specs = Vec::with_capacity(joint_names.len());
-        for joint in &joint_names {
-            let Some(_motor) = supervisor.motors.motors.iter().find(|m| &m.joint == joint) else {
-                error!(
-                    joint,
-                    "gravity preflight: no motor configuration; refusing enable"
-                );
-                return Err(());
-            };
-            let Some(policy) = supervisor.joint_limit_policy(joint) else {
-                error!(
-                    joint,
-                    "gravity preflight: no live limit policy; refusing enable"
-                );
-                return Err(());
-            };
-            let Some(feedback) = supervisor.joint_feedback(joint) else {
-                error!(
-                    joint,
-                    "gravity preflight: no measured position for live envelope"
-                );
-                return Err(());
-            };
-            let (q_min, q_max) =
-                armee_kinematics::effective_command_bounds(policy, feedback.position_rad, 0.0);
-            if !q_min.is_finite() || !q_max.is_finite() || q_min > q_max {
-                error!(
-                    joint,
-                    q_min, q_max, "gravity preflight: invalid live envelope"
-                );
-                return Err(());
+/// Advance a pending gravity sweep by one slice of `budget`, before the
+/// tick that drains CAN. A voided sweep refuses its request; at the verdict
+/// the request continues (Enable, or the waiting Testing batch) or is
+/// refused. Returns the sweep's timing once it reached a verdict.
+fn advance_gravity_preflight<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    gate: &mut EnableGate,
+    queue: &PiReferenceQueue,
+    chappe: &Bus,
+    shutdown: &AtomicBool,
+    budget: SliceBudget,
+) -> Option<SweepStats> {
+    // A stdin Disable or shutdown may have ended a Chappe-side sweep.
+    report_preflight_refusals(gate, chappe);
+    let step = {
+        let sweep = gate.sweep_mut()?;
+        match sweep.invalidated(loop_ctrl, queue.is_busy()) {
+            Some(abort) => Err(abort),
+            None => Ok(sweep.advance(loop_ctrl, budget)),
+        }
+    };
+    let stats = match step {
+        Err(abort) => {
+            emit(gate.end_preflight(Some(abort)));
+            None
+        }
+        Ok(SweepStep::Pending) => return None,
+        Ok(SweepStep::Done {
+            passed: false,
+            stats,
+        }) => {
+            emit(gate.end_preflight(None));
+            Some(stats)
+        }
+        Ok(SweepStep::Done {
+            passed: true,
+            stats,
+        }) => {
+            match gate.pass_preflight() {
+                Some(PreflightFor::StdinEnable { operator_id }) => {
+                    enable_after_stdin_preflight(loop_ctrl, gate, operator_id);
+                }
+                Some(PreflightFor::ChappeEnable(request)) => {
+                    if let Err(e) = enable_after_chappe_preflight(loop_ctrl, &request) {
+                        warn!(error = %e, "Chappe enable request failed");
+                    }
+                }
+                Some(PreflightFor::TestingBatch(batch)) => {
+                    apply_testing_batch(loop_ctrl, &batch, true, shutdown);
+                }
+                None => {}
             }
-            specs.push((joint.clone(), q_min, q_max, policy.tau_ff_max));
-        }
-        specs
-    };
-    let exponent = match u32::try_from(joint_specs.len()) {
-        Ok(exponent) => exponent,
-        Err(_) => {
-            error!("gravity preflight: too many joints to sweep");
-            return Err(());
+            Some(stats)
         }
     };
-    let Some(sample_count) = GRID_POINTS.checked_pow(exponent) else {
-        error!("gravity preflight: sweep size overflow");
-        return Err(());
-    };
-    if sample_count > MAX_GRID_SAMPLES {
-        error!(
-            sample_count,
-            "gravity preflight: sweep exceeds bounded work"
-        );
-        return Err(());
-    }
-    let mut maxima = vec![0.0_f64; joint_specs.len()];
-    let mut q = vec![0.0_f64; joint_specs.len()];
-    for sample in 0..sample_count {
-        let mut digits = sample;
-        for (i, (_, lower, upper, _)) in joint_specs.iter().enumerate() {
-            let point = digits % GRID_POINTS;
-            digits /= GRID_POINTS;
-            q[i] = lower + (upper - lower) * point as f64 / (GRID_POINTS - 1) as f64;
-        }
-        let tau = match loop_ctrl.preview_gravity_torques(&q) {
-            Ok(tau) => tau,
-            Err(error) => {
-                error!(%error, "gravity preflight: model could not be evaluated; refusing enable");
-                return Err(());
+    report_preflight_refusals(gate, chappe);
+    stats
+}
+
+/// Publish refusals of Chappe requests whose sweep refused or was voided.
+fn report_preflight_refusals(gate: &mut EnableGate, chappe: &Bus) {
+    for PreflightRefusal { then, abort } in gate.take_unreported() {
+        let reason = match &abort {
+            Some(abort) => format!("gravity saturation preflight aborted: {abort}"),
+            None => match then {
+                PreflightFor::TestingBatch(_) => "gravity saturation preflight refused motion",
+                _ => "gravity saturation preflight refused enable",
             }
+            .to_string(),
         };
-        for (i, value) in tau.iter().enumerate() {
-            if !value.is_finite() {
-                error!(joint = %joint_names[i], "gravity preflight: non-finite torque");
-                return Err(());
+        match then {
+            PreflightFor::TestingBatch(_) => {
+                report_refusal(chappe, "consul", "", "testing batch", &reason);
             }
-            maxima[i] = maxima[i].max(value.abs());
+            PreflightFor::ChappeEnable(_) | PreflightFor::StdinEnable { .. } => {
+                warn!(error = %reason, "Chappe enable request failed");
+            }
         }
     }
-    debug!(
-        samples = sample_count,
-        elapsed_us = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX),
-        "gravity preflight sweep"
-    );
-    let mut saturated = false;
-    for ((joint, _, _, limit), tau_max_nm) in joint_specs.iter().zip(maxima) {
-        if !limit.is_finite() || *limit <= 0.0 || tau_max_nm > *limit {
-            error!(
-                joint,
-                tau_max_nm, limit, "gravity saturation: refusing enable"
-            );
-            saturated = true;
-        } else if tau_max_nm > 0.8 * *limit {
-            warn!(
-                joint,
-                tau_max_nm, limit, "gravity torque >80% of motor limit"
-            );
-        }
-    }
-    if saturated {
-        Err(())
-    } else {
-        Ok(())
+}
+
+/// A stdin Enable whose gravity sweep passed.
+fn enable_after_stdin_preflight<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    gate: &mut EnableGate,
+    operator_id: String,
+) {
+    match loop_ctrl
+        .supervisor_mut()
+        .resolve_enable_targets(repo_root())
+    {
+        Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
+            // `enabled` is printed once enable completes (EnableGate::poll).
+            Ok(()) => {
+                // An explicit enable lets later motion commands re-arm drives.
+                loop_ctrl.allow_implicit_enable();
+                emit(gate.begin_enable(operator_id, targets, Instant::now()));
+            }
+            Err(e) => eprintln!("enable failed: {e}"),
+        },
+        Err(e) => eprintln!("enable blocked: {e}"),
     }
 }
 
@@ -1237,27 +1294,18 @@ fn handle_command<B: MotorBus>(
                 println!("home failed: {message}");
             }
         }
-        PiCommand::Enable { operator_id } => {
-            if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
-                eprintln!("enable refused: gravity saturation preflight failed closed");
-                return true;
+        // The Enable runs once the gravity sweep passes (advance_gravity_preflight).
+        PiCommand::Enable { operator_id } => match GravitySweep::start(loop_ctrl) {
+            Ok(sweep) => {
+                if gate
+                    .begin_preflight(sweep, PreflightFor::StdinEnable { operator_id })
+                    .is_err()
+                {
+                    eprintln!("enable refused: gravity preflight already in progress");
+                }
             }
-            match loop_ctrl
-                .supervisor_mut()
-                .resolve_enable_targets(repo_root())
-            {
-                Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
-                    // `enabled` is printed once enable completes (EnableGate::poll).
-                    Ok(()) => {
-                        // An explicit enable lets later motion commands re-arm drives.
-                        loop_ctrl.allow_implicit_enable();
-                        emit(gate.begin_enable(operator_id, targets, Instant::now()));
-                    }
-                    Err(e) => eprintln!("enable failed: {e}"),
-                },
-                Err(e) => eprintln!("enable blocked: {e}"),
-            }
-        }
+            Err(()) => eprintln!("enable refused: gravity saturation preflight failed closed"),
+        },
         PiCommand::Disable => {
             // An operator disable stands until an explicit enable (L-berthier-28).
             loop_ctrl.forbid_implicit_enable();
@@ -1760,9 +1808,13 @@ fn run_control_loop<B: MotorBus>(
             if runtime.shutdown.load(Ordering::SeqCst) {
                 break 'control;
             }
-            // Commands deferred behind a drained reference queue were admitted
-            // when first received; they run first, in order.
-            let cmd = match reference_queue.take_ready_deferred() {
+            // Commands deferred behind a drained reference queue or a passed
+            // gravity sweep were admitted when first received; they run
+            // first, in order.
+            let cmd = match reference_queue
+                .take_ready_deferred()
+                .or_else(|| enable_gate.take_ready_stdin())
+            {
                 Some(cmd) => cmd,
                 None => match runtime.cmd_rx.try_recv() {
                     Ok(cmd) => {
@@ -1793,6 +1845,7 @@ fn run_control_loop<B: MotorBus>(
         drain_chappe_commands(
             loop_ctrl,
             &mut reference_queue,
+            &mut enable_gate,
             runtime.motion,
             runtime.chappe.as_ref(),
             runtime.enable_rx,
@@ -1808,6 +1861,7 @@ fn run_control_loop<B: MotorBus>(
         drain_testing_commands(
             loop_ctrl,
             &reference_queue,
+            &mut enable_gate,
             runtime.motion,
             runtime.chappe.as_ref(),
             runtime.testing_cmd_rx,
@@ -1825,6 +1879,19 @@ fn run_control_loop<B: MotorBus>(
         );
         let (_outer_actuator_us, _t) = phase_elapsed_us(t_after_chappe);
 
+        if runtime.shutdown.load(Ordering::SeqCst) {
+            break;
+        }
+        // One bounded slice of a pending gravity sweep; this iteration's tick
+        // then drains CAN as usual.
+        advance_gravity_preflight(
+            loop_ctrl,
+            &mut enable_gate,
+            &reference_queue,
+            runtime.chappe.as_ref(),
+            runtime.shutdown,
+            SliceBudget::PER_TICK,
+        );
         if runtime.shutdown.load(Ordering::SeqCst) {
             break;
         }
@@ -1882,6 +1949,9 @@ fn run_control_loop<B: MotorBus>(
     // Signal shutdown: unfinished joints are cancelled; owner shutdown performs
     // the mandatory live-reference cleanup.
     emit_reference_events(reference_queue.cancel());
+    // `quit`, EOF or a signal: a pending gravity sweep never grants.
+    emit(enable_gate.end_preflight(Some(SweepAbort::Shutdown)));
+    report_preflight_refusals(&mut enable_gate, runtime.chappe.as_ref());
 }
 
 fn phase_elapsed_us(since: Instant) -> (u64, Instant) {

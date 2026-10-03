@@ -92,7 +92,12 @@ fn chappe_disable_sets_mode_disabled_even_when_the_stop_was_not_delivered() {
     loop_ctrl.set_control_mode(ControlMode::GravityComp);
     let mut queue = queue();
 
-    let result = handle_chappe_enable(&mut loop_ctrl, &mut queue, &disable_request());
+    let result = handle_chappe_enable(
+        &mut loop_ctrl,
+        &mut queue,
+        &mut EnableGate::default(),
+        &disable_request(),
+    );
 
     let error = result.expect_err("a refused Disable write is reported");
     assert!(error.contains("stop"), "{error}");
@@ -110,7 +115,13 @@ fn chappe_disable_stops_every_drive_and_clears_intent() {
     loop_ctrl.set_control_mode(ControlMode::GravityComp);
     let mut queue = queue();
 
-    handle_chappe_enable(&mut loop_ctrl, &mut queue, &disable_request()).expect("disable");
+    handle_chappe_enable(
+        &mut loop_ctrl,
+        &mut queue,
+        &mut EnableGate::default(),
+        &disable_request(),
+    )
+    .expect("disable");
 
     assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
     for motor in loop_ctrl.supervisor().motors.motors.clone() {
@@ -216,8 +227,13 @@ fn chappe_enable_is_refused_while_a_reference_is_queued() {
         enable: true,
     };
 
-    let error = handle_chappe_enable(&mut loop_ctrl, &mut queue, &enable)
-        .expect_err("enable under a queued reference");
+    let error = handle_chappe_enable(
+        &mut loop_ctrl,
+        &mut queue,
+        &mut EnableGate::default(),
+        &enable,
+    )
+    .expect_err("enable under a queued reference");
 
     assert!(error.contains("reference queue busy"), "{error}");
     assert!(loop_ctrl
@@ -238,11 +254,12 @@ fn both_enable_owners_refuse_gravity_preflight_without_feedback() {
         operator_id: "test".into(),
         enable: true,
     };
-    let error = handle_chappe_enable(&mut loop_ctrl, &mut queue, &request)
+    let mut gate = EnableGate::default();
+    let error = handle_chappe_enable(&mut loop_ctrl, &mut queue, &mut gate, &request)
         .expect_err("Chappe enable must require measured gravity pose");
     assert!(error.contains("gravity saturation"), "{error}");
+    assert!(!gate.preflight_pending());
 
-    let mut gate = EnableGate::default();
     let command = parse_command("enable test force").expect("forced enable parses");
     handle_command(
         &mut loop_ctrl,
