@@ -5,11 +5,13 @@ mod host_metrics;
 mod imu;
 mod limit_persist;
 mod overlay;
-
 #[cfg(test)]
 mod reference_busy_overlay_tests;
 #[cfg(test)]
+mod reference_dispatch_tests;
+#[cfg(test)]
 mod reference_journal_shutdown_tests;
+mod reference_queue;
 #[cfg(test)]
 mod reference_shutdown_tests;
 #[cfg(test)]
@@ -41,7 +43,8 @@ use berthier::{
 };
 use chappe::Bus;
 use davout::{
-    DavoutError, MotorBus, OperationalMode, ReferenceTerminal, StopReport, DEFAULT_LEASE_TTL,
+    DavoutError, MotorBus, OperationalMode, ReferenceHandle, ReferenceTerminal, StopReport,
+    DEFAULT_LEASE_TTL,
 };
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
@@ -51,6 +54,13 @@ use robstride::RuntimeBus;
 use tracing::{debug, error, info, warn};
 
 use crate::limit_persist::{PersistDrainReport, PersistDrainStatus};
+use crate::reference_queue::{ReferenceEvent, ReferenceQueue};
+
+/// Stdin reference queue: Davout handles in flight, stdin commands deferred.
+type PiReferenceQueue = ReferenceQueue<ReferenceHandle, PiCommand>;
+
+/// Audit operator for stdin `home <joint>... sign-tested`.
+const STDIN_REFERENCE_OPERATOR: &str = "bench";
 
 fn repo_root() -> PathBuf {
     resolve_repo_root()
@@ -72,7 +82,13 @@ fn proto_operational_mode(mode: OperationalMode) -> i32 {
 }
 
 enum PiCommand {
+    /// Plain `home`: readiness check only (no reference acquisition).
     Home,
+    /// `home <joint>... sign-tested`: queue physical reference per joint.
+    HomeJoints {
+        joints: Vec<String>,
+        sign_tested: bool,
+    },
     Enable {
         operator_id: String,
         force: bool,
@@ -106,7 +122,25 @@ enum PiCommand {
 fn parse_command(line: &str) -> Option<PiCommand> {
     let mut parts = line.split_whitespace();
     match parts.next()? {
-        "home" => Some(PiCommand::Home),
+        "home" => {
+            let mut joints = Vec::new();
+            let mut sign_tested = false;
+            for tok in parts {
+                if tok == "sign-tested" || tok == "--sign-tested" {
+                    sign_tested = true;
+                } else {
+                    joints.push(tok.to_string());
+                }
+            }
+            if joints.is_empty() && !sign_tested {
+                Some(PiCommand::Home)
+            } else {
+                Some(PiCommand::HomeJoints {
+                    joints,
+                    sign_tested,
+                })
+            }
+        }
         "enable" => {
             let mut force = false;
             let mut operator_id = "bench".to_string();
@@ -206,7 +240,9 @@ fn parse_command(line: &str) -> Option<PiCommand> {
 fn print_usage() {
     eprintln!(
         "marengo-pi commands (stdin):\n  \
-         home\n  \
+         home                                   (readiness check only)\n  \
+         home <joint> [<joint>...] sign-tested  (physical reference, one joint at a time;\n  \
+         \x20                                       other commands wait; disable/quit cancel)\n  \
          enable [operator_id] [force]\n  \
          disable\n  \
          gravity-on | gravity-off\n  \
@@ -217,6 +253,61 @@ fn print_usage() {
          status\n  \
          quit"
     );
+}
+
+fn is_configured_joint<B: MotorBus>(supervisor: &davout::Supervisor<B>, joint: &str) -> bool {
+    supervisor
+        .motors
+        .motors
+        .iter()
+        .any(|motor| motor.joint == joint)
+}
+
+/// Print the stdout contract lines and mirror them as structured logs.
+fn emit_reference_events(events: Vec<ReferenceEvent>) {
+    for event in events {
+        println!("{event}");
+        match &event {
+            ReferenceEvent::Current {
+                joint,
+                position_rad,
+            } => info!(joint = %joint, position_rad, "reference acquired current"),
+            ReferenceEvent::Failed { joint, message } => {
+                warn!(joint = %joint, message = %message, "reference acquisition failed");
+            }
+            ReferenceEvent::Skipped { joint } => {
+                warn!(joint = %joint, "reference skipped after earlier failure");
+            }
+            ReferenceEvent::DeferredDiscarded { count } => {
+                warn!(
+                    count,
+                    "deferred stdin commands discarded on reference cancel"
+                );
+            }
+        }
+    }
+}
+
+/// While the reference queue is busy, every stdin command except
+/// `home <joints>` (refused as busy), Disable and Quit (cancel) waits.
+fn defers_while_referencing(cmd: &PiCommand) -> bool {
+    !matches!(
+        cmd,
+        PiCommand::HomeJoints { .. } | PiCommand::Disable | PiCommand::Quit
+    )
+}
+
+fn dispatch_stdin_command<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    queue: &mut PiReferenceQueue,
+    cmd: PiCommand,
+    config_dir: &Path,
+) -> bool {
+    if queue.is_busy() && defers_while_referencing(&cmd) {
+        queue.defer(cmd);
+        return true;
+    }
+    handle_command(loop_ctrl, queue, cmd, config_dir)
 }
 
 fn spawn_stdin_commands(tx: Sender<PiCommand>) {
@@ -242,9 +333,14 @@ fn spawn_stdin_commands(tx: Sender<PiCommand>) {
 
 fn handle_chappe_enable<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
+    queue: &mut PiReferenceQueue,
     request: &EnableRequest,
 ) -> Result<(), String> {
     if request.enable {
+        // A same-tick enable must not flip ACTIVE under a queued reference.
+        if queue.is_busy() {
+            return Err("reference queue busy; enable refused".into());
+        }
         // Never call set_homing_complete on enable — Verified is Set Zero only.
         let targets = loop_ctrl
             .supervisor()
@@ -261,18 +357,19 @@ fn handle_chappe_enable<B: MotorBus>(
             "enable via Chappe (targeted)"
         );
     } else {
-        loop_ctrl
-            .supervisor_mut()
-            .disable_all()
-            .map_err(|e| e.to_string())?;
+        let result = loop_ctrl.supervisor_mut().disable_all();
+        emit_reference_events(queue.cancel());
+        result.map_err(|e| e.to_string())?;
         loop_ctrl.set_control_mode(ControlMode::Disabled);
         info!(operator = %request.operator_id, "disable via Chappe");
     }
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn drain_chappe_commands<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
+    queue: &mut PiReferenceQueue,
     enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
@@ -280,8 +377,8 @@ fn drain_chappe_commands<B: MotorBus>(
     status_poll_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     shutdown: &AtomicBool,
 ) {
-    // Set-zero before enable so a same-tick enable(true) cannot flip ACTIVE and
-    // silently refuse a queued calibration (Consul already got publish ACK).
+    // Set-zero before enable so its queue admission is visible to a same-tick
+    // enable(true), which is then refused instead of flipping ACTIVE.
     loop {
         if shutdown.load(Ordering::SeqCst) {
             return;
@@ -297,7 +394,7 @@ fn drain_chappe_commands<B: MotorBus>(
                 if shutdown.load(Ordering::SeqCst) {
                     return;
                 }
-                if let Err(e) = handle_chappe_set_zero(loop_ctrl, &request) {
+                if let Err(e) = handle_chappe_set_zero(loop_ctrl, queue, &request) {
                     warn!(
                         joint = %request.joint,
                         error = %e,
@@ -394,7 +491,7 @@ fn drain_chappe_commands<B: MotorBus>(
         if shutdown.load(Ordering::SeqCst) {
             return;
         }
-        if let Err(e) = handle_chappe_enable(loop_ctrl, &request) {
+        if let Err(e) = handle_chappe_enable(loop_ctrl, queue, &request) {
             warn!(error = %e, "Chappe enable request failed");
         }
     }
@@ -445,40 +542,34 @@ fn handle_chappe_active_reporting_lease<B: MotorBus>(
     }
 }
 
-/// Submit a guarded reference request to Davout after explicit operator checks.
-/// The installed adapter currently refuses unqualified reference before arming;
-/// queue publication alone is not verification or an Applied receipt.
+/// Queue a Consul Set Zero on the shared reference queue after explicit
+/// operator checks (confirm, sign-test attestation, configured joint, idle
+/// queue). Admission is not verification: the queue requests the physical
+/// transaction after the next tick and reports `reference <joint> ...` lines.
+/// No control-mode change is forced: Berthier discards motion intent every
+/// tick while reference work is pending and the transaction stops the drives.
 fn handle_chappe_set_zero<B: MotorBus>(
-    loop_ctrl: &mut ControlLoop<B>,
+    loop_ctrl: &ControlLoop<B>,
+    queue: &mut PiReferenceQueue,
     request: &SetZeroRequest,
-) -> Result<(), DavoutError> {
+) -> Result<(), String> {
     if !request.confirm {
-        return Err(DavoutError::Homing {
-            message: "set-zero requires confirm=true".into(),
-        });
-    }
-    if !request.sign_test_passed {
-        return Err(DavoutError::HomingVerify {
-            joint: request.joint.clone(),
-            message: "sign_test_passed required (operator attestation)".into(),
-        });
+        return Err("set-zero requires confirm=true".into());
     }
     let operator = if request.operator_id.is_empty() {
         "consul"
     } else {
         request.operator_id.as_str()
     };
-    let pos = loop_ctrl.supervisor_mut().calibrate_joint_zero(
-        &request.joint,
-        operator,
+    let joint = request.joint.trim().to_owned();
+    let supervisor = loop_ctrl.supervisor();
+    queue.admit(
+        std::slice::from_ref(&joint),
         request.sign_test_passed,
+        operator,
+        |name| is_configured_joint(supervisor, name),
     )?;
-    info!(
-        joint = %request.joint.trim(),
-        pos_rad = pos,
-        "set-zero verified via Chappe"
-    );
-    loop_ctrl.set_control_mode(ControlMode::Disabled);
+    info!(joint = %joint, operator, "set-zero queued via Chappe");
     Ok(())
 }
 
@@ -765,6 +856,7 @@ fn preflight_gravity_saturation<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>) -> 
 
 fn handle_command<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
+    queue: &mut PiReferenceQueue,
     cmd: PiCommand,
     config_dir: &Path,
 ) -> bool {
@@ -773,6 +865,19 @@ fn handle_command<B: MotorBus>(
             Ok(()) => println!("homing verified → Ready"),
             Err(e) => eprintln!("home failed: {e}"),
         },
+        PiCommand::HomeJoints {
+            joints,
+            sign_tested,
+        } => {
+            let supervisor = loop_ctrl.supervisor();
+            if let Err(message) =
+                queue.admit(&joints, sign_tested, STDIN_REFERENCE_OPERATOR, |joint| {
+                    is_configured_joint(supervisor, joint)
+                })
+            {
+                println!("home failed: {message}");
+            }
+        }
         PiCommand::Enable { operator_id, force } => {
             if !force {
                 if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
@@ -792,10 +897,12 @@ fn handle_command<B: MotorBus>(
             }
         }
         PiCommand::Disable => {
+            // Davout's disable_all also cancels a live reference transaction.
             if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
                 eprintln!("disable failed: {e}");
             }
             loop_ctrl.set_control_mode(ControlMode::Disabled);
+            emit_reference_events(queue.cancel());
             println!("disabled");
         }
         PiCommand::GravityOn => {
@@ -883,7 +990,11 @@ fn handle_command<B: MotorBus>(
             println!("hold-off → Disabled");
         }
         PiCommand::Status => print_status(loop_ctrl, config_dir),
-        PiCommand::Quit => return false,
+        PiCommand::Quit => {
+            // Owner shutdown performs the mandatory live-reference cleanup.
+            emit_reference_events(queue.cancel());
+            return false;
+        }
     }
     true
 }
@@ -965,6 +1076,14 @@ fn main() {
         .map(|motor| motor.can_interface.as_str())
         .collect();
 
+    let reference_journal = match marengo_config::resolve_reference_journal_path(&root, &config_dir)
+    {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("reference journal: {e}");
+            std::process::exit(1);
+        }
+    };
     let bus = match RuntimeBus::socketcan_from_motors(&motors) {
         Ok(bus) => bus,
         Err(e) => {
@@ -974,9 +1093,10 @@ fn main() {
         }
     };
 
-    let mut loop_ctrl = match ControlLoop::from_repo(
+    let mut loop_ctrl = match ControlLoop::from_repo_with_physical_reference(
         &root,
         bus,
+        &reference_journal,
         control.control.loop_hz,
         control.control.chappe_state_hz,
     ) {
@@ -1053,7 +1173,10 @@ fn main() {
         motor_count = motors.motors.len(),
         interfaces = ?can_interfaces,
         config = %config_dir.display(),
-        "marengo-pi starting Disabled; calibration history cannot grant current reference (docs/homing.md)"
+        reference_journal = %reference_journal.display(),
+        "marengo-pi starting Disabled; physical Robstride reference installed \
+         (stdin `home <joint>... sign-tested`, Consul Set Zero); calibration history \
+         cannot grant current reference (docs/homing.md)"
     );
 
     let mut runtime = ControlLoopRuntime {
@@ -1244,6 +1367,7 @@ fn run_control_loop<B: MotorBus>(
     let mut last_heartbeat = Instant::now();
     let mut active_fault: Option<String>;
     let mut timing = LoopTimingWindow::new(loop_ctrl.tick_count());
+    let mut reference_queue = PiReferenceQueue::new(format!("marengo-pi-{}", std::process::id()));
 
     'control: while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
@@ -1253,13 +1377,17 @@ fn run_control_loop<B: MotorBus>(
             if runtime.shutdown.load(Ordering::SeqCst) {
                 break 'control;
             }
-            let Ok(cmd) = runtime.cmd_rx.try_recv() else {
+            // Commands deferred behind a drained reference queue run first, in order.
+            let Some(cmd) = reference_queue
+                .take_ready_deferred()
+                .or_else(|| runtime.cmd_rx.try_recv().ok())
+            else {
                 break;
             };
             if runtime.shutdown.load(Ordering::SeqCst) {
                 break 'control;
             }
-            if !handle_command(loop_ctrl, cmd, runtime.config_dir) {
+            if !dispatch_stdin_command(loop_ctrl, &mut reference_queue, cmd, runtime.config_dir) {
                 runtime.shutdown.store(true, Ordering::SeqCst);
                 break 'control;
             }
@@ -1268,6 +1396,7 @@ fn run_control_loop<B: MotorBus>(
 
         drain_chappe_commands(
             loop_ctrl,
+            &mut reference_queue,
             runtime.enable_rx,
             runtime.homing_rx,
             runtime.set_zero_rx,
@@ -1313,6 +1442,7 @@ fn run_control_loop<B: MotorBus>(
                 Some(e.to_string())
             }
         };
+        emit_reference_events(reference_queue.pump(loop_ctrl.supervisor_mut()));
         if runtime.shutdown.load(Ordering::SeqCst) {
             break;
         }
@@ -1357,6 +1487,9 @@ fn run_control_loop<B: MotorBus>(
             thread::sleep(period - elapsed);
         }
     }
+    // Signal shutdown: unfinished joints are cancelled; owner shutdown performs
+    // the mandatory live-reference cleanup.
+    emit_reference_events(reference_queue.cancel());
 }
 
 fn phase_elapsed_us(since: Instant) -> (u64, Instant) {

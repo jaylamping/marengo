@@ -5,7 +5,8 @@
 
 ## Design
 - **Event loop**: `run_control_loop` owns command dispatch and ticks at configured Hz; stdin and the Chappe IPC bridge supply its queues.
-- `PiCommand` enum: enable, disable, status, set-zero, hold-on, hold-at, gravity-on, quit.
+- `PiCommand` enum: home, home `<joints>` sign-tested, enable, disable, status, hold-on, hold-at, gravity-on, quit.
+- **Reference queue** (`reference_queue.rs`): stdin `home <j1> [<j2>...] sign-tested` (also `--sign-tested`) and Consul `robot/set_zero` (operator from payload, default `consul`; `confirm` and `sign_test_passed` required) share one queue. Joints are acquired one at a time through Davout's physical reference workflow (`request_reference` after each tick, polled with `reference_outcome`). Stdout lines: `reference <joint> current pos=<f:.4>`, `reference <joint> failed: <message>`, `reference <joint> skipped: earlier joint failed`; admission refusals print `home failed: <message>` (missing sign-tested, no/unknown joint, queue busy). While busy, other stdin commands are deferred and replayed in order after it drains; Disable, Quit, hardware E-stop and signal shutdown cancel it (`reference <joint> failed: cancelled`, plus `discarded <n> deferred command(s): reference queue cancelled`). Chappe enable(true) is refused while busy. Plain `home` keeps the readiness check.
 - Chappe subscribers for `EnableRequest`, homing commands, testing panel commands from Consul.
 - Preflight `preflight_gravity_saturation` before enable (refuses if τ_g exceeds motor limits).
 - Periodic `SafetyState` reads Davout's retained fault authority, publishing every fault's stable ID/class/message/joint and the observed hardware E-stop input. Healthy ticks and ordinary Disable cannot publish a retained fault as clear. Actual Pi GPIO wiring and physical recovery remain unqualified.
@@ -13,10 +14,10 @@
 
 ## Flow
 1. `main` → parse args → load config → `RuntimeBus::open(can_interface)`
-2. Build `ControlLoop<RuntimeBus>` with dynamics model
+2. Resolve the reference journal (`marengo_config::resolve_reference_journal_path`; fatal on error) and build `ControlLoop::from_repo_with_physical_reference` (qualified physical Robstride owner + durable journal)
 3. Spawn stdin reader + Chappe IPC bridge
-4. `run_control_loop`: tick → publish RobotState/SafetyState/Heartbeat on Chappe
-5. `handle_command` for operator stdin; `drain_chappe_commands` for remote enable
+4. `run_control_loop`: deferred/new stdin → `dispatch_stdin_command`; tick → pump reference queue → publish RobotState/SafetyState/Heartbeat on Chappe
+5. `handle_command` for operator stdin; `drain_chappe_commands` for remote enable/disable and Set Zero admission
 6. Observed Quit/shutdown exits dispatch before later commands/ticks; `finish_owner_shutdown` clears intent, performs mandatory live-reference cleanup even with `disable_on_exit=false`, applies the ordinary exit policy (reusing any reference stop), and retains distinct results before closing/draining persistence.
 
 The independent filesystem worker completes retained writes and matching local
@@ -26,11 +27,11 @@ Local publication and transport stop acceptance do not establish client delivery
 or physical stop. Existing no-disable exit policy reports a skipped stop.
 
 Fresh startup leaves all configured joints Unhomed regardless of saved history.
-Normal Enable requires current reference; the complete qualified transaction and
-client cutover remain open. Davout's private permission gates scoped Enable as
-well as normal Enable; physical reference and Set Zero currently refuse before
-arming. Disable in the already running owner does not reload
-history or require reference readiness. See [homing](../../docs/homing.md).
+Normal Enable requires current reference, granted only by a successful physical
+reference transaction (stdin `home <joint> sign-tested` or Consul Set Zero).
+Davout's private permission gates scoped Enable as well as normal Enable.
+Disable in the already running owner does not reload history or require
+reference readiness. See [homing](../../docs/homing.md).
 
 ## Integration
 - **Crates**: berthier, davout, robstride, chappe, marengo-config, armee-dynamics, marengo-host-metrics

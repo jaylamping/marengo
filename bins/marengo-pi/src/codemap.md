@@ -7,6 +7,9 @@ Pi runtime implementation modules.
 | Module | Role |
 |--------|------|
 | `main.rs` | Entry, REPL, control loop, Chappe bridge, command parsing |
+| `reference_queue.rs` | One-at-a-time physical reference queue (stdin `home <joints> sign-tested`, Consul Set Zero), deferral of other stdin commands, cancel; stdout contract lines |
+| `reference_queue_tests.rs` | Queue state machine against a scripted driver: refusals, ordering, failure skips, deferral, cancel, E-stop |
+| `reference_dispatch_tests.rs` | `home` parsing and stdin dispatch/deferral/cancel against a plain (unsupported) owner |
 | `overlay.rs` | Shutdown-aware actuator tuning dispatch; live changes and asynchronous persistence admission |
 | `limit_persist.rs` | Closed admission, serialized actual writes/publication, bounded typed drain and observed worker termination |
 | `limit_persist_tests.rs` | Gated real writes and matching completion events for retained drafts, publication lifetime and coalescing |
