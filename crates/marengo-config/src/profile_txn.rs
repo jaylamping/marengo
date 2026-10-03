@@ -1,18 +1,16 @@
 //! Validated, compare-and-swap transactions for master config YAML.
 
-use std::fs;
-use std::path::{Path, PathBuf};
-
-use serde::Serialize;
-
-use crate::config_revision::profile_content_revision;
+use crate::atomic_file::write_atomic;
+use crate::config_revision::profile_content_revision_unlocked;
 use crate::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
     load_control_config_from, load_homing_config_from, load_motors_config_from,
     load_robot_config_from, resolve_config_dir, validate_control_against_limits,
-    validate_limit_patch, validate_safety_config, write_motors_control_and_urdf, ConfigError,
-    ControlConfigFile, HomingConfigFile, LimitPatch, MotorsConfigFile, RobotConfigFile,
+    validate_limit_patch, validate_safety_config, ConfigError, ControlConfigFile, HomingConfigFile,
+    LimitPatch, MotorsConfigFile, ProfileWriteLock, RobotConfigFile,
 };
+use std::fs;
+use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpsertLimitResult {
@@ -32,10 +30,11 @@ pub fn write_motors_and_control(
     control: &ControlConfigFile,
 ) -> Result<(), ConfigError> {
     let config_dir = config_dir.as_ref();
+    let _lock = ProfileWriteLock::acquire(config_dir)?;
     let robot = load_robot_config_from(config_dir)?;
     let homing = load_homing_config_from(config_dir)?;
-    validate_profile(&robot, motors, control)?;
-    write_profile(config_dir, &robot, motors, control, &homing)
+    validate_safety_config(&robot, motors, control, &homing)?;
+    write_motors_control_files(config_dir, motors, control)
 }
 
 pub fn upsert_joint_limits(
@@ -46,6 +45,7 @@ pub fn upsert_joint_limits(
 ) -> Result<UpsertLimitResult, ConfigError> {
     let repo_root = repo_root.as_ref();
     let config_dir = config_dir.as_ref();
+    let _lock = ProfileWriteLock::acquire(config_dir)?;
     check_revision(config_dir, expected_revision)?;
     validate_limit_patch(patch)?;
     let mut patch = patch.clone();
@@ -80,10 +80,12 @@ pub fn upsert_joint_limits(
 
     validate_profile(&robot, &motors, &control)?;
     // Single atomic path shared with Pi write-behind and local git sync.
-    write_motors_control_and_urdf(repo_root, config_dir, &motors, &control)?;
+    crate::urdf_expand::write_motors_control_and_urdf_locked(
+        repo_root, config_dir, &motors, &control,
+    )?;
 
     Ok(UpsertLimitResult {
-        revision: profile_content_revision(config_dir)?,
+        revision: profile_content_revision_unlocked(config_dir)?,
     })
 }
 
@@ -97,6 +99,7 @@ pub fn add_joint_from_source(
     let repo_root = repo_root.as_ref();
     let target_dir = target_dir.as_ref();
     let source_dir = source_dir.as_ref();
+    let _lock = ProfileWriteLock::acquire(target_dir)?;
     check_revision(target_dir, expected_revision)?;
     if joint.trim().is_empty() {
         return Err(transaction_error(target_dir, "joint must not be empty"));
@@ -170,7 +173,7 @@ pub fn add_joint_from_source(
 
     Ok(AddJointResult {
         joint: joint.to_string(),
-        revision: profile_content_revision(target_dir)?,
+        revision: profile_content_revision_unlocked(target_dir)?,
     })
 }
 
@@ -238,7 +241,7 @@ fn check_revision(config_dir: &Path, expected_revision: Option<&str>) -> Result<
     let Some(expected) = expected_revision else {
         return Ok(());
     };
-    let actual = profile_content_revision(config_dir)?;
+    let actual = profile_content_revision_unlocked(config_dir)?;
     if actual != expected {
         return Err(transaction_error(
             config_dir,
@@ -256,7 +259,7 @@ fn validate_profile(
     validate_control_against_limits(robot, motors, control)
 }
 
-fn write_profile(
+pub(crate) fn write_profile(
     config_dir: &Path,
     robot: &RobotConfigFile,
     motors: &MotorsConfigFile,
@@ -265,54 +268,94 @@ fn write_profile(
 ) -> Result<(), ConfigError> {
     validate_safety_config(robot, motors, control, homing)?;
     let documents = [
-        serialize_yaml(config_dir, "robot.yaml", robot)?,
-        serialize_yaml(config_dir, "motors.yaml", motors)?,
-        serialize_yaml(config_dir, "control.yaml", control)?,
-        serialize_yaml(config_dir, "homing.yaml", homing)?,
+        (
+            "robot.yaml",
+            serialize_yaml(config_dir, "robot.yaml", robot)?,
+        ),
+        (
+            "motors.yaml",
+            serialize_yaml(config_dir, "motors.yaml", motors)?,
+        ),
+        (
+            "control.yaml",
+            serialize_yaml(config_dir, "control.yaml", control)?,
+        ),
+        (
+            "homing.yaml",
+            serialize_yaml(config_dir, "homing.yaml", homing)?,
+        ),
     ];
-
-    let mut temporary_paths = Vec::with_capacity(documents.len());
-    for (path, text) in &documents {
-        let temporary = path.with_extension("yaml.tmp");
-        if let Err(error) = fs::write(&temporary, text) {
-            remove_temporary_files(&temporary_paths);
-            return Err(ConfigError::Io {
-                path: temporary,
-                message: error.to_string(),
-            });
-        }
-        temporary_paths.push(temporary);
-    }
-
-    for ((path, _), temporary) in documents.iter().zip(&temporary_paths) {
-        if let Err(error) = fs::rename(temporary, path) {
-            remove_temporary_files(&temporary_paths);
-            return Err(ConfigError::Io {
-                path: path.clone(),
-                message: error.to_string(),
-            });
-        }
-    }
-    Ok(())
+    let files = documents
+        .iter()
+        .map(|(name, text)| (*name, text.as_bytes()))
+        .collect::<Vec<_>>();
+    write_files_with_rollback(config_dir, &files)
 }
 
-fn serialize_yaml<T: Serialize>(
+pub(crate) fn write_motors_control_files(
+    config_dir: &Path,
+    motors: &MotorsConfigFile,
+    control: &ControlConfigFile,
+) -> Result<(), ConfigError> {
+    let documents = [
+        (
+            "motors.yaml",
+            serialize_yaml(config_dir, "motors.yaml", motors)?,
+        ),
+        (
+            "control.yaml",
+            serialize_yaml(config_dir, "control.yaml", control)?,
+        ),
+    ];
+    let files = documents
+        .iter()
+        .map(|(name, text)| (*name, text.as_bytes()))
+        .collect::<Vec<_>>();
+    write_files_with_rollback(config_dir, &files)
+}
+
+fn serialize_yaml<T: serde::Serialize>(
     config_dir: &Path,
     name: &str,
     value: &T,
-) -> Result<(PathBuf, String), ConfigError> {
-    let path = config_dir.join(name);
-    let text = serde_yaml::to_string(value).map_err(|error| ConfigError::Parse {
-        path: path.clone(),
+) -> Result<String, ConfigError> {
+    serde_yaml::to_string(value).map_err(|error| ConfigError::Parse {
+        path: config_dir.join(name),
         message: error.to_string(),
-    })?;
-    Ok((path, text))
+    })
 }
 
-fn remove_temporary_files(paths: &[PathBuf]) {
-    for path in paths {
-        let _ = fs::remove_file(path);
+fn write_files_with_rollback(
+    config_dir: &Path,
+    files: &[(&str, &[u8])],
+) -> Result<(), ConfigError> {
+    let mut backups = Vec::with_capacity(files.len());
+    for (name, _) in files {
+        let path = config_dir.join(name);
+        let contents = fs::read(&path).map_err(|error| ConfigError::Io {
+            path: path.clone(),
+            message: error.to_string(),
+        })?;
+        backups.push((path, contents));
     }
+
+    for (index, (name, contents)) in files.iter().enumerate() {
+        let path = config_dir.join(name);
+        if let Err(error) = write_atomic(&path, contents) {
+            for (restore_path, restore_bytes) in backups[..index].iter().rev() {
+                if let Err(restore_error) = write_atomic(restore_path, restore_bytes) {
+                    return Err(ConfigError::Io {
+                        path: restore_path.clone(),
+                        message: format!(
+                            "write failed ({error}); rollback also failed: {restore_error}"
+                        ),
+                    });
+                }
+            }
+            return Err(error);
+        }
+    }
+    Ok(())
 }
 
 fn transaction_error(path: impl AsRef<Path>, message: impl Into<String>) -> ConfigError {
@@ -321,7 +364,6 @@ fn transaction_error(path: impl AsRef<Path>, message: impl Into<String>) -> Conf
         message: message.into(),
     }
 }
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
@@ -469,6 +511,47 @@ mod tests {
         assert_eq!(
             profile_content_revision(&config_dir).expect("revision after rejection"),
             before
+        );
+    }
+
+    #[test]
+    fn profile_preflight_failure_does_not_partially_write() {
+        let _guard = profile_txn_test_lock();
+        let (_temp, config_dir) = copy_master_config_tree();
+        let robot = load_robot_config_from(&config_dir).expect("robot");
+        let mut motors = load_motors_config_from(&config_dir).expect("motors");
+        let control = load_control_config_from(&config_dir).expect("control");
+        let homing = load_homing_config_from(&config_dir).expect("homing");
+        let old_motors = fs::read(config_dir.join("motors.yaml")).expect("old motors");
+        let elbow = motors
+            .motors
+            .iter_mut()
+            .find(|motor| motor.joint == "right_elbow_pitch")
+            .expect("elbow");
+        elbow.bench.position_upper_rad += 0.1;
+
+        let control_path = config_dir.join("control.yaml");
+        fs::remove_file(&control_path).expect("remove control file");
+        fs::create_dir(&control_path).expect("make rename blocker");
+        let marker = control_path.join("marker");
+        fs::write(&marker, b"preserved").expect("write marker");
+
+        assert!(write_profile(&config_dir, &robot, &motors, &control, &homing).is_err());
+
+        assert_eq!(
+            fs::read(config_dir.join("motors.yaml")).expect("restored motors"),
+            old_motors
+        );
+        assert_eq!(fs::read(marker).expect("preserved marker"), b"preserved");
+        assert!(
+            fs::read_dir(&config_dir)
+                .expect("config entries")
+                .all(|entry| !entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .ends_with(".tmp")),
+            "failed rename must clean up the staged file"
         );
     }
 

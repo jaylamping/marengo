@@ -385,9 +385,9 @@ fn load_urdf_from_str(xml: &str, path: &Path) -> Result<urdf_rs::Robot, ConfigEr
         path: tmp.clone(),
         message: e.to_string(),
     })?;
-    let robot = load_urdf(&tmp).map_err(|e| parse_error(path, e.to_string()))?;
+    let result = load_urdf(&tmp).map_err(|e| parse_error(path, e.to_string()));
     let _ = std::fs::remove_file(&tmp);
-    Ok(robot)
+    result
 }
 
 fn collect_links_for_joints(robot: &urdf_rs::Robot, joints: &[String]) -> Vec<String> {

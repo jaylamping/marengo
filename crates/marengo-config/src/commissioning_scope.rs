@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::ConfigError;
+use crate::atomic_file::write_atomic;
+use crate::{ConfigError, ProfileWriteLock};
 
 /// Document version written by this crate.
 pub const COMMISSIONING_SCOPE_VERSION: u32 = 1;
@@ -144,16 +145,12 @@ pub fn save_commissioning_scope(
         path: path.to_path_buf(),
         message: e.to_string(),
     })?;
-    let tmp = path.with_extension("yaml.tmp");
-    fs::write(&tmp, &text).map_err(|e| ConfigError::Io {
-        path: tmp.clone(),
-        message: e.to_string(),
-    })?;
-    fs::rename(&tmp, path).map_err(|e| ConfigError::Io {
+    let parent = path.parent().ok_or_else(|| ConfigError::Io {
         path: path.to_path_buf(),
-        message: e.to_string(),
+        message: "commissioning-scope path has no parent directory".to_string(),
     })?;
-    Ok(())
+    let _lock = ProfileWriteLock::acquire(parent)?;
+    write_atomic(path, text.as_bytes())
 }
 
 /// Remove persisted scope file (no-op if missing).
