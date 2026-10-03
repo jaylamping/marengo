@@ -94,8 +94,15 @@ sync_staging_to_pi() {
   local sync_host
   compose_ssh_opts ssh_opts
   sync_host="$(compose_ssh_target "$PI_HOST")"
+  # ~/marengo is shared with a git checkout, var/ runtime data and MCP-synced
+  # files. Never --delete at the top level; prune stale files only inside the
+  # bundle-owned trees that install-pi.sh mirrors with --delete (config, www).
   if command -v rsync >/dev/null 2>&1; then
-    rsync -av --delete -e "ssh ${ssh_opts[*]}" "${staging}/" "${sync_host}:${remote_root}/"
+    rsync -av -e "ssh ${ssh_opts[*]}" "${staging}/" "${sync_host}:${remote_root}/"
+    local tree
+    for tree in config www; do
+      rsync -av --delete -e "ssh ${ssh_opts[*]}" "${staging}/${tree}/" "${sync_host}:${remote_root}/${tree}/"
+    done
     return
   fi
   log_note "rsync missing — using tar over ssh"
