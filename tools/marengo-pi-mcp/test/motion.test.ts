@@ -521,6 +521,41 @@ describe("marengo-pi script tool", () => {
     assert.match(benchCanKernelDeltaShell(), /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
   });
 
+  describe("benchCanKernelDeltaShell rates", () => {
+    function delta(duration: string, start: string, end: string) {
+      const dir = mkdtempSync(path.join(tmpdir(), "kernel-delta-"));
+      writeFileSync(path.join(dir, "start"), start);
+      writeFileSync(path.join(dir, "end"), end);
+      writeFileSync(path.join(dir, "log"), "");
+      const r = spawnSync("bash", ["-c", `set -euo pipefail\n${benchCanKernelDeltaShell()}`], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          LOG: path.join(dir, "log"),
+          CAN_KERNEL_START: path.join(dir, "start"),
+          CAN_KERNEL_END: path.join(dir, "end"),
+          CANDUMP_DURATION_SEC: duration,
+        },
+      });
+      return { r, log: readFileSync(path.join(dir, "log"), "utf8") };
+    }
+
+    it("totals rx plus tx over the window", () => {
+      const { r, log } = delta("10.000", "can0 1000 2000\n", "can0 1600 2400\n");
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(log, "can kernel delta can0: drx=600 dtx=400 total=100.0/s (10.000s window)\n");
+    });
+
+    it("reports counters without a rate for a zero window and does not fail the session", () => {
+      for (const window of ["0.000", "0"]) {
+        const { r, log } = delta(window, "can0 1000 2000\n", "can0 1600 2400\n");
+        assert.equal(r.status, 0, r.stderr);
+        assert.equal(r.stderr, "");
+        assert.equal(log, "can kernel delta can0: drx=600 dtx=400\n");
+      }
+    });
+  });
+
   it("prunes under pipefail even when a pattern matches no file", () => {
     // No bench-*.json exists on the Pi: ls exited 2 and pipefail ended the session wrapper.
     const dir = mkdtempSync(path.join(tmpdir(), "prune-"));

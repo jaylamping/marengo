@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { MarengoPiConfig } from "../src/config.js";
@@ -13,11 +13,13 @@ import {
   extractMarked,
   jointWindows,
   parsePreflight,
+  parseSessionJson,
   parseYamlLite,
   planCalibrationSweep,
   preflightReadShell,
   registerGravityCalibrateTools,
 } from "../src/tools/gravity-calibrate.js";
+import { benchLogWrapper } from "../src/tools/motion.js";
 import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
 
 const cfg: MarengoPiConfig = {
@@ -572,3 +574,37 @@ describe("gravity calibration pure helpers", () => {
   });
 });
 
+
+describe("pi_gravity_calibrate session line from the shared bench wrapper", () => {
+  it("parseSessionJson reads the trace and ts the generated shell prints", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "grav-wrapper-"));
+    const fake = path.join(dir, "fakebin");
+    mkdirSync(fake);
+    mkdirSync(path.join(dir, "bin"));
+    const stubs: Record<string, string> = {
+      "bin/motor-repl": "exit 0",
+      "fakebin/sudo": "exit 0",
+      "fakebin/systemctl": "echo inactive",
+      "fakebin/pkill": "exit 1",
+      "fakebin/pgrep": "exit 1",
+      "fakebin/sleep": "exit 0",
+      "fakebin/ip": "exit 0",
+    };
+    for (const [rel, body] of Object.entries(stubs)) {
+      writeFileSync(path.join(dir, rel), `#!/bin/bash\n${body}\n`);
+      chmodSync(path.join(dir, rel), 0o755);
+    }
+    const piCfg: MarengoPiConfig = { ...cfg, piRoot: dir };
+    const script = benchLogWrapper(piCfg, "echo session-body", "gravity-calibrate", "/opt/marengo/config");
+    const r = spawnSync("bash", ["-c", `{\n${script}\n} 2>&1`], {
+      cwd: dir,
+      encoding: "utf8",
+      env: { ...process.env, MARENGO_CAN_SYSFS: path.join(dir, "sys"), PATH: `${fake}:${process.env.PATH ?? ""}` },
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const session = parseSessionJson(r.stdout);
+    assert.ok(session, `no session line in:\n${r.stdout}`);
+    assert.match(session.ts, /^\d{8}T\d{6}Z$/);
+    assert.equal(session.trace, path.join(dir, "var", "log", `position-trace-${session.ts}.csv`));
+  });
+});
