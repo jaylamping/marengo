@@ -86,70 +86,25 @@ fn state_with_safety(mode: OperationalMode, heartbeat_ts_ms: u64) -> SharedState
 }
 
 #[tokio::test]
-async fn urdf_read_rejects_missing_auth() {
-    let _env = lock_test_env();
-    std::env::remove_var(TOKEN_ENV);
-    let bus = std::sync::Arc::new(Bus::default());
-    let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
-    let app = test_app(state);
-    let response = app
-        .oneshot(
-            axum::http::Request::builder()
-                .uri("/hardware/urdf")
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-}
-
-#[tokio::test]
-async fn urdf_read_returns_bytes_with_auth() {
-    let _env = lock_test_env();
-    std::env::set_var(TOKEN_ENV, TEST_TOKEN);
-    let bus = std::sync::Arc::new(Bus::default());
-    let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
-    let app = test_app(state);
-    let response = app
-        .oneshot(
-            axum::http::Request::builder()
-                .uri("/hardware/urdf")
-                .header("x-marengo-log-token", TEST_TOKEN)
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::OK);
-}
-
-#[tokio::test]
 async fn archive_reads_require_auth() {
     let _env = lock_test_env();
     std::env::set_var(TOKEN_ENV, TEST_TOKEN);
     let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
     let app = test_app(state);
 
-    for uri in [
-        "/hardware/urdf/archive",
-        "/hardware/urdf/archive/upload-test",
-    ] {
-        let response = app
-            .clone()
-            .oneshot(
-                axum::http::Request::builder()
-                    .uri(uri)
-                    .body(Body::empty())
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "uri={uri}");
-    }
+    let unauthenticated = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .uri("/hardware/urdf/archive")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
 
     let list = app
-        .clone()
         .oneshot(
             axum::http::Request::builder()
                 .uri("/hardware/urdf/archive")
@@ -160,18 +115,6 @@ async fn archive_reads_require_auth() {
         .await
         .expect("response");
     assert_eq!(list.status(), StatusCode::OK);
-
-    let fetch = app
-        .oneshot(
-            axum::http::Request::builder()
-                .uri("/hardware/urdf/archive/upload-definitely-missing")
-                .header("x-marengo-log-token", TEST_TOKEN)
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(fetch.status(), StatusCode::NOT_FOUND);
 
     std::env::remove_var(TOKEN_ENV);
 }

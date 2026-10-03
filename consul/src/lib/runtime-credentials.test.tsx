@@ -7,7 +7,7 @@ import { MitCommandBatchSchema, OperatorCommandSchema } from '@/gen/marengo/v1/m
 import { autoLearnConfig, postAutoLearn } from '@/lib/auto-learn-api';
 import { patchConfig, restartMarengoPi } from '@/lib/config-api';
 import { postEnableCommand, postTestingMitCommandBatch, postSetZeroCommand, postActuatorCommand, putCommissioningScope, deleteCommissioningScope } from '@/lib/gateway-api';
-import { fetchLiveUrdf } from '@/lib/hardware-api';
+import { fetchUrdfArchiveList } from '@/lib/hardware-api';
 import { fetchRecentLogs } from '@/lib/log-api';
 import { startSelfDeploy } from '@/lib/version-api';
 import { gatewayAuthHeaders, gatewayCredential, runtimeCredential, setRuntimeCredential, type CredentialPurpose } from '@/lib/runtime-credentials';
@@ -43,7 +43,7 @@ it('actual command/configuration/log/management clients select the runtime capab
     [() => patchConfig({joint:'right_shoulder_pitch'}),'configuration'],
     [() => putCommissioningScope({joints:[],confirm_widen:false}),'configuration'],
     [() => deleteCommissioningScope(),'configuration'],
-    [() => fetchLiveUrdf(),'configuration'],
+    [() => fetchUrdfArchiveList(),'configuration'],
     [() => fetchRecentLogs(),'sensitiveRead'],
     [() => restartMarengoPi(),'management'],
     [() => startSelfDeploy(),'management'],

@@ -6,9 +6,9 @@ After=network.target
 Type=oneshot
 Environment=MARENGO_ROOT=/opt/marengo
 EnvironmentFile=-/etc/marengo/env
-ExecStart=/opt/marengo/bin/marengo-log-cli journal-import
+ExecStart=-/opt/marengo/bin/marengo-log-cli journal-import
 ExecStart=/opt/marengo/bin/marengo-log-cli archive --keep 50
-ExecStart=/opt/marengo/bin/marengo-log-cli purge --days 30
+ExecStart=/opt/marengo/bin/marengo-log-cli purge
 User=marengo
 Group=marengo
 

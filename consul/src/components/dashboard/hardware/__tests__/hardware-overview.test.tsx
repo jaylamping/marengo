@@ -55,7 +55,6 @@ vi.mock('@/lib/hardware-api', () => ({
   activateUrdf: vi.fn(),
   fetchUrdfArchiveList: vi.fn(async () => ({ entries: [] })),
   restoreUrdfArchive: vi.fn(),
-  fetchLiveUrdf: vi.fn(),
 }));
 
 vi.mock('@/lib/config-api', () => ({

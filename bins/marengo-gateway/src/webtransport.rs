@@ -33,7 +33,6 @@ pub async fn run_webtransport(
     bind_addr: std::net::SocketAddr,
     tls: TlsMaterial,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    state.set_tls_cert_sha256_base64(tls.cert_sha256_base64.clone());
     let (cert, key) = (tls.certs, tls.key);
     let server = ServerBuilder::new()
         .with_addr(bind_addr)

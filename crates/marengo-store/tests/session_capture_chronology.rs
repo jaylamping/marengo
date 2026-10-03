@@ -7,7 +7,7 @@ use std::io::Read;
 use std::path::Path;
 
 use flate2::read::GzDecoder;
-use marengo_store::{blob_dir, log_dir, LogSessionRow, Store};
+use marengo_store::{log_dir, LogSessionRow, Store};
 
 // Independent Gregorian UTC examples, calculated with Python datetime calendar
 // subtraction from its 1970-01-01 UTC epoch, not the production Rust parser.
@@ -156,9 +156,15 @@ fn import_and_unregistered_archive_preserve_utc_capture_dates_through_reopen() {
 
     // No capture start is seeded for these three import rows: their IDs are the
     // independent capture evidence. The fourth row's explicit start must win.
-    let imported_count = store.import_legacy_hot(50).expect("actual import");
+    let imported_count = store
+        .import_legacy_hot_report(50)
+        .expect("actual import")
+        .sessions;
     let imported = observe(&store, false);
-    let repeated_count = store.import_legacy_hot(50).expect("actual repeat import");
+    let repeated_count = store
+        .import_legacy_hot_report(50)
+        .expect("actual repeat import")
+        .sessions;
     let repeated = observe(&store, false);
     let hot_bytes: Vec<_> = hot_paths
         .iter()
@@ -175,10 +181,19 @@ fn import_and_unregistered_archive_preserve_utc_capture_dates_through_reopen() {
     let archived = observe(&store, true);
     let expected_archive_paths: Vec<_> = IMPORTED
         .iter()
-        .map(|(id, day, _)| blob_dir(&root).join(day).join(format!("bench-{id}.log.gz")))
+        .map(|(id, day, _)| {
+            log_dir(&root)
+                .join("blobs")
+                .join(day)
+                .join(format!("bench-{id}.log.gz"))
+        })
         .chain([
-            blob_dir(&root).join("1970-01-01/bench-19700101T000000Z.log.gz"),
-            blob_dir(&root).join("1999-12-31/bench-19991231T235959Z.log.gz"),
+            log_dir(&root)
+                .join("blobs")
+                .join("1970-01-01/bench-19700101T000000Z.log.gz"),
+            log_dir(&root)
+                .join("blobs")
+                .join("1999-12-31/bench-19991231T235959Z.log.gz"),
         ])
         .collect();
     let archive_payloads: Vec<_> = expected_archive_paths

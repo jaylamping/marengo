@@ -13,7 +13,7 @@ Pi logging was split across bench files, candump, systemd journal, and ephemeral
 2. **Hybrid blobs** — gzip under `var/log/blobs/` for bench/candump/position-trace; session metadata and frame counts in SQL; candump parsing via `marengo-candump` (no frame-index table).
 3. **`marengo-log-cli`** — shell/MCP archive entrypoint (no bash sqlite3).
 4. **`marengo-gateway`** — log ring + SQL writer; HTTP log API; live stream stays **WebTransport** `logs/structured` ([ADR 0008](0008-chappe-webtransport-transport.md)).
-5. **Retention** — 50 hot session files; 30-day purge (`MARENGO_LOG_ARCHIVE_DAYS`); optional `MARENGO_GATEWAY_LOG_TOKEN` for log HTTP routes.
+5. **Retention** — 50 hot session files; `marengo-log-cli purge` enforces the persisted `log_archive_days` (default 30) and `log_disk_budget_bytes` (default 5 GiB, oldest sessions evicted first, newest kept) settings; optional `MARENGO_GATEWAY_LOG_TOKEN` for log HTTP routes.
 6. **Journal import** — nightly `marengo-log-cli journal-import` → `log_events` with `target` prefix `systemd:`.
 
 ## HTTP endpoints (gateway)

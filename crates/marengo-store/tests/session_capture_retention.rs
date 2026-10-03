@@ -162,8 +162,9 @@ fn absolute_capture_cutoff_preserves_exact_boundary_and_refuses_overflow_without
         hot_paths.push(path);
     }
     let imported_count = store
-        .import_legacy_hot(50)
-        .expect("actual capture-date import");
+        .import_legacy_hot_report(50)
+        .expect("actual capture-date import")
+        .sessions;
     let archived_count = store
         .archive_hot_sessions(0)
         .expect("actual dated capture archive");

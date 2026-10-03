@@ -7,7 +7,7 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use flate2::read::GzDecoder;
-use marengo_store::{blob_dir, log_dir, LogSessionRow, Store};
+use marengo_store::{log_dir, LogSessionRow, Store};
 
 const SESSION: &str = "20200101T000000Z";
 const LABEL: &str = "authoritative capture label";
@@ -204,10 +204,14 @@ fn legacy_import_counts_unique_sessions_and_archive_preserves_authoritative_meta
     let neighbor_before = observe(&store, "neighbor");
 
     let imported = store
-        .import_legacy_hot(50)
-        .expect("actual import keeping hot files");
+        .import_legacy_hot_report(50)
+        .expect("actual import keeping hot files")
+        .sessions;
     let after_import = observe(&store, SESSION);
-    let repeated = store.import_legacy_hot(50).expect("actual repeated import");
+    let repeated = store
+        .import_legacy_hot_report(50)
+        .expect("actual repeated import")
+        .sessions;
     let after_repeat = observe(&store, SESSION);
     let hot_controls: Vec<_> = hot_paths
         .iter()
@@ -216,7 +220,8 @@ fn legacy_import_counts_unique_sessions_and_archive_preserves_authoritative_meta
     let archived = store.archive_hot_sessions(0).expect("actual gzip archive");
     let after_archive = observe(&store, SESSION);
     let archived_paths: [PathBuf; 3] = std::array::from_fn(|index| {
-        blob_dir(&root)
+        log_dir(&root)
+            .join("blobs")
             .join("2020-01-01")
             .join(format!("{}.gz", names[index]))
     });

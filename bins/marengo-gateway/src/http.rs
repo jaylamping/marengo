@@ -124,7 +124,6 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/config/snapshot", get(config::get_config_snapshot))
         .route("/config/patch", post(config::post_config_patch))
         .route("/hardware/completeness", get(hardware::get_completeness))
-        .route("/hardware/urdf", get(hardware::get_urdf))
         .route("/hardware/urdf/upload", post(hardware::post_urdf_upload))
         .route(
             "/hardware/urdf/resolve-preview",
@@ -132,10 +131,6 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         )
         .route("/hardware/urdf/activate", post(hardware::post_activate))
         .route("/hardware/urdf/archive", get(hardware::get_archive_list))
-        .route(
-            "/hardware/urdf/archive/{id}",
-            get(hardware::get_archive_fetch),
-        )
         .route(
             "/hardware/urdf/archive/{id}/restore",
             post(hardware::post_archive_restore),

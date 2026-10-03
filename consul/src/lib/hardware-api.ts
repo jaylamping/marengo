@@ -69,13 +69,6 @@ export type ArchiveListDto = {
   entries: ArchiveEntryDto[];
 };
 
-export type ArchiveFetchDto = {
-  upload_id: string;
-  manifest: Record<string, unknown>;
-  contributor_urdf: string;
-  replaced_active_urdf?: string | null;
-};
-
 function baseUrl(): string | null {
   return getChappeEndpoints()?.httpUrl ?? null;
 }
@@ -100,27 +93,6 @@ export async function fetchCompleteness(): Promise<CompletenessDto> {
     throw new Error('Hardware completeness response was invalid');
   }
   return parsed;
-}
-
-export async function fetchLiveUrdf(): Promise<{
-  bytes: ArrayBuffer;
-  checksum: string | null;
-} | null> {
-  const root = baseUrl();
-  if (!root) {
-    return null;
-  }
-  try {
-    const res = await fetch(`${root}/hardware/urdf`, { headers: authHeaders() });
-    if (!res.ok) {
-      return null;
-    }
-    const checksum = res.headers.get('x-urdf-checksum-sha256');
-    const bytes = await res.arrayBuffer();
-    return { bytes, checksum };
-  } catch {
-    return null;
-  }
 }
 
 export async function uploadUrdf(
@@ -272,26 +244,6 @@ export async function fetchUrdfArchiveList(): Promise<ArchiveListDto | null> {
       return null;
     }
     return (await res.json()) as ArchiveListDto;
-  } catch {
-    return null;
-  }
-}
-
-export async function fetchUrdfArchive(
-  uploadId: string,
-): Promise<ArchiveFetchDto | null> {
-  const root = baseUrl();
-  if (!root) {
-    return null;
-  }
-  try {
-    const res = await fetch(`${root}/hardware/urdf/archive/${encodeURIComponent(uploadId)}`, {
-      headers: authHeaders(),
-    });
-    if (!res.ok) {
-      return null;
-    }
-    return (await res.json()) as ArchiveFetchDto;
   } catch {
     return null;
   }

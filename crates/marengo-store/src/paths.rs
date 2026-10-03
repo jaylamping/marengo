@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 /// Default database path under Marengo install root.
-pub fn default_db_path(root: impl AsRef<Path>) -> PathBuf {
+fn default_db_path(root: impl AsRef<Path>) -> PathBuf {
     root.as_ref().join("var/marengo.db")
 }
 
@@ -10,7 +10,7 @@ pub fn log_dir(root: impl AsRef<Path>) -> PathBuf {
     root.as_ref().join("var/log")
 }
 
-pub fn blob_dir(root: impl AsRef<Path>) -> PathBuf {
+pub(crate) fn blob_dir(root: impl AsRef<Path>) -> PathBuf {
     log_dir(root).join("blobs")
 }
 

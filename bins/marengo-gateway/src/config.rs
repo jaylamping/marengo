@@ -56,12 +56,12 @@ pub struct ConfigSnapshotJson {
     pub persist_ok: bool,
 }
 
+/// Limit fields only. Address and direction changes (ADR 0012 §4) are refused by
+/// rejecting unknown fields rather than by dedicated members.
 #[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfigPatchJson {
     pub joint: String,
-    pub device_id: Option<u8>,
-    pub can_interface: Option<String>,
-    pub direction: Option<i8>,
     pub position_lower_rad: Option<f64>,
     pub position_upper_rad: Option<f64>,
     pub torque_limit_nm: Option<f64>,
@@ -77,7 +77,7 @@ pub struct ConfigPatchResultJson {
     pub ok: bool,
     pub message: String,
     pub restart_required: bool,
-    /// `durable` | `pending` | `failed` | `n/a` — Durable required before local git sync.
+    /// `durable` | `pending` | `failed` — Durable required before local git sync.
     pub persist_status: String,
 }
 
@@ -199,16 +199,6 @@ pub async fn post_config_patch(
             persist_status: "failed".to_string(),
         }));
     }
-    if patch.device_id.is_some() || patch.can_interface.is_some() || patch.direction.is_some() {
-        return Ok(Json(ConfigPatchResultJson {
-            ok: false,
-            message: "motor address and direction changes are not supported by /config/patch"
-                .to_string(),
-            restart_required: false,
-            persist_status: "failed".to_string(),
-        }));
-    }
-
     let config_dir = resolve_config_dir();
     let revision = profile_content_revision(&config_dir).ok();
     let apply = LimitPatchRequest {
@@ -252,7 +242,6 @@ pub async fn post_config_patch(
             PersistStatus::Durable => "durable".to_string(),
             PersistStatus::Pending => "pending".to_string(),
             PersistStatus::Failed => "failed".to_string(),
-            PersistStatus::NotApplicable => "n/a".to_string(),
         },
     }))
 }
@@ -262,6 +251,21 @@ mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use super::*;
+
+    #[test]
+    fn patch_rejects_address_and_direction_fields() {
+        for field in [
+            "\"device_id\":3",
+            "\"can_interface\":\"can1\"",
+            "\"direction\":-1",
+        ] {
+            let body = format!("{{\"joint\":\"right_shoulder_pitch\",{field}}}");
+            assert!(
+                serde_json::from_str::<ConfigPatchJson>(&body).is_err(),
+                "{body}"
+            );
+        }
+    }
 
     #[test]
     fn master_snapshot_resolves_actuator_group_velocity() {

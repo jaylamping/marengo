@@ -7,8 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use axum::{
     body::Bytes,
     extract::{Path as AxumPath, State},
-    http::{header, HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
+    http::StatusCode,
     Json,
 };
 use marengo_config::{
@@ -85,15 +84,6 @@ pub struct ArchiveEntryJson {
 #[derive(Serialize)]
 pub struct ArchiveListJson {
     pub entries: Vec<ArchiveEntryJson>,
-}
-
-#[derive(Serialize)]
-pub struct ArchiveFetchJson {
-    pub upload_id: String,
-    pub manifest: serde_json::Value,
-    pub contributor_urdf: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub replaced_active_urdf: Option<String>,
 }
 
 pub fn urdf_assets_root(repo_root: &Path) -> PathBuf {
@@ -178,21 +168,6 @@ pub async fn get_completeness() -> Result<Json<CompletenessJson>, StatusCode> {
     Ok(Json(CompletenessJson {
         warnings: report.warnings,
     }))
-}
-
-pub async fn get_urdf() -> Result<Response, StatusCode> {
-    let root = repo_root();
-    let path = live_urdf_path(&root);
-    let bytes = fs::read(&path).map_err(|_| StatusCode::NOT_FOUND)?;
-    let checksum = sha256_hex(&bytes);
-    let mut headers_out = HeaderMap::new();
-    if let Ok(value) = header::HeaderValue::from_str("application/xml") {
-        headers_out.insert(header::CONTENT_TYPE, value);
-    }
-    if let Ok(value) = header::HeaderValue::from_str(&checksum) {
-        headers_out.insert("x-urdf-checksum-sha256", value);
-    }
-    Ok((StatusCode::OK, headers_out, bytes).into_response())
 }
 
 pub async fn post_urdf_upload(body: Bytes) -> Result<Json<UrdfUploadResultJson>, StatusCode> {
@@ -409,40 +384,6 @@ pub async fn get_archive_list() -> Result<Json<ArchiveListJson>, StatusCode> {
     }
     entries.sort_by(|a, b| a.upload_id.cmp(&b.upload_id));
     Ok(Json(ArchiveListJson { entries }))
-}
-
-pub async fn get_archive_fetch(
-    AxumPath(upload_id): AxumPath<String>,
-) -> Result<Json<ArchiveFetchJson>, StatusCode> {
-    let upload_id = validate_upload_id(&upload_id)?;
-    let root = repo_root();
-    let archive = archive_dir(&root, upload_id);
-    if !archive.is_dir() {
-        return Err(StatusCode::NOT_FOUND);
-    }
-    let manifest_path = archive.join("manifest.json");
-    let manifest = if manifest_path.is_file() {
-        let text =
-            fs::read_to_string(&manifest_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        serde_json::from_str(&text).unwrap_or(serde_json::Value::Null)
-    } else {
-        serde_json::Value::Null
-    };
-    let contributor_path = archive.join(CONTRIBUTOR_NAME);
-    let contributor_urdf =
-        fs::read_to_string(&contributor_path).map_err(|_| StatusCode::NOT_FOUND)?;
-    let replaced_path = archive.join(REPLACED_ACTIVE_NAME);
-    let replaced_active_urdf = if replaced_path.is_file() {
-        Some(fs::read_to_string(&replaced_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?)
-    } else {
-        None
-    };
-    Ok(Json(ArchiveFetchJson {
-        upload_id: upload_id.to_string(),
-        manifest,
-        contributor_urdf,
-        replaced_active_urdf,
-    }))
 }
 
 pub async fn post_archive_restore(

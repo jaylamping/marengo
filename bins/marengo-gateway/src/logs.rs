@@ -1,4 +1,4 @@
-//! Log persistence, ring buffer, and HTTP handlers for marengo-gateway.
+//! Log persistence and HTTP handlers for marengo-gateway.
 
 use std::sync::Arc;
 
@@ -10,9 +10,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use marengo_store::{
-    LogEventInsert, LogRingBuffer, Store, StructuredLogQuery, DEFAULT_RING_CAPACITY,
-};
+use marengo_store::{LogEventInsert, Store, StructuredLogQuery};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -128,7 +126,6 @@ pub struct CandumpSummaryJson {
 
 pub struct LogServices {
     pub store: Arc<Store>,
-    pub ring: Arc<LogRingBuffer>,
     batch_tx: mpsc::Sender<LogEventInsert>,
     dropped: Arc<std::sync::atomic::AtomicU64>,
 }
@@ -203,28 +200,11 @@ fn candump_page_json(inspection: marengo_candump::Inspection, offset: u32) -> Ca
 impl LogServices {
     pub fn open(store: Store) -> Self {
         let store = Arc::new(store);
-        let ring = Arc::new(LogRingBuffer::new(DEFAULT_RING_CAPACITY));
         let (batch_tx, batch_rx) = mpsc::channel(BATCH_QUEUE_CAPACITY);
         let dropped = Arc::new(std::sync::atomic::AtomicU64::new(0));
         spawn_batch_writer(Arc::clone(&store), batch_rx);
-        if let Ok(recent) = store.recent_log_events(DEFAULT_RING_CAPACITY as u32) {
-            let preload: Vec<LogEventInsert> = recent
-                .into_iter()
-                .rev()
-                .map(|row| LogEventInsert {
-                    ts_ms: row.ts_ms,
-                    level: row.level,
-                    target: row.target,
-                    message: row.message,
-                    session_id: row.session_id,
-                    fields_json: row.fields_json,
-                })
-                .collect();
-            ring.preload(preload);
-        }
         Self {
             store,
-            ring,
             batch_tx,
             dropped,
         }
@@ -247,7 +227,6 @@ impl LogServices {
                 Some(event.fields_json.clone())
             },
         };
-        self.ring.push(insert.clone());
         // Non-blocking: under a runaway producer we drop the DB write rather than
         // grow the queue unbounded. Deliberately not logged here — emitting a log
         // on the log-ingest path would feed straight back into this pipeline.

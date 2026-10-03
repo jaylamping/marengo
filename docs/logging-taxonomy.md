@@ -7,7 +7,7 @@ Operator and agent reference for Marengo telemetry tiers, rate limits, and side 
 | Tier | Storage | Purpose |
 |------|---------|---------|
 | **Live** | Consul browser ring (5k) | Operator UI while `/logs` is open |
-| **Hot** | Gateway ring (10k) + SQLite `log_events` | Backfill on connect; FTS search |
+| **Hot** | SQLite `log_events` | Backfill on connect; FTS search |
 | **Filesystem** | `var/log/bench-*.log`, `candump-*.log`, `position-trace-*.csv` | High-volume bench artifacts |
 | **Archived** | `var/log/blobs/*.gz` + `log_sessions` | Cross-session browse |
 | **Journal** | systemd → `journal-import` → `log_events` (`target` prefix `systemd:`) | Unit logs |
@@ -30,7 +30,7 @@ See [chappe-consul-ingestion.md](chappe-consul-ingestion.md) and [ADR 0011](deci
 ```
 Rust ChappeLogLayer: 40 events/s (warn/error always pass)
         ↓
-Gateway ring + SQLite batch (100 events / 500 ms)
+Gateway SQLite batch (100 events / 500 ms)
         ↓
 Consul decode: 12/s; ingest: 10/s (warn/error/fatal always pass)
 ```

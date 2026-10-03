@@ -17,7 +17,7 @@ use marengo_candump::{
 };
 use marengo_store::{
     import_journal, recover_known_v2, resolve_db_path, resolve_marengo_root, SessionArtifact,
-    Store, DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP, JOURNAL_UNITS,
+    Store, DEFAULT_HOT_KEEP, JOURNAL_UNITS,
 };
 use marengo_support::init_tracing;
 
@@ -44,11 +44,8 @@ enum Commands {
         #[arg(long, default_value_t = DEFAULT_HOT_KEEP)]
         keep: usize,
     },
-    /// Purge log rows and sessions older than N days.
-    Purge {
-        #[arg(long, default_value_t = DEFAULT_ARCHIVE_DAYS)]
-        days: u32,
-    },
+    /// Enforce the stored `log_archive_days` and `log_disk_budget_bytes` settings.
+    Purge,
     /// One-time import of existing hot log files.
     ImportLegacy {
         #[arg(long, default_value_t = DEFAULT_HOT_KEEP)]
@@ -397,9 +394,16 @@ fn run_store_command(
             let n = store.archive_hot_sessions(keep)?;
             println!("archived {n} hot files (keep {keep})");
         }
-        Commands::Purge { days } => {
-            let (logs, sessions) = store.purge_older_than_days(days)?;
-            println!("purged {logs} log rows, {sessions} sessions (>{days} days)");
+        Commands::Purge => {
+            let report = store.enforce_retention()?;
+            println!(
+                "purged {} log rows, {} sessions older than the archive window, {} sessions over the disk budget (usage {} of {} bytes)",
+                report.log_rows,
+                report.aged_sessions,
+                report.budget_sessions,
+                report.usage_bytes,
+                report.budget_bytes
+            );
         }
         Commands::ImportLegacy { keep } => {
             let report = store.import_legacy_hot_report(keep)?;

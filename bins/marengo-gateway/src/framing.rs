@@ -2,7 +2,7 @@ use std::io;
 
 use armee_proto::prost::Message;
 use bytes::{BufMut, BytesMut};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::broadcast;
 
 pub const MAX_FRAME: usize = 4 * 1024 * 1024;
@@ -13,24 +13,6 @@ pub fn encode_length_prefixed(payload: &[u8]) -> Vec<u8> {
     buf.extend_from_slice(&(payload.len() as u32).to_le_bytes());
     buf.extend_from_slice(payload);
     buf
-}
-
-#[allow(dead_code)]
-pub async fn read_length_prefixed<R: AsyncRead + Unpin>(
-    reader: &mut R,
-) -> Result<Vec<u8>, io::Error> {
-    let mut len_buf = [0u8; 4];
-    reader.read_exact(&mut len_buf).await?;
-    let len = u32::from_le_bytes(len_buf) as usize;
-    if len > MAX_FRAME {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "frame too large",
-        ));
-    }
-    let mut buf = vec![0u8; len];
-    reader.read_exact(&mut buf).await?;
-    Ok(buf)
 }
 
 pub async fn write_length_prefixed<W: AsyncWrite + Unpin>(

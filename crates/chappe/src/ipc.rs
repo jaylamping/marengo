@@ -41,7 +41,11 @@ pub enum IpcError {
     Framing(String),
 }
 
-pub fn encode_frame(direction: u8, topic: &str, payload: &[u8]) -> Result<Vec<u8>, IpcError> {
+pub(crate) fn encode_frame(
+    direction: u8,
+    topic: &str,
+    payload: &[u8],
+) -> Result<Vec<u8>, IpcError> {
     let topic_bytes = topic.as_bytes();
     if topic_bytes.len() > MAX_TOPIC_BYTES {
         return Err(IpcError::Framing("topic too long".into()));
@@ -58,7 +62,7 @@ pub fn encode_frame(direction: u8, topic: &str, payload: &[u8]) -> Result<Vec<u8
     Ok(out)
 }
 
-pub fn decode_frame(mut data: &[u8]) -> Result<(u8, String, Vec<u8>), IpcError> {
+pub(crate) fn decode_frame(mut data: &[u8]) -> Result<(u8, String, Vec<u8>), IpcError> {
     if data.is_empty() {
         return Err(IpcError::Framing("empty frame".into()));
     }
@@ -338,13 +342,6 @@ pub struct IpcListener {
 }
 
 impl IpcListener {
-    pub fn spawn_server(
-        socket_path: PathBuf,
-        on_runtime_frame: Arc<dyn Fn(String, Vec<u8>) + Send + Sync>,
-    ) -> Result<Arc<Self>, IpcError> {
-        Self::spawn_server_with_lifecycle(socket_path, on_runtime_frame, Arc::new(|_| {}))
-    }
-
     /// Serialize peer transitions with frame delivery; retired peers cannot publish
     /// into the replacement connection's state. Callbacks must not block.
     pub fn spawn_server_with_lifecycle(
