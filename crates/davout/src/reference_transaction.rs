@@ -888,7 +888,35 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Exactly one phase and at most one bounded real report per call. A tied
     /// deadline expires before a queued proof can be acquired or accepted.
+    ///
+    /// Every exit that leaves this call with its reservation still live is
+    /// cleaned up here (ADR 0026:62-66): an `Err` from a phase (`?`) ends the
+    /// reference with the same all-address stop as any other terminal, and the
+    /// original error is still returned. A later `?` added to a phase cannot
+    /// leave an armed target behind.
     pub fn advance_reference(
+        &mut self,
+        handle: &ReferenceHandle,
+    ) -> Result<ReferenceSnapshot, ReferenceError> {
+        let result = self.advance_reference_phase(handle);
+        if let Err(error) = &result {
+            let live = self
+                .reference_owner
+                .reservation
+                .as_ref()
+                .is_some_and(|reservation| reservation.handle == *handle);
+            if live {
+                let _ = self.finish_reference(
+                    failure(ReferenceFailureKind::Backend, &error.to_string()),
+                    None,
+                    None,
+                );
+            }
+        }
+        result
+    }
+
+    fn advance_reference_phase(
         &mut self,
         handle: &ReferenceHandle,
     ) -> Result<ReferenceSnapshot, ReferenceError> {
@@ -1808,5 +1836,117 @@ mod tests {
             assert!(!owner.reference_busy());
             assert!(!directory.path().join("history.yaml").exists());
         }
+    }
+
+    /// ADR 0026:62-66: every exit of an armed reference ends with the
+    /// all-address stop. The `?` exits of `advance_reference` are unreachable
+    /// through the public API today (the receive budget is fresh on every call
+    /// and the target is resolved from the immutable installed set), so this
+    /// forces one white-box: the reservation's target is not an installed drive after arming.
+    #[test]
+    fn error_exit_after_arming_runs_the_all_address_stop() {
+        let directory = directory::TestDirectory::new("reference-error-exit-stop");
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+            root,
+            SimulationBus::default(),
+            directory.path().join("history.yaml"),
+            InitialVirtualReference::Unreferenced,
+        )
+        .expect("actual closed owner");
+        let request = ReferenceRequest {
+            stamp: owner
+                .reference_snapshot()
+                .next_stamp
+                .expect("stamp before reservation"),
+            joint: "right_elbow_pitch".into(),
+            confirmed: true,
+            sign_verified: true,
+        };
+        let handle = owner.begin_reference(request).expect("reservation");
+        let mut advances = 0;
+        while !owner
+            .reference_owner
+            .reservation
+            .as_ref()
+            .is_some_and(|reservation| reservation.armed)
+        {
+            owner.advance_reference(&handle).expect("phase advance");
+            advances += 1;
+            assert!(advances < 64, "target never armed");
+        }
+        let installed = owner.stop_motors.len();
+        // The binding checks never look at the reservation's own address, so
+        // pointing it at a drive that is not installed reaches the lookup.
+        if let Some(reservation) = &mut owner.reference_owner.reservation {
+            reservation.address = MotorAddress::new("vanished", 99);
+        }
+        let frames_before = owner.bus().frames().len();
+
+        let error = owner
+            .advance_reference(&handle)
+            .expect_err("an uninstalled reservation target is an error exit");
+        assert!(
+            matches!(error, ReferenceError::InvalidRequest { .. }),
+            "unexpected {error}"
+        );
+        assert!(
+            !owner.reference_busy(),
+            "the armed reservation must not outlive the error exit"
+        );
+        let disables = owner.bus().frames()[frames_before..]
+            .iter()
+            .filter(|frame| {
+                (frame.id >> 24) & 0x1f == u32::from(robstride::CommunicationType::Disable.as_u8())
+            })
+            .count();
+        assert!(
+            disables >= installed,
+            "the cleanup stop must disable every installed drive ({disables} of {installed})"
+        );
+    }
+
+    /// ADR 0023:22: stop is unconditional with respect to a reference. An
+    /// individual speed stop during a reservation is not refused; it escalates
+    /// to the full stop, which cancels the reference.
+    #[test]
+    fn speed_stop_during_a_reference_stops_instead_of_refusing() {
+        let directory = directory::TestDirectory::new("reference-speed-stop");
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+            root,
+            SimulationBus::default(),
+            directory.path().join("history.yaml"),
+            InitialVirtualReference::Unreferenced,
+        )
+        .expect("actual closed owner");
+        let request = ReferenceRequest {
+            stamp: owner
+                .reference_snapshot()
+                .next_stamp
+                .expect("stamp before reservation"),
+            joint: "right_elbow_pitch".into(),
+            confirmed: true,
+            sign_verified: true,
+        };
+        owner.begin_reference(request).expect("reservation");
+        assert!(owner.reference_busy());
+        let frames_before = owner.bus().frames().len();
+
+        owner
+            .stop_speed_command("right_elbow_pitch")
+            .expect("a stop is never refused for a reference");
+
+        assert!(!owner.reference_busy(), "the reference is cancelled");
+        let disables = owner.bus().frames()[frames_before..]
+            .iter()
+            .filter(|frame| {
+                (frame.id >> 24) & 0x1f == u32::from(robstride::CommunicationType::Disable.as_u8())
+            })
+            .count();
+        assert!(
+            disables >= owner.stop_motors.len(),
+            "every installed drive is disabled ({disables})"
+        );
     }
 }
