@@ -1,0 +1,27 @@
+{
+  "started_UTC": "2026-10-02T17:45:40.234802+00:00",
+  "ended_UTC": "2026-10-02T17:50:40.283456+00:00",
+  "installed_revision": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca 2026-10-02T17:30:02Z",
+  "owner_PID_unchanged": "708792",
+  "archive_SHA256": "ea511083eb8b98734fa3659108b871190ebac9e5ed0536583f5cddecd7803e94",
+  "archive_members_verified": 8,
+  "capture_SHA256": "d6bcdce021c882bc37f8d8c6462a5be9d61fdcdd2c4e913525b576ef78a4251e",
+  "capture_seconds": 299.99799489974976,
+  "frames": 152889,
+  "error_frames": [],
+  "transport_frame_kinds": {
+    "2": 1495,
+    "24": 151394
+  },
+  "Enable_and_SetZero_frames": 0,
+  "nonneutral_MIT_frames": 0,
+  "fresh_Disabled_samples": 297,
+  "software_latch_samples": 0,
+  "initial_and_only_message_set": [],
+  "CAN0_rx_errors": [
+    502,
+    502
+  ],
+  "physical_acceptance": false,
+  "scope": "One bounded passive observation of the existing owner; no restart, build, load injection or motor command. No new error to correlate with the owner diagnostic; intermittent CAN cause, recovery, reference and motion remain unqualified."
+}
