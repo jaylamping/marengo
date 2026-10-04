@@ -223,6 +223,7 @@ mod tests {
             position_time_scale_e0_rad: None,
             position_integral_band_rad: None,
             position_integral_leak_s: None,
+            position_friction_error_gain_per_s: None,
             position_limit_margin_min_rad: 0.01,
             position_limit_margin_k_v_s: 0.02,
             position_limit_margin_k_stop: 0.5,

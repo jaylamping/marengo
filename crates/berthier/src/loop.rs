@@ -1773,6 +1773,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                         e1: c.time_scale_e1_rad(),
                                         integral_band: c.integral_band_rad(),
                                         integral_leak_s: c.integral_leak_s(),
+                                        friction_error_gain: c.friction_error_gain_per_s(),
                                         inertia: self.reference_inertia[i],
                                         friction: Some(ReferenceFriction::from_gains(
                                             &c.friction,

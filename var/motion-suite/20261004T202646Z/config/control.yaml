@@ -1,0 +1,259 @@
+# Control tuning for right 5-DOF bench (roll + pitch + yaw + elbow + lower-arm yaw).
+control:
+  loop_hz: 200
+  chappe_state_hz: 25
+  comm_watchdog_ms: 100
+  tau_ff_rate_limit_nm_per_s: 60.0
+  disable_on_exit: true
+  bench:
+    # Free-drive Set Limits: keep encoder feedback while limp (Disabled/Ready).
+    active_reporting_diagnostics: true
+
+  # Single-drive loss while Active (ADR 0038). A joint with
+  # `on_drive_loss: shed_subtree` is admitted at marengo-pi startup only if the
+  # offline gravity bound passes on every joint that keeps holding:
+  # max |τ_g| + max |Δτ_g| (frozen shed angles) + tau_margin_nm <= its tau_ff cap.
+  drive_loss:
+    hold_window_s: 5.0
+    lower_velocity_rad_s: 0.25
+    lower_settle_s: 3.0
+    lower_max_s: 10.0
+    tau_margin_nm: 0.5
+
+  motor_type_defaults:
+    rs00:
+      kp_max: 500
+      kd_max: 5
+      tau_ff_max_nm: 3.0
+      velocity_max_rad_s: 2.0
+    rs02:
+      kp_max: 500
+      kd_max: 5
+      tau_ff_max_nm: 3.0
+      velocity_max_rad_s: 2.0
+    rs03:
+      kp_max: 5000
+      kd_max: 100
+      tau_ff_max_nm: 5.0
+      velocity_max_rad_s: 2.0
+
+  actuator_groups:
+    shoulder_pitch:
+      joints: [right_shoulder_pitch]
+      velocity_max_rad_s: 2.5
+    shoulder_roll:
+      joints: [right_shoulder_roll]
+      velocity_max_rad_s: 2.5
+    upper_arm_yaw:
+      joints: [right_upper_arm_yaw]
+      velocity_max_rad_s: 2.0
+    elbow:
+      joints: [right_elbow_pitch]
+      velocity_max_rad_s: 1.5
+    lower_arm_yaw:
+      joints: [right_lower_arm_yaw]
+      velocity_max_rad_s: 1.5
+
+  joints:
+    right_shoulder_roll:
+      motor_type: rs03
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+        ki: 0.0
+      impedance:
+        kp: 18.0
+        kd: 3.0
+        ki: 5.0
+      # Slew too slow through the friction knee stick-slips (R1 hitch at q≈0.023).
+      # Keep small holds on traj with a moderate cruise — between snap (1.25/4.5) and struggle.
+      # a=2.5 made decel ~12% of a 0.785 move (felt hesitant in the last 10–20%); a=4.0 ≈8%.
+      position_slew_rad_s: 0.35
+      position_slew_max_lead_rad: 0.12
+      position_trajectory_threshold_rad: 0.12
+      position_trajectory_velocity_rad_s: 0.7
+      position_trajectory_accel_rad_s2: 4.0
+      position_trajectory_velocity_deadband_rad: 0.02
+      position_hold_trim_rad: 0.0
+      position_limit_margin_min_rad: 0.01
+      position_limit_margin_k_v_s: 0.02
+      position_limit_margin_k_stop: 0.5
+      # ~30 mrad: enable/settle jitter at taught Set Limits hard (not a motors.yaml pad).
+      position_limit_measured_fault_slack_rad: 0.03
+      # Soft from Set Limits (ADR 0009 inset); hard lower kept at URDF -0.05 for enable margin.
+      position_soft_lower_rad: -0.04088089871406555
+      position_soft_upper_rad: 3.088609407424926
+      friction:
+        fc: 0.08
+        fv: 0.0
+        fo: 0.0
+        k: 10.0
+    right_shoulder_pitch:
+      motor_type: rs03
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+        ki: 0.0
+      impedance:
+        kp: 18.0
+        # scaled_pd: drive kd (kd_mit), constant on the wire in Position. 5 (was 3): the
+        # 2026-10-04 motion suite fits friction falling from ≈ 0.6 Nm at 0.05 rad/s to 0.37
+        # above 0.2 rad/s, a slope down to −(fs − fc)/v_b ≈ −3.5 Nm·s/rad that kd 3 did not
+        # out-damp (stick-slip on slow waves and slow moves). ADR 0039 Phase 3 bench fix.
+        kd: 5.0
+        ki: 5.0
+      # ADR 0039 Phase 3 bench trial (pitch only; every other joint stays legacy).
+      # e1 = position_slew_max_lead_rad (stop band) and e0 = e1/4 (full-rate band), the
+      # ADR defaults. Tuned in law_gates `pitch_bench_trial_meets_bench_criteria` against
+      # the 2026-10-04 fitted plant (kp unchanged):
+      # - integral band 0.02 ≈ the static dead zone fs/kp (0.37/18); the 0.1 default
+      #   carries a wound-up integral into the next slew (up to 21 % speed overshoot);
+      # - reference accel 1.5 (was 4.5): fc·k·a·dt bounds the τ_ff step per tick
+      #   (0.079 Nm at 4.5 with fc 0.353), and without J·a feed-forward the stop
+      #   overshoot is ≈ I·a/kp (up to 27 mrad at 4.5). Docs: ADR 0039 Phase 3 trial.
+      # - friction fs 0.65 / v_b 0.08 (Stribeck, fitted to the motion-suite traces) and k 15
+      #   (was 10): the reference friction rises to the low-speed level the joint sees; the
+      #   law's J·a + friction slew limit keeps the τ_ff step ≤ 0.05 Nm.
+      position_law: scaled_pd
+      position_time_scale_e0_rad: 0.03
+      position_integral_band_rad: 0.02
+      position_integral_leak_s: 0.5
+      position_slew_rad_s: 0.15
+      position_slew_max_lead_rad: 0.12
+      position_trajectory_threshold_rad: 0.15
+      position_trajectory_velocity_rad_s: 1.25
+      position_trajectory_accel_rad_s2: 1.5
+      position_trajectory_velocity_deadband_rad: 0.02
+      position_hold_trim_rad: 0.0
+      position_limit_margin_min_rad: 0.01
+      position_limit_margin_k_v_s: 0.02
+      position_limit_margin_k_stop: 0.5
+      # ~30 mrad: enable/settle jitter at taught Set Limits hard (not a motors.yaml pad).
+      position_limit_measured_fault_slack_rad: 0.03
+      position_soft_lower_rad: -1.0882385473251344
+      position_soft_upper_rad: 2.980078170776367
+      friction:
+        fc: 0.3526
+        fv: 0.0
+        fo: 0.0
+        k: 15.0
+        fs: 0.65
+        v_b: 0.08
+    right_upper_arm_yaw:
+      motor_type: rs02
+      # ADR 0038 bound on the 2026-10-04 fitted URDF: pitch 2.86+0.54, roll 2.50+0.53 Nm.
+      on_drive_loss: shed_subtree
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+        ki: 0.0
+      impedance:
+        kp: 12.0
+        kd: 1.5
+        ki: 0.0
+      position_slew_rad_s: 0.15
+      position_slew_max_lead_rad: 0.12
+      position_trajectory_threshold_rad: 0.15
+      # Comfort cruise ≈ roll RS03 ratio × RS02 manual no-load @48 V (0.70/20.94 × 42.94).
+      position_trajectory_velocity_rad_s: 1.43
+      position_trajectory_accel_rad_s2: 3.0
+      position_trajectory_velocity_deadband_rad: 0.02
+      position_hold_trim_rad: 0.0
+      position_limit_margin_min_rad: 0.01
+      position_limit_margin_k_v_s: 0.02
+      position_limit_margin_k_stop: 0.5
+      # ~30 mrad: enable/settle jitter at taught Set Limits hard (not a motors.yaml pad).
+      position_limit_measured_fault_slack_rad: 0.03
+      position_soft_lower_rad: -0.7476843099594116
+      position_soft_upper_rad: 1.263117621421814
+      friction:
+        fc: 0.05
+        fv: 0.0
+        fo: 0.0
+        k: 10.0
+    right_elbow_pitch:
+      motor_type: rs02
+      # ADR 0038 bound: pitch 2.86+0.48, roll 2.50+0.49, upper yaw 0.32+0.37 Nm.
+      on_drive_loss: shed_subtree
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+        ki: 0.0
+      impedance:
+        # Conservative first-light gains (RS02); retune after sign/zero verify.
+        kp: 12.0
+        kd: 1.5
+        ki: 0.0
+      position_slew_rad_s: 0.12
+      position_slew_max_lead_rad: 0.10
+      position_trajectory_threshold_rad: 0.15
+      # Comfort cruise ≈ roll RS03 ratio × RS02 manual no-load @48 V (0.70/20.94 × 42.94).
+      position_trajectory_velocity_rad_s: 1.43
+      position_trajectory_accel_rad_s2: 2.5
+      position_trajectory_velocity_deadband_rad: 0.02
+      position_hold_trim_rad: 0.0
+      position_limit_margin_min_rad: 0.01
+      position_limit_margin_k_v_s: 0.02
+      position_limit_margin_k_stop: 0.5
+      # ~30 mrad: enable/settle jitter at taught Set Limits hard (not a motors.yaml pad).
+      position_limit_measured_fault_slack_rad: 0.03
+      position_soft_lower_rad: -0.12716957437992096
+      position_soft_upper_rad: 1.5802771549224854
+      friction:
+        fc: 0.05
+        fv: 0.0
+        fo: 0.0
+        k: 10.0
+    right_lower_arm_yaw:
+      motor_type: rs00
+      # ADR 0038 bound: max |Δτ_g| 0.07 Nm on every holding joint.
+      on_drive_loss: shed_subtree
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+        ki: 0.0
+      impedance:
+        # Conservative first-light gains (RS00); retune after sign/zero verify.
+        kp: 10.0
+        kd: 1.2
+        ki: 0.0
+      position_slew_rad_s: 0.12
+      position_slew_max_lead_rad: 0.10
+      position_trajectory_threshold_rad: 0.15
+      # Comfort cruise ≈ roll RS03 ratio × RS00 manual no-load @48 V (0.70/20.94 × 32.99).
+      position_trajectory_velocity_rad_s: 1.10
+      position_trajectory_accel_rad_s2: 2.5
+      position_trajectory_velocity_deadband_rad: 0.02
+      position_hold_trim_rad: 0.0
+      position_limit_margin_min_rad: 0.01
+      position_limit_margin_k_v_s: 0.02
+      position_limit_margin_k_stop: 0.5
+      # ~30 mrad: enable/settle jitter at taught Set Limits hard (not a motors.yaml pad).
+      position_limit_measured_fault_slack_rad: 0.03
+      position_soft_lower_rad: -0.36724505829811094
+      position_soft_upper_rad: 3.21708483505249
+      friction:
+        fc: 0.04
+        fv: 0.0
+        fo: 0.0
+        k: 10.0
+
+  danger_zones:
+    # Descent clamp (was 0.05 → ~30s from wave pose). 0.45 keeps a
+    # controlled lower while matching a human-paced return (~3–4s).
+    - name: elevated_shoulder_pitch_fall
+      joint: right_shoulder_pitch
+      position_above_rad: 0.5
+      velocity_below_rad_s: -0.1
+      action: clamp_velocity
+      max_velocity_rad_s: 0.45
+
+  # Policy (elbow bring-up): profile-global expected_sign cannot cover mixed
+  # motor directions + new elbow τ_g DOF. Disable during commissioning; re-enable
+  # after per-joint signs exist or elbow G-comp sign is locked (see ADR 0015).
+  wrong_sign_watchdog:
+    enabled: false
+    expected_sign_at_positive_q: -1
+    min_velocity_rad_s: 0.05
+    min_opposition_ticks: 10
+    grace_period_ticks: 20

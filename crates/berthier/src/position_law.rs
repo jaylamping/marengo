@@ -12,7 +12,8 @@
 //! (q_ref, v_ref) ← trapezoid step toward the target with speed limit s·v_max, |Δv_ref| ≤ a_max·dt
 //! MIT:  position = clamp_envelope(q_ref), velocity = v_ref, kp, kd (constant),
 //!       τ_ff = τ_g + τ_dyn + fo + τ_I
-//! τ_dyn → τ_fric(v_ref) + J·a_ref, moving at most SCALED_PD_DYNAMIC_FF_RATE_NM_S·dt per tick
+//! τ_dyn → τ_fric(v_ref → v_ref + λ·e) + J·a_ref, moving at most SCALED_PD_DYNAMIC_FF_RATE_NM_S·dt
+//!         per tick (magnitude from the reference speed, direction from the intent velocity)
 //! ```
 //!
 //! The time scale `s` governs the reference *speed limit*, not its clock: the reference keeps
@@ -75,17 +76,29 @@ impl ReferenceFriction {
 
     /// Velocity-dependent friction torque (odd in `v`, continuous, zero at rest).
     pub fn torque(&self, v: f64) -> f64 {
+        self.torque_toward(v, v)
+    }
+
+    /// Friction torque for a joint that should move with reference velocity `v_ref` and is
+    /// asked to move in the direction of `v_intent`.
+    ///
+    /// The magnitude follows the reference speed's Stribeck curve (`fs` when the reference is
+    /// slow, `fc` above `v_b`), and the direction is `tanh(k·v_intent)`. With
+    /// `v_intent = v_ref` this is [`Self::torque`]. A joint lagging a slow or stopped reference
+    /// is stuck, so it must break static friction in the direction of its position error, not
+    /// of the reference's (vanishing) velocity: see [`ScaledPdGains::friction_error_gain`].
+    pub fn torque_toward(&self, v_ref: f64, v_intent: f64) -> f64 {
         let shape = if self.k > 0.0 {
-            (self.k * v).tanh()
+            (self.k * v_intent).tanh()
         } else {
             0.0
         };
         let stribeck = if self.v_b > 0.0 {
-            (self.fs - self.fc) * (-v.abs() / self.v_b).exp()
+            (self.fs - self.fc) * (-v_ref.abs() / self.v_b).exp()
         } else {
             0.0
         };
-        (self.fc + stribeck) * shape + self.fv * v
+        (self.fc + stribeck) * shape + self.fv * v_ref
     }
 }
 
@@ -104,6 +117,10 @@ pub struct ScaledPdGains {
     pub integral_leak_s: f64,
     /// Inertia (kg·m²) the reference acceleration is fed forward with; `0` disables `J·a`.
     pub inertia: f64,
+    /// `λ` (1/s): the friction feed-forward pushes toward `v_ref + λ·(q_ref − q)` rather than
+    /// `v_ref`, so a joint stuck behind a slow or stopped reference gets static-friction help
+    /// toward it. `0` keeps the direction on `v_ref` alone.
+    pub friction_error_gain: f64,
     /// `None` when the joint has no friction model (no friction feed-forward).
     pub friction: Option<ReferenceFriction>,
 }
@@ -285,19 +302,22 @@ pub fn advance_reference(
 }
 
 /// Feed-forward for one tick: `τ_g + τ_dyn + τ_I`, where `τ_dyn` slews by at most
-/// [`SCALED_PD_DYNAMIC_FF_RATE_NM_S`]`·dt` toward `τ_fric(v_c) + fo + J·a_c` with
+/// [`SCALED_PD_DYNAMIC_FF_RATE_NM_S`]`·dt` toward `τ_fric(v_c → v_c + λ·e_ref) + fo + J·a_c` with
 /// `a_c = (v_c − v_prev)/dt` (updates `state.tau_i`, `state.tau_dyn`, `state.v_prev`).
 pub fn compose_feedforward(
     state: &mut ScaledPdState,
     gains: &ScaledPdGains,
     ki: f64,
     target_error: f64,
+    reference_error: f64,
     tau_g: f64,
     dt: f64,
 ) -> ScaledPdFeedforward {
+    let intent = state.v_c + gains.friction_error_gain * reference_error;
+    let intent = if intent.is_finite() { intent } else { state.v_c };
     let friction = gains
         .friction
-        .map_or(0.0, |friction| friction.torque(state.v_c) + friction.fo);
+        .map_or(0.0, |friction| friction.torque_toward(state.v_c, intent) + friction.fo);
     let accel = if dt > 0.0 {
         (state.v_c - state.v_prev) / dt
     } else {

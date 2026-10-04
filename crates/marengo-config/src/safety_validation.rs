@@ -181,6 +181,18 @@ fn validate_scaled_pd_numbers(joint: &str, entry: &JointControlEntry) -> Result<
             band,
         )?;
     }
+    if let Some(gain) = entry.position_friction_error_gain_per_s {
+        finite(
+            format_args!("control.joints.{joint}.position_friction_error_gain_per_s"),
+            gain,
+        )?;
+        if gain < 0.0 {
+            return Err(invalid(
+                format!("control.joints.{joint}.position_friction_error_gain_per_s"),
+                "must be >= 0",
+            ));
+        }
+    }
     if let Some(leak) = entry.position_integral_leak_s {
         positive(
             format_args!("control.joints.{joint}.position_integral_leak_s"),

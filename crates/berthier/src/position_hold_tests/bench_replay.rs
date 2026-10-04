@@ -681,6 +681,42 @@ fn pitch_bench_suite_replay_meets_bench_bar() {
     );
 }
 
+/// The 2026-10-04 bench (`var/motion-suite/20261004T202431Z`, `…T202646Z`): at the turnarounds
+/// of the slowest waves the reference velocity, and with it the reference friction feed-forward,
+/// fades to zero; the joint stuck 40–47 mrad short for 1.8–4.5 s (track 0.043 and 0.047 rad
+/// against 0.03) because `kp·e` alone had to beat breakaway. The plant here sits on a ripple
+/// crest: static breakaway `fs + ripple` (1.05 Nm) with no ripple term, the bench's worst case.
+#[test]
+fn slow_wave_turnarounds_break_away_within_the_tracking_bar() {
+    let (params, model, _) = master_pitch();
+    let zones = pitch_velocity_zones();
+    let crest = BenchPlant {
+        inertia: FIT_INERTIA,
+        gravity_a: model.0,
+        gravity_b: model.1,
+        fc: FIT_FC,
+        fs: FIT_FS + FIT_RIPPLE_NM,
+        v_b: FIT_V_B,
+        ripple_nm: 0.0,
+    };
+    let steps = [
+        Step::Move(-0.992, HOLD_SECS),
+        Step::Wave(-0.992, 0.992, 23.93),
+        Step::Move(-1.038, HOLD_SECS),
+        Step::Wave(-1.038, 2.533, 49.87),
+    ];
+    let (scores, fault) = replay("slow_waves", &steps, &params, model, crest, &zones);
+    assert_eq!(fault, None);
+    let lines: Vec<String> = scores.iter().map(MoveScore::line).collect();
+    let failed: Vec<&String> = scores
+        .iter()
+        .zip(&lines)
+        .filter(|(s, _)| !s.failures().is_empty())
+        .map(|(_, l)| l)
+        .collect();
+    assert!(failed.is_empty(), "failures:\n{failed:#?}\n\nall:\n{}", lines.join("\n"));
+}
+
 /// Every tick of a descent session: `(q_ref, dq_ref, measured q)`.
 fn descent_rows(
     params: &HoldJointParams,

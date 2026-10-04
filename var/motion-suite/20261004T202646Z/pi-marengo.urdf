@@ -1,0 +1,139 @@
+<?xml version="1.0"?>
+<!-- Master live URDF — right 5-DOF bench (roll/pitch/yaw/elbow/lower-arm yaw).
+     Matches config/robot.yaml. Pi path: /opt/marengo/assets/urdf/marengo.urdf.
+     Joint origins and inertials from CAD (cad/assemblies/marengo_arm_right_asm, 2026-10-03):
+     axes located from the actuator mates; actuators at RobStride datasheet mass; printed PLA
+     parts estimated at 20 % infill. Base frame: origin at the pitch actuator output face, arm
+     front = -X, outboard = +Y, up = +Z (the sign-tested joint directions). Derivation and
+     assumptions: docs/commissioning/right-arm-urdf-from-cad-2026-10-03.md.
+     Hard limits are the Pi's taught limits (ADR 0017). Axes per hardware/docs/kinematics.md (right arm table). -->
+<robot name="marengo_arm_5dof_right">
+  <link name="base_link">
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.10"/>
+      </geometry>
+      <material name="mount_gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Pitch bracket (PLA) + shoulder roll RS03 clamped in its barrel. -->
+  <link name="right_shoulder_pitch_link">
+    <inertial>
+      <origin xyz="-0.00403 0.06933 0.01041" rpy="0 0 0"/>
+      <mass value="1.0101"/>
+      <inertia ixx="0.001536" ixy="1.603e-05" ixz="-2.844e-08" iyy="0.0009527" iyz="2.068e-07" izz="0.001158"/>
+    </inertial>
+  </link>
+  <!-- Roll bracket (PLA) + upper-arm yaw RS02. -->
+  <link name="right_shoulder_roll_link">
+    <inertial>
+      <origin xyz="-0.00221 -0.00001 -0.06631" rpy="0 0 0"/>
+      <mass value="0.4925"/>
+      <inertia ixx="0.0004919" ixy="4.083e-07" ixz="0.0001046" iyy="0.0005279" iyz="2.811e-08" izz="0.0004215"/>
+    </inertial>
+  </link>
+  <!-- Upper arm (PLA) + elbow RS02. -->
+  <link name="right_upper_arm_link">
+    <inertial>
+      <mass value="0.5075"/>
+      <origin xyz="-0.00010 -0.00779 -0.20990" rpy="0 0 0"/>
+      <inertia ixx="0.000923" ixy="-6.824e-09" ixz="-4.374e-07" iyy="0.001014" iyz="-5.757e-05" izz="0.0003144"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.115" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.23"/>
+      </geometry>
+      <material name="arm_blue">
+        <color rgba="0.23 0.51 0.96 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Elbow (PLA) + lower-arm yaw RS00. -->
+  <link name="right_forearm_link">
+    <inertial>
+      <mass value="0.3910"/>
+      <origin xyz="0.00056 0.00342 -0.05643" rpy="0 0 0"/>
+      <inertia ixx="0.000469" ixy="1.038e-06" ixz="-9.693e-06" iyy="0.0004819" iyz="-7.524e-05" izz="0.0001943"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="0.1"/>
+      </geometry>
+      <material name="forearm_blue">
+        <color rgba="0.35 0.6 0.95 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- Lower arm (PLA). -->
+  <link name="right_hand_link">
+    <inertial>
+      <mass value="0.0822"/>
+      <origin xyz="-0.00005 0.00000 -0.04038" rpy="0 0 0"/>
+      <inertia ixx="0.0001839" ixy="-5.002e-10" ixz="-1.688e-07" iyy="0.0001838" iyz="1.74e-09" izz="6.152e-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.06" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.02" length="0.12"/>
+      </geometry>
+      <material name="hand_blue">
+        <color rgba="0.45 0.7 0.98 1"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="right_shoulder_pitch" type="revolute">
+    <parent link="base_link"/>
+    <child link="right_shoulder_pitch_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.43134" upper="3.25" effort="60" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-0.872665" soft_upper_limit="3.20" k_position="10" k_velocity="1"/>
+  </joint>
+  <!-- Roll axis crosses the pitch axis 73.5 mm outboard of the pitch output face. -->
+  <joint name="right_shoulder_roll" type="revolute">
+    <parent link="right_shoulder_pitch_link"/>
+    <child link="right_shoulder_roll_link"/>
+    <origin xyz="0 0.07349 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.099415" upper="3.22308" effort="60" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-0.05" soft_upper_limit="3.14159" k_position="10" k_velocity="1"/>
+  </joint>
+  <!-- Yaw axis passes 1.15 mm behind the pitch/roll intersection. -->
+  <joint name="right_upper_arm_yaw" type="revolute">
+    <parent link="right_shoulder_roll_link"/>
+    <child link="right_upper_arm_link"/>
+    <origin xyz="0.00115 -0.00001 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" effort="17" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-1.57" soft_upper_limit="1.57" k_position="10" k_velocity="1"/>
+  </joint>
+  <!-- Hard limits: Pi taught envelope (ADR 0017); Davout hard = URDF ∩ motors.yaml. -->
+  <joint name="right_elbow_pitch" type="revolute">
+    <parent link="right_upper_arm_link"/>
+    <child link="right_forearm_link"/>
+    <origin xyz="0 0 -0.23036" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.63191" upper="1.60728" effort="17" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-0.50" soft_upper_limit="1.15" k_position="10" k_velocity="1"/>
+  </joint>
+  <!-- Axis Y per hardware/docs/kinematics.md right-arm table (forearm → hand). In CAD the RS00
+       axis runs along the forearm (Z at q = 0); origin is its output face, so the axis choice
+       does not move the hand at q = 0. -->
+  <joint name="right_lower_arm_yaw" type="revolute">
+    <parent link="right_forearm_link"/>
+    <child link="right_hand_link"/>
+    <origin xyz="0.00013 0.00006 -0.09968" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.24409" upper="3.24409" effort="17" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-1.55" soft_upper_limit="1.55" k_position="10" k_velocity="1"/>
+  </joint>
+</robot>

@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "tool": "pi_motion_suite",
+  "created_utc": "2026-10-04T20:26:45.063Z",
+  "session_ts": "20261004T202431Z",
+  "session": "long_moves_1",
+  "profile": "arm_attached",
+  "sweep_joint": "right_shoulder_pitch",
+  "usable_window_rad": [
+    -1.038,
+    2.93
+  ],
+  "gravity_extremes_rad": {
+    "lo": -1.038,
+    "hi": 1.55
+  },
+  "budget_sec": 178.5,
+  "steps": [
+    {
+      "kind": "hold",
+      "joint": "right_shoulder_pitch",
+      "target_rad": -0.496,
+      "measure": false
+    },
+    {
+      "kind": "wave",
+      "joint": "right_shoulder_pitch",
+      "min_rad": -0.496,
+      "max_rad": 0.496,
+      "cycles": 1,
+      "half_period_s": 7.23
+    },
+    {
+      "kind": "wave",
+      "joint": "right_shoulder_pitch",
+      "min_rad": -0.496,
+      "max_rad": 0.496,
+      "cycles": 1,
+      "half_period_s": 3.62
+    },
+    {
+      "kind": "wave",
+      "joint": "right_shoulder_pitch",
+      "min_rad": -0.496,
+      "max_rad": 0.496,
+      "cycles": 1,
+      "half_period_s": 2.01
+    },
+    {
+      "kind": "hold",
+      "joint": "right_shoulder_pitch",
+      "target_rad": -0.992,
+      "measure": false
+    },
+    {
+      "kind": "wave",
+      "joint": "right_shoulder_pitch",
+      "min_rad": -0.992,
+      "max_rad": 0.992,
+      "cycles": 1,
+      "half_period_s": 23.93
+    },
+    {
+      "kind": "wave",
+      "joint": "right_shoulder_pitch",
+      "min_rad": -0.992,
+      "max_rad": 0.992,
+      "cycles": 1,
+      "half_period_s": 11.97
+    },
+    {
+      "kind": "wave",
+      "joint": "right_shoulder_pitch",
+      "min_rad": -0.992,
+      "max_rad": 0.992,
+      "cycles": 1,
+      "half_period_s": 6.65
+    }
+  ],
+  "gravity_gate_report": "gravity gate (basis=hanging_rest): gateway RobotState snapshot unavailable; a disabled drive reports ~0 Nm regardless of load, so the gate checks |τ_g| at the arm_attached hanging rest pose (physical gravity torque ~0)\n  right_shoulder_pitch: q=0.0000 rad τ_g=0.0378 Nm residual=0.0378 Nm ok\n  right_shoulder_roll: q=0.0000 rad τ_g=-0.0258 Nm residual=0.0258 Nm ok\n  right_upper_arm_yaw: q=0.0000 rad τ_g=0.0000 Nm residual=0.0000 Nm ok\n  right_elbow_pitch: q=0.0000 rad τ_g=-0.0022 Nm residual=0.0022 Nm ok\n  right_lower_arm_yaw: q=0.0000 rad τ_g=0.0000 Nm residual=0.0000 Nm ok\nPASS gravity gate: |τ_g| at the hanging rest < 0.20 Nm on every modeled joint",
+  "session_complete": true
+}

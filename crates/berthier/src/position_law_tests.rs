@@ -27,6 +27,7 @@ fn gains() -> ScaledPdGains {
         e1: E1,
         integral_band: 0.1,
         integral_leak_s: 0.5,
+        friction_error_gain: 0.0,
         inertia: 0.0,
         friction: Some(friction()),
     }
@@ -236,7 +237,7 @@ fn governor_slows_only_a_growing_lead() {
 #[test]
 fn feedforward_uses_reference_velocity_not_measurement() {
     let mut state = ScaledPdState::default();
-    let at_rest = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 1.5, DT);
+    let at_rest = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 0.0, 1.5, DT);
     assert_eq!(at_rest.tau_fric, 0.0);
     assert_eq!(at_rest.tau_ff, 1.5);
     // A steady reference velocity (no acceleration): τ_dyn settles on τ_fric(v_c).
@@ -244,7 +245,7 @@ fn feedforward_uses_reference_velocity_not_measurement() {
     state.v_prev = 0.5;
     let mut moving = at_rest;
     for _ in 0..100 {
-        moving = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 1.5, DT);
+        moving = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 0.0, 1.5, DT);
     }
     assert!((moving.tau_ff - (1.5 + friction().torque(0.5))).abs() < 1e-15);
 }
@@ -258,14 +259,14 @@ fn acceleration_feedforward_is_j_times_a_and_never_steps_tau_ff() {
     let a_max = 1.5;
     let g = ScaledPdGains { inertia, ..gains() };
     let mut state = ScaledPdState::default();
-    let mut last = compose_feedforward(&mut state, &g, 0.0, 0.0, 0.0, DT).tau_ff;
+    let mut last = compose_feedforward(&mut state, &g, 0.0, 0.0, 0.0, 0.0, DT).tau_ff;
     let mut profile = vec![a_max; 100];
     profile.extend(vec![0.0; 50]);
     profile.extend(vec![-a_max; 100]);
     let step_max = SCALED_PD_DYNAMIC_FF_RATE_NM_S * DT;
     for (n, a) in profile.iter().enumerate() {
         state.v_c += a * DT;
-        let ff = compose_feedforward(&mut state, &g, 0.0, 0.0, 0.0, DT);
+        let ff = compose_feedforward(&mut state, &g, 0.0, 0.0, 0.0, 0.0, DT);
         assert!(
             (ff.tau_ff - last).abs() <= step_max + 1e-12,
             "tick {n}: τ_ff step {}",

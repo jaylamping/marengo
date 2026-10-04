@@ -1,0 +1,13 @@
+trace: var/motion-suite/20261004T202646Z/position-trace.csv (74978 samples)
+52060 per-target segments (detail omitted under --score-bench; rerun without it for the segment report)
+
+=== ADR 0039 bench score: right_shoulder_pitch (fast moves: speed over 50 ms <= +20%; slow moves (plan <= 0.3 rad/s or <= 0.1 rad): |q - q_ref| <= 0.03 rad; stop <= 0.01 rad; tau_ff step <= 0.05 Nm; hold drift <= 0.005 rad; repeat spread <= 0.01 rad; total-torque clamps 0) ===
+  trace: every tick
+  move 1 [move]: -0.000 -> -1.038 rad (q0 -0.000)  plan 1.25 rad/s  speed -1%  track 0.0136 rad  stop 0.0063 rad  tau_ff step 0.031 Nm  wire-binding rows 0  PASS
+  move 2 [slow wave]: band [-1.038, +2.533] swept [-1.044, +2.487] rad  ref 0.12 rad/s  speed +64% over 130 ms (not scored)  track 0.0467 rad  stop 0.0063 rad  tau_ff step 0.005 Nm  wire-binding rows 0  FAIL tracking_ok
+  move 3 [hold]: at +2.533 rad  final err -0.0467 rad  tau_ff step 0.000 Nm  wire-binding rows 0  PASS
+  move 4 [wave]: band [-1.038, +2.533] swept [-1.022, +2.517] rad  ref 0.40 rad/s  speed +8%  track 0.0475 rad  stop 0.0000 rad  tau_ff step 0.031 Nm  wire-binding rows 2  PASS
+  move 5 [hold]: at -1.038 rad  final err +0.0179 rad  tau_ff step 0.007 Nm  wire-binding rows 0  PASS
+  move 6 [move]: -1.038 -> +0.000 rad (q0 -1.020)  plan 1.25 rad/s  speed -1%  track 0.0178 rad  stop 0.0042 rad  tau_ff step 0.032 Nm  wire-binding rows 0  PASS
+  total-torque clamps: 0
+  verdict: FAIL (5/6 moves pass: move 2/2, slow wave 0/1, hold 2/2, wave 1/1)

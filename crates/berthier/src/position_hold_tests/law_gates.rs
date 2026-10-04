@@ -101,6 +101,7 @@ fn params(law: Law) -> HoldJointParams {
             e1: LEAD,
             integral_band: marengo_config::DEFAULT_POSITION_INTEGRAL_BAND_RAD,
             integral_leak_s: marengo_config::DEFAULT_POSITION_INTEGRAL_LEAK_S,
+            friction_error_gain: 0.0,
             // The Phase 2 plant gates predate the J·a feed-forward; they keep it off.
             inertia: 0.0,
             friction: Some(ReferenceFriction::from_gains(&friction_gains(), None)),
@@ -587,6 +588,7 @@ pub(super) fn master_pitch() -> (HoldJointParams, (f64, f64), f64) {
             e1: entry.time_scale_e1_rad(),
             integral_band: entry.integral_band_rad(),
             integral_leak_s: entry.integral_leak_s(),
+            friction_error_gain: entry.friction_error_gain_per_s(),
             inertia,
             friction: Some(ReferenceFriction::from_gains(&entry.friction, None)),
         }),

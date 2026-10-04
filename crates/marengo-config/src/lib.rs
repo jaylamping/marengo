@@ -586,6 +586,11 @@ pub struct JointControlEntry {
     /// [`DEFAULT_POSITION_INTEGRAL_LEAK_S`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position_integral_leak_s: Option<f64>,
+    /// Scaled-PD friction error gain `λ` (1/s): the reference friction feed-forward pushes
+    /// toward `v_ref + λ·(q_ref − q)`, so a joint stuck behind a slow or stopped reference gets
+    /// static-friction help toward it. Default 0 (direction from `v_ref` alone).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_friction_error_gain_per_s: Option<f64>,
     /// Minimum position envelope margin at rest (rad). ADR 0009.
     #[serde(default = "default_position_limit_margin_min_rad")]
     pub position_limit_margin_min_rad: f64,
@@ -628,6 +633,11 @@ impl JointControlEntry {
     pub fn integral_leak_s(&self) -> f64 {
         self.position_integral_leak_s
             .unwrap_or(DEFAULT_POSITION_INTEGRAL_LEAK_S)
+    }
+
+    /// Scaled-PD friction error gain `λ` (1/s), default 0.
+    pub fn friction_error_gain_per_s(&self) -> f64 {
+        self.position_friction_error_gain_per_s.unwrap_or(0.0)
     }
 
     pub(crate) fn limit_margin_fields_valid(&self, joint: &str) -> Result<(), ConfigError> {
@@ -1735,6 +1745,7 @@ mod tests {
                 position_time_scale_e0_rad: None,
                 position_integral_band_rad: None,
                 position_integral_leak_s: None,
+                position_friction_error_gain_per_s: None,
                 position_limit_margin_min_rad: 0.01,
                 position_limit_margin_k_v_s: 0.02,
                 position_limit_margin_k_stop: 0.5,

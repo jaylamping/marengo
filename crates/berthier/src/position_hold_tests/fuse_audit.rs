@@ -425,6 +425,7 @@ fn wave_velocity_feedforward_follows_the_wave_above_slew_speed() {
         e1: 0.12,
         integral_band: 0.02,
         integral_leak_s: 0.5,
+        friction_error_gain: 0.0,
         inertia: 0.0,
         friction: None,
     };

@@ -1735,6 +1735,7 @@ impl PositionHold {
             &joint.gains,
             jp.ki,
             settle_error,
+            joint.q_ref - q,
             world.tau_g[i],
             world.dt,
         );
