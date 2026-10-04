@@ -120,10 +120,11 @@ fn parse_gravity_pose(args: &[String], joint_count: usize) -> Result<Vec<f64>, S
 }
 
 /// `disable`: the independent stop. It reads only the drive addresses from
-/// `motors.yaml` and sends one Disable to each, so a missing `control.yaml`,
-/// URDF, corrupt calibration history or a down CAN interface cannot prevent it
-/// from reaching the drives it can reach. Exit 0 only when every drive's
-/// Disable was accepted by its interface.
+/// `motors.yaml` and sends each drive a Disable, then a type-24 Off, so a
+/// missing `control.yaml`, URDF, corrupt calibration history or a down CAN
+/// interface cannot prevent it from reaching the drives it can reach, and no
+/// drive is left streaming for the next owner. Exit 0 only when every drive's
+/// Disable and Off were accepted by its interface.
 fn run_disable(root: &std::path::Path, interface: Option<&str>) -> i32 {
     let targets = match load_motor_stop_targets(root) {
         Ok(targets) => targets,
@@ -140,19 +141,38 @@ fn run_disable(root: &std::path::Path, interface: Option<&str>) -> i32 {
     }
     let report = stop::disable_drives_socketcan(&addresses);
     print!("{report}");
+    report_disable_outcome(&report)
+}
+
+/// Summarize the `disable` command's report; 0 only when every frame was sent.
+fn report_disable_outcome(report: &stop::StopReport) -> i32 {
     if report.all_sent() {
         println!(
-            "disabled: Disable frame sent to all {} drives (queued on the bus, not drive-confirmed)",
+            "disabled: Disable and type-24 Off sent to all {} drives (queued on the bus, not drive-confirmed)",
             report.drives.len()
         );
-        0
-    } else {
+        return 0;
+    }
+    report_stop_failures(report, "disable");
+    1
+}
+
+/// Name the drives a stop did not reach, and the ones it may leave streaming.
+fn report_stop_failures(report: &stop::StopReport, context: &str) {
+    if report.failed() > 0 {
         eprintln!(
-            "disable INCOMPLETE: {} of {} drives were not reached; use the physical E-stop",
+            "{context} INCOMPLETE: {} of {} drives were not reached; use the physical E-stop",
             report.failed(),
             report.drives.len()
         );
-        1
+    }
+    if report.reporting_off_failed() > 0 {
+        eprintln!(
+            "{context}: type-24 Off not sent to {} of {} drives; they may keep streaming and \
+             the next marengo-pi start can latch Transport",
+            report.reporting_off_failed(),
+            report.drives.len()
+        );
     }
 }
 
@@ -183,13 +203,7 @@ impl ExitStop {
         eprintln!("motor-repl: exit stop, disabling every drive");
         let report = stop::disable_drives_socketcan(&self.addresses);
         eprint!("{report}");
-        if !report.all_sent() {
-            eprintln!(
-                "motor-repl: exit stop INCOMPLETE ({} of {} drives not reached); use the physical E-stop",
-                report.failed(),
-                report.drives.len()
-            );
-        }
+        report_stop_failures(&report, "motor-repl: exit stop");
     }
 }
 

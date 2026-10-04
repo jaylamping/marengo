@@ -16,8 +16,9 @@ can_timeout=… zero_sta=… add_offset=…` line per drive. It arms no exit sto
 never enables, and Davout stops every drive before and after the queries.
 
 `stop.rs` is the independent stop: `stop_addresses` (from `motors.yaml` via
-`marengo_config::load_motor_stop_targets`), `disable_drives` (one Disable per
-drive, one bus open per interface, per-drive outcome), and `install_signal_stop`
+`marengo_config::load_motor_stop_targets`), `disable_drives` (one Disable then
+one type-24 Off per drive, one bus open per interface, per-drive outcome per
+frame), and `install_signal_stop`
 (SIGTERM/SIGINT/SIGHUP thread with its own sockets). The retired commands
 `home`, `enable`, `jog`, `speed`, `speed-stop`, `gravity-on`, `gravity-off`, and
 `torque-cmd` are rejected before owner construction.

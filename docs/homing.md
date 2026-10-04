@@ -188,8 +188,10 @@ enabled, in-order readback, persistence unknown) stay unqualified until this
 procedure passes on the bench.
 
 `motor-repl disable` is independent of configuration and history loading: it
-needs only the drive addresses in `motors.yaml`, sends one Disable to each drive
-and reports every drive's outcome (exit 1 if any was not reached). It is still
+needs only the drive addresses in `motors.yaml`, sends each drive a Disable and
+then a type-24 Off (a Disable does not end active reporting, see
+[safety.md](safety.md) *Reporting Off at exit*), and reports every frame's
+outcome (exit 1 if any was not sent). It is still
 not a qualified emergency-stop mechanism. An accepted socket write or software
 Disabled state does not prove physical stop, and Disable does not clear a
 latched drive fault.

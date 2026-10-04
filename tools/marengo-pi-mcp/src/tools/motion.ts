@@ -616,9 +616,9 @@ export function registerMotionTools(
   return {
     pi_motor_disable: {
       description:
-        "motor-repl disable all joints: one Robstride type-4 Disable (Byte[0]=0) per configured drive, read from motors.yaml only. " +
-        "It stops torque; it does NOT clear a latched drive fault (no Byte[0]=1 fault-clear frame is sent, ADR 0020). " +
-        "Per-drive outcomes are printed; exit 1 if any drive was not reached. " +
+        "motor-repl disable all joints: one Robstride type-4 Disable (Byte[0]=0), then one type-24 Off, per configured drive, read from motors.yaml only. " +
+        "It stops torque and active reporting; it does NOT clear a latched drive fault (no Byte[0]=1 fault-clear frame is sent, ADR 0020). " +
+        "Per-drive outcomes are printed per frame; exit 1 if any Disable or Off was not sent. " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         config_dir: z
