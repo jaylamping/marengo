@@ -67,9 +67,9 @@ pub use bus::{SocketCanBus, SocketCanRouter};
 pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAULT_HOST_ID};
 pub use command::{CommandError, CommandField};
 pub use feedback::{
-    DetailedFaultFeedback, DriveMode, EchoedCommand, FeedbackEvent, FeedbackObservation,
-    FeedbackReport, HostEchoObservation, IdentityObservation, MalformedFeedback, MalformedReason,
-    ParameterReadObservation, TransportObservation,
+    decode_status_header, is_reboot_transition, DetailedFaultFeedback, DriveMode, EchoedCommand,
+    FeedbackEvent, FeedbackObservation, FeedbackReport, HostEchoObservation, IdentityObservation,
+    MalformedFeedback, MalformedReason, ParameterReadObservation, TransportObservation,
 };
 pub use identity::{
     decode_device_id_reply, encode_default_get_device_id, encode_get_device_id, DeviceIdReply,

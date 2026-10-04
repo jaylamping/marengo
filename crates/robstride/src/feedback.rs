@@ -17,7 +17,9 @@ pub enum DriveMode {
 }
 
 impl DriveMode {
-    pub(crate) fn from_can_id(can_id: u32) -> Self {
+    /// Drive state from status CAN-ID bits 22..23. Type-2 replies and
+    /// type-24 reports share the status header layout.
+    pub fn from_can_id(can_id: u32) -> Self {
         match (can_id >> 22) & 3 {
             0 => Self::Reset,
             1 => Self::Calibration,
@@ -25,6 +27,31 @@ impl DriveMode {
             _ => Self::Reserved,
         }
     }
+
+    /// Stable short name for structured log fields.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Reset => "Reset",
+            Self::Calibration => "Calibration",
+            Self::Run => "Run",
+            Self::Reserved => "Reserved",
+        }
+    }
+}
+
+/// Status header shared by type-2 replies and type-24 reports: drive mode
+/// from CAN-ID bits 22..23 and the six status flags from bits 16..21.
+pub fn decode_status_header(can_id: u32) -> (DriveMode, u8) {
+    (
+        DriveMode::from_can_id(can_id),
+        ((can_id >> 16) & 0x3f) as u8,
+    )
+}
+
+/// A drive last seen running that now reports Reset likely lost power and
+/// rebooted: firmware boots into Reset and stays silent while down.
+pub fn is_reboot_transition(previous: Option<DriveMode>, current: DriveMode) -> bool {
+    matches!(previous, Some(DriveMode::Run)) && current == DriveMode::Reset
 }
 
 /// Complete type-21 payload, without assuming an unqualified firmware byte order.
@@ -178,4 +205,39 @@ pub struct FeedbackReport {
     /// Echoed host Enable and reporting Off frames, in raw delivery order.
     /// Ordering evidence only.
     pub host_echoes: Vec<HostEchoObservation>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_header_decode_matches_incident_ids() {
+        // 2026-10-04 gravity-calibration capture: id5 running, then Reset
+        // after its 738 ms silence.
+        assert_eq!(decode_status_header(0x0280_05FD), (DriveMode::Run, 0x00));
+        assert_eq!(decode_status_header(0x0200_05FD), (DriveMode::Reset, 0x00));
+    }
+
+    #[test]
+    fn reboot_transition_only_flags_run_to_reset() {
+        assert!(is_reboot_transition(Some(DriveMode::Run), DriveMode::Reset));
+        for previous in [
+            None,
+            Some(DriveMode::Reset),
+            Some(DriveMode::Calibration),
+            Some(DriveMode::Reserved),
+        ] {
+            assert!(
+                !is_reboot_transition(previous, DriveMode::Reset),
+                "no reboot from {previous:?}"
+            );
+        }
+        for current in [DriveMode::Run, DriveMode::Calibration, DriveMode::Reserved] {
+            assert!(
+                !is_reboot_transition(Some(DriveMode::Run), current),
+                "no reboot into {current:?}"
+            );
+        }
+    }
 }

@@ -10,7 +10,7 @@ use thiserror::Error;
 use crate::comm::{self, CommunicationType};
 use crate::command::CommandError;
 use crate::feedback::{
-    DetailedFaultFeedback, DriveMode, EchoedCommand, FeedbackEvent, FeedbackObservation,
+    decode_status_header, DetailedFaultFeedback, EchoedCommand, FeedbackEvent, FeedbackObservation,
     FeedbackReport, HostEchoObservation, IdentityObservation, MalformedFeedback, MalformedReason,
     ParameterReadObservation, TransportObservation,
 };
@@ -613,13 +613,14 @@ fn ingest_feedback_frames(
                     comm_type,
                     CommunicationType::OperationStatus | CommunicationType::ActiveReporting
                 );
+            let (drive_mode, status_flags) = decode_status_header(frame.id);
             FeedbackEvent::Malformed(MalformedFeedback {
                 raw: frame.data,
                 payload_len: received.payload_len,
                 kind: received.kind,
                 reason,
-                status_flags: status_header.then_some(((frame.id >> 16) & 0x3f) as u8),
-                drive_mode: status_header.then_some(DriveMode::from_can_id(frame.id)),
+                status_flags: status_header.then_some(status_flags),
+                drive_mode: status_header.then_some(drive_mode),
             })
         } else {
             match comm_type {

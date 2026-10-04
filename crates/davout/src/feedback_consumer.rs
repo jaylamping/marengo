@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use armee_kinematics::measured_position_fault;
 use marengo_config::MotorEntry;
@@ -209,6 +209,56 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
+    /// Record the latest status/version frame per drive and report a likely
+    /// power-interruption reboot: a drive expected to run that reports Reset
+    /// after running, or reappears in Reset after longer than the comm
+    /// watchdog. Tracking never admits pose, clears faults, or revokes
+    /// grants; the existing mode checks below still latch as before.
+    fn track_drive_frame(
+        &mut self,
+        motor: &MotorEntry,
+        address: &MotorAddress,
+        mode: DriveMode,
+        received_at: Instant,
+        run_expected: bool,
+    ) {
+        let previous = self.drive_frames.get(address).copied();
+        self.drive_frames.insert(
+            address.clone(),
+            super::DriveFrameTrack {
+                mode,
+                at: received_at,
+            },
+        );
+        let Some(previous) = previous else {
+            return;
+        };
+        if mode != DriveMode::Reset || !run_expected {
+            return;
+        }
+        let silence = received_at.saturating_duration_since(previous.at);
+        let window = Duration::from_millis(self.control.control.comm_watchdog_ms);
+        if !robstride::is_reboot_transition(Some(previous.mode), mode) && silence <= window {
+            return;
+        }
+        warn!(
+            joint = %motor.joint,
+            interface = %address.interface,
+            device_id = address.device_id,
+            previous_mode = previous.mode.as_str(),
+            new_mode = mode.as_str(),
+            silence = ?silence,
+            "drive reboot detected",
+        );
+        self.last_drive_reboot = Some(super::DriveRebootObservation {
+            joint: motor.joint.clone(),
+            address: address.clone(),
+            previous_mode: previous.mode,
+            new_mode: mode,
+            silence,
+        });
+    }
+
     /// A guarded SetZero attempt may change the coordinate even if TX is uncertain.
     /// Invalidate only this installed target's derivative/freshness scratch before
     /// the attempt. This never clears fault authority, invalid-feedback evidence
@@ -221,6 +271,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.feedback_velocity_trips.remove(&target.joint);
         self.last_feedback_samples.remove(&target.joint);
         self.last_feedback_rx.remove(&target.joint);
+        self.drive_frames.remove(&address);
         self.motor_states.remove(&address);
     }
 
@@ -452,6 +503,13 @@ impl<B: MotorBus> Supervisor<B> {
             }
             let current_enable =
                 self.feedback_run_expected(motor, &address, observation.received_at, context);
+            self.track_drive_frame(
+                motor,
+                &address,
+                drive_mode,
+                observation.received_at,
+                current_enable,
+            );
             let inspecting = matches!(context, ReceiveContext::DisabledInspection);
             if drive_mode == DriveMode::Reserved
                 || (current_enable && drive_mode != DriveMode::Run)
@@ -621,7 +679,7 @@ impl<B: MotorBus> Supervisor<B> {
             // An admitted pose answers every host frame written to the drive
             // before this drain (ADR 0036, *Solicited silence while Active*).
             if let Some(solicit) = self.unanswered_solicits.get_mut(&address) {
-                *solicit = None;
+                *solicit = super::SolicitedState::default();
             }
             self.motor_states.insert(address, state);
             store_by_joint(&mut self.last_feedback_rx, &motor.joint, received_at);

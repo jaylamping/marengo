@@ -447,4 +447,11 @@ impl PhysicalDevices {
     pub(crate) fn uid(&self, address: &MotorAddress) -> Option<DeviceUid> {
         self.devices.get(address).and_then(|device| device.uid)
     }
+
+    /// Latest admitted pose time for `address`, if it was ever observed.
+    pub(crate) fn last_seen(&self, address: &MotorAddress) -> Option<Instant> {
+        self.devices
+            .get(address)
+            .and_then(|device| device.last_seen)
+    }
 }

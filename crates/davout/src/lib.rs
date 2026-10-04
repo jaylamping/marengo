@@ -196,7 +196,7 @@ use marengo_config::{
 };
 use reference::ReferenceAuthority;
 use robstride::AddressedMitCommand;
-use robstride::{MitCommand, MotorState, RunMode};
+use robstride::{DriveMode, MitCommand, MotorState, RunMode};
 use thiserror::Error;
 use tracing::{debug, info, trace, warn};
 
@@ -392,6 +392,47 @@ struct MitBatchScratch {
     wires: Vec<AddressedMitCommand>,
 }
 
+/// Latest observed drive frame per address (a status or version reply's mode
+/// plus its host receive time). Tracking only: never permission, liveness,
+/// or fault evidence.
+#[derive(Debug, Clone, Copy)]
+struct DriveFrameTrack {
+    mode: DriveMode,
+    at: Instant,
+}
+
+/// Active session per-target solicit state: the write instant of the earliest
+/// host frame the drive answers that no admitted pose has followed, plus how
+/// many such writes went unanswered since the last admitted pose (ADR 0036,
+/// *Solicited silence while Active*).
+#[derive(Debug, Clone, Copy, Default)]
+struct SolicitedState {
+    earliest: Option<Instant>,
+    unanswered_writes: u64,
+}
+
+impl SolicitedState {
+    /// Another host frame the drive answers went out at `written_at` with no
+    /// admitted pose since: keep the earliest instant and count the write.
+    fn note_asked(&mut self, written_at: Instant) {
+        self.earliest.get_or_insert(written_at);
+        self.unanswered_writes = self.unanswered_writes.saturating_add(1);
+    }
+}
+
+/// A likely drive power-interruption reboot observed on the wire: a drive the
+/// host expected to run reported Reset after running, or reappeared in Reset
+/// after longer than the comm watchdog.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DriveRebootObservation {
+    pub joint: String,
+    pub address: MotorAddress,
+    pub previous_mode: DriveMode,
+    pub new_mode: DriveMode,
+    /// Host time between the drive's previous frame and this one.
+    pub silence: Duration,
+}
+
 /// Safety supervisor — the only gateway to the motor bus.
 pub struct Supervisor<B: MotorBus> {
     mode: OperationalMode,
@@ -456,6 +497,12 @@ pub struct Supervisor<B: MotorBus> {
     active_reporting: ActiveReportingState,
     /// Last time each joint produced a feedback frame (for type-24 silence retry).
     last_feedback_rx: FxHashMap<String, Instant>,
+    /// Latest observed status/version frame per address, whether or not it
+    /// became pose (frames withheld from pose still prove the drive alive).
+    /// Tracking only: never permission, liveness, or fault evidence.
+    drive_frames: FxHashMap<MotorAddress, DriveFrameTrack>,
+    /// Latest observed likely drive reboot, retained as inspection evidence.
+    last_drive_reboot: Option<DriveRebootObservation>,
     /// Status frames decoded since the last [`Self::begin_tick_feedback`] call.
     last_refresh_frames: usize,
     /// Joints whose drives were successfully enabled for the current Active session.
@@ -464,8 +511,9 @@ pub struct Supervisor<B: MotorBus> {
     /// host frame the drive answers that no admitted pose has followed since
     /// (ADR 0036, *Solicited silence while Active*): its Enable, and every MIT
     /// batch, whether or not the batch commands that target. Keys are the
-    /// session's targets, set at activation.
-    unanswered_solicits: FxHashMap<MotorAddress, Option<Instant>>,
+    /// session's targets, set at activation. `unanswered_writes` counts how
+    /// many such writes went unanswered since the last admitted pose.
+    unanswered_solicits: FxHashMap<MotorAddress, SolicitedState>,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -616,6 +664,8 @@ impl<B: MotorBus> Supervisor<B> {
             last_tick: None,
             active_reporting: ActiveReportingState::default(),
             last_feedback_rx: FxHashMap::default(),
+            drive_frames: FxHashMap::default(),
+            last_drive_reboot: None,
             last_refresh_frames: 0,
             active_joints: HashSet::new(),
             unanswered_solicits: FxHashMap::default(),
@@ -1005,6 +1055,12 @@ impl<B: MotorBus> Supervisor<B> {
                             from,
                         ),
                         comm_watchdog_ms = self.control.control.comm_watchdog_ms,
+                        peers_replying_during_silence =
+                            self.peers_replying_during_silence(&binding.address),
+                        unanswered_writes = self
+                            .unanswered_solicits
+                            .get(&binding.address)
+                            .map_or(0, |slot| slot.unanswered_writes),
                         "physical reference grant revoked"
                     );
                     self.reference_authority.revoke_binding(binding);
@@ -1475,7 +1531,7 @@ impl<B: MotorBus> Supervisor<B> {
             for motor in &self.motors.motors {
                 if self.active_joints.contains(&motor.joint) {
                     self.unanswered_solicits
-                        .insert(MotorAddress::from(motor), None);
+                        .insert(MotorAddress::from(motor), SolicitedState::default());
                 }
             }
             self.mode = OperationalMode::Active;
@@ -1648,25 +1704,63 @@ impl<B: MotorBus> Supervisor<B> {
     /// Write instant of the earliest host frame `address` answers that no
     /// admitted pose has followed, in the current Active session.
     fn unanswered_solicit(&self, address: &MotorAddress) -> Option<Instant> {
-        self.unanswered_solicits.get(address).copied().flatten()
+        self.unanswered_solicits
+            .get(address)
+            .and_then(|slot| slot.earliest)
     }
 
     /// An Active target was written a frame it answers with a status, at
     /// `written_at` (sampled before the write, so never after the frame
-    /// reached the wire). Only the earliest unanswered one counts.
+    /// reached the wire). Only the earliest unanswered one counts for
+    /// silence; every unanswered write counts for diagnostics.
     fn note_solicit(&mut self, address: &MotorAddress, written_at: Instant) {
         if self.mode != OperationalMode::Active {
             return;
         }
         match self.unanswered_solicits.get_mut(address) {
             Some(slot) => {
-                slot.get_or_insert(written_at);
+                slot.note_asked(written_at);
             }
             None => {
-                self.unanswered_solicits
-                    .insert(address.clone(), Some(written_at));
+                let mut slot = SolicitedState::default();
+                slot.note_asked(written_at);
+                self.unanswered_solicits.insert(address.clone(), slot);
             }
         }
+    }
+
+    /// Latest observed likely drive reboot, if any frame since startup looked
+    /// like a power-interruption return (Run, then Reset while run was
+    /// expected, or Reset after longer than the comm watchdog).
+    pub fn last_drive_reboot(&self) -> Option<DriveRebootObservation> {
+        self.last_drive_reboot.clone()
+    }
+
+    /// Other drives on the silent drive's interface that replied after its
+    /// last observed frame: nonzero proves the bus and host path were alive
+    /// during the silence window, pointing at the drive rather than CAN.
+    /// Revoke path only; the hot tick never calls this.
+    fn peers_replying_during_silence(&self, silent: &MotorAddress) -> usize {
+        let Some(silent_last) = self
+            .drive_frames
+            .get(silent)
+            .map(|track| track.at)
+            .or_else(|| self.reference_owner.physical.last_seen(silent))
+        else {
+            return 0;
+        };
+        self.motors
+            .motors
+            .iter()
+            .filter(|motor| {
+                motor.can_interface == silent.interface && motor.device_id != silent.device_id
+            })
+            .filter(|motor| {
+                self.drive_frames
+                    .get(&MotorAddress::from(*motor))
+                    .is_some_and(|track| track.at > silent_last)
+            })
+            .count()
     }
 
     /// Half of `comm_watchdog_ms` past `address`'s enable bounds start: its Off
@@ -2237,7 +2331,7 @@ impl<B: MotorBus> Supervisor<B> {
         // each tick, so a target a batch leaves out ages as if asked: an
         // omission fails closed through the pose watchdog.
         for solicit in self.unanswered_solicits.values_mut() {
-            solicit.get_or_insert(written_at);
+            solicit.note_asked(written_at);
         }
         self.last_tick = Some(batch_tick);
         Ok(())
@@ -2438,6 +2532,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
         self.last_feedback_rx.clear();
+        self.drive_frames.clear();
         self.wrong_sign_state.clear();
         self.last_tau_ff.clear();
         self.last_tick = None;
@@ -4204,6 +4299,28 @@ mod tests {
         torque_nm: f32,
         temperature_c: f32,
     ) -> CanFrame {
+        status_frame_motor_space_mode(
+            device_id,
+            motor_type,
+            position_rad,
+            velocity_rad_s,
+            torque_nm,
+            temperature_c,
+            2,
+        )
+    }
+
+    /// [`status_frame_motor_space`] with explicit status CAN-ID mode bits
+    /// 22..23 (2 = Run, 0 = Reset) for reboot-transition fixtures.
+    fn status_frame_motor_space_mode(
+        device_id: u8,
+        motor_type: MotorType,
+        position_rad: f32,
+        velocity_rad_s: f32,
+        torque_nm: f32,
+        temperature_c: f32,
+        mode_bits: u32,
+    ) -> CanFrame {
         let ranges = robstride::motor_type::MitRanges::for_motor_type(motor_type);
         let to_u16 = |value: f32, scale: f32| -> u16 {
             let clamped = value.clamp(-scale, scale);
@@ -4222,7 +4339,7 @@ mod tests {
                 CommunicationType::OperationStatus.as_u8(),
                 u16::from(device_id),
                 robstride::DEFAULT_HOST_ID,
-            ) | (2 << 22),
+            ) | (mode_bits << 22),
             data,
             extended: true,
         }
@@ -4826,6 +4943,123 @@ mod tests {
             matches!(err, DavoutError::CommWatchdog { ms: 50, .. }),
             "{err}"
         );
+    }
+
+    #[test]
+    fn drive_reboot_detected_after_silence_then_reset() {
+        // 2026-10-04 gravity-calibration shape: a drive running in Motor
+        // mode goes silent past the comm watchdog, then replies in Reset
+        // (firmware boots into Reset after a power interruption).
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 50;
+        sup.control.control.feedback_drain_quiet_us = 300;
+        bench_ready_active(&mut sup);
+        assert!(sup.last_drive_reboot().is_none());
+        std::thread::sleep(Duration::from_millis(60));
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
+            .expect("motor")
+            .clone();
+        sup.bus
+            .queue_received(ReceivedCanFrame::full_data(
+                Some(motor.can_interface.clone()),
+                status_frame_motor_space_mode(
+                    motor.device_id,
+                    motor.motor_type,
+                    0.0,
+                    0.0,
+                    0.0,
+                    25.0,
+                    0,
+                ),
+            ))
+            .expect("finite raw fixture");
+        sup.drain_feedback()
+            .expect_err("Reset while Active still latches DriveState");
+        let reboot = sup
+            .last_drive_reboot()
+            .expect("Run, then silence, then Reset is a reboot");
+        assert_eq!(reboot.joint, "right_elbow_pitch");
+        assert_eq!(reboot.address, MotorAddress::from(&motor));
+        assert_eq!(reboot.previous_mode, DriveMode::Run);
+        assert_eq!(reboot.new_mode, DriveMode::Reset);
+        assert!(
+            reboot.silence >= Duration::from_millis(50),
+            "silence covers the quiet window: {:?}",
+            reboot.silence
+        );
+    }
+
+    #[test]
+    fn drive_reboot_ignored_while_run_not_expected() {
+        // A Reset frame on a Disabled supervisor is ordinary (stopped
+        // drives report Reset), not a reboot: run is not expected there.
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
+            .expect("motor")
+            .clone();
+        receive_pose(&mut sup, "right_elbow_pitch", 0.0, 0.0);
+        sup.bus
+            .queue_received(ReceivedCanFrame::full_data(
+                Some(motor.can_interface.clone()),
+                status_frame_motor_space_mode(
+                    motor.device_id,
+                    motor.motor_type,
+                    0.0,
+                    0.0,
+                    0.0,
+                    25.0,
+                    0,
+                ),
+            ))
+            .expect("finite raw fixture");
+        sup.drain_feedback()
+            .expect("Reset while Disabled is ordinary");
+        assert!(sup.last_drive_reboot().is_none());
+    }
+
+    #[test]
+    fn peers_replying_during_silence_counts_same_interface() {
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        let base = Instant::now();
+        let elbow =
+            MotorAddress::from(motor_for_joint(&sup.motors, "right_elbow_pitch").expect("motor"));
+        let pitch = MotorAddress::from(
+            motor_for_joint(&sup.motors, "right_shoulder_pitch").expect("motor"),
+        );
+        sup.drive_frames.insert(
+            elbow.clone(),
+            DriveFrameTrack {
+                mode: DriveMode::Run,
+                at: base,
+            },
+        );
+        // Same-interface peer replied after the silent drive's last frame.
+        sup.drive_frames.insert(
+            pitch.clone(),
+            DriveFrameTrack {
+                mode: DriveMode::Run,
+                at: base + Duration::from_millis(10),
+            },
+        );
+        // Another interface never counts, even when fresh.
+        sup.drive_frames.insert(
+            MotorAddress::new("can9", 7),
+            DriveFrameTrack {
+                mode: DriveMode::Run,
+                at: base + Duration::from_millis(10),
+            },
+        );
+        let expected = usize::from(pitch.interface == elbow.interface);
+        assert_eq!(sup.peers_replying_during_silence(&elbow), expected);
     }
 
     #[test]

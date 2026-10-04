@@ -176,14 +176,15 @@ pub(crate) fn decode_status_payload(
     let v = vendor_u16_to_signed(read_be_u16(data, 2), ranges.velocity_scale);
     let t = vendor_u16_to_signed(read_be_u16(data, 4), ranges.torque_scale);
     let temp = f32::from(read_be_u16(data, 6)) * 0.1;
+    let (drive_mode, status_flags) = crate::feedback::decode_status_header(can_id);
     MitFeedback {
         device_id: crate::comm::inbound_motor_device_id(can_id, comm),
         position_rad: p,
         velocity_rad_s: v,
         torque_nm: t,
         temperature_c: temp,
-        status_flags: ((can_id >> 16) & 0x3f) as u8,
-        drive_mode: crate::feedback::DriveMode::from_can_id(can_id),
+        status_flags,
+        drive_mode,
     }
 }
 
