@@ -237,3 +237,140 @@ fn neutral_bootstrap_supports_taught_ranges_that_exclude_zero() {
         assert_stopped(&mut controller);
     }
 }
+
+// The tests below assert sends inside the 100 ms comm watchdog, which
+// Davout judges on host wall clock. They live in this small test binary, not
+// in the ~200-test lib suite, so a contended (emulated amd64) `just check`
+// host does not starve them past the deadline between calls.
+
+#[test]
+fn active_feedback_grace_after_disabled_ticks() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut loop_ctrl = ControlLoop::from_simulation(
+        root,
+        SimulationBus::default(),
+        InitialVirtualReference::AllConfigured,
+        200,
+        50,
+    )
+    .expect("virtual initial reference fixture");
+    loop_ctrl
+        .supervisor_mut()
+        .set_homing_complete()
+        .expect("ready");
+    for _ in 0..5 {
+        loop_ctrl.tick(None).expect("disabled ticks");
+    }
+    assert!(loop_ctrl.tick_count() >= 5);
+    let joints: Vec<String> = loop_ctrl
+        .supervisor()
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
+    loop_ctrl
+        .supervisor_mut()
+        .enable_targets(&joints)
+        .expect("enable");
+    loop_ctrl.set_control_mode(ControlMode::Position);
+    assert!(matches!(
+        loop_ctrl.enter_position_hold_at(Some("right_shoulder_pitch"), 0.25),
+        Err(LoopError::EnableIncomplete { .. })
+    ));
+    loop_ctrl
+        .tick(None)
+        .expect("grace tick without feedback after homing ticks");
+}
+
+#[test]
+fn tick_partial_enable_sends_mit_only_for_active_joints() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut loop_ctrl = ControlLoop::from_simulation(
+        root,
+        SimulationBus::default(),
+        InitialVirtualReference::AllConfigured,
+        200,
+        50,
+    )
+    .expect("virtual initial reference fixture");
+    let one = loop_ctrl.supervisor().motors.motors[0].joint.clone();
+    loop_ctrl
+        .supervisor_mut()
+        .enable_targets(&[one.clone()])
+        .expect("scoped enable");
+    support::queue_all_status(loop_ctrl.supervisor_mut(), None);
+    loop_ctrl
+        .supervisor_mut()
+        .drain_feedback()
+        .expect("raw observations");
+    assert_eq!(
+        loop_ctrl.supervisor_mut().mode(),
+        davout::OperationalMode::Active
+    );
+    loop_ctrl.supervisor_mut().bus_mut().clear_trace();
+    loop_ctrl.tick(None).expect("keepalive tick");
+    assert_eq!(
+        loop_ctrl.supervisor().bus().frames().len(),
+        1,
+        "keepalive MIT must cover only active_joints"
+    );
+    loop_ctrl.set_control_mode(ControlMode::GravityComp);
+    loop_ctrl.supervisor_mut().bus_mut().clear_trace();
+    loop_ctrl.tick(None).expect("gravity tick");
+    assert_eq!(
+        loop_ctrl.supervisor().bus().frames().len(),
+        1,
+        "GravityComp MIT must cover only active_joints"
+    );
+    assert!(loop_ctrl.supervisor().active_joints().contains(&one));
+}
+
+#[test]
+fn position_mode_without_feedback_errors_when_active() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut loop_ctrl = ControlLoop::from_simulation(
+        root,
+        SimulationBus::default(),
+        InitialVirtualReference::AllConfigured,
+        200,
+        50,
+    )
+    .expect("virtual initial reference fixture");
+    loop_ctrl
+        .supervisor_mut()
+        .set_homing_complete()
+        .expect("ready");
+    let joints: Vec<String> = loop_ctrl
+        .supervisor()
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
+    loop_ctrl
+        .supervisor_mut()
+        .enable_targets(&joints)
+        .expect("active without pose");
+    loop_ctrl.set_control_mode(ControlMode::Position);
+    assert_eq!(
+        loop_ctrl.supervisor().mode(),
+        davout::OperationalMode::Active
+    );
+    loop_ctrl.supervisor_mut().bus_mut().clear_trace();
+    for _ in 0..2 {
+        loop_ctrl.tick(None).expect("bounded neutral solicit");
+    }
+    let frames = loop_ctrl.supervisor().bus().frames();
+    assert_eq!(frames.len(), 2 * loop_ctrl.supervisor().motors.motors.len());
+    for frame in frames {
+        assert_eq!((frame.id >> 24) & 0x1f, 1);
+        assert_eq!((frame.id >> 8) & 0xffff, 0x7fff);
+        assert_eq!(&frame.data[2..4], &[0x7f, 0xff]);
+        assert_eq!(&frame.data[4..8], &[0; 4]);
+    }
+    let err = loop_ctrl
+        .tick(None)
+        .expect_err("missing current-enable feedback");
+    assert!(matches!(err, LoopError::MissingFeedback { .. }));
+}
