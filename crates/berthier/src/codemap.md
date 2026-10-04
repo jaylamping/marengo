@@ -11,6 +11,7 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 | `friction.rs` | Velocity-based friction feedforward |
 | `position_feedforward.rs` | PD torque for position hold |
 | `position_hold.rs` | `PositionHold`: latched targets, planners, recovery latches, MIT compose, and the two position-hold fuses (below) |
+| `position_law.rs` | ADR 0039 scaled-PD law (per-joint `position_law: scaled_pd`, default legacy): reference step within `a_max·dt`, lead governor, friction on the reference velocity, leaky integral. `position_hold.rs` dispatches to it per joint |
 | `position_profile.rs` | Trapezoidal/s-curve position profiles |
 | `position_setpoint.rs` | Target angle management; grid-aware home tolerance (`home_target_tolerance`) |
 | `position_trajectory.rs` | Time-parameterized position paths |

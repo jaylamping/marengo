@@ -10,7 +10,7 @@ use marengo_config::{
     load_control_config_from, load_homing_config_from, load_motors_config_from,
     load_robot_config_from, validate_control_against_limits, validate_safety_config,
     write_control_config_from, write_motors_and_control, write_motors_control_and_urdf,
-    ConfigError, HomingMethod, HomingSensors, SensorInput,
+    ConfigError, HomingMethod, HomingSensors, PositionLaw, SensorInput,
 };
 use serde_yaml::Value;
 
@@ -278,6 +278,105 @@ fn control_loader_rejects_nonfinite_negative_and_inconsistent_policy() {
             ),
         ],
     );
+}
+
+#[test]
+fn control_loader_rejects_invalid_scaled_pd_policy() {
+    const J: &str = "control/joints/right_shoulder_pitch";
+    let cases: Vec<(&str, String, &str)> = vec![
+        ("unknown law", format!("{J}/position_law"), "pid"),
+        (
+            "e0 at e1",
+            format!("{J}/position_time_scale_e0_rad"),
+            "0.12",
+        ),
+        (
+            "negative e0",
+            format!("{J}/position_time_scale_e0_rad"),
+            "-0.01",
+        ),
+        ("NaN e0", format!("{J}/position_time_scale_e0_rad"), ".nan"),
+        ("zero band", format!("{J}/position_integral_band_rad"), "0"),
+        (
+            "infinite band",
+            format!("{J}/position_integral_band_rad"),
+            ".inf",
+        ),
+        ("zero leak", format!("{J}/position_integral_leak_s"), "0"),
+        (
+            "negative leak",
+            format!("{J}/position_integral_leak_s"),
+            "-1",
+        ),
+        ("fs below fc", format!("{J}/friction/fs"), "0.01"),
+        ("fs above tau_ff cap", format!("{J}/friction/fs"), "6.0"),
+        ("NaN fs", format!("{J}/friction/fs"), ".nan"),
+        ("zero v_b", format!("{J}/friction/v_b"), "0"),
+        ("unknown friction key", format!("{J}/friction/fd"), "0.1"),
+    ];
+    let borrowed: Vec<(&str, &str, &str)> = cases
+        .iter()
+        .map(|(label, path, value)| (*label, path.as_str(), *value))
+        .collect();
+    reject_yaml_cases("control.yaml", &borrowed);
+}
+
+#[test]
+fn scaled_pd_needs_a_positive_stop_band() {
+    let dir = source_root().join("config");
+    let mut control = load_control_config_from(&dir).expect("control");
+    let entry = control
+        .control
+        .joints
+        .get_mut("right_shoulder_pitch")
+        .expect("pitch");
+    entry.position_slew_max_lead_rad = 0.0;
+    let temp = fixture();
+    write_control_config_from(temp.path().join("config"), &control)
+        .expect("legacy law tolerates a zero lead");
+    control
+        .control
+        .joints
+        .get_mut("right_shoulder_pitch")
+        .expect("pitch")
+        .position_law = PositionLaw::ScaledPd;
+    assert!(matches!(
+        write_control_config_from(temp.path().join("config"), &control),
+        Err(ConfigError::InvalidSafetyConfig { field, .. }) if field.ends_with("position_slew_max_lead_rad")
+    ));
+}
+
+#[test]
+fn every_master_joint_defaults_to_the_legacy_law() {
+    let dir = source_root().join("config");
+    let control = load_control_config_from(&dir).expect("control");
+    for (joint, entry) in &control.control.joints {
+        assert_eq!(entry.position_law, PositionLaw::Legacy, "{joint}");
+        // Defaults resolve without touching the master tuning.
+        assert!((entry.time_scale_e0_rad() - entry.position_slew_max_lead_rad / 4.0).abs() < 1e-12);
+        assert!((entry.friction.static_nm() - entry.friction.fc).abs() < 1e-12);
+    }
+    // The selector and optional keys stay out of YAML until an operator sets them.
+    let text = serde_yaml::to_string(&control).expect("serialize");
+    for key in [
+        "position_law",
+        "position_time_scale_e0_rad",
+        "position_integral_band_rad",
+        "position_integral_leak_s",
+        "fs:",
+        "v_b:",
+    ] {
+        assert!(!text.contains(key), "{key} serialized by default");
+    }
+    let mut scaled = control.clone();
+    scaled
+        .control
+        .joints
+        .get_mut("right_elbow_pitch")
+        .expect("elbow")
+        .position_law = PositionLaw::ScaledPd;
+    let text = serde_yaml::to_string(&scaled).expect("serialize");
+    assert!(text.contains("position_law: scaled_pd"));
 }
 
 #[test]

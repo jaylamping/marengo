@@ -77,6 +77,8 @@ mod tests {
             fv: 0.0,
             fo: 0.0,
             k: 10.0,
+            fs: None,
+            v_b: None,
         };
         let out = compose_position_hold_feedforward(
             1.0,

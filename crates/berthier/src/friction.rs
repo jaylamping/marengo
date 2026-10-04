@@ -209,6 +209,8 @@ mod tests {
             fv: 0.0,
             fo: 0.0,
             k: 10.0,
+            fs: None,
+            v_b: None,
         }
     }
 
@@ -409,6 +411,8 @@ mod tests {
             fv: 0.0,
             fo: 0.0,
             k: 10.0,
+            fs: None,
+            v_b: None,
         };
         let (mode, tau) = position_hold_friction(
             0.0,
@@ -432,6 +436,8 @@ mod tests {
             fv: 0.0,
             fo: 0.0,
             k: 10.0,
+            fs: None,
+            v_b: None,
         };
         let (mode, tau) = position_hold_friction(
             0.0,
@@ -455,6 +461,8 @@ mod tests {
             fv: 0.0,
             fo: 0.0,
             k: 10.0,
+            fs: None,
+            v_b: None,
         };
         let (mode, tau) = position_hold_friction(
             0.0,
@@ -478,6 +486,8 @@ mod tests {
             fv: 0.0,
             fo: 0.0,
             k: 10.0,
+            fs: None,
+            v_b: None,
         };
         let (_, ramped) = position_hold_friction(
             0.0,

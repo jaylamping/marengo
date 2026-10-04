@@ -1,0 +1,296 @@
+//! ADR 0039 scaled-PD position law: drive-side PD on a feedback-governed reference.
+//!
+//! Selected per joint by `control.yaml` `position_law: scaled_pd` (ADR 0039 Phase 3). The
+//! legacy law in [`crate::position_hold`] stays the default until the Phase 4 cutover.
+//!
+//! Per joint and tick:
+//!
+//! ```text
+//! e     = q_ref − q
+//! s     = clamp(1 − (|e| − e0)/(e1 − e0), 0, 1)  while moving toward the target grows |e|,
+//!         else 1
+//! (q_ref, v_ref) ← trapezoid step toward the target with speed limit s·v_max, |Δv_ref| ≤ a_max·dt
+//! MIT:  position = clamp_envelope(q_ref), velocity = v_ref, kp, kd (constant),
+//!       τ_ff = τ_g + τ_fric(v_ref) + fo + τ_I
+//! ```
+//!
+//! The time scale `s` governs the reference *speed limit*, not its clock: the reference keeps
+//! braking and reversing in real time, so a retarget back toward a stuck joint is never frozen,
+//! and the commanded velocity changes by at most `a_max·dt` per tick.
+//!
+//! No torque term uses measured `dq`; damping is the drive's `kd·(v_ref − dq)`.
+
+use marengo_config::FrictionGains;
+
+use crate::position_trajectory::TrapezoidPhase;
+
+/// Reference position tolerance for arrival (same as the legacy trapezoid).
+const REFERENCE_TOLERANCE_RAD: f64 = 1e-4;
+
+/// Ceiling on the integral torque `|τ_I|` (Nm), shared with the legacy law.
+pub const SCALED_PD_INTEGRAL_MAX_NM: f64 = 0.5;
+
+/// Smooth friction feed-forward evaluated on the reference velocity (ADR 0039).
+///
+/// `τ_fric(v) = (fc + (fs − fc)·exp(−|v|/v_b))·tanh(k·v) + fv·v` (`k = 1/v_s`), plus the
+/// constant `fo` offset kept from the legacy model. `τ_fric(0) = 0`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ReferenceFriction {
+    pub fc: f64,
+    /// Static friction; never below `fc` (a lower override `fc` raises it to `fc`).
+    pub fs: f64,
+    pub fv: f64,
+    pub fo: f64,
+    /// tanh steepness (1/rad/s); `0` disables the Coulomb and Stribeck terms.
+    pub k: f64,
+    /// Stribeck velocity (rad/s), `> 0`.
+    pub v_b: f64,
+}
+
+impl ReferenceFriction {
+    /// Resolve from config gains; `fc_override` is a Testing gain override of `fc`.
+    pub fn from_gains(gains: &FrictionGains, fc_override: Option<f64>) -> Self {
+        let fc = fc_override.unwrap_or(gains.fc);
+        Self {
+            fc,
+            fs: gains.static_nm().max(fc),
+            fv: gains.fv,
+            fo: gains.fo,
+            k: gains.k,
+            v_b: gains.stribeck_velocity_rad_s(),
+        }
+    }
+
+    /// Velocity-dependent friction torque (odd in `v`, continuous, zero at rest).
+    pub fn torque(&self, v: f64) -> f64 {
+        let shape = if self.k > 0.0 {
+            (self.k * v).tanh()
+        } else {
+            0.0
+        };
+        let stribeck = if self.v_b > 0.0 {
+            (self.fs - self.fc) * (-v.abs() / self.v_b).exp()
+        } else {
+            0.0
+        };
+        (self.fc + stribeck) * shape + self.fv * v
+    }
+}
+
+/// Per-joint scaled-PD parameters resolved for one tick.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScaledPdGains {
+    /// Wire kd sent every tick (override > ramp > YAML; constant once the mode ramp ends).
+    pub kd: f64,
+    /// Full-rate band (rad).
+    pub e0: f64,
+    /// Stop band (rad), `> e0`.
+    pub e1: f64,
+    /// Integral accumulates while `|target − q| <` this (rad).
+    pub integral_band: f64,
+    /// Integral leak time constant outside the band (s).
+    pub integral_leak_s: f64,
+    /// `None` when the joint has no friction model (no friction feed-forward).
+    pub friction: Option<ReferenceFriction>,
+}
+
+/// Mutable per-joint law state beside the shared reference planner.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScaledPdState {
+    /// Time scale `s ∈ [0, 1]` applied to the reference speed limit on the latest advance.
+    pub s: f64,
+    /// Commanded reference velocity from the latest advance (rad/s).
+    pub v_c: f64,
+    /// Integral torque `τ_I` (Nm), stored in torque so gain changes never step it.
+    pub tau_i: f64,
+}
+
+impl Default for ScaledPdState {
+    fn default() -> Self {
+        Self {
+            s: 1.0,
+            v_c: 0.0,
+            tau_i: 0.0,
+        }
+    }
+}
+
+/// Feed-forward parts of one scaled-PD tick (Nm).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScaledPdFeedforward {
+    /// `τ_fric(v_c) + fo`.
+    pub tau_fric: f64,
+    pub tau_i: f64,
+    /// `τ_g + tau_fric + tau_i`.
+    pub tau_ff: f64,
+}
+
+/// Time scale for reference error magnitude `error_abs`: 1 up to `e0`, 0 from `e1`.
+pub fn time_scale_target(error_abs: f64, e0: f64, e1: f64) -> f64 {
+    if !error_abs.is_finite() {
+        return 0.0;
+    }
+    if e1 <= e0 {
+        return if error_abs <= e0 { 1.0 } else { 0.0 };
+    }
+    (1.0 - (error_abs - e0) / (e1 - e0)).clamp(0.0, 1.0)
+}
+
+/// Governor scale for this tick: [`time_scale_target`] of `|q_ref − q|` while advancing toward
+/// the target would grow that lead, else 1 (closing the lead is never slowed).
+pub fn governor_scale(q_ref: f64, q: f64, target: f64, e0: f64, e1: f64) -> f64 {
+    let lead = q_ref - q;
+    if lead * (target - q_ref) <= 0.0 {
+        return 1.0;
+    }
+    time_scale_target(lead.abs(), e0, e1)
+}
+
+/// Highest speed from which per-tick braking by `dv` (position updated with the new speed)
+/// stops within `dist`: the discrete form of `sqrt(2·a·dist)`, so a reference that rides it
+/// lands on the target instead of hunting around it.
+fn braking_speed(dist: f64, dv: f64, a_max: f64) -> f64 {
+    (dv * dv / 4.0 + 2.0 * a_max * dist).sqrt() - dv / 2.0
+}
+
+/// One reference step toward `target` that never changes velocity by more than `a_max·dt`.
+///
+/// The speed along the target direction moves by at most `a_max·dt` toward
+/// `min(v_max, braking_speed(distance))`. Unlike the legacy trapezoid it never snaps velocity: a
+/// reference moving away from the target (a reversing retarget) brakes through zero, a lowered
+/// `v_max` bleeds at `a_max`, and a reference that cannot stop in time (a short retarget at
+/// speed) decelerates at `a_max`, overshoots and returns. It snaps to `(target, 0)` only once
+/// the remaining speed is within one tick of acceleration.
+///
+/// Fails closed like the legacy trapezoid: a non-positive `v_max` means no cruise speed, and an
+/// invalid `a_max` leaves the reference where it is.
+pub fn reference_step(
+    q: f64,
+    v: f64,
+    target: f64,
+    v_max: f64,
+    a_max: f64,
+    dt: f64,
+) -> (f64, f64, TrapezoidPhase) {
+    let v_max = if v_max.is_finite() && v_max > 0.0 {
+        v_max
+    } else {
+        0.0
+    };
+    let remaining = target - q;
+    let dist = remaining.abs();
+    if !(a_max.is_finite() && a_max > 0.0) {
+        return if dist <= REFERENCE_TOLERANCE_RAD {
+            (target, 0.0, TrapezoidPhase::Hold)
+        } else {
+            (q, 0.0, TrapezoidPhase::Accelerate)
+        };
+    }
+    let dv = a_max * dt;
+    if dist <= REFERENCE_TOLERANCE_RAD && v.abs() <= dv {
+        return (target, 0.0, TrapezoidPhase::Hold);
+    }
+    // At the target with speed left, brake against the motion.
+    let dir = if dist <= REFERENCE_TOLERANCE_RAD {
+        -v.signum()
+    } else {
+        remaining.signum()
+    };
+    let v_along = v * dir;
+    let desired = v_max.min(braking_speed(dist, dv, a_max));
+    let v_along_new = desired.max(v_along - dv).min(v_along + dv);
+    let phase = if v_along_new < v_along - 1e-12 {
+        TrapezoidPhase::Decelerate
+    } else if v_max > 0.0 && v_along_new >= v_max - 1e-9 {
+        TrapezoidPhase::Cruise
+    } else {
+        TrapezoidPhase::Accelerate
+    };
+    let v_new = dir * v_along_new;
+    let q_new = q + v_new * dt;
+    let arrived =
+        (target - q_new) * remaining <= 0.0 || (target - q_new).abs() <= REFERENCE_TOLERANCE_RAD;
+    // Snap only from a speed within one tick of rest, so the snap itself is a bounded step.
+    if dist > REFERENCE_TOLERANCE_RAD && arrived && v.abs() <= dv {
+        return (target, 0.0, TrapezoidPhase::Hold);
+    }
+    (q_new, v_new, phase)
+}
+
+/// Advance the leaky integral one tick and return the new `τ_I` (Nm).
+///
+/// Inside the band it accumulates `ki·e·dt`; outside it (or with `ki = 0`) it decays with time
+/// constant `leak_s`. Always within `±SCALED_PD_INTEGRAL_MAX_NM`; it never resets.
+pub fn integral_step(
+    tau_i: f64,
+    target_error: f64,
+    ki: f64,
+    band: f64,
+    leak_s: f64,
+    dt: f64,
+) -> f64 {
+    let next = if ki > 0.0 && target_error.abs() < band {
+        tau_i + ki * target_error * dt
+    } else if leak_s > 0.0 {
+        tau_i * (-dt / leak_s).exp()
+    } else {
+        tau_i
+    };
+    if next.is_finite() {
+        next.clamp(-SCALED_PD_INTEGRAL_MAX_NM, SCALED_PD_INTEGRAL_MAX_NM)
+    } else {
+        0.0
+    }
+}
+
+/// Govern the speed limit from the current lead, then advance the reference one tick.
+///
+/// Returns the new `(q_ref, v_ref, phase)`; `state.s` and `state.v_c` are updated.
+#[allow(clippy::too_many_arguments)]
+pub fn advance_reference(
+    state: &mut ScaledPdState,
+    gains: &ScaledPdGains,
+    q_ref: f64,
+    v_ref: f64,
+    q: f64,
+    target: f64,
+    v_max: f64,
+    a_max: f64,
+    dt: f64,
+) -> (f64, f64, TrapezoidPhase) {
+    state.s = governor_scale(q_ref, q, target, gains.e0, gains.e1);
+    let (q_next, v_next, phase) = reference_step(q_ref, v_ref, target, state.s * v_max, a_max, dt);
+    state.v_c = v_next;
+    (q_next, v_next, phase)
+}
+
+/// Feed-forward for one tick: `τ_g + τ_fric(v_c) + fo + τ_I` (updates `state.tau_i`).
+pub fn compose_feedforward(
+    state: &mut ScaledPdState,
+    gains: &ScaledPdGains,
+    ki: f64,
+    target_error: f64,
+    tau_g: f64,
+    dt: f64,
+) -> ScaledPdFeedforward {
+    let tau_fric = gains
+        .friction
+        .map_or(0.0, |friction| friction.torque(state.v_c) + friction.fo);
+    state.tau_i = integral_step(
+        state.tau_i,
+        target_error,
+        ki,
+        gains.integral_band,
+        gains.integral_leak_s,
+        dt,
+    );
+    ScaledPdFeedforward {
+        tau_fric,
+        tau_i: state.tau_i,
+        tau_ff: tau_g + tau_fric + state.tau_i,
+    }
+}
+
+#[cfg(test)]
+#[path = "position_law_tests.rs"]
+mod tests;

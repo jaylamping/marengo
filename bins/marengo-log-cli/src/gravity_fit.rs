@@ -2199,11 +2199,11 @@ mod tests {
     use super::*;
     use armee_dynamics::LinkInertial;
 
-    const HEADER: &str = "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event";
+    const HEADER: &str = "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event,law,q_ref,dq_ref,time_scale,tau_i,kd_mit,tau_ff_wire";
 
     fn row(tick: u64, joint: &str, q: f64, dq: f64, target: f64, tau: f64) -> String {
         format!(
-            "{tick},{},{joint},{q},{dq},0,0,0,{target},{target},0,0,0,0,0,\"Hold, settled\",static,0.1,0,0,0,0.2,{tau},0,18,3,0,0,0,tick",
+            "{tick},{},{joint},{q},{dq},0,0,0,{target},{target},0,0,0,0,0,\"Hold, settled\",static,0.1,0,0,0,0.2,{tau},0,18,3,0,0,0,tick,legacy,0.000000,0.000000,1.000000,0.000000,3.000,0.200000",
             tick * 5
         )
     }

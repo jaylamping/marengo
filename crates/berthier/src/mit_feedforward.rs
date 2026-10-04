@@ -143,6 +143,8 @@ mod tests {
             fv: 0.0,
             fo: 0.0,
             k: 10.0,
+            fs: None,
+            v_b: None,
         });
         j.wire_kp = 18.0;
         j.wire_kd = 3.0;

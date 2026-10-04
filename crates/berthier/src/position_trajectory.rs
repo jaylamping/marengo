@@ -109,6 +109,13 @@ impl JointPositionPlanner {
         self.dq_traj = v;
         self.phase = phase;
     }
+
+    /// Install a reference state computed elsewhere (ADR 0039 scaled-PD step).
+    pub fn set_reference(&mut self, q_traj: f64, dq_traj: f64, phase: TrapezoidPhase) {
+        self.q_traj = q_traj;
+        self.dq_traj = dq_traj;
+        self.phase = phase;
+    }
 }
 
 /// Descent assist is only for same-side returns toward home, not crossing home or

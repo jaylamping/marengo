@@ -403,6 +403,47 @@ impl OnDriveLoss {
     }
 }
 
+/// Position-mode control law for one joint (ADR 0039 Phase 3 selector).
+///
+/// The key exists only while the scaled-PD law is qualified on the bench; the Phase 4
+/// cutover removes it together with the legacy law.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PositionLaw {
+    /// ADR 0007 law: host damping, planner repair heuristics, gated drive kd.
+    #[default]
+    Legacy,
+    /// ADR 0039 law: drive-side PD on a feedback time-scaled reference.
+    ScaledPd,
+}
+
+impl PositionLaw {
+    pub fn is_legacy(&self) -> bool {
+        *self == Self::Legacy
+    }
+
+    /// Trace/log spelling (matches the YAML value).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Legacy => "legacy",
+            Self::ScaledPd => "scaled_pd",
+        }
+    }
+}
+
+/// Scaled-PD full-rate band `e0` as a fraction of `e1` when unset (ADR 0039: "start at e1/4").
+pub const DEFAULT_POSITION_TIME_SCALE_E0_FRACTION: f64 = 0.25;
+
+/// Scaled-PD integral band (rad) when unset: the legacy integral window (`|e| < 0.1`).
+pub const DEFAULT_POSITION_INTEGRAL_BAND_RAD: f64 = 0.1;
+
+/// Scaled-PD integral leak time constant (s) when unset. 0.5 s bounds the decay slope of the
+/// 0.5 Nm integral to 1 Nm/s (0.005 Nm per 200 Hz tick) and drops a stale term within ~1.5 s.
+pub const DEFAULT_POSITION_INTEGRAL_LEAK_S: f64 = 0.5;
+
+/// Stribeck velocity `v_b` (rad/s) when unset. Inert while `fs` defaults to `fc`.
+pub const DEFAULT_FRICTION_STRIBECK_VELOCITY_RAD_S: f64 = 0.05;
+
 /// Timing and bounds of a degraded episode after a single drive loss (ADR 0038).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -530,6 +571,21 @@ pub struct JointControlEntry {
     /// Response to this joint's drive going silent while Active (ADR 0038).
     #[serde(default, skip_serializing_if = "OnDriveLoss::is_disable_all")]
     pub on_drive_loss: OnDriveLoss,
+    /// Position-mode law (ADR 0039 Phase 3). Default `legacy`.
+    #[serde(default, skip_serializing_if = "PositionLaw::is_legacy")]
+    pub position_law: PositionLaw,
+    /// Scaled-PD full-rate band `e0` (rad): the reference runs at full rate while
+    /// `|q_ref − q| ≤ e0`. Must be below `position_slew_max_lead_rad` (`e1`). Default `e1/4`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_time_scale_e0_rad: Option<f64>,
+    /// Scaled-PD integral band (rad): the integral accumulates while `|target − q|` is below
+    /// it and leaks otherwise. Default [`DEFAULT_POSITION_INTEGRAL_BAND_RAD`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_integral_band_rad: Option<f64>,
+    /// Scaled-PD integral leak time constant (s) outside the band. Default
+    /// [`DEFAULT_POSITION_INTEGRAL_LEAK_S`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_integral_leak_s: Option<f64>,
     /// Minimum position envelope margin at rest (rad). ADR 0009.
     #[serde(default = "default_position_limit_margin_min_rad")]
     pub position_limit_margin_min_rad: f64,
@@ -551,6 +607,29 @@ pub struct JointControlEntry {
 }
 
 impl JointControlEntry {
+    /// Scaled-PD time-scale stop band `e1` (rad): `position_slew_max_lead_rad`.
+    pub fn time_scale_e1_rad(&self) -> f64 {
+        self.position_slew_max_lead_rad
+    }
+
+    /// Scaled-PD full-rate band `e0` (rad), defaulting to `e1/4`.
+    pub fn time_scale_e0_rad(&self) -> f64 {
+        self.position_time_scale_e0_rad
+            .unwrap_or(self.position_slew_max_lead_rad * DEFAULT_POSITION_TIME_SCALE_E0_FRACTION)
+    }
+
+    /// Scaled-PD integral band (rad).
+    pub fn integral_band_rad(&self) -> f64 {
+        self.position_integral_band_rad
+            .unwrap_or(DEFAULT_POSITION_INTEGRAL_BAND_RAD)
+    }
+
+    /// Scaled-PD integral leak time constant (s).
+    pub fn integral_leak_s(&self) -> f64 {
+        self.position_integral_leak_s
+            .unwrap_or(DEFAULT_POSITION_INTEGRAL_LEAK_S)
+    }
+
     pub(crate) fn limit_margin_fields_valid(&self, joint: &str) -> Result<(), ConfigError> {
         if !self.position_limit_margin_min_rad.is_finite()
             || self.position_limit_margin_min_rad < 0.0
@@ -907,6 +986,26 @@ pub struct FrictionGains {
     pub fv: f64,
     pub fo: f64,
     pub k: f64,
+    /// Static (breakaway) friction `fs` (Nm) for the scaled-PD law's Stribeck term
+    /// (ADR 0039). Must be `>= fc`. Default `fc` (no Stribeck term).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fs: Option<f64>,
+    /// Stribeck velocity `v_b` (rad/s): the breakaway excess decays as `exp(−|v|/v_b)`.
+    /// Default [`DEFAULT_FRICTION_STRIBECK_VELOCITY_RAD_S`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub v_b: Option<f64>,
+}
+
+impl FrictionGains {
+    /// Resolved static friction `fs` (defaults to `fc`).
+    pub fn static_nm(&self) -> f64 {
+        self.fs.unwrap_or(self.fc)
+    }
+
+    /// Resolved Stribeck velocity `v_b`.
+    pub fn stribeck_velocity_rad_s(&self) -> f64 {
+        self.v_b.unwrap_or(DEFAULT_FRICTION_STRIBECK_VELOCITY_RAD_S)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1329,6 +1428,16 @@ pub(crate) fn validate_entry_gains_against_motor_type(
             ),
         });
     }
+    if entry.friction.static_nm() > defaults.tau_ff_max_nm {
+        return Err(ConfigError::Parse {
+            path: PathBuf::from("control.yaml"),
+            message: format!(
+                "friction.fs {} exceeds tau_ff_max_nm {} for {type_key}",
+                entry.friction.static_nm(),
+                defaults.tau_ff_max_nm
+            ),
+        });
+    }
     Ok(())
 }
 
@@ -1610,6 +1719,8 @@ mod tests {
                     fv: 0.0,
                     fo: 0.0,
                     k: 10.0,
+                    fs: None,
+                    v_b: None,
                 },
                 velocity_max_rad_s: None,
                 position_slew_rad_s: 0.15,
@@ -1620,6 +1731,10 @@ mod tests {
                 position_trajectory_velocity_deadband_rad: 0.02,
                 position_hold_trim_rad: 0.0,
                 on_drive_loss: OnDriveLoss::DisableAll,
+                position_law: PositionLaw::Legacy,
+                position_time_scale_e0_rad: None,
+                position_integral_band_rad: None,
+                position_integral_leak_s: None,
                 position_limit_margin_min_rad: 0.01,
                 position_limit_margin_k_v_s: 0.02,
                 position_limit_margin_k_stop: 0.5,

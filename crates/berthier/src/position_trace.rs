@@ -71,7 +71,7 @@ impl PositionTrace {
         if is_new {
             writeln!(
                 writer,
-                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event"
+                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event,law,q_ref,dq_ref,time_scale,tau_i,kd_mit,tau_ff_wire"
             )?;
         }
         log_trace_enabled_once(path);
@@ -166,12 +166,25 @@ pub struct PositionTraceRow<'a> {
     pub planner_frozen: bool,
     pub retarget_age_ms: u64,
     pub planner_event: &'a str,
+    /// Position law (`legacy` | `scaled_pd`, ADR 0039).
+    pub law: &'a str,
+    /// Reference position / velocity the law commands (before the envelope clamp).
+    pub q_ref: f64,
+    pub dq_ref: f64,
+    /// Reference governor scale `s` (scaled PD); legacy: 0 while frozen, else 1.
+    pub time_scale: f64,
+    /// Integral torque term (Nm).
+    pub tau_i: f64,
+    /// Wire kd sent to the drive.
+    pub kd_mit: f64,
+    /// τ_ff Davout sent after its cap and rate limiter (Nm).
+    pub tau_ff_wire: f64,
 }
 
 impl PositionTraceRow<'_> {
     pub fn format_csv_with_meta(&self, tick: u64, t_ms: u64) -> String {
         format!(
-            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{target_raw:.6},{q_env_lo:.6},{q_env_hi:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3},{joint_stuck},{planner_frozen},{retarget_age_ms},{planner_event}",
+            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{target_raw:.6},{q_env_lo:.6},{q_env_hi:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3},{joint_stuck},{planner_frozen},{retarget_age_ms},{planner_event},{law},{q_ref:.6},{dq_ref:.6},{time_scale:.6},{tau_i:.6},{kd_mit:.3},{tau_ff_wire:.6}",
             tick = tick,
             t_ms = t_ms,
             joint = csv_escape(self.joint),
@@ -202,6 +215,13 @@ impl PositionTraceRow<'_> {
             planner_frozen = if self.planner_frozen { 1 } else { 0 },
             retarget_age_ms = self.retarget_age_ms,
             planner_event = csv_escape(self.planner_event),
+            law = csv_escape(self.law),
+            q_ref = self.q_ref,
+            dq_ref = self.dq_ref,
+            time_scale = self.time_scale,
+            tau_i = self.tau_i,
+            kd_mit = self.kd_mit,
+            tau_ff_wire = self.tau_ff_wire,
         )
     }
 }
@@ -262,12 +282,23 @@ mod tests {
             planner_frozen: false,
             retarget_age_ms: 42,
             planner_event: "tick",
+            law: "scaled_pd",
+            q_ref: 0.48,
+            dq_ref: 0.12,
+            time_scale: 0.5,
+            tau_i: 0.01,
+            kd_mit: 3.0,
+            tau_ff_wire: 1.7,
         };
         let line = row.format_csv_with_meta(42, 1234);
         assert!(line.starts_with("42,1234,right_shoulder_pitch,"));
         assert!(line.contains(",1.740000,1.500000,0.120000,"));
         assert!(line.contains(",Cruise,traj_vel,"));
-        assert!(line.ends_with(",1,0,42,tick"));
+        assert!(line.ends_with(
+            ",1,0,42,tick,scaled_pd,0.480000,0.120000,0.500000,0.010000,3.000,1.700000"
+        ));
+        let header_columns = 37;
+        assert_eq!(line.split(',').count(), header_columns);
     }
 
     fn sample_row() -> PositionTraceRow<'static> {
@@ -300,6 +331,13 @@ mod tests {
             planner_frozen: false,
             retarget_age_ms: 42,
             planner_event: "tick",
+            law: "legacy",
+            q_ref: 0.48,
+            dq_ref: 0.12,
+            time_scale: 1.0,
+            tau_i: 0.0,
+            kd_mit: 0.0,
+            tau_ff_wire: f64::NAN,
         }
     }
 

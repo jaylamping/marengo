@@ -19,6 +19,7 @@ fn numeric_parameters() -> HoldJointParams {
         friction: None,
         limit_policy: None,
         tau_meas: 0.0,
+        law: HoldLaw::Legacy,
     }
 }
 

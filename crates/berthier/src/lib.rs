@@ -55,6 +55,7 @@ mod r#loop;
 mod mit_feedforward;
 mod position_feedforward;
 mod position_hold;
+mod position_law;
 mod position_profile;
 mod position_setpoint;
 mod position_trace;

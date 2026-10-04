@@ -87,7 +87,7 @@ function preflightReply(control = FILES.controlYaml): string {
 // Synthetic position trace (Berthier header; `phase` quoted with a comma inside).
 
 const TRACE_HEADER =
-  "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event";
+  "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event,law,q_ref,dq_ref,time_scale,tau_i,kd_mit,tau_ff_wire";
 const TRACE_HZ = 50;
 
 /** Trace rows the stdin motion lines (`hold-at`, `wave`) of a session body would leave. */
@@ -98,7 +98,7 @@ function traceFor(motionLines: readonly string[]): string {
   const emit = () => {
     for (const j of CHAIN) {
       const t = targets[j].toFixed(6);
-      rows.push(`${tick},${tick * 20},${j},${t},0,${t},0,${t},${t},${t},-1,3,0,false,0,"Hold, settled",static,0,0,0,0,0,0,0,18,3,false,false,0,tick`);
+      rows.push(`${tick},${tick * 20},${j},${t},0,${t},0,${t},${t},${t},-1,3,0,false,0,"Hold, settled",static,0,0,0,0,0,0,0,18,3,false,false,0,tick,legacy,${t},0.000000,1.000000,0.000000,3.000,0.000000`);
     }
     tick += 1;
   };
