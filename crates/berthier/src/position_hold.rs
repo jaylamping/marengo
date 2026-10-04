@@ -1081,7 +1081,12 @@ impl PositionHold {
                     .filter(|(ji, _)| *ji == i)
                     .map(|(_, d)| d)
                     .unwrap_or(0.0);
-                let dq = dq_raw.clamp(-v_max_caps[i], v_max_caps[i]);
+                // The wave was admitted against the velocity cap and the trajectory speed
+                // (`validate_wave_motion`); cap its velocity by those only. `v_max_caps` would
+                // pick the slew speed, because each wave sample is within the trajectory
+                // threshold of q, and pin the feed-forward there (bench 2026-10-04).
+                let cap = Self::clamp_v_max(jp.velocity_cap, jp.trajectory_v_max);
+                let dq = dq_raw.clamp(-cap, cap);
                 planners[i].resume_cruise_toward(target, dq);
                 // Wave owns the joint — do not carry a pre-wave AscentStall fuse across.
                 Self::set_bool_at(&mut self.planner_frozen, i, false);
