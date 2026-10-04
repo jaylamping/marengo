@@ -282,6 +282,36 @@ pub(crate) fn validate_control_numbers(cfg: &ControlConfigFile) -> Result<(), Co
             "must be > 0",
         ));
     }
+    validate_drive_loss(control)?;
+    Ok(())
+}
+
+/// A `shed_subtree` joint needs the episode timing; the timing must be usable.
+/// The gravity bound that admits a joint needs the URDF model and runs where
+/// the controller is built (Berthier), not here.
+fn validate_drive_loss(control: &crate::ControlSection) -> Result<(), ConfigError> {
+    let shedding = control
+        .joints
+        .iter()
+        .find(|(_, entry)| entry.on_drive_loss == crate::OnDriveLoss::ShedSubtree);
+    let Some(drive_loss) = &control.drive_loss else {
+        return match shedding {
+            Some((joint, _)) => Err(invalid(
+                format!("control.joints.{joint}.on_drive_loss"),
+                "shed_subtree requires a control.drive_loss block",
+            )),
+            None => Ok(()),
+        };
+    };
+    for (name, value) in [
+        ("hold_window_s", drive_loss.hold_window_s),
+        ("lower_velocity_rad_s", drive_loss.lower_velocity_rad_s),
+        ("lower_settle_s", drive_loss.lower_settle_s),
+        ("lower_max_s", drive_loss.lower_max_s),
+    ] {
+        positive(format_args!("control.drive_loss.{name}"), value)?;
+    }
+    nonnegative("control.drive_loss.tau_margin_nm", drive_loss.tau_margin_nm)?;
     Ok(())
 }
 

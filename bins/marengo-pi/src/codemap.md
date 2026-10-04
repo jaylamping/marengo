@@ -7,6 +7,7 @@ Pi runtime implementation modules.
 | Module | Role |
 |--------|------|
 | `main.rs` | Entry, REPL, control loop, Chappe bridge, command parsing |
+| `degraded.rs` | ADR 0038 wiring: startup admission log, motion refusals during an episode, stdout lines and `robot/audit/action` events for episode transitions |
 | `reference_queue.rs` | One-at-a-time physical reference queue (stdin `home <joints> sign-tested`, Consul Set Zero), deferral of other stdin commands, cancel; stdout contract lines |
 | `reference_queue_tests.rs` | Queue state machine against a scripted driver: refusals, ordering, failure skips, deferral, cancel, E-stop |
 | `reference_dispatch_tests.rs` | `home` parsing and stdin dispatch/deferral/cancel against a plain (unsupported) owner |

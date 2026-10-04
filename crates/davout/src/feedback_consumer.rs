@@ -501,6 +501,25 @@ impl<B: MotorBus> Supervisor<B> {
                     first_error = self.require_fault_clear().err();
                 }
             }
+            if self.drive_loss.is_shed(&address) {
+                // Never pose again (ADR 0038). Reset is expected: the drive was
+                // stopped or rebooted; the lost drive's return is logged.
+                let lost = self.drive_loss.lost_address.as_ref() == Some(&address);
+                self.track_drive_frame(motor, &address, drive_mode, observation.received_at, lost);
+                if let Some((error, transition)) = self.inspect_shed_frame(
+                    &motor.joint,
+                    &address,
+                    drive_mode,
+                    observation.received_at,
+                    device,
+                ) {
+                    first_transition |= transition;
+                    if first_error.is_none() {
+                        first_error = Some(error);
+                    }
+                }
+                continue;
+            }
             let current_enable =
                 self.feedback_run_expected(motor, &address, observation.received_at, context);
             self.track_drive_frame(

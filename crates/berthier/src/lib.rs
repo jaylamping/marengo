@@ -48,6 +48,7 @@
 //!
 //! See [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md).
 
+mod degraded;
 mod friction;
 mod gain_runtime;
 mod r#loop;
@@ -73,6 +74,9 @@ mod reference_journal_tests;
 mod test_support;
 
 pub use davout::ControlMode;
+pub use degraded::{
+    DegradedEvent, DegradedLowerCause, DriveLossAdmission, DEGRADED_REST_TOLERANCE_RAD,
+};
 pub use gain_runtime::{mode_allows_gain_override, GainOverride, GainShapeError};
 pub use position_hold::HoldFuseTrip;
 pub use r#loop::{

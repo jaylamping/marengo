@@ -216,6 +216,7 @@ mod tests {
             position_trajectory_accel_rad_s2: 2.5,
             position_trajectory_velocity_deadband_rad: 0.02,
             position_hold_trim_rad: 0.0,
+            on_drive_loss: crate::OnDriveLoss::DisableAll,
             position_limit_margin_min_rad: 0.01,
             position_limit_margin_k_v_s: 0.02,
             position_limit_margin_k_stop: 0.5,

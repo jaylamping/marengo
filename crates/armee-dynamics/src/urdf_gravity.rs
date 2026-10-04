@@ -151,6 +151,33 @@ impl UrdfGravityModel {
             .collect())
     }
 
+    /// Indices (model joint order) of `joint` and every modelled joint distal to
+    /// it in the URDF tree: the joints whose child link moves with `joint`.
+    pub fn subtree_joints(&self, joint: &str) -> Result<Vec<usize>, DynamicsError> {
+        let root = self
+            .robot
+            .joints
+            .iter()
+            .position(|j| j.name == joint)
+            .ok_or_else(|| DynamicsError::UnknownJoint {
+                joint: joint.to_string(),
+            })?;
+        Ok(self
+            .joint_names
+            .iter()
+            .enumerate()
+            .filter(|(_, name)| {
+                self.robot
+                    .joints
+                    .iter()
+                    .find(|j| &j.name == *name)
+                    .and_then(|j| self.link_chains.get(&j.child.link))
+                    .is_some_and(|chain| chain.contains(&root))
+            })
+            .map(|(index, _)| index)
+            .collect())
+    }
+
     /// Joint-space holding torque (Nm) of a **unit** point mass fixed at `point_m` in
     /// `link`'s frame, at pose `q`. Same sign convention and virtual-work gradient as
     /// [`DynamicsModel::gravity_torques`](crate::DynamicsModel::gravity_torques); a link's

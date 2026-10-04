@@ -130,6 +130,8 @@ pub(crate) fn classify_stdin(cmd: &PiCommand) -> (CommandClass, &'static str) {
         // Both only drop the control mode to neutral (kp = kd = τ = 0).
         PiCommand::HoldOff => (CommandClass::Stop, "hold-off"),
         PiCommand::ImpedanceOff => (CommandClass::Stop, "impedance-off"),
+        // Lowers to rest and stops every drive; only valid in a degraded hold.
+        PiCommand::Lower => (CommandClass::Stop, "lower"),
         PiCommand::Status => (CommandClass::Observe, "status"),
         PiCommand::Home => (CommandClass::Motion, "home"),
         PiCommand::HomeJoints { .. } => (CommandClass::Motion, "home <joints>"),

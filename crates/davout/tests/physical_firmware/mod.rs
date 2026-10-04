@@ -241,6 +241,10 @@ pub struct Drive {
     /// pre-Enable mode and precedes the Enable reply (Enable-to-Run reply
     /// latency is 1.4-5.2 ms on the bench against a 10 ms report period).
     pub stale_report_after_enable: bool,
+    /// While enabled, move the encoder toward each MIT frame's position at
+    /// most this fast (motor rad/s): a stiff servo standing in for the arm.
+    pub follow_mit_rad_s: Option<f64>,
+    last_mit_at: Option<Instant>,
 }
 
 impl Drive {
@@ -423,6 +427,8 @@ impl Firmware {
                     fail_writes_after_readback: Vec::new(),
                     ignore_enable: false,
                     stale_report_after_enable: false,
+                    follow_mit_rad_s: None,
+                    last_mit_at: None,
                 }
             })
             .collect();
@@ -634,6 +640,18 @@ impl Firmware {
                 }
             }
             Some(CommunicationType::OperationControl) => {
+                if let (true, Some(speed)) = (drive.enabled, drive.follow_mit_rad_s) {
+                    let scale =
+                        f64::from(MitRanges::for_motor_type(drive.motor_type).position_scale);
+                    let raw = u16::from_be_bytes([frame.data[0], frame.data[1]]);
+                    let commanded = (f64::from(raw) / 32767.0 - 1.0) * scale;
+                    let step = drive.last_mit_at.map_or(0.0, |at| {
+                        speed * now.saturating_duration_since(at).as_secs_f64()
+                    });
+                    let error = commanded - drive.position_motor_rad();
+                    drive.raw_motor_rad += error.clamp(-step, step);
+                }
+                drive.last_mit_at = Some(now);
                 replies.push((
                     drive.mit_reply_delay,
                     drive.status(CommunicationType::OperationStatus),

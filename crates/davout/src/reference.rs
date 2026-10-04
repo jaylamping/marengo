@@ -21,6 +21,9 @@ pub(super) struct ConsumedReferenceBinding {
     /// Physical bindings retain the MCU identifier read during acquisition.
     pub(super) uid: Option<robstride::DeviceUid>,
     revoked: Cell<bool>,
+    /// Revoked because the drive went silent beyond `comm_watchdog_ms` (ADR 0038:
+    /// the only revocation a degraded episode may answer).
+    revoked_silent: Cell<bool>,
 }
 
 impl ConsumedReferenceBinding {
@@ -40,6 +43,7 @@ impl ConsumedReferenceBinding {
             device_epoch,
             uid,
             revoked: Cell::new(false),
+            revoked_silent: Cell::new(false),
         }
     }
 
@@ -162,6 +166,21 @@ impl ReferenceAuthority {
         if !binding.revoked.replace(true) {
             self.bump_generation();
         }
+    }
+
+    /// [`Self::revoke_binding`] for a drive silent beyond the watchdog.
+    pub(super) fn revoke_binding_silent(&self, binding: &ConsumedReferenceBinding) {
+        if !binding.revoked.get() {
+            binding.revoked_silent.set(true);
+        }
+        self.revoke_binding(binding);
+    }
+
+    /// `joint`'s own grant was revoked for silence (and nothing else first).
+    pub(super) fn revoked_silent(&self, joint: &str) -> bool {
+        self.consumed
+            .iter()
+            .any(|binding| binding.joint == joint && binding.revoked_silent.get())
     }
 
     pub(super) fn revoke_joint(&self, joint: &str) {

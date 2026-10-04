@@ -84,6 +84,7 @@ mod active_reporting;
 #[cfg(test)]
 mod active_reporting_pacing_tests;
 mod burst;
+mod drive_loss;
 mod faults;
 mod feedback_consumer;
 pub(crate) mod homing_facets;
@@ -104,6 +105,9 @@ mod reference_transaction;
 mod reference_urdf_codec;
 pub mod simulation;
 
+pub use drive_loss::{
+    DegradedEnd, DegradedEpisode, DegradedOutcome, DriveLossPlan, SHED_REPLY_GRACE,
+};
 pub use protocol_inspection::{
     DriveProtocolInspection, INSPECTED_PARAMETERS, INSPECTION_QUERY_TIMEOUT, INSPECTION_SETTLE,
 };
@@ -310,6 +314,13 @@ pub enum DavoutError {
     ActiveSetChangeRefused,
     #[error("drive protocol inspection: {message}")]
     ProtocolInspection { message: String },
+    #[error("degraded hold after losing {joint}: {message}; only disable or lower is accepted")]
+    DegradedEpisode {
+        joint: String,
+        message: &'static str,
+    },
+    #[error("drive-loss plan for {joint}: {message}")]
+    DriveLossPlan { joint: String, message: String },
 }
 
 pub use robstride::bus::{BusError, MemoryBus, MotorAddress, MotorBus};
@@ -514,6 +525,8 @@ pub struct Supervisor<B: MotorBus> {
     /// session's targets, set at activation. `unanswered_writes` counts how
     /// many such writes went unanswered since the last admitted pose.
     unanswered_solicits: FxHashMap<MotorAddress, SolicitedState>,
+    /// Single-drive-loss plans, episode and shed addresses (ADR 0038).
+    drive_loss: drive_loss::DriveLossState,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -669,6 +682,7 @@ impl<B: MotorBus> Supervisor<B> {
             last_refresh_frames: 0,
             active_joints: HashSet::new(),
             unanswered_solicits: FxHashMap::default(),
+            drive_loss: drive_loss::DriveLossState::default(),
         };
         Ok((supervisor, record_path))
     }
@@ -794,7 +808,10 @@ impl<B: MotorBus> Supervisor<B> {
     fn published_state(&self, index: usize) -> Option<&MotorState> {
         let address = self.configured_address(index)?;
         let state = self.motor_states.get(&*address)?;
-        if state.updated.is_none() || self.invalid_feedback.contains(&*address) {
+        if state.updated.is_none()
+            || self.invalid_feedback.contains(&*address)
+            || self.drive_loss.is_shed(&address)
+        {
             return None;
         }
         if self.mode == OperationalMode::Active
@@ -1063,7 +1080,11 @@ impl<B: MotorBus> Supervisor<B> {
                             .map_or(0, |slot| slot.unanswered_writes),
                         "physical reference grant revoked"
                     );
-                    self.reference_authority.revoke_binding(binding);
+                    if identity_holds && current == Err(Lapse::Silent) {
+                        self.reference_authority.revoke_binding_silent(binding);
+                    } else {
+                        self.reference_authority.revoke_binding(binding);
+                    }
                 } else {
                     self.reference_authority.revoke();
                     return false;
@@ -1080,14 +1101,30 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// [`Self::ensure_reference_for`] over the current active set, without copying it.
-    /// A physical joint that lost its own grant stops the whole active session.
-    fn ensure_reference_for_active(&mut self) -> Result<(), DavoutError> {
+    /// A physical joint that lost its own grant stops the whole active session,
+    /// unless the loss qualifies for a subtree shed (ADR 0038). Returns whether
+    /// this call shed a subtree.
+    fn ensure_reference_for_active(&mut self) -> Result<bool, DavoutError> {
         self.ensure_reference_binding()?;
+        let shed = self.mode == OperationalMode::Active
+            && !self.active_references_held()
+            && self.shed_for_drive_loss()?;
         let result = self.require_reference_permission(&self.active_joints);
         if result.is_err() && self.mode == OperationalMode::Active {
             let _ = self.disable_all();
         }
-        result
+        result.map(|()| shed)
+    }
+
+    /// Judge every Active joint's grant now. A qualifying single loss sheds its
+    /// subtree (ADR 0038); any other lapse stops every drive and errors. The
+    /// controller calls this when an Active pose reads stale before the grant
+    /// that counts the same unanswered solicit was judged lapsed.
+    pub fn check_active_references(&mut self) -> Result<(), DavoutError> {
+        if self.mode != OperationalMode::Active {
+            return Ok(());
+        }
+        self.ensure_reference_for_active().map(|_| ())
     }
 
     fn ensure_reference_binding(&mut self) -> Result<(), DavoutError> {
@@ -1358,11 +1395,13 @@ impl<B: MotorBus> Supervisor<B> {
     /// ([`DavoutError::ActiveSetChangeRefused`]); operators must Disable then Enable.
     pub fn enable_targets(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         self.require_fault_clear()?;
+        self.refuse_during_episode("enable refused")?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
         if self.mode == OperationalMode::Active {
             self.ensure_reference_for_active()?;
+            self.refuse_during_episode("enable refused")?;
         }
         if joints.is_empty() {
             return Err(DavoutError::Homing {
@@ -2004,9 +2043,15 @@ impl<B: MotorBus> Supervisor<B> {
         // this drain has read the queue (below): judged here, a host stall
         // would count as drive silence, both the read gap (receive times can
         // be read times) and an Active target's replies still queued.
+        self.enforce_degraded_deadline()?;
         let valid_before_read = self.reference_binding_valid_with(Liveness::Defer);
-        let lost_active_reference = self.mode == OperationalMode::Active
+        let mut lost_active_reference = self.mode == OperationalMode::Active
             && !(valid_before_read && self.active_references_held());
+        // A grant judged lapsed since the last drain (e.g. by a facet read)
+        // may still be answered by a subtree shed (ADR 0038).
+        if lost_active_reference && valid_before_read && self.shed_for_drive_loss()? {
+            lost_active_reference = false;
+        }
         if !lost_active_reference {
             if let Err(error) = self.issue_due_enable_writes(Instant::now()) {
                 warn!(error = %error, "staggered enable write failed — disable_all");
@@ -2026,7 +2071,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.last_refresh_frames = self.last_refresh_frames.saturating_add(count);
         let consumption = self.consume_feedback_report(report);
         let valid_after_read = self.reference_binding_valid();
-        let lapsed_active_reference = !lost_active_reference
+        let mut lapsed_active_reference = !lost_active_reference
             && self.mode == OperationalMode::Active
             && !(valid_after_read && self.active_references_held());
         let mut first_error = consumption.first_error;
@@ -2035,6 +2080,13 @@ impl<B: MotorBus> Supervisor<B> {
             first_transition |= transition;
             if first_error.is_none() {
                 first_error = Some(error);
+            }
+        }
+        if lapsed_active_reference && valid_after_read && !first_transition && first_error.is_none()
+        {
+            match self.shed_for_drive_loss() {
+                Ok(shed) => lapsed_active_reference = !shed,
+                Err(error) => first_error = Some(error),
             }
         }
         if first_transition {
@@ -2250,10 +2302,11 @@ impl<B: MotorBus> Supervisor<B> {
 
     fn admit_and_send_mit_with(
         &mut self,
-        cmds: Vec<MitJointCommand>,
+        mut cmds: Vec<MitJointCommand>,
         supplied: Option<&MotorEntry>,
         scratch: &mut MitBatchScratch,
     ) -> Result<(), DavoutError> {
+        self.enforce_degraded_deadline()?;
         self.require_fault_clear()?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
@@ -2261,7 +2314,13 @@ impl<B: MotorBus> Supervisor<B> {
         for cmd in &cmds {
             validate_mit_command(cmd)?;
         }
-        self.ensure_reference_for_active()?;
+        if self.ensure_reference_for_active()? {
+            // This call shed a subtree: the batch was composed before the
+            // controller could know. Later batches to a shed joint are refused.
+            if let Some(episode) = &self.drive_loss.episode {
+                cmds.retain(|cmd| !episode.shed_joints.contains(&cmd.joint));
+            }
+        }
         self.sync_motor_addresses();
         scratch.configured.clear();
         for cmd in &cmds {
@@ -2295,20 +2354,27 @@ impl<B: MotorBus> Supervisor<B> {
         }
         let batch_tick = Instant::now();
         if let Err(error) = self.prepare_mit_batch(cmds, supplied, scratch) {
-            // Staged limiter/watchdog state is discarded: a rejected batch leaves
-            // `last_tau_ff` and `wrong_sign_state` exactly as before admission.
-            // Limit here is a rejected request (gains/neutral position),
-            // unlike Limit produced while validating received feedback.
-            if matches!(
-                error,
-                DavoutError::CommWatchdog { .. }
-                    | DavoutError::MotorFault { .. }
-                    | DavoutError::WrongSignWatchdog { .. }
-                    | DavoutError::DangerZone { .. }
-            ) {
-                self.stop_after_runtime_error(&error);
+            let shed = if matches!(error, DavoutError::CommWatchdog { .. }) {
+                self.shed_after_stale_pose(scratch)?
+            } else {
+                false
+            };
+            if !shed {
+                // Staged limiter/watchdog state is discarded: a rejected batch leaves
+                // `last_tau_ff` and `wrong_sign_state` exactly as before admission.
+                // Limit here is a rejected request (gains/neutral position),
+                // unlike Limit produced while validating received feedback.
+                if matches!(
+                    error,
+                    DavoutError::CommWatchdog { .. }
+                        | DavoutError::MotorFault { .. }
+                        | DavoutError::WrongSignWatchdog { .. }
+                        | DavoutError::DangerZone { .. }
+                ) {
+                    self.stop_after_runtime_error(&error);
+                }
+                return Err(error);
             }
-            return Err(error);
         }
         // Commit before transmit: a delivery failure's stop path clears this state.
         for stage in &scratch.staged {
@@ -2483,6 +2549,18 @@ impl<B: MotorBus> Supervisor<B> {
                 pacer.begin_group(&motor.can_interface);
             }
             let address = MotorAddress::from(motor);
+            if self.drive_loss.is_shed(&address) {
+                // A shed drive is never commanded again except Disable (ADR 0038).
+                let result = self.bus.disable_drive_at(&address);
+                report.attempts.push(StopAttempt {
+                    address,
+                    action: StopAction::Disable,
+                    error: result
+                        .err()
+                        .map(|error| bounded_message(&error.to_string())),
+                });
+                continue;
+            }
             let result = self.bus.speed_control_at(&address, 0.0);
             report.attempts.push(StopAttempt {
                 address: address.clone(),
@@ -2551,6 +2629,7 @@ impl<B: MotorBus> Supervisor<B> {
                 DeviceFaultEvidence::default(),
             );
         }
+        self.end_degraded_episode_on_stop();
         self.fault_authority.set_stop_report(report.clone());
         report
     }
@@ -2644,7 +2723,7 @@ impl<B: MotorBus> Supervisor<B> {
         // bound. Hold those writes to the quiet's end; the drive's silence is
         // the host's until the held On is actually written (bounded by
         // OWED_ON_WRITE_BOUND), then counts from that write.
-        let held: Vec<String> = if self.set_zero_on_wire.is_empty() {
+        let mut held: Vec<String> = if self.set_zero_on_wire.is_empty() {
             Vec::new()
         } else {
             self.motors
@@ -2654,6 +2733,16 @@ impl<B: MotorBus> Supervisor<B> {
                 .map(|motor| motor.joint.clone())
                 .collect()
         };
+        // A shed drive gets no type-24 write ever again (ADR 0038).
+        if !self.drive_loss.shed.is_empty() {
+            held.extend(
+                self.motors
+                    .motors
+                    .iter()
+                    .filter(|motor| self.drive_loss.is_shed(&MotorAddress::from(*motor)))
+                    .map(|motor| motor.joint.clone()),
+            );
+        }
         let deferred = self.active_reporting.sync_holding(
             &mut self.bus,
             &self.motors,
@@ -2668,6 +2757,9 @@ impl<B: MotorBus> Supervisor<B> {
                 continue;
             };
             let address = MotorAddress::from(motor);
+            if self.drive_loss.is_shed(&address) {
+                continue;
+            }
             if let Some(until) = self.set_zero_quiet_until(&address) {
                 self.reference_owner
                     .physical

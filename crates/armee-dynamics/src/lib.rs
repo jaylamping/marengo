@@ -61,6 +61,7 @@
 //! bench enable, and rely on the Davout wrong-sign watchdog for runtime detection.
 
 pub mod calibration;
+pub mod drive_loss;
 mod urdf_gravity;
 
 use std::path::Path;
@@ -99,6 +100,9 @@ pub enum DynamicsError {
     NonFiniteInput { what: &'static str },
     #[error("gravity model produced a non-finite torque for joint {joint}")]
     NonFiniteTorque { joint: String },
+    /// The drive-loss admission grid would take too long to evaluate.
+    #[error("drive-loss grid needs {evaluations} model evaluations, above the {max} bound")]
+    LossGridTooLarge { evaluations: usize, max: usize },
 }
 
 /// Joint-space gravity holding torque τ_g(q) in Nm.

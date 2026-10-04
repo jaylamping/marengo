@@ -9,6 +9,17 @@ control:
     # Free-drive Set Limits: keep encoder feedback while limp (Disabled/Ready).
     active_reporting_diagnostics: true
 
+  # Single-drive loss while Active (ADR 0038). A joint with
+  # `on_drive_loss: shed_subtree` is admitted at marengo-pi startup only if the
+  # offline gravity bound passes on every joint that keeps holding:
+  # max |τ_g| + max |Δτ_g| (frozen shed angles) + tau_margin_nm <= its tau_ff cap.
+  drive_loss:
+    hold_window_s: 5.0
+    lower_velocity_rad_s: 0.25
+    lower_settle_s: 3.0
+    lower_max_s: 10.0
+    tau_margin_nm: 0.5
+
   motor_type_defaults:
     rs00:
       kp_max: 500
@@ -108,6 +119,8 @@ control:
         k: 10.0
     right_upper_arm_yaw:
       motor_type: rs02
+      # ADR 0038 bound on the 2026-10-04 URDF: pitch 2.82+0.47, roll 2.81+0.34 Nm.
+      on_drive_loss: shed_subtree
       gravity_comp:
         kp: 0.0
         kd: 0.0
@@ -138,6 +151,8 @@ control:
         k: 10.0
     right_elbow_pitch:
       motor_type: rs02
+      # ADR 0038 bound: pitch 2.82+0.47, roll 2.81+0.33, upper yaw 0.30+0.45 Nm.
+      on_drive_loss: shed_subtree
       gravity_comp:
         kp: 0.0
         kd: 0.0
@@ -169,6 +184,8 @@ control:
         k: 10.0
     right_lower_arm_yaw:
       motor_type: rs00
+      # ADR 0038 bound: max |Δτ_g| 0.07 Nm on every holding joint.
+      on_drive_loss: shed_subtree
       gravity_comp:
         kp: 0.0
         kd: 0.0

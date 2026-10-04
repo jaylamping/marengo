@@ -61,11 +61,13 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 
 - **Reference grants are process-local (ADR 0036).** `home <joint>... sign-tested` acquires physical evidence: stop, UID, SetZero, a type-2 ack, a 0x7019 readback, and a journal commit. Enable must happen **in the same marengo-pi process**. Calibration history, the journal and caller flags never grant. A `motor-repl set-zero` grant dies when that process exits.
 - **Motion-owner lease:** `--motion-owner stdin|chappe` or `MARENGO_MOTION_OWNER` (default `chappe`), fixed for the process lifetime. Stop/observe commands are accepted from either source; motion is accepted only from the owner, and refusals publish `motion_refused` on `robot/audit/action`. Ad-hoc ssh sessions must set `MARENGO_MOTION_OWNER=stdin`; MCP tools already export it.
-- **stdin grammar** (`parse_command`): `home <joints> sign-tested`, `enable [operator]` (a `force` token is ignored; nothing bypasses the gravity preflight), `disable`, `gravity-on|off`, `torque-cmd`, `impedance-on|off`, `hold-on`, `hold-at [joint] <rad>`, `hold-off`, `wave`, `status`, `quit`. EOF behaves like `quit`.
+- **stdin grammar** (`parse_command`): `home <joints> sign-tested`, `enable [operator]` (a `force` token is ignored; nothing bypasses the gravity preflight), `disable`, `gravity-on|off`, `torque-cmd`, `impedance-on|off`, `hold-on`, `hold-at [joint] <rad>`, `hold-off`, `wave`, `lower` (degraded hold only), `status`, `quit`. EOF behaves like `quit`.
 - **stdout lines scripts wait for:**
   - `reference <j> current pos=…`, `reference <j> failed: …`, `skipped: …`
   - `waiting for enable to complete`, then `enabled (operator=…)`
   - `enable failed: …`, `enable blocked: …`, `enable refused: …` (stderr), `home failed: …`
+  - drive loss (ADR 0038): `drive lost <joint>: shed <a,b>; holding <c,d>; auto-lower in <s> s`, `degraded lower started (operator|timeout)`, `degraded lower complete; disabled`, `degraded episode ended (deadline|stop); disabled`
+- **Single-drive loss (ADR 0038):** a silent drive whose joint has `on_drive_loss: shed_subtree` (admitted at startup by the offline τ_g bound; master: upper-arm yaw, elbow, lower-arm yaw) sheds itself and every distal joint with one Disable each; the proximal joints hold in Position, then lower to rest at ≤ `lower_velocity_rad_s` on `lower` or after `hold_window_s`, then every drive stops and a Communication fault latches (restart required). Davout enforces a hard deadline. Every other motion command is refused (stderr `… refused: degraded hold after losing <joint>; …` + `motion_refused`); `disable`/`hold-off`/E-stop stop everything at once. Any other loss stops every drive as before.
 - **Enable completion gate:** `enabled` prints only after every target is Active, has no pending Enable writes, and has fresh feedback (`ENABLE_COMPLETION_TIMEOUT` = 2 s, after which all drives stop). `hold-on`/`hold-at`/`wave` sent earlier are deferred.
 - **Gravity preflight:** stdin/Chappe Enable and Testing Position auto-enable first run the gravity saturation sweep, at most 2 ms per tick (`bins/marengo-pi/src/gravity_preflight.rs`), so `waiting for enable to complete` arrives about 0.2 s after `enable` on the Pi. Commands sent meanwhile, except `disable`/`quit`, wait and then run in order. If the sweep refuses or is voided (stop, new fault, reference work, limit change), the waiting commands are discarded: `enable refused: …` is printed, followed by `discarded N deferred command(s)`.
 - **motor-repl** supports only `status | disable | set-zero <joint> [--sign-tested] | protocol-inspect [joint...] | gravity-preview <q × all joints>`. A partial angle vector is refused. `protocol-inspect` is read-only on Disabled drives (ADR 0037).
@@ -84,7 +86,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 | `assets/urdf/marengo.urdf` | Kinematic + inertial source of truth (no meshes); `assets/mjcf/` holds the sim models |
 | `tools/` | `marengo-pi-mcp` (Pi bench tools), `marengo-research-mcp` (Python/uv), `limit-sync-local`, `compound-auto-learn` |
 | `scripts/` | `check.sh`, deploy/install, `pi-remote.sh`, vcan, systemd units (`scripts/systemd/`) |
-| `docs/` | `safety.md`, `rust-patterns.md`, ADRs `decisions/0001–0037`, `commissioning/`, `reviews/` |
+| `docs/` | `safety.md`, `rust-patterns.md`, ADRs `decisions/0001–0038`, `commissioning/`, `reviews/` |
 | `sim/` | MuJoCo smoke (`sim/scripts/smoke_test.py`, `sim/fixtures/minimal.xml`) |
 | `cad/`, `hardware/` | Manifests and docs only; SolidWorks binaries are local to the Windows host |
 | `var/` | Runtime output; `var/log`, `var/enable-soak`, `var/gravity-calibration` and `var/firmware-captures` are gitignored |

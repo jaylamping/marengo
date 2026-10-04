@@ -1,5 +1,6 @@
 //! Marengo Pi runtime: CAN I/O, control loop, Chappe telemetry, operator commands.
 
+mod degraded;
 mod enable_gate;
 #[cfg(test)]
 mod enable_gate_tests;
@@ -143,6 +144,8 @@ enum PiCommand {
         half_period_sec: f64,
     },
     HoldOff,
+    /// Degraded hold only (ADR 0038): lower the holding joints to rest now.
+    Lower,
     Status,
     Quit,
 }
@@ -264,6 +267,7 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                 }
             }
         }
+        "lower" => Some(PiCommand::Lower),
         "status" => Some(PiCommand::Status),
         "quit" | "exit" => Some(PiCommand::Quit),
         "help" => {
@@ -290,6 +294,7 @@ fn print_usage() {
          impedance-on | impedance-off\n  \
          hold-on | hold-at [joint] <rad> | hold-off\n  \
          wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]\n  \
+         lower                                  (after a drive loss: lower to rest, then disable)\n  \
          status\n  \
          quit"
     );
@@ -660,6 +665,15 @@ fn drain_chappe_commands<B: MotorBus>(
                     );
                     continue;
                 }
+                if degraded::refuse_during_episode(
+                    loop_ctrl,
+                    chappe,
+                    &request.operator_id,
+                    "set-zero",
+                    false,
+                ) {
+                    continue;
+                }
                 if let Err(e) = handle_chappe_set_zero(loop_ctrl, queue, &request) {
                     warn!(
                         joint = %request.joint,
@@ -786,6 +800,17 @@ fn drain_chappe_commands<B: MotorBus>(
                 };
                 if let Err(refusal) = lease.admit(CommandSource::Chappe, class, name) {
                     report_refusal(chappe, &request.operator_id, "", name, &refusal.to_string());
+                    continue;
+                }
+                if request.enable
+                    && degraded::refuse_during_episode(
+                        loop_ctrl,
+                        chappe,
+                        &request.operator_id,
+                        name,
+                        false,
+                    )
+                {
                     continue;
                 }
                 if let Err(e) = handle_chappe_enable(loop_ctrl, queue, gate, &request) {
@@ -924,6 +949,9 @@ fn drain_testing_commands<B: MotorBus>(
             lease.admit(CommandSource::Chappe, CommandClass::Motion, "testing batch")
         {
             report_refusal(chappe, "consul", "", "testing batch", &refusal.to_string());
+            continue;
+        }
+        if degraded::refuse_during_episode(loop_ctrl, chappe, "consul", "testing batch", false) {
             continue;
         }
         // Same gate as Chappe enable and stdin commands: nothing may energise,
@@ -1098,6 +1126,24 @@ fn publish_safety<B: MotorBus>(
                 joint: String::new(),
             });
         }
+    }
+    // A degraded episode is visible while it runs (ADR 0038); its end latches
+    // a Communication fault, listed above.
+    if let Some(episode) = supervisor.degraded_episode() {
+        faults.push(Fault {
+            code: "drive_loss_degraded_hold".to_string(),
+            message: format!(
+                "drive lost: shed {}; holding {}; every drive stops within {:.1} s",
+                episode.shed_joints.join(","),
+                episode.holding_joints.join(","),
+                episode
+                    .deadline
+                    .saturating_duration_since(Instant::now())
+                    .as_secs_f64()
+            ),
+            severity: FaultSeverity::Warning as i32,
+            joint: episode.lost_joint.clone(),
+        });
     }
     let state = SafetyState {
         timestamp_ms: timestamp_ms(),
@@ -1361,6 +1407,11 @@ fn handle_command<B: MotorBus>(
             emit(gate.cancel_arms("cancelled by hold-off"));
             println!("hold-off → Disabled");
         }
+        PiCommand::Lower => {
+            if let Err(e) = loop_ctrl.request_degraded_lower() {
+                eprintln!("{e}");
+            }
+        }
         PiCommand::Status => print_status(loop_ctrl, config_dir),
         PiCommand::Quit => {
             // Owner shutdown performs the mandatory live-reference cleanup.
@@ -1518,6 +1569,15 @@ fn main() {
             std::process::exit(1);
         }
     };
+    // ADR 0038: admit `on_drive_loss: shed_subtree` joints against the offline
+    // gravity bound; a refused joint refuses the configuration.
+    match loop_ctrl.admit_drive_loss() {
+        Ok(admitted) => degraded::log_admission(&admitted),
+        Err(e) => {
+            eprintln!("drive-loss admission: {e}");
+            std::process::exit(1);
+        }
+    }
 
     #[cfg(unix)]
     match resolve_chappe_socket(std::env::var_os("MARENGO_CHAPPE_SOCKET")) {
@@ -1821,6 +1881,18 @@ fn run_control_loop<B: MotorBus>(
                         if !admit_stdin_command(runtime.motion, runtime.chappe.as_ref(), &cmd) {
                             continue;
                         }
+                        let (class, name) = classify_stdin(&cmd);
+                        if class == CommandClass::Motion
+                            && degraded::refuse_during_episode(
+                                loop_ctrl,
+                                runtime.chappe.as_ref(),
+                                STDIN_REFERENCE_OPERATOR,
+                                name,
+                                true,
+                            )
+                        {
+                            continue;
+                        }
                         cmd
                     }
                     Err(_) => break,
@@ -1900,8 +1972,19 @@ fn run_control_loop<B: MotorBus>(
             break;
         }
 
+        // Davout stops every drive at a degraded episode's deadline even if
+        // the controller never advances it (ADR 0038).
+        if let Err(e) = loop_ctrl.supervisor_mut().enforce_degraded_deadline() {
+            unpublished_fault.record(e.to_string());
+        }
         if let Err(e) = loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             unpublished_fault.record(stop_after_tick_error(loop_ctrl, &e));
+        }
+        if degraded::report_degraded_events(
+            loop_ctrl.take_degraded_events(),
+            runtime.chappe.as_ref(),
+        ) {
+            emit(enable_gate.cancel_arms("cancelled: degraded hold after drive loss"));
         }
         emit_reference_events(reference_queue.pump(loop_ctrl.supervisor_mut()));
         // After the tick: report a completed (or refused) Enable, then retry

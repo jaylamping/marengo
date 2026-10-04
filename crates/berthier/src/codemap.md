@@ -7,6 +7,7 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 | Module | Role |
 |--------|------|
 | `loop.rs` | `ControlLoop<B>` — shared private initialization for ordinary and concrete closed simulation constructors, checked gain setters, enable-session neutral bootstrap, main tick, mode dispatch, Chappe publish |
+| `degraded.rs` | ADR 0038 degraded episode: `admit_drive_loss` (offline τ_g bound → `DriveLossPlan`s), `DegradedEvent`, hold/lower phases driven from `loop.rs` |
 | `friction.rs` | Velocity-based friction feedforward |
 | `position_feedforward.rs` | PD torque for position hold |
 | `position_hold.rs` | `PositionHold`: latched targets, planners, recovery latches, MIT compose, and the two position-hold fuses (below) |

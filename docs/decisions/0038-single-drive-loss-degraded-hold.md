@@ -1,6 +1,6 @@
-# ADR 0038: single-drive loss while Active: degraded hold, then controlled descent
+# ADR 0038: single-drive loss while Active: subtree shed, degraded hold, controlled lower
 
-Status: proposed, October 4, 2026. Nothing is implemented. Builds on
+Status: accepted and implemented, October 4, 2026. Builds on
 [ADR 0036](0036-physical-robstride-reference.md) (per-joint grants, solicited
 silence) and WP-I D2 (`docs/reviews/2026-10-03-crate-audit/phase-b/WP-I.md`,
 "limp vs hold" trade-off, item 4).
@@ -10,248 +10,200 @@ silence) and WP-I D2 (`docs/reviews/2026-10-03-crate-audit/phase-b/WP-I.md`,
 ### Incident, 2026-10-04 (gravity calibration, arm elevated)
 
 Wire evidence from `candump-20261004T050045Z` (capture-relative seconds), all
-five right-arm drives on `can0` (`config/motors.yaml`: ids 1-5 =
-shoulder_pitch, shoulder_roll, upper_arm_yaw, elbow_pitch, lower_arm_yaw):
+five right-arm drives on `can0` (ids 1-5 = shoulder_pitch, shoulder_roll,
+upper_arm_yaw, elbow_pitch, lower_arm_yaw):
 
 - up to 15.0104 s, id 5 (`right_lower_arm_yaw`, RS00, fw 0.0.3.32) answered
-  every MIT frame in about 0.2 ms: type-2 id `0x028005FD`, mode bits
-  16..23 = `0x80` (Run), torque about 0, 23 °C;
-- 15.0104 to 15.111 s, id 5 was silent: no reply to 20 MIT frames, no type-24.
-  Ids 1-4 replied (79 frames). No error frames; `rx_over` unchanged. The bus
-  was healthy; one drive went away;
+  every MIT frame in about 0.2 ms in Run mode;
+- 15.0104 to 15.111 s, id 5 was silent (20 unanswered MIT frames, no type-24).
+  Ids 1-4 replied (79 frames); no error frames, `rx_over` unchanged;
 - `marengo-pi` logged `physical reference grant revoked joint=right_lower_arm_yaw
   cause="no feedback within comm_watchdog_ms" silence=101ms`, then `control
-  tick failed error=safety: homing: current reference was revoked after feedback
-  projection`. Every drive was disabled and the arm, at shoulder pitch 0.8 rad,
-  fell;
-- at 15.748 s (738 ms later) id 5 came back with `0x020005FD` (mode `0x00`,
-  Reset) and then type-24 reports. The drive had rebooted, probably after a power
-  interruption [INFERENCE: nothing on the wire tells a brownout from a reset].
+  tick failed ... current reference was revoked after feedback projection`.
+  Every drive was disabled and the arm, at shoulder pitch 0.8 rad, fell;
+- at 15.748 s id 5 came back in Reset (`0x020005FD`) with type-24 reports: a
+  reboot, probably a power interruption on the harness across the elbow
+  [INFERENCE: the wire cannot tell a brownout from a reset]. It happened twice.
 
-Torque and velocity bounds played no part. This is the `docs/safety.md`
-*Upright-pose incident* class (lines 78-91), caused this time by Marengo's own
-fail-closed stop.
+Before this ADR, Davout revoked only the silent joint's grant (ADR 0036) but
+`poll_feedback`, `ensure_reference_for_active` and `ensure_reference_binding`
+then stopped every drive, and `stop_after_tick_error` stopped them again.
 
-### Why everything stops today
+## Invariants kept
 
-1. `Supervisor::reference_binding_valid_with` (`crates/davout/src/lib.rs:951-1015`)
-   revokes only the silent joint (`revoke_binding`), as ADR 0036 *UID binding
-   and revocation* requires.
-2. `poll_feedback` (`lib.rs:1934-1963`) sees that the active set no longer holds
-   every grant (`active_references_held`, `lib.rs:2039`), calls `disable_all`
-   itself and returns `DavoutError::Homing("…revoked after feedback
-   projection")`. `ensure_reference_for_active` (`lib.rs:1026-1035`, doc comment:
-   "a physical joint that lost its own grant stops the whole active session")
-   and `ensure_reference_binding` (`lib.rs:1040-1043`) do the same.
-3. `perform_stop_paced` (`lib.rs:2371-2461`) sends zero speed, neutral MIT
-   (kp = kd = τ = 0) and Disable to every address, then clears `active_joints`.
-   The healthy shoulder drives lose τ_g on the next frame.
-4. Berthier `ControlLoop::tick` (`crates/berthier/src/loop.rs:1215-1229`)
-   discards motion intent for every `LoopError::Safety`, and
-   `stop_after_tick_error` (`bins/marengo-pi/src/main.rs:452-473`, called at
-   `:1903-1904`) runs `disable_all` again.
-5. Even if the stop were skipped, the gravity model needs every coupled joint:
-   `tick_inner` refuses with `MissingFeedback` (`loop.rs:1297-1311`, pinned by
-   `active_gravity_refuses_when_a_coupled_joint_lacks_feedback`, `loop.rs:2038`)
-   because `gravity_torques(&q)` (`loop.rs:1327`) takes the full vector. When
-   the drive came back, its Reset-mode reply against the strict Run expectation
-   (`feedback_consumer.rs:453-475`) would have latched `DriveState` and stopped
-   everything anyway.
+- **Davout is the only motor path.** Davout alone qualifies a loss, sheds, owns
+  the deadline and sends every stop.
+- **Process-local, latched grants** (ADR 0036): a shed drive is never commanded
+  again in this process except Disable (no MIT, Enable, SetZero, parameter
+  write, type-24 On or Off). The all-address stop writes only Disable to it.
+- **Every fault latch stops everything**, `StopDelivery` and `Transport` included.
+- **E-stop and operator authority:** E-stop, `disable`, Chappe `enable(false)`,
+  `hold-off`, `stop_on_lag` and shutdown stop every drive at once.
+- **No change** to `comm_watchdog_ms`, gains, velocity caps, danger zones, τ
+  caps, the rate limiter or the Berthier fuses.
 
-`DavoutError::Homing` is not recorded by `record_runtime_error`
-(`lib.rs:1168-1214`, `_ => return false`), so this stop latched no fault. Only the
-revoked grant stops the process from re-enabling the set
-(`enable_targets`, `lib.rs:1298-1303`).
+## Options considered
 
-## Invariants this ADR must not change
+A. Status quo (disable all): one drive loss drops an elevated arm. B. Shed and
+hold, then lower to rest and disable (adopted). C. Hold until the operator acts:
+rejected, unbounded hold on an incomplete model. D. Re-acquire the rebooted
+drive in-process: rejected, breaks "a revoked grant stays revoked" and the zero
+is lost. E. Longer `comm_watchdog_ms`: rejected, the drive was down 738 ms. F.
+Mechanical counterbalance or brake on shoulder pitch: the only answer for a
+proximal loss; hardware, outside this ADR.
 
-- **Davout is the only motor path.** Berthier and marengo-pi never write the
-  bus; Davout alone qualifies a loss, enforces the deadline and sends the stop.
-- **Process-local, latched grants** (ADR 0036 *Process lifetime*, `safety.md:33-49`):
-  a revoked joint's drive is never commanded again in-process (no MIT, Enable,
-  SetZero, parameter write, type-24 On). Disable stays allowed (ADR 0023).
-- **Fault latches mean "stop all"**, `StopDelivery` and `Transport` included.
-  Degraded mode only replaces the grant-lapse stop, which today is no latch.
-- **E-stop and operator authority:** `set_hardware_estop` (`lib.rs:1274-1296`),
-  stdin/Chappe `disable`, `stop_on_lag` and shutdown stop everything at once.
-- **No change** to `comm_watchdog_ms` (100), danger zones, τ caps, rate limiter,
-  Berthier fuses (`HoldTracking`, `AscentStall`, `WaveStall`) or other stop paths.
+## Decision
 
-## Options
+### Kinematic-subtree shed
 
-**A. Status quo: disable all.** Simple, proven, one stop path. Any single drive
-loss drops an elevated arm; with five drives, an RS00 now known to reboot and a
-shared `can0` harness, this will recur.
+When joint J's drive is lost, Davout disables J **and every joint distal to it**
+(its subtree in the URDF parent chain, computed by
+`UrdfGravityModel::subtree_joints`, never hard-coded). Joints proximal to J keep
+holding; joints of other limbs are not in J's subtree and are unaffected. Losing
+shoulder pitch sheds the whole arm, which leaves nothing to hold: such a joint is
+refused at admission and its loss stops every drive, as before.
 
-**B. Degraded hold, timed descent, then disable all.** Davout sheds the lost
-joint (Disable to that address, out of the active set); healthy joints keep τ_g
-and a bounded position law, ramp to rest, then everything is disabled: limp but
-low. Most code; only helps for a distal loss (*Feasibility*).
+### Admission (config, checked at startup)
 
-**C. Degraded hold only, until the operator acts.** Rejected as default:
-unbounded hold on an incomplete gravity model, a later fault drops the arm at a
-worse moment, no safe end state unattended. Allowed only as bounded C′ (hold at
-most `degraded_max_s`, then disable) where descent is not admissible.
+`control.yaml` joint key `on_drive_loss: disable_all | shed_subtree` (default
+`disable_all`, unknown values refused). `shed_subtree` needs a `control.drive_loss`
+block (`hold_window_s`, `lower_velocity_rad_s`, `lower_settle_s`, `lower_max_s`,
+`tau_margin_nm`, all validated). `marengo-pi` runs
+`ControlLoop::admit_drive_loss` at startup and exits if any `shed_subtree` joint
+fails; only admitted joints get a `DriveLossPlan` installed in Davout. Without a
+plan, every loss stops every drive.
 
-**D. Re-acquire the rebooted drive in-process.** Rejected: breaks "a revoked
-grant stays revoked" (ADR 0036), and a reboot loses the volatile zero
-(`Drive::reboot`, `crates/davout/tests/physical_firmware/mod.rs:324-333`).
+The offline bound (`armee_dynamics::drive_loss::subtree_loss_torque_bounds`):
+the shed joints sweep their soft ranges (7 points each) while every holding
+joint sits on a grid of its own soft range (4 points plus rest). For each
+holding joint h it records `max |τ_g,h|` and `max |Δτ_g,h|`, the largest change
+of `τ_g,h` between two subtree poses with the holding joints fixed (the error a
+frozen subtree angle hides). Admission requires, on every holding joint,
 
-**E. Longer `comm_watchdog_ms`.** Rejected: the drive was in Reset for 738 ms,
-and it delays every real detection (ADR 0036 *Host-caused silence*, "Not adopted").
+`max |τ_g| + max |Δτ_g| + tau_margin_nm ≤ min(policy tau_ff_max, motor-type tau_ff_max_nm)`.
 
-**F. Mechanical counterbalance or brake on shoulder pitch.** The only answer
-for proximal loss; complements B; hardware, outside this ADR.
+On the 2026-10-04 URDF with `tau_margin_nm: 0.5` (caps: RS03 5 Nm, RS02/RS00 3 Nm):
 
-## Feasibility: distal vs proximal loss
+| Lost joint | Worst holding joint: max \|τ_g\| + max \|Δτ_g\| (Nm) | Result |
+|---|---|---|
+| right_shoulder_pitch | nothing holds | refused |
+| right_shoulder_roll | pitch 2.82 + 5.20 | refused |
+| right_upper_arm_yaw | pitch 2.82 + 0.47, roll 2.81 + 0.34 | admitted |
+| right_elbow_pitch | pitch 2.82 + 0.47, roll 2.81 + 0.33, upper yaw 0.30 + 0.45 | admitted |
+| right_lower_arm_yaw | every holding joint Δ ≤ 0.07 | admitted |
 
-The chain runs pitch → roll → upper_arm_yaw → elbow_pitch → lower_arm_yaw. Once
-its drive is in Reset, a lost joint and everything distal to it swing freely.
+The master `config/control.yaml` sets `shed_subtree` on the three admitted
+joints. The bound is static: the swing of a freed forearm adds dynamic load the
+grid does not capture. If bench evidence shows the healthy joints cannot ride
+that out, set the intermediate joints back to `disable_all`.
 
-- **Lost distal joint (lower_arm_yaw).** It rotates the forearm about its own
-  axis. Losing it changes the proximal τ_g only through the hand COM's offset
-  from that axis. The healthy joints can still hold and lower the arm. **B is
-  feasible.**
-- **Lost intermediate joint (elbow_pitch, upper_arm_yaw).** The forearm swings
-  as a pendulum. The shoulder τ_g changes both dynamically and by a large amount,
-  and the model with a frozen `q` is wrong exactly while the arm moves. This is
-  feasible only if the joint passes the admission rule below. [INFERENCE] the
-  elbow probably fails it with the arm elevated; `gravity-preview` over the
-  range decides.
-- **Lost proximal joint (shoulder_pitch, shoulder_roll).** The arm falls about
-  the lost axis whatever the distal drives do, and a stiff distal hold only
-  changes the shape of the fall. **Not degradable: disable all immediately**, as
-  today.
+### What qualifies (Davout, at the moment of the lapse)
 
-Admission is per joint, from configuration, checked offline at config
-validation. A new `control.yaml` joint key `on_drive_loss: disable_all | descend`
-defaults to `disable_all`. `descend` validates only if, at every grid point of
-the lost joint's soft range (the other joints at their limits and at rest):
-(1) `max |τ_g(q) − τ_g(q_frozen)|` on every healthy joint stays within its
-`tau_ff` cap minus the hold margin, and (2) the full `τ_g` of the healthy joints,
-with the lost joint anywhere in its range, stays within their caps. Only
-`right_lower_arm_yaw` is expected to qualify on the current bench.
+The session is Active in GravityComp or Position, every Enable written and
+echoed, no reference work, no latched fault, no E-stop, no earlier episode in
+this process. Exactly one Active joint lost its grant, for silence
+(`revoke_binding_silent`), and it has an installed plan and `shed_subtree`. Every
+holding joint keeps its grant and a current pose, and every shed joint has a last
+admitted pose (the frozen angle).
 
-## Decision (proposed): option B, distal joints only
+### Shed (Davout, inside the detecting call)
 
-### What qualifies, all conditions at the moment of the lapse
+`shed_for_drive_loss` writes **one type-4 Disable per subtree address** (no
+paced burst, no settle wait: the drive-side CanTimeout of 600 ≈ 30 ms leaves no
+room), revokes the subtree's grants, removes it from the Active set and opens a
+`DegradedEpisode { lost_joint, shed_joints, holding_joints, frozen_positions,
+since, deadline }`. The call returns Ok, so no tick error is raised. A lapse is
+judged in the feedback drain, in MIT admission (a batch composed before the shed
+drops its shed joints once; later batches naming them fail `InactiveJoint`),
+when the pose watchdog fires a moment after the grant check, and when the
+controller finds an Active pose stale (`check_active_references`).
 
-- The session is Active, in `GravityComp` or `Position` hold (wave and ascent
-  included). No reference work is busy and the process is not shutting down.
-- Exactly one joint has lapsed, its cause is `Lapse::Silent` (`lib.rs:990`), and
-  its `on_drive_loss` is `descend`.
-- No fault is latched. Every other Active joint holds its grant and has a current
-  pose (`pose_is_current`, `lib.rs:2087`).
-- No degraded episode has run before in this process.
+Frames from a shed address are never pose. Reset is expected (a stopped or
+rebooted drive; the lost drive's return logs `drive reboot detected`). Any other
+mode read later than `SHED_REPLY_GRACE` (20 ms) after the shed latches
+`DriveState` and stops everything.
 
-### What still disables everything at once
+### Deadline (Davout)
 
-Transport latch (`BusError::Send/Driver/ReceiveIncomplete`, rx overflow), E-stop,
-`StopDelivery`, any `Device` status flag (on the shed address too, since an
-undervoltage flag hints at a shared supply), `DriveState` on a healthy address,
-`Limit` or the measured position guard, `DangerZone` with action fault,
-`WrongSign`, malformed feedback, a `Controller` latch (dynamics model,
-`MissingSetpoint`, `GainShape`), a second drive loss, a lapse of a
-`disable_all` joint, an identity change or coordinate-epoch jump (the drive is
-alive but untrusted), owed-On lapses, model or policy change, operator disable,
-`stop_on_lag`, shutdown, any Berthier fuse trip during the descent, and the
-descent deadline.
+`deadline = since + hold_window_s + min(distance / lower_velocity_rad_s +
+lower_settle_s, lower_max_s)`, where `distance` is the largest `|q − trim|` of
+the holding joints. Every drain and MIT admission, and `marengo-pi` once per
+loop iteration (`enforce_degraded_deadline`), stop every drive once it has
+passed, whatever the controller does.
 
-### Mechanics
+### Hold and lower (Berthier)
 
-- **Davout** (`poll_feedback`, `ensure_reference_for_active`,
-  `ensure_reference_binding`): a qualifying lapse calls `shed_lost_joint(joint)`
-  instead of `disable_all`. It writes **one type-4 Disable** to that address
-  only; the three-frame stop could add three replies to a tick already carrying
-  four MIT replies, which overran the mcp251x two-frame buffer before
-  (`lib.rs:2246-2256`, 2026-10-04 soak, Transport latched). The joint leaves
-  `active_joints`; its address joins a `shed` set that `admit_and_send_mit_with`
-  refuses (a wire to it is an error, not a skip). A `DegradedEpisode { joint,
-  cause, since, deadline }` goes into `SafetySnapshot`; Davout returns Ok with a
-  degraded event, so `stop_after_tick_error` is not reached. Reset-mode frames
-  from the shed address are expected and logged as reboot evidence; a Run-mode
-  frame or status flags from it latch and stop everything.
-- **Deadline in Davout:** `deadline = since + min(distance / v_desc + settle,
-  degraded_max_s)`. At the deadline or the first non-qualifying error it calls
-  `disable_all` and latches `FaultClass::Communication` for the lost joint
-  (restart required; the episode is a visible fault). A Berthier that stops
-  ticking or ignores the episode still ends in a stop at the next Davout call.
-- **Berthier:** a `DegradedDescent` mode freezes the lost joint's `q` at its
-  last admitted value for `gravity_torques` (lifting `MissingFeedback` for that
-  joint only) and ramps every healthy joint to the rest pose, time-synchronized,
-  with the existing Position hold law (τ_g FF plus configured kp/kd; no new
-  gains). Tracking, not pure GravityComp: with kp = 0 the frozen-`q` model error
-  drifts the arm. Fuses and danger zones stay armed.
-- **marengo-pi / Consul:** publish the episode in `SafetyState`; operator
-  `disable` stops everything at once; motion commands are refused meanwhile.
+On the episode Berthier freezes: it aborts any wave, retarget or torque command
+and latches every joint at its current `q` in Position hold (existing law, τ_g
+feed-forward plus configured gains; no new gains), with the shed joints' angles
+frozen in `gravity_torques`. The operator may stop (everything off at once) or
+send `lower`. After `hold_window_s` with neither, the lower starts by itself:
+every holding joint retargets to rest (0 rad plus `position_hold_trim_rad`,
+clamped to its envelope) with its planner velocity capped at
+`lower_velocity_rad_s` (0.25 rad/s, below the 0.45 rad/s danger-zone clamp). When
+every planner has reached rest and every measured `q` is within
+`DEGRADED_REST_TOLERANCE_RAD` (0.05 rad), Berthier calls
+`complete_degraded_lower`. Fuses and danger zones stay armed. Any other motion
+command (`enable`, `home`, hold, wave, torque, gain changes, Testing batches,
+set-zero, mode changes) is refused.
 
-### Descent bounds (proposed config, `control.yaml`)
+### End
 
-- `degraded_descent_velocity_rad_s` ≤ the danger-zone clamp of 0.45 rad/s
-  (`config/control.yaml:202-210`). Proposed 0.25 rad/s: 0.8 rad of pitch in
-  3.2 s.
-- `degraded_max_s`, a hard cap of 6 s from the shed. C′ uses the same cap.
-- Rest pose: per joint, defaulting to 0 rad, the pose `pi_hold_on` returns to
-  before it disables. [INFERENCE] 0 is the low-energy, hanging pose of this bench;
-  confirm with `gravity-preview` before relying on it.
-- Progress: the existing `HoldTracking` fuse semantics apply. A descent with no
-  measured progress trips and stops everything.
+Every end (lower complete, deadline, operator stop, a fault, a second loss) is an
+all-address stop that latches `FaultClass::Communication` on the lost joint
+(`drive lost; degraded episode ended (<end>); restart required`) and records a
+`DegradedOutcome`.
 
-### Interaction with the drive-side CanTimeout (600 ≈ 30 ms)
+### Still stops everything at once
 
-All five drives read `CanTimeout` (0x7028) = 600 (ADR 0037 probe, 2026-10-03,
-`docs/safety.md:471-480`); Marengo never writes it and power-cycle persistence
-is unverified.
+Transport latch, E-stop, operator stop, `StopDelivery`, any Device status flag
+(shed addresses included), `DriveState`, Limit, `DangerZone`, `WrongSign`,
+malformed feedback, any Controller latch (Berthier fuses included), a second
+drive loss during or after an episode, the loss of a joint without an admitted
+plan, a loss outside GravityComp/Position or during enable or reference work, an
+identity or coordinate-epoch revocation, the deadline, and a non-Reset frame
+from a shed drive.
 
-- **Healthy drives:** the shed must fit inside the detecting tick (no blocking
-  drain, paced burst or settle wait). A host gap over ~30 ms sends the healthy
-  drives to Reset and repeats the fall: a degraded descent tolerates less host
-  jitter, not more.
-- **Lost drive:** alive but deaf, it reaches Reset ~30 ms after the last frame
-  it heard; mute but listening, it gets the Disable, or times out ~30 ms after
-  the host stops addressing it [INFERENCE: WP-I D2 item 2, whether other
-  addresses' frames reset its timer is undocumented]. Either way it is torque-off
-  without Marengo commanding it.
-- **Defence in depth only:** a power-cycled drive may read 0. Then a host death
-  mid-descent leaves the healthy drives on their last frame (τ_g plus kp toward
-  the last setpoint), as a host death does today.
-- Detection latency is unchanged: `comm_watchdog_ms` after the first unanswered
-  solicit (ADR 0036 *Solicited silence*); healthy drives are commanded every
-  tick throughout (ids 1-4 kept replying in the incident).
+### Visibility (marengo-pi)
 
-## Test plan
+- stdout: `drive lost <joint>: shed <a,b>; holding <c,d>; auto-lower in <s> s`,
+  `degraded lower started (operator|timeout)`, `degraded lower complete;
+  disabled`, `degraded episode ended (deadline|stop); disabled`; refusals print
+  `<cmd> refused: degraded hold after losing <joint>; only disable or lower is
+  accepted` (stderr).
+- `robot/audit/action`: `drive_loss_shed`, `degraded_lower`,
+  `degraded_lower_complete`, `degraded_episode_ended`, and `motion_refused` for
+  refusals.
+- `SafetyState.active_faults`: a `drive_loss_degraded_hold` WARNING entry while
+  the episode runs (no proto change); the latched Communication fault after it.
+- tracing WARN events for the shed, the lower and the end.
 
-Firmware emulator (`FirmwareBus`, `crates/davout/tests/physical_firmware`), no
-hardware. Extend `Drive::reboot(silent_until)` and `reboot_after_ack`.
+## Drive-side CanTimeout (600 ≈ 30 ms)
 
-1. Distal silence while Active in GravityComp: lower_arm_yaw is shed. Exactly one
-   Disable goes to id 5, MIT frames continue to ids 1-4 with no tick gap over one
-   period, and no MIT reaches id 5 again.
-2. A reboot-like return (Reset-mode frames after 738 ms): logged and tolerated.
-   A Run-mode frame or status flags from the shed address stop everything.
-3. Proximal silence (shoulder_pitch): `disable_all` at once, unchanged.
-4. Second loss during the episode, a transport error, E-stop or operator disable
-   during the episode: immediate all-address stop.
-5. Deadline: the episode ends with `disable_all` plus a latched `Communication`
-   fault, even if the controller stops ticking.
-6. Berthier (simulation): `DegradedDescent` ramps the healthy joints to rest
-   within `degraded_max_s` and at most `degraded_descent_velocity_rad_s`. The
-   frozen-`q` gravity call succeeds and a fuse trip stops everything. Update
-   `stop_path_tests.rs` to show that a degraded event is not a tick error.
-7. Config validation: `descend` on a joint that fails the τ-bound grid is
-   refused.
+The shed fits inside the detecting tick and the holding drives are commanded
+every tick throughout. A host stall over ~30 ms still sends the healthy drives
+to Reset: a degraded episode tolerates less host jitter, not more. A lost drive
+that still listens gets the Disable or times out on its own.
 
-Bench, arm supported first, then unsupported at low elevation: hold the arm
-in GravityComp, cut id 5 power (or unplug its CAN stub), and confirm that the
-arm descends to rest and disables, using `pi_candump_summary` and the position
-trace (no MIT to id 5 after the Disable, no gap over 30 ms to ids 1-4).
-Repeat with shoulder_pitch to confirm the immediate stop.
+## Tests
 
-## Recommendation
+- `crates/davout/tests/drive_loss.rs` (firmware emulator): distal shed with one
+  Disable and no MIT gap on the holding drives; elbow loss sheds elbow + lower
+  yaw; pitch and non-admitted loss stop everything; second loss; Run frame from
+  a shed drive; rebooted shed drive in Reset tolerated; deadline with and without
+  a ticking controller; operator stop and completion latch; enable refused.
+- `crates/berthier/tests/degraded_hold.rs` (`ControlLoop` over the emulator, a
+  servo knob following MIT positions): hold, auto-lower at the window with the
+  planner at ≤ 0.25 rad/s, completion disables and latches; operator `lower`
+  before the window; motion refused; operator stop.
+- `crates/berthier/tests/drive_loss_admission.rs`: master config admitted;
+  roll, pitch and an oversized margin refused. `marengo-config` validates the
+  key and the timing block.
 
-Adopt B for distal joints whose `on_drive_loss: descend` passes the offline
-τ-bound check (today only `right_lower_arm_yaw`). Davout owns the shed, the
-Disable-only stop and the hard deadline. Keep A for proximal and intermediate
-joints and for every latched fault. Pursue F (mechanical support) for proximal
-loss, and find the cause of the id 5 reboot (supply or harness). B limits how far
-the arm falls; it does not fix the drive.
+## Bench verification (pending)
+
+Arm supported first, then unsupported at low elevation: hold in GravityComp,
+cut id 5 power (or unplug its CAN stub), confirm the hold, the lower and the
+disable with `pi_candump_summary` and the position trace (no MIT to id 5 after
+its Disable, no gap over 30 ms to ids 1-4). Repeat with shoulder pitch to confirm
+the immediate stop. Find the cause of the id 5 reboot (supply or harness).

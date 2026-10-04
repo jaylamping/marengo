@@ -378,6 +378,46 @@ pub struct ControlSection {
     /// opposes the expected sign sustained over `min_opposition_ticks`.
     #[serde(default)]
     pub wrong_sign_watchdog: WrongSignWatchdogConfig,
+    /// Single-drive-loss degraded hold (ADR 0038). Required when any joint
+    /// sets `on_drive_loss: shed_subtree`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drive_loss: Option<DriveLossConfig>,
+}
+
+/// What Davout does when a joint's drive goes silent while Active (ADR 0038).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OnDriveLoss {
+    /// Stop every drive at once.
+    #[default]
+    DisableAll,
+    /// Disable this joint and every joint distal to it; the proximal joints
+    /// hold, then lower to rest, then everything is disabled. Admitted only
+    /// when the offline gravity bound passes.
+    ShedSubtree,
+}
+
+impl OnDriveLoss {
+    pub fn is_disable_all(&self) -> bool {
+        *self == Self::DisableAll
+    }
+}
+
+/// Timing and bounds of a degraded episode after a single drive loss (ADR 0038).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DriveLossConfig {
+    /// Healthy joints hold in place this long, then lower unless the operator acted (s).
+    pub hold_window_s: f64,
+    /// Speed cap of the lower to rest for every holding joint (rad/s).
+    pub lower_velocity_rad_s: f64,
+    /// Time allowed beyond `distance / lower_velocity_rad_s` to reach and settle at rest (s).
+    pub lower_settle_s: f64,
+    /// Cap on the lower phase of the Davout deadline (s).
+    pub lower_max_s: f64,
+    /// Admission margin: on every holding joint, `max |τ_g| + max |Δτ_g| + margin`
+    /// must stay within its feed-forward torque cap (Nm).
+    pub tau_margin_nm: f64,
 }
 
 /// Config-driven sign table for the GravityComp wrong-sign watchdog (ADR 0015).
@@ -487,6 +527,9 @@ pub struct JointControlEntry {
     /// Added to every position-hold target (rad). Bench trim when mechanical zero ≠ encoder zero.
     #[serde(default)]
     pub position_hold_trim_rad: f64,
+    /// Response to this joint's drive going silent while Active (ADR 0038).
+    #[serde(default, skip_serializing_if = "OnDriveLoss::is_disable_all")]
+    pub on_drive_loss: OnDriveLoss,
     /// Minimum position envelope margin at rest (rad). ADR 0009.
     #[serde(default = "default_position_limit_margin_min_rad")]
     pub position_limit_margin_min_rad: f64,
@@ -1576,6 +1619,7 @@ mod tests {
                 position_trajectory_accel_rad_s2: 4.8,
                 position_trajectory_velocity_deadband_rad: 0.02,
                 position_hold_trim_rad: 0.0,
+                on_drive_loss: OnDriveLoss::DisableAll,
                 position_limit_margin_min_rad: 0.01,
                 position_limit_margin_k_v_s: 0.02,
                 position_limit_margin_k_stop: 0.5,
@@ -1605,6 +1649,7 @@ mod tests {
             joints,
             danger_zones: vec![],
             wrong_sign_watchdog: WrongSignWatchdogConfig::default(),
+            drive_loss: None,
         }
     }
 
@@ -1626,6 +1671,77 @@ mod tests {
                 torque_limit_nm: 5.0,
             },
         }
+    }
+
+    fn drive_loss_timing() -> DriveLossConfig {
+        DriveLossConfig {
+            hold_window_s: 5.0,
+            lower_velocity_rad_s: 0.25,
+            lower_settle_s: 3.0,
+            lower_max_s: 10.0,
+            tau_margin_nm: 0.5,
+        }
+    }
+
+    #[test]
+    fn on_drive_loss_defaults_to_disable_all_and_refuses_unknown_values() {
+        let yaml = |extra: &str| {
+            format!(
+                "motor_type: rs03\ngravity_comp: {{kp: 0, kd: 0, ki: 0}}\n\
+                 impedance: {{kp: 8, kd: 1, ki: 0}}\nfriction: {{fc: 0, fv: 0, fo: 0, k: 10}}\n{extra}"
+            )
+        };
+        let entry: JointControlEntry = serde_yaml::from_str(&yaml("")).expect("default");
+        assert_eq!(entry.on_drive_loss, OnDriveLoss::DisableAll);
+        let entry: JointControlEntry =
+            serde_yaml::from_str(&yaml("on_drive_loss: shed_subtree\n")).expect("shed");
+        assert_eq!(entry.on_drive_loss, OnDriveLoss::ShedSubtree);
+        assert!(
+            serde_yaml::from_str::<JointControlEntry>(&yaml("on_drive_loss: descend\n")).is_err()
+        );
+        // The default is not written back, so existing files keep their bytes.
+        let mut control = sample_control_section();
+        let text = serde_yaml::to_string(&control).expect("yaml");
+        assert!(!text.contains("on_drive_loss") && !text.contains("drive_loss"));
+        control.drive_loss = Some(drive_loss_timing());
+        let text = serde_yaml::to_string(&control).expect("yaml");
+        let back: ControlSection = serde_yaml::from_str(&text).expect("round trip");
+        assert_eq!(back.drive_loss, Some(drive_loss_timing()));
+        assert!(serde_yaml::from_str::<DriveLossConfig>("hold_window_s: 5.0\nextra: 1\n").is_err());
+    }
+
+    #[test]
+    fn shed_subtree_requires_valid_drive_loss_timing() {
+        let mut control = ControlConfigFile {
+            control: sample_control_section(),
+        };
+        control
+            .control
+            .joints
+            .get_mut("right_shoulder_pitch")
+            .expect("joint")
+            .on_drive_loss = OnDriveLoss::ShedSubtree;
+        let error = safety_validation::validate_control_numbers(&control).expect_err("no timing");
+        assert!(
+            matches!(&error, ConfigError::InvalidSafetyConfig { field, .. }
+                if field == "control.joints.right_shoulder_pitch.on_drive_loss"),
+            "{error}"
+        );
+        control.control.drive_loss = Some(drive_loss_timing());
+        safety_validation::validate_control_numbers(&control).expect("valid timing");
+        for bad in [0.0, -1.0, f64::NAN] {
+            let mut timing = drive_loss_timing();
+            timing.lower_velocity_rad_s = bad;
+            control.control.drive_loss = Some(timing);
+            assert!(
+                safety_validation::validate_control_numbers(&control).is_err(),
+                "{bad}"
+            );
+        }
+        let mut timing = drive_loss_timing();
+        timing.tau_margin_nm = -0.1;
+        control.control.drive_loss = Some(timing);
+        assert!(safety_validation::validate_control_numbers(&control).is_err());
     }
 
     #[test]

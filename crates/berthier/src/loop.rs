@@ -18,6 +18,10 @@ use marengo_config::{
 use thiserror::Error;
 use tracing::{debug, info, warn};
 
+use crate::degraded::{
+    DegradedControl, DegradedEvent, DegradedLowerCause, DegradedPhase, DriveLossAdmission,
+    DEGRADED_REST_TOLERANCE_RAD,
+};
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::gain_runtime::{
     mode_allows_gain_override, target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime,
@@ -132,6 +136,17 @@ pub enum LoopError {
     GainOverrideNotApplicable { joint: String, mode: ControlMode },
     #[error("invalid nominal controller period {seconds} seconds")]
     InvalidLoopPeriod { seconds: f64 },
+    /// A degraded episode owns the drives: only disable or lower is accepted.
+    #[error(
+        "degraded hold after losing {joint}: motion refused; only disable or lower is accepted"
+    )]
+    DegradedHold { joint: String },
+    /// `on_drive_loss: shed_subtree` failed admission (ADR 0038).
+    #[error("drive-loss admission refused for {joint}: {message}")]
+    DriveLossAdmission { joint: String, message: String },
+    /// `lower` outside a degraded episode.
+    #[error("lower refused: no degraded episode is in progress")]
+    NoDegradedEpisode,
     /// Internal invariant break: per-joint gain inputs were not parallel to the joint list.
     #[error(transparent)]
     GainShape(#[from] GainShapeError),
@@ -189,6 +204,10 @@ pub struct ControlLoop<B: MotorBus> {
     telemetry_failures: u64,
     /// Ticks whose wall time exceeded the loop period (M06 loop-budget evidence).
     tick_overruns: u64,
+    /// Berthier's side of a degraded episode Davout started (ADR 0038).
+    degraded: Option<DegradedControl>,
+    /// Episode transitions not yet taken by the owner.
+    degraded_events: Vec<DegradedEvent>,
 }
 
 /// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
@@ -443,6 +462,8 @@ impl<B: MotorBus> ControlLoop<B> {
             implicit_enable_forbidden: false,
             telemetry_failures: 0,
             tick_overruns: 0,
+            degraded: None,
+            degraded_events: Vec::new(),
         })
     }
 
@@ -524,6 +545,7 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: &str,
         position_rad: f64,
     ) -> Result<(), LoopError> {
+        self.refuse_degraded()?;
         let Some(i) = self.joint_names.iter().position(|n| n == joint) else {
             return Err(LoopError::UnknownJoint {
                 joint: joint.to_string(),
@@ -541,8 +563,17 @@ impl<B: MotorBus> ControlLoop<B> {
         if !self.position_hold.is_armed() {
             self.latch_position_from_q(&q_now);
         }
-        let requested = trimmed;
-        let dq_cmd = self.estimated_retarget_dq_cmd(joint, q_now[i], requested);
+        self.apply_joint_retarget(i, q_now[i], trimmed);
+        Ok(())
+    }
+
+    /// Latch joint `i`'s target `requested` (trim applied) from measured `q`:
+    /// envelope clamp, downward-return seed and planner retarget, the one law
+    /// every hold-at uses.
+    fn apply_joint_retarget(&mut self, i: usize, q: f64, requested: f64) {
+        let joint = self.joint_names[i].clone();
+        let joint = joint.as_str();
+        let dq_cmd = self.estimated_retarget_dq_cmd(joint, q, requested);
         let slew = self
             .supervisor
             .control
@@ -553,23 +584,23 @@ impl<B: MotorBus> ControlLoop<B> {
             .unwrap_or(0.15);
         let dq_envelope = envelope_dq_cmd_for_hold_clamp(
             self.supervisor.joint_limit_policy(joint),
-            q_now[i],
+            q,
             requested,
             dq_cmd,
             slew,
         );
-        let target = self.clamp_hold_target(joint, q_now[i], requested, dq_envelope);
+        let target = self.clamp_hold_target(joint, q, requested, dq_envelope);
         let old_target = self
             .position_hold
             .targets()
             .and_then(|sp| sp.get(i).copied())
-            .unwrap_or(q_now[i]);
+            .unwrap_or(q);
         if (requested - target).abs() > 1e-6 {
             info!(
                 joint = %joint,
                 requested,
                 clamped = target,
-                q = q_now[i],
+                q,
                 "hold-at target clamped to limit envelope"
             );
         }
@@ -580,7 +611,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 .joints
                 .get(joint)
                 .map(|cfg| {
-                    let move_dist = (target - q_now[i]).abs();
+                    let move_dist = (target - q).abs();
                     let threshold = cfg.position_trajectory_threshold_rad;
                     let v_max = self.clamp_v_max(
                         joint,
@@ -591,7 +622,7 @@ impl<B: MotorBus> ControlLoop<B> {
                             threshold,
                         ),
                     );
-                    downward_return_seed_velocity(cfg.position_slew_rad_s, v_max, q_now[i], target)
+                    downward_return_seed_velocity(cfg.position_slew_rad_s, v_max, q, target)
                 })
         } else {
             None
@@ -600,7 +631,7 @@ impl<B: MotorBus> ControlLoop<B> {
             joint_idx: i,
             clamped: target,
             requested,
-            q: q_now[i],
+            q,
             tick: self.tick_count,
             dq_seed: Some(self.joint_velocity(joint)),
             downward_seed: downward_seed_rate,
@@ -610,15 +641,14 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_wave = None;
             info!(
                 joint = %joint,
-                q = q_now[i],
+                q,
                 old_target,
                 new_target = target,
-                delta = target - q_now[i],
+                delta = target - q,
                 tick = self.tick_count,
                 "position hold retarget"
             );
         }
-        Ok(())
     }
 
     fn hold_target_trim(&self, joint: &str, position_rad: f64) -> f64 {
@@ -641,9 +671,12 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     fn clamp_v_max(&self, joint: &str, v_requested: f64) -> f64 {
-        self.supervisor
+        let v = self
+            .supervisor
             .joint_velocity_cap(joint)
-            .map_or(v_requested, |cap| v_requested.min(cap))
+            .map_or(v_requested, |cap| v_requested.min(cap));
+        self.degraded_lower_velocity()
+            .map_or(v, |lower| v.min(lower))
     }
 
     fn estimated_retarget_dq_cmd(&self, joint: &str, q: f64, requested_rad: f64) -> f64 {
@@ -680,6 +713,7 @@ impl<B: MotorBus> ControlLoop<B> {
         cycles: u32,
         half_period_sec: f64,
     ) -> Result<f64, LoopError> {
+        self.refuse_degraded()?;
         for (field, value) in [
             ("min_rad", min_rad),
             ("max_rad", max_rad),
@@ -812,6 +846,7 @@ impl<B: MotorBus> ControlLoop<B> {
     /// Re-arms drives when needed; refuses with [`LoopError::EnableIncomplete`]
     /// until [`Self::enable_completion`] holds.
     pub fn enter_position_hold(&mut self) -> Result<(), LoopError> {
+        self.refuse_degraded()?;
         let q = self.motion_positions()?;
         self.latch_position_from_q(&q);
         self.set_control_mode(ControlMode::Position);
@@ -840,6 +875,7 @@ impl<B: MotorBus> ControlLoop<B> {
     /// [`LoopError::ExplicitEnableRequired`] until the operator enables
     /// explicitly (L-berthier-28).
     pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
+        self.refuse_degraded()?;
         self.synchronize_stop_generation();
         let targets = if self.supervisor.mode() == OperationalMode::Active {
             self.supervisor.active_joints().iter().cloned().collect()
@@ -885,6 +921,7 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: Option<&str>,
         position_rad: f64,
     ) -> Result<(), LoopError> {
+        self.refuse_degraded()?;
         if !position_rad.is_finite() {
             return Err(LoopError::NonFiniteTarget {
                 joint: joint
@@ -926,9 +963,22 @@ impl<B: MotorBus> ControlLoop<B> {
         self.gains.get(joint_name)
     }
 
+    /// During a degraded episode only `Disabled` is honoured: it stops every
+    /// drive (ending the episode); any other mode is ignored (ADR 0038).
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         if self.supervisor.reference_busy() {
             return;
+        }
+        if let Some(joint) = self.degraded_lost_joint() {
+            if mode != ControlMode::Disabled {
+                warn!(lost_joint = %joint, ?mode, "control mode change refused during degraded hold");
+                return;
+            }
+            if self.supervisor.degraded_episode().is_some() {
+                if let Err(error) = self.supervisor.disable_all() {
+                    warn!(%error, "stop during degraded hold not delivered to every drive");
+                }
+            }
         }
         self.synchronize_stop_generation();
         self.set_control_mode_inner(mode);
@@ -940,6 +990,215 @@ impl<B: MotorBus> ControlLoop<B> {
         } else {
             Ok(())
         }
+    }
+
+    /// Run the offline drive-loss admission (ADR 0038) for every
+    /// `on_drive_loss: shed_subtree` joint and install the admitted plans in
+    /// Davout. Any refused joint refuses the whole configuration. Without this
+    /// call every drive loss stops every drive.
+    pub fn admit_drive_loss(&mut self) -> Result<Vec<DriveLossAdmission>, LoopError> {
+        let admitted =
+            crate::degraded::admit_drive_loss(&self.dynamics, &self.joint_names, &self.supervisor)?;
+        self.supervisor
+            .install_drive_loss_plans(admitted.iter().map(|a| a.plan.clone()).collect())?;
+        Ok(admitted)
+    }
+
+    /// The lost joint of a degraded episode in progress (Davout's or Berthier's view).
+    pub fn degraded_lost_joint(&self) -> Option<String> {
+        self.degraded
+            .as_ref()
+            .map(|control| control.lost_joint.clone())
+            .or_else(|| {
+                self.supervisor
+                    .degraded_episode()
+                    .map(|episode| episode.lost_joint.clone())
+            })
+    }
+
+    /// The holding joints are lowering to rest.
+    pub fn degraded_lowering(&self) -> bool {
+        self.degraded
+            .as_ref()
+            .is_some_and(|control| control.phase == DegradedPhase::Lowering)
+    }
+
+    /// Episode transitions since the last call, oldest first.
+    pub fn take_degraded_events(&mut self) -> Vec<DegradedEvent> {
+        self.observe_degraded_episode();
+        std::mem::take(&mut self.degraded_events)
+    }
+
+    /// Operator `lower`: start lowering the holding joints to rest at the next tick.
+    pub fn request_degraded_lower(&mut self) -> Result<(), LoopError> {
+        self.observe_degraded_episode();
+        let control = self.degraded.as_mut().ok_or(LoopError::NoDegradedEpisode)?;
+        if control.phase == DegradedPhase::Hold {
+            control.phase = DegradedPhase::LowerRequested(DegradedLowerCause::Operator);
+        }
+        Ok(())
+    }
+
+    fn refuse_degraded(&self) -> Result<(), LoopError> {
+        match self.degraded_lost_joint() {
+            Some(joint) => Err(LoopError::DegradedHold { joint }),
+            None => Ok(()),
+        }
+    }
+
+    /// Lower speed cap while an episode runs.
+    fn degraded_lower_velocity(&self) -> Option<f64> {
+        self.degraded.as_ref()?;
+        self.supervisor
+            .control
+            .control
+            .drive_loss
+            .as_ref()
+            .map(|drive_loss| drive_loss.lower_velocity_rad_s)
+    }
+
+    /// Follow Davout: enter the degraded hold when it shed a subtree, report
+    /// the end when it stopped every drive.
+    fn observe_degraded_episode(&mut self) {
+        match (self.supervisor.degraded_episode().is_some(), &self.degraded) {
+            (true, None) => self.enter_degraded_hold(),
+            (false, Some(_)) => {
+                if let Some(control) = self.degraded.take() {
+                    let end = self
+                        .supervisor
+                        .degraded_outcome()
+                        .map_or(davout::DegradedEnd::Stopped, |outcome| outcome.end);
+                    warn!(lost_joint = %control.lost_joint, end = end.as_str(), "degraded episode ended by Davout");
+                    self.degraded_events.push(DegradedEvent::Ended {
+                        lost_joint: control.lost_joint,
+                        end,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Freeze the holding joints in Position hold at their current pose,
+    /// aborting any in-flight motion, wave or torque command.
+    fn enter_degraded_hold(&mut self) {
+        let Some(episode) = self.supervisor.degraded_episode().cloned() else {
+            return;
+        };
+        let index = |name: &String| self.joint_names.iter().position(|n| n == name);
+        let shed = episode.shed_joints.iter().filter_map(index).collect();
+        let holding = episode.holding_joints.iter().filter_map(index).collect();
+        let frozen = episode
+            .frozen_positions
+            .iter()
+            .filter_map(|(joint, q)| index(joint).map(|i| (i, *q)))
+            .collect();
+        let hold_window = self
+            .supervisor
+            .control
+            .control
+            .drive_loss
+            .as_ref()
+            .and_then(|drive_loss| Duration::try_from_secs_f64(drive_loss.hold_window_s).ok())
+            .unwrap_or(Duration::ZERO);
+        self.degraded = Some(DegradedControl {
+            lost_joint: episode.lost_joint.clone(),
+            shed,
+            holding,
+            frozen,
+            auto_lower_at: episode
+                .since
+                .checked_add(hold_window)
+                .unwrap_or(episode.deadline),
+            phase: DegradedPhase::Hold,
+        });
+        self.position_wave = None;
+        self.torque_cmds.clear_all();
+        let q = self.read_positions();
+        self.set_control_mode_inner(ControlMode::Position);
+        self.latch_position_from_q(&q);
+        warn!(
+            lost_joint = %episode.lost_joint,
+            shed = ?episode.shed_joints,
+            holding = ?episode.holding_joints,
+            auto_lower_in = ?hold_window,
+            "drive lost: holding the remaining joints in place"
+        );
+        self.degraded_events.push(DegradedEvent::DriveLost {
+            joint: episode.lost_joint,
+            shed: episode.shed_joints,
+            holding: episode.holding_joints,
+            auto_lower_in: hold_window,
+        });
+    }
+
+    /// Start the lower to rest once the operator asked or the hold window ran out.
+    fn advance_degraded_phase(&mut self, q: &[f64]) {
+        let Some(control) = self.degraded.as_ref() else {
+            return;
+        };
+        let cause = match control.phase {
+            DegradedPhase::Hold if Instant::now() >= control.auto_lower_at => {
+                DegradedLowerCause::Timeout
+            }
+            DegradedPhase::LowerRequested(cause) => cause,
+            _ => return,
+        };
+        if self.control_mode != ControlMode::Position {
+            return;
+        }
+        let holding = control.holding.clone();
+        if !self.position_hold.is_armed() {
+            self.latch_position_from_q(q);
+        }
+        for i in holding {
+            let rest = self.hold_target_trim(&self.joint_names[i], 0.0);
+            self.apply_joint_retarget(i, q[i], rest);
+        }
+        if let Some(control) = self.degraded.as_mut() {
+            control.phase = DegradedPhase::Lowering;
+        }
+        warn!(cause = cause.as_str(), "degraded lower to rest started");
+        self.degraded_events
+            .push(DegradedEvent::LowerStarted { cause });
+    }
+
+    /// Every holding joint's planner reached its rest target and measured `q`
+    /// is within [`DEGRADED_REST_TOLERANCE_RAD`]: Davout stops every drive and
+    /// latches the episode's fault.
+    fn complete_degraded_lower_at_rest(&mut self, q: &[f64]) -> Result<(), LoopError> {
+        let Some(control) = self.degraded.as_ref() else {
+            return Ok(());
+        };
+        if control.phase != DegradedPhase::Lowering {
+            return Ok(());
+        }
+        let (Some(targets), Some(q_traj)) =
+            (self.position_hold.targets(), self.position_hold.q_traj())
+        else {
+            return Ok(());
+        };
+        let at_rest =
+            control
+                .holding
+                .iter()
+                .all(|&i| match (targets.get(i), q_traj.get(i), q.get(i)) {
+                    (Some(target), Some(traj), Some(q)) => {
+                        (traj - target).abs() <= 1e-6
+                            && (q - target).abs() <= DEGRADED_REST_TOLERANCE_RAD
+                    }
+                    _ => false,
+                });
+        if !at_rest {
+            return Ok(());
+        }
+        self.degraded = None;
+        let stop = self.supervisor.complete_degraded_lower();
+        self.discard_motion_intent();
+        self.last_stop_generation = self.supervisor.stop_generation();
+        warn!("degraded lower complete; every drive stopped");
+        self.degraded_events.push(DegradedEvent::LowerComplete);
+        stop.map_err(LoopError::from)
     }
 
     /// Discard retained controller intent before the owner's graceful exit.
@@ -1004,6 +1263,7 @@ impl<B: MotorBus> ControlLoop<B> {
     /// until leaving TorqueOnly. Default when unset is 0. Rejects unknown joints
     /// and non-finite values.
     pub fn set_torque_cmd(&mut self, joint_name: &str, tau_nm: f64) -> Result<(), LoopError> {
+        self.refuse_degraded()?;
         self.refuse_reference_intent("torque intent")?;
         self.synchronize_stop_generation();
         if !self.joint_names.iter().any(|n| n == joint_name) {
@@ -1082,6 +1342,7 @@ impl<B: MotorBus> ControlLoop<B> {
         joint_name: &str,
         gain_override: GainOverride,
     ) -> Result<(), LoopError> {
+        self.refuse_degraded()?;
         self.refuse_reference_intent("gain override")?;
         self.validate_gain_override(joint_name, &gain_override)?;
         self.require_gain_mode(joint_name)?;
@@ -1228,6 +1489,8 @@ impl<B: MotorBus> ControlLoop<B> {
                 self.last_stop_generation = self.supervisor.stop_generation();
             }
         }
+        // A stop (deadline, fault, second loss) may have ended Davout's episode.
+        self.observe_degraded_episode();
         result
     }
 
@@ -1269,8 +1532,11 @@ impl<B: MotorBus> ControlLoop<B> {
         self.supervisor.begin_tick_feedback();
         self.supervisor.drain_feedback()?;
         (phase.feedback_us, t) = phase_elapsed_us(t);
+        // Davout may have shed a lost drive's subtree in that drain or in the
+        // last batch's admission (ADR 0038).
+        self.observe_degraded_episode();
 
-        let q = self.read_positions();
+        let mut q = self.read_positions();
 
         let operational_mode = self.supervisor.mode();
         let enable_session = self.supervisor.enable_session_started_at();
@@ -1284,11 +1550,25 @@ impl<B: MotorBus> ControlLoop<B> {
             && self.control_mode != ControlMode::Disabled;
         // No per-tick allocation: iterate the live set twice instead of
         // collecting it (L-berthier-08).
-        let all_have_feedback = self
+        let mut all_have_feedback = self
             .supervisor
             .active_joints()
             .iter()
             .all(|name| self.has_joint_feedback(name));
+        if needs_joint_feedback && !all_have_feedback && self.active_feedback_grace_ticks == 0 {
+            // A pose read stale here and a grant judged live in the drain count
+            // the same unanswered solicit a moment apart: judge the grants now,
+            // so a qualifying drive loss sheds its subtree (ADR 0038) instead of
+            // failing the tick on its missing pose.
+            self.supervisor.check_active_references()?;
+            self.observe_degraded_episode();
+            q = self.read_positions();
+            all_have_feedback = self
+                .supervisor
+                .active_joints()
+                .iter()
+                .all(|name| self.has_joint_feedback(name));
+        }
         // First tick (or first ticks after enable) may run before CAN status arrives.
         let feedback_bootstrap =
             needs_joint_feedback && !all_have_feedback && self.active_feedback_grace_ticks > 0;
@@ -1304,8 +1584,13 @@ impl<B: MotorBus> ControlLoop<B> {
         if needs_joint_feedback && !feedback_bootstrap {
             // The gravity model couples every URDF joint: a silent peer is not q = 0.
             // Fail closed rather than biasing τ_g for the scoped Active joints.
-            for joint in &self.joint_names {
-                if !self.has_joint_feedback(joint) {
+            for (index, joint) in self.joint_names.iter().enumerate() {
+                // A shed joint's angle is frozen in `q` (ADR 0038).
+                let frozen = self
+                    .degraded
+                    .as_ref()
+                    .is_some_and(|control| control.is_shed(index));
+                if !frozen && !self.has_joint_feedback(joint) {
                     return Err(LoopError::MissingFeedback {
                         joint: joint.clone(),
                     });
@@ -1321,6 +1606,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 self.active_feedback_grace_ticks -= 1;
             }
         }
+        self.advance_degraded_phase(&q);
 
         if self.supervisor.mode() == OperationalMode::Active {
             if self.control_mode != ControlMode::Disabled && !feedback_bootstrap {
@@ -1350,6 +1636,9 @@ impl<B: MotorBus> ControlLoop<B> {
                         .iter()
                         .map(|name| self.joint_velocity(name))
                         .collect();
+                    // During a degraded episode every joint moves at most at the
+                    // configured lower speed (ADR 0038).
+                    let degraded_velocity = self.degraded_lower_velocity();
                     let joint_params: Vec<HoldJointParams> = self
                         .joint_names
                         .iter()
@@ -1389,7 +1678,14 @@ impl<B: MotorBus> ControlLoop<B> {
                                 a_max: cfg
                                     .map(|c| c.position_trajectory_accel_rad_s2)
                                     .unwrap_or(0.20),
-                                velocity_cap: self.supervisor.joint_velocity_cap(name),
+                                velocity_cap: match (
+                                    self.supervisor.joint_velocity_cap(name),
+                                    degraded_velocity,
+                                ) {
+                                    (Some(cap), Some(lower)) => Some(cap.min(lower)),
+                                    (cap, None) => cap,
+                                    (None, lower) => lower,
+                                },
                                 friction,
                                 limit_policy: self.supervisor.joint_limit_policy(name).cloned(),
                                 tau_meas: self.joint_torque(name),
@@ -1571,6 +1867,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 (phase.send_us, t) = phase_elapsed_us(t);
                 self.supervisor.drain_feedback()?;
                 self.gains.advance_tick();
+                self.complete_degraded_lower_at_rest(&q)?;
             } else {
                 // Robstride only streams status after MIT frames; hold current q with zero
                 // gains/torque between enable and the first fresh pose. Bootstrap must
@@ -1660,8 +1957,10 @@ impl<B: MotorBus> ControlLoop<B> {
         self.supervisor.joint_feedback(joint).is_some()
     }
 
+    /// Measured `q`; a shed joint reads its frozen angle during an episode.
     fn read_positions(&self) -> Vec<f64> {
-        self.joint_names
+        let mut q: Vec<f64> = self
+            .joint_names
             .iter()
             .map(|name| {
                 self.supervisor
@@ -1669,7 +1968,15 @@ impl<B: MotorBus> ControlLoop<B> {
                     .map(|s| s.position_rad)
                     .unwrap_or(0.0)
             })
-            .collect()
+            .collect();
+        if let Some(control) = &self.degraded {
+            for &(index, frozen) in &control.frozen {
+                if let Some(slot) = q.get_mut(index) {
+                    *slot = frozen;
+                }
+            }
+        }
+        q
     }
 
     fn joint_velocity(&self, joint: &str) -> f64 {

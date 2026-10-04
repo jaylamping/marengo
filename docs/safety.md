@@ -86,11 +86,46 @@ During early arm bring-up with the arm elevated (shoulder/elbow up), motion stop
 3. **Sign test:** Per-joint small `torque_ff` pulse; verify direction matches URDF before full `tau_g`.
 4. **Caps:** Davout per-`motor_type` `tau_ff` limits (RS02/RS00 lower than RS03/RS04); rate-limit `tau_ff` steps when enabling.
 5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp or fault.
-6. **Comm watchdog:** CAN receive timeout → `Disabled` and logged fault.
+6. **Comm watchdog:** CAN receive timeout → `Disabled` and logged fault. Exception: one admitted drive loss sheds its subtree and lowers the rest first (see *Single-drive loss* below).
 7. **Measured position guard (ADR 0009):** feedback `q` beyond URDF hard limits + small slack → `Disabled` (independent of command path).
 8. **Exit:** `disable_all` on process exit / SIGTERM where the driver supports it.
 
 See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decisions/0002-robstride-protocol.md](../hardware/docs/decisions/0002-robstride-protocol.md).
+
+## Single-drive loss while Active (ADR 0038)
+
+On 2026-10-04 drive id 5 (`right_lower_arm_yaw`) went silent twice during gravity
+calibration (loose harness across the elbow, then a reboot); the grant lapse
+stopped every drive and the elevated arm fell. Now, if exactly one Active
+joint's grant lapses for silence while in GravityComp or Position, and that joint
+has `on_drive_loss: shed_subtree` admitted at startup, Davout:
+
+1. writes one type-4 Disable to that joint and to every joint distal to it (its
+   URDF subtree), inside the call that judged the lapse; the proximal joints stay
+   Active and are commanded every tick;
+2. never commands a shed drive again except Disable (the all-address stop writes
+   only Disable to it), never admits its frames as pose, tolerates its Reset
+   frames and latches `DriveState` on any other mode read after 20 ms;
+3. stops every drive at the episode deadline (`hold_window_s` + distance /
+   `lower_velocity_rad_s` + `lower_settle_s`, the lower part capped at
+   `lower_max_s`), whatever the controller does.
+
+Berthier freezes the holding joints in Position hold at their current pose (shed
+angles frozen in the gravity model). The operator may `disable` (or `hold-off`,
+Chappe `enable(false)`, E-stop): everything stops at once. `lower` (stdin) starts
+the lower to rest at once; otherwise it starts after `hold_window_s` (5 s). The
+holding joints move to 0 rad (+ trim) with planner speed ≤ `lower_velocity_rad_s`
+(0.25 rad/s), then every drive is disabled. Every other motion command is refused
+(`motion_refused` audit). Every episode end latches a `Communication` fault on
+the lost joint: restart `marengo-pi` to enable again.
+
+Admission is offline: on every holding joint, `max |τ_g| + max |Δτ_g| +
+tau_margin_nm` over the soft-range grid must fit its feed-forward cap. Losing
+shoulder pitch or roll still stops every drive at once, as does any second loss,
+any fault latch, a loss during enable or reference work, an identity change, or a
+loss of a joint without `shed_subtree`. The bound is static (a freed forearm's
+swing is not modelled), and a degraded episode tolerates less host jitter, not
+more: a stall over the drives' ~30 ms CanTimeout still drops them.
 
 ## Bench procedure (gravity compensation target)
 
@@ -135,9 +170,11 @@ While free-drive sensing is desired (sheet/modal lease or global diagnostics fla
 
 | Class | Commands | Non-owner |
 |---|---|---|
-| Stop | stdin `disable`, `quit`, `hold-off`, `impedance-off`; Chappe `enable(false)`; SIGINT/SIGTERM | **always accepted** |
+| Stop | stdin `disable`, `quit`, `hold-off`, `impedance-off`, `lower` (degraded hold only, ADR 0038); Chappe `enable(false)`; SIGINT/SIGTERM | **always accepted** |
 | Observe | stdin `status`; Chappe status poll / Active Reporting lease | accepted |
 | Motion | `enable`, `home`, Set Zero, `hold-on/at`, `wave`, `gravity-on/off`, `impedance-on`, `torque-cmd`, Testing `mit_command_batch`, runtime kp/kd tuning | **refused**: logged, printed (stdin) and published as `ActionEvent{action: "motion_refused", accepted: false}` on `robot/audit/action` |
+
+During a degraded episode (ADR 0038) every Motion command is refused from either source, owner included, with the same printed refusal and `motion_refused` audit.
 
 Further rules enforced in `marengo-pi`/Berthier:
 
