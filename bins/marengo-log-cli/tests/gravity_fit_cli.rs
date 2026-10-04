@@ -340,14 +340,15 @@ fn refuses_fused_sessions_with_different_calibration_windows() {
     let second = write_session(&POSES);
     let control_path = second.path().join("config/control.yaml");
     let control = std::fs::read_to_string(&control_path).expect("control");
-    let changed = control.replace(
-        "position_soft_upper_rad: 2.8983904819488524",
-        "position_soft_upper_rad: 2.8",
-    );
-    assert_ne!(
-        changed, control,
-        "fixture mutation must hit one joint window"
-    );
+    // Narrow pitch's window by 0.1 rad, whatever the master value is.
+    let block = control
+        .find(&format!("\n    {PITCH}:\n"))
+        .expect("pitch block");
+    let key = "position_soft_upper_rad: ";
+    let start = block + control[block..].find(key).expect("pitch soft upper") + key.len();
+    let end = start + control[start..].find('\n').expect("line end");
+    let upper: f64 = control[start..end].parse().expect("pitch soft upper value");
+    let changed = format!("{}{}{}", &control[..start], upper - 0.1, &control[end..]);
     std::fs::write(control_path, changed).expect("write changed control");
     let out = TempDir::new().expect("out");
 
