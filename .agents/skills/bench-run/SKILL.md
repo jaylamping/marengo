@@ -63,7 +63,7 @@ Local artifacts: `pi_motion_suite`, `pi_gravity_calibrate` and `pi_joint_calibra
 3. **CAN health**: the session log's `can errors after marengo-pi` and `can kernel delta` lines, and Δ`rx_over_errors` against pre-flight.
 4. **Wire**: `pi_candump_summary`.
 5. **Motion runs**: the score block. In `score.txt`, the per-segment legacy warnings printed above the ADR 0039 block misfire on every-tick traces (jerk around 1e10 rad/s² and slew around 6e5 Nm/s appeared on passing 2026-10-04 runs); the verdict is the ADR 0039 block.
-6. **Config fingerprint**, when the run directory has the copies: `shasum -a 256 <dir>/config/*.yaml <dir>/pi-marengo.urdf | shasum -a 256 | cut -c1-8`.
+6. **Config fingerprint**, when the run directory has the copies: `cat <dir>/config/*.yaml <dir>/pi-marengo.urdf | shasum -a 256 | cut -c1-8` (hash the content only; `shasum` on the files would mix in their paths).
 
 Done when every item is recorded or marked n/a.
 
