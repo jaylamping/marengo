@@ -11,6 +11,7 @@
     "start": "node dist/index.js",
     "launch": "node dist/launch.js",
     "debug-step-ok": "node dist/cli/debug-step-ok.js",
+    "gravity-fingerprint": "node dist/cli/gravity-fingerprint.js",
     "test": "node --import tsx --test test/*.test.ts"
   },
   "engines": {

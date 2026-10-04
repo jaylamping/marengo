@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import type { MarengoPiConfig } from "../src/config.js";
 import { MASTER_JOINTS } from "../src/bench-profiles.js";
 import { type CalibrationDeps, MAX_SESSION_SLEEP_SEC } from "../src/tools/calibration-session.js";
+import { GRAVITY_INDEX_PATH, type TauFactors, UNVERIFIED_TAU_FACTOR, resolveTauFactors } from "../src/tau-factor.js";
 import {
   type JointLimits,
   admissibleWaveSpeed,
@@ -25,7 +26,7 @@ import {
   suiteWaveHalfPeriod,
   tauGridSamples,
 } from "../src/tools/motion-suite.js";
-import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
+import { gravityPreviewReply, isGravityPreviewBody, localFiles } from "./gravity-fixture.js";
 
 const cfg: MarengoPiConfig = {
   host: "marengo.local",
@@ -50,6 +51,15 @@ const CHAIN = [...MASTER_JOINTS];
 
 /** Pitch-like gravity: 3.2·sin q on the pitch, 0 elsewhere (τ guard band |τ| ≤ 2.5 Nm). */
 const PITCH_TAU = (q: Record<string, number>): Record<string, number> => ({ [PITCH]: 3.2 * Math.sin(q[PITCH] ?? 0) });
+/** The 2026-10-04 wave fit applied to the URDF: A 2.661 sin q + B 0.038 cos q. */
+const FITTED_PITCH_TAU = (q: Record<string, number>): Record<string, number> => {
+  const p = q[PITCH] ?? 0;
+  return { [PITCH]: 2.661 * Math.sin(p) + 0.038 * Math.cos(p) };
+};
+const UNVERIFIED: TauFactors = { at: () => UNVERIFIED_TAU_FACTOR, report: [] };
+const RECORD_REL = "docs/commissioning/calibrations/2026-10-04-gravity-20261004T113836Z-20261004T113951Z.json";
+/** The repo calibrations index and the pitch record, under cfg.localRoot. */
+const CALIBRATION_FILES = Object.fromEntries([GRAVITY_INDEX_PATH, RECORD_REL].map((rel) => [`${cfg.localRoot}/${rel}`, repoFile(rel)]));
 
 const OPTIONS: SuiteOptions = {
   spanFractions: [0.25, 0.5, 0.9],
@@ -62,16 +72,20 @@ const OPTIONS: SuiteOptions = {
   operator: "bench",
 };
 
-function repoLimits(control = FILES.controlYaml): Record<string, JointLimits> {
-  const read = readJointLimits({ ...FILES, controlYaml: control }, CHAIN);
+function repoLimits(control = FILES.controlYaml, motors = FILES.motorsYaml): Record<string, JointLimits> {
+  const read = readJointLimits({ ...FILES, controlYaml: control, motorsYaml: motors }, CHAIN);
   assert.ok(read.ok, read.ok ? "" : read.message);
   return read.limits;
 }
 
-function geometry(joint: string, tau: (q: Record<string, number>) => Record<string, number>): SuiteGeometry {
-  const limits = repoLimits();
+function geometry(
+  joint: string,
+  tau: (q: Record<string, number>) => Record<string, number>,
+  factors = UNVERIFIED,
+  limits = repoLimits(),
+): SuiteGeometry {
   const samples = tauGridSamples(limits[joint].window);
-  const g = suiteGeometry(joint, samples, samples.map((q) => ({ ...Object.fromEntries(CHAIN.map((j) => [j, 0])), ...tau({ [joint]: q }) })), CHAIN, limits);
+  const g = suiteGeometry(joint, samples, samples.map((q) => ({ ...Object.fromEntries(CHAIN.map((j) => [j, 0])), ...tau({ [joint]: q }) })), CHAIN, limits, factors);
   assert.ok(g.ok, g.ok ? "" : g.message);
   return g;
 }
@@ -103,6 +117,30 @@ describe("pi_motion_suite geometry", () => {
     assert.ok(g.lower >= lo && g.lower - lo < 1e-3 && g.upper <= hi && hi - g.upper < 1e-3, `${g.lower} ${g.upper}`);
   });
 
+  it("a calibrated pitch (× 1.15) reaches the soft ∩ hard limits at both ends; unverified (× 1.6) stops at 1.2", async () => {
+    const calibrated = await resolveTauFactors({ urdf: FILES.urdf, joints: CHAIN, readLocal: async (rel) => repoFile(rel) });
+    const g = geometry(PITCH, FITTED_PITCH_TAU, calibrated);
+    // max(soft −1.0882, hard −1.1152) + 0.05 and min(soft 2.9801, hard 3.0071) − 0.05, inward to the mrad;
+    // 1.15 × 2.661 Nm = 3.06 Nm ≤ 0.8 × 5 Nm everywhere.
+    assert.deepEqual([g.lower, g.upper, g.lowerBound, g.upperBound], [-1.038, 2.93, "limit", "limit"]);
+    assert.deepEqual([g.gLo, g.gHi], [-1.038, 1.55]);
+    const unverified = geometry(PITCH, FITTED_PITCH_TAU);
+    // 1.6 × τ_g(1.25) = 4.06 Nm > 4 Nm.
+    assert.deepEqual([unverified.lower, unverified.upper, unverified.upperBound], [-1.038, 1.2, "tau"]);
+  });
+
+  it("the window is soft ∩ hard at both ends, whichever is tighter", () => {
+    const motors = FILES.motorsYaml.replace("position_lower_rad: -1.1152385473251345", "position_lower_rad: -1.0").replace(
+      "position_upper_rad: 3.007078170776367",
+      "position_upper_rad: 2.9",
+    );
+    assert.notEqual(motors, FILES.motorsYaml);
+    const hardTighter = geometry(PITCH, () => ({}), UNVERIFIED, repoLimits(FILES.controlYaml, motors));
+    assert.deepEqual([hardTighter.lower, hardTighter.upper], [-0.95, 2.85]);
+    const softTighter = geometry(PITCH, () => ({}));
+    assert.deepEqual([softTighter.lower, softTighter.upper], [-1.038, 2.93]);
+  });
+
   it("drops a gravity extreme within 0.15 rad of 0 (the elbow's negative side)", () => {
     const g = geometry(ELBOW, (q) => ({ [ELBOW]: 0.5 * Math.sin(q[ELBOW] ?? 0) }));
     assert.equal(g.gLo, undefined);
@@ -113,9 +151,9 @@ describe("pi_motion_suite geometry", () => {
     const limits = repoLimits();
     const samples = tauGridSamples(limits[PITCH].window);
     const steep = samples.map((q) => ({ ...Object.fromEntries(CHAIN.map((j) => [j, 0])), [PITCH]: 40 * q }));
-    const narrow = suiteGeometry(PITCH, samples, steep, CHAIN, limits);
+    const narrow = suiteGeometry(PITCH, samples, steep, CHAIN, limits, UNVERIFIED);
     assert.ok(!narrow.ok && /narrower than 0.2 rad/.test(narrow.message));
-    const missing = suiteGeometry(PITCH, samples, samples.map(() => undefined), CHAIN, limits);
+    const missing = suiteGeometry(PITCH, samples, samples.map(() => undefined), CHAIN, limits, UNVERIFIED);
     assert.ok(!missing.ok && /τ guard unavailable/.test(missing.message));
   });
 });
@@ -277,7 +315,9 @@ interface Harness {
   run: (args: Partial<MotionSuiteArgs>) => Promise<string>;
 }
 
-function harness(opts: { refuseSession?: string; scorerExit?: number } = {}): Harness {
+function harness(
+  opts: { refuseSession?: string; scorerExit?: number; files?: Record<string, string>; tau?: typeof PITCH_TAU } = {},
+): Harness {
   const h: Harness = { bodies: [], writes: new Map(), scorer: [], audits: [], run: async () => "" };
   let session = "";
   let n = 0;
@@ -290,7 +330,7 @@ function harness(opts: { refuseSession?: string; scorerExit?: number } = {}): Ha
         .map((m) => {
           const [index, ...values] = m[1].split(" ").map(Number);
           const q = Object.fromEntries(CHAIN.map((j, i) => [j, values[i]]));
-          return `@@gravcal_pose ${index}\n${gravityPreviewReply(PITCH_TAU(q))}`;
+          return `@@gravcal_pose ${index}\n${gravityPreviewReply((opts.tau ?? PITCH_TAU)(q))}`;
         })
         .join("\n");
     }
@@ -320,6 +360,7 @@ function harness(opts: { refuseSession?: string; scorerExit?: number } = {}): Ha
     writeFile: async (file, data) => {
       h.writes.set(file, data);
     },
+    readFile: localFiles(opts.files),
     mkdir: async () => {},
     now: () => new Date("2026-10-04T13:00:00.000Z"),
   };
@@ -351,6 +392,16 @@ describe("pi_motion_suite tool", () => {
     assert.match(out, /usable window \[-0\.85, 0\.85\] rad \(lower bound: tau, upper: tau\)/);
     for (const name of SUITE_SESSIONS) assert.match(out, new RegExp(`  ${name}: budget \\d+(\\.\\d+)? s`));
     assert.match(out, /dry_run: no session was run/);
+    assert.equal(sessionBodies(h).length, 0);
+  });
+
+  it("dry_run with the repo calibrations index widens the pitch window to the soft ∩ hard limits", async () => {
+    const h = harness({ files: CALIBRATION_FILES, tau: FITTED_PITCH_TAU });
+    const out = await h.run({ dry_run: true });
+    assert.match(out, /usable window \[-1\.038, 2\.93\] rad \(lower bound: limit, upper: limit\)/);
+    assert.match(out, /right_shoulder_pitch: × 1\.15 calibrated/);
+    assert.match(out, /right_shoulder_pitch: max \|τ_g\| 2\.66\d Nm at right_shoulder_pitch=1\.5\d*; × 1\.15 = 3\.06\d Nm vs 0\.8 × cap 5 Nm = 4\.000 Nm ok/);
+    for (const name of SUITE_SESSIONS) assert.match(out, new RegExp(`  ${name}(_\\d+)?: budget \\d+(\\.\\d+)? s`));
     assert.equal(sessionBodies(h).length, 0);
   });
 

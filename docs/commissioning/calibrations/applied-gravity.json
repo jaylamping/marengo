@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "about": "Gravity fits applied to assets/urdf/marengo.urdf, read by the marengo-pi-mcp τ guard (tools/marengo-pi-mcp/src/tau-factor.ts). A listed joint uses factor 1 + max(3σ_A/A, 0.15) while the Pi URDF has urdf_gravity_sha256 (npm run gravity-fingerprint in tools/marengo-pi-mcp) and the record's fitted COMs; otherwise 1.6.",
+  "joints": {
+    "right_shoulder_pitch": {
+      "record": "2026-10-04-gravity-20261004T113836Z-20261004T113951Z.json",
+      "urdf_gravity_sha256": "092e6b87204547b124a413a5fd37682d7795b19a33b3b1419f555fceab312a5c"
+    }
+  }
+}

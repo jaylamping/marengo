@@ -7,6 +7,7 @@ import path from "node:path";
 import type { MarengoPiConfig } from "../src/config.js";
 import { MASTER_JOINTS } from "../src/bench-profiles.js";
 import type { CalibrationDeps } from "../src/tools/calibration-session.js";
+import { GRAVITY_INDEX_PATH } from "../src/tau-factor.js";
 import {
   type JointCalPlan,
   type JointCalibrateArgs,
@@ -37,7 +38,7 @@ import {
 } from "../src/tools/joint-calibrate.js";
 import { MAX_SESSION_SLEEP_SEC } from "../src/tools/calibration-session.js";
 import { scriptSleepTotalSec } from "../src/tools/motion.js";
-import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
+import { gravityPreviewReply, isGravityPreviewBody, localFiles } from "./gravity-fixture.js";
 
 const cfg: MarengoPiConfig = {
   host: "marengo.local",
@@ -152,6 +153,8 @@ function harness(
     sessionExit?: number;
     /** Keep only this many motion lines in the synthetic trace (an aborted session). */
     traceMotionLines?: number;
+    /** Workstation files under cfg.localRoot (the calibrations index); default none. */
+    files?: Record<string, string>;
   } = {},
 ): Harness {
   const h: Harness = { bodies: [], writes: new Map(), fits: [], audits: [], run: async () => "" };
@@ -189,6 +192,7 @@ function harness(
     writeFile: async (file, data) => {
       h.writes.set(file, data);
     },
+    readFile: localFiles(opts.files),
     mkdir: async () => {},
     now: () => new Date("2026-10-04T12:00:00.000Z"),
   };
@@ -443,6 +447,24 @@ describe("pi_joint_calibrate refusals", () => {
     assert.match(h.bodies[1], /@@gravcal_pose/);
     assert.match(h.bodies[1], /sudo -n .* stop/, "the batch runs as sole CAN owner, like the gate");
     assert.equal(h.writes.size, 0);
+  });
+
+  it("τ × 1.15: the repo calibrations index admits the same pitch gravity, only with the others at 0", async () => {
+    const files = Object.fromEntries(
+      [GRAVITY_INDEX_PATH, "docs/commissioning/calibrations/2026-10-04-gravity-20261004T113836Z-20261004T113951Z.json"].map(
+        (rel) => [path.join(cfg.localRoot, rel), repoFile(rel)],
+      ),
+    );
+    const tau: TauModel = (q) => ({ [PITCH]: (q[PITCH] ?? 0) > 0.3 ? 2.6 : 0.1 });
+    const h = harness({ tau, files });
+    const out = await h.run({ ...OPT_INS, sweep_joint: PITCH });
+    assert.doesNotMatch(out, /Refused/);
+    assert.match(out, /right_shoulder_pitch: × 1\.15 calibrated \(2026-10-04-gravity-20261004T113836Z-20261004T113951Z\.json: A 2\.661 ± 0\.05357 Nm/);
+    assert.match(out, /right_shoulder_pitch: max \|τ_g\| 2\.600 Nm at right_shoulder_pitch=0\.\d+; × 1\.15 = 2\.990 Nm vs 0\.8 × cap 5 Nm = 4\.000 Nm ok/);
+    assert.match(out, /right_elbow_pitch: × 1\.6 unverified \(not in the index\)/);
+    // The fit held every other joint at 0: an elbow fixed pose falls back to 1.6.
+    const bent = await harness({ tau, files }).run({ ...OPT_INS, sweep_joint: PITCH, fixed_rad: { [ELBOW]: 0.3 } });
+    assert.match(bent, /^Refused: τ guard: right_shoulder_pitch: max \|τ_g\| 2\.600 Nm at right_elbow_pitch=0\.3 right_shoulder_pitch=0\.\d+; × 1\.6 = 4\.160 Nm/);
   });
 
   it("τ guard fails closed when gravity-preview prints nothing", async () => {

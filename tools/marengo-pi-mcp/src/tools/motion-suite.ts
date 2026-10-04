@@ -10,15 +10,16 @@
  * marengo-pi admits for that span.
  *
  * Guards (all sessions, before any motion): every target ≥ 0.05 rad inside soft ∩ hard, wave
- * speeds and accelerations within the admission limits, model |τ_g| × 1.6 ≤ 0.8 × τ_ff cap
- * along every commanded path, session budget ≤ 300 s; the gravity gate before each enable keeps
- * its hanging-rest refusal.
+ * speeds and accelerations within the admission limits, model |τ_g| × uncertainty factor ≤ 0.8 ×
+ * τ_ff cap along every commanded path (factor per joint, src/tau-factor.ts), session budget
+ * ≤ 300 s; the gravity gate before each enable keeps its hanging-rest refusal.
  */
 
 import path from "node:path";
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, MASTER_JOINTS, profileMeta } from "../bench-profiles.js";
+import { type TauFactors, resolveTauFactors } from "../tau-factor.js";
 import { wrapRemoteWithConfig } from "../env.js";
 import { soleCanOwnerShell } from "../can-owner.js";
 import { validateMotionConfirm } from "../safety.js";
@@ -41,7 +42,6 @@ import {
   type JointLimits,
   LIMIT_INSET_RAD,
   TAU_CAP_SHARE,
-  TAU_DISTRUST_FACTOR,
   TAU_SAMPLE_STEP_RAD,
   admissibleWaveSpeed,
   checkJointCalLimits,
@@ -107,7 +107,7 @@ const floorMrad = (x: number) => Math.floor(x * 1000 + 1e-9) / 1000;
 
 export interface SuiteGeometry {
   joint: string;
-  /** Usable window U: soft ∩ hard inset by 0.05 rad, narrowed where the τ guard would refuse. */
+  /** Usable window U: soft ∩ hard (both ends) inset by 0.05 rad, narrowed where the τ guard would refuse. */
   lower: number;
   upper: number;
   lowerBound: "limit" | "tau";
@@ -131,7 +131,8 @@ export function tauGridSamples(window: JointWindow): number[] {
 
 /**
  * U = the run of grid samples around 0 where every chain joint passes the τ guard
- * (1.6 · |τ_g| ≤ 0.8 · τ_ff cap), and the gravity extremes inside it. Fails closed on a missing τ.
+ * (factor · |τ_g| ≤ 0.8 · τ_ff cap, factor per joint at that sample), and the gravity extremes
+ * inside it. Fails closed on a missing τ.
  */
 export function suiteGeometry(
   joint: string,
@@ -139,6 +140,7 @@ export function suiteGeometry(
   tau: readonly (Record<string, number> | undefined)[],
   chain: readonly string[],
   limits: Readonly<Record<string, JointLimits>>,
+  factors: TauFactors,
 ): ({ ok: true } & SuiteGeometry) | Refusal {
   const zero = samples.indexOf(0);
   if (zero < 0) {
@@ -149,7 +151,7 @@ export function suiteGeometry(
     if (t === undefined) return undefined;
     for (const j of chain) {
       if (t[j] === undefined) return undefined;
-      if (TAU_DISTRUST_FACTOR * Math.abs(t[j]) > TAU_CAP_SHARE * limits[j].tauFfCapNm) return false;
+      if (factors.at(j, { [joint]: samples[i] }) * Math.abs(t[j]) > TAU_CAP_SHARE * limits[j].tauFfCapNm) return false;
     }
     return true;
   };
@@ -513,7 +515,9 @@ export function registerMotionSuiteTools(
         "speeds; hold-at a→b retargeted back to a halfway), short_moves (0.02/0.05/0.1 rad out and back at each " +
         "gravity extreme and at 0), gravity_extremes (≥ hold_sec drift holds at both extremes, moves between " +
         "them), repeatability (the same hold-at move × repeat_count). Usable window: soft ∩ hard inset 0.05 rad, " +
-        "narrowed where model |τ_g| × 1.6 > 0.8 × τ_ff cap (motor-repl gravity-preview grid). Each session: " +
+        "narrowed where model |τ_g| × factor > 0.8 × τ_ff cap (motor-repl gravity-preview grid; factor 1.6, or " +
+        "1 + max(3σ_A/A, 0.15) for a joint whose fit docs/commissioning/calibrations/applied-gravity.json pins to " +
+        "the Pi URDF). Each session: " +
         "`home <profile joints> sign-tested`, home, enable, motion, every joint back to 0 distal first, disable, " +
         "quit; the sweep joint is traced every tick (MARENGO_POSITION_TRACE_FULL_RATE_JOINTS). Guards before any " +
         "motion of any session: targets ≥ 0.05 rad inside the window, wave speed/accel within the admission " +
@@ -549,6 +553,11 @@ export function registerMotionSuiteTools(
         if (!preflight.ok) return refused(preflight.message);
         const read = readJointLimits(preflight, chain);
         if (!read.ok) return refused(read.message);
+        const factors = await resolveTauFactors({
+          urdf: preflight.urdf,
+          joints: chain,
+          readLocal: (rel) => deps.readFile(path.join(cfg.localRoot, rel)),
+        });
         const tauBatch = async (configs: Record<string, number>[]) =>
           parseGravityBatch(
             await runRemote(
@@ -559,7 +568,7 @@ export function registerMotionSuiteTools(
 
         const samples = tauGridSamples(read.limits[joint].window);
         const gridTau = await tauBatch(samples.map((q) => ({ [joint]: q })));
-        const geometry = suiteGeometry(joint, samples, samples.map((_, i) => gridTau.get(i)), chain, read.limits);
+        const geometry = suiteGeometry(joint, samples, samples.map((_, i) => gridTau.get(i)), chain, read.limits, factors);
         if (!geometry.ok) return refused(geometry.message);
 
         const options: SuiteOptions = {
@@ -593,7 +602,7 @@ export function registerMotionSuiteTools(
             if (!guard.ok) return refused(`${part.name}: ${guard.message}`);
           }
           const configs = guardConfigurations(guardPlan);
-          const tauGuard = checkTauGuard(configs, await tauBatch(configs), chain, read.limits);
+          const tauGuard = checkTauGuard(configs, await tauBatch(configs), chain, read.limits, factors);
           if (!tauGuard.ok) return refused(`${part.name}: ${tauGuard.message}`);
           if (part === planned.parts[0]) header.push(...tauGuard.report);
         }

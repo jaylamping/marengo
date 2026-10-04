@@ -22,7 +22,7 @@ import {
   preflightReadShell,
 } from "../src/tools/calibration-session.js";
 import { benchLogWrapper } from "../src/tools/motion.js";
-import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
+import { gravityPreviewReply, isGravityPreviewBody, localFiles } from "./gravity-fixture.js";
 
 const cfg: MarengoPiConfig = {
   host: "marengo.local",
@@ -161,6 +161,7 @@ function harness(
     writeFile: async (file, data) => {
       h.writes.set(file, data);
     },
+    readFile: localFiles(),
     mkdir: async (dir) => {
       h.dirs.push(dir);
     },
