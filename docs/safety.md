@@ -38,10 +38,13 @@ Read this before enabling motors on the bench or robot.
   discontinuity, Calibration drive mode, or no feedback for longer than
   `comm_watchdog_ms` outside reference work. Silence the host itself caused is
   not counted: a type-24 On it held back from the drive's possible post-SetZero
-  blackout counts from the quiet's end, a just-enabled drive counts from its
-  Enable echo, and Enable resolution and non-Active drains judge liveness only
-  after reading the receive queue (see *Host-caused silence* and *Host read
-  gap* below). A revocation is checked on demand but latched: the check that
+  blackout counts from the On's actual write (unwritten past
+  `OWED_ON_WRITE_BOUND` = 200 ms after the hold ends, the joint is revoked), a
+  just-enabled drive counts from its Enable echo, an Active target counts from
+  the earliest MIT batch or Enable it has not answered (nothing outstanding:
+  nothing counts), and every drain judges liveness only after reading the
+  receive queue (see *Host-caused silence*, *Host read gap* and *Solicited
+  silence while Active* below, and ADR 0036). A revocation is checked on demand but latched: the check that
   finds a lapse revokes that joint for the rest of the process. Fault, E-stop,
   uncertain stop, shutdown and model/policy changes revoke all grants.
   `zero_sta`/`add_offset` writes and type-22 saves
@@ -314,7 +317,8 @@ disables. The fault does not clear on its own.
      after its SetZero echo, no type-24 On or Off goes to a drive: the reporting
      sync holds its writes, the reference baseline leaves a peer's stream On,
      and an On that was due is written when the quiet ends. That held silence is
-     excused until the quiet's end (`count_silence_from`), then counts as usual.
+     excused until the On is actually written (bounded by `OWED_ON_WRITE_BOUND`,
+     see *Owed On* below), then counts from the write as usual.
      A stream that is applied On is never excused: a drive that goes silent
      beyond `comm_watchdog_ms` inside the window still loses its grant.
   2. *Enable echo before the first Run reply.* Traffic of a target whose Enable
@@ -334,14 +338,17 @@ disables. The fault does not clear on its own.
   `comm_watchdog_ms` with its reports queued (cycle 2: right_upper_arm_yaw,
   can0 ID 3, silent 233-282 ms after the fifth reference) and lost its grant
   for the rest of the process. `resolve_enable_targets` now drains feedback
-  before it builds the facets, and a non-Active drain judges grant liveness
-  after it reads the queue, not before (Active drains still judge first).
-  Because receive times are read times, a drive that stops during a host
-  stall is credited with its queued reports and loses its grant up to one
-  stall later. Enable still needs each target's type-0 reply to a request
-  sent after that drain. A revocation logs `physical reference grant revoked`
-  with the joint, cause and counted silence; marengo-pi logs the preflight
-  duration (`gravity preflight sweep`, debug).
+  before it builds the facets, and every drain judges grant liveness after it
+  reads the queue, not before (Active drains too, since the 2026-10-03
+  amendment; an Active target whose Enable echo is pending is still judged
+  first). With kernel RX timestamps (SocketCAN, RxTimestamps branch) a queued
+  frame carries its wire time, so a drive that stops during a host stall is
+  judged on its true last frame at the first read after it. With the
+  read-time fallback it is credited with its queued reports and loses its
+  grant up to one stall later. Enable still needs each target's type-0 reply
+  to a request sent after that drain. A revocation logs `physical reference
+  grant revoked` with the joint, cause and counted silence; marengo-pi logs
+  the preflight duration (`gravity preflight sweep`, debug).
 - **Owed On during Enable admission (re-soak at ad1eb887, cycle 14):** 1 of
   20 cycles failed `enable failed: joint right_shoulder_pitch: no private
   current-reference permission`. Later references' baselines had turned
@@ -351,14 +358,34 @@ disables. The fault does not clear on its own.
   inside the gravity preflight (66 ms). Identity admission then waited 52 ms
   for roll, which was in its own blackout. No reporting sync ran in that time,
   so the On stayed unwritten. Silence counted from the quiet's end reached
-  100.6 ms and pitch's grant was revoked. The excuse rule is unchanged: a
-  held On is excused only until the quiet's end. Instead,
-  `resolve_enable_targets` and every identity-admission poll now run the
-  reporting sync, so the owed On goes out during that synchronous work. A
-  drive that stays silent after its On still loses its grant. Residual risk:
-  synchronous work of 100 ms or more that starts before a held quiet ends
-  (the preflight measured 66-96 ms) still revokes, because the first sync
-  comes too late.
+  100.6 ms and pitch's grant was revoked. `resolve_enable_targets` and every
+  identity-admission poll now run the reporting sync, so the owed On goes out
+  during that synchronous work. Since the 2026-10-03 amendment the held On's
+  silence also counts from its actual write, not from the quiet's end, so
+  synchronous work of 100 ms or more spanning the quiet's end no longer
+  revokes. The excuse is bounded: an On still unwritten `OWED_ON_WRITE_BOUND`
+  (200 ms: twice the 96 ms preflight, rounded up) after the later of the
+  quiet's end and owner work revokes the joint (cause `owed type-24 On not
+  written within OWED_ON_WRITE_BOUND`). A drive that stays silent after its On
+  still loses its grant `comm_watchdog_ms` after the write.
+- **Solicited silence while Active (2026-10-03, ADR 0036 amendment):** Active
+  streams are Off, so a drive speaks only when written to. A host stall of
+  about 95 ms or more (a redundant `enable`'s preflight) used to revoke every
+  grant and stop every drive, which can drop an elevated arm in GravityComp.
+  An Active target's silence now counts from the earliest write it has not
+  answered: its Enable and every MIT batch (a target a batch leaves out ages
+  as if asked), at the write instant sampled before the write. The MIT pose
+  watchdog (`CommWatchdog`) and Active `joint_feedback` use the same rule, so
+  the pose is stale once a write goes unanswered for `comm_watchdog_ms`; the
+  host's own silence does not age it. While the host keeps ticking nothing
+  changes (a silent drive is revoked about one period later than before).
+  During a stall the drives keep the last command (no drive-side CAN
+  timeout); the first batch after it is computed from a pose as old as the
+  stall, through every filter unchanged, and the next reply refreshes it. A
+  drive that died during the stall is revoked `comm_watchdog_ms` after the
+  first post-stall write, so detection takes the stall plus `comm_watchdog_ms`.
+  Leaving Active carries the count: a target counts from its outstanding write,
+  or from the stop when none was outstanding.
 - **Paced reference bursts:** the all-address stop (speed zero, neutral MIT,
   Disable per address) answers 15 frames; written back to back at the end of a
   reference it overran the mcp251x once in three runs (17:09:07, `rx_over_errors`
