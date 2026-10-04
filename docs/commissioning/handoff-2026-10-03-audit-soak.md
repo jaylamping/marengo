@@ -1,5 +1,7 @@
 # Handoff 2026-10-03: crate audit merged, enable soak PASS, pushed
 
+> Superseded by [handoff-2026-10-04-liveness-hardening.md](handoff-2026-10-04-liveness-hardening.md).
+
 ## State
 
 - `main` is pushed to `origin/main`. It contains:
