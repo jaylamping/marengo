@@ -394,3 +394,502 @@ fn refuses_links_outside_the_right_arm() {
     assert_eq!(o.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&o.stderr).contains("only right_arm links"));
 }
+// ---- right-arm calibration suite fixtures (v2 plans, partial sessions, waves) ----
+//
+// Synthetic sessions built from the perturbed truth model with known Coulomb/viscous
+// friction. v2 plans (`kind` steps, `session_complete`) exercise the suite contract;
+// truncated traces exercise partial sessions.
+
+const ELBOW: &str = "right_elbow_pitch";
+const ELBOW_POSES: [f64; 3] = [0.0, 0.25, 0.5];
+const FIXED_PITCH: f64 = 0.5;
+const TS_PITCH: &str = "20261004T010000Z";
+const TS_ELBOW: &str = "20261004T020000Z";
+const TS_WAVE: &str = "20261004T030000Z";
+const TS_PARTIAL: &str = "20261004T040000Z";
+const TS_MISMATCH: &str = "20261004T050000Z";
+
+struct WaveSpec {
+    min: f64,
+    max: f64,
+    cycles: u32,
+    half_period_s: f64,
+    fc: f64,
+    fv: f64,
+}
+
+struct SynthOpts {
+    ts: &'static str,
+    sweep: &'static str,
+    fixed: Vec<(&'static str, f64)>,
+    poses: Vec<f64>,
+    fc_hold: f64,
+    wave: Option<WaveSpec>,
+    keep_steps: Option<usize>,
+    session_complete: bool,
+}
+
+enum SynthStep {
+    Fixed {
+        joint: &'static str,
+        target: f64,
+    },
+    Hold {
+        joint: &'static str,
+        target: f64,
+        measure: bool,
+        pose: Option<usize>,
+        approach: Option<&'static str>,
+    },
+    Wave {
+        joint: &'static str,
+        wave: WaveSpec,
+    },
+}
+
+fn synth_plan_steps(o: &SynthOpts) -> Vec<SynthStep> {
+    let mut steps = Vec::new();
+    for (joint, target) in &o.fixed {
+        steps.push(SynthStep::Fixed {
+            joint,
+            target: *target,
+        });
+    }
+    steps.push(SynthStep::Hold {
+        joint: o.sweep,
+        target: o.poses[0] - DELTA,
+        measure: false,
+        pose: None,
+        approach: None,
+    });
+    for (i, &p) in o.poses.iter().enumerate() {
+        steps.push(SynthStep::Hold {
+            joint: o.sweep,
+            target: p,
+            measure: true,
+            pose: Some(i),
+            approach: Some("below"),
+        });
+    }
+    if let Some(w) = &o.wave {
+        steps.push(SynthStep::Wave {
+            joint: o.sweep,
+            wave: WaveSpec {
+                min: w.min,
+                max: w.max,
+                cycles: w.cycles,
+                half_period_s: w.half_period_s,
+                fc: w.fc,
+                fv: w.fv,
+            },
+        });
+    }
+    steps.push(SynthStep::Hold {
+        joint: o.sweep,
+        target: o.poses[o.poses.len() - 1] + DELTA,
+        measure: false,
+        pose: None,
+        approach: None,
+    });
+    for (i, &p) in o.poses.iter().enumerate().rev() {
+        steps.push(SynthStep::Hold {
+            joint: o.sweep,
+            target: p,
+            measure: true,
+            pose: Some(i),
+            approach: Some("above"),
+        });
+    }
+    steps
+}
+
+fn write_synth(o: &SynthOpts) -> TempDir {
+    let dir = TempDir::new().expect("tmp");
+    let d = dir.path();
+    std::fs::create_dir_all(d.join("config")).expect("config dir");
+    for f in ["robot.yaml", "control.yaml", "motors.yaml"] {
+        std::fs::copy(repo().join("config").join(f), d.join("config").join(f)).expect("copy");
+    }
+    std::fs::copy(
+        repo().join("assets/urdf/marengo.urdf"),
+        d.join("pi-marengo.urdf"),
+    )
+    .expect("urdf");
+    let plan_steps: Vec<Value> = synth_plan_steps(o)
+        .iter()
+        .map(|s| match s {
+            SynthStep::Fixed { joint, target } => {
+                json!({"kind": "fixed", "joint": joint, "target_rad": target})
+            }
+            SynthStep::Hold {
+                joint,
+                target,
+                measure,
+                pose,
+                approach,
+            } => {
+                let mut v = json!({"kind": "hold", "joint": joint, "target_rad": target,
+                    "measure": measure});
+                if let Some(i) = pose {
+                    v["pose_index"] = json!(i);
+                }
+                if let Some(a) = approach {
+                    v["approach"] = json!(a);
+                }
+                v
+            }
+            SynthStep::Wave { joint, wave } => json!({"kind": "wave", "joint": joint,
+                "min_rad": wave.min, "max_rad": wave.max, "cycles": wave.cycles,
+                "half_period_s": wave.half_period_s}),
+        })
+        .collect();
+    let fixed_rad: serde_json::Map<String, Value> = o
+        .fixed
+        .iter()
+        .map(|(j, v)| (j.to_string(), json!(v)))
+        .collect();
+    let plan = json!({
+        "version": 2,
+        "created_utc": "2026-10-04T01:00:00.000Z",
+        "session_ts": o.ts,
+        "session_complete": o.session_complete,
+        "profile": "arm_attached",
+        "sweep_joint": o.sweep,
+        "fixed_rad": fixed_rad,
+        "poses_rad": o.poses,
+        "approach_offset_rad": DELTA,
+        "settle_sec": 2.5,
+        "measure_sec": 1.5,
+        "steps": plan_steps,
+        "gravity_gate_report": "synthetic",
+    });
+    std::fs::write(
+        d.join("plan.json"),
+        serde_json::to_string_pretty(&plan).unwrap(),
+    )
+    .unwrap();
+    let truth = truth();
+    let joints = joints();
+    let index = |name: &str| joints.iter().position(|j| j == name).unwrap();
+    let mut at = vec![0.0; joints.len()];
+    let mut csv = format!("{HEADER}\n");
+    let mut tick = 0u64;
+    let emit = |tick: &mut u64,
+                csv: &mut String,
+                q: &[f64],
+                dq: &[f64],
+                tau: &[f64],
+                meas: &[f64],
+                targets: &[f64]| {
+        for (j, name) in joints.iter().enumerate() {
+            let _ = writeln!(
+                csv,
+                "{tick},{},{name},{:.6},{:.6},0,0,0,{:.6},{:.6},0,0,0,0,0,Hold,static,0.05,{:.6},0,0,{:.6},{:.6},0,18,3,0,0,0,tick",
+                *tick * 5,
+                q[j],
+                dq[j],
+                targets[j],
+                targets[j],
+                tau[j],
+                meas[j] - 0.05,
+                meas[j],
+            );
+        }
+        *tick += 4;
+    };
+    let steps = synth_plan_steps(o);
+    let keep = o.keep_steps.unwrap_or(steps.len());
+    for s in steps.iter().take(keep) {
+        match s {
+            SynthStep::Fixed { joint, target } | SynthStep::Hold { joint, target, .. } => {
+                let ji = index(joint);
+                let from = at[ji];
+                let dir = if *target > from {
+                    1.0
+                } else if *target < from {
+                    -1.0
+                } else {
+                    0.0
+                };
+                let mut targets = at.clone();
+                targets[ji] = *target;
+                for k in 0..200u32 {
+                    let moving = k < 30;
+                    let mut q = at.clone();
+                    q[ji] = if moving {
+                        from + (target - from) * f64::from(k) / 30.0
+                    } else {
+                        target - dir * 0.004
+                    };
+                    let torques = truth.gravity_torques(&q).unwrap();
+                    let tau: Vec<f64> = (0..joints.len()).map(|j| torques[j]).collect();
+                    let mut meas = tau.clone();
+                    let mut dq = vec![0.0; joints.len()];
+                    if moving {
+                        dq[ji] = 0.4;
+                        meas[ji] += 0.5;
+                    } else {
+                        if (k as usize + ji) % 3 == 0 {
+                            dq[ji] = 0.077;
+                        }
+                        meas[ji] += dir * o.fc_hold;
+                    }
+                    emit(&mut tick, &mut csv, &q, &dq, &tau, &meas, &targets);
+                }
+                at[ji] = *target;
+            }
+            SynthStep::Wave { joint, wave } => {
+                let ji = index(joint);
+                let mid = (wave.min + wave.max) / 2.0;
+                let amp = (wave.max - wave.min) / 2.0;
+                // Odd offset keeps the wave target off every hold target for segmentation.
+                let wave_target = mid + 0.013;
+                let mut targets = at.clone();
+                targets[ji] = wave_target;
+                let total_s = f64::from(wave.cycles) * 2.0 * wave.half_period_s;
+                let iters = (total_s / 0.02).round() as usize;
+                for k in 0..iters {
+                    let t = k as f64 * 0.02;
+                    let phase = std::f64::consts::PI * t / wave.half_period_s;
+                    let mut q = at.clone();
+                    q[ji] = mid - amp * phase.cos();
+                    let mut dq = vec![0.0; joints.len()];
+                    dq[ji] = amp * std::f64::consts::PI / wave.half_period_s * phase.sin();
+                    let torques = truth.gravity_torques(&q).unwrap();
+                    let tau: Vec<f64> = (0..joints.len()).map(|j| torques[j]).collect();
+                    let mut meas = tau.clone();
+                    meas[ji] += wave.fc * dq[ji].signum() + wave.fv * dq[ji];
+                    emit(&mut tick, &mut csv, &q, &dq, &tau, &meas, &targets);
+                }
+                at[ji] = wave.min;
+            }
+        }
+    }
+    std::fs::write(d.join("position-trace.csv"), csv).unwrap();
+    dir
+}
+
+fn run_multi(sessions: &[&Path], out: &Path, extra: &[&str]) -> std::process::Output {
+    let mut cmd = Command::cargo_bin("marengo-log-cli").unwrap();
+    cmd.arg("gravity-fit");
+    for s in sessions {
+        cmd.arg("--dir").arg(s);
+    }
+    cmd.arg("--out-dir")
+        .arg(out)
+        .arg("--repo-urdf")
+        .arg(repo().join("assets/urdf/marengo.urdf"))
+        .args(extra);
+    cmd.output().unwrap()
+}
+
+fn record_any(out: &Path) -> Value {
+    let mut found = None;
+    for e in std::fs::read_dir(out).expect("out") {
+        let p = e.unwrap().path();
+        if p.extension().is_some_and(|x| x == "json") {
+            found = Some(p);
+            break;
+        }
+    }
+    serde_json::from_str(&std::fs::read_to_string(found.expect("record json")).unwrap()).unwrap()
+}
+
+fn fitted_param(rec: &Value, param: &str) -> f64 {
+    rec["params"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["param"] == param)
+        .unwrap_or_else(|| panic!("{param} missing: {rec:#}"))["fitted"]
+        .as_f64()
+        .unwrap()
+}
+
+#[test]
+fn partial_session_fits_completed_steps() {
+    // Full v2 pitch plan is 12 steps; the trace stops after 10 (3 of 5 down-pass
+    // holds), so 2 poses never complete and must be skipped, not refused.
+    let session = write_synth(&SynthOpts {
+        ts: TS_PARTIAL,
+        sweep: PITCH,
+        fixed: vec![],
+        poses: POSES.to_vec(),
+        fc_hold: FRICTION_NM,
+        wave: None,
+        keep_steps: Some(10),
+        session_complete: false,
+    });
+    let out = TempDir::new().unwrap();
+    let o = run_multi(&[session.path()], out.path(), &[]);
+    let stdout = String::from_utf8_lossy(&o.stdout);
+    assert_eq!(
+        o.status.code(),
+        Some(0),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&o.stderr)
+    );
+    let rec = record_any(out.path());
+    assert_eq!(rec["accepted"], true, "{rec:#}");
+    assert_eq!(rec["sessions"][0]["session_complete"], false);
+    let skipped = rec["sessions"][0]["skipped_steps"].as_array().unwrap();
+    assert!(skipped.len() >= 2, "aborted steps reported: {rec:#}");
+    for (want, want_v) in [
+        (format!("mass:{UPPER_ARM}"), 1.15),
+        (format!("mass:{FOREARM}"), 1.2),
+    ] {
+        let got = fitted_param(&rec, &want);
+        assert!((got - want_v).abs() < 0.06, "{want}: {got} vs {want_v}");
+    }
+}
+
+#[test]
+fn fused_pitch_and_elbow_separates_arm_masses() {
+    let pitch = write_synth(&SynthOpts {
+        ts: TS_PITCH,
+        sweep: PITCH,
+        fixed: vec![],
+        poses: POSES.to_vec(),
+        fc_hold: FRICTION_NM,
+        wave: None,
+        keep_steps: None,
+        session_complete: true,
+    });
+    let elbow = write_synth(&SynthOpts {
+        ts: TS_ELBOW,
+        sweep: ELBOW,
+        fixed: vec![(PITCH, FIXED_PITCH)],
+        poses: ELBOW_POSES.to_vec(),
+        fc_hold: FRICTION_NM,
+        wave: None,
+        keep_steps: None,
+        session_complete: true,
+    });
+    let out = TempDir::new().unwrap();
+    let o = run_multi(&[pitch.path(), elbow.path()], out.path(), &[]);
+    let stdout = String::from_utf8_lossy(&o.stdout);
+    assert_eq!(
+        o.status.code(),
+        Some(0),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&o.stderr)
+    );
+    let rec = record_any(out.path());
+    assert_eq!(rec["accepted"], true, "{rec:#}");
+    assert_eq!(rec["sessions"].as_array().unwrap().len(), 2);
+    assert!((fitted_param(&rec, &format!("mass:{UPPER_ARM}")) - 1.15).abs() < 0.05);
+    assert!((fitted_param(&rec, &format!("mass:{FOREARM}")) - 1.2).abs() < 0.05);
+}
+
+#[test]
+fn wave_friction_fit_recovers_fc_and_fv() {
+    let session = write_synth(&SynthOpts {
+        ts: TS_WAVE,
+        sweep: PITCH,
+        fixed: vec![],
+        poses: POSES.to_vec(),
+        fc_hold: 0.12,
+        wave: Some(WaveSpec {
+            min: 0.1,
+            max: 0.5,
+            cycles: 2,
+            half_period_s: 1.0,
+            fc: 0.12,
+            fv: 0.06,
+        }),
+        keep_steps: None,
+        session_complete: true,
+    });
+    let out = TempDir::new().unwrap();
+    let o = run_multi(&[session.path()], out.path(), &[]);
+    let stdout = String::from_utf8_lossy(&o.stdout);
+    assert_eq!(
+        o.status.code(),
+        Some(0),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&o.stderr)
+    );
+    let rec = record_any(out.path());
+    assert_eq!(rec["accepted"], true, "{rec:#}");
+    let fr = &rec["friction"]["joints"][PITCH];
+    assert!(
+        (fr["static_fc_nm"].as_f64().unwrap() - 0.12).abs() < 0.02,
+        "{fr:#}"
+    );
+    assert!(
+        (fr["wave_fc_nm"].as_f64().unwrap() - 0.12).abs() < 0.02,
+        "{fr:#}"
+    );
+    assert!(
+        (fr["wave_fv"].as_f64().unwrap() - 0.06).abs() < 0.02,
+        "{fr:#}"
+    );
+    assert!(fr["wave_r2"].as_f64().unwrap() > 0.9, "{fr:#}");
+    assert_eq!(fr["consistent"], true);
+    assert!(rec["control_patch"].is_string(), "{rec:#}");
+    let patches: Vec<_> = std::fs::read_dir(out.path())
+        .unwrap()
+        .filter_map(|e| {
+            let p = e.unwrap().path();
+            p.file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .ends_with(".control.patch")
+                .then_some(p)
+        })
+        .collect();
+    assert_eq!(patches.len(), 1);
+    let patch = std::fs::read_to_string(&patches[0]).unwrap();
+    assert!(patch.contains("fc:") && patch.contains("fv:"), "{patch}");
+}
+
+#[test]
+fn inconsistent_friction_proposes_no_control_patch() {
+    let session = write_synth(&SynthOpts {
+        ts: TS_MISMATCH,
+        sweep: PITCH,
+        fixed: vec![],
+        poses: POSES.to_vec(),
+        fc_hold: 0.08,
+        wave: Some(WaveSpec {
+            min: 0.1,
+            max: 0.5,
+            cycles: 2,
+            half_period_s: 1.0,
+            fc: 0.30,
+            fv: 0.06,
+        }),
+        keep_steps: None,
+        session_complete: true,
+    });
+    let out = TempDir::new().unwrap();
+    let o = run_multi(&[session.path()], out.path(), &[]);
+    let stdout = String::from_utf8_lossy(&o.stdout);
+    assert_eq!(
+        o.status.code(),
+        Some(0),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&o.stderr)
+    );
+    let rec = record_any(out.path());
+    assert_eq!(rec["accepted"], true, "{rec:#}");
+    assert_eq!(rec["friction"]["joints"][PITCH]["consistent"], false);
+    assert!(rec["control_patch"].is_null(), "{rec:#}");
+    assert!(
+        std::fs::read_dir(out.path())
+            .unwrap()
+            .filter_map(|e| {
+                let p = e.unwrap().path();
+                p.file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .ends_with(".control.patch")
+                    .then_some(p)
+            })
+            .next()
+            .is_none(),
+        "inconsistent estimates must not propose a friction patch"
+    );
+}
