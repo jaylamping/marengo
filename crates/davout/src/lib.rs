@@ -38,6 +38,10 @@
 //!   discontinuity, Calibration mode, or silence beyond `comm_watchdog_ms` outside owner
 //!   reference work revokes that joint. Fault/E-stop/uncertain stop revokes all.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
+//! - [`Supervisor::inspect_drive_protocol`] (ADR 0037): standalone, blocking read of
+//!   firmware version, MCU identity and registers (including 0x7028 CAN timeout)
+//!   from stopped drives through [`Supervisor::from_repo_for_protocol_inspection`].
+//!   It writes only Disable, reporting Off and read queries, and never grants.
 //! - [`drain_feedback`](Supervisor::drain_feedback): non-blocking RX queue drain
 //!   (Berthier control loop; per-tick frame accounting via `begin_tick_feedback`).
 //!
@@ -86,6 +90,7 @@ pub(crate) mod homing_facets;
 #[cfg(test)]
 mod limit_build_tests;
 mod limit_envelope;
+mod protocol_inspection;
 mod reference;
 mod reference_codec;
 mod reference_commit;
@@ -99,6 +104,9 @@ mod reference_transaction;
 mod reference_urdf_codec;
 pub mod simulation;
 
+pub use protocol_inspection::{
+    DriveProtocolInspection, INSPECTED_PARAMETERS, INSPECTION_QUERY_TIMEOUT, INSPECTION_SETTLE,
+};
 pub use reference_commit::{
     ReferenceAudit, ReferenceCommitError, ReferenceCommitHandle, ReferenceCommitPhase,
     ReferenceCommitSnapshot, ReferenceOutcome,
@@ -150,8 +158,9 @@ pub const FREE_DRIVE_FEEDBACK_TTL: Duration = Duration::from_secs(5);
 /// Minimum time from a SetZero on the wire to the next Enable (or the type-24
 /// Off that precedes it) written to the same address on an echoing bus.
 ///
-/// Bench candumps of firmware 0.3.1.42 (eight captures 2026-10-03, 128
-/// SetZeros on all five right-arm drives; profile
+/// Bench candumps of the right-arm drives (eight captures 2026-10-03, 128
+/// SetZeros on all five; drives 1-2 run firmware 0.3.1.42, 3-4 0.2.3.34 and
+/// 5 0.0.3.32; profile
 /// `docs/commissioning/firmware/robstride-timing-profile.json`): after
 /// receiving a SetZero (type 6) every Robstride drive transmits nothing for
 /// 45-61 ms, starting 511-543 ms later in 127 cases and 614 ms once
@@ -299,6 +308,8 @@ pub enum DavoutError {
     LimitPatchActive,
     #[error("active enable set cannot change while ACTIVE; disable first")]
     ActiveSetChangeRefused,
+    #[error("drive protocol inspection: {message}")]
+    ProtocolInspection { message: String },
 }
 
 pub use robstride::bus::{BusError, MemoryBus, MotorAddress, MotorBus};

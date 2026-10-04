@@ -10,7 +10,7 @@
 | `marengo-gateway` | Pi | HTTP gateway, log store, Chappe bridge | Active |
 | `marengo-log-cli` | Dev | Query archived bench sessions (SQL store) | Active |
 | `marengo-limit-sync` | Dev | Apply a Durable-gated Set Limits patch to the local checkout | Active |
-| `motor-repl` | Dev (bench) | Status/homing diagnostics, gravity preview, qualified Set Zero, independent disable/exit stop | Active |
+| `motor-repl` | Dev (bench) | Status/homing diagnostics, Disabled drive protocol inspection, gravity preview, qualified Set Zero, independent disable/exit stop | Active |
 | `imu-probe` | Pi | BNO085 I2C quaternion probe | Active |
 
 ## WHERE TO LOOK
@@ -19,7 +19,7 @@
 |------|----------|
 | Pi control loop wiring | `marengo-pi/src/main.rs` |
 | HTTP gateway / health | `marengo-gateway/src/` |
-| Bench motor diagnostics and independent stop/reference commands | `motor-repl/src/main.rs` (`status`, `disable`, `set-zero`, `gravity-preview`); reference and enable inside the `marengo-pi` owner only |
+| Bench motor diagnostics and independent stop/reference commands | `motor-repl/src/main.rs` (`status`, `disable`, `set-zero`, `protocol-inspect [joint...]`, `gravity-preview`); reference and enable inside the `marengo-pi` owner only |
 | IMU probe | `imu-probe/src/main.rs` |
 | Log archive queries | `marengo-log-cli/src/` |
 

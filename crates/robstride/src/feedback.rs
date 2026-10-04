@@ -3,8 +3,8 @@
 use std::time::Instant;
 
 use crate::{
-    BusError, DeviceUid, MitFeedback, MotorAddress, ParameterReadReply, ReceiveCompletion,
-    RxFrameKind, TimedCanFrame,
+    BusError, DeviceUid, FirmwareVersionFeedback, MitFeedback, MotorAddress, ParameterReadReply,
+    ReceiveCompletion, RxFrameKind, TimedCanFrame,
 };
 
 /// Drive state encoded in status CAN-ID bits 22..23.
@@ -57,6 +57,8 @@ impl DetailedFaultFeedback {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FeedbackEvent {
     Status(MitFeedback),
+    /// Type-2 reply to a firmware version query: header hazards, never a pose.
+    FirmwareVersion(FirmwareVersionFeedback),
     DetailedFault(DetailedFaultFeedback),
     Malformed(MalformedFeedback),
 }

@@ -6,6 +6,35 @@ import { renderRobotStateHoming } from "../robot-state.js";
 import { MASTER_JOINTS } from "../bench-profiles.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
+/** CanTimeout (0x7028) counts per second; 0 disables the drive-side timeout. */
+const CAN_TIMEOUT_COUNTS_PER_SECOND = 20_000;
+
+/**
+ * Summarize `motor-repl protocol-inspect` output: one row per
+ * `inspect <joint> <iface>:<id> firmware=<v> … can_timeout=<counts> …` line,
+ * above the unmodified output. Output without such lines is returned as is.
+ */
+export function renderProtocolInspection(raw: string): string {
+  const rows: string[] = [];
+  for (const line of raw.split("\n")) {
+    const match = /^inspect (\S+) (\S+) firmware=(\S+) .*\bcan_timeout=(\d+)\b/.exec(line.trim());
+    if (!match) continue;
+    const [, joint, address, firmware, countsText] = match;
+    const counts = Number(countsText);
+    const timeout =
+      counts === 0 ? "0 (off)" : `${counts} (${(counts / CAN_TIMEOUT_COUNTS_PER_SECOND).toFixed(3)} s)`;
+    rows.push(`| ${joint} | ${address} | ${firmware} | ${timeout} |`);
+  }
+  if (rows.length === 0) return raw;
+  return [
+    "| joint | address | firmware | CanTimeout 0x7028 |",
+    "|---|---|---|---|",
+    ...rows,
+    "",
+    raw,
+  ].join("\n");
+}
+
 export function registerReadonlyTools(
   cfg: MarengoPiConfig,
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
@@ -82,6 +111,25 @@ export function registerReadonlyTools(
       handler: async () => {
         const body = wrapRemote(cfg, unlessCanOwned("bin/motor-repl status"));
         return runRemote(body, 30_000);
+      },
+    },
+
+    pi_protocol_inspect: {
+      description:
+        "motor-repl protocol-inspect (ADR 0037): read-only inspection of Disabled drives. Stops every drive " +
+        "(Disable only, type-24 Off), then reads firmware version, MCU id and registers including 0x7028 " +
+        "CanTimeout one query at a time; never enables, zeroes or writes a parameter. Prints per-joint firmware " +
+        "and CanTimeout. Skipped while marengo-pi/motor-repl owns CAN (stop marengo-pi with pi_restart_marengo_pi first).",
+      inputSchema: z.object({
+        joints: z
+          .array(z.enum(MASTER_JOINTS))
+          .optional()
+          .describe("Joints to inspect; omit for every motors.yaml joint"),
+      }),
+      handler: async (args: { joints?: string[] }) => {
+        const command = ["bin/motor-repl protocol-inspect", ...(args.joints ?? []).map(shellQuote)].join(" ");
+        const body = wrapRemote(cfg, unlessCanOwned(command));
+        return renderProtocolInspection(await runRemote(body, 60_000));
       },
     },
 

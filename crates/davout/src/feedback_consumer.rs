@@ -28,6 +28,9 @@ use super::{
 pub(super) enum ReceiveContext {
     Operational,
     Reference(ReferenceReceiveContext),
+    /// Disabled drive protocol inspection (ADR 0037): every status header must
+    /// report Reset, and only here may a firmware version reply arrive.
+    DisabledInspection,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -78,7 +81,7 @@ impl ReferenceReceiveContext {
 impl ReceiveContext {
     fn reference_target(&self) -> Option<&MotorAddress> {
         match self {
-            Self::Operational => None,
+            Self::Operational | Self::DisabledInspection => None,
             Self::Reference(context) => Some(&context.target),
         }
     }
@@ -192,6 +195,7 @@ impl<B: MotorBus> Supervisor<B> {
             ReceiveContext::Reference(reference) => {
                 reference.is_enabled() && *address == reference.target && on_wire
             }
+            ReceiveContext::DisabledInspection => false,
         }
     }
 
@@ -201,6 +205,7 @@ impl<B: MotorBus> Supervisor<B> {
             // Like existing Active policy, inspect all installed peers' measured
             // position/velocity hazards once any reference target is armed.
             ReceiveContext::Reference(reference) => reference.is_enabled(),
+            ReceiveContext::DisabledInspection => false,
         }
     }
 
@@ -374,7 +379,8 @@ impl<B: MotorBus> Supervisor<B> {
                 received_at: Some(observation.received_at),
                 ..DeviceFaultEvidence::default()
             };
-            let status = match observation.event {
+            // A version reply carries the drive's header hazards but no pose.
+            let (drive_mode, status) = match observation.event {
                 FeedbackEvent::Malformed(malformed) => {
                     first_transition |= self.record_malformed_feedback(
                         motor,
@@ -413,21 +419,25 @@ impl<B: MotorBus> Supervisor<B> {
                 }
                 FeedbackEvent::Status(status) => {
                     device.status_flags = status.status_flags;
-                    device.drive_mode = Some(match status.drive_mode {
-                        DriveMode::Reset => 0,
-                        DriveMode::Calibration => 1,
-                        DriveMode::Run => 2,
-                        DriveMode::Reserved => 3,
-                    });
-                    if status.drive_mode == DriveMode::Calibration {
-                        // Encoder recalibration: the coordinate is no longer continuous.
-                        self.reference_owner
-                            .physical
-                            .record_calibration_mode(&address);
-                    }
-                    status
+                    (status.drive_mode, Some(status))
+                }
+                FeedbackEvent::FirmwareVersion(reply) => {
+                    device.status_flags = reply.status_flags;
+                    (reply.drive_mode, None)
                 }
             };
+            device.drive_mode = Some(match drive_mode {
+                DriveMode::Reset => 0,
+                DriveMode::Calibration => 1,
+                DriveMode::Run => 2,
+                DriveMode::Reserved => 3,
+            });
+            if drive_mode == DriveMode::Calibration {
+                // Encoder recalibration: the coordinate is no longer continuous.
+                self.reference_owner
+                    .physical
+                    .record_calibration_mode(&address);
+            }
             if device.status_flags != 0 {
                 first_transition |= self.fault_authority.record(
                     FaultClass::Device,
@@ -442,12 +452,14 @@ impl<B: MotorBus> Supervisor<B> {
             }
             let current_enable =
                 self.feedback_run_expected(motor, &address, observation.received_at, context);
-            if status.drive_mode == DriveMode::Reserved
-                || (current_enable && status.drive_mode != DriveMode::Run)
+            let inspecting = matches!(context, ReceiveContext::DisabledInspection);
+            if drive_mode == DriveMode::Reserved
+                || (current_enable && drive_mode != DriveMode::Run)
+                || (inspecting && drive_mode != DriveMode::Reset)
             {
                 let error = DavoutError::InvalidFeedback {
                     joint: motor.joint.clone(),
-                    message: format!("unexpected drive mode {:?} for {:?}; no qualified factory-calibration context", status.drive_mode, self.mode),
+                    message: format!("unexpected drive mode {drive_mode:?} for {:?}; no qualified factory-calibration context", self.mode),
                 };
                 self.invalid_feedback.insert(address.clone());
                 first_transition |= self.fault_authority.record(
@@ -462,6 +474,22 @@ impl<B: MotorBus> Supervisor<B> {
                 }
                 continue;
             }
+            let Some(status) = status else {
+                // Only a disabled inspection asks for a version; anywhere else
+                // the reply is another host's query or a misread pose.
+                if !inspecting {
+                    let error = DavoutError::InvalidFeedback {
+                        joint: motor.joint.clone(),
+                        message: "unsolicited firmware version reply".into(),
+                    };
+                    self.invalid_feedback.insert(address);
+                    first_transition |= self.record_runtime_error(&error);
+                    if first_error.is_none() {
+                        first_error = Some(error);
+                    }
+                }
+                continue;
+            };
             let raw = MotorState {
                 position_rad: status.position_rad,
                 velocity_rad_s: status.velocity_rad_s,
@@ -485,7 +513,7 @@ impl<B: MotorBus> Supervisor<B> {
                 // pose renewal and derivative scratch, not hazard retention.
                 match context {
                     ReceiveContext::Operational => self.check_feedback_position(motor, &state)?,
-                    ReceiveContext::Reference(_) => {
+                    ReceiveContext::Reference(_) | ReceiveContext::DisabledInspection => {
                         self.check_feedback_position_in_context(motor, &state, context)?;
                     }
                 }
@@ -566,7 +594,7 @@ impl<B: MotorBus> Supervisor<B> {
                 ReceiveContext::Operational => {
                     self.check_feedback_velocity(motor, &mut state, received_at)
                 }
-                ReceiveContext::Reference(_) => {
+                ReceiveContext::Reference(_) | ReceiveContext::DisabledInspection => {
                     self.check_feedback_velocity_in_context(motor, &mut state, received_at, context)
                 }
             };

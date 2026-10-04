@@ -45,7 +45,8 @@ use robstride::{
 const RESET_MODE: u32 = 0;
 const RUN_MODE: u32 = 2;
 /// Timing ranges a drive's knobs may take. Each covers the range measured on
-/// the bench (firmware 0.3.1.42; `docs/commissioning/firmware/
+/// the bench (right-arm drives 1-2 on firmware 0.3.1.42, 3-4 on 0.2.3.34,
+/// 5 on 0.0.3.32; `docs/commissioning/firmware/
 /// robstride-timing-profile.json`, asserted by `tests/firmware_profile.rs`).
 #[derive(Debug, Clone, Copy)]
 pub struct TimingModel {
