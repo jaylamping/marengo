@@ -674,7 +674,6 @@ fn pitch_bench_suite_replay_meets_bench_bar() {
         }
     }
     let report = report.join("\n");
-    println!("{report}");
     assert!(
         failed.is_empty(),
         "failures:\n{}\n\nall moves:\n{report}",

@@ -1,12 +1,5 @@
 {
   "mcpServers": {
-    "solidworks": {
-      "command": "node",
-      "args": ["${workspaceFolder}/../solidworks-mcp/dist/index.js"],
-      "env": {
-        "SOLIDWORKS_MCP_ALLOWED_ROOTS": "${workspaceFolder}"
-      }
-    },
     "context7": {
       "command": "npx",
       "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
