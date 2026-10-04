@@ -8,7 +8,7 @@ depends on it and that rule's margin over the measurement, and lists what
 remains open.
 
 - **Profile:** [`robstride-timing-profile.json`](robstride-timing-profile.json)
-  (stats only, plus capture names and frame counts).
+  (historical aggregate stats, guarded observed extrema, and capture provenance).
 - **Analyzer:** `cargo run --release -p marengo-log-cli -- firmware-timing --json <candump>...`.
   It accepts `candump -L` and `candump -t z|a` lines. Its module doc
   (`bins/marengo-log-cli/src/firmware_timing.rs`) has the exact definitions.
@@ -18,9 +18,10 @@ remains open.
   (`crates/davout/tests/physical_firmware`) no longer covers a measured range,
   or if a Davout constant loses its margin.
 
-To refresh the profile, scp new captures into `var/firmware-captures/`
+To refresh the profile, collect new candumps into `var/firmware-captures/`
 (gitignored), rerun the analyzer on every non-empty capture, and rebuild the
-profile. Then run `cargo test -p davout --test firmware_profile`.
+profile. A capture where a drive's reports are Off may not contain an observable
+blackout. Then run `cargo test -p davout --test firmware_profile`.
 
 ## Captures
 
@@ -95,20 +96,26 @@ depends on the type-24 Off rule below. The emulator models
 ## Post-SetZero blackout
 
 **Definition.** For each host SetZero (type 6), the analyzer finds the longest
-gap between consecutive frames from that drive that meets all of these:
+gap of at least 20 ms between consecutive frames from that drive within 1.5 s
+of SetZero. It records a gap only if the drive observably owed traffic:
 
-- The gap starts within 1.5 s of the SetZero.
-- The gap is at least 20 ms long.
-- The drive owed frames throughout the gap: its report stream was running, or
-  host requests to it kept arriving with no 20 ms hole.
+- Periodic type-24 reports were running before the gap and resume at its end,
+  with no type-24 write inside it. A delayed report after an Off does not
+  re-establish a stream; the host must turn reporting On again.
+- Or both boundary type-2 frames answer host requests, while requests continue
+  through the gap with no stretch longer than 20 ms.
 
-`set_zero_silence_start_ms` is the drive's last frame before the gap, measured
-from the SetZero. The true start lies up to one report period later.
-`set_zero_silence_ms` is the gap length.
+An unanswered solicit in a reply-only stream with ~60 ms host polling cannot
+prove a blackout. A SetZero without a measurable gap counts as
+`set_zero_silence_unobservable`, not as a zero-length or long silence sample.
+`set_zero_silence_start_ms` is the last drive frame before the gap, relative
+to SetZero; true blackout onset may follow that frame. `set_zero_silence_ms`
+is the bounding frame gap, not a measured firmware-internal duration.
 
-**Measured.** 125 SetZeros produced 124 measurable blackouts. The 125th
-(soak cycle 12, drive 1) fell where the host had stopped polling and the
-stream was off, so no gap could be delimited.
+**Historical captures (previous analyzer).** Of 125 SetZeros, 124 were
+previously classified as measurable; the remaining SetZero had no observable
+gap. These captures are not locally available to reprocess with the corrected
+classifier, so their `n/p50/p95` below are historical, not revalidated counts.
 
 | Stat | Value |
 |---|---|
@@ -118,6 +125,43 @@ stream was off, so no gap could be delimited.
 | start max | 613.8 ms |
 | length | 45.4-60.7 ms (p50 per drive 50.5-55.9 ms) |
 | latest end after SetZero | 666.8 ms (next latest 599.5 ms) |
+
+
+**Additional enable soaks (2026-10-03).** Three read-only candumps in
+`var/enable-soak/` were reanalyzed with the corrected stream-Off classifier:
+`20261003T221010Z` (rev `84e80653`, 85,644 frames),
+`20261003T225034Z` (rev `7dbc4870`, includes `ad1eb887`, 108,595 frames),
+and `20261003T230806Z` (PASS, rev `aa773418`, 112,345 frames).
+Each drive had 20 SetZeros per soak. The columns give
+`n/unobservable`, then start and bounding gap length in milliseconds as
+`min / p50 / p95 / max` (nearest-rank percentiles). `—` means no measurable
+blackout; it does **not** mean the drive had no blackout.
+
+| Soak UTC | Drive | n/unobservable | Start ms (min / p50 / p95 / max) | Gap ms (min / p50 / p95 / max) |
+|---|---|---:|---|---|
+| 22:10 | can0/1 | 16/4 | 511.451 / 516.860 / 533.116 / 533.116 | 51.883 / 53.623 / 56.148 / 56.148 |
+| 22:10 | can0/2 | 19/1 | 513.804 / 520.429 / 534.401 / 534.401 | 50.463 / 52.585 / 54.686 / 54.686 |
+| 22:10 | can0/3 | 18/2 | 515.297 / 520.046 / 524.929 / 524.929 | 44.455 / 48.408 / 50.554 / 50.554 |
+| 22:10 | can0/4 | 15/5 | 518.797 / 522.122 / 544.310 / 544.310 | 52.378 / 58.235 / 60.697 / 60.697 |
+| 22:10 | can0/5 | 14/6 | 521.664 / 526.568 / 547.609 / 547.609 | 49.637 / 51.165 / 55.692 / 55.692 |
+| 22:50 | can0/1 | 12/8 | 511.541 / 516.634 / 533.050 / 533.050 | 51.897 / 53.507 / 55.317 / 55.317 |
+| 22:50 | can0/2 | 18/2 | 512.992 / 517.481 / 536.504 / 536.504 | 50.616 / 52.598 / 53.110 / 53.110 |
+| 22:50 | can0/3 | 18/2 | 516.767 / 521.792 / 525.177 / 525.177 | 45.544 / 48.629 / 51.246 / 51.246 |
+| 22:50 | can0/4 | 16/4 | 518.241 / 523.266 / 542.586 / 542.586 | 51.955 / 58.167 / 63.060 / 63.060 |
+| 22:50 | can0/5 | 17/3 | 525.473 / 527.715 / 546.382 / 546.382 | 45.750 / 50.645 / 55.550 / 55.550 |
+| 23:08 | can0/1 | 0/20 | — | — |
+| 23:08 | can0/2 | 17/3 | 513.885 / 520.280 / 539.396 / 539.396 | 49.962 / 52.605 / 55.386 / 55.386 |
+| 23:08 | can0/3 | 19/1 | 516.820 / 521.775 / 524.803 / 524.803 | 45.655 / 48.754 / 50.571 / 50.571 |
+| 23:08 | can0/4 | 14/6 | 517.523 / 519.833 / 540.348 / 540.348 | 57.503 / 61.454 / 66.128 / 66.128 |
+| 23:08 | can0/5 | 17/3 | 523.428 / 527.940 / 531.580 / 531.580 | 45.500 / 50.848 / 55.949 / 55.949 |
+
+Across the historical profile and these soaks, observed bounding starts are
+511.366–613.761 ms and lengths are 44.455–66.128 ms. The delayed 613.761 ms
+start was in the earlier 15:34 capture; the 66.128 ms gap is can0/4 in the
+23:08 PASS soak. These extremes need not occur in the same SetZero. The
+profile retains original-capture `n/p50/p95`; its guarded `min/max` now cover
+the added soaks. In the PASS soak all 20 can0/1 blackouts were unobservable,
+not 20 firmware non-blackouts; host reply-only gaps are not evidence.
 
 The drive receives nothing during the blackout:
 
@@ -163,14 +207,16 @@ device 4's, so drive 4's silence started 520.9 ms after device 5's SetZero,
 which is inside the normal own-SetZero range. That is the only such alignment
 in the data.
 
-**Rule.** `POST_SET_ZERO_QUIET` is now 800 ms, up from 650 ms. That is the
-latest measured blackout end (666.8 ms) plus 100 ms, rounded up to the next
-50 ms. The conformance test checks the bound
-`quiet ≥ max start + max length + 100 ms`. With start and length possibly from
-different SetZeros, that is 774.5 ms, so the margin is 25.5 ms over the bound
-and 133 ms over the actual latest end. On SocketCAN, no Enable and no gate Off
-goes to a drive within the quiet after its SetZero echo (a2b55b3). The quiet
-stays anchored on SetZero.
+**Rule.** `POST_SET_ZERO_QUIET` remains 800 ms. Its conformance test checks
+`quiet ≥ max start + max length + 100 ms`. With the observed start and
+length extremes potentially from different SetZeros, the bound is
+613.761 + 66.128 + 100 = 779.889 ms, leaving **20.111 ms** of conservative
+margin. The latest actually observed historical end was 666.8 ms (133.2 ms
+below quiet); the longest new gap ended by 606.476 ms in its own soak.
+`POST_SET_ZERO_BLACKOUT_FROM` remains 450 ms; the earliest observed bounding
+start is 511.366 ms, giving **11.366 ms** beyond its required 50 ms margin.
+On SocketCAN, no Enable and no gate Off goes to a drive within the quiet
+after its SetZero echo (a2b55b3). The quiet stays anchored on SetZero.
 
 **Type-24 writes in the blackout.** The same drop applies to a type-24 On or
 Off. Candump `decay-20261003T170858Z.log` (rev e6add09, three manual
@@ -185,8 +231,8 @@ ms earlier puts the Off before the blackout and the On inside it, and the drive
 then streams nothing until the host's 200 ms stale retry. The 14 failures of
 the 20-cycle soak at the same revision are that case [INFERENCE: no candump
 of a failing cycle exists; the soak runs did not capture one].
-`POST_SET_ZERO_BLACKOUT_FROM` is 450 ms (earliest measured start 511.4 ms, less
-a 50 ms margin held by `firmware_profile.rs`): from there to
+`POST_SET_ZERO_BLACKOUT_FROM` is 450 ms (earliest observed start 511.366 ms,
+more than the 50 ms guard in `firmware_profile.rs`): from there to
 `POST_SET_ZERO_QUIET` no type-24 On or Off is written to the drive.
 
 **Cost.** The cost is 150 ms of enable latency. A target zeroed less than
@@ -195,10 +241,11 @@ cycle, the deferred enable completes about 800 ms after the last SetZero
 instead of 650 ms. Targets zeroed earlier are not delayed.
 
 **Emulator.** Each drive has its own `set_zero_blackout` (start, length). The
-model allows start in [500, 625] ms and length in [40, 65] ms, so every
-modeled blackout ends by 690 ms (`SET_ZERO_BLACKOUT`). The default is
-(535, 55) ms. `enable_right_after_the_last_reference_is_held_past_the_set_zero_blackout`
-puts ROLL at the latest modeled blackout (625-690 ms). With a 650 ms quiet,
+test fixture allows start in [500, 625] ms and length in [40, 67] ms (previous
+upper length 65 ms), so every modeled blackout ends by 692 ms
+(`SET_ZERO_BLACKOUT`; previous end 690 ms). The default is (535, 55) ms.
+`enable_right_after_the_last_reference_is_held_past_the_set_zero_blackout`
+puts ROLL at the latest modeled blackout (625–692 ms). With a 650 ms quiet,
 ROLL's Enable lands inside that blackout and the test fails.
 
 **Open.**
