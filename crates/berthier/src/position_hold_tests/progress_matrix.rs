@@ -133,6 +133,8 @@ fn matrix_observe(
                 dt: 0.005,
                 hz: 200,
                 tick_count,
+                reshaped: &[],
+                ff_last_sent: &[],
                 wave: &mut wave,
             }) {
                 Ok(out) => {

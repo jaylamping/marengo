@@ -79,6 +79,8 @@ fn period_observe(moving: bool) -> PeriodObservation {
             dt: 0.0008,
             hz: 1250,
             tick_count: u64::from(step),
+            reshaped: &[],
+            ff_last_sent: &[],
             wave: &mut wave,
         }) {
             Ok(out) => {

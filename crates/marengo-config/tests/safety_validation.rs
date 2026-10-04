@@ -473,12 +473,14 @@ fn cross_config_validator_rejects_motor_type_disagreement_and_excluding_soft_bou
     let motors = load_motors_config_from(&dir).expect("motors");
     let original = load_control_config_from(&dir).expect("control");
     let mut wrong_type = original.clone();
-    wrong_type
+    let entry = wrong_type
         .control
         .joints
         .get_mut("right_shoulder_pitch")
-        .expect("joint")
-        .motor_type = marengo_config::MotorType::Rs02;
+        .expect("joint");
+    entry.motor_type = marengo_config::MotorType::Rs02;
+    // Gains inside the RS02 MIT ranges, so only the motor-type disagreement is wrong.
+    entry.impedance.kd = 3.0;
     assert!(
         matches!(validate_control_against_limits(&robot, &motors, &wrong_type), Err(ConfigError::InvalidSafetyConfig { field, .. }) if field == "control.joints.right_shoulder_pitch.motor_type")
     );

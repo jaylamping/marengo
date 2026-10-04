@@ -86,7 +86,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 | `assets/urdf/marengo.urdf` | Kinematic + inertial source of truth (no meshes); `assets/mjcf/` holds the sim models |
 | `tools/` | `marengo-pi-mcp` (Pi bench tools), `marengo-research-mcp` (Python/uv), `limit-sync-local`, `compound-auto-learn` |
 | `scripts/` | `check.sh`, deploy/install, `pi-remote.sh`, vcan, systemd units (`scripts/systemd/`) |
-| `docs/` | `safety.md`, `rust-patterns.md`, ADRs `decisions/0001–0038`, `commissioning/`, `reviews/` |
+| `docs/` | `safety.md`, `rust-patterns.md`, ADRs `decisions/0001–0040`, `commissioning/`, `reviews/` |
 | `sim/` | MuJoCo smoke (`sim/scripts/smoke_test.py`, `sim/fixtures/minimal.xml`) |
 | `cad/`, `hardware/` | Manifests and docs only; SolidWorks binaries are local to the Windows host |
 | `var/` | Runtime output; `var/log`, `var/enable-soak`, `var/gravity-calibration` and `var/firmware-captures` are gitignored |

@@ -12,15 +12,19 @@
 //! (q_ref, v_ref) ← trapezoid step toward the target with speed limit s·v_max, |Δv_ref| ≤ a_max·dt
 //! MIT:  position = clamp_envelope(q_ref), velocity = v_ref, kp, kd (constant),
 //!       τ_ff = τ_g + τ_dyn + fo + τ_I
-//! τ_dyn → τ_fric(v_ref → v_ref + λ·e) + J·a_ref, moving at most SCALED_PD_DYNAMIC_FF_RATE_NM_S·dt
-//!         per tick (magnitude from the reference speed, direction from the intent velocity)
+//! τ_dyn → τ_fric(v_ref) + J·a_ref + H·(v_ref − v̂), moving at most SCALED_PD_DYNAMIC_FF_RATE_NM_S·dt
+//!         per tick (v̂: measured velocity low-passed over `velocity_filter_s`; H = 0 by default)
+//! τ_I   ← band integral of the target error (default), or a leaky reference-error integral
+//!         frozen after a reshaped output (ADR 0040)
+//! τ_ff  → whole-feed-forward step guard when configured (ADR 0040)
 //! ```
 //!
 //! The time scale `s` governs the reference *speed limit*, not its clock: the reference keeps
 //! braking and reversing in real time, so a retarget back toward a stuck joint is never frozen,
 //! and the commanded velocity changes by at most `a_max·dt` per tick.
 //!
-//! No torque term uses measured `dq`; damping is the drive's `kd·(v_ref − dq)`.
+//! Damping is the drive's `kd·(v_ref − dq)`; ADR 0040 adds an optional small host damper on a
+//! filtered, timestamped position-derived velocity, always on (no deadband or onset switch).
 //!
 //! `a_ref` is the reference's own velocity change per tick, so the feed-forward supplies the
 //! torque the reference's acceleration and braking need instead of a P lead of `J·a/kp` (a stop
@@ -76,29 +80,37 @@ impl ReferenceFriction {
 
     /// Velocity-dependent friction torque (odd in `v`, continuous, zero at rest).
     pub fn torque(&self, v: f64) -> f64 {
-        self.torque_toward(v, v)
-    }
-
-    /// Friction torque for a joint that should move with reference velocity `v_ref` and is
-    /// asked to move in the direction of `v_intent`.
-    ///
-    /// The magnitude follows the reference speed's Stribeck curve (`fs` when the reference is
-    /// slow, `fc` above `v_b`), and the direction is `tanh(k·v_intent)`. With
-    /// `v_intent = v_ref` this is [`Self::torque`]. A joint lagging a slow or stopped reference
-    /// is stuck, so it must break static friction in the direction of its position error, not
-    /// of the reference's (vanishing) velocity: see [`ScaledPdGains::friction_error_gain`].
-    pub fn torque_toward(&self, v_ref: f64, v_intent: f64) -> f64 {
         let shape = if self.k > 0.0 {
-            (self.k * v_intent).tanh()
+            (self.k * v).tanh()
         } else {
             0.0
         };
         let stribeck = if self.v_b > 0.0 {
-            (self.fs - self.fc) * (-v_ref.abs() / self.v_b).exp()
+            (self.fs - self.fc) * (-v.abs() / self.v_b).exp()
         } else {
             0.0
         };
-        (self.fc + stribeck) * shape + self.fv * v_ref
+        (self.fc + stribeck) * shape + self.fv * v
+    }
+}
+
+/// How the scaled-PD integral `τ_I` integrates (ADR 0040).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegralMode {
+    /// ADR 0039: integrate `ki·(target − q)` inside the band, leak only outside it.
+    TargetBand,
+    /// ADR 0040: leak every tick, integrate `ki·(q_ref − q)` inside the band unless the previous
+    /// output was reshaped (step guard, envelope or Davout), so the state is a bounded
+    /// disturbance estimate rather than an ever-growing push.
+    LeakyReference,
+}
+
+impl From<marengo_config::PositionIntegralMode> for IntegralMode {
+    fn from(mode: marengo_config::PositionIntegralMode) -> Self {
+        match mode {
+            marengo_config::PositionIntegralMode::TargetBand => Self::TargetBand,
+            marengo_config::PositionIntegralMode::LeakyReference => Self::LeakyReference,
+        }
     }
 }
 
@@ -111,16 +123,23 @@ pub struct ScaledPdGains {
     pub e0: f64,
     /// Stop band (rad), `> e0`.
     pub e1: f64,
-    /// Integral accumulates while `|target − q| <` this (rad).
+    /// Integral input band (rad): `|target − q|` ([`IntegralMode::TargetBand`]) or
+    /// `|q_ref − q|` ([`IntegralMode::LeakyReference`]).
     pub integral_band: f64,
-    /// Integral leak time constant outside the band (s).
+    /// Integral leak time constant (s): outside the band ([`IntegralMode::TargetBand`]), or
+    /// every tick ([`IntegralMode::LeakyReference`]).
     pub integral_leak_s: f64,
+    pub integral_mode: IntegralMode,
+    /// `|τ_I|` ceiling (Nm), at most [`SCALED_PD_INTEGRAL_MAX_NM`].
+    pub integral_cap_nm: f64,
     /// Inertia (kg·m²) the reference acceleration is fed forward with; `0` disables `J·a`.
     pub inertia: f64,
-    /// `λ` (1/s): the friction feed-forward pushes toward `v_ref + λ·(q_ref − q)` rather than
-    /// `v_ref`, so a joint stuck behind a slow or stopped reference gets static-friction help
-    /// toward it. `0` keeps the direction on `v_ref` alone.
-    pub friction_error_gain: f64,
+    /// Host damping `H` (Nm·s/rad) on `v_ref − v̂`, inside the slewed dynamic term; `0` = none.
+    pub host_damping: f64,
+    /// Time constant (s) of the first-order filter giving `v̂` from measured velocity.
+    pub velocity_filter_s: f64,
+    /// Largest change of the whole τ_ff between sent ticks (Nm); `None` = no guard.
+    pub ff_step_max_nm: Option<f64>,
     /// `None` when the joint has no friction model (no friction feed-forward).
     pub friction: Option<ReferenceFriction>,
 }
@@ -138,9 +157,12 @@ pub struct ScaledPdState {
     pub v_prev: f64,
     /// Slew-limited `τ_fric + J·a` (Nm).
     pub tau_dyn: f64,
-    /// `tau_dyn` as it would be without the friction error assist (same slew), so the fuses
-    /// judge the torque the plain law commands (see [`ScaledPdFeedforward::tau_assist`]).
-    pub tau_dyn_plain: f64,
+    /// Filtered measured velocity `v̂` (rad/s); `None` until the first finite sample.
+    pub v_hat: Option<f64>,
+    /// Whole τ_ff sent on the previous tick, for the step guard (`None` on mode entry).
+    pub ff_prev: Option<f64>,
+    /// The previous output was reshaped by the law itself (step guard or envelope clamp).
+    pub reshaped_local: bool,
 }
 
 impl Default for ScaledPdState {
@@ -151,7 +173,9 @@ impl Default for ScaledPdState {
             tau_i: 0.0,
             v_prev: 0.0,
             tau_dyn: 0.0,
-            tau_dyn_plain: 0.0,
+            v_hat: None,
+            ff_prev: None,
+            reshaped_local: false,
         }
     }
 }
@@ -162,12 +186,28 @@ pub struct ScaledPdFeedforward {
     /// Slew-limited `τ_fric(v_c) + J·a_c`, plus `fo`.
     pub tau_fric: f64,
     pub tau_i: f64,
-    /// `τ_g + tau_fric + tau_i`.
+    /// `τ_g + tau_fric + tau_i`, after the step guard.
     pub tau_ff: f64,
-    /// Part of `tau_fric` from the friction error assist (Nm). The HoldTracking fuse judges
-    /// the net torque without it: the assist only helps a stuck joint toward its reference and
-    /// must never hide a gravity-model fault from the fuse.
-    pub tau_assist: f64,
+    /// The step guard limited this tick's τ_ff.
+    pub ff_guarded: bool,
+}
+
+/// One tick's inputs to [`compose_feedforward`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FeedforwardInput {
+    pub ki: f64,
+    /// `target − q` (rad).
+    pub target_error: f64,
+    /// `q_ref − q` (rad).
+    pub reference_error: f64,
+    /// Davout's measured joint velocity (rad/s): the position difference over receive times.
+    pub dq_meas: f64,
+    /// Davout reshaped the previous command (total-torque clamp or τ_ff cap/rate limit).
+    pub reshaped_downstream: bool,
+    /// τ_ff Davout last sent for this joint, to start the step guard bumplessly.
+    pub ff_last_sent: Option<f64>,
+    pub tau_g: f64,
+    pub dt: f64,
 }
 
 /// Time scale for reference error magnitude `error_abs`: 1 up to `e0`, 0 from `e1`.
@@ -288,6 +328,36 @@ pub fn integral_step(
     }
 }
 
+/// Advance the leaky reference-error integral one tick (ADR 0040): always decay with `leak_s`,
+/// add `ki·e_ref·dt` only inside the band and when the previous output was not reshaped, and
+/// keep `|τ_I| ≤ cap`. A constant error settles at `ki·leak_s·e_ref` instead of ramping.
+#[allow(clippy::too_many_arguments)]
+pub fn leaky_integral_step(
+    tau_i: f64,
+    reference_error: f64,
+    ki: f64,
+    band: f64,
+    leak_s: f64,
+    cap: f64,
+    frozen: bool,
+    dt: f64,
+) -> f64 {
+    let mut next = if leak_s > 0.0 {
+        tau_i * (-dt / leak_s).exp()
+    } else {
+        tau_i
+    };
+    if ki > 0.0 && !frozen && reference_error.abs() < band {
+        next += ki * reference_error * dt;
+    }
+    let cap = cap.clamp(0.0, SCALED_PD_INTEGRAL_MAX_NM);
+    if next.is_finite() {
+        next.clamp(-cap, cap)
+    } else {
+        0.0
+    }
+}
+
 /// Govern the speed limit from the current lead, then advance the reference one tick.
 ///
 /// Returns the new `(q_ref, v_ref, phase)`; `state.s` and `state.v_c` are updated.
@@ -310,65 +380,75 @@ pub fn advance_reference(
 }
 
 /// Feed-forward for one tick: `τ_g + τ_dyn + τ_I`, where `τ_dyn` slews by at most
-/// [`SCALED_PD_DYNAMIC_FF_RATE_NM_S`]`·dt` toward `τ_fric(v_c → v_c + λ·e_ref) + fo + J·a_c` with
-/// `a_c = (v_c − v_prev)/dt` (updates `state.tau_i`, `state.tau_dyn`, `state.v_prev`).
+/// [`SCALED_PD_DYNAMIC_FF_RATE_NM_S`]`·dt` toward `τ_fric(v_c) + fo + J·a_c + H·(v_c − v̂)` with
+/// `a_c = (v_c − v_prev)/dt`, then the whole τ_ff step guard when configured.
 pub fn compose_feedforward(
     state: &mut ScaledPdState,
     gains: &ScaledPdGains,
-    ki: f64,
-    target_error: f64,
-    reference_error: f64,
-    tau_g: f64,
-    dt: f64,
+    input: &FeedforwardInput,
 ) -> ScaledPdFeedforward {
-    // The assist acts near rest, where static friction holds the joint: weighted by
-    // exp(−|v_ref|/v_b), it vanishes at speed and leaves moving behaviour to v_ref.
-    let near_rest = gains
+    let dt = input.dt;
+    let friction = gains
         .friction
-        .filter(|friction| friction.v_b > 0.0)
-        .map_or(0.0, |friction| (-state.v_c.abs() / friction.v_b).exp());
-    let intent = state.v_c + near_rest * gains.friction_error_gain * reference_error;
-    let intent = if intent.is_finite() {
-        intent
-    } else {
-        state.v_c
-    };
-    let (friction, friction_plain) = gains.friction.map_or((0.0, 0.0), |friction| {
-        (
-            friction.torque_toward(state.v_c, intent) + friction.fo,
-            friction.torque(state.v_c) + friction.fo,
-        )
-    });
+        .map_or(0.0, |friction| friction.torque(state.v_c) + friction.fo);
     let accel = if dt > 0.0 {
         (state.v_c - state.v_prev) / dt
     } else {
         0.0
     };
     state.v_prev = state.v_c;
-    let target = friction + gains.inertia * accel;
-    let target_plain = friction_plain + gains.inertia * accel;
-    let step = SCALED_PD_DYNAMIC_FF_RATE_NM_S * dt.max(0.0);
-    let next = state.tau_dyn + (target - state.tau_dyn).clamp(-step, step);
-    state.tau_dyn = if next.is_finite() { next } else { 0.0 };
-    let next_plain = state.tau_dyn_plain + (target_plain - state.tau_dyn_plain).clamp(-step, step);
-    state.tau_dyn_plain = if next_plain.is_finite() {
-        next_plain
+    let damping = if gains.host_damping > 0.0 && input.dq_meas.is_finite() {
+        let v_hat = match state.v_hat {
+            Some(v_hat) if gains.velocity_filter_s > 0.0 && dt > 0.0 => {
+                v_hat + (1.0 - (-dt / gains.velocity_filter_s).exp()) * (input.dq_meas - v_hat)
+            }
+            Some(_) => input.dq_meas,
+            None => input.dq_meas,
+        };
+        state.v_hat = Some(v_hat);
+        gains.host_damping * (state.v_c - v_hat)
     } else {
         0.0
     };
-    state.tau_i = integral_step(
-        state.tau_i,
-        target_error,
-        ki,
-        gains.integral_band,
-        gains.integral_leak_s,
-        dt,
-    );
+    let target = friction + gains.inertia * accel + damping;
+    let step = SCALED_PD_DYNAMIC_FF_RATE_NM_S * dt.max(0.0);
+    let next = state.tau_dyn + (target - state.tau_dyn).clamp(-step, step);
+    state.tau_dyn = if next.is_finite() { next } else { 0.0 };
+    state.tau_i = match gains.integral_mode {
+        IntegralMode::TargetBand => integral_step(
+            state.tau_i,
+            input.target_error,
+            input.ki,
+            gains.integral_band,
+            gains.integral_leak_s,
+            dt,
+        ),
+        IntegralMode::LeakyReference => leaky_integral_step(
+            state.tau_i,
+            input.reference_error,
+            input.ki,
+            gains.integral_band,
+            gains.integral_leak_s,
+            gains.integral_cap_nm,
+            state.reshaped_local || input.reshaped_downstream,
+            dt,
+        ),
+    };
+    let wanted = input.tau_g + state.tau_dyn + state.tau_i;
+    let (tau_ff, ff_guarded) = match gains.ff_step_max_nm {
+        Some(max_step) if max_step > 0.0 && wanted.is_finite() => {
+            let previous = state.ff_prev.or(input.ff_last_sent).unwrap_or(wanted);
+            let sent = previous + (wanted - previous).clamp(-max_step, max_step);
+            (sent, (sent - wanted).abs() > 1e-12)
+        }
+        _ => (wanted, false),
+    };
+    state.ff_prev = Some(tau_ff);
     ScaledPdFeedforward {
         tau_fric: state.tau_dyn,
         tau_i: state.tau_i,
-        tau_ff: tau_g + state.tau_dyn + state.tau_i,
-        tau_assist: state.tau_dyn - state.tau_dyn_plain,
+        tau_ff,
+        ff_guarded,
     }
 }
 

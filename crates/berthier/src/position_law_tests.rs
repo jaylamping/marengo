@@ -27,9 +27,27 @@ fn gains() -> ScaledPdGains {
         e1: E1,
         integral_band: 0.1,
         integral_leak_s: 0.5,
-        friction_error_gain: 0.0,
+        integral_mode: crate::position_law::IntegralMode::TargetBand,
+        integral_cap_nm: crate::position_law::SCALED_PD_INTEGRAL_MAX_NM,
+        host_damping: 0.0,
+        velocity_filter_s: marengo_config::DEFAULT_POSITION_HOST_DAMPING_FILTER_S,
+        ff_step_max_nm: None,
         inertia: 0.0,
         friction: Some(friction()),
+    }
+}
+
+/// A tick's inputs with no error, no measured motion and nothing reshaped.
+fn input(tau_g: f64) -> FeedforwardInput {
+    FeedforwardInput {
+        ki: 0.0,
+        target_error: 0.0,
+        reference_error: 0.0,
+        dq_meas: 0.0,
+        reshaped_downstream: false,
+        ff_last_sent: None,
+        tau_g,
+        dt: DT,
     }
 }
 
@@ -237,7 +255,7 @@ fn governor_slows_only_a_growing_lead() {
 #[test]
 fn feedforward_uses_reference_velocity_not_measurement() {
     let mut state = ScaledPdState::default();
-    let at_rest = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 0.0, 1.5, DT);
+    let at_rest = compose_feedforward(&mut state, &gains(), &input(1.5));
     assert_eq!(at_rest.tau_fric, 0.0);
     assert_eq!(at_rest.tau_ff, 1.5);
     // A steady reference velocity (no acceleration): τ_dyn settles on τ_fric(v_c).
@@ -245,7 +263,7 @@ fn feedforward_uses_reference_velocity_not_measurement() {
     state.v_prev = 0.5;
     let mut moving = at_rest;
     for _ in 0..100 {
-        moving = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 0.0, 1.5, DT);
+        moving = compose_feedforward(&mut state, &gains(), &input(1.5));
     }
     assert!((moving.tau_ff - (1.5 + friction().torque(0.5))).abs() < 1e-15);
 }
@@ -259,14 +277,14 @@ fn acceleration_feedforward_is_j_times_a_and_never_steps_tau_ff() {
     let a_max = 1.5;
     let g = ScaledPdGains { inertia, ..gains() };
     let mut state = ScaledPdState::default();
-    let mut last = compose_feedforward(&mut state, &g, 0.0, 0.0, 0.0, 0.0, DT).tau_ff;
+    let mut last = compose_feedforward(&mut state, &g, &input(0.0)).tau_ff;
     let mut profile = vec![a_max; 100];
     profile.extend(vec![0.0; 50]);
     profile.extend(vec![-a_max; 100]);
     let step_max = SCALED_PD_DYNAMIC_FF_RATE_NM_S * DT;
     for (n, a) in profile.iter().enumerate() {
         state.v_c += a * DT;
-        let ff = compose_feedforward(&mut state, &g, 0.0, 0.0, 0.0, 0.0, DT);
+        let ff = compose_feedforward(&mut state, &g, &input(0.0));
         assert!(
             (ff.tau_ff - last).abs() <= step_max + 1e-12,
             "tick {n}: τ_ff step {}",
@@ -282,4 +300,126 @@ fn acceleration_feedforward_is_j_times_a_and_never_steps_tau_ff() {
             );
         }
     }
+}
+
+// ---- ADR 0040: host damping, leaky reference integral, whole τ_ff step guard ----------------
+
+/// The host damper acts on the filtered measured velocity: none while the joint follows its
+/// reference, `H·(v_ref − v̂)` once it lags, reached through the first-order filter.
+#[test]
+fn host_damping_acts_on_filtered_velocity_error() {
+    let g = ScaledPdGains {
+        host_damping: 2.0,
+        velocity_filter_s: 0.010,
+        friction: None,
+        ..gains()
+    };
+    let mut state = ScaledPdState {
+        v_c: 0.2,
+        v_prev: 0.2,
+        ..ScaledPdState::default()
+    };
+    let tracking = FeedforwardInput {
+        dq_meas: 0.2,
+        ..input(0.0)
+    };
+    for _ in 0..50 {
+        let ff = compose_feedforward(&mut state, &g, &tracking);
+        assert!(ff.tau_fric.abs() < 1e-12, "{}", ff.tau_fric);
+    }
+    // The joint stops while the reference keeps moving: v̂ decays toward 0 with τ = 10 ms.
+    let stuck = FeedforwardInput {
+        dq_meas: 0.0,
+        ..input(0.0)
+    };
+    // H·(v_ref − v̂) = 2·0.2·α ≈ 0.157 Nm on the first tick, reached through the dynamic slew.
+    let ff = compose_feedforward(&mut state, &g, &stuck);
+    let step = SCALED_PD_DYNAMIC_FF_RATE_NM_S * DT;
+    assert!((ff.tau_fric - step).abs() < 1e-12, "{}", ff.tau_fric);
+    let mut last = ff;
+    for _ in 0..200 {
+        last = compose_feedforward(&mut state, &g, &stuck);
+    }
+    assert!(
+        (last.tau_fric - 2.0 * 0.2).abs() < 1e-9,
+        "{}",
+        last.tau_fric
+    );
+}
+
+/// The leaky reference integral is a bounded disturbance estimate: a constant in-band error
+/// settles at `ki·leak·e` instead of ramping to the cap, a reshaped output freezes its input
+/// while the leak continues, and the cap holds.
+#[test]
+fn leaky_reference_integral_settles_freezes_and_caps() {
+    let g = ScaledPdGains {
+        integral_mode: IntegralMode::LeakyReference,
+        integral_band: 0.02,
+        integral_leak_s: 2.0,
+        integral_cap_nm: 0.25,
+        friction: None,
+        ..gains()
+    };
+    let error = FeedforwardInput {
+        ki: 5.0,
+        reference_error: 0.01,
+        ..input(0.0)
+    };
+    let mut state = ScaledPdState::default();
+    for _ in 0..(60.0 / DT) as usize {
+        compose_feedforward(&mut state, &g, &error);
+    }
+    let settled = 5.0 * 2.0 * 0.01;
+    assert!(
+        (state.tau_i - settled).abs() < 2e-3,
+        "{} vs {settled}",
+        state.tau_i
+    );
+    // Reshaped downstream: no accumulation, only the leak.
+    let before = state.tau_i;
+    let frozen = FeedforwardInput {
+        reshaped_downstream: true,
+        ..error
+    };
+    compose_feedforward(&mut state, &g, &frozen);
+    assert!((state.tau_i - before * (-DT / 2.0_f64).exp()).abs() < 1e-12);
+    // Outside the band: leak only. A large in-band error saturates at the cap.
+    let mut state = ScaledPdState::default();
+    let large = FeedforwardInput {
+        reference_error: 0.019,
+        ki: 500.0,
+        ..error
+    };
+    for _ in 0..2000 {
+        compose_feedforward(&mut state, &g, &large);
+    }
+    assert!((state.tau_i - 0.25).abs() < 1e-12, "{}", state.tau_i);
+}
+
+/// The whole τ_ff step guard limits each sent step, starts from the τ_ff Davout last sent on
+/// mode entry (no jump from 0 on a supported elevated transition), and reports when it acted.
+#[test]
+fn ff_step_guard_bounds_every_step_and_starts_from_the_last_sent() {
+    let g = ScaledPdGains {
+        ff_step_max_nm: Some(0.048),
+        friction: None,
+        ..gains()
+    };
+    let mut state = ScaledPdState::default();
+    let entry = FeedforwardInput {
+        ff_last_sent: Some(2.0),
+        ..input(2.5)
+    };
+    let first = compose_feedforward(&mut state, &g, &entry);
+    assert!((first.tau_ff - 2.048).abs() < 1e-12, "{}", first.tau_ff);
+    assert!(first.ff_guarded);
+    let mut last = first.tau_ff;
+    for _ in 0..20 {
+        let ff = compose_feedforward(&mut state, &g, &input(2.5));
+        assert!((ff.tau_ff - last).abs() <= 0.048 + 1e-12);
+        last = ff.tau_ff;
+    }
+    assert!((last - 2.5).abs() < 1e-12);
+    let settled = compose_feedforward(&mut state, &g, &input(2.5));
+    assert!(!settled.ff_guarded);
 }

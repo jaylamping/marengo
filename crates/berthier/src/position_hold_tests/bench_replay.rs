@@ -427,6 +427,8 @@ impl Sim<'_> {
             dt: DT,
             hz: HZ,
             tick_count: self.tick,
+            reshaped: &[],
+            ff_last_sent: &[],
             wave: &mut self.wave,
         }) {
             Ok(out) => out,

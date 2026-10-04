@@ -12,6 +12,10 @@ accepted, this supersedes these parts of
 
 It keeps ADR 0007's trajectory generator, limits and safety boundaries.
 
+[ADR 0040](0040-scaled-pd-slow-speed-law.md) amends the "no torque term uses measured `dq`"
+rule with an optional filtered host damper, a leaky reference integral and a whole-τ_ff step
+guard, and removes the friction error assist.
+
 ## Context
 
 The right arm moves jerkily in `ControlMode::Position`. The audit of the 2026-10-04 bench traces

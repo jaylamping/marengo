@@ -78,6 +78,8 @@ impl Rig {
             dt: PERIOD_S,
             hz: HZ,
             tick_count: self.step,
+            reshaped: &[],
+            ff_last_sent: &[],
             wave: &mut self.wave,
         })
     }
@@ -425,7 +427,11 @@ fn wave_velocity_feedforward_follows_the_wave_above_slew_speed() {
         e1: 0.12,
         integral_band: 0.02,
         integral_leak_s: 0.5,
-        friction_error_gain: 0.0,
+        integral_mode: crate::position_law::IntegralMode::TargetBand,
+        integral_cap_nm: crate::position_law::SCALED_PD_INTEGRAL_MAX_NM,
+        host_damping: 0.0,
+        velocity_filter_s: marengo_config::DEFAULT_POSITION_HOST_DAMPING_FILTER_S,
+        ff_step_max_nm: None,
         inertia: 0.0,
         friction: None,
     };

@@ -17,7 +17,9 @@ use tracing::{info, trace};
 
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::position_feedforward::compose_position_hold_feedforward;
-use crate::position_law::{advance_reference, compose_feedforward, ScaledPdGains, ScaledPdState};
+use crate::position_law::{
+    advance_reference, compose_feedforward, FeedforwardInput, ScaledPdGains, ScaledPdState,
+};
 use crate::position_profile::{position_hold_v_max, PlannerEvent};
 use crate::position_setpoint::{
     apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
@@ -408,6 +410,11 @@ pub struct HoldWorld<'a> {
     pub dt: f64,
     pub hz: u32,
     pub tick_count: u64,
+    /// Per joint: Davout reshaped the previous command (total-torque clamp, τ_ff cap or rate
+    /// limit). Freezes the ADR 0040 leaky integral; empty = none known.
+    pub reshaped: &'a [bool],
+    /// Per joint: τ_ff Davout last sent, for a bumpless τ_ff step guard; empty = unknown.
+    pub ff_last_sent: &'a [Option<f64>],
     /// In-loop wave slot — hold clears it when finished (Ok or before AscentStall return).
     pub wave: &'a mut Option<PositionWave>,
 }
@@ -1733,11 +1740,16 @@ impl PositionHold {
         let ff = compose_feedforward(
             state,
             &joint.gains,
-            jp.ki,
-            settle_error,
-            joint.q_ref - q,
-            world.tau_g[i],
-            world.dt,
+            &FeedforwardInput {
+                ki: jp.ki,
+                target_error: settle_error,
+                reference_error: joint.q_ref - q,
+                dq_meas: dq_raw,
+                reshaped_downstream: world.reshaped.get(i).copied().unwrap_or(false),
+                ff_last_sent: world.ff_last_sent.get(i).copied().flatten(),
+                tau_g: world.tau_g[i],
+                dt: world.dt,
+            },
         );
         let v_c = state.v_c;
         let time_scale = state.s;
@@ -1756,12 +1768,14 @@ impl PositionHold {
         let lead = q_des - q;
         let tau_p = jp.kp * lead;
         let kd = joint.gains.kd;
-        // The fuses judge (and report) τ_ff without the friction error assist.
+        // The law's own reshaping freezes next tick's leaky integral (ADR 0040).
+        self.scaled[i].reshaped_local =
+            ff.ff_guarded || planner_event == PlannerEvent::EnvelopeClamp;
         let trip = HoldFuseTrip {
             q,
             target,
             tau_p,
-            tau_ff: ff.tau_ff - ff.tau_assist,
+            tau_ff: ff.tau_ff,
             tau_g: world.tau_g[i],
         };
         let ascent_stall_ms = self
@@ -1785,9 +1799,8 @@ impl PositionHold {
                 trip,
             });
         }
-        // ADR 0039: the net commanded torque is the wire terms, including the drive's damping,
-        // judged without the friction error assist so the assist can never mask a model fault.
-        let net_commanded = tau_p + kd * (v_c - dq_raw) + ff.tau_ff - ff.tau_assist;
+        // ADR 0039: the net commanded torque is the wire terms, including the drive's damping.
+        let net_commanded = tau_p + kd * (v_c - dq_raw) + ff.tau_ff;
         let tracking_armed = self.commanded_joints[i]
             && !joint.wave_owned
             && hold_tracking_opposed(q, target, net_commanded);
@@ -1983,6 +1996,8 @@ mod tests {
                 dt,
                 hz: 200,
                 tick_count: tick,
+                reshaped: &[],
+                ff_last_sent: &[],
                 wave: &mut wave,
             };
             let out = hold.tick(world).unwrap();
@@ -2052,6 +2067,8 @@ mod tests {
             dt: 0.005,
             hz: 200,
             tick_count: 201,
+            reshaped: &[],
+            ff_last_sent: &[],
             wave: &mut wave,
         };
         let _ = hold.tick(world).unwrap();
@@ -2102,6 +2119,8 @@ mod tests {
             dt: 0.005,
             hz: 200,
             tick_count: 10,
+            reshaped: &[],
+            ff_last_sent: &[],
             wave: &mut wave,
         };
         let err = hold.tick(world).unwrap_err();
@@ -2168,6 +2187,8 @@ mod tests {
             dt: 0.0,
             hz: 200,
             tick_count,
+            reshaped: &[],
+            ff_last_sent: &[],
             wave: &mut wave,
         };
         let out = hold.tick(world).unwrap();
@@ -2215,6 +2236,8 @@ mod tests {
                 dt: 0.005,
                 hz: 200,
                 tick_count,
+                reshaped: &[],
+                ff_last_sent: &[],
                 wave: &mut wave,
             })?;
             largest_stall_ms = largest_stall_ms.max(out.diag[0].ascent_stall_ms);
@@ -2236,6 +2259,8 @@ mod tests {
                 dt: 0.005,
                 hz: 200,
                 tick_count: 100 + u64::from(step),
+                reshaped: &[],
+                ff_last_sent: &[],
                 wave: &mut wave,
             })?;
             assert_eq!(
@@ -2280,6 +2305,8 @@ mod tests {
                 dt: 0.005,
                 hz: 200,
                 tick_count,
+                reshaped: &[],
+                ff_last_sent: &[],
                 wave: &mut wave,
             };
             match hold.tick(world) {
@@ -2357,6 +2384,8 @@ mod tests {
                 dt: 0.005,
                 hz: 200,
                 tick_count: 100,
+                reshaped: &[],
+                ff_last_sent: &[],
                 wave: &mut wave,
             })
             .unwrap();
@@ -2396,6 +2425,8 @@ mod tests {
                 dt: 0.005,
                 hz: 200,
                 tick_count: tick,
+                reshaped: &[],
+                ff_last_sent: &[],
                 wave: &mut wave,
             })
             .unwrap();
@@ -2422,6 +2453,8 @@ mod tests {
                     dt: 0.005,
                     hz: 200,
                     tick_count: tick,
+                    reshaped: &[],
+                    ff_last_sent: &[],
                     wave: &mut wave,
                 })
                 .unwrap();

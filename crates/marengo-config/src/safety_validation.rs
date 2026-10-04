@@ -181,17 +181,41 @@ fn validate_scaled_pd_numbers(joint: &str, entry: &JointControlEntry) -> Result<
             band,
         )?;
     }
-    if let Some(gain) = entry.position_friction_error_gain_per_s {
-        finite(
-            format_args!("control.joints.{joint}.position_friction_error_gain_per_s"),
-            gain,
+    if let Some(cap) = entry.position_integral_cap_nm {
+        positive(
+            format_args!("control.joints.{joint}.position_integral_cap_nm"),
+            cap,
         )?;
-        if gain < 0.0 {
+        if cap > crate::DEFAULT_POSITION_INTEGRAL_CAP_NM {
             return Err(invalid(
-                format!("control.joints.{joint}.position_friction_error_gain_per_s"),
+                format!("control.joints.{joint}.position_integral_cap_nm"),
+                "must be <= 0.5",
+            ));
+        }
+    }
+    if let Some(damping) = entry.position_host_damping_nm_s_per_rad {
+        finite(
+            format_args!("control.joints.{joint}.position_host_damping_nm_s_per_rad"),
+            damping,
+        )?;
+        if damping < 0.0 {
+            return Err(invalid(
+                format!("control.joints.{joint}.position_host_damping_nm_s_per_rad"),
                 "must be >= 0",
             ));
         }
+    }
+    if let Some(filter) = entry.position_host_damping_filter_s {
+        positive(
+            format_args!("control.joints.{joint}.position_host_damping_filter_s"),
+            filter,
+        )?;
+    }
+    if let Some(step) = entry.position_ff_step_max_nm {
+        positive(
+            format_args!("control.joints.{joint}.position_ff_step_max_nm"),
+            step,
+        )?;
     }
     if let Some(leak) = entry.position_integral_leak_s {
         positive(

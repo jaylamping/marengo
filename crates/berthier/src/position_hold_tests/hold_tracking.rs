@@ -83,6 +83,8 @@ fn run_hold(latched: f64, target: f64, tau_g: f64, steps: u32, q_at: impl Fn(u32
             dt: PERIOD_S,
             hz: HZ,
             tick_count: u64::from(step),
+            reshaped: &[],
+            ff_last_sent: &[],
             wave: &mut wave,
         }) {
             Ok(out) => {
@@ -124,6 +126,8 @@ fn retarget_preserves_hold_tracking_budget() {
             dt: PERIOD_S,
             hz: HZ,
             tick_count: step,
+            reshaped: &[],
+            ff_last_sent: &[],
             wave: &mut wave,
         });
         assert!(tick.is_ok(), "1 s is inside the budget: {tick:?}");

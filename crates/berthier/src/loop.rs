@@ -190,6 +190,9 @@ pub struct ControlLoop<B: MotorBus> {
     control_mode: ControlMode,
     /// Position-hold lifecycle + control law ([`PositionHold`]).
     position_hold: PositionHold,
+    /// Per joint `(Davout total-torque clamp count, τ_ff commanded)` from the previous Position
+    /// tick: a reshaped previous command freezes the ADR 0040 leaky integral.
+    hold_reshape_watch: Vec<(u64, Option<f64>)>,
     loop_period: Duration,
     chappe_publish_period: Duration,
     last_chappe: Option<Instant>,
@@ -467,6 +470,7 @@ impl<B: MotorBus> ControlLoop<B> {
             joint_names,
             control_mode: ControlMode::Disabled,
             position_hold: PositionHold::with_progress_thresholds(progress_thresholds),
+            hold_reshape_watch: Vec::new(),
             loop_period,
             chappe_publish_period: Duration::from_secs_f64(1.0 / f64::from(chappe_hz.max(1))),
             last_chappe: None,
@@ -1773,7 +1777,11 @@ impl<B: MotorBus> ControlLoop<B> {
                                         e1: c.time_scale_e1_rad(),
                                         integral_band: c.integral_band_rad(),
                                         integral_leak_s: c.integral_leak_s(),
-                                        friction_error_gain: c.friction_error_gain_per_s(),
+                                        integral_mode: c.integral_mode().into(),
+                                        integral_cap_nm: c.integral_cap_nm(),
+                                        host_damping: c.host_damping_nm_s_per_rad(),
+                                        velocity_filter_s: c.host_damping_filter_s(),
+                                        ff_step_max_nm: c.position_ff_step_max_nm,
                                         inertia: self.reference_inertia[i],
                                         friction: Some(ReferenceFriction::from_gains(
                                             &c.friction,
@@ -1833,6 +1841,27 @@ impl<B: MotorBus> ControlLoop<B> {
                             self.position_hold
                                 .set_commanded_joint(i, self.supervisor.joint_drive_active(joint));
                         }
+                        // Davout's reshaping of the previous command: a new total-torque clamp, or
+                        // a sent τ_ff (cap / rate limit) different from the one commanded.
+                        let mut reshaped = Vec::with_capacity(self.joint_names.len());
+                        let mut ff_last_sent = Vec::with_capacity(self.joint_names.len());
+                        let mut clamp_counts = Vec::with_capacity(self.joint_names.len());
+                        for (i, joint) in self.joint_names.iter().enumerate() {
+                            let sent = self.supervisor.last_tau_ff_nm(joint);
+                            let clamps = self.supervisor.total_torque_clamp_count(joint);
+                            let (prev_clamps, prev_cmd) = self
+                                .hold_reshape_watch
+                                .get(i)
+                                .copied()
+                                .unwrap_or((clamps, None));
+                            let ff_reshaped = matches!(
+                                (prev_cmd, sent),
+                                (Some(cmd), Some(sent)) if (cmd - sent).abs() > 1e-6
+                            );
+                            reshaped.push(clamps > prev_clamps || ff_reshaped);
+                            ff_last_sent.push(sent);
+                            clamp_counts.push(clamps);
+                        }
                         let world = HoldWorld {
                             q: &q,
                             dq_meas: &dq_meas,
@@ -1842,9 +1871,17 @@ impl<B: MotorBus> ControlLoop<B> {
                             dt: self.loop_period.as_secs_f64(),
                             hz: self.loop_hz,
                             tick_count: self.tick_count,
+                            reshaped: &reshaped,
+                            ff_last_sent: &ff_last_sent,
                             wave: &mut self.position_wave,
                         };
-                        self.position_hold.tick(world)?
+                        let out = self.position_hold.tick(world)?;
+                        self.hold_reshape_watch = clamp_counts
+                            .into_iter()
+                            .zip(&out.diag)
+                            .map(|(clamps, d)| (clamps, Some(d.tau_ff_cmd)))
+                            .collect();
+                        out
                     };
                     (phase.planner_us, t) = phase_elapsed_us(t);
                     for cmd in hold_out.mit {

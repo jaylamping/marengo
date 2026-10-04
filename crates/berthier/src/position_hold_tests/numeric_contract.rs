@@ -43,6 +43,8 @@ fn numeric_sample(
         dt,
         hz: 200,
         tick_count: tick,
+        reshaped: &[],
+        ff_last_sent: &[],
         wave: &mut wave,
     })
 }

@@ -440,6 +440,22 @@ pub const DEFAULT_POSITION_INTEGRAL_BAND_RAD: f64 = 0.1;
 /// Scaled-PD integral leak time constant (s) when unset. 0.5 s bounds the decay slope of the
 /// 0.5 Nm integral to 1 Nm/s (0.005 Nm per 200 Hz tick) and drops a stale term within ~1.5 s.
 pub const DEFAULT_POSITION_INTEGRAL_LEAK_S: f64 = 0.5;
+/// Default scaled-PD `|τ_I|` ceiling (Nm).
+pub const DEFAULT_POSITION_INTEGRAL_CAP_NM: f64 = 0.5;
+/// Default host damping velocity filter time constant (s, ADR 0040).
+pub const DEFAULT_POSITION_HOST_DAMPING_FILTER_S: f64 = 0.010;
+
+/// Scaled-PD integral mode (`position_integral_mode`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PositionIntegralMode {
+    /// ADR 0039: integrate the target error inside the band, leak outside it.
+    #[default]
+    TargetBand,
+    /// ADR 0040: leak every tick; integrate the reference error inside the band unless the
+    /// previous output was reshaped.
+    LeakyReference,
+}
 
 /// Stribeck velocity `v_b` (rad/s) when unset. Inert while `fs` defaults to `fc`.
 pub const DEFAULT_FRICTION_STRIBECK_VELOCITY_RAD_S: f64 = 0.05;
@@ -586,11 +602,21 @@ pub struct JointControlEntry {
     /// [`DEFAULT_POSITION_INTEGRAL_LEAK_S`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position_integral_leak_s: Option<f64>,
-    /// Scaled-PD friction error gain `λ` (1/s): the reference friction feed-forward pushes
-    /// toward `v_ref + λ·(q_ref − q)`, so a joint stuck behind a slow or stopped reference gets
-    /// static-friction help toward it. Default 0 (direction from `v_ref` alone).
+    /// Scaled-PD integral mode (ADR 0040). Default `target_band` (ADR 0039).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub position_friction_error_gain_per_s: Option<f64>,
+    pub position_integral_mode: Option<PositionIntegralMode>,
+    /// Scaled-PD `|τ_I|` ceiling (Nm), at most 0.5. Default 0.5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_integral_cap_nm: Option<f64>,
+    /// Scaled-PD host damping `H` (Nm·s/rad) on `v_ref − v̂` (ADR 0040). Default 0 (none).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_host_damping_nm_s_per_rad: Option<f64>,
+    /// Time constant (s) of the velocity filter giving `v̂`. Default 0.010.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_host_damping_filter_s: Option<f64>,
+    /// Largest whole-τ_ff change per sent Position tick (Nm, ADR 0040). Default: no guard.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_ff_step_max_nm: Option<f64>,
     /// Minimum position envelope margin at rest (rad). ADR 0009.
     #[serde(default = "default_position_limit_margin_min_rad")]
     pub position_limit_margin_min_rad: f64,
@@ -635,9 +661,27 @@ impl JointControlEntry {
             .unwrap_or(DEFAULT_POSITION_INTEGRAL_LEAK_S)
     }
 
-    /// Scaled-PD friction error gain `λ` (1/s), default 0.
-    pub fn friction_error_gain_per_s(&self) -> f64 {
-        self.position_friction_error_gain_per_s.unwrap_or(0.0)
+    /// Scaled-PD integral mode, default [`PositionIntegralMode::TargetBand`].
+    pub fn integral_mode(&self) -> PositionIntegralMode {
+        self.position_integral_mode.unwrap_or_default()
+    }
+
+    /// Scaled-PD `|τ_I|` ceiling (Nm), default [`DEFAULT_POSITION_INTEGRAL_CAP_NM`].
+    pub fn integral_cap_nm(&self) -> f64 {
+        self.position_integral_cap_nm
+            .unwrap_or(DEFAULT_POSITION_INTEGRAL_CAP_NM)
+    }
+
+    /// Scaled-PD host damping `H` (Nm·s/rad), default 0.
+    pub fn host_damping_nm_s_per_rad(&self) -> f64 {
+        self.position_host_damping_nm_s_per_rad.unwrap_or(0.0)
+    }
+
+    /// Host damping velocity filter time constant (s), default
+    /// [`DEFAULT_POSITION_HOST_DAMPING_FILTER_S`].
+    pub fn host_damping_filter_s(&self) -> f64 {
+        self.position_host_damping_filter_s
+            .unwrap_or(DEFAULT_POSITION_HOST_DAMPING_FILTER_S)
     }
 
     pub(crate) fn limit_margin_fields_valid(&self, joint: &str) -> Result<(), ConfigError> {
@@ -1745,7 +1789,11 @@ mod tests {
                 position_time_scale_e0_rad: None,
                 position_integral_band_rad: None,
                 position_integral_leak_s: None,
-                position_friction_error_gain_per_s: None,
+                position_integral_mode: None,
+                position_integral_cap_nm: None,
+                position_host_damping_nm_s_per_rad: None,
+                position_host_damping_filter_s: None,
+                position_ff_step_max_nm: None,
                 position_limit_margin_min_rad: 0.01,
                 position_limit_margin_k_v_s: 0.02,
                 position_limit_margin_k_stop: 0.5,

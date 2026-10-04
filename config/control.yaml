@@ -95,12 +95,16 @@ control:
         kd: 0.0
         ki: 0.0
       impedance:
-        kp: 18.0
+        # 40 (was 18): closes the friction + ripple dead zone (fs + ripple)/kp from ≈ 58 to
+        # ≈ 26 mrad without the assist's hidden near-rest stiffness (ADR 0040).
+        kp: 40.0
         # scaled_pd: drive kd (kd_mit), constant on the wire in Position. 5 (was 3): the
         # 2026-10-04 motion suite fits friction falling from ≈ 0.6 Nm at 0.05 rad/s to 0.37
         # above 0.2 rad/s, a slope down to −(fs − fc)/v_b ≈ −3.5 Nm·s/rad that kd 3 did not
         # out-damp (stick-slip on slow waves and slow moves). ADR 0039 Phase 3 bench fix.
-        kd: 5.0
+        # 6 (was 5) with kp 40 (ADR 0040): fitted-plant gate worst 50 ms speed overshoot 16.8 %
+        # vs 20.5 % at kd 5 on the J 0.111 variant; predicted peak total torque 3.71 of 5 Nm.
+        kd: 6.0
         ki: 5.0
       # ADR 0039 Phase 3 bench trial (pitch only; every other joint stays legacy).
       # e1 = position_slew_max_lead_rad (stop band) and e0 = e1/4 (full-rate band), the
@@ -117,13 +121,18 @@ control:
       position_law: scaled_pd
       position_time_scale_e0_rad: 0.03
       position_integral_band_rad: 0.02
-      position_integral_leak_s: 0.5
-      # Friction direction from intent v_ref + λ·(q_ref − q) (magnitude still from v_ref): at
-      # slow-wave turnarounds the reference friction faded to 0 and the joint stuck 40–47 mrad
-      # short for up to 4.5 s (bench 2026-10-04 20:24/20:26Z, kp·e had to beat fs + ripple
-      # ≈ 1.05 Nm alone). λ 20 breaks away by ≈ 29 mrad on a ripple-crest plant (λ 30 no
-      # better: kp·e ≥ 1.05 − fs bounds it); bench_replay slow_wave_turnarounds_*.
-      position_friction_error_gain_per_s: 20.0
+      position_integral_leak_s: 2.0
+      # ADR 0040 slow-speed law (docs/reviews/2026-10-04-control-audit-pitch-slow-speed.md):
+      # leaky reference-error integral (always leaks 2 s, cap 0.25 Nm, frozen after a reshaped
+      # output), host damping H 2 Nm·s/rad on a 10 ms-filtered measured velocity, and a whole-
+      # τ_ff step guard 0.048 Nm (quantization room under the 0.05 bench bar). Replaces the
+      # friction error assist (c5890e3c): its fs·k·λ ≈ 195 Nm/rad near-rest stiffness fixed
+      # turnaround tracking but not moving smoothness, and added stop overshoot.
+      position_integral_mode: leaky_reference
+      position_integral_cap_nm: 0.25
+      position_host_damping_nm_s_per_rad: 2.0
+      position_host_damping_filter_s: 0.010
+      position_ff_step_max_nm: 0.048
       position_slew_rad_s: 0.15
       position_slew_max_lead_rad: 0.12
       position_trajectory_threshold_rad: 0.15
