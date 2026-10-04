@@ -17,6 +17,15 @@ Layer 2 gate (weighted hold-at 0.1):
 Onset diagnostics (first 250 ms after each retarget):
   python scripts/analyze-position-trace.py trace.csv --onset
   python scripts/analyze-position-trace.py trace.csv --onset --onset-window-ms 300
+
+ADR 0039 Phase 3 bench score (one joint, every-tick trace; per move):
+  python scripts/analyze-position-trace.py trace.csv --score-bench \\
+      --joint right_shoulder_pitch --bench-log bench-session.txt
+  Pass: speed overshoot <= 20 % of the reference peak (dq_ref, else dq_traj), with speed
+  from dq over 50 ms (one 0.077 rad/s feedback quantum would be 51 % of a 0.15 rad/s slew);
+  <= 0.01 rad past the target at the stop; no single-tick tau_ff_cmd step > 0.05 Nm
+  (retargets included); and no "MIT total torque clamped" line for the joint in the bench
+  log. A criterion that cannot be scored (decimated trace, no bench log) fails the verdict.
 """
 
 from __future__ import annotations
@@ -25,6 +34,7 @@ import argparse
 import csv
 import json
 import math
+import re
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -82,6 +92,18 @@ LAYER2_TAU_FF_RATE_LIMIT_MULTIPLIER = 2.0
 DEFAULT_ONSET_WINDOW_MS = 250
 VELOCITY_DEADBAND_RAD_S = 0.02
 MOTION_DQ_RAD_S = 0.005
+
+# ADR 0039 Phase 3 bench pass criteria (--score-bench), per move.
+BENCH_SPEED_WINDOW_MS = 50
+BENCH_OVERSHOOT_FRACTION = 0.20
+BENCH_END_OVERSHOOT_RAD = 0.01
+BENCH_TAU_STEP_NM = 0.05
+# Reference peaks below this are holds, not moves: no speed overshoot is scored.
+BENCH_MIN_PLAN_RAD_S = 0.05
+BENCH_MIN_MOVE_RAD = 1e-3
+# A target held for at most this many rows is a wave sample, not a hold-at move.
+BENCH_WAVE_RUN_ROWS = 2
+TOTAL_TORQUE_CLAMP_MARKER = "MIT total torque clamped"
 
 
 def _has(row: dict[str, str], key: str) -> bool:
@@ -433,6 +455,152 @@ def evaluate_layer2_gate(
     }
 
 
+def _windowed_speeds(seg: list[dict[str, str]], window_ms: int) -> list[float | None]:
+    """Signed speed at each row from q over the latest earlier row >= window_ms back."""
+    out: list[float | None] = []
+    j = 0
+    for i, row in enumerate(seg):
+        t = _i(row, "t_ms")
+        while j + 1 < i and t - _i(seg[j + 1], "t_ms") >= window_ms:
+            j += 1
+        dt_ms = t - _i(seg[j], "t_ms")
+        if j >= i or dt_ms < window_ms:
+            out.append(None)
+        else:
+            out.append((_f(row, "q") - _f(seg[j], "q")) / (dt_ms / 1000.0))
+    return out
+
+
+def _split_moves(rows: list[dict[str, str]]) -> list[list[dict[str, str]]]:
+    """One joint's rows cut at each target change. A wave moves `target` with every sample, so
+    consecutive runs of at most BENCH_WAVE_RUN_ROWS rows merge into one wave move."""
+    moves: list[tuple[bool, list[dict[str, str]]]] = []
+    for run in _split_segments(rows):
+        short = len(run) <= BENCH_WAVE_RUN_ROWS
+        if short and moves and moves[-1][0]:
+            moves[-1][1].extend(run)
+        else:
+            moves.append((short, list(run)))
+    return [m for _, m in moves]
+
+
+def _score_move(
+    seg: list[dict[str, str]], prev: dict[str, str] | None, window_ms: int
+) -> dict:
+    targets = [_f(r, "target") for r in seg]
+    # A wave moves its own target every tick: no stop to overshoot, only its speed.
+    wave = max(targets) - min(targets) > 1e-4
+    target = targets[-1]
+    q_start = _f(seg[0], "q")
+    distance = target - q_start
+    direction = 0.0 if abs(distance) < BENCH_MIN_MOVE_RAD else math.copysign(1.0, distance)
+    plan_key = "dq_ref" if _has(seg[0], "dq_ref") else "dq_traj"
+    v_plan = max(abs(_f(r, plan_key)) for r in seg)
+
+    speed_overshoot = None
+    v_peak = None
+    if (direction or wave) and v_plan >= BENCH_MIN_PLAN_RAD_S:
+        speeds = [s for s in _windowed_speeds(seg, window_ms) if s is not None]
+        along = [abs(s) for s in speeds] if wave else [s * direction for s in speeds]
+        if along:
+            v_peak = max(along)
+            speed_overshoot = (v_peak - v_plan) / v_plan
+
+    end_overshoot = None
+    if direction and not wave:
+        end_overshoot = max(0.0, max((_f(r, "q") - target) * direction for r in seg))
+
+    pairs = list(zip(seg, seg[1:]))
+    if prev is not None:
+        pairs.insert(0, (prev, seg[0]))
+    steps = [
+        abs(_f(b, "tau_ff_cmd") - _f(a, "tau_ff_cmd"))
+        for a, b in pairs
+        if _i(b, "tick") - _i(a, "tick") == 1
+    ]
+    tau_step = max(steps) if steps else None
+    wire_binding = sum(
+        1
+        for r in seg
+        if _has(r, "tau_ff_wire") and abs(_f(r, "tau_ff_wire") - _f(r, "tau_ff_cmd")) > 1e-6
+    )
+
+    checks = {
+        "speed_overshoot_ok": speed_overshoot is None
+        or speed_overshoot <= BENCH_OVERSHOOT_FRACTION,
+        "end_overshoot_ok": end_overshoot is None or end_overshoot <= BENCH_END_OVERSHOOT_RAD,
+        "tau_step_ok": tau_step is not None and tau_step <= BENCH_TAU_STEP_NM,
+    }
+    return {
+        "target_rad": target,
+        "wave": wave,
+        "q_start": q_start,
+        "t_start_ms": _i(seg[0], "t_ms"),
+        "duration_s": (_i(seg[-1], "t_ms") - _i(seg[0], "t_ms")) / 1000.0,
+        "plan_peak_rad_s": v_plan,
+        "measured_peak_rad_s": v_peak,
+        "speed_overshoot": speed_overshoot,
+        "end_overshoot_rad": end_overshoot,
+        "max_tau_ff_step_nm": tau_step,
+        "tau_ff_wire_binding_rows": wire_binding,
+        "checks": checks,
+        "pass": all(checks.values()),
+    }
+
+
+def _count_total_torque_clamps(log: Path, joint: str) -> int:
+    """Clamps of `joint` in a bench log: the largest cumulative `joint_clamps=N` on a clamp
+    warning (Davout rate-limits the warning to 1/s), else the number of warning lines."""
+    lines = 0
+    cumulative = 0
+    with log.open(errors="replace") as f:
+        for line in f:
+            if TOTAL_TORQUE_CLAMP_MARKER not in line or joint not in line:
+                continue
+            lines += 1
+            m = re.search(r"joint_clamps=(\d+)", line)
+            if m:
+                cumulative = max(cumulative, int(m.group(1)))
+    return max(cumulative, lines)
+
+
+def score_bench(
+    rows: list[dict[str, str]],
+    *,
+    joint: str,
+    window_ms: int = BENCH_SPEED_WINDOW_MS,
+    bench_log: Path | None = None,
+) -> dict:
+    joint_rows = [r for r in rows if r.get("joint") == joint]
+    moves = []
+    prev: dict[str, str] | None = None
+    for seg in _split_moves(joint_rows):
+        moves.append(_score_move(seg, prev, window_ms))
+        prev = seg[-1]
+    clamps = _count_total_torque_clamps(bench_log, joint) if bench_log is not None else None
+    unscored = []
+    if not moves:
+        unscored.append(f"no rows for {joint}")
+    if any(m["max_tau_ff_step_nm"] is None for m in moves):
+        unscored.append("tau_ff step: no consecutive ticks (decimated trace?)")
+    if clamps is None:
+        unscored.append("total-torque clamps: no --bench-log")
+    return {
+        "joint": joint,
+        "criteria": {
+            "speed_window_ms": window_ms,
+            "speed_overshoot_max": BENCH_OVERSHOOT_FRACTION,
+            "end_overshoot_max_rad": BENCH_END_OVERSHOOT_RAD,
+            "tau_ff_step_max_nm": BENCH_TAU_STEP_NM,
+            "total_torque_clamps_max": 0,
+        },
+        "moves": moves,
+        "total_torque_clamps": clamps,
+        "unscored": unscored,
+        "pass": bool(moves) and not unscored and clamps == 0 and all(m["pass"] for m in moves),
+    }
+
+
 def analyze(
     path: Path,
     *,
@@ -441,6 +609,8 @@ def analyze(
     onset: bool = False,
     onset_window_ms: int = DEFAULT_ONSET_WINDOW_MS,
     require_home_start: bool = False,
+    bench_joint: str | None = None,
+    bench_log: Path | None = None,
 ) -> dict:
     rows = _rows(path)
     segments = _split_segments(rows)
@@ -450,6 +620,8 @@ def analyze(
         "samples": len(rows),
         "segments": [asdict(s) for s in segment_reports],
     }
+    if bench_joint is not None:
+        result["bench_score"] = score_bench(rows, joint=bench_joint, bench_log=bench_log)
     if onset:
         result["onset"] = [asdict(_analyze_onset(s, onset_window_ms)) for s in segments]
         result["onset_window_ms"] = onset_window_ms
@@ -526,6 +698,32 @@ def _print_human(report: dict) -> None:
             for hint in onset.get("hints", []):
                 print(f"  ! {hint}")
 
+    score = report.get("bench_score")
+    if score is not None:
+        c = score["criteria"]
+        print()
+        print(
+            f"=== ADR 0039 bench score: {score['joint']} (speed over {c['speed_window_ms']} ms; "
+            f"overshoot <= {c['speed_overshoot_max']:.0%}, stop <= {c['end_overshoot_max_rad']} rad, "
+            f"tau_ff step <= {c['tau_ff_step_max_nm']} Nm, total-torque clamps 0) ==="
+        )
+        fmt = lambda v, f: "-" if v is None else format(v, f)  # noqa: E731
+        for i, m in enumerate(score["moves"], 1):
+            failed = [k for k, ok in m["checks"].items() if not ok]
+            print(
+                f"  move {i}: {m['q_start']:+.3f} -> {m['target_rad']:+.3f} rad  "
+                f"plan {m['plan_peak_rad_s']:.2f} rad/s  speed overshoot "
+                f"{fmt(m['speed_overshoot'], '+.0%')}  stop overshoot "
+                f"{fmt(m['end_overshoot_rad'], '.4f')} rad  tau_ff step "
+                f"{fmt(m['max_tau_ff_step_nm'], '.3f')} Nm  wire-binding rows "
+                f"{m['tau_ff_wire_binding_rows']}  {'PASS' if not failed else 'FAIL ' + ','.join(failed)}"
+            )
+        clamps = score["total_torque_clamps"]
+        print(f"  total-torque clamps: {'unchecked' if clamps is None else clamps}")
+        for item in score["unscored"]:
+            print(f"  ! not scored: {item}")
+        print(f"  verdict: {'PASS' if score['pass'] else 'FAIL'}")
+
 
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -558,10 +756,30 @@ def main(argv: Iterable[str] | None = None) -> int:
         action="store_true",
         help=f"Layer 2 gate: approach segment must start with |q| < {LAYER2_HOME_START_MAX_RAD} rad",
     )
+    parser.add_argument(
+        "--score-bench",
+        action="store_true",
+        help="score each move of --joint against the ADR 0039 Phase 3 bench pass criteria "
+        "(exit 2 on FAIL)",
+    )
+    parser.add_argument(
+        "--joint",
+        default="right_shoulder_pitch",
+        help="joint scored by --score-bench (default right_shoulder_pitch)",
+    )
+    parser.add_argument(
+        "--bench-log",
+        type=Path,
+        help="bench log of the same run (bench-session.txt / bench-latest.log): counts "
+        f"'{TOTAL_TORQUE_CLAMP_MARKER}' warnings for --score-bench",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     if not args.csv.is_file():
         print(f"error: not found: {args.csv}", file=sys.stderr)
+        return 1
+    if args.bench_log is not None and not args.bench_log.is_file():
+        print(f"error: not found: {args.bench_log}", file=sys.stderr)
         return 1
 
     report = analyze(
@@ -571,12 +789,16 @@ def main(argv: Iterable[str] | None = None) -> int:
         onset=args.onset,
         onset_window_ms=args.onset_window_ms,
         require_home_start=args.require_home_start,
+        bench_joint=args.joint if args.score_bench else None,
+        bench_log=args.bench_log,
     )
     if args.json:
         json.dump(report, sys.stdout, indent=2)
         print()
     else:
         _print_human(report)
+    if args.score_bench and not report["bench_score"]["pass"]:
+        return 2
     return 0
 
 
