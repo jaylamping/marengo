@@ -160,6 +160,17 @@ the type-0 admission requests (`IDENTITY_ADMISSION_SPACING`, with the admission
 deadline growing by two spacings per further target) and the status solicit.
 A fault, E-stop, cancellation or shutdown stop is never paced.
 
+The enable bootstrap's MIT solicits are spaced too (2026-10-04 soak at
+9b1b3f8d, cycle 5: two targets held for their post-SetZero quiet still
+streamed, their reports left back to back behind a five-frame solicit with its
+replies, and pitch's reply was lost). While Enables of the session are
+unwritten on an echoing bus, a solicit reaches only targets whose Enable is
+written, and while a drive on the interface may still stream type-24 (gate Off
+not settled, or a stream this process turned On) each solicit frame starts a
+`BURST_GROUP_SPACING` group, spaced from the last Enable wave and gate Off.
+The batch still counts as asking every target (*Solicited silence*, below).
+Control output after the bootstrap is never paced.
+
 ### Solicited silence and owed Ons (amendment, 2026-10-03)
 
 Two gaps remained after the soak fixes above (handoff

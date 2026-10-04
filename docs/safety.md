@@ -398,6 +398,25 @@ disables. The fault does not clear on its own.
   caused by a fault, E-stop, cancellation or shutdown is never paced.
   `tests/physical_firmware` models the controller's two receive buffers
   (`RxFifo`); the Transport latch is unchanged.
+- **Paced bootstrap solicits (2026-10-04 soak at 9b1b3f8d, cycle 5):** after
+  activation the controller's neutral MIT solicit went to all five targets
+  every tick (twice back to back after the long admission tick), although four
+  Enables were held for their post-SetZero quiet and two of those drives still
+  streamed type-24, their gate Offs held by the same quiet. Type-24 has the
+  lowest CAN priority, so reports falling due while a batch held the bus left
+  behind it with its replies: at 00:26:55.516 roll's and upper-arm yaw's
+  reports filled both receive buffers right after the solicit to pitch, whose
+  reply was lost (`rx_over_errors` 9 to 10, Transport latched). While Enables
+  of the session are unwritten (echoing buses), a solicit now reaches only
+  targets whose Enable is written: a drive in Reset answers it, but the reply
+  is neither pose nor liveness before its own Enable echo, and the batch still
+  counts as asking every target. While a drive on the interface may still
+  stream (a target whose gate Off has not settled, or a stream this process
+  turned On), each solicit frame there starts a `BURST_GROUP_SPACING` group,
+  spaced from the last Enable wave and gate Off too. Once every Enable is
+  written, batches go out back to back as before. A solicit can still land on
+  two reports due within its own 0.3 ms; every single paced write shares that
+  exposure.
 - **Position arms wait for enable completion:** `enable_targets` may return while
   Enables are held (stagger, post-SetZero quiet), so a joint can lack session pose.
   During the bounded bootstrap Berthier sends neutral solicitations only; it does

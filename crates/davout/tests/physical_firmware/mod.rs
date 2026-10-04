@@ -6,8 +6,9 @@
 //! is queued first, then the drive's replies, in wire order (a reply with a
 //! modeled latency is delivered once that latency has passed, never ahead of
 //! an earlier reply from the same drive). Type-24 reports are emitted when the
-//! test pumps, at most once per the drive's report period, or after an Enable
-//! when a drive models a report built before it acted on that Enable. Like the
+//! test pumps, at most once per the drive's report period, at a wire instant
+//! the test places ([`Firmware::report_at`]), or after an Enable when a drive
+//! models a report built before it acted on that Enable. Like the
 //! bench drives, each drive ignores every frame and transmits nothing in its
 //! post-SetZero blackout (`Drive::set_zero_blackout` after receiving a
 //! SetZero). [`TIMING_MODEL`] bounds every timing knob; it covers the measured
@@ -22,7 +23,7 @@
 //! timestamp contract on SocketCAN).
 //!
 //! [`RxFifo`] models the bench controller's receive path: a serialized 1 Mbit/s
-//! bus and two receive buffers emptied by a driver that needs 0.5 ms per frame.
+//! bus and two receive buffers emptied by a driver that needs 0.35 ms per frame.
 //! It counts every frame the controller would drop (a burst of host frames
 //! answers faster than the driver empties the buffers) and, once
 //! [`RxFifo::enforce`] is set, delivers the kernel's RX-overflow error frame in
@@ -351,6 +352,9 @@ pub struct Firmware {
     pub lost_echoes: Vec<u8>,
     /// Drive replies with a modeled latency, in scheduling order.
     scheduled: Vec<(Instant, CanFrame)>,
+    /// Type-24 reports placed at a wire instant ([`Self::report_at`]), by
+    /// drive index, in scheduling order.
+    scheduled_reports: Vec<(Instant, usize)>,
     /// Every receive fails once the host has transmitted an Enable (a bus
     /// read error mid-reference, after the target was armed).
     pub fail_rx_after_enable: bool,
@@ -478,21 +482,49 @@ impl Firmware {
         }
     }
 
-    /// Move scheduled replies whose latency has passed to the receive queue.
-    /// Called before anything else is queued, so they keep their wire order.
+    /// Move scheduled replies and placed reports whose instant has passed to
+    /// the receive queue. Called before anything else is queued, so they keep
+    /// their wire order.
     fn release_due(&mut self) {
-        if self.scheduled.is_empty() {
+        if self.scheduled.is_empty() && self.scheduled_reports.is_empty() {
             return;
         }
         let now = Instant::now();
         let (mut due, pending): (Vec<_>, Vec<_>) =
             self.scheduled.drain(..).partition(|(at, _)| *at <= now);
         self.scheduled = pending;
+        let (reports, later): (Vec<_>, Vec<_>) = self
+            .scheduled_reports
+            .drain(..)
+            .partition(|(at, _)| *at <= now);
+        self.scheduled_reports = later;
+        for (at, index) in reports {
+            // A frame written before `at` (an Off) released this report first,
+            // so the drive's state now is its state at `at`.
+            let drive = &self.drives[index];
+            if drive.reporting && drive.responsive(at) {
+                due.push((at, drive.status(CommunicationType::ActiveReporting)));
+            }
+        }
         // Stable: one drive's replies keep their order at equal instants.
         due.sort_by_key(|(at, _)| *at);
         for (at, frame) in due {
             self.deliver_from_drive(frame, at);
         }
+    }
+
+    /// One type-24 report from `joint` falling due on the wire at `at`, sent
+    /// only if the drive still streams then. Type-24 has the lowest
+    /// arbitration priority: a report due while host frames and their replies
+    /// hold the bus leaves after them, back to back with any other such
+    /// report (the 2026-10-04 soak, cycle 5).
+    pub fn report_at(&mut self, joint: &str, at: Instant) {
+        let index = self
+            .drives
+            .iter()
+            .position(|drive| drive.joint == joint)
+            .expect("emulated joint");
+        self.scheduled_reports.push((at, index));
     }
 
     /// One type-24 report from `joint` in its current drive mode, unless the
