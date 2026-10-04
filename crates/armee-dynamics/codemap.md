@@ -11,6 +11,8 @@ Rigid-body gravity compensation torques tau_g(q) for the Marengo arm. Pure Rust,
 - `UrdfGravityModel` — concrete implementation built from a URDF file and ordered joint names.
 - `DynamicsError` — `Urdf`, `JointCount`, `UnknownJoint`, and `UnknownLink`.
 - `calibration` — bench gravity calibration (mass scale / COM offset fit, identifiability, refusals) used by `marengo-log-cli gravity-fit`.
+- `lumped` — a swept joint's exact `A·sin q + B·cos q` at a fixed pose of the others (`lumped_terms`) and the minimum-norm COM shift that reproduces fitted A, B with masses kept (`lumped_com_patch`), used by `gravity-fit`'s wave method.
+- `UrdfGravityModel::joint_inertia` — inertia about one joint's axis (carried links, no rotor), for I·q̈ in calibration analysis only.
 
 ### Algorithm (virtual-work gradient)
 ```

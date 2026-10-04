@@ -17,8 +17,10 @@
 //!    **friction** half their difference, at the mean |q̇|.
 //! 2. **Lumped fit per swept joint.** With the other joints fixed (one group per sweep joint
 //!    and fixed pose), the swept joint's gravity is exactly `A·sin q + B·cos q`
-//!    ([`armee_dynamics::lumped`]). Bins at the same centre pool into one pose estimate; A
-//!    and B are least squares over those.
+//!    ([`armee_dynamics::lumped`]). A and B are least squares over the bins; with ≥ 2 speeds
+//!    the URDF inertia error ΔI (rotor inertia is not in the URDF) is fitted with them, since
+//!    ΔI·q̈ is odd about each wave centre and grows with ω²; with one speed only the centre
+//!    bins (q̈ ≈ 0) enter. Bins at the same centre, ΔI·q̈ removed, pool into pose estimates.
 //! 3. **Gates, derived from the data.** σ_cross is the pooled spread of per-session pose
 //!    means across sessions; the residual gate is `max(GATE_SIGMAS·σ_cross, readout step)`.
 //!    A group is accepted only with ≥ 2 sessions sharing a pose, ≥ 3 poses, the gate within

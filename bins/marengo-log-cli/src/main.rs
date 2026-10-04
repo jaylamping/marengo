@@ -1,7 +1,8 @@
 //! Archive bench sessions, maintain SQLite log store on Pi.
 //! Candump inspection uses `marengo-candump` directly (no DB required).
 //! Explicit historical recovery dispatches before opening the normal Store.
-//! `gravity-fit` fits link inertials to `pi_gravity_calibrate` sessions (workstation, no DB).
+//! `gravity-fit` fits right-arm gravity and friction to `pi_joint_calibrate` /
+//! `pi_gravity_calibrate` sessions (workstation, no DB).
 //! `firmware-timing` measures Robstride firmware timing from candump captures (no DB).
 
 mod firmware_timing;
