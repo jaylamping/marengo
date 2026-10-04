@@ -93,7 +93,7 @@ just mcp-ensure-enabled --write
 
 | Class | Confirm | Examples |
 |-------|---------|----------|
-| Read-only | No | `pi_logs_tail`, `pi_health`, `pi_homing_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_imu_probe` |
+| Read-only | No | `pi_logs_tail`, `pi_health`, `pi_homing_status`, `pi_motor_repl_status`, `pi_protocol_inspect`, `pi_gravity_preview`, `pi_imu_probe` |
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
 | Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
 | Motion | Yes | `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_enable_soak` |
@@ -106,10 +106,15 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` a
 construction, so it sends no startup type-24 active-reporting burst.
 `gravity-preview` reads the configured URDF model locally and does not open
 CAN. `disable` and `set-zero` are CAN-owning commands; the latter uses Davout's
-qualified reference workflow and an independent exit stop. MCP's ownership
-guard remains conservative: while `marengo-pi` or any `motor-repl` process runs,
-`pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` skip rather than
-compete for the bus.
+qualified reference workflow and an independent exit stop. `protocol-inspect`
+(ADR 0037) also owns CAN: it stops every drive with Disable only, turns
+reporting Off and reads firmware version, MCU id and registers (including the
+0x7028 drive CAN timeout) one query at a time; it never enables or writes a
+parameter, so `pi_protocol_inspect` needs no confirmation and prints a per-joint
+firmware / CanTimeout table. MCP's ownership guard remains conservative: while
+`marengo-pi` or any `motor-repl` process runs, `pi_motor_repl_status`,
+`pi_protocol_inspect`, `pi_gravity_preview` and `pi_can_up` skip rather than
+compete for the bus; stop `marengo-pi` with `pi_restart_marengo_pi` first.
 
 Reference grants live only inside the `marengo-pi` process that acquired them
 (ADR 0036). `pi_health`, `pi_homing_status` and `pi_sync_bench_config` (with
