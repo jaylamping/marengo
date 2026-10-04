@@ -16,6 +16,7 @@ import {
   MOTION_VERBS,
   SOAK_VERBS,
   evaluateSoak,
+  formatFirmwareTiming,
   parseFirmwareTiming,
   parseSoakCycles,
   parseSoakSessionJson,
@@ -396,6 +397,40 @@ describe("pi_enable_soak verdict", () => {
     const noBus = parseFirmwareTiming(JSON.stringify(missing));
     assert.ok(!noBus.ok);
     assert.match(noBus.message, /contract: bus/);
+  });
+  it("prints kernel error frames after the timing, zero as the clean line", () => {
+    const clean = ok();
+    assert.deepEqual(clean.timing.kernel_error_frames, []);
+    assert.ok(formatFirmwareTiming(clean.timing).includes("kernel error frames: 0"));
+    const json = JSON.stringify({
+      ...JSON.parse(FIXTURE),
+      kernel_error_frames: [
+        { t_s: 12.345678, interface: "can0", can_id: "20000004", classes: ["ctrl"], ctrl: ["rx_overflow"], bus_off: false, restarted: false },
+        { t_s: 13.0, interface: "can0", can_id: "20000040", classes: ["busoff"], ctrl: [], bus_off: true, restarted: false },
+      ],
+    });
+    const lines = formatFirmwareTiming(ok(json).timing);
+    assert.ok(lines.includes("kernel error frames: 2"));
+    assert.ok(lines.includes("  t=12.345678 can0 20000004 ctrl(rx_overflow)"));
+    assert.ok(lines.includes("  t=13.000000 can0 20000040 busoff"));
+  });
+
+  it("caps the kernel error frame list and never lets it affect the verdict", () => {
+    const frames = Array.from({ length: 11 }, (_, k) => ({
+      t_s: k + 0.5,
+      interface: "can0",
+      can_id: "20000004",
+      classes: ["ctrl"],
+      ctrl: ["rx_overflow"],
+      bus_off: false,
+      restarted: false,
+    }));
+    const json = JSON.stringify({ ...JSON.parse(FIXTURE), kernel_error_frames: frames });
+    const lines = formatFirmwareTiming(ok(json).timing);
+    assert.ok(lines.includes("kernel error frames: 11"));
+    assert.ok(lines.includes("  ... and 1 more"));
+    assert.equal(evaluateSoak(cycles(2), 2, ok(json)).pass, true);
+    assert.deepEqual(evaluateSoak(cycles(2), 2, ok(json)).reasons, []);
   });
 });
 

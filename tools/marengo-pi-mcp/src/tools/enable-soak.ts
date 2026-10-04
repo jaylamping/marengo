@@ -406,6 +406,22 @@ export const firmwareTimingSchema = z.object({
     max_frames_per_10ms: z.number().int(),
     gaps_over_5ms: z.number().int(),
   }),
+  // Kernel error frames (session candump records them via `,#FFFFFFFF`).
+  // Diagnostic only: absent from older analyzer JSON, never a PASS input.
+  kernel_error_frames: z
+    .array(
+      z.object({
+        t_s: z.number(),
+        interface: z.string(),
+        can_id: z.string(),
+        classes: z.array(z.string()),
+        ctrl: z.array(z.string()),
+        bus_off: z.boolean(),
+        restarted: z.boolean(),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 export type FirmwareTiming = z.infer<typeof firmwareTimingSchema>;
 
@@ -429,6 +445,8 @@ export function parseFirmwareTiming(stdout: string): { ok: true; timing: Firmwar
 
 const fmt = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
 const statsLine = (s: Stats) => (s.n === 0 ? "n=0" : `n=${s.n} p50=${fmt(s.p50)} p95=${fmt(s.p95)} max=${fmt(s.max)}`);
+/** Per-frame lines in the soak report's `kernel error frames:` section. */
+const SOAK_KERNEL_ERROR_LINES = 10;
 
 export function formatFirmwareTiming(t: FirmwareTiming): string[] {
   const out = [
@@ -443,6 +461,17 @@ export function formatFirmwareTiming(t: FirmwareTiming): string[] {
         `(starts ${statsLine(d.set_zero_silence_start_ms)}); identity_unanswered=${d.identity_unanswered} ` +
         `mit_unanswered=${d.mit_unanswered}`,
     );
+  }
+  // Kernel error frames from the session candump (diagnostic only: an
+  // overflow report here explains an rx_over_errors increase, and zero
+  // frames is the clean line). Capped; the full list is in firmware-timing.json.
+  out.push(`kernel error frames: ${t.kernel_error_frames.length}`);
+  for (const e of t.kernel_error_frames.slice(0, SOAK_KERNEL_ERROR_LINES)) {
+    const what = e.ctrl.length > 0 ? `${e.classes.join(",")}(${e.ctrl.join(",")})` : e.classes.join(",");
+    out.push(`  t=${e.t_s.toFixed(6)} ${e.interface} ${e.can_id} ${what}`);
+  }
+  if (t.kernel_error_frames.length > SOAK_KERNEL_ERROR_LINES) {
+    out.push(`  ... and ${t.kernel_error_frames.length - SOAK_KERNEL_ERROR_LINES} more`);
   }
   return out;
 }
@@ -601,10 +630,11 @@ export function registerEnableSoakTools(
         NEUTRAL_MIT_NOTE + " " + CHAPPE_ISOLATION_NOTE + " " +
         "Per cycle: references acquired, enable outcome, fault/refusal lines (Transport, DriveState, homing verify, " +
         "watchdog), enable→enabled ms, can0 rx_over_errors/rx_errors before and after, exit status. One candump " +
-        "covers the session; candump and session log are copied to var/enable-soak/<TS>/ and fed to " +
+        "covers the session (each UP interface with an error mask, so kernel error frames are recorded too); " +
+        "candump and session log are copied to var/enable-soak/<TS>/ and fed to " +
         "`marengo-log-cli firmware-timing --json`. PASS only when every cycle is clean, can0 rx_over_errors did " +
         "not increase and firmware-timing ran and reported non_neutral_mit 0; a missing, failing or " +
-        "unparseable analyzer result is FAIL. " +
+        "unparseable analyzer result is FAIL. Kernel error frames are listed after the timing, diagnostic only. " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: enableSoakSchema,
       handler: async (args: EnableSoakArgs): Promise<string> => {
