@@ -14,6 +14,8 @@
 // entry of `config/control.yaml` and the master URDF's τ_g against the plant the 2026-10-04
 // wave fit identified, and must meet the bench pass criteria before the bench runs them.
 
+#![allow(clippy::expect_used)]
+
 use std::path::{Path, PathBuf};
 
 use armee_dynamics::gravity_model_from_urdf;
