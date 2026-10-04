@@ -297,3 +297,103 @@ fn torque_output_contract_drive_damping_is_bounded_and_tau_ff_stays_capped() {
         "refused kd reached the wire"
     );
 }
+
+/// Joint-space `(q_des, v_des, kp, kd, τ_ff)` of the last pitch MIT frame, decoded with the RS03
+/// vendor scales (position ±4π, velocity ±20, kp 0..5000, kd 0..100, torque ±60).
+fn last_wire_pitch_command(
+    supervisor: &Supervisor<SimulationBus>,
+    motor: &MotorEntry,
+) -> (f64, f64, f64, f64, f64) {
+    let frame = supervisor
+        .bus()
+        .frames()
+        .iter()
+        .rev()
+        .find(|frame| {
+            frame.id >> 24 == u32::from(CommunicationType::OperationControl.as_u8())
+                && frame.id & 0xff == u32::from(motor.device_id)
+        })
+        .expect("outgoing MIT frame");
+    let signed = |raw: u16, scale: f64| (f64::from(raw) / 32767.0 - 1.0) * scale;
+    let unsigned = |raw: u16, scale: f64| f64::from(raw) / 65535.0 * scale;
+    let field = |offset: usize| u16::from_be_bytes([frame.data[offset], frame.data[offset + 1]]);
+    let scale = f64::from(motor.direction) * motor.gear_ratio;
+    (
+        signed(field(0), 4.0 * std::f64::consts::PI) / scale,
+        signed(field(2), 20.0) / scale,
+        unsigned(field(4), 5000.0) * scale * scale,
+        unsigned(field(6), 100.0) * scale * scale,
+        signed(((frame.id >> 8) & 0xffff) as u16, 60.0) * scale,
+    )
+}
+
+#[test]
+fn torque_output_contract_predicted_total_torque_is_clamped_continuously() {
+    // ADR 0039 open question 1: the drive computes kp·(q_des − q) + kd·(v_des − dq) + τ_ff
+    // with no documented clamp. Sweep the position lead through the cap: the predicted total
+    // (feedback motion over two 5 ms ticks and a 0.1 rad/s velocity margin included) never
+    // exceeds the cap, the clamped torque never steps, and requests under the cap pass as sent.
+    let (q, dq, tau_ff) = (0.3, -0.5, 2.0);
+    let (kp, kd, v_des) = (18.0, 3.0, 1.0);
+    let mut supervisor = supervisor();
+    let motor = pitch_motor(&supervisor);
+    activate_at_pose(&mut supervisor, &motor, q, dq, tau_ff);
+    supervisor.seed_tau_ff_rate_limiter();
+    let defaults = supervisor.control.control.motor_type_defaults["rs03"].clone();
+    let cap = defaults.tau_ff_max_nm.min(motor.bench.torque_limit_nm);
+    let margin = |kp: f64, kd: f64| kp * dq.abs().max(v_des) * 0.01 + kd * 0.1;
+    // One wire code of each field: position kp·4π/32767, velocity kd·20/32767, torque 60/32767.
+    let wire_tolerance = kp * 4.0e-4 + kd * 7.0e-4 + 2.0e-3;
+
+    let mut previous_total: Option<f64> = None;
+    let mut over_cap_requests: u64 = 0;
+    for step in 0..=400 {
+        let lead = -0.3 + f64::from(step) * 1e-3;
+        let request = MitJointCommand {
+            joint: motor.joint.clone(),
+            kp,
+            kd,
+            position_rad: q + lead,
+            velocity_rad_s: v_des,
+            torque_ff_nm: tau_ff,
+        };
+        let requested_total = kp * lead + kd * (v_des - dq) + tau_ff;
+        if requested_total.abs() + margin(kp, kd) > cap {
+            over_cap_requests += 1;
+        }
+        supervisor
+            .send_mit_batch(vec![request])
+            .expect("a total-torque clamp is not a refusal");
+        let (q_w, v_w, kp_w, kd_w, tau_w) = last_wire_pitch_command(&supervisor, &motor);
+        let total = kp_w * (q_w - q) + kd_w * (v_w - dq) + tau_w;
+        assert!(
+            total.abs() + margin(kp_w, kd_w) <= cap + wire_tolerance,
+            "lead {lead}: predicted total {} Nm above the {cap} Nm cap",
+            total.abs() + margin(kp_w, kd_w)
+        );
+        assert!(
+            (tau_w - tau_ff).abs() < 2.0e-3,
+            "τ_ff is never the clamped term"
+        );
+        if requested_total.abs() + margin(kp, kd) <= cap - wire_tolerance {
+            assert!(
+                (q_w - (q + lead)).abs() < 4.0e-4 && (v_w - v_des).abs() < 7.0e-4,
+                "lead {lead}: a request under the cap was modified"
+            );
+        }
+        if let Some(previous) = previous_total {
+            assert!(
+                (total - previous).abs() <= kp * 1e-3 + wire_tolerance,
+                "lead {lead}: total torque stepped {previous} → {total} Nm"
+            );
+        }
+        previous_total = Some(total);
+    }
+    assert!(over_cap_requests > 100, "the sweep must cross the cap");
+    // Feedback q and dq arrive quantized, so one request at the boundary may fall either way.
+    let clamps = supervisor.total_torque_clamp_count(&motor.joint);
+    assert!(
+        clamps.abs_diff(over_cap_requests) <= 1,
+        "{clamps} clamps counted for {over_cap_requests} over-cap requests"
+    );
+}
