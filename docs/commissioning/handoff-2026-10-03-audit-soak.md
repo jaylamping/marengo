@@ -71,14 +71,12 @@ silence* amendment.
 
 ## Open decisions for the user
 
-- **Residual stall risk, two options.** Synchronous work of 100 ms or more that starts before a held quiet ends
-  still revokes the grant. The preflight measured up to 96 ms, so the margin is thin.
-  - (A) Excuse a held On until it is actually written. This extends an ADR 0036 excuse, so it needs an ADR.
-  - (B) Make the gravity preflight cheaper (cache per model revision) or interleave it with ticks. No rule
-    change.
-- **Active-mode drains still judge liveness before reading.** A host stall of about 90 ms or more while Active
-  (for example a redundant `enable` running the preflight) revokes every grant and disables all drives. That
-  could drop an elevated arm in GravityComp.
+- ~~**Residual stall risk, two options.**~~ Option (A) adopted on `wt/liveness-adr` (ADR 0036 amendment
+  *Solicited silence and owed Ons*): a held On is excused until written, bounded by `OWED_ON_WRITE_BOUND`
+  (200 ms). Option (B), a cheaper or interleaved preflight, needs no rule change and remains open.
+- ~~**Active-mode drains still judge liveness before reading.**~~ Resolved on `wt/liveness-adr`: Active
+  drains judge after reading, and an Active target's silence counts from the earliest write it has not
+  answered (ADR 0036 amendment).
 - **Kernel RX timestamps (`SO_TIMESTAMPNS`).** These would make receive times wire-accurate instead of read
   times. Adopting them needs an ADR.
 - NEEDS-DECISION items live in `docs/reviews/2026-10-03-crate-audit/phase-b/WP-*.md` and `PRUNE-*.md`.

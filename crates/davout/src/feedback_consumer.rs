@@ -590,6 +590,11 @@ impl<B: MotorBus> Supervisor<B> {
                     at_rest_tolerance,
                 );
             }
+            // An admitted pose answers every host frame written to the drive
+            // before this drain (ADR 0036, *Solicited silence while Active*).
+            if let Some(solicit) = self.unanswered_solicits.get_mut(&address) {
+                *solicit = None;
+            }
             self.motor_states.insert(address, state);
             store_by_joint(&mut self.last_feedback_rx, &motor.joint, received_at);
         }

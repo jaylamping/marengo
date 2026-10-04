@@ -15,6 +15,12 @@
 //! follow the documented wire layout (`type << 24 | extra << 8 | low`);
 //! outbound frames are produced by the supervisor through the robstride encoders.
 //!
+//! Receive times are host read times, like SocketCAN without kernel RX
+//! timestamps, unless [`Firmware::wire_time_stamps`] is set: then each frame
+//! carries the instant it was on the wire, never earlier than the frame read
+//! before it or than the last read that found the queue empty (the kernel
+//! timestamp contract on SocketCAN).
+//!
 //! [`RxFifo`] models the bench controller's receive path: a serialized 1 Mbit/s
 //! bus and two receive buffers emptied by a driver that needs 0.5 ms per frame.
 //! It counts every frame the controller would drop (a burst of host frames
@@ -49,6 +55,12 @@ pub struct TimingModel {
     pub identity_reply: (Duration, Duration),
     /// Type-24 report period while streaming (measured 7.4-12.6 ms around 10 ms).
     pub report_period: (Duration, Duration),
+    /// MIT command received → its status reply queued (measured 0.13-4.65 ms).
+    pub mit_reply: (Duration, Duration),
+    /// Type-24 write received → its status reply queued. [INFERENCE] The
+    /// profile does not time it; the drive's other single-frame replies take
+    /// 0.12-0.47 ms (identity, parameter read), and the bus adds about 0.3 ms.
+    pub reporting_reply: (Duration, Duration),
     /// SetZero received → blackout start (measured last frame before it
     /// 511-614 ms; the true start is up to one report period later).
     pub set_zero_blackout_start: (Duration, Duration),
@@ -64,6 +76,8 @@ impl TimingModel {
         within(drive.enable_reply_delay, self.enable_to_run)
             && within(drive.identity_reply_delay, self.identity_reply)
             && within(drive.report_period, self.report_period)
+            && within(drive.mit_reply_delay, self.mit_reply)
+            && within(drive.reporting_reply_delay, self.reporting_reply)
             && within(drive.set_zero_blackout.0, self.set_zero_blackout_start)
             && within(drive.set_zero_blackout.1, self.set_zero_blackout_length)
     }
@@ -73,6 +87,8 @@ pub const TIMING_MODEL: TimingModel = TimingModel {
     enable_to_run: (Duration::ZERO, Duration::from_millis(11)),
     identity_reply: (Duration::ZERO, Duration::from_millis(1)),
     report_period: (Duration::from_millis(7), Duration::from_millis(13)),
+    mit_reply: (Duration::ZERO, Duration::from_millis(5)),
+    reporting_reply: (Duration::ZERO, Duration::from_millis(1)),
     set_zero_blackout_start: (Duration::from_millis(500), Duration::from_millis(625)),
     set_zero_blackout_length: (Duration::from_millis(40), Duration::from_millis(67)),
 };
@@ -191,6 +207,10 @@ pub struct Drive {
     pub enable_reply_delay: Duration,
     /// Type-0 request received → UID reply queued, within [`TIMING_MODEL`].
     pub identity_reply_delay: Duration,
+    /// MIT command received → its status reply queued, within [`TIMING_MODEL`].
+    pub mit_reply_delay: Duration,
+    /// Type-24 write received → its status reply queued, within [`TIMING_MODEL`].
+    pub reporting_reply_delay: Duration,
     /// Minimum interval between periodic type-24 reports, within [`TIMING_MODEL`].
     pub report_period: Duration,
     last_report_at: Option<Instant>,
@@ -315,7 +335,8 @@ impl Drive {
 #[derive(Debug, Default)]
 pub struct Firmware {
     pub drives: Vec<Drive>,
-    rx: VecDeque<CanFrame>,
+    /// Frames for the host, each with the instant it was on the wire.
+    rx: VecDeque<(CanFrame, Instant)>,
     /// Frames the transport accepted, in order.
     pub tx: Vec<CanFrame>,
     /// When each `tx` frame was accepted.
@@ -336,6 +357,12 @@ pub struct Firmware {
     rx_failed: bool,
     /// The controller's receive path.
     pub rx_fifo: RxFifo,
+    /// Stamp each received frame with its wire instant instead of the read
+    /// instant (see the module docs).
+    pub wire_time_stamps: bool,
+    /// No later frame is stamped before this: the previous frame's stamp, or
+    /// the last read that found the queue empty.
+    stamp_floor: Option<Instant>,
 }
 
 pub type SharedFirmware = Rc<RefCell<Firmware>>;
@@ -375,6 +402,8 @@ impl Firmware {
                     set_zero_blackout: (Duration::from_millis(535), Duration::from_millis(55)),
                     enable_reply_delay: Duration::ZERO,
                     identity_reply_delay: Duration::ZERO,
+                    mit_reply_delay: Duration::ZERO,
+                    reporting_reply_delay: Duration::ZERO,
                     report_period: Duration::from_millis(10),
                     last_report_at: None,
                     reply_ready_at: None,
@@ -415,6 +444,7 @@ impl Firmware {
     /// Periodic type-24 reports from every live drive whose reporting is on
     /// and whose report period has elapsed since its last periodic report.
     pub fn emit_reports(&mut self) {
+        self.release_due();
         let now = Instant::now();
         let mut frames = Vec::new();
         for drive in &mut self.drives {
@@ -442,13 +472,14 @@ impl Firmware {
     /// controller loses it.
     fn deliver_from_drive(&mut self, frame: CanFrame, ready: Instant) {
         if self.rx_fifo.drive_frame(ready) || !self.rx_fifo.enforce {
-            self.rx.push_back(frame);
+            self.rx.push_back((frame, ready));
         } else {
-            self.rx.push_back(rx_overflow_frame());
+            self.rx.push_back((rx_overflow_frame(), ready));
         }
     }
 
     /// Move scheduled replies whose latency has passed to the receive queue.
+    /// Called before anything else is queued, so they keep their wire order.
     fn release_due(&mut self) {
         if self.scheduled.is_empty() {
             return;
@@ -467,6 +498,7 @@ impl Firmware {
     /// One type-24 report from `joint` in its current drive mode, unless the
     /// drive is in its post-SetZero blackout.
     pub fn emit_report(&mut self, joint: &str) {
+        self.release_due();
         let drive = self.drive(joint);
         if drive.in_set_zero_blackout(Instant::now()) {
             return;
@@ -477,7 +509,7 @@ impl Firmware {
 
     /// Deliver `frame` to the host receive queue as is (e.g. a stale echo).
     pub fn inject_rx(&mut self, frame: CanFrame) {
-        self.rx.push_back(frame);
+        self.rx.push_back((frame, Instant::now()));
     }
 
     /// Put every held write on the wire, in write order.
@@ -542,10 +574,11 @@ impl Firmware {
     fn on_wire(&mut self, frame: &CanFrame) {
         let comm_type = ((frame.id >> 24) & 0x1f) as u8;
         let device_id = (frame.id & 0xff) as u8;
+        self.release_due();
         let now = Instant::now();
         self.rx_fifo.host_frame(now);
         if !self.lost_echoes.contains(&comm_type) {
-            self.rx.push_back(frame.clone());
+            self.rx.push_back((frame.clone(), now));
         }
         let Some(drive) = self
             .drives
@@ -569,7 +602,7 @@ impl Firmware {
             }
             Some(CommunicationType::OperationControl) => {
                 replies.push((
-                    Duration::ZERO,
+                    drive.mit_reply_delay,
                     drive.status(CommunicationType::OperationStatus),
                 ));
             }
@@ -637,7 +670,7 @@ impl Firmware {
                 // Bench candump: every type-24 write is answered by a type-2 status.
                 drive.reporting = frame.data[6] == 0x01;
                 replies.push((
-                    Duration::ZERO,
+                    drive.reporting_reply_delay,
                     drive.status(CommunicationType::OperationStatus),
                 ));
             }
@@ -685,18 +718,31 @@ impl CanBus for FirmwareBus {
             return Err(BusError::Driver("injected receive failure".into()));
         }
         firmware.release_due();
+        let now = Instant::now();
         Ok(match firmware.rx.pop_front() {
-            Some(frame) => {
+            Some((frame, on_wire)) => {
+                let received_at = if firmware.wire_time_stamps {
+                    firmware
+                        .stamp_floor
+                        .map_or(on_wire, |floor| floor.max(on_wire))
+                        .min(now)
+                } else {
+                    now
+                };
+                firmware.stamp_floor = Some(received_at);
                 let mut received = ReceivedCanFrame::full_data(None, frame);
                 if received.frame.id & CAN_ERR_FLAG != 0 {
                     received.kind = RxFrameKind::Error;
                 }
                 ReceiveAttempt::Frame(TimedCanFrame {
-                    received_at: Instant::now(),
+                    received_at,
                     received,
                 })
             }
-            None => ReceiveAttempt::Idle,
+            None => {
+                firmware.stamp_floor = Some(now);
+                ReceiveAttempt::Idle
+            }
         })
     }
 

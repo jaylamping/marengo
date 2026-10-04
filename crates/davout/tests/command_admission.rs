@@ -230,6 +230,18 @@ fn nonneutral_motion_requires_post_enable_feedback_even_during_bootstrap() {
         .expect("motion with new pose");
 }
 
+/// A zero-torque [`command`]: the neutral status solicit.
+fn neutral(motor: &MotorEntry) -> MitJointCommand {
+    MitJointCommand {
+        torque_ff_nm: 0.0,
+        ..command(motor)
+    }
+}
+
+// A pose expires once a command the drive answers has gone unanswered for
+// comm_watchdog_ms; the host's own silence does not age it (ADR 0036,
+// *Solicited silence while Active*). Each case below asks first.
+
 #[test]
 fn empty_drains_and_unknown_traffic_do_not_refresh_expired_pose() {
     for unknown_traffic in [false, true] {
@@ -238,6 +250,9 @@ fn empty_drains_and_unknown_traffic_do_not_refresh_expired_pose() {
         supervisor.control.control.comm_watchdog_ms = 1;
         activate(&mut supervisor, std::slice::from_ref(&pitch));
         receive(&mut supervisor, std::slice::from_ref(&pitch));
+        supervisor
+            .send_mit_batch(vec![neutral(&pitch)])
+            .expect("solicit with a current pose");
         std::thread::sleep(Duration::from_millis(3));
         for _ in 0..8 {
             if unknown_traffic {
@@ -265,7 +280,11 @@ fn one_live_peer_cannot_mask_a_silent_active_motor() {
     let roll = motor(&supervisor, "right_shoulder_roll");
     supervisor.control.control.comm_watchdog_ms = 1;
     activate(&mut supervisor, &[pitch.clone(), roll.clone()]);
-    receive(&mut supervisor, &[pitch.clone(), roll]);
+    receive(&mut supervisor, &[pitch.clone(), roll.clone()]);
+    // A batch asks every Active target, even one it leaves out.
+    supervisor
+        .send_mit_batch(vec![neutral(&pitch)])
+        .expect("solicit with current poses");
     std::thread::sleep(Duration::from_millis(3));
     receive(&mut supervisor, std::slice::from_ref(&pitch));
     supervisor.bus_mut().clear_trace();

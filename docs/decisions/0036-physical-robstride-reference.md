@@ -109,7 +109,7 @@ device coordinate epoch. Revocation is per joint for:
 - no feedback for longer than `control.comm_watchdog_ms` outside owner
   reference work. Liveness restarts at the end of owner work, and periodic
   reporting resumes after selection. Silence the host caused is not counted
-  (see *Host-caused silence* below).
+  (see *Host-caused silence* and *Solicited silence*, below).
 
 Fault, E-stop, uncertain stop, shutdown, a model change and an observed relevant
 policy change revoke all grants. A revoked grant stays revoked. A successful
@@ -135,7 +135,8 @@ and the [behaviour doc](../commissioning/firmware/robstride-firmware-behavior.md
   The reporting sync holds them, the baseline leaves a peer's stream On
   (the target's own Off is unchanged: it precedes its SetZero), and an On that
   was due goes out when the quiet ends. The drive's silence while a due On is
-  held counts from the quiet's end. A stream applied On is not excused.
+  held counts from the On's actual write, within a bound (see *Owed On*,
+  below). A stream applied On is not excused.
 - An Active session discards a target's traffic as pose until its Enable echo,
   so its last pose is as old as the session, and the first Run reply (1.4-5.2
   ms) can be read a tick after the echo. Silence counts from the echo.
@@ -146,8 +147,7 @@ and the [behaviour doc](../commissioning/firmware/robstride-firmware-behavior.md
   drains before it builds the facets, and a non-Active drain judges liveness
   after it reads the queue. A drive that stops during a host stall loses its
   grant up to one stall later, and Enable still needs a fresh type-0 reply.
-  Active drains still judge before reading (open: a stall of about 90 ms or
-  more while Active revokes every grant).
+  Active drains now judge after reading too (see *Solicited silence*, below).
 
 Not adopted: raising `comm_watchdog_ms` or shortening the stale retry (a
 stream restarted at 200 ms would still miss a 100 ms bound), and counting
@@ -159,6 +159,120 @@ BaselineStop's and finish's all-address stop start one address group per
 the type-0 admission requests (`IDENTITY_ADMISSION_SPACING`, with the admission
 deadline growing by two spacings per further target) and the status solicit.
 A fault, E-stop, cancellation or shutdown stop is never paced.
+
+### Solicited silence and owed Ons (amendment, 2026-10-03)
+
+Two gaps remained after the soak fixes above (handoff
+`docs/commissioning/handoff-2026-10-03-audit-soak.md`): a host stall of about
+95 ms or more while Active revoked every grant and stopped every drive at the
+next drain, which can drop an elevated arm held in GravityComp; and
+synchronous work of `comm_watchdog_ms` or more spanning a held On's quiet end
+revoked that joint before any sync could write the On. Both are host-caused
+silence. The rule is now stated once: **a drive's silence counts from the
+host frame that asked it to speak.**
+
+*Receive-time contract.* `received_at` stays a `std::time::Instant`. On
+SocketCAN it becomes the kernel RX time mapped onto the monotonic clock and
+clamped between the previous frame's stamp (or the last empty read) and the
+read instant; that change lands from the RxTimestamps branch. Own-TX echoes
+carry the same stamp (TX completion on the mcp251x). A missing or future
+stamp falls back to the read instant. Other buses (MemoryBus, SimulationBus,
+FirmwareBus) supply their own instants, and Davout does not depend on which
+bus produced one.
+
+*Drains judge after reading, in every mode.* A drain checks policy, realm,
+model, identity and coordinate epoch before it reads the queue, and judges
+grant liveness once `consume_feedback_report` has run. While Active a failure
+of either check disables every drive and returns `Homing`. The one exception
+is an Active target whose Enable echo is pending: it is judged before the read,
+because its traffic is not pose (reading cannot renew it) and a staggered
+Enable may be written to it before the read. Post-read judgment is safe with
+kernel timestamps: each frame carries its true wire time, so a queued report
+proves only what the wire carried, and a drive that stopped during a stall is
+judged on its true last frame at the first read after the stall. With the
+read-time fallback, queued frames are stamped at the read, so a drive that
+stops during a stall is credited with its queued frames and loses its grant up
+to one stall later (one stall of delayed detection).
+
+*Solicited silence while Active.* Active streams are Off: a drive speaks only
+when the host writes to it. An Active target's silence counts from the
+**earliest host frame it answers that no admitted pose has followed**: its
+Enable, and every MIT batch, whether or not the batch commands that target (the
+controller commands every Active joint each tick, so an omission fails closed
+as before). The instant is the host's write instant, sampled before the write,
+never later than the frame's wire or echo time, so it fails closed and needs no
+echo; robstride does not classify MIT echoes, and a lost echo cannot open an
+excuse. With nothing outstanding no silence counts: the host is the silent
+party. Once the host writes, an unanswered solicit lapses after
+`comm_watchdog_ms` exactly as before; at 200 Hz every tick solicits, so normal
+operation is unchanged and **the rule never excuses a drive while the host is
+soliciting it**. A drive that stops answering while the host ticks is revoked
+`comm_watchdog_ms` after the first write it leaves unanswered, at most one
+control period later than when silence counted from its last frame. A pose
+admitted in a drain answers every write before that drain, so a late reply to
+the previous batch can be credited to the next one (about one more period).
+The same rule decides when Active session pose is current for the MIT pose
+watchdog (`CommWatchdog`) and `joint_feedback`: a pose is stale once a write
+it answers has gone unanswered for `comm_watchdog_ms`. An Active session that
+ends carries this count into the Disabled rule: each target counts from its
+outstanding solicit, or from the stop (which every drive answers) when none
+is outstanding, so a stall right before a Disable is still the host's.
+
+Physical behaviour during a host stall while Active: there is no drive-side
+CAN timeout, so the drives keep applying the last command they received
+(GravityComp keeps holding). The first batch after the stall is computed from
+a pose as old as the stall, through every Davout filter unchanged (envelope
+clamp, `tau_ff` rate limit, danger-zone caps); the next reply refreshes it.
+A drive that died during the stall is revoked `comm_watchdog_ms` after the
+first post-stall solicit, so detection takes the stall plus
+`comm_watchdog_ms`. That latency is unavoidable: the host was not watching.
+The excuse ends at the host's next frame to the drive, and every action that
+relies on the grant (MIT output, Enable, Disable) sends one. Judged checks
+that run before the first drain after a stall (a status query) still count
+the queued, unread replies as silence; the control loop drains first.
+
+*Owed On.* While the reporting sync holds a due type-24 On (the
+`POST_SET_ZERO_BLACKOUT_FROM`..`POST_SET_ZERO_QUIET` window), the drive's
+silence is excused until the On is actually written; from the write the
+ordinary `comm_watchdog_ms` rule applies. The excuse is bounded: if the On is
+still unwritten `OWED_ON_WRITE_BOUND` (200 ms) after the later of the quiet's
+end and the end of owner reference work (owner work suspends the sync), the
+joint is revoked with the distinct cause `owed type-24 On not written within
+OWED_ON_WRITE_BOUND`. 200 ms is twice the slowest synchronous host work
+measured on the Pi (the gravity preflight, 96 ms), rounded up to 50 ms, so one
+preflight starting just before a quiet ends never revokes. It stays well under
+anything that matters physically: an On is owed only outside an Active
+session, so the drive is disabled and no command depends on it; the whole
+excused window after a SetZero is at most 1.0 s plus `comm_watchdog_ms`; and
+Enable still needs a fresh type-0 reply and, once Active, an answer to its
+Enable within `comm_watchdog_ms`. An owed On that stops being wanted (an
+Active session, an expired lease) is released and counts from the quiet's
+end, as before. A stall longer than the bound with four streams queues more
+than the 64 frames one drain reads, so the incomplete drain latches Transport
+(ADR0021) as well.
+
+Residual risk: a reboot that both starts and ends inside one excused window
+(a host stall while Active, or an owed On's quiet plus bound) and keeps the
+coordinate within the continuity bound is not detected by liveness. While
+Active a rebooted drive answers in Reset, which latches DriveState; outside
+Active the next Enable needs a fresh type-0 reply, which does not detect a
+reboot that kept the UID. Keep the arm supported during commissioning.
+
+Not adopted: counting Active silence from the last frame with kernel
+timestamps alone (a stall of 95 ms or more would still revoke every grant,
+since the drives were not asked), and counting from MIT echoes (robstride
+drops them as host commands; the write instant is earlier, so stricter).
+
+Tests (`crates/davout/tests/physical_reference.rs`, FirmwareBus with
+wire-time stamps where named): `an_active_session_keeps_every_grant_through_a_host_stall`,
+`a_drive_dead_through_an_active_host_stall_is_revoked_after_the_first_solicit`,
+`a_drive_that_stops_answering_while_the_host_ticks_is_revoked_as_before`,
+`leaving_active_after_a_host_stall_counts_silence_from_the_stop`,
+`a_host_stall_across_a_held_on_keeps_the_grant_until_the_on_is_written`,
+`a_drive_silent_after_its_owed_on_is_written_loses_its_grant`,
+`an_owed_on_never_written_loses_the_grant_at_its_bound`; unit tests
+`comm_watchdog_fires_on_silence` and
+`comm_watchdog_does_not_count_the_hosts_own_silence`.
 
 ### Per-joint accumulation
 

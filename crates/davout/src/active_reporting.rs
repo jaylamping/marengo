@@ -160,6 +160,12 @@ impl ActiveReportingState {
         self.off_written_at.get(joint).copied()
     }
 
+    /// When this process last wrote `joint`'s type-24 On successfully
+    /// (initial, retry or heartbeat), unless it has turned the stream Off since.
+    pub(super) fn last_on_written(&self, joint: &str) -> Option<Instant> {
+        self.last_enable_tx.get(joint).copied()
+    }
+
     fn record_off(&mut self, joint: &str, now: Instant) {
         self.applied.insert(joint.to_string(), false);
         self.last_enable_tx.remove(joint);
