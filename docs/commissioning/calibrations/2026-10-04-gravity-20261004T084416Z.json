@@ -1,0 +1,625 @@
+{
+  "accepted": false,
+  "apply": "Never automatic. Review the patch, apply it to the Pi URDF copy at assets/urdf/marengo.urdf, commit, then pi_sync_bench_urdf (ADR 0017). Apply the friction patch by hand to config/control.yaml. Gram-level weighing of the frozen arm supersedes this record.",
+  "control_patch": null,
+  "fit_joints": [
+    "right_shoulder_pitch",
+    "right_shoulder_roll",
+    "right_upper_arm_yaw",
+    "right_elbow_pitch",
+    "right_lower_arm_yaw"
+  ],
+  "friction": {
+    "agreement_tol_nm": {
+      "abs": 0.05,
+      "rel": 0.25
+    },
+    "deadband_rad_s": 0.15,
+    "joints": {
+      "right_elbow_pitch": {
+        "consistent": false,
+        "note": "no accepted gravity fit to regress against; static reported only",
+        "proposed_fc_nm": null,
+        "proposed_fv": null,
+        "static_fc_nm": -0.05355,
+        "static_poses": 5,
+        "wave_fc_nm": null,
+        "wave_fv": null,
+        "wave_r2": null,
+        "wave_samples": 0
+      },
+      "right_lower_arm_yaw": {
+        "consistent": false,
+        "note": "no accepted gravity fit to regress against; static reported only",
+        "proposed_fc_nm": null,
+        "proposed_fv": null,
+        "static_fc_nm": -0.00556,
+        "static_poses": 5,
+        "wave_fc_nm": null,
+        "wave_fv": null,
+        "wave_r2": null,
+        "wave_samples": 0
+      },
+      "right_shoulder_pitch": {
+        "consistent": false,
+        "note": "no accepted gravity fit to regress against; static reported only",
+        "proposed_fc_nm": null,
+        "proposed_fv": null,
+        "static_fc_nm": 0.03115,
+        "static_poses": 5,
+        "wave_fc_nm": null,
+        "wave_fv": null,
+        "wave_r2": null,
+        "wave_samples": 0
+      },
+      "right_shoulder_roll": {
+        "consistent": false,
+        "note": "no accepted gravity fit to regress against; static reported only",
+        "proposed_fc_nm": null,
+        "proposed_fv": null,
+        "static_fc_nm": -0.0417,
+        "static_poses": 5,
+        "wave_fc_nm": null,
+        "wave_fv": null,
+        "wave_r2": null,
+        "wave_samples": 0
+      },
+      "right_upper_arm_yaw": {
+        "consistent": false,
+        "note": "no accepted gravity fit to regress against; static reported only",
+        "proposed_fc_nm": null,
+        "proposed_fv": null,
+        "static_fc_nm": 0.00046,
+        "static_poses": 5,
+        "wave_fc_nm": null,
+        "wave_fv": null,
+        "wave_r2": null,
+        "wave_samples": 0
+      }
+    },
+    "method": "static ½·(below − above) per matched pose (mean per joint); wave OLS of (τ_meas − τ_g fitted) = fc·sign(dq) + fv·dq over |dq| > deadband",
+    "min_wave_samples": 20
+  },
+  "identifiability": {
+    "condition": 1.0,
+    "max_singular_nm": 0.222743,
+    "min_singular_nm": 0.222743,
+    "weakest_direction": [
+      {
+        "param": "mass:right_forearm_link",
+        "weight": 1.0
+      }
+    ]
+  },
+  "joints": [
+    "right_shoulder_pitch",
+    "right_shoulder_roll",
+    "right_upper_arm_yaw",
+    "right_elbow_pitch",
+    "right_lower_arm_yaw"
+  ],
+  "kind": "gravity_calibration",
+  "links": [
+    {
+      "com_m": {
+        "cad": [
+          0.00066,
+          0.00342,
+          -0.06048
+        ],
+        "fitted": [
+          0.00066,
+          0.00342,
+          -0.06048
+        ]
+      },
+      "link": "right_forearm_link",
+      "mass_kg": {
+        "cad": 0.391,
+        "fitted": 0.2956
+      },
+      "principal_axis": [
+        0.01089,
+        0.05645,
+        -0.99835
+      ]
+    }
+  ],
+  "local_urdf_matches_pi": true,
+  "options": {
+    "ident_com_offset_step_m": 0.02,
+    "ident_mass_scale_step": 0.25,
+    "max_condition": 100.0,
+    "max_residual_nm": 0.1,
+    "min_identifiable_nm": 0.05,
+    "prior_com_offset_sigma_m": 0.05,
+    "prior_mass_scale_sigma": 0.5,
+    "settled_band_rad": 0.05,
+    "settled_dq_rad_s": 0.1,
+    "torque_sigma_nm": 0.02
+  },
+  "params": [
+    {
+      "cad": 1.0,
+      "fitted": 0.75593,
+      "param": "mass:right_forearm_link",
+      "sigma": 0.02242
+    }
+  ],
+  "patch": null,
+  "poses": [
+    {
+      "approaches": [
+        {
+          "approach": "below",
+          "q": [
+            -0.51503,
+            -0.00044,
+            0.00027,
+            0.00575,
+            -0.00114
+          ],
+          "samples": 76,
+          "tau_meas": [
+            -1.15676,
+            -0.00624,
+            0.00924,
+            -0.30423,
+            -0.00033
+          ],
+          "window_s": 1.5
+        },
+        {
+          "approach": "above",
+          "q": [
+            -0.50433,
+            -0.00069,
+            0.00038,
+            -0.00069,
+            -0.00234
+          ],
+          "samples": 76,
+          "tau_meas": [
+            -1.44371,
+            0.1377,
+            0.00971,
+            -0.16954,
+            0.01587
+          ],
+          "window_s": 1.5
+        }
+      ],
+      "friction_half_diff": [
+        0.14348,
+        -0.07197,
+        -0.00023,
+        -0.06734,
+        -0.0081
+      ],
+      "label": "right_shoulder_pitch -0.508 rad [20261004T084416Z]",
+      "q": [
+        -0.50968,
+        -0.00057,
+        0.00033,
+        0.00253,
+        -0.00174
+      ],
+      "tau_cad": [
+        -1.35141,
+        -0.02389,
+        0.0125,
+        -0.17019,
+        -0.01618
+      ],
+      "tau_cmd_cross_check": [
+        -1.30164,
+        0.06784,
+        0.00733,
+        -0.22539,
+        0.0019
+      ],
+      "tau_fit": [
+        -1.21721,
+        -0.02654,
+        0.01406,
+        -0.14215,
+        -0.01618
+      ],
+      "tau_meas": [
+        -1.30023,
+        0.06573,
+        0.00948,
+        -0.23689,
+        0.00777
+      ]
+    },
+    {
+      "approaches": [
+        {
+          "approach": "below",
+          "q": [
+            -0.24773,
+            -0.00074,
+            0.00034,
+            0.00541,
+            -0.00142
+          ],
+          "samples": 76,
+          "tau_meas": [
+            -0.91695,
+            0.00152,
+            -0.00051,
+            -0.21024,
+            0.00194
+          ],
+          "window_s": 1.5
+        },
+        {
+          "approach": "above",
+          "q": [
+            -0.24743,
+            -0.00068,
+            0.00038,
+            -0.00135,
+            -0.00233
+          ],
+          "samples": 76,
+          "tau_meas": [
+            -0.92223,
+            0.11502,
+            0.00036,
+            -0.07244,
+            0.02796
+          ],
+          "window_s": 1.5
+        }
+      ],
+      "friction_half_diff": [
+        0.00264,
+        -0.05675,
+        -0.00043,
+        -0.0689,
+        -0.01301
+      ],
+      "label": "right_shoulder_pitch -0.254 rad [20261004T084416Z]",
+      "q": [
+        -0.24758,
+        -0.00071,
+        0.00036,
+        0.00203,
+        -0.00187
+      ],
+      "tau_cad": [
+        -0.66061,
+        -0.02692,
+        0.00628,
+        -0.08661,
+        -0.00812
+      ],
+      "tau_cmd_cross_check": [
+        -0.92657,
+        0.06723,
+        0.00128,
+        -0.13564,
+        0.01138
+      ],
+      "tau_fit": [
+        -0.59236,
+        -0.02983,
+        0.00706,
+        -0.07225,
+        -0.00812
+      ],
+      "tau_meas": [
+        -0.91959,
+        0.05827,
+        -0.00008,
+        -0.14134,
+        0.01495
+      ]
+    },
+    {
+      "approaches": [
+        {
+          "approach": "below",
+          "q": [
+            0.00192,
+            -0.00073,
+            0.00032,
+            0.00528,
+            -0.00147
+          ],
+          "samples": 76,
+          "tau_meas": [
+            -0.01075,
+            0.01952,
+            -0.00029,
+            -0.10677,
+            0.02215
+          ],
+          "window_s": 1.5
+        },
+        {
+          "approach": "above",
+          "q": [
+            0.00416,
+            -0.0007,
+            0.00035,
+            -0.00178,
+            -0.0021
+          ],
+          "samples": 76,
+          "tau_meas": [
+            -0.07421,
+            0.09697,
+            -0.00085,
+            0.02241,
+            0.03178
+          ],
+          "window_s": 1.5
+        }
+      ],
+      "friction_half_diff": [
+        0.03173,
+        -0.03873,
+        0.00028,
+        -0.06459,
+        -0.00482
+      ],
+      "label": "right_shoulder_pitch 0 rad [20261004T084416Z]",
+      "q": [
+        0.00304,
+        -0.00072,
+        0.00034,
+        0.00175,
+        -0.00179
+      ],
+      "tau_cad": [
+        0.04287,
+        -0.02779,
+        -0.00008,
+        -0.00102,
+        0.00012
+      ],
+      "tau_cmd_cross_check": [
+        -0.04712,
+        0.06687,
+        -0.00532,
+        -0.04127,
+        0.0187
+      ],
+      "tau_fit": [
+        0.04364,
+        -0.03079,
+        -0.00009,
+        -0.00067,
+        0.00012
+      ],
+      "tau_meas": [
+        -0.04248,
+        0.05825,
+        -0.00057,
+        -0.04218,
+        0.02697
+      ]
+    },
+    {
+      "approaches": [
+        {
+          "approach": "below",
+          "q": [
+            0.25596,
+            -0.00071,
+            0.00031,
+            0.0052,
+            -0.00147
+          ],
+          "samples": 76,
+          "tau_meas": [
+            0.69426,
+            0.03178,
+            -0.00237,
+            -0.00749,
+            0.02591
+          ],
+          "window_s": 1.5
+        },
+        {
+          "approach": "above",
+          "q": [
+            0.25467,
+            -0.00069,
+            0.00028,
+            -0.00246,
+            -0.0015
+          ],
+          "samples": 76,
+          "tau_meas": [
+            0.72736,
+            0.0891,
+            -0.0044,
+            0.12424,
+            0.0295
+          ],
+          "window_s": 1.5
+        }
+      ],
+      "friction_half_diff": [
+        -0.01655,
+        -0.02866,
+        0.00102,
+        -0.06587,
+        -0.0018
+      ],
+      "label": "right_shoulder_pitch 0.254 rad [20261004T084416Z]",
+      "q": [
+        0.25531,
+        -0.0007,
+        0.00029,
+        0.00137,
+        -0.00149
+      ],
+      "tau_cad": [
+        0.74817,
+        -0.02684,
+        -0.00647,
+        0.08517,
+        0.00842
+      ],
+      "tau_cmd_cross_check": [
+        0.70912,
+        0.06786,
+        -0.0118,
+        0.055,
+        0.02387
+      ],
+      "tau_fit": [
+        0.68097,
+        -0.02974,
+        -0.00728,
+        0.07139,
+        0.00842
+      ],
+      "tau_meas": [
+        0.71081,
+        0.06044,
+        -0.00339,
+        0.05838,
+        0.02771
+      ]
+    },
+    {
+      "approaches": [
+        {
+          "approach": "below",
+          "q": [
+            0.52344,
+            -0.00068,
+            0.00024,
+            -0.00076,
+            -0.00137
+          ],
+          "samples": 76,
+          "tau_meas": [
+            0.99304,
+            0.05206,
+            -0.01354,
+            0.19247,
+            0.03553
+          ],
+          "window_s": 1.5
+        },
+        {
+          "approach": "above",
+          "q": [
+            0.52314,
+            -0.00065,
+            0.00023,
+            -0.00083,
+            -0.00132
+          ],
+          "samples": 76,
+          "tau_meas": [
+            1.00417,
+            0.07686,
+            -0.01685,
+            0.1946,
+            0.0357
+          ],
+          "window_s": 1.5
+        }
+      ],
+      "friction_half_diff": [
+        -0.00557,
+        -0.0124,
+        0.00165,
+        -0.00106,
+        -0.00009
+      ],
+      "label": "right_shoulder_pitch 0.508 rad [20261004T084416Z]",
+      "q": [
+        0.52329,
+        -0.00066,
+        0.00023,
+        -0.00079,
+        -0.00135
+      ],
+      "tau_cad": [
+        1.444,
+        -0.02394,
+        -0.0128,
+        0.17017,
+        0.01657
+      ],
+      "tau_cmd_cross_check": [
+        0.9904,
+        0.07007,
+        -0.01783,
+        0.18011,
+        0.03059
+      ],
+      "tau_fit": [
+        1.30943,
+        -0.02655,
+        -0.0144,
+        0.14245,
+        0.01657
+      ],
+      "tau_meas": [
+        0.99861,
+        0.06446,
+        -0.0152,
+        0.19354,
+        0.03561
+      ]
+    }
+  ],
+  "residual_nm": {
+    "max_abs_after": 0.32724,
+    "max_abs_before": 0.44539,
+    "rms_after": 0.10591,
+    "rms_before": 0.11452
+  },
+  "sessions": [
+    {
+      "approach_offset_rad": 0.05,
+      "dir": "var/gravity-calibration/20261004T084416Z",
+      "fixed_rad": {},
+      "gravity_gate_report": "gravity gate (basis=hanging_rest): gateway RobotState snapshot unavailable; a disabled drive reports ~0 Nm regardless of load, so the gate checks |τ_g| at the arm_attached hanging rest pose (physical gravity torque ~0)\n  right_shoulder_pitch: q=0.0000 rad τ_g=0.0337 Nm residual=0.0337 Nm ok\n  right_shoulder_roll: q=0.0000 rad τ_g=-0.0258 Nm residual=0.0258 Nm ok\n  right_upper_arm_yaw: q=0.0000 rad τ_g=0.0000 Nm residual=0.0000 Nm ok\n  right_elbow_pitch: q=0.0000 rad τ_g=-0.0026 Nm residual=0.0026 Nm ok\n  right_lower_arm_yaw: q=0.0000 rad τ_g=0.0000 Nm residual=0.0000 Nm ok\nPASS gravity gate: |τ_g| at the hanging rest < 0.20 Nm on every modeled joint",
+      "measure_sec": 1.5,
+      "plan_version": 2,
+      "poses_rad": [
+        -0.508,
+        -0.254,
+        0.0,
+        0.254,
+        0.508
+      ],
+      "profile": "arm_attached",
+      "session_complete": true,
+      "session_ts": "20261004T084416Z",
+      "skipped_steps": [],
+      "sweep_joint": "right_shoulder_pitch",
+      "wave_steps": [
+        {
+          "joint": "right_shoulder_pitch",
+          "moving_samples": 151,
+          "plan_index": 13
+        },
+        {
+          "joint": "right_shoulder_pitch",
+          "moving_samples": 233,
+          "plan_index": 14
+        },
+        {
+          "joint": "right_shoulder_pitch",
+          "moving_samples": 83,
+          "plan_index": 15
+        }
+      ]
+    }
+  ],
+  "urdf_base": "Pi live URDF captured before the session (pi-marengo.urdf), ADR 0017",
+  "verdict": "refused: max residual after fit 0.3272 Nm > 0.10 Nm",
+  "version": 2
+}
