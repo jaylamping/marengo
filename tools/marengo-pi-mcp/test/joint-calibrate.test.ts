@@ -53,7 +53,9 @@ const REPO = new URL("../../../", import.meta.url);
 const repoFile = (rel: string) => readFileSync(new URL(rel, REPO), "utf8");
 const FILES = {
   robotYaml: repoFile("config/robot.yaml"),
-  controlYaml: repoFile("config/control.yaml"),
+  // Pinned pre-trial copy (pitch fc 0.08, accel 4.5): wave sizing is asserted
+  // against these numbers, not whatever the master tuning is today.
+  controlYaml: readFileSync(new URL("./fixtures/control-pre-pitch-trial.yaml", import.meta.url), "utf8"),
   motorsYaml: repoFile("config/motors.yaml"),
   urdf: repoFile("assets/urdf/marengo.urdf"),
 };
