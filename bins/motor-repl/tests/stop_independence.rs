@@ -162,12 +162,13 @@ fn sigterm_disables_every_drive_then_exits_143() {
             break;
         }
     }
-    let pid = child.id().to_string();
-    assert!(Command::new("kill")
-        .args(["-TERM", &pid])
-        .status()
-        .expect("kill")
-        .success());
+    // In-process signal: the CI dev image has no procps `kill` binary.
+    let pid = i32::try_from(child.id()).expect("pid fits pid_t");
+    nix::sys::signal::kill(
+        nix::unistd::Pid::from_raw(pid),
+        nix::sys::signal::Signal::SIGTERM,
+    )
+    .expect("send SIGTERM");
     let mut rest = String::new();
     std::io::Read::read_to_string(&mut stderr, &mut rest).expect("drain stderr");
     let status = child.wait().expect("wait");

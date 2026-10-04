@@ -1647,6 +1647,7 @@ dependencies = [
  "davout",
  "marengo-config",
  "marengo-support",
+ "nix 0.29.0",
  "robstride",
  "signal-hook",
  "tempfile",
