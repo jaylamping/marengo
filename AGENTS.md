@@ -68,7 +68,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
   - `enable failed: …`, `enable blocked: …`, `enable refused: …` (stderr), `home failed: …`
 - **Enable completion gate:** `enabled` prints only after every target is Active, has no pending Enable writes, and has fresh feedback (`ENABLE_COMPLETION_TIMEOUT` = 2 s, after which all drives stop). `hold-on`/`hold-at`/`wave` sent earlier are deferred.
 - **Gravity preflight:** stdin/Chappe Enable and Testing Position auto-enable first run the gravity saturation sweep, at most 2 ms per tick (`bins/marengo-pi/src/gravity_preflight.rs`), so `waiting for enable to complete` arrives about 0.2 s after `enable` on the Pi. Commands sent meanwhile, except `disable`/`quit`, wait and then run in order. If the sweep refuses or is voided (stop, new fault, reference work, limit change), the waiting commands are discarded: `enable refused: …` is printed, followed by `discarded N deferred command(s)`.
-- **motor-repl** supports only `status | disable | set-zero <joint> [--sign-tested] | gravity-preview <q × all joints>`. A partial angle vector is refused.
+- **motor-repl** supports only `status | disable | set-zero <joint> [--sign-tested] | protocol-inspect [joint...] | gravity-preview <q × all joints>`. A partial angle vector is refused. `protocol-inspect` is read-only on Disabled drives (ADR 0037).
 
 ---
 
@@ -84,7 +84,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 | `assets/urdf/marengo.urdf` | Kinematic + inertial source of truth (no meshes); `assets/mjcf/` holds the sim models |
 | `tools/` | `marengo-pi-mcp` (Pi bench tools), `marengo-research-mcp` (Python/uv), `limit-sync-local`, `compound-auto-learn` |
 | `scripts/` | `check.sh`, deploy/install, `pi-remote.sh`, vcan, systemd units (`scripts/systemd/`) |
-| `docs/` | `safety.md`, `rust-patterns.md`, ADRs `decisions/0001–0036`, `commissioning/`, `reviews/` |
+| `docs/` | `safety.md`, `rust-patterns.md`, ADRs `decisions/0001–0037`, `commissioning/`, `reviews/` |
 | `sim/` | MuJoCo smoke (`sim/scripts/smoke_test.py`, `sim/fixtures/minimal.xml`) |
 | `cad/`, `hardware/` | Manifests and docs only; SolidWorks binaries are local to the Windows host |
 | `var/` | Runtime output; `var/log`, `var/enable-soak`, `var/gravity-calibration` and `var/firmware-captures` are gitignored |

@@ -468,8 +468,8 @@ disables. The fault does not clear on its own.
   pre-session disable did not reach every drive. Reference-independent stopping
   through the installed owner remains required; use the physical E-stop as the
   independent stop path.
-- **No drive-side or independent watchdog:** `ParameterId::CanTimeout` (0x7028)
-  is never written or read back and nothing outside the 200 Hz thread watches it,
+- **No drive-side or independent watchdog:** Marengo never writes `ParameterId::CanTimeout` (0x7028);
+  `motor-repl protocol-inspect` / `pi_protocol_inspect` read it back (ADR 0037). Nothing outside the 200 Hz thread watches it,
   so a killed or hung `marengo-pi` leaves each drive on its last MIT frame
   (including τ_g feed-forward). SIGTERM is handled (`finish_owner_shutdown`);
   SIGKILL, panic and a hung loop are not. Undecided, see
