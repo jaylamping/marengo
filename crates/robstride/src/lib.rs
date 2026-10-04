@@ -16,6 +16,8 @@
 //!   detailed-fault/warning payloads, malformed prefixes and transport errors in raw delivery order.
 //! - [`receive`]: one shared nonblocking engine caps every poll at 64 raw frames and 256
 //!   read attempts, preserving unread suffixes and distinguishing quiescence from incomplete work.
+//! - [`rx_time`]: SocketCAN kernel receive times mapped onto `Instant`, never later than
+//!   the read; absent or implausible stamps are counted and logged.
 //! - [`state::MotorState`]: replaceable latest-state compatibility projection, not fault authority.
 //! - [`wire`]: direction-aware classification of captured frames (host command vs drive
 //!   frame) for offline candump analysis.
@@ -49,6 +51,7 @@ pub mod mit;
 pub mod motor_type;
 pub mod params;
 pub mod receive;
+pub mod rx_time;
 pub mod state;
 pub mod wire;
 
@@ -84,6 +87,7 @@ pub use receive::{
     RawReceiveReport, ReceiveAttempt, ReceiveCompletion, ReceiveLimits, MAX_RX_ATTEMPTS_PER_POLL,
     MAX_RX_FRAMES_PER_POLL,
 };
+pub use rx_time::{RxTimestampCounts, MAX_KERNEL_RX_AGE};
 pub use state::MotorState;
 pub use wire::{classify_frame, DriveFrame, HostCommand, MitCommandFields, WireFrame};
 
