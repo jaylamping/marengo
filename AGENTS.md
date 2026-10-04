@@ -217,7 +217,8 @@ just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
 **MCP-first (`.cursor/rules/pi-mcp-first.mdc`):** use `pi_*` tools for Pi actions; never ask the user to run deploys or paste logs.
 - After `just mcp-build`, restart the server, because a stale server exposes stale tools.
 - Motion tools need `confirm: true`. Weighted profiles, including the default `elbow_attached`, also need `confirm_weighted_motion: true`.
-- Reference sessions (`pi_hold_on`, `pi_bench_harness`, `pi_gravity_calibrate`, `pi_enable_soak`) need `set_zero` + `at_mechanical_reference`.
+- Reference sessions (`pi_hold_on`, `pi_bench_harness`, `pi_gravity_calibrate`, `pi_joint_calibrate`, `pi_motion_suite`, `pi_enable_soak`) need `set_zero` + `at_mechanical_reference`.
+- `pi_motion_suite` runs the single-joint motion suite (long/short moves, reversals, sweeps, gravity-extreme holds, repeats) over several ≤ 300 s sessions and scores every move with `scripts/analyze-position-trace.py --score-bench`.
 - A gravity gate (residual < 0.20 Nm) runs before enable.
 - `pi_sync_bench_config` syncs YAML only; use `pi_sync_bench_urdf` for the URDF (ADR 0017).
 - Never put env in `.cursor/mcp.json`; defaults live in `tools/marengo-pi-mcp/src/launch.ts`.

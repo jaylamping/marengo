@@ -32,7 +32,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - `position_law` — ADR 0039 scaled-PD law, selected per joint by `control.yaml` `position_law: scaled_pd` (default `legacy`): drive-side PD with constant kd, a reference that changes velocity by at most `a_max·dt` and slows as its lead grows from `e0` to `e1`, friction FF on the reference velocity, leaky integral.
 - `mit_feedforward` — `MitFeedforward::compose` for non-Position Active modes; consumes pre-resolved `wire_kp` / `wire_kd` / `fc`.
 - `position_friction` — Two-rule friction model: trajectory-velocity Coulomb + settle fade (ADR 0007). Constants for onset window, deadband, hysteresis.
-- `position_trace` — Optional CSV trace file (`MARENGO_POSITION_TRACE` env var) for high-rate position-hold debugging. Rows are written after the Davout send; ADR 0039 columns `law,q_ref,dq_ref,time_scale,tau_i,kd_mit,tau_ff_wire` are appended.
+- `position_trace` — Optional CSV trace file (`MARENGO_POSITION_TRACE` env var) for high-rate position-hold debugging. Rows are written after the Davout send; ADR 0039 columns `law,q_ref,dq_ref,time_scale,tau_i,kd_mit,tau_ff_wire` are appended. `MARENGO_POSITION_TRACE_HZ` decimates; joints in `MARENGO_POSITION_TRACE_FULL_RATE_JOINTS` are traced every tick. Rows are formatted into one reused buffer (no per-row allocation).
 - `position_wave` — In-loop triangle wave generator on one joint while others hold (bench diagnostics).
 - `mode_isolation` (test-only) — Property tests verifying non-gravity FF components (tau_f, tau_d) are independent of tau_g changes.
 

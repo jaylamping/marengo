@@ -300,6 +300,7 @@ export function registerGravityCalibrateTools(
           runFit: args.run_fit !== false,
           fitParams: args.fit_params ?? [],
           fitIncomplete: false,
+          fullRateJoints: [plan.sweepJoint],
           plan: ({ sessionTs, gateReport, sessionExit }) => ({
             complete: sessionExit === 0,
             json: {

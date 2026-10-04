@@ -168,6 +168,10 @@ export interface JointLimits {
   trajectoryVelocityRadS?: number;
   /** control.yaml position_trajectory_accel_rad_s2, when set (marengo-pi wave admission). */
   trajectoryAccelRadS2?: number;
+  /** control.yaml position_slew_rad_s, when set (planner speed of moves ≤ the threshold). */
+  positionSlewRadS?: number;
+  /** control.yaml position_trajectory_threshold_rad: moves up to this run at the slew speed. */
+  trajectoryThresholdRad?: number;
   /** control.yaml impedance.kp: the P gain that drives a local wave through stiction. */
   kp?: number;
   /** control.yaml friction breakaway `fs`, else Coulomb `fc` (Nm). */
@@ -232,7 +236,7 @@ export function wavePeakSpeed(minRad: number, maxRad: number, halfPeriodS: numbe
 }
 
 /** Highest wave peak speed marengo-pi admits for `span`, within 80 % of the velocity cap. */
-function admissibleWaveSpeed(limits: JointLimits, span: number): number {
+export function admissibleWaveSpeed(limits: JointLimits, span: number): number {
   return Math.min(
     SPEED_CAP_SHARE * limits.velocityCapRadS,
     limits.trajectoryVelocityRadS ?? Number.POSITIVE_INFINITY,
@@ -593,6 +597,8 @@ export function readJointLimits(
       velocityCapRadS: velocityCap,
       trajectoryVelocityRadS: yamlNumber(yamlGet(entry, "position_trajectory_velocity_rad_s")),
       trajectoryAccelRadS2: yamlNumber(yamlGet(entry, "position_trajectory_accel_rad_s2")),
+      positionSlewRadS: yamlNumber(yamlGet(entry, "position_slew_rad_s")),
+      trajectoryThresholdRad: yamlNumber(yamlGet(entry, "position_trajectory_threshold_rad")),
       kp: yamlNumber(yamlGet(entry, "impedance", "kp")),
       breakawayNm: yamlNumber(yamlGet(friction, "fs")) ?? yamlNumber(yamlGet(friction, "fc")),
     };
@@ -1176,6 +1182,7 @@ export function registerJointCalibrateTools(
           runFit: args.run_fit !== false,
           fitParams: [],
           fitIncomplete: true,
+          fullRateJoints: [sweepJoint],
           plan: ({ sessionTs, gateReport, sessionExit, trace }) => {
             const complete =
               sessionExit === 0 && trace !== undefined && stepsSeenInTrace(plan.steps, trace) === plan.steps.length;

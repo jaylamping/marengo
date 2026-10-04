@@ -412,6 +412,51 @@ fn uncommanded_peer_is_exempt_beside_a_wave_joint_but_commanded_peer_trips() {
     );
 }
 
+#[test]
+fn wave_velocity_feedforward_follows_the_wave_above_slew_speed() {
+    // Bench 2026-10-04 (pitch, velocity_passes): a ±0.5 rad wave peaking at 0.49–0.79 rad/s
+    // sent dq_ref = 0.15 rad/s (the slew) because the per-tick target is always within the
+    // trajectory threshold of q. The velocity reference must be the wave's own velocity, capped
+    // only by the velocity cap and the trajectory speed the wave was admitted under.
+    let scaled = ScaledPdGains {
+        kd: 3.0,
+        e0: 0.03,
+        e1: 0.12,
+        integral_band: 0.02,
+        integral_leak_s: 0.5,
+        friction: None,
+    };
+    for law in [HoldLaw::Legacy, HoldLaw::ScaledPd(scaled)] {
+        let wave = PositionWave::new(0, -0.5, 0.5, 0, 400, 1);
+        let mut shadow = wave.clone();
+        let mut rig = Rig::new(1);
+        rig.params[0].law = law;
+        rig.hold.arm(&[-0.5], &[-0.5], 0);
+        rig.wave = Some(wave);
+        let mut q = -0.5;
+        let (mut peak_ref, mut peak_wire) = (0.0_f64, 0.0_f64);
+        for tick in 1..800_u64 {
+            let (next, v_wave) = shadow
+                .target_and_velocity_at_tick(tick, HZ)
+                .expect("wave running");
+            let dq = (next - q) / PERIOD_S;
+            q = next;
+            let out = rig.tick(&[q], &[dq], &[0.0]).unwrap();
+            let d = &out.diag[0];
+            assert!(
+                (d.dq_ref - v_wave).abs() < 1e-6,
+                "tick {tick}: dq_ref {} vs wave {v_wave}",
+                d.dq_ref
+            );
+            peak_ref = peak_ref.max(d.dq_ref.abs());
+            peak_wire = peak_wire.max(d.mit_velocity.abs());
+        }
+        // Peak π·A/T = π·0.5/2 s ≈ 0.785 rad/s, far above the 0.15 rad/s slew.
+        assert!(peak_ref > 0.78, "peak velocity reference {peak_ref}");
+        assert!(peak_wire > 0.78, "peak wire velocity {peak_wire}");
+    }
+}
+
 // ---- L-berthier-19 / G2: Berthier clamps planner speed to the Davout cap -------------------
 
 fn max_planner_speed(cap: Option<f64>) -> (f64, f64) {

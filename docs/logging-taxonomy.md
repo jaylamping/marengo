@@ -58,7 +58,7 @@ S0 events are never dropped by design. S2/S3 are intentionally throttled before 
 | Tool | When |
 |------|------|
 | `robstride=trace` | CAN bring-up only |
-| `MARENGO_POSITION_TRACE` | Position-hold bench CSV |
+| `MARENGO_POSITION_TRACE` | Position-hold bench CSV (`MARENGO_POSITION_TRACE_HZ` decimates; joints in `MARENGO_POSITION_TRACE_FULL_RATE_JOINTS` keep every tick, which the bench scorer needs for the τ_ff step) |
 | candump files | Wire truth vs code trace |
 | `journal-import` | Nightly systemd history |
 
