@@ -77,3 +77,20 @@ fn configured_joint_order_defines_input_and_output_order() {
     let model = model("two-link.urdf", &["elbow", "shoulder"]);
     assert_torques(&model, &[0.0, FRAC_PI_2], &[7.3575, 46.5975]);
 }
+
+#[test]
+fn joint_inertia_sums_carried_point_masses_and_link_tensors() {
+    // About the shoulder: upper 2·0.5² + 0.01; distal 3·(distance to the axis)² + 0.01, the
+    // distance being 1.25 m when straight and √(1² + 0.25²) m with the elbow at π/2.
+    // About the elbow: 3·0.25² + 0.01 at any pose.
+    let model = model("two-link.urdf", &["shoulder", "elbow"]);
+    for (q, shoulder, elbow) in [
+        ([0.0, 0.0], 0.51 + 4.6975, 0.1975),
+        ([0.7, FRAC_PI_2], 0.51 + 3.1975, 0.1975),
+    ] {
+        let got = model.joint_inertia("shoulder", &q).expect("shoulder");
+        assert!((got - shoulder).abs() < 1e-9, "shoulder at {q:?}: {got}");
+        let got = model.joint_inertia("elbow", &q).expect("elbow");
+        assert!((got - elbow).abs() < 1e-9, "elbow at {q:?}: {got}");
+    }
+}

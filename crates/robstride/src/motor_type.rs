@@ -66,4 +66,10 @@ impl MitRanges {
     pub fn feedback_position_step(self) -> f64 {
         f64::from(self.position_scale) / f64::from(crate::mit::SIGNED_FIELD_CENTER)
     }
+
+    /// Nominal adjacent torque-feedback code spacing (Nm), before joint conversion: the
+    /// readout resolution of the drive's torque estimate.
+    pub fn feedback_torque_step(self) -> f64 {
+        f64::from(self.torque_scale) / f64::from(crate::mit::SIGNED_FIELD_CENTER)
+    }
 }
