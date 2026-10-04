@@ -573,7 +573,14 @@ describe("pi_joint_calibrate session and v2 plan.json", () => {
 describe("pi_joint_calibrate wave method", () => {
   const wavePlan = (joint: string, amplitudeRad: number, overrides: Partial<Parameters<typeof planJointCalibration>[0]> = {}) => {
     const limits = repoLimits();
-    const waves = localWaves(joint, limits[joint], amplitudeRad, 200);
+    // Like the tool: plan the poses first, then the speeds every pose's wave admits.
+    const envelope = plan({
+      sweepJoint: joint,
+      method: "wave",
+      waves: { amplitudeRad, passes: [{ half_period_s: 1, cycles: 1 }] },
+      ...overrides,
+    });
+    const waves = localWaves(joint, limits[joint], amplitudeRad, 200, undefined, envelope.posesRad);
     assert.ok(waves.ok, waves.ok ? "" : waves.message);
     return plan({ sweepJoint: joint, method: "wave", waves: waves.waves, ...overrides });
   };

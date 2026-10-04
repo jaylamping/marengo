@@ -385,6 +385,26 @@ Costs of the lower acceleration:
 The lever the ADR names, `J_eff·a_c`, would restore the acceleration. `J_eff` is now bounded by
 the fit (ΔI −0.028 ± 0.034 kg·m² about the URDF), but the law has no key for it yet.
 
+### Phase 3 pitch bench fix (October 4, 2026)
+
+The motion suite (`var/motion-suite/20261004T1306…1311Z`) failed slow waves and slow moves
+(track 0.031–0.049 rad), 0.31 rad/s waves (+22 %), 1.1 rad/s waves (+29–37 %) and one stop
+(10.2 mrad). From the every-tick traces:
+- **Friction falls with speed**: ≈ 0.6 Nm at 0.05 rad/s, 0.37 above 0.2 rad/s; the slope
+  `(fs − fc)/v_b ≈ 3.5 Nm·s/rad` exceeded kd 3, so slow motion stick-slips. Gravity is within
+  ±0.05 Nm everywhere (not the cause near 1.2 rad).
+- **The danger zone `elevated_shoulder_pitch_fall`** clamped v_des to −0.45 rad/s above 0.5 rad;
+  with kd it braked 1.1 rad/s descents (lag 0.1 rad) and released with a ~2 Nm step.
+- **No `J·a` feed-forward**: braking came from a P lead of `J·a/kp`.
+- **Position-periodic torque ripple** (28.6 cycles/rad) drives the 0.31 rad/s speed ripple.
+
+Changes: `J·a` feed-forward with the URDF inertia at the zero pose, and `τ_fric + J·a` slewed at
+6 Nm/s (0.03 Nm per tick); pitch kd 3 → 5, friction fs 0.65, v_b 0.08, k 10 → 15; the scaled-PD
+reference and wave admission (`marengo-pi`, `pi_motion_suite`, `pi_joint_calibrate`) keep descents
+above every `clamp_velocity` zone threshold within its speed (wave: `peak·√(1 − u²)`,
+`u = (max(above, c) − c)/A`). The 0.45 rad/s zone value is an open operator question.
+`position_hold_tests/bench_replay.rs` replays the suite against a plant fitted to the traces.
+
 ## Implementation plan
 
 1. **Phase 0: quick fixes and observability.** Done.

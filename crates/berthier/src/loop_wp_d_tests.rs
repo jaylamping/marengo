@@ -330,6 +330,52 @@ fn wave_admission_refuses_non_finite_out_of_range_and_too_aggressive_waves() {
     assert!(ctrl.position_wave_active());
 }
 
+#[test]
+fn wave_admission_keeps_descents_above_a_danger_zone_within_its_speed() {
+    // Master pitch has a `clamp_velocity` zone; with drive damping Davout's clamp would brake
+    // a faster wave and step the torque when it releases, so admission refuses the wave.
+    let mut ctrl = test_loop();
+    ready_active_at(&mut ctrl, 0.02);
+    let cap = DescentCap::from_zones(&ctrl.supervisor().control.control.danger_zones, JOINT)
+        .expect("master pitch descent zone");
+    let min_half = |lo: f64, hi: f64| {
+        std::f64::consts::PI * 0.5 * (hi - lo) * cap.wave_descent_speed(lo, hi, 1.0)
+            / cap.max_velocity_rad_s
+    };
+    // Full window, centre below the threshold; then a band centred above it.
+    for (lo, hi) in [(-1.038, 1.2), (cap.above_rad + 0.1, cap.above_rad + 0.7)] {
+        let t_min = min_half(lo, hi);
+        let err = ctrl
+            .start_position_wave(JOINT, lo, hi, 1, t_min - 0.1)
+            .expect_err("descends faster than the zone allows");
+        match err {
+            LoopError::WaveExceedsDangerZone {
+                requested,
+                limit,
+                min_half_period_s,
+                ..
+            } => {
+                assert!(requested > limit, "{requested} vs {limit}");
+                assert!((min_half_period_s - t_min).abs() < 1e-9);
+            }
+            other => panic!("expected a danger-zone refusal, got {other:?}"),
+        }
+        assert!(!ctrl.position_wave_active());
+    }
+    // A band that never rises above the threshold may peak above the zone speed.
+    let (lo, hi) = (cap.above_rad - 0.9, cap.above_rad - 0.1);
+    let half = 2.5;
+    assert!(std::f64::consts::PI * 0.5 * (hi - lo) / half > cap.max_velocity_rad_s);
+    ctrl.start_position_wave(JOINT, lo, hi, 1, half)
+        .expect("no descent above the threshold");
+    assert!(ctrl.position_wave_active());
+    // Just above the zone's minimum half period, the full window is admitted.
+    let mut ctrl = test_loop();
+    ready_active_at(&mut ctrl, 0.02);
+    ctrl.start_position_wave(JOINT, -1.038, 1.2, 1, min_half(-1.038, 1.2) + 0.05)
+        .expect("within the zone speed");
+}
+
 // ---- L-berthier-14 -------------------------------------------------------------------------
 
 #[test]

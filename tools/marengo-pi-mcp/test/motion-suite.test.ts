@@ -4,7 +4,13 @@ import { readFileSync } from "node:fs";
 import type { MarengoPiConfig } from "../src/config.js";
 import { MASTER_JOINTS } from "../src/bench-profiles.js";
 import { type CalibrationDeps, MAX_SESSION_SLEEP_SEC } from "../src/tools/calibration-session.js";
-import { type JointLimits, admissibleWaveSpeed, readJointLimits, wavePeakSpeed } from "../src/tools/joint-calibrate.js";
+import {
+  type JointLimits,
+  admissibleWaveSpeed,
+  readJointLimits,
+  waveDescentFactor,
+  wavePeakSpeed,
+} from "../src/tools/joint-calibrate.js";
 import { benchLogWrapper } from "../src/tools/motion.js";
 import {
   type MotionSuiteArgs,
@@ -118,11 +124,38 @@ describe("pi_motion_suite plan", () => {
   it("single-cycle wave half periods hit the speed fraction of the admissible speed", () => {
     const l = repoLimits()[PITCH];
     for (const span of [0.425, 0.85, 1.53, 1.7]) {
-      const vAdm = admissibleWaveSpeed(l, span);
+      const vAdm = admissibleWaveSpeed(l, -span / 2, span / 2);
       for (const share of [0.25, 0.5, 0.9]) {
-        const half = suiteWaveHalfPeriod(l, span, share);
+        const half = suiteWaveHalfPeriod(l, -span / 2, span / 2, share);
         const peak = wavePeakSpeed(0, span, half);
         assert.ok(peak <= share * vAdm + 1e-9 && peak >= 0.97 * share * vAdm, `${span} ${share}: ${peak} vs ${share * vAdm}`);
+      }
+    }
+  });
+
+  it("keeps every wave's descent above the pitch danger zone within its speed", () => {
+    // Master pitch: clamp_velocity above position_above_rad. Davout would clamp a faster
+    // descent there and, with drive damping, brake the wave (bench 2026-10-04: +29–37 %).
+    const l = repoLimits()[PITCH];
+    const cap = l.descentCap;
+    assert.ok(cap !== undefined, "master pitch has a descent zone");
+    const [lo, hi] = [-1.038, 1.2];
+    const factor = waveDescentFactor(lo, hi, cap.aboveRad);
+    assert.ok(factor > 0 && factor < 1);
+    const vAdm = admissibleWaveSpeed(l, lo, hi);
+    assert.ok(Math.abs(vAdm - cap.maxVelocityRadS / factor) < 1e-12, `${vAdm}`);
+    const half = suiteWaveHalfPeriod(l, lo, hi, 0.9);
+    assert.ok(wavePeakSpeed(lo, hi, half) * factor <= cap.maxVelocityRadS + 1e-9);
+    // A band that never reaches the threshold keeps the other limits only.
+    assert.equal(waveDescentFactor(-0.5, cap.aboveRad, cap.aboveRad), 0);
+    const g = geometry(PITCH, PITCH_TAU);
+    const p = planSuite({ geometry: g, chain: CHAIN, limits: repoLimits(), sessions: SUITE_SESSIONS, options: OPTIONS });
+    assert.ok(p.ok, p.ok ? "" : p.message);
+    for (const part of p.parts) {
+      for (const s of part.steps) {
+        if (s.kind !== "wave") continue;
+        const descent = wavePeakSpeed(s.min_rad, s.max_rad, s.half_period_s) * waveDescentFactor(s.min_rad, s.max_rad, cap.aboveRad);
+        assert.ok(descent <= cap.maxVelocityRadS + 1e-9, `${part.name} [${s.min_rad}, ${s.max_rad}] T ${s.half_period_s}: ${descent}`);
       }
     }
   });

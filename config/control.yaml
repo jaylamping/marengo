@@ -96,8 +96,11 @@ control:
         ki: 0.0
       impedance:
         kp: 18.0
-        # scaled_pd: drive kd (kd_mit), constant on the wire in Position.
-        kd: 3.0
+        # scaled_pd: drive kd (kd_mit), constant on the wire in Position. 5 (was 3): the
+        # 2026-10-04 motion suite fits friction falling from ≈ 0.6 Nm at 0.05 rad/s to 0.37
+        # above 0.2 rad/s, a slope down to −(fs − fc)/v_b ≈ −3.5 Nm·s/rad that kd 3 did not
+        # out-damp (stick-slip on slow waves and slow moves). ADR 0039 Phase 3 bench fix.
+        kd: 5.0
         ki: 5.0
       # ADR 0039 Phase 3 bench trial (pitch only; every other joint stays legacy).
       # e1 = position_slew_max_lead_rad (stop band) and e0 = e1/4 (full-rate band), the
@@ -108,6 +111,9 @@ control:
       # - reference accel 1.5 (was 4.5): fc·k·a·dt bounds the τ_ff step per tick
       #   (0.079 Nm at 4.5 with fc 0.353), and without J·a feed-forward the stop
       #   overshoot is ≈ I·a/kp (up to 27 mrad at 4.5). Docs: ADR 0039 Phase 3 trial.
+      # - friction fs 0.65 / v_b 0.08 (Stribeck, fitted to the motion-suite traces) and k 15
+      #   (was 10): the reference friction rises to the low-speed level the joint sees; the
+      #   law's J·a + friction slew limit keeps the τ_ff step ≤ 0.05 Nm.
       position_law: scaled_pd
       position_time_scale_e0_rad: 0.03
       position_integral_band_rad: 0.02
@@ -130,7 +136,9 @@ control:
         fc: 0.3526
         fv: 0.0
         fo: 0.0
-        k: 10.0
+        k: 15.0
+        fs: 0.65
+        v_b: 0.08
     right_upper_arm_yaw:
       motor_type: rs02
       # ADR 0038 bound on the 2026-10-04 fitted URDF: pitch 2.86+0.54, roll 2.50+0.53 Nm.

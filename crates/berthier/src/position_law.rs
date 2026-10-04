@@ -11,7 +11,8 @@
 //!         else 1
 //! (q_ref, v_ref) ← trapezoid step toward the target with speed limit s·v_max, |Δv_ref| ≤ a_max·dt
 //! MIT:  position = clamp_envelope(q_ref), velocity = v_ref, kp, kd (constant),
-//!       τ_ff = τ_g + τ_fric(v_ref) + fo + τ_I
+//!       τ_ff = τ_g + τ_dyn + fo + τ_I
+//! τ_dyn → τ_fric(v_ref) + J·a_ref, moving at most SCALED_PD_DYNAMIC_FF_RATE_NM_S·dt per tick
 //! ```
 //!
 //! The time scale `s` governs the reference *speed limit*, not its clock: the reference keeps
@@ -19,6 +20,12 @@
 //! and the commanded velocity changes by at most `a_max·dt` per tick.
 //!
 //! No torque term uses measured `dq`; damping is the drive's `kd·(v_ref − dq)`.
+//!
+//! `a_ref` is the reference's own velocity change per tick, so the feed-forward supplies the
+//! torque the reference's acceleration and braking need instead of a P lead of `J·a/kp` (a stop
+//! overshoot of that size once friction holds the joint). The trapezoid's acceleration steps
+//! between 0 and ±a_max, and the friction slope at rest is `fs·k`; the rate limit keeps both
+//! from stepping τ_ff by more than the bench's per-tick bound.
 
 use marengo_config::FrictionGains;
 
@@ -29,6 +36,11 @@ const REFERENCE_TOLERANCE_RAD: f64 = 1e-4;
 
 /// Ceiling on the integral torque `|τ_I|` (Nm), shared with the legacy law.
 pub const SCALED_PD_INTEGRAL_MAX_NM: f64 = 0.5;
+
+/// Slew limit of the dynamic feed-forward `τ_fric + J·a` (Nm/s): 0.03 Nm per 5 ms tick, so
+/// with the gravity term's own change (≤ A·v_max·dt ≈ 0.017 Nm on the pitch) one tick's τ_ff
+/// step stays under the 0.05 Nm bench bound.
+pub const SCALED_PD_DYNAMIC_FF_RATE_NM_S: f64 = 6.0;
 
 /// Smooth friction feed-forward evaluated on the reference velocity (ADR 0039).
 ///
@@ -90,6 +102,8 @@ pub struct ScaledPdGains {
     pub integral_band: f64,
     /// Integral leak time constant outside the band (s).
     pub integral_leak_s: f64,
+    /// Inertia (kg·m²) the reference acceleration is fed forward with; `0` disables `J·a`.
+    pub inertia: f64,
     /// `None` when the joint has no friction model (no friction feed-forward).
     pub friction: Option<ReferenceFriction>,
 }
@@ -103,6 +117,10 @@ pub struct ScaledPdState {
     pub v_c: f64,
     /// Integral torque `τ_I` (Nm), stored in torque so gain changes never step it.
     pub tau_i: f64,
+    /// Reference velocity at the previous feed-forward (rad/s), for `a_ref`.
+    pub v_prev: f64,
+    /// Slew-limited `τ_fric + J·a` (Nm).
+    pub tau_dyn: f64,
 }
 
 impl Default for ScaledPdState {
@@ -111,6 +129,8 @@ impl Default for ScaledPdState {
             s: 1.0,
             v_c: 0.0,
             tau_i: 0.0,
+            v_prev: 0.0,
+            tau_dyn: 0.0,
         }
     }
 }
@@ -118,7 +138,7 @@ impl Default for ScaledPdState {
 /// Feed-forward parts of one scaled-PD tick (Nm).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScaledPdFeedforward {
-    /// `τ_fric(v_c) + fo`.
+    /// Slew-limited `τ_fric(v_c) + J·a_c`, plus `fo`.
     pub tau_fric: f64,
     pub tau_i: f64,
     /// `τ_g + tau_fric + tau_i`.
@@ -264,7 +284,9 @@ pub fn advance_reference(
     (q_next, v_next, phase)
 }
 
-/// Feed-forward for one tick: `τ_g + τ_fric(v_c) + fo + τ_I` (updates `state.tau_i`).
+/// Feed-forward for one tick: `τ_g + τ_dyn + τ_I`, where `τ_dyn` slews by at most
+/// [`SCALED_PD_DYNAMIC_FF_RATE_NM_S`]`·dt` toward `τ_fric(v_c) + fo + J·a_c` with
+/// `a_c = (v_c − v_prev)/dt` (updates `state.tau_i`, `state.tau_dyn`, `state.v_prev`).
 pub fn compose_feedforward(
     state: &mut ScaledPdState,
     gains: &ScaledPdGains,
@@ -273,9 +295,19 @@ pub fn compose_feedforward(
     tau_g: f64,
     dt: f64,
 ) -> ScaledPdFeedforward {
-    let tau_fric = gains
+    let friction = gains
         .friction
         .map_or(0.0, |friction| friction.torque(state.v_c) + friction.fo);
+    let accel = if dt > 0.0 {
+        (state.v_c - state.v_prev) / dt
+    } else {
+        0.0
+    };
+    state.v_prev = state.v_c;
+    let target = friction + gains.inertia * accel;
+    let step = SCALED_PD_DYNAMIC_FF_RATE_NM_S * dt.max(0.0);
+    let next = state.tau_dyn + (target - state.tau_dyn).clamp(-step, step);
+    state.tau_dyn = if next.is_finite() { next } else { 0.0 };
     state.tau_i = integral_step(
         state.tau_i,
         target_error,
@@ -285,9 +317,9 @@ pub fn compose_feedforward(
         dt,
     );
     ScaledPdFeedforward {
-        tau_fric,
+        tau_fric: state.tau_dyn,
         tau_i: state.tau_i,
-        tau_ff: tau_g + tau_fric + state.tau_i,
+        tau_ff: tau_g + state.tau_dyn + state.tau_i,
     }
 }
 

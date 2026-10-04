@@ -64,6 +64,7 @@ fn matrix_parameters() -> HoldJointParams {
         limit_policy: None,
         tau_meas: 0.0,
         law: HoldLaw::Legacy,
+        descent_cap: None,
     }
 }
 

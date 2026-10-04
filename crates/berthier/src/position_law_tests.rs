@@ -27,6 +27,7 @@ fn gains() -> ScaledPdGains {
         e1: E1,
         integral_band: 0.1,
         integral_leak_s: 0.5,
+        inertia: 0.0,
         friction: Some(friction()),
     }
 }
@@ -234,15 +235,50 @@ fn governor_slows_only_a_growing_lead() {
 
 #[test]
 fn feedforward_uses_reference_velocity_not_measurement() {
-    let mut state = ScaledPdState {
-        s: 1.0,
-        v_c: 0.0,
-        tau_i: 0.0,
-    };
+    let mut state = ScaledPdState::default();
     let at_rest = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 1.5, DT);
     assert_eq!(at_rest.tau_fric, 0.0);
     assert_eq!(at_rest.tau_ff, 1.5);
+    // A steady reference velocity (no acceleration): τ_dyn settles on τ_fric(v_c).
     state.v_c = 0.5;
-    let moving = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 1.5, DT);
+    state.v_prev = 0.5;
+    let mut moving = at_rest;
+    for _ in 0..100 {
+        moving = compose_feedforward(&mut state, &gains(), 0.0, 0.0, 1.5, DT);
+    }
     assert!((moving.tau_ff - (1.5 + friction().torque(0.5))).abs() < 1e-15);
+}
+
+#[test]
+fn acceleration_feedforward_is_j_times_a_and_never_steps_tau_ff() {
+    // A reference that accelerates at 1.5 rad/s², cruises, then brakes at 1.5 rad/s² (the
+    // pitch trapezoid): τ_dyn reaches τ_fric(v) + J·a while |a| is held, and never moves
+    // more than the slew limit per tick, although J·a itself steps by J·a_max = 0.21 Nm.
+    let inertia = 0.14;
+    let a_max = 1.5;
+    let g = ScaledPdGains { inertia, ..gains() };
+    let mut state = ScaledPdState::default();
+    let mut last = compose_feedforward(&mut state, &g, 0.0, 0.0, 0.0, DT).tau_ff;
+    let mut profile = vec![a_max; 100];
+    profile.extend(vec![0.0; 50]);
+    profile.extend(vec![-a_max; 100]);
+    let step_max = SCALED_PD_DYNAMIC_FF_RATE_NM_S * DT;
+    for (n, a) in profile.iter().enumerate() {
+        state.v_c += a * DT;
+        let ff = compose_feedforward(&mut state, &g, 0.0, 0.0, 0.0, DT);
+        assert!(
+            (ff.tau_ff - last).abs() <= step_max + 1e-12,
+            "tick {n}: τ_ff step {}",
+            ff.tau_ff - last
+        );
+        last = ff.tau_ff;
+        if n == 99 || n == 249 {
+            let want = friction().torque(state.v_c) + inertia * a;
+            assert!(
+                (ff.tau_fric - want).abs() < 1e-9,
+                "tick {n}: {} vs {want}",
+                ff.tau_fric
+            );
+        }
+    }
 }
