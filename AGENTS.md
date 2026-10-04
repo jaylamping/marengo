@@ -166,11 +166,11 @@ just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
   - Pace TX bursts with `BURST_GROUP_SPACING` = 2 ms (`davout/src/burst.rs`) and stagger Enables to one target per interface per period.
   - Fault, E-stop and shutdown stops are never paced.
 - **Write a type-24 Off and read its echo** before any Enable. Only own-TX echoes (`CAN_RAW_RECV_OWN_MSGS`) order wire events.
-- **Post-SetZero blackout** (firmware 0.3.1.42): drives go silent for about 45–61 ms, starting 511–614 ms after a SetZero.
+- **Post-SetZero blackout** (SetZero to an Enabled drive; firmware 0.3.1.42 on ids 1-2, 0.2.3.34 on 3-4, 0.0.3.32 on 5): drives go silent for about 45–61 ms, starting 511–614 ms after a SetZero.
   - No Enable or type-24 write before `POST_SET_ZERO_QUIET` = 800 ms. Type-24 writes are held from 450 ms.
   - `cargo test -p davout --test firmware_profile` guards the margin against `docs/commissioning/firmware/robstride-timing-profile.json`.
 - **RS03 MIT velocity scale is ±20 rad/s.** control.yaml values tuned under the old ±50 need bench re-checks. Never change physical tuning (gains, velocities, caps, limits) without bench evidence.
-- **E-stop GPIO is not wired;** the physical E-stop is authoritative. `marengo-pi.service` runs `ExecStopPost=-/opt/marengo/bin/motor-repl disable` on every exit. There is no drive-side CAN timeout.
+- **E-stop GPIO is not wired;** the physical E-stop is authoritative. `marengo-pi.service` runs `ExecStopPost=-/opt/marengo/bin/motor-repl disable` on every exit. Marengo never writes a drive-side CAN timeout, but PR #254 wrote CanTimeout = 600 (~30 ms) to all five right-arm drives with no record of it being cleared: treat the drive timeout as unknown until 0x7028 is read back (`docs/safety.md`).
 
 ---
 

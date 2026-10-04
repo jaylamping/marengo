@@ -1,0 +1,37 @@
+[
+  {
+    "ifindex": 3,
+    "ifname": "can0",
+    "flags": [
+      "NOARP",
+      "UP",
+      "LOWER_UP",
+      "ECHO"
+    ],
+    "mtu": 16,
+    "qdisc": "pfifo_fast",
+    "operstate": "UP",
+    "linkmode": "DEFAULT",
+    "group": "default",
+    "txqlen": 1000,
+    "link_type": "can",
+    "stats64": {
+      "rx": {
+        "bytes": 224619848,
+        "packets": 28077481,
+        "errors": 502,
+        "dropped": 0,
+        "over_errors": 502,
+        "multicast": 0
+      },
+      "tx": {
+        "bytes": 2260368,
+        "packets": 282546,
+        "errors": 0,
+        "dropped": 0,
+        "carrier_errors": 0,
+        "collisions": 0
+      }
+    }
+  }
+]

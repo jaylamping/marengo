@@ -1,0 +1,38 @@
+[
+  {
+    "name": "red-test.txt",
+    "external_path": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\red-test.txt",
+    "SHA256": "7d45c7514644a7fe26e315efc38044eea2182ac00e6747afcaa747dcf1becaff",
+    "bytes": 6597
+  },
+  {
+    "name": "green-test.txt",
+    "external_path": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\green-test.txt",
+    "SHA256": "fa18fdf6fd8dc3303e50019f83d7ad37b9e2f9f5ee932c7d02497a6a23700e43",
+    "bytes": 755
+  },
+  {
+    "name": "prior-publication-test.txt",
+    "external_path": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\prior-publication-test.txt",
+    "SHA256": "a7a6f394f210c95772506f9dedc3483a3e5114e396f990db0e1f6d3ce1fce2a2",
+    "bytes": 653
+  },
+  {
+    "name": "primary-2d0fd40.txt",
+    "external_path": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\primary-2d0fd40.txt",
+    "SHA256": "40b17a288e23b627efe21d8b6d89900a123387c97b4be58f53ed62e1d48cfef0",
+    "bytes": 280461
+  },
+  {
+    "name": "native-2d0fd40.txt",
+    "external_path": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\native-2d0fd40.txt",
+    "SHA256": "bef4af11049f212331b9393b82bec703b0d7e39cb6cb0f031612468d01709ca9",
+    "bytes": 130452
+  },
+  {
+    "name": "release-build.txt",
+    "external_path": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\release-build.txt",
+    "SHA256": "e04c0d662adf31fb9999ffb10b9851b8e0fb0ec339c8d93804fcc1f4b452d748",
+    "bytes": 10894
+  }
+]

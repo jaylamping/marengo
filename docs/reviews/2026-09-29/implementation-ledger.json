@@ -15562,6 +15562,23 @@
       "qualification": "evidence/batch34/final-source-qualification.json",
       "delivery": "evidence/batch34/delivery-receipt.json",
       "physical_acceptance": false
+    },
+    {
+      "batch_id": "batch38",
+      "findings": [
+        "CS04",
+        "CS13"
+      ],
+      "baseline": "386651981664b6242b2beda4b333b85e617c1378",
+      "source": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+      "PR": "https://github.com/jaylamping/marengo/pull/252",
+      "main": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
+      "source_CI": 37039819887,
+      "main_CI": 37043206357,
+      "status": "Software diagnostic slice delivered and installed; first retained owner receive evidence visible. Physical cause/reference/priority stop/recovery/movement unqualified. Existing finding dispositions preserved. Owner requested stopping point.",
+      "qualification": "evidence/batch38/source-qualification.json",
+      "delivery": "evidence/batch38/merge-receipt.json",
+      "physical_acceptance": false
     }
   ],
   "finding_status_counts": {

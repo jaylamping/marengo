@@ -1,0 +1,2097 @@
+{
+  "started_UTC": "2026-10-02T17:45:40.234802+00:00",
+  "ended_UTC": "2026-10-02T17:50:40.283456+00:00",
+  "installed_revision": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca 2026-10-02T17:30:02Z",
+  "owner_PID_unchanged": "708792",
+  "capture_exit": 124,
+  "capture_SHA256": "d6bcdce021c882bc37f8d8c6462a5be9d61fdcdd2c4e913525b576ef78a4251e",
+  "samples": [
+    {
+      "observed_ms": 1790963140277,
+      "producer_ms": 1790963140266,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963141285,
+      "producer_ms": 1790963141277,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963142292,
+      "producer_ms": 1790963142247,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963143299,
+      "producer_ms": 1790963143258,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963144307,
+      "producer_ms": 1790963144269,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963145317,
+      "producer_ms": 1790963145280,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963146327,
+      "producer_ms": 1790963146291,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963147337,
+      "producer_ms": 1790963147302,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963148347,
+      "producer_ms": 1790963148314,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963149357,
+      "producer_ms": 1790963149325,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963150367,
+      "producer_ms": 1790963150337,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963151377,
+      "producer_ms": 1790963151348,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963152387,
+      "producer_ms": 1790963152359,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963153397,
+      "producer_ms": 1790963153370,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963154407,
+      "producer_ms": 1790963154382,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963155417,
+      "producer_ms": 1790963155393,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963156427,
+      "producer_ms": 1790963156404,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963157437,
+      "producer_ms": 1790963157416,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963158447,
+      "producer_ms": 1790963158427,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963159457,
+      "producer_ms": 1790963159438,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963160467,
+      "producer_ms": 1790963160450,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963161477,
+      "producer_ms": 1790963161461,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963162487,
+      "producer_ms": 1790963162472,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963163498,
+      "producer_ms": 1790963163483,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963164508,
+      "producer_ms": 1790963164495,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963165519,
+      "producer_ms": 1790963165506,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963166530,
+      "producer_ms": 1790963166517,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963167541,
+      "producer_ms": 1790963167529,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963168552,
+      "producer_ms": 1790963168540,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963169562,
+      "producer_ms": 1790963169552,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963170572,
+      "producer_ms": 1790963170522,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963171581,
+      "producer_ms": 1790963171534,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963172591,
+      "producer_ms": 1790963172545,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963173601,
+      "producer_ms": 1790963173556,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963174611,
+      "producer_ms": 1790963174568,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963175620,
+      "producer_ms": 1790963175579,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963176630,
+      "producer_ms": 1790963176590,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963177639,
+      "producer_ms": 1790963177601,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963178650,
+      "producer_ms": 1790963178613,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963179659,
+      "producer_ms": 1790963179624,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963180669,
+      "producer_ms": 1790963180635,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963181678,
+      "producer_ms": 1790963181647,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963182689,
+      "producer_ms": 1790963182658,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963183699,
+      "producer_ms": 1790963183669,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963184709,
+      "producer_ms": 1790963184681,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963185719,
+      "producer_ms": 1790963185692,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963186729,
+      "producer_ms": 1790963186703,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963187740,
+      "producer_ms": 1790963187714,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963188750,
+      "producer_ms": 1790963188726,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963189760,
+      "producer_ms": 1790963189737,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963190770,
+      "producer_ms": 1790963190749,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963191780,
+      "producer_ms": 1790963191760,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963192790,
+      "producer_ms": 1790963192771,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963193800,
+      "producer_ms": 1790963193782,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963194810,
+      "producer_ms": 1790963194794,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963195821,
+      "producer_ms": 1790963195805,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963196831,
+      "producer_ms": 1790963196816,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963197841,
+      "producer_ms": 1790963197828,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963198850,
+      "producer_ms": 1790963198839,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963199860,
+      "producer_ms": 1790963199850,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963200870,
+      "producer_ms": 1790963200821,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963201880,
+      "producer_ms": 1790963201832,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963202890,
+      "producer_ms": 1790963202844,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963203900,
+      "producer_ms": 1790963203855,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963204910,
+      "producer_ms": 1790963204866,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963205920,
+      "producer_ms": 1790963205878,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963206930,
+      "producer_ms": 1790963206889,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963207940,
+      "producer_ms": 1790963207900,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963208951,
+      "producer_ms": 1790963208912,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963209961,
+      "producer_ms": 1790963209923,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963210972,
+      "producer_ms": 1790963210934,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963211982,
+      "producer_ms": 1790963211945,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963212992,
+      "producer_ms": 1790963212957,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963214002,
+      "producer_ms": 1790963213968,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963215012,
+      "producer_ms": 1790963214979,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963216022,
+      "producer_ms": 1790963215991,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963217032,
+      "producer_ms": 1790963217002,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963218042,
+      "producer_ms": 1790963218014,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963219052,
+      "producer_ms": 1790963219025,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963220062,
+      "producer_ms": 1790963220036,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963221072,
+      "producer_ms": 1790963221048,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963222082,
+      "producer_ms": 1790963222059,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963223092,
+      "producer_ms": 1790963223070,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963224102,
+      "producer_ms": 1790963224082,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963225113,
+      "producer_ms": 1790963225093,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963226123,
+      "producer_ms": 1790963226104,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963227133,
+      "producer_ms": 1790963227115,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963228143,
+      "producer_ms": 1790963228127,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963229153,
+      "producer_ms": 1790963229138,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963230163,
+      "producer_ms": 1790963230149,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963231173,
+      "producer_ms": 1790963231161,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963232184,
+      "producer_ms": 1790963232172,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963233193,
+      "producer_ms": 1790963233184,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963234204,
+      "producer_ms": 1790963234155,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963235214,
+      "producer_ms": 1790963235166,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963236224,
+      "producer_ms": 1790963236177,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963237234,
+      "producer_ms": 1790963237189,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963238244,
+      "producer_ms": 1790963238200,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963239254,
+      "producer_ms": 1790963239212,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963240264,
+      "producer_ms": 1790963240223,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963241274,
+      "producer_ms": 1790963241234,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963242284,
+      "producer_ms": 1790963242245,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963243294,
+      "producer_ms": 1790963243257,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963244304,
+      "producer_ms": 1790963244268,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963245315,
+      "producer_ms": 1790963245279,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963246325,
+      "producer_ms": 1790963246291,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963247335,
+      "producer_ms": 1790963247302,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963248345,
+      "producer_ms": 1790963248313,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963249355,
+      "producer_ms": 1790963249325,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963250365,
+      "producer_ms": 1790963250336,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963251375,
+      "producer_ms": 1790963251347,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963252385,
+      "producer_ms": 1790963252359,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963253395,
+      "producer_ms": 1790963253370,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963254406,
+      "producer_ms": 1790963254381,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963255417,
+      "producer_ms": 1790963255393,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963256427,
+      "producer_ms": 1790963256404,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963257437,
+      "producer_ms": 1790963257416,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963258447,
+      "producer_ms": 1790963258427,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963259458,
+      "producer_ms": 1790963259438,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963260469,
+      "producer_ms": 1790963260449,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963261480,
+      "producer_ms": 1790963261461,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963262491,
+      "producer_ms": 1790963262472,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963263502,
+      "producer_ms": 1790963263484,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963264513,
+      "producer_ms": 1790963264495,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963265524,
+      "producer_ms": 1790963265506,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963266535,
+      "producer_ms": 1790963266518,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963267546,
+      "producer_ms": 1790963267529,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963268556,
+      "producer_ms": 1790963268540,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963269566,
+      "producer_ms": 1790963269552,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963270576,
+      "producer_ms": 1790963270563,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963271587,
+      "producer_ms": 1790963271574,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963272598,
+      "producer_ms": 1790963272585,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963273608,
+      "producer_ms": 1790963273597,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963274618,
+      "producer_ms": 1790963274608,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963275628,
+      "producer_ms": 1790963275579,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963276637,
+      "producer_ms": 1790963276590,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963277647,
+      "producer_ms": 1790963277602,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963278658,
+      "producer_ms": 1790963278613,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963279668,
+      "producer_ms": 1790963279624,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963280678,
+      "producer_ms": 1790963280636,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963281688,
+      "producer_ms": 1790963281647,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963282698,
+      "producer_ms": 1790963282658,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963283708,
+      "producer_ms": 1790963283670,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963284718,
+      "producer_ms": 1790963284681,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963285728,
+      "producer_ms": 1790963285692,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963286738,
+      "producer_ms": 1790963286704,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963287748,
+      "producer_ms": 1790963287715,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963288758,
+      "producer_ms": 1790963288726,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963289768,
+      "producer_ms": 1790963289738,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963290778,
+      "producer_ms": 1790963290749,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963291788,
+      "producer_ms": 1790963291761,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963292798,
+      "producer_ms": 1790963292772,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963293808,
+      "producer_ms": 1790963293783,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963294818,
+      "producer_ms": 1790963294795,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963295828,
+      "producer_ms": 1790963295806,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963296838,
+      "producer_ms": 1790963296817,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963297849,
+      "producer_ms": 1790963297829,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963298858,
+      "producer_ms": 1790963298840,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963299868,
+      "producer_ms": 1790963299852,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963300878,
+      "producer_ms": 1790963300863,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963301888,
+      "producer_ms": 1790963301874,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963302898,
+      "producer_ms": 1790963302886,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963303908,
+      "producer_ms": 1790963303897,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963304918,
+      "producer_ms": 1790963304908,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963305928,
+      "producer_ms": 1790963305879,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963306938,
+      "producer_ms": 1790963306890,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963307948,
+      "producer_ms": 1790963307902,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963308959,
+      "producer_ms": 1790963308913,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963309968,
+      "producer_ms": 1790963309925,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963310978,
+      "producer_ms": 1790963310936,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963311988,
+      "producer_ms": 1790963311947,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963312998,
+      "producer_ms": 1790963312959,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963314008,
+      "producer_ms": 1790963313970,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963315018,
+      "producer_ms": 1790963314981,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963316028,
+      "producer_ms": 1790963315993,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963317038,
+      "producer_ms": 1790963317004,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963318048,
+      "producer_ms": 1790963318015,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963319058,
+      "producer_ms": 1790963319027,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963320068,
+      "producer_ms": 1790963320038,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963321078,
+      "producer_ms": 1790963321049,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963322089,
+      "producer_ms": 1790963322061,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963323099,
+      "producer_ms": 1790963323072,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963324109,
+      "producer_ms": 1790963324084,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963325119,
+      "producer_ms": 1790963325095,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963326129,
+      "producer_ms": 1790963326106,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963327139,
+      "producer_ms": 1790963327117,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963328150,
+      "producer_ms": 1790963328129,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963329160,
+      "producer_ms": 1790963329140,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963330170,
+      "producer_ms": 1790963330151,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963331180,
+      "producer_ms": 1790963331162,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963332190,
+      "producer_ms": 1790963332174,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963333200,
+      "producer_ms": 1790963333185,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963334210,
+      "producer_ms": 1790963334197,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963335220,
+      "producer_ms": 1790963335208,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963336230,
+      "producer_ms": 1790963336219,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963337240,
+      "producer_ms": 1790963337190,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963338250,
+      "producer_ms": 1790963338201,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963339260,
+      "producer_ms": 1790963339212,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963340270,
+      "producer_ms": 1790963340223,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963341280,
+      "producer_ms": 1790963341235,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963342290,
+      "producer_ms": 1790963342246,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963343301,
+      "producer_ms": 1790963343257,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963344311,
+      "producer_ms": 1790963344269,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963345322,
+      "producer_ms": 1790963345280,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963346332,
+      "producer_ms": 1790963346291,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963347343,
+      "producer_ms": 1790963347303,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963348353,
+      "producer_ms": 1790963348314,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963349364,
+      "producer_ms": 1790963349326,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963350375,
+      "producer_ms": 1790963350337,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963351385,
+      "producer_ms": 1790963351349,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963352395,
+      "producer_ms": 1790963352360,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963353406,
+      "producer_ms": 1790963353371,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963354418,
+      "producer_ms": 1790963354383,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963355429,
+      "producer_ms": 1790963355394,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963356440,
+      "producer_ms": 1790963356405,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963357451,
+      "producer_ms": 1790963357416,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963358463,
+      "producer_ms": 1790963358428,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963359473,
+      "producer_ms": 1790963359439,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963360484,
+      "producer_ms": 1790963360451,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963361495,
+      "producer_ms": 1790963361462,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963362505,
+      "producer_ms": 1790963362473,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963363516,
+      "producer_ms": 1790963363485,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963364526,
+      "producer_ms": 1790963364496,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963365537,
+      "producer_ms": 1790963365507,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963366548,
+      "producer_ms": 1790963366519,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963367558,
+      "producer_ms": 1790963367530,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963368568,
+      "producer_ms": 1790963368541,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963369579,
+      "producer_ms": 1790963369553,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963370588,
+      "producer_ms": 1790963370564,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963371598,
+      "producer_ms": 1790963371575,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963372608,
+      "producer_ms": 1790963372586,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963373618,
+      "producer_ms": 1790963373598,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963374627,
+      "producer_ms": 1790963374609,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963375637,
+      "producer_ms": 1790963375620,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963376646,
+      "producer_ms": 1790963376632,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963377656,
+      "producer_ms": 1790963377643,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963378665,
+      "producer_ms": 1790963378654,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963379674,
+      "producer_ms": 1790963379665,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963380684,
+      "producer_ms": 1790963380638,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963381693,
+      "producer_ms": 1790963381649,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963382703,
+      "producer_ms": 1790963382660,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963383713,
+      "producer_ms": 1790963383671,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963384723,
+      "producer_ms": 1790963384683,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963385734,
+      "producer_ms": 1790963385694,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963386744,
+      "producer_ms": 1790963386706,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963387754,
+      "producer_ms": 1790963387718,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963388764,
+      "producer_ms": 1790963388729,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963389774,
+      "producer_ms": 1790963389740,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963390784,
+      "producer_ms": 1790963390752,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963391794,
+      "producer_ms": 1790963391763,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963392804,
+      "producer_ms": 1790963392774,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963393814,
+      "producer_ms": 1790963393785,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963394824,
+      "producer_ms": 1790963394797,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963395834,
+      "producer_ms": 1790963395808,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963396844,
+      "producer_ms": 1790963396819,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963397854,
+      "producer_ms": 1790963397831,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963398864,
+      "producer_ms": 1790963398842,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963399874,
+      "producer_ms": 1790963399854,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963400884,
+      "producer_ms": 1790963400865,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963401894,
+      "producer_ms": 1790963401876,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963402904,
+      "producer_ms": 1790963402887,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963403914,
+      "producer_ms": 1790963403899,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963404924,
+      "producer_ms": 1790963404910,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963405934,
+      "producer_ms": 1790963405921,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963406944,
+      "producer_ms": 1790963406932,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963407954,
+      "producer_ms": 1790963407944,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963408964,
+      "producer_ms": 1790963408915,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963409974,
+      "producer_ms": 1790963409926,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963410984,
+      "producer_ms": 1790963410937,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963411994,
+      "producer_ms": 1790963411948,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963413004,
+      "producer_ms": 1790963412960,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963414014,
+      "producer_ms": 1790963413971,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963415024,
+      "producer_ms": 1790963414983,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963416034,
+      "producer_ms": 1790963415994,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963417044,
+      "producer_ms": 1790963417005,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963418054,
+      "producer_ms": 1790963418017,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963419064,
+      "producer_ms": 1790963419028,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963420074,
+      "producer_ms": 1790963420039,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963421084,
+      "producer_ms": 1790963421051,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963422094,
+      "producer_ms": 1790963422062,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963423104,
+      "producer_ms": 1790963423073,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963424114,
+      "producer_ms": 1790963424085,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963425124,
+      "producer_ms": 1790963425096,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963426134,
+      "producer_ms": 1790963426107,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963427144,
+      "producer_ms": 1790963427119,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963428154,
+      "producer_ms": 1790963428130,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963429164,
+      "producer_ms": 1790963429141,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963430174,
+      "producer_ms": 1790963430152,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963431184,
+      "producer_ms": 1790963431164,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963432194,
+      "producer_ms": 1790963432175,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963433204,
+      "producer_ms": 1790963433186,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963434214,
+      "producer_ms": 1790963434198,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963435224,
+      "producer_ms": 1790963435209,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963436234,
+      "producer_ms": 1790963436220,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963437244,
+      "producer_ms": 1790963437232,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963438255,
+      "producer_ms": 1790963438243,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    },
+    {
+      "observed_ms": 1790963439265,
+      "producer_ms": 1790963439254,
+      "disabled": true,
+      "software_latch": false,
+      "messages": []
+    }
+  ],
+  "changes": [
+    {
+      "sample_index": 0,
+      "files": "change-00-safety",
+      "messages": []
+    }
+  ],
+  "scope": "Passive existing owner/CAN observation; no restart, build, load injection, motor command or physical acceptance"
+}

@@ -1,11 +1,17 @@
-# Robstride firmware 0.3.1.42: measured CAN behaviour
+# Robstride right-arm firmware: measured CAN behaviour
 
 The right-arm bench has five Robstride drives on `can0` (device ids 1-5,
-host id `0xFD`, MCP2515 / `mcp251x` on a Pi 5). Several of Davout's rules
-exist because of how this firmware behaves on the wire. This page defines each
-behaviour, gives the stats measured from bench captures, names the rule that
-depends on it and that rule's margin over the measurement, and lists what
-remains open.
+host id `0xFD`, MCP2515 / `mcp251x` on a Pi 5). Firmware is mixed: ids 1-2
+(RS03) run 0.3.1.42, ids 3-4 (RS02) run 0.2.3.34 and id 5 (RS00) runs
+0.0.3.32, per the type-4 version readback of PR #254 on 2026-10-02 (see
+[the PR #254 findings](../2026-10-02-right-arm-pr254-findings.md)). The
+2026-10-03 captures below had no version readback; their stats cover all
+three versions [INFERENCE: no firmware change in between]. The profile's
+top-level `firmware` value is the original single-version label. Several of
+Davout's rules exist because of how these drives behave on the wire. This page
+defines each behaviour, gives the stats measured from bench captures, names the
+rule that depends on it and that rule's margin over the measurement, and lists
+what remains open.
 
 - **Profile:** [`robstride-timing-profile.json`](robstride-timing-profile.json)
   (historical aggregate stats, guarded observed extrema, and capture provenance).
@@ -256,6 +262,13 @@ ROLL's Enable lands inside that blackout and the test fails.
 - Does the 0x7019 read, rather than SetZero, trigger the blackout? This needs a
   capture of a 0x7019 read without a SetZero.
 - What sets the per-drive duration?
+- Does the blackout follow SetZero to a Disabled drive? Every blackout above
+  followed SetZero written about 10 ms after the drive's Enable. In six PR #254
+  lower-yaw captures (2026-10-02, 30 SetZeros, host id `0xD4` instead of `0xFD`)
+  SetZero went to Disabled drives, which were Enabled 35-56 ms later and
+  replied every 5 ms (max gap 5.1 ms) from 450 to 720 ms after the SetZero, all
+  five drives in Run. No silence appeared. This needs a dedicated `0xFD`
+  capture before any rule changes.
 
 ## Type-0 identity reply
 

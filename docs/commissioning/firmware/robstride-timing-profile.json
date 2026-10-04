@@ -1,6 +1,6 @@
 {
   "firmware": "0.3.1.42",
-  "bench": "right arm, 5 Robstride drives (can0 device ids 1-5, host id 0xFD), MCP2515/mcp251x on Pi 5",
+  "bench": "right arm, 5 Robstride drives (can0 device ids 1-5, host id 0xFD), MCP2515/mcp251x on Pi 5. Firmware is mixed per the PR #254 type-4 readback (2026-10-02): ids 1-2 0.3.1.42, ids 3-4 0.2.3.34, id 5 0.0.3.32; the top-level firmware value is the original single-version label.",
   "generated_by": "Historical aggregate: marengo-log-cli firmware-timing --json on the eight captures listed in files. Blackout extrema extended using the corrected analyzer on var/enable-soak/{20261003T221010Z,20261003T225034Z,20261003T230806Z}/candump.log.",
   "definitions": "bins/marengo-log-cli/src/firmware_timing.rs; docs/commissioning/firmware/robstride-firmware-behavior.md",
   "blackout_stats_scope": "drives.*.set_zero_silence_*: n/p50/p95 describe the original eight captures; min/max are the observed envelope across those captures and the three additional soaks below. Additional-soak per-drive distributions and unobservable counts are in robstride-firmware-behavior.md; do not infer missing blackouts from reply-only traffic.",
