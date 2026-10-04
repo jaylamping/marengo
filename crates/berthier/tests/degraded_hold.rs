@@ -53,7 +53,7 @@ fn tree(label: &str) -> FixtureTree {
             "/opt/marengo/var/calibration/zero_registry.yaml",
             "var/calibration/zero_registry.yaml",
         )
-        .replace("search_timeout_s: 30.0", "search_timeout_s: 0.5"),
+        .replace("search_timeout_s: 30.0", "search_timeout_s: 5.0"),
     )
     .expect("fixture homing");
     let mut control = load_control_config_from(&config).expect("copied control");

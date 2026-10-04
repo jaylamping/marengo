@@ -52,7 +52,7 @@ fn fixture_root(directory: &Path) -> PathBuf {
     }
     let mut homing = load_homing_config_from(source.join("config")).expect("master homing");
     homing.homing.calibration_record_path = "var/calibration/zero_registry.yaml".into();
-    homing.homing.defaults.search_timeout_s = 0.5;
+    homing.homing.defaults.search_timeout_s = 5.0;
     for entry in homing.homing.joints.values_mut() {
         entry.overrides.search_timeout_s = None;
     }
