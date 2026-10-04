@@ -94,7 +94,20 @@ struct Session {
     phase: (f64, f64),
     /// Coulomb friction of this session (temperature drift between sessions).
     fc: f64,
+    /// Peak wave speeds (rad/s).
+    speeds: &'static [f64],
+    /// Amplitude of a q-locked torque readout ripple (Nm), identical in every session: it
+    /// scatters the samples of a bin without changing what a repeat of the bin reads.
+    ripple_nm: f64,
+    /// Pose-dependent Coulomb friction `fc + this·cos(4π q)` (Nm), identical in every session.
+    friction_ripple_nm: f64,
+    /// One extra single-speed wave at this pose with a constant readout bias (Nm): a pose
+    /// only this session sees once, with a gravity artefact.
+    extra: Option<(f64, f64)>,
 }
+
+/// Period of the readout ripple (rad), a few gear teeth across a bin.
+const RIPPLE_PERIOD_RAD: f64 = 0.004;
 
 fn half_period(speed: f64) -> f64 {
     (PI * AMPLITUDE / speed * 100.0).ceil() / 100.0
@@ -107,6 +120,10 @@ struct Plant<'a> {
     cad_ab: (f64, f64),
     inertia: f64,
     fc: f64,
+    ripple_nm: f64,
+    friction_ripple_nm: f64,
+    /// Readout bias of the current step (Nm).
+    bias_nm: f64,
     q: f64,
     v: f64,
     stuck: bool,
@@ -137,9 +154,9 @@ impl Plant<'_> {
             self.v = net.signum() * 1e-6;
         }
         if !self.stuck {
-            let friction = self.v.signum()
-                * (self.fc + (FS - self.fc) * (-self.v.abs() / VB).exp())
-                + FV * self.v;
+            let fc = self.fc + self.friction_ripple_nm * (4.0 * PI * self.q).cos();
+            let friction =
+                self.v.signum() * (fc + (FS - fc) * (-self.v.abs() / VB).exp()) + FV * self.v;
             let v_next = self.v + (net - friction) / self.inertia * SIM_DT;
             if v_next * self.v < 0.0 {
                 // Friction cannot reverse motion: the joint stops and sticks.
@@ -152,7 +169,9 @@ impl Plant<'_> {
         }
         if self.step % LOG_EVERY == 0 {
             let disturbance = 0.012 * (2.0 * PI * 0.37 * self.t + self.phase.0).sin()
-                + 0.008 * (2.0 * PI * 1.3 * self.t + self.phase.1).sin();
+                + 0.008 * (2.0 * PI * 1.3 * self.t + self.phase.1).sin()
+                + self.ripple_nm * (2.0 * PI * self.q / RIPPLE_PERIOD_RAD).sin()
+                + self.bias_nm;
             let q_meas = (self.q / Q_STEP).round() * Q_STEP;
             let tau_g_all = self.truth.gravity_torques(&self.pose(self.q)).unwrap();
             for (j, name) in self.joints.iter().enumerate() {
@@ -206,19 +225,32 @@ fn write_session(s: &Session) -> TempDir {
         d.join("pi-marengo.urdf"),
     )
     .expect("urdf");
+    let mut poses = POSES.to_vec();
     let mut steps = Vec::new();
     for (i, &pose) in POSES.iter().enumerate() {
         steps.push(
             json!({"kind": "hold", "joint": PITCH, "target_rad": pose - AMPLITUDE,
             "measure": false}),
         );
-        for speed in SPEEDS {
+        for &speed in s.speeds {
             steps.push(
                 json!({"kind": "wave", "joint": PITCH, "min_rad": pose - AMPLITUDE,
                 "max_rad": pose + AMPLITUDE, "cycles": CYCLES,
                 "half_period_s": half_period(speed), "pose_index": i}),
             );
         }
+    }
+    if let Some((pose, _)) = s.extra {
+        poses.push(pose);
+        steps.push(
+            json!({"kind": "hold", "joint": PITCH, "target_rad": pose - AMPLITUDE,
+            "measure": false}),
+        );
+        steps.push(
+            json!({"kind": "wave", "joint": PITCH, "min_rad": pose - AMPLITUDE,
+            "max_rad": pose + AMPLITUDE, "cycles": CYCLES,
+            "half_period_s": half_period(s.speeds[0]), "pose_index": POSES.len()}),
+        );
     }
     let plan = json!({
         "version": 2,
@@ -228,7 +260,7 @@ fn write_session(s: &Session) -> TempDir {
         "profile": "arm_attached",
         "sweep_joint": PITCH,
         "fixed_rad": {},
-        "poses_rad": POSES,
+        "poses_rad": poses,
         "wave_amplitude_rad": AMPLITUDE,
         "settle_sec": 1.0,
         "steps": steps,
@@ -252,6 +284,9 @@ fn write_session(s: &Session) -> TempDir {
         cad_ab: lumped(&cad()),
         inertia,
         fc: s.fc,
+        ripple_nm: s.ripple_nm,
+        friction_ripple_nm: s.friction_ripple_nm,
+        bias_nm: 0.0,
         q: 0.0,
         v: 0.0,
         stuck: true,
@@ -265,10 +300,17 @@ fn write_session(s: &Session) -> TempDir {
     plant.hold(0.0, 0.2);
     for &pose in &POSES {
         plant.hold(pose - AMPLITUDE, 1.0);
-        for speed in SPEEDS {
+        for &speed in s.speeds {
             plant.wave(pose - AMPLITUDE, pose + AMPLITUDE, half_period(speed));
             plant.hold(pose - AMPLITUDE, 0.5);
         }
+    }
+    if let Some((pose, bias)) = s.extra {
+        plant.hold(pose - AMPLITUDE, 1.0);
+        plant.bias_nm = bias;
+        plant.wave(pose - AMPLITUDE, pose + AMPLITUDE, half_period(s.speeds[0]));
+        plant.bias_nm = 0.0;
+        plant.hold(pose - AMPLITUDE, 0.5);
     }
     // Return to 0 after the last step, as the session script does.
     plant.hold(0.0, 2.0);
@@ -309,11 +351,19 @@ const SESSION_A: Session = Session {
     ts: "20261004T130000Z",
     phase: (0.3, 1.9),
     fc: FC,
+    speeds: &SPEEDS,
+    ripple_nm: 0.0,
+    friction_ripple_nm: 0.0,
+    extra: None,
 };
 const SESSION_B: Session = Session {
     ts: "20261004T131000Z",
     phase: (2.4, 0.7),
     fc: FC + 0.02,
+    speeds: &SPEEDS,
+    ripple_nm: 0.0,
+    friction_ripple_nm: 0.0,
+    extra: None,
 };
 
 #[test]
@@ -427,4 +477,91 @@ fn single_wave_session_has_no_cross_session_spread_and_proposes_no_urdf_patch() 
     let reasons = group["refusals"].to_string();
     assert!(reasons.contains("cross-session"), "{reasons}");
     assert!(file_ending(out.path(), ".urdf.patch").is_none());
+}
+
+/// A pose seen by one bin only (one wave, one session) has no spread to judge it by: its
+/// residual is reported, never gated, and the replicated poses decide the verdict.
+#[test]
+fn single_bin_pose_residual_is_reported_not_gated() {
+    const EXTRA_POSE: f64 = 0.75;
+    const ARTEFACT_NM: f64 = 0.05;
+    let a = write_session(&Session {
+        extra: Some((EXTRA_POSE, ARTEFACT_NM)),
+        ..SESSION_A
+    });
+    let b = write_session(&SESSION_B);
+    let out = TempDir::new().unwrap();
+    let o = run(&[a.path(), b.path()], out.path());
+    let rec = record(out.path());
+    let group = &rec["groups"][0];
+    assert_eq!(o.status.code(), Some(0), "{group:#}");
+    assert_eq!(group["accepted"], true, "{group:#}");
+    let gate = group["gate"]["residual_gate_nm"].as_f64().unwrap();
+    let ungated: Vec<&Value> = group["poses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|p| p["gated"] == false)
+        .collect();
+    // Only the extra wave's bins (those with enough samples), none of the replicated grid.
+    assert!(!ungated.is_empty(), "{group:#}");
+    assert!(
+        ungated.iter().all(|p| {
+            (p["center_rad"].as_f64().unwrap() - EXTRA_POSE).abs() <= AMPLITUDE / 2.0 + 1e-6
+        }),
+        "{group:#}"
+    );
+    let worst = group["gate"]["max_ungated_residual_nm"].as_f64().unwrap();
+    assert!(
+        worst > gate,
+        "artefact {worst} must exceed the gate {gate}: {group:#}"
+    );
+    assert!(group["gate"]["max_residual_nm"].as_f64().unwrap() <= gate);
+    let (a_true, _) = lumped(&truth());
+    let a_fit = group["fit"]["a_nm"].as_f64().unwrap();
+    assert!((a_fit - a_true).abs() < 0.02, "A {a_fit} vs {a_true}");
+}
+
+/// Friction that varies with pose (repeatable between sessions) plus a q-locked readout
+/// ripple: σ_cross is tiny, but each bin's own sampling noise is not. The gate follows the
+/// bin noise, and fv, unresolved over a narrow speed span, is dropped rather than
+/// extrapolated (Coulomb mean only).
+#[test]
+fn friction_gate_follows_bin_noise_and_drops_unresolved_fv() {
+    const NARROW: [f64; 3] = [0.25, 0.28, 0.31];
+    let noisy = |s: &Session| Session {
+        fc: FC,
+        speeds: &NARROW,
+        // Sample sd ≈ 0.42 Nm, inside the 0.13–0.48 Nm the 2026-10-04 pitch bins show.
+        ripple_nm: 0.6,
+        friction_ripple_nm: 0.05,
+        ..*s
+    };
+    let a = write_session(&noisy(&SESSION_A));
+    let b = write_session(&noisy(&SESSION_B));
+    let out = TempDir::new().unwrap();
+    let o = run(&[a.path(), b.path()], out.path());
+    let rec = record(out.path());
+    let fr = &rec["friction"][PITCH];
+    assert!(o.status.code().is_some(), "{fr:#}");
+    assert_eq!(fr["accepted"], true, "{fr:#}");
+    let cross = fr["cross_session_sigma_nm"].as_f64().unwrap();
+    let bin = fr["bin_sigma_nm"].as_f64().unwrap();
+    let gate = fr["residual_gate_nm"].as_f64().unwrap();
+    let worst = fr["max_residual_nm"].as_f64().unwrap();
+    assert!(bin > 2.0 * cross, "bin noise {bin} vs σ_cross {cross}");
+    // The pose-dependent friction exceeds a σ_cross gate but not the bin-noise gate.
+    assert!(worst > 3.0 * cross && worst <= gate, "{fr:#}");
+    assert!((gate - (3.0 * bin).min(0.10)).abs() < 1e-4, "{fr:#}");
+    assert_eq!(fr["fv"].as_f64(), Some(0.0), "{fr:#}");
+    assert!(
+        fr["fv_note"].as_str().unwrap().contains("not identifiable"),
+        "{fr:#}"
+    );
+    let fc = fr["fc_nm"].as_f64().unwrap();
+    let expected = FC + FV * NARROW[1];
+    assert!(
+        (fc - expected).abs() < 0.04,
+        "fc {fc} vs {expected}: {fr:#}"
+    );
 }

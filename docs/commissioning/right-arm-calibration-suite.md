@@ -77,16 +77,23 @@ session as a no-refit check before the next phase.
   reproduces every fitted A, B, masses unchanged; refused above 0.05 m. The record
   lists how much it moves every other joint's gravity.
 - **Friction patch**: fc + fv·|q̇| over the pose/speed bins; `fs` only when the
-  Stribeck term (control.yaml `v_b`) is significant; independent of the gravity
-  verdict.
+  Stribeck term (control.yaml `v_b`) is significant, fv only when significant (else
+  fc is the Coulomb mean and fv 0, never a slope extrapolated from a narrow speed
+  span); independent of the gravity verdict.
 
 ## Gates
 
 - Wave method, derived from the data: σ_cross = pooled spread of per-session pose
   means; gate = max(3·σ_cross, torque readout step). Accepted only with ≥ 2 sessions
-  sharing a pose, ≥ 3 poses, gate ≤ 0.10 Nm (the data must be repeatable enough
-  to check the suite's residual), every pose residual ≤ gate, and σ_A, σ_B ≤ gate.
-  The friction patch uses the same rule on its bins.
+  sharing a pose, ≥ 3 replicated poses, gate ≤ 0.10 Nm (the data must be repeatable
+  enough to check the suite's residual), every replicated pose residual ≤ gate, and
+  σ_A, σ_B ≤ gate. A single-bin pose (one wave step of one session, e.g. a wave-edge
+  bin) stays in the fit and is reported, but never gates.
+- Friction: σ_cross must be repeatable (3·σ_cross ≤ 0.10 Nm), but the residual gate
+  and fv/fs significance use the bin noise, max(RMS sampling error of the bins,
+  σ_cross): gate = 3·noise, floored at the readout step, capped at 0.10 Nm. A wave
+  repeats the same torque swings at the same q every session, so σ_cross understates
+  how well a smooth friction model can match bins at other poses.
 - Static method: residual |τ_meas − (τ_g + friction sign)| ≤ 0.10 Nm per joint per
   pose; identifiability min singular value ≥ 0.05 Nm, condition ≤ 100.
 - No fault, fuse, watchdog or CAN error; no `rx_over` growth; candump + trace

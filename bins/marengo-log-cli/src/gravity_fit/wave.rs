@@ -23,10 +23,12 @@
 //!    bins (q̈ ≈ 0) enter. Bins at the same centre, ΔI·q̈ removed, pool into pose estimates.
 //! 3. **Gates, derived from the data.** σ_cross is the pooled spread of per-session pose
 //!    means across sessions; the residual gate is `max(GATE_SIGMAS·σ_cross, readout step)`.
-//!    A group is accepted only with ≥ 2 sessions sharing a pose, ≥ 3 poses, the gate within
-//!    the suite's residual limit ([`FitOptions::max_residual_nm`]: the data must be
-//!    repeatable enough to check it), every pose residual within the gate, and σ_A, σ_B
-//!    within the gate (the sweep identifies both).
+//!    A group is accepted only with ≥ 2 sessions sharing a pose, ≥ 3 replicated poses, the
+//!    gate within the suite's residual limit ([`FitOptions::max_residual_nm`]: the data must
+//!    be repeatable enough to check it), every replicated pose residual within the gate, and
+//!    σ_A, σ_B within the gate (the sweep identifies both). A pose with a single bin (one
+//!    wave step of one session) has no spread to judge it by: it stays in the fit and its
+//!    residual is reported, but it never decides the verdict.
 //! 4. **URDF patch.** For accepted groups, the smallest COM shift of the carried right-arm
 //!    links that reproduces every fitted (A, B), masses unchanged
 //!    ([`armee_dynamics::lumped::lumped_com_patch`]), refused above
@@ -34,7 +36,15 @@
 //!    joint's gravity.
 //! 5. **Friction patch per swept joint**, independent of gravity (the half-difference
 //!    cancels it): `fc + fv·|q̇|` over the pose/speed bins, `fs` only when the Stribeck term
-//!    `(fs − fc)·exp(−|q̇|/v_b)` (v_b from `control.yaml`) is significant; same derived gate.
+//!    `(fs − fc)·exp(−|q̇|/v_b)` (v_b from `control.yaml`) is significant, and fv only when
+//!    significant (else fc is the Coulomb mean and fv 0: a slope from a narrow speed span is
+//!    never extrapolated to cruise speeds). Significance and the residual gate use the bin
+//!    noise, `max(RMS sampling error of the points, σ_cross)`; the gate is
+//!    `GATE_SIGMAS·noise`, floored at the readout step and capped at the suite limit. σ_cross
+//!    alone is too small: a wave repeats the same torque swings at the same q in every
+//!    session, so bins agree across sessions far better than any smooth friction model can
+//!    match bins at other poses (2026-10-04 pitch: σ_cross 0.008 Nm, bin noise 0.047 Nm,
+//!    scatter about the Coulomb mean 0.041 Nm).
 //!
 //! Nothing is applied.
 
@@ -95,6 +105,9 @@ struct Bin {
     q: Vec<f64>,
     gravity_nm: f64,
     friction_nm: f64,
+    /// Standard error of `friction_nm` from the samples' scatter about each direction mean
+    /// (independent samples assumed).
+    friction_se_nm: f64,
     speed_rad_s: f64,
     inertia_kg_m2: f64,
     /// Mean q̈ (up/down average) and the I·q̈ subtracted.
@@ -190,6 +203,16 @@ fn bins(
                 let (tau_d, ddq_d, v_d) = side(&down);
                 let net_u = tau_u - inertia * ddq_u;
                 let net_d = tau_d - inertia * ddq_d;
+                // Sample variance of τ − I·q̈ about its direction mean (n ≥ MIN_BIN_SAMPLES).
+                let var = |xs: &[&super::WaveSample], m: f64| {
+                    xs.iter()
+                        .map(|x| (x.tau - inertia * x.ddq - m).powi(2))
+                        .sum::<f64>()
+                        / (xs.len() - 1) as f64
+                };
+                let friction_se_nm = 0.5
+                    * (var(&up, net_u) / up.len() as f64 + var(&down, net_d) / down.len() as f64)
+                        .sqrt();
                 out.push(Bin {
                     session: s_i,
                     plan_index: w.plan_index,
@@ -199,6 +222,7 @@ fn bins(
                     q,
                     gravity_nm: (net_u + net_d) / 2.0,
                     friction_nm: (net_u - net_d) / 2.0,
+                    friction_se_nm,
                     speed_rad_s: (v_u + v_d) / 2.0,
                     inertia_kg_m2: inertia,
                     ddq_rad_s2: (ddq_u + ddq_d) / 2.0,
@@ -301,6 +325,15 @@ struct PoseEstimate {
     fit_nm: Option<f64>,
 }
 
+impl PoseEstimate {
+    /// Whether this pose sets the residual gate: it needs a replicate (a second bin from
+    /// another session, speed or step). A single bin (one wave step in one session) has no
+    /// spread to judge its residual by; it stays in the fit and is reported, never gated.
+    fn gated(&self) -> bool {
+        self.bins > 1
+    }
+}
+
 /// Lumped fit of one sweep joint at one fixed pose of the others.
 #[derive(Debug, Clone)]
 struct GroupFit {
@@ -320,8 +353,11 @@ struct GroupFit {
     sigma_repeat_nm: Option<f64>,
     floor_nm: f64,
     gate_nm: Option<f64>,
+    /// Max / RMS residual over the gated (replicated) poses.
     max_residual_nm: Option<f64>,
     rms_residual_nm: Option<f64>,
+    /// Max residual over the single-bin poses (reported, not gated).
+    max_ungated_residual_nm: Option<f64>,
     max_residual_cad_nm: f64,
     inertia_kg_m2: (f64, f64),
     refusals: Vec<String>,
@@ -473,9 +509,11 @@ fn fit_group(
         .fold(0.0, f64::max);
 
     let mut refusals = Vec::new();
-    if poses.len() < MIN_POSES {
+    let gated = poses.iter().filter(|p| p.gated()).count();
+    if gated < MIN_POSES {
         refusals.push(format!(
-            "{} pose bins; A, B and a residual need ≥ {MIN_POSES}",
+            "{gated} replicated pose bins (of {}); A, B and a residual need ≥ {MIN_POSES} \
+             (a single-bin pose is reported, never gated)",
             poses.len()
         ));
     }
@@ -491,7 +529,8 @@ fn fit_group(
         _ => {}
     }
     let (mut fit, mut sigma_a_nm, mut sigma_b_nm, mut sigma_inertia) = (None, None, None, None);
-    let (mut max_residual_nm, mut rms_residual_nm) = (None, None);
+    let (mut max_residual_nm, mut rms_residual_nm, mut max_ungated_residual_nm) =
+        (None, None, None);
     match solved {
         None => refusals.push("A, B not solvable from these bins (singular)".into()),
         Some((c, inv)) => {
@@ -499,16 +538,22 @@ fn fit_group(
                 a_nm: c[0],
                 b_nm: c[1],
             };
-            let mut worst: f64 = 0.0;
+            let (mut worst, mut worst_ungated): (f64, Option<f64>) = (0.0, None);
             let mut ss = 0.0;
             for p in &mut poses {
                 let f = terms.torque(p.q_rad);
                 p.fit_nm = Some(f);
-                worst = worst.max((p.gravity_nm - f).abs());
-                ss += (p.gravity_nm - f).powi(2);
+                let r = (p.gravity_nm - f).abs();
+                if p.gated() {
+                    worst = worst.max(r);
+                    ss += r.powi(2);
+                } else {
+                    worst_ungated = Some(worst_ungated.map_or(r, |w| w.max(r)));
+                }
             }
             max_residual_nm = Some(worst);
-            rms_residual_nm = Some((ss / poses.len() as f64).sqrt());
+            rms_residual_nm = Some((ss / gated.max(1) as f64).sqrt());
+            max_ungated_residual_nm = worst_ungated;
             // Per-bin noise: the bin-level residual scatter, but never below the
             // cross-session spread (bins of one session share its offset).
             let dof = used.len() - c.len();
@@ -562,6 +607,7 @@ fn fit_group(
         gate_nm,
         max_residual_nm,
         rms_residual_nm,
+        max_ungated_residual_nm,
         max_residual_cad_nm,
         inertia_kg_m2,
         refusals,
@@ -575,6 +621,8 @@ struct FrictionPoint {
     half_period_s: f64,
     speed_rad_s: f64,
     friction_nm: f64,
+    /// Standard error of `friction_nm` from its bins' samples.
+    se_nm: f64,
     session_means: Vec<(String, f64)>,
     fit_nm: Option<f64>,
 }
@@ -593,7 +641,10 @@ struct FrictionFit {
     sigma_fc_nm: Option<f64>,
     sigma_fv: Option<f64>,
     fs_note: String,
+    fv_note: String,
     sigma_cross_nm: Option<f64>,
+    /// RMS of the points' sampling standard errors (the bin noise).
+    sigma_bin_nm: Option<f64>,
     gate_nm: Option<f64>,
     max_residual_nm: Option<f64>,
     refusals: Vec<String>,
@@ -658,11 +709,18 @@ fn fit_friction(
             })
             .collect();
         cross.push(session_means.iter().map(|(_, m)| *m).collect::<Vec<_>>());
+        let se_nm = group
+            .iter()
+            .map(|b| b.friction_se_nm.powi(2))
+            .sum::<f64>()
+            .sqrt()
+            / group.len() as f64;
         points.push(FrictionPoint {
             center_rad: group[0].center_rad,
             half_period_s: group[0].half_period_s,
             speed_rad_s: mean(group.iter().map(|b| b.speed_rad_s)).unwrap_or_default(),
             friction_nm: mean(group.iter().map(|b| b.friction_nm)).unwrap_or_default(),
+            se_nm,
             session_means,
             fit_nm: None,
         });
@@ -671,7 +729,18 @@ fn fit_friction(
     speeds.sort_unstable();
     speeds.dedup();
     let sigma_cross_nm = pooled_sigma(&cross);
-    let gate_nm = sigma_cross_nm.map(|s| (GATE_SIGMAS * s).max(floor_nm));
+    // The gate is the bin noise, not the cross-session spread alone: a wave repeats the same
+    // torque swings at the same q in every session, so σ_cross can be far below how well a
+    // smooth fc + fv·v (+ Stribeck) can match bins at different poses and speeds. Each
+    // point's own sampling error bounds that; σ_cross stays the repeatability check.
+    let sigma_bin_nm = mean(points.iter().map(|p: &FrictionPoint| p.se_nm.powi(2))).map(f64::sqrt);
+    let sigma_noise = match (sigma_bin_nm, sigma_cross_nm) {
+        (Some(b), Some(c)) => Some(b.max(c)),
+        (b, c) => b.or(c),
+    };
+    let gate_nm = sigma_cross_nm
+        .and(sigma_noise)
+        .map(|s| (GATE_SIGMAS * s).max(floor_nm).min(opts.max_residual_nm));
     let mut out = FrictionFit {
         joint: joint.to_string(),
         points,
@@ -684,7 +753,9 @@ fn fit_friction(
         sigma_fc_nm: None,
         sigma_fv: None,
         fs_note: String::new(),
+        fv_note: String::new(),
         sigma_cross_nm,
+        sigma_bin_nm,
         gate_nm,
         max_residual_nm: None,
         refusals: Vec::new(),
@@ -699,17 +770,17 @@ fn fit_friction(
             out.points.len()
         ));
     }
-    match (sigma_cross_nm, gate_nm) {
-        (Some(s), Some(g)) if g > opts.max_residual_nm => out.refusals.push(format!(
+    match sigma_cross_nm {
+        Some(s) if GATE_SIGMAS * s > opts.max_residual_nm => out.refusals.push(format!(
             "cross-session spread: {GATE_SIGMAS}·σ_cross = {:.4} Nm (σ_cross {s:.4}) exceeds {:.2} Nm",
             GATE_SIGMAS * s,
             opts.max_residual_nm
         )),
-        (None, _) | (_, None) => out.refusals.push(
+        None => out.refusals.push(
             "cross-session spread unavailable: needs ≥ 2 sessions sharing a pose/speed bin"
                 .into(),
         ),
-        _ => {}
+        Some(_) => {}
     }
     let y: Vec<f64> = out.points.iter().map(|p| p.friction_nm).collect();
     let linear: Vec<Vec<f64>> = out
@@ -735,7 +806,7 @@ fn fit_friction(
             .sum();
         Some((ss / dof as f64).sqrt())
     };
-    let sigma = sigma_cross_nm.or_else(|| residual_sigma(&c, &linear));
+    let sigma = sigma_noise.or_else(|| residual_sigma(&c, &linear));
     out.sigma_fc_nm = sigma.map(|s| s * inv[0][0].sqrt());
     out.sigma_fv = sigma.map(|s| s * inv[1][1].sqrt());
     // Stribeck: fs only when the breakaway excess is significant at these speeds.
@@ -749,7 +820,7 @@ fn fit_friction(
         .flatten()
     {
         Some((c3, inv3)) => {
-            let s3 = sigma_cross_nm.or_else(|| residual_sigma(&c3, &stribeck));
+            let s3 = sigma_noise.or_else(|| residual_sigma(&c3, &stribeck));
             match s3.map(|s| s * inv3[2][2].sqrt()) {
                 Some(se) if c3[2] > 0.0 && c3[2] > GATE_SIGMAS * se => {
                     fc = c3[0];
@@ -773,6 +844,31 @@ fn fit_friction(
             }
         }
         None => "not identifiable: Stribeck column singular at these speeds".into(),
+    };
+    // fv only when the speeds resolve it; otherwise friction is the Coulomb mean (fv 0) and
+    // nothing is extrapolated from a narrow speed span to the planner's cruise speeds.
+    let (v_lo, v_hi) = out
+        .points
+        .iter()
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), p| {
+            (lo.min(p.speed_rad_s), hi.max(p.speed_rad_s))
+        });
+    out.fv_note = match (out.fs_nm, out.sigma_fv) {
+        (Some(_), _) => "with the Stribeck term".into(),
+        (None, Some(se)) if fv.abs() > GATE_SIGMAS * se => {
+            format!("fv = {fv:.4} ± {se:.4} Nm·s/rad over |q̇| {v_lo:.3}–{v_hi:.3} rad/s")
+        }
+        (None, se) => {
+            let note = format!(
+                "not identifiable: fv = {fv:.4} ± {} Nm·s/rad over |q̇| {v_lo:.3}–{v_hi:.3} \
+                 rad/s; Coulomb only (fc = mean, fv = 0)",
+                se.map_or("-".into(), |s| format!("{s:.4}"))
+            );
+            fc = mean(y.iter().copied()).unwrap_or(f64::NAN);
+            fv = 0.0;
+            out.sigma_fc_nm = sigma.map(|s| s / (y.len() as f64).sqrt());
+            note
+        }
     };
     let coef: Vec<f64> = match out.fs_nm {
         Some(fs) => vec![fc, fv, fs - fc],
@@ -1096,6 +1192,7 @@ fn record_json(
                 "residual_gate_nm": opt(g.gate_nm, 5),
                 "max_residual_nm": opt(g.max_residual_nm, 5),
                 "rms_residual_nm": opt(g.rms_residual_nm, 5),
+                "max_ungated_residual_nm": opt(g.max_ungated_residual_nm, 5),
                 "max_residual_cad_nm": round(g.max_residual_cad_nm, 5),
             },
             "inertia_kg_m2": [round(g.inertia_kg_m2.0, 5), round(g.inertia_kg_m2.1, 5)],
@@ -1104,6 +1201,7 @@ fn record_json(
                 "q_rad": round(p.q_rad, 5),
                 "gravity_nm": round(p.gravity_nm, 5),
                 "bins": p.bins,
+                "gated": p.gated(),
                 "session_means_nm": p.session_means.iter()
                     .map(|(t, m)| (t.clone(), json!(round(*m, 5))))
                     .collect::<serde_json::Map<String, Value>>(),
@@ -1120,6 +1218,7 @@ fn record_json(
             "q_rad": rounded_opt(&b.q),
             "gravity_nm": round(b.gravity_nm, 5),
             "friction_nm": round(b.friction_nm, 5),
+            "friction_se_nm": round(b.friction_se_nm, 5),
             "speed_rad_s": round(b.speed_rad_s, 4),
             "inertia_torque_nm": round(b.inertia_torque_nm, 5),
             "samples": [b.n_up, b.n_down],
@@ -1139,10 +1238,12 @@ fn record_json(
             "sigma_fc_nm": opt(f.sigma_fc_nm, 5),
             "sigma_fv": opt(f.sigma_fv, 5),
             "fs_note": f.fs_note,
+            "fv_note": f.fv_note,
             "v_b_rad_s": f.v_b_rad_s,
             "current": {"fc": f.current.0, "fv": f.current.1, "fs": f.current.2},
             "speeds": f.speeds,
             "cross_session_sigma_nm": opt(f.sigma_cross_nm, 5),
+            "bin_sigma_nm": opt(f.sigma_bin_nm, 5),
             "residual_gate_nm": opt(f.gate_nm, 5),
             "max_residual_nm": opt(f.max_residual_nm, 5),
             "points": f.points.iter().map(|p| json!({
@@ -1150,6 +1251,7 @@ fn record_json(
                 "half_period_s": p.half_period_s,
                 "speed_rad_s": round(p.speed_rad_s, 4),
                 "friction_nm": round(p.friction_nm, 5),
+                "se_nm": round(p.se_nm, 5),
                 "session_means_nm": p.session_means.iter()
                     .map(|(t, m)| (t.clone(), json!(round(*m, 5))))
                     .collect::<serde_json::Map<String, Value>>(),
@@ -1259,9 +1361,12 @@ fn record_markdown(
         "Up/down bin means of local waves (`marengo-log-cli gravity-fit`, wave method): \
          gravity = mean of the two directions after I·q̈, friction = half their difference. \
          Each swept joint is fitted as the lumped `A·sin q + B·cos q` its URDF structure \
-         implies; the gate is {GATE_SIGMAS}·σ of the cross-session spread, floored at the \
-         torque readout step, and must stay within the suite's {:.2} Nm.\n",
-        opts.max_residual_nm
+         implies; its gate is {GATE_SIGMAS}·σ of the cross-session spread, floored at the \
+         torque readout step, and must stay within the suite's {:.2} Nm. Only replicated \
+         poses (≥ 2 bins) are gated; a single-bin pose stays in the fit and is reported. \
+         The friction gate is {GATE_SIGMAS}·max(bin noise, σ_cross), capped at the same \
+         {:.2} Nm; fv is kept only when the speeds resolve it.\n",
+        opts.max_residual_nm, opts.max_residual_nm
     );
     let _ = writeln!(md, "## Sessions\n");
     let _ = writeln!(
@@ -1344,12 +1449,14 @@ fn record_markdown(
         let _ = writeln!(
             md,
             "Gate: σ_cross {} Nm, σ_repeat {} Nm, readout floor {:.4} Nm → gate {} Nm; max \
-             residual {} (CAD {:.4}) Nm. I {:.4}–{:.4} kg·m² (URDF, no rotor); {}.\n",
+             residual {} over replicated poses ({} over single-bin poses, not gated; CAD \
+             {:.4}) Nm. I {:.4}–{:.4} kg·m² (URDF, no rotor); {}.\n",
             num(g.sigma_cross_nm),
             num(g.sigma_repeat_nm),
             g.floor_nm,
             num(g.gate_nm),
             num(g.max_residual_nm),
+            num(g.max_ungated_residual_nm),
             g.max_residual_cad_nm,
             g.inertia_kg_m2.0,
             g.inertia_kg_m2.1,
@@ -1364,17 +1471,18 @@ fn record_markdown(
         );
         let _ = writeln!(
             md,
-            "| bin centre | q | gravity | bins | cross-session spread | CAD | fit | residual |"
+            "| bin centre | q | gravity | bins | gated | cross-session spread | CAD | fit | residual |"
         );
-        let _ = writeln!(md, "|---|---|---|---|---|---|---|---|");
+        let _ = writeln!(md, "|---|---|---|---|---|---|---|---|---|");
         for p in &g.poses {
             let _ = writeln!(
                 md,
-                "| {:.4} | {:.4} | {:.4} | {} | {} | {:.4} | {} | {} |",
+                "| {:.4} | {:.4} | {:.4} | {} | {} | {} | {:.4} | {} | {} |",
                 p.center_rad,
                 p.q_rad,
                 p.gravity_nm,
                 p.bins,
+                if p.gated() { "yes" } else { "no" },
                 num(p.spread_nm),
                 p.cad_nm,
                 num(p.fit_nm),
@@ -1386,14 +1494,14 @@ fn record_markdown(
     let _ = writeln!(md, "## Friction\n");
     let _ = writeln!(
         md,
-        "| joint | current fc / fv / fs | fit fc | fv | fs | σ_cross | gate | max residual | speeds | patch |"
+        "| joint | current fc / fv / fs | fit fc | fv | fs | σ_cross | bin noise | gate | max residual | speeds | patch |"
     );
-    let _ = writeln!(md, "|---|---|---|---|---|---|---|---|---|---|");
+    let _ = writeln!(md, "|---|---|---|---|---|---|---|---|---|---|---|");
     for f in friction {
         let num = |v: Option<f64>| v.map_or("-".to_string(), |x| format!("{x:.4}"));
         let _ = writeln!(
             md,
-            "| {} | {} / {} / {} | {} | {} | {} | {} | {} | {} | {} | {} |",
+            "| {} | {} / {} / {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
             f.joint,
             f.current.0,
             f.current.1,
@@ -1402,6 +1510,7 @@ fn record_markdown(
             f.fv.map_or("-".to_string(), |x| format!("{x:.5}")),
             num(f.fs_nm),
             num(f.sigma_cross_nm),
+            num(f.sigma_bin_nm),
             num(f.gate_nm),
             num(f.max_residual_nm),
             f.speeds,
@@ -1411,7 +1520,7 @@ fn record_markdown(
                 f.refusals.join("; ")
             }
         );
-        let _ = writeln!(md, "\nfs: {}\n", f.fs_note);
+        let _ = writeln!(md, "\nfs: {}\n\nfv: {}\n", f.fs_note, f.fv_note);
     }
     if !dropped.is_empty() {
         let _ = writeln!(
