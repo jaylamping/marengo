@@ -3,7 +3,7 @@
 ## Responsibility
 Safety gateway and operational state machine — the **only** crate permitted to send motion commands to `robstride`. Every MIT or legacy command from Berthier, Talleyrand, or REPL tools must pass through Davout's filter pipeline before reaching CAN hardware.
 
-Enforces: joint position envelope (URDF hard/soft limits + velocity-scaled kinetic margin, ADR 0009), kp/kd caps per motor type, tau_ff rate limiting, tau_ff max clamp, wrong-sign watchdog, communication watchdog, feedback velocity limit tripping, danger zone rules from config, E-stop assertion.
+Enforces: joint position envelope (URDF hard/soft limits + velocity-scaled kinetic margin, ADR 0009), kp/kd caps per motor type, tau_ff rate limiting, tau_ff max clamp, predicted total MIT torque bound (`total_torque.rs`, ADR 0039), wrong-sign watchdog, communication watchdog, feedback velocity limit tripping, danger zone rules from config, E-stop assertion.
 
 ## Design
 
@@ -121,10 +121,11 @@ Berthier MitJointCommand batch
         │   ├─ danger zones (marengo-config)
         │   ├─ velocity cap
         │   ├─ tau_ff clip + rate limit
+        │   ├─ total torque bound: q_des/dq_des scaled toward q/dq (total_torque.rs)
         │   └─ wrong-sign watchdog
         ├─ checked joint→motor transform (direction × gear_ratio)
         ├─ every active address: current-session pose watchdog
-        ├─ commit staged tau_ff/wrong-sign state (rejected batch commits nothing)
+        ├─ commit staged tau_ff/wrong-sign state, count total-torque clamps (rejected batch commits nothing)
         ▼
   robstride::mit_control_all_at
 ```

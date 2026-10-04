@@ -8,7 +8,8 @@
 //!
 //! - [`Supervisor`]: operational state machine (Disabled → Ready → Active).
 //! - Filter [`MitJointCommand`] / [`JointCommand`]: URDF ∩ bench limits, per-`motor_type`
-//!   `kp`/`kd`/`tau_ff` caps and [`tau_ff` rate limiting](Supervisor::filter_mit_core).
+//!   `kp`/`kd`/`tau_ff` caps, [`tau_ff` rate limiting](Supervisor::filter_mit_core) and the
+//!   predicted total MIT torque bound (`total_torque.rs`, ADR 0039).
 //! - Own joint↔motor coordinate conversion from `config/motors.yaml` (`direction`, `gear_ratio`):
 //!   Berthier and dynamics stay in joint space; robstride stays in raw motor/CAN space.
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
@@ -104,6 +105,11 @@ mod reference_physical;
 mod reference_transaction;
 mod reference_urdf_codec;
 pub mod simulation;
+mod total_torque;
+
+use total_torque::{
+    clamp_total_torque, TotalTorqueClamp, TotalTorqueClampLog, TOTAL_TORQUE_HORIZON_TICKS,
+};
 
 pub use drive_loss::{
     DegradedEnd, DegradedEpisode, DegradedOutcome, DriveLossPlan, SHED_REPLY_GRACE,
@@ -395,6 +401,7 @@ struct StagedMitState {
     motor: usize,
     tau_ff_nm: f64,
     wrong_sign: Option<WrongSignState>,
+    total_torque: Option<TotalTorqueClamp>,
 }
 
 /// Reused MIT admission buffers; contents never outlive one batch.
@@ -504,6 +511,8 @@ pub struct Supervisor<B: MotorBus> {
     set_zero_on_wire: FxHashMap<MotorAddress, Instant>,
     invalid_feedback: FxHashSet<MotorAddress>,
     last_tau_ff: FxHashMap<String, f64>,
+    /// MIT total-torque clamps (ADR 0039 open question 1), counted when sent.
+    total_torque_clamps: TotalTorqueClampLog,
     feedback_velocity_trips: FxHashMap<String, u8>,
     last_feedback_samples: FxHashMap<String, FeedbackSample>,
     wrong_sign_state: FxHashMap<String, WrongSignState>,
@@ -677,6 +686,7 @@ impl<B: MotorBus> Supervisor<B> {
             set_zero_on_wire: FxHashMap::default(),
             invalid_feedback: FxHashSet::default(),
             last_tau_ff: FxHashMap::default(),
+            total_torque_clamps: TotalTorqueClampLog::default(),
             feedback_velocity_trips: FxHashMap::default(),
             last_feedback_samples: FxHashMap::default(),
             wrong_sign_state: FxHashMap::default(),
@@ -1343,6 +1353,12 @@ impl<B: MotorBus> Supervisor<B> {
     /// rate limiter), or `None` before the first send of this session. Telemetry only.
     pub fn last_tau_ff_nm(&self, joint: &str) -> Option<f64> {
         self.last_tau_ff.get(joint).copied()
+    }
+
+    /// Sent MIT commands for `joint` whose predicted total torque exceeded the joint's cap and
+    /// were moved toward feedback (see `total_torque.rs`), since process start. Telemetry only.
+    pub fn total_torque_clamp_count(&self, joint: &str) -> u64 {
+        self.total_torque_clamps.count(joint)
     }
 
     /// Seed the tau_ff rate limiter with current measured torque for each joint.
@@ -2396,6 +2412,9 @@ impl<B: MotorBus> Supervisor<B> {
             if let Some(state) = stage.wrong_sign {
                 store_by_joint(&mut self.wrong_sign_state, joint, state);
             }
+            if let Some(clamp) = stage.total_torque {
+                self.total_torque_clamps.record(joint, clamp, batch_tick);
+            }
         }
         // Admission is atomic; delivery can still fail partway through a physical
         // bus write and is reported as an error for the owner's stop path.
@@ -2472,7 +2491,7 @@ impl<B: MotorBus> Supervisor<B> {
         let mut neutral = true;
         for (slot, (cmd, &index)) in cmds.into_iter().zip(&scratch.configured).enumerate() {
             let motor = supplied.unwrap_or(&self.motors.motors[index]);
-            let (filtered, q_meas, dq_meas) =
+            let (filtered, q_meas, dq_meas, total_torque) =
                 self.filter_mit_core(cmd, motor, Some(index), self.last_tick)?;
             let wrong_sign = self
                 .wrong_sign_step(&filtered, q_meas, dq_meas)
@@ -2499,6 +2518,7 @@ impl<B: MotorBus> Supervisor<B> {
                 motor: index,
                 tau_ff_nm: filtered.torque_ff_nm,
                 wrong_sign,
+                total_torque,
             });
         }
         scratch.wires.truncate(scratch.staged.len());
@@ -2945,10 +2965,13 @@ impl<B: MotorBus> Supervisor<B> {
             &self.homing_config,
         )?;
         let tick = Instant::now();
-        let (out, q_meas, dq_meas) =
+        let (out, q_meas, dq_meas, total_torque) =
             self.filter_mit_core(cmd, configured, Some(index), self.last_tick)?;
         // Unlike a batch, a single filter keeps limiter/watchdog advances on error.
         store_by_joint(&mut self.last_tau_ff, &out.joint, out.torque_ff_nm);
+        if let Some(clamp) = total_torque {
+            self.total_torque_clamps.record(&out.joint, clamp, tick);
+        }
         if let Some((state, admitted)) = self.wrong_sign_step(&out, q_meas, dq_meas) {
             store_by_joint(&mut self.wrong_sign_state, &out.joint, state);
             admitted?;
@@ -2957,18 +2980,20 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(out)
     }
 
-    /// Limits, envelope, danger zones and tau_ff rate limiting without mutating state.
+    /// Limits, envelope, danger zones, tau_ff rate limiting and the total-torque bound
+    /// without mutating state.
     ///
     /// `feedback` is the configured motor index for `cmd.joint` (measured pose source).
-    /// Returns the filtered command plus `(q_meas, dq_meas)`; the caller stores
-    /// `torque_ff_nm` as the joint's new `last_tau_ff`.
+    /// Returns the filtered command, `(q_meas, dq_meas)` and the total-torque clamp it took, if
+    /// any; the caller stores `torque_ff_nm` as the joint's new `last_tau_ff` and counts the
+    /// clamp once the command is sent.
     fn filter_mit_core(
         &self,
         cmd: MitJointCommand,
         motor: &MotorEntry,
         feedback: Option<usize>,
         previous_tick: Option<Instant>,
-    ) -> Result<(MitJointCommand, f64, f64), DavoutError> {
+    ) -> Result<(MitJointCommand, f64, f64, Option<TotalTorqueClamp>), DavoutError> {
         validate_mit_command(&cmd)?;
         let lim = self
             .limits
@@ -3069,7 +3094,25 @@ impl<B: MotorBus> Supervisor<B> {
             previous_tick,
             torque_cap,
         );
-        Ok((out, q_meas, dq_meas))
+        // The drive adds kp·(q_des − q) + kd·(dq_des − dq) to τ_ff with no documented clamp;
+        // bound the predicted total by the same cap (ADR 0039 open question 1).
+        let horizon_s = TOTAL_TORQUE_HORIZON_TICKS / f64::from(self.control.control.loop_hz);
+        let total_torque = clamp_total_torque(&mut out, q_meas, dq_meas, torque_cap, horizon_s)?;
+        // The clamped setpoint lies between q_des and measured q; refuse it if q is outside.
+        if total_torque.is_some()
+            && (out.position_rad < lim.hard_lower() || out.position_rad > lim.hard_upper())
+        {
+            return Err(DavoutError::Limit {
+                joint: out.joint.clone(),
+                message: format!(
+                    "total-torque clamp moved position {} outside hard [{}, {}]",
+                    out.position_rad,
+                    lim.hard_lower(),
+                    lim.hard_upper()
+                ),
+            });
+        }
+        Ok((out, q_meas, dq_meas, total_torque))
     }
 
     /// Next wrong-sign watchdog state for `out.joint` and whether it admits `out`.
@@ -4821,7 +4864,10 @@ mod tests {
         configured.direction = motor.direction;
         configured.gear_ratio = motor.gear_ratio;
         sup = installed_policy(&sup.motors, &sup.control);
-        bench_ready_active(&mut sup);
+        bench_active(&mut sup);
+        // Feedback at the setpoint: the drive total kp·e + kd·ė + τ_ff stays under the 3 Nm
+        // RS02 cap, so the total-torque bound leaves this coordinate-conversion request intact.
+        initial_poses(&mut sup, "right_elbow_pitch", 0.5, 0.25);
         sup.bus.clear_trace();
         sup.send_mit_joint(
             MitJointCommand {
