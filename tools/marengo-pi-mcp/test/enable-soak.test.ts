@@ -530,7 +530,7 @@ describe("pi_enable_soak candump recording (generated remote shell)", () => {
     assert.equal(status, 0, output);
 
     // The wrapper recorded a candump and printed the session line as real JSON.
-    assert.match(output, /^candump recording: can0 -> \/\S+\/var\/log\/candump-\d{8}T\d{6}Z\.log$/m);
+    assert.match(output, /^candump recording: can0,#FFFFFFFF -> \/\S+\/var\/log\/candump-\d{8}T\d{6}Z\.log$/m);
     const jsonLine = output.split("\n").filter((l) => l.startsWith("{")).at(-1)!;
     const session = JSON.parse(jsonLine) as { log: string; candump: string; ts: string; label: string };
     assert.equal(session.label, "enable-soak");
