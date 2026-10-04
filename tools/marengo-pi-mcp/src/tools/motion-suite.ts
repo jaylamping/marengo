@@ -460,7 +460,10 @@ export const motionSuiteSchema = motionConfirmSchema.extend({
   dry_run: z
     .boolean()
     .default(false)
-    .describe("Read config, run the τ batches and every guard, return the session plan; no motion, no enable"),
+    .describe(
+      "Read config, run the τ batches and every guard, return the session plan; no motion, no enable, no CAN " +
+        "ownership (needs only confirm)",
+    ),
   span_fractions: z
     .array(z.number().gt(0).max(1))
     .min(1)
@@ -525,15 +528,24 @@ export function registerMotionSuiteTools(
         "its hanging-rest refusal. Each session writes var/motion-suite/<TS>/ (plan.json, position-trace.csv, " +
         "bench-session.txt, config, score.txt) and is scored per move by scripts/analyze-position-trace.py " +
         "--score-bench; the result ends with a per-session PASS/FAIL table. Stops at the first session that " +
-        "refuses, fails or is incomplete. dry_run: plan + guards only. Needs confirm (+ confirm_weighted_motion " +
-        "on weighted profiles), set_zero + at_mechanical_reference. " +
+        "refuses, fails or is incomplete. dry_run: plan + guards only, needs only confirm, and never stops " +
+        "marengo-pi. A real run needs confirm (+ confirm_weighted_motion on weighted profiles), set_zero + " +
+        "at_mechanical_reference. " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: motionSuiteSchema,
       handler: async (args: MotionSuiteArgs): Promise<string> => {
         const profile = args.profile ?? "arm_attached";
-        const check = validateMotionConfirm({ ...args, profile }, cfg.benchProfile);
-        if (!check.ok) return check.message;
-        if (args.set_zero !== true || args.at_mechanical_reference !== true) return REFERENCE_OPT_IN_REQUIRED;
+        // A dry run never zeroes, enables or takes CAN (its τ batches are model-only gravity-preview),
+        // so it needs only confirm: the weighted double approval and the mechanical-reference
+        // attestation stay reserved for runs that move the arm.
+        const dryRun = args.dry_run === true;
+        if (dryRun) {
+          if (args.confirm !== true) return "Motion blocked — user must approve; retry with confirm: true";
+        } else {
+          const check = validateMotionConfirm({ ...args, profile }, cfg.benchProfile);
+          if (!check.ok) return check.message;
+          if (args.set_zero !== true || args.at_mechanical_reference !== true) return REFERENCE_OPT_IN_REQUIRED;
+        }
         const joint = args.sweep_joint ?? "right_shoulder_pitch";
         const operator = args.operator ?? "bench";
         if (!OPERATOR.test(operator)) return "Refused: operator must match ^[A-Za-z0-9_-]+$.";
@@ -558,10 +570,18 @@ export function registerMotionSuiteTools(
           joints: chain,
           readLocal: (rel) => deps.readFile(path.join(cfg.localRoot, rel)),
         });
+        // gravity-preview reads robot.yaml and the URDF only, so a dry run leaves a running
+        // marengo-pi (possibly holding the arm for Consul) untouched.
         const tauBatch = async (configs: Record<string, number>[]) =>
           parseGravityBatch(
             await runRemote(
-              wrapRemoteWithConfig(cfg, soleCanOwnerShell(gravityBatchShell(configs, read.robotJoints)), configDir),
+              wrapRemoteWithConfig(
+                cfg,
+                dryRun
+                  ? gravityBatchShell(configs, read.robotJoints)
+                  : soleCanOwnerShell(gravityBatchShell(configs, read.robotJoints)),
+                configDir,
+              ),
               TAU_GUARD_TIMEOUT_MS + CAN_SESSION_SLACK_MS,
             ),
           );

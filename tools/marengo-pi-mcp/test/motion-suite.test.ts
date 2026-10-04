@@ -395,6 +395,42 @@ describe("pi_motion_suite tool", () => {
     assert.equal(sessionBodies(h).length, 0);
   });
 
+  it("dry_run needs only confirm and never takes CAN ownership", async () => {
+    const h = harness();
+    const out = await h.run({
+      dry_run: true,
+      confirm_weighted_motion: undefined,
+      set_zero: undefined,
+      at_mechanical_reference: undefined,
+    });
+    assert.match(out, /dry_run: no session was run/);
+    assert.ok(h.bodies.length > 0, "the dry run still reads config and runs the τ batches");
+    for (const b of h.bodies) assert.doesNotMatch(b, /marengo-pi\.service restore after session/);
+    assert.equal(sessionBodies(h).length, 0);
+  });
+
+  it("dry_run still refuses without confirm", async () => {
+    const h = harness();
+    const out = await h.run({ dry_run: true, confirm: undefined } as unknown as Partial<MotionSuiteArgs>);
+    assert.match(out, /confirm: true/);
+    assert.equal(h.bodies.length, 0);
+  });
+
+  it("a real run refuses a weighted profile without confirm_weighted_motion, before any remote call", async () => {
+    const h = harness();
+    const out = await h.run({ confirm_weighted_motion: undefined });
+    assert.match(out, /Weighted motion blocked/);
+    assert.equal(h.bodies.length, 0);
+  });
+
+  it("a real run takes CAN ownership for its τ batches", async () => {
+    const h = harness();
+    await h.run({ sessions: ["repeatability"] });
+    const tauBodies = h.bodies.filter((b) => b.includes("@@gravcal_pose"));
+    assert.ok(tauBodies.length > 0);
+    for (const b of tauBodies) assert.match(b, /marengo-pi\.service restore after session/);
+  });
+
   it("dry_run with the repo calibrations index widens the pitch window to the soft ∩ hard limits", async () => {
     const h = harness({ files: CALIBRATION_FILES, tau: FITTED_PITCH_TAU });
     const out = await h.run({ dry_run: true });
