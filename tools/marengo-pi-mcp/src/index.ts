@@ -15,6 +15,7 @@ import { makeAuditMotion, registerMotionTools } from "./tools/motion.js";
 import { registerGravityCalibrateTools } from "./tools/gravity-calibrate.js";
 import { registerJointCalibrateTools } from "./tools/joint-calibrate.js";
 import { registerEnableSoakTools } from "./tools/enable-soak.js";
+import { registerMotionSuiteTools } from "./tools/motion-suite.js";
 
 // zod-to-json-schema is optional; inline minimal schema helper if not installed
 function schemaOf(zodSchema: { _def?: unknown }): Record<string, unknown> {
@@ -42,6 +43,7 @@ async function main() {
   const gravityCalibrate = registerGravityCalibrateTools(cfg, runRemote, auditMotion);
   const jointCalibrate = registerJointCalibrateTools(cfg, runRemote, auditMotion);
   const enableSoak = registerEnableSoakTools(cfg, runRemote, auditMotion);
+  const motionSuite = registerMotionSuiteTools(cfg, runRemote, auditMotion);
 
   const allTools = {
     ...readonly,
@@ -51,6 +53,7 @@ async function main() {
     ...gravityCalibrate,
     ...jointCalibrate,
     ...enableSoak,
+    ...motionSuite,
   };
 
   type ToolEntry = {

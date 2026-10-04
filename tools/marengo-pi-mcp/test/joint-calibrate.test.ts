@@ -494,6 +494,8 @@ describe("pi_joint_calibrate session and v2 plan.json", () => {
     const out = await h.run({ ...OPT_INS, method: "static", sweep_joint: ELBOW, fixed_rad: { [PITCH]: 0.5 } });
     assert.equal(h.bodies.length, 6, "pre-flight, τ batch, gate snapshot, gate preview, session, trace");
     const session = h.bodies[4];
+    // The sweep joint is traced every tick so the bench scorer can measure the τ_ff step.
+    assert.match(session, new RegExp(`export MARENGO_POSITION_TRACE_FULL_RATE_JOINTS='${ELBOW}'`));
     const lines = stdinLines(session);
     assert.equal(lines[0], `home ${CHAIN.join(" ")} sign-tested`);
     assert.equal(lines[3], `hold-at ${PITCH} 0.5`);

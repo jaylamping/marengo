@@ -96,7 +96,7 @@ just mcp-ensure-enabled --write
 | Read-only | No | `pi_logs_tail`, `pi_health`, `pi_homing_status`, `pi_motor_repl_status`, `pi_protocol_inspect`, `pi_gravity_preview`, `pi_imu_probe` |
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
 | Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
-| Motion | Yes | `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_joint_calibrate`, `pi_enable_soak` |
+| Motion | Yes | `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_joint_calibrate`, `pi_motion_suite`, `pi_enable_soak` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
 
@@ -125,7 +125,7 @@ Reference grants live only inside the `marengo-pi` process that acquired them
 
 `install-pi.sh` runs no homing check; it prints one line pointing at the in-process procedure in [docs/homing.md](../../docs/homing.md).
 
-Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_joint_calibrate`, `pi_enable_soak` and `pi_bench_harness`. Each session:
+Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_joint_calibrate`, `pi_motion_suite`, `pi_enable_soak` and `pi_bench_harness`. Each session:
 
 1. Stops `marengo-pi.service` with `sudo -n /usr/local/libexec/marengo/pi-restart-marengo-pi.sh stop`, the same helper `pi_restart_marengo_pi` uses. The service runs as `marengo` with `Restart=always`, so a bare `pkill` either fails or lets systemd start a second owner within 5 s.
 2. Kills leftover `marengo-pi` processes owned by the deploy user.
@@ -205,6 +205,22 @@ One session of the [right-arm calibration suite](../../docs/commissioning/right-
   - Total sleep + reference budget ≤ 300 s, else it refuses and suggests splitting the session.
   - τ guard: `|τ_g| × 1.6 ≤ 0.8 ×` τ_ff cap on every profile joint, at configurations ≤ 0.05 rad apart along every commanded path. The paths are each fixed joint moving out in chain order (the distal-first return retraces them) and the sweep across all of its targets, poses and 0 (wave method: planned with the 0.1 rad maximum amplitude, a superset of the final waves). The cap is `min(URDF effort, motors.yaml torque_limit_nm, robot.yaml max_joint_torque_nm, motor-type tau_ff_max_nm)`. τ_g comes from one batched remote call, run as sole CAN owner like the gravity gate, that runs `motor-repl gravity-preview` once per distinct configuration with a full `robot.yaml`-order vector. A missing τ_g refuses. The wave method checks limits, speeds and the budget after this batch, once the amplitude is known.
 - **Outputs.** The `pi_gravity_calibrate` directory with `plan.json` version 2 plus `method`. Wave plans add `wave_amplitude_rad` and omit `approach_offset_rad`/`measure_sec`; static plans keep them. Steps carry `kind`: `hold` (`joint`, `target_rad`, `measure`, `pose_index`, `approach`), `fixed` (`joint`, `target_rad`) or `wave` (`joint`, `min_rad`, `max_rad`, `cycles`, `half_period_s`, and `pose_index` for wave-method local waves). `session_complete` is true only when marengo-pi exited 0 and the trace shows every step, in order. A hold or fixed step counts when `target_raw` changes to its target. A wave counts when it reaches its top `cycles` times and returns to its bottom. With `run_fit` the fit runs even on an incomplete session; the fitter uses completed steps only, and follows plan.json `method`.
+
+### `pi_motion_suite`
+
+Thorough single-joint motion test (`src/tools/motion-suite.ts`), scored per move by `scripts/analyze-position-trace.py --score-bench`. It reuses the `pi_joint_calibrate` session runner, so each session is one marengo-pi process: `home <profile joints> sign-tested`, `home`, `enable`, the motions, every profile joint back to 0 distal first, `status`, `disable`, `quit`. The sweep joint is traced every tick (`MARENGO_POSITION_TRACE_FULL_RATE_JOINTS`) so the τ_ff step is scorable.
+
+- **Usable window.** The soft ∩ hard window inset by 0.05 rad, narrowed to the run of 0.05 rad samples around 0 where model `|τ_g| × 1.6 ≤ 0.8 ×` τ_ff cap on every profile joint (one batched `motor-repl gravity-preview`). Refused under 0.2 rad. Gravity extremes are the largest-|τ_g| samples on each side of 0; a side within 0.15 rad of 0 has none.
+- **Speed-controlled moves.** `hold-at` always runs at the configured planner speed, so a move at a chosen speed is a single-cycle `wave a b 1 T` (a→b→a), with peak speed `speed_fraction × v_adm(b − a)`; `v_adm` = min(0.8 × velocity cap, trajectory velocity, √(accel · span/2)).
+- **Sessions** (`sessions`, default all, in order):
+  - `long_moves`: bands of `span_fractions` (25/50/90 %) of the window, centred on 0; one wave per `speed_fractions` (25/50/90 %).
+  - `sweeps_and_reversals`: full-width waves at the same speeds; then per band `hold-at a`, `hold-at b`, and `hold-at a` again after the trapezoid time to half the move (a mid-move reversal).
+  - `short_moves`: 0.02/0.05/0.1 rad out (toward 0) and back at each gravity extreme and at 0.
+  - `gravity_extremes`: `hold_sec` (≥ 10 s) drift holds at both extremes, with the moves between them.
+  - `repeatability`: 0 → end of the 25 % band → 0, `repeat_count` (5) times.
+- **Budget.** Each session must fit 300 s with reference acquisition (50 s for five joints) and the return; a longer one splits at block boundaries into `<name>_1`, `<name>_2`, …. Master pitch config with the repo URDF (window [−1.038, 1.2] rad, upper bound τ): `long_moves` 156 s, `sweeps_and_reversals` 132 s, `short_moves` 134 s, `gravity_extremes` 87 s, `repeatability` 95 s.
+- **Guards**, all before any motion of any session: every target and wave extreme ≥ 0.05 rad inside the window, wave speed and acceleration within the admission limits, the τ guard along every commanded path of every session, the budget, `confirm` (+ `confirm_weighted_motion`), `set_zero` + `at_mechanical_reference`. The gravity gate before each enable keeps its hanging-rest refusal.
+- **Outputs.** Per session `var/motion-suite/<TS>/`: `plan.json` (version 1: session, window, extremes, steps, `budget_sec`, `session_complete`), `position-trace.csv`, `bench-session.txt`, `config/`, `pi-marengo.urdf`, `score.txt`. The result ends with a `session | ts | budget s | verdict` table and `overall: PASS|FAIL`. The suite stops at the first session that is refused, fails or is incomplete; a scorer FAIL does not stop it. `dry_run: true` returns the plan after every guard, without any session.
 
 ### `pi_enable_soak`
 

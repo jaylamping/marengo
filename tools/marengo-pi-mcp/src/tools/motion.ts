@@ -180,12 +180,21 @@ export function benchConfigDirForJoint(
   return BENCH_CONFIG_MASTER;
 }
 
+/**
+ * Bench session shell. `fullRateJoints` are traced every control tick
+ * (MARENGO_POSITION_TRACE_FULL_RATE_JOINTS) so the scorer can measure per-tick quantities on a
+ * swept joint; the rest stay at MARENGO_POSITION_TRACE_HZ (default 50).
+ */
 export const benchLogWrapper = (
   cfg: MarengoPiConfig,
   pipeCmd: string,
   label: string,
   configDir?: string,
+  fullRateJoints: readonly string[] = [],
 ) => {
+  if (fullRateJoints.some((j) => !/^[A-Za-z0-9_]+$/.test(j))) {
+    throw new Error(`invalid full-rate trace joints: ${JSON.stringify(fullRateJoints)}`);
+  }
   const logDir = `${cfg.piRoot}/var/log`;
   const body = soleCanOwnerShell([
     `LOGDIR=${shellQuote(logDir)}`,
@@ -195,6 +204,9 @@ export const benchLogWrapper = (
     'TRACE="$LOGDIR/position-trace-$TS.csv"',
     'export MARENGO_POSITION_TRACE="$TRACE"',
     'export MARENGO_POSITION_TRACE_HZ="${MARENGO_POSITION_TRACE_HZ:-50}"',
+    ...(fullRateJoints.length > 0
+      ? [`export MARENGO_POSITION_TRACE_FULL_RATE_JOINTS=${shellQuote(fullRateJoints.join(","))}`]
+      : []),
     'export MARENGO_LOG_SESSION_ID="$TS"',
     `LABEL=${shellQuote(label)}`,
     // The one pre-session disable: stops every drive, including joints this marengo-pi session

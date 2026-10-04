@@ -489,6 +489,25 @@ export interface CalibrationRun {
     json: Record<string, unknown>;
     complete: boolean;
   };
+  /** Joints traced every control tick (MARENGO_POSITION_TRACE_FULL_RATE_JOINTS). */
+  fullRateJoints?: readonly string[];
+  /**
+   * Let the gravity gate's hanging-rest |τ_g| mismatch through (default true: calibration exists
+   * to fix that model). A motion test keeps the refusal.
+   */
+  allowHangingRestMismatch?: boolean;
+  /** Local output directory under var/ (default `gravity-calibration`). */
+  outputSubdir?: string;
+  /** Result section header (default `--- gravity calibration ---`). */
+  sectionHeader?: string;
+  /**
+   * Replaces the gravity fit: called once the session's files are written (trace present).
+   * Its lines are appended to the result and its exit code is the tool's.
+   */
+  afterSession?: (ctx: { dir: string; complete: boolean; sessionExit: number }) => Promise<{
+    lines: string[];
+    exitCode: number;
+  }>;
 }
 
 /**
@@ -510,7 +529,7 @@ export async function runCalibrationSession(
     snapshotOutput: await runRemote(wrapRemoteWithConfig(cfg, gravityGateSnapshotShell(), configDir), 15_000),
     runPreview: (shell) =>
       runRemote(wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir), 30_000 + CAN_SESSION_SLACK_MS),
-    allowHangingRestMismatch: true,
+    allowHangingRestMismatch: run.allowHangingRestMismatch ?? true,
   });
   const preamble = run.preamble.length > 0 ? [...run.preamble, ""] : [];
   if (!gravity.ok) {
@@ -521,14 +540,14 @@ export async function runCalibrationSession(
 
   const pipeCmd = marengoPiSessionBody(cfg, marengoPiAdmittedPipe(run.script, run.budgetSec + 10));
   const sessionOut = await runRemote(
-    benchLogWrapper(cfg, pipeCmd, run.label, configDir),
+    benchLogWrapper(cfg, pipeCmd, run.label, configDir, run.fullRateJoints),
     run.budgetSec * 1000 + 30_000 + CAN_SESSION_SLACK_MS,
   );
   const sessionText = [...preamble, gravity.report, sessionOut].join("\n");
   const sessionExit = Number(/\[exit (\d+)\]\s*$/.exec(sessionOut)?.[1] ?? 0);
-  const out: string[] = [sessionText, "", "--- gravity calibration ---"];
+  const out: string[] = [sessionText, "", run.sectionHeader ?? "--- gravity calibration ---"];
   const finish = (exitCode: number) => {
-    out.push("", NEVER_APPLIED_NOTE);
+    if (run.afterSession === undefined) out.push("", NEVER_APPLIED_NOTE);
     const text = out.join("\n");
     auditMotion(tool, args, text, exitCode);
     return text;
@@ -555,7 +574,7 @@ export async function runCalibrationSession(
   const trace = extractMarked(traceOut, "trace");
   const traceOk = trace !== undefined && trace.startsWith("tick,");
 
-  const dir = path.join(cfg.localRoot, "var", "gravity-calibration", session.ts);
+  const dir = path.join(cfg.localRoot, "var", run.outputSubdir ?? "gravity-calibration", session.ts);
   const plan = run.plan({
     sessionTs: session.ts,
     gateReport: gravity.report,
@@ -578,6 +597,11 @@ export async function runCalibrationSession(
   if (!traceOk) {
     out.push(`position trace ${session.trace} missing or without a header: no fit was run.`, traceOut);
     return finish(sessionExit || 1);
+  }
+  if (run.afterSession !== undefined) {
+    const after = await run.afterSession({ dir, complete: plan.complete, sessionExit });
+    out.push(...after.lines);
+    return finish(after.exitCode);
   }
   const failExit = plan.complete ? 0 : sessionExit || 1;
   if (!plan.complete) {

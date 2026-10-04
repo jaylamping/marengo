@@ -320,6 +320,7 @@ describe("pi_gravity_calibrate session", () => {
     assert.equal(sessions.length, 1);
     const session = h.bodies[3];
     assert.equal(session, sessions[0]);
+    assert.match(session, /export MARENGO_POSITION_TRACE_FULL_RATE_JOINTS='right_/);
     assert.match(h.bodies[4], /MARENGO_GRAVCAL_trace_BEGIN/);
     assert.match(h.bodies[4], new RegExp(`cat '${TRACE_PATH}'`));
     assert.doesNotMatch(h.bodies[4], /motor-repl|marengo-pi /);
