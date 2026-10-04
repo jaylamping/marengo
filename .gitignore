@@ -95,3 +95,7 @@ opencode.json
 .cargo-target/
 # Runtime inter-process profile writer lock; never deploy or mirror it
 /config/.marengo-profile.lock
+
+# Bench suite artifacts and bytecode (untracked like the other var/ outputs)
+var/motion-suite/
+__pycache__/
