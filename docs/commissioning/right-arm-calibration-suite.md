@@ -119,3 +119,13 @@ A 2.86 ± 0.14 Nm (CAD 2.83 / 0.034), fitted ΔI ≈ 0; refused on identifiabili
 Without I·q̈ the same bins give A ≈ 2.2–2.4; with it they agree with CAD within
 σ_A, so these narrow waves can neither confirm nor rule out the 17–24 % deficit
 the static holds suggested. A wave session across the window decides it.
+
+Phase 1 applied (2026-10-04, sessions 113836Z + 113951Z, waves at five poses across
+±0.53 rad, three speeds): A 2.661 ± 0.054, B 0.038 ± 0.016 Nm (CAD 2.832 / 0.034);
+max residual 0.021 Nm over the replicated poses against a 0.097 Nm gate. The single-bin
+wave-edge poses at q ≈ ±0.026 (+0.135 / −0.118 Nm) are reported, not gated. The URDF patch
+moves the carried links' COMs (masses unchanged) to reproduce A, B. Friction: measured
+|q̇| spans only 0.16–0.22 rad/s (the 0.076 rad/s velocity quantum), so fv is not
+identifiable (0.33 ± 0.74) and no Stribeck term fits; fc 0.353 Nm is the Coulomb mean, with
+residual 0.080 Nm against bin noise 0.047 Nm (gate 0.10). Record:
+`calibrations/2026-10-04-gravity-20261004T113836Z-20261004T113951Z.md`.

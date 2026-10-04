@@ -26,7 +26,7 @@
   <!-- Pitch bracket (PLA) + shoulder roll RS03 clamped in its barrel. -->
   <link name="right_shoulder_pitch_link">
     <inertial>
-      <origin xyz="-0.00378 0.06933 -0.00005" rpy="0 0 0"/>
+      <origin xyz="-0.00403 0.06933 0.01041" rpy="0 0 0"/>
       <mass value="1.0101"/>
       <inertia ixx="0.001536" ixy="1.603e-05" ixz="-2.844e-08" iyy="0.0009527" iyz="2.068e-07" izz="0.001158"/>
     </inertial>
@@ -34,7 +34,7 @@
   <!-- Roll bracket (PLA) + upper-arm yaw RS02. -->
   <link name="right_shoulder_roll_link">
     <inertial>
-      <origin xyz="-0.00209 -0.00001 -0.07141" rpy="0 0 0"/>
+      <origin xyz="-0.00221 -0.00001 -0.06631" rpy="0 0 0"/>
       <mass value="0.4925"/>
       <inertia ixx="0.0004919" ixy="4.083e-07" ixz="0.0001046" iyy="0.0005279" iyz="2.811e-08" izz="0.0004215"/>
     </inertial>
@@ -43,7 +43,7 @@
   <link name="right_upper_arm_link">
     <inertial>
       <mass value="0.5075"/>
-      <origin xyz="0.00003 -0.00779 -0.21516" rpy="0 0 0"/>
+      <origin xyz="-0.00010 -0.00779 -0.20990" rpy="0 0 0"/>
       <inertia ixx="0.000923" ixy="-6.824e-09" ixz="-4.374e-07" iyy="0.001014" iyz="-5.757e-05" izz="0.0003144"/>
     </inertial>
     <visual>
@@ -60,7 +60,7 @@
   <link name="right_forearm_link">
     <inertial>
       <mass value="0.3910"/>
-      <origin xyz="0.00066 0.00342 -0.06048" rpy="0 0 0"/>
+      <origin xyz="0.00056 0.00342 -0.05643" rpy="0 0 0"/>
       <inertia ixx="0.000469" ixy="1.038e-06" ixz="-9.693e-06" iyy="0.0004819" iyz="-7.524e-05" izz="0.0001943"/>
     </inertial>
     <visual>
@@ -77,7 +77,7 @@
   <link name="right_hand_link">
     <inertial>
       <mass value="0.0822"/>
-      <origin xyz="-0.00003 0 -0.04123" rpy="0 0 0"/>
+      <origin xyz="-0.00005 0.00000 -0.04038" rpy="0 0 0"/>
       <inertia ixx="0.0001839" ixy="-5.002e-10" ixz="-1.688e-07" iyy="0.0001838" iyz="1.74e-09" izz="6.152e-05"/>
     </inertial>
     <visual>

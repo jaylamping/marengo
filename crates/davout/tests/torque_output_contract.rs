@@ -167,7 +167,9 @@ fn last_wire_joint_torque(supervisor: &mut Supervisor<SimulationBus>, motor: &Mo
 #[test]
 fn torque_output_contract_measured_seed_and_reduced_cap_never_exceed_bound() {
     for measured in [-8.0, 8.0] {
-        for cap in [5.0, 0.2] {
+        // The reduced cap stays above master pitch friction (fs = fc 0.3526 Nm): config
+        // validation refuses a τ_ff cap below a joint's static friction.
+        for cap in [5.0, 0.4] {
             let mut supervisor = supervisor();
             let motor = pitch_motor(&supervisor);
             activate(&mut supervisor, &motor);

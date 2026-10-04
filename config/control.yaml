@@ -113,7 +113,7 @@ control:
       position_soft_lower_rad: -1.0882385473251344
       position_soft_upper_rad: 2.980078170776367
       friction:
-        fc: 0.08
+        fc: 0.3526
         fv: 0.0
         fo: 0.0
         k: 10.0
