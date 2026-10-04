@@ -97,7 +97,7 @@ impl Bench {
     /// Five joints referenced and Active in GravityComp, with the elbow and
     /// lower-arm yaw plans installed as the controller would.
     fn active(label: &str) -> Self {
-        let directory = TestDirectory::new(label);
+        let directory = TestDirectory::in_memory(label);
         let root = fixture_root(directory.path());
         let motors = load_motors_config_from(root.join("config")).expect("fixture motors");
         let firmware = Firmware::from_motors(&motors.motors, &[]);

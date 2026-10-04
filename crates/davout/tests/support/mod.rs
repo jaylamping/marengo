@@ -16,7 +16,29 @@ pub struct TestDirectory {
 
 impl TestDirectory {
     pub fn new(label: &str) -> Self {
-        let base = std::env::temp_dir().canonicalize().expect("test temp root");
+        Self::new_in(&std::env::temp_dir(), label)
+    }
+
+    /// A directory whose writes never wait on a disk flush, for benches that
+    /// judge wall-clock bounds across a durable reference-journal commit. The
+    /// journal commits with `synchronous=EXTRA`; on a contended VM disk (the
+    /// Linux check container) each commit's fsyncs took hundreds of
+    /// milliseconds, moving references past the post-SetZero windows the
+    /// benches place them in. Falls back to the temp dir where there is no
+    /// `/dev/shm` (macOS).
+    #[allow(dead_code)] // Only the physical-owner benches use it.
+    pub fn in_memory(label: &str) -> Self {
+        // Linux's RAM-backed shared-memory filesystem.
+        let ram = Path::new("/dev/shm");
+        if ram.is_dir() {
+            Self::new_in(ram, label)
+        } else {
+            Self::new(label)
+        }
+    }
+
+    fn new_in(base: &Path, label: &str) -> Self {
+        let base = base.canonicalize().expect("test temp root");
         let label: String = label
             .chars()
             .map(|ch| {

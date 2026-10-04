@@ -95,7 +95,7 @@ struct Bench {
 
 impl Bench {
     fn physical(label: &str) -> Self {
-        let directory = TestDirectory::new(label);
+        let directory = TestDirectory::in_memory(label);
         let root = fixture_root(directory.path());
         let journal = directory.path().join("reference-journal.sqlite3");
         let firmware = firmware_for(&root);
