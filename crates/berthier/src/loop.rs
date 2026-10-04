@@ -2581,8 +2581,9 @@ mod tests {
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.1)
             .expect("hold-at");
+        // Peak A·ω² = 0.1·(π/1.0)² ≈ 1 rad/s², inside master pitch's 1.5 rad/s² cap.
         loop_ctrl
-            .start_position_wave(joint, 0.0, 0.2, 2, 0.5)
+            .start_position_wave(joint, 0.0, 0.2, 2, 1.0)
             .expect("wave");
         assert!(loop_ctrl.position_wave_active());
         loop_ctrl

@@ -340,12 +340,58 @@ Deviations from the plan above, each forced by the simulation or by arithmetic:
 - **Not modelled:** the ADR's `J_eff·a_c` (no key), and the elbow 0.75 → 0.5 case as a separate
   scenario. The ×2 plant's 0.70 → 0 descent covers a −50 % model (+3 %, 1.29 rad/s, no trip).
 
+### Phase 3 pitch trial (simulation, October 4, 2026)
+
+Master selects `scaled_pd` for `right_shoulder_pitch` only. Its model is the applied 2026-10-04
+wave fit (A 2.661, B 0.038 Nm; fc 0.353 Nm, fv 0). `law_gates`
+`pitch_bench_trial_meets_bench_criteria` reads the master pitch entry and URDF and drives a
+fitted plant: URDF inertia 0.074 kg·m², fs 0.37 Nm (the static-hold band), fc 0.353 Nm. The
+session is 0 → 0.75 → 0.80 → 0.70 → 0 → −0.5 → 0. Variants: fv 0.33 (the unresolved
+slope), inertia +2σ of the fitted ΔI (0.111), and gravity ±2σ_A (×0.96, ×1.04). kp stays 18.
+
+Bench pass criteria, applied per move to the sim first:
+- velocity overshoot ≤ 20 % of the planned speed (Δq over 50 ms);
+- ≤ 0.01 rad past each stop;
+- no single-tick τ_ff step > 0.05 Nm, retargets included;
+- no predicted total-torque clamp.
+
+With the ADR defaults (e1 0.12, e0 e1/4, integral band 0.1, leak 0.5, a_max 4.5), the trial fails:
+- **τ_ff step 0.077–0.081 Nm.** `fc·k·a_max·dt` with the fitted fc.
+- **Stop overshoot up to 27 mrad (fitted plant 18).** Without `J_eff·a_c` the PD supplies the
+  braking torque `I·a_max` from a lead of `I·a_max/kp`, and a joint stopped within `fs/kp`
+  (20 mrad) stays there.
+- **Speed overshoot up to 21 %** on the slow 0.80 → 0.70 reversal: a 0.1 rad integral band
+  carries the integral wound up on the previous approach into the next slew.
+
+Tuned for the trial (pitch only):
+- `position_trajectory_accel_rad_s2` 4.5 → 1.5. This is the reference's `|Δv_c| ≤ a_max·dt`.
+- `position_integral_band_rad` 0.1 → 0.02, about the static dead zone `fs/kp`.
+- e1 (0.12) and e0 (0.03) changed nothing in the sweep (the lead never reached e0), so they keep the
+  defaults.
+- Results, worst variant:
+  - τ_ff step 0.028 Nm;
+  - speed overshoot 11 % (fitted plant 6 %);
+  - stop overshoot 8 mrad (fitted plant 4 mrad);
+  - no predicted total-torque clamp (max 3.05 Nm);
+  - max speed 1.08 rad/s, no fault.
+- At ×0.94 gravity (3σ_A) the stop overshoot is 10 mrad, at the limit.
+
+Costs of the lower acceleration:
+- **Wave admission.** `marengo-pi` and `pi_joint_calibrate` admit pitch waves only up to
+  `A·ω² ≤ 1.5 rad/s²`, about 0.3 rad/s at calibration amplitudes.
+- **Jam lead.** A jam at speed leaves the reference up to `e1 + v²/(2·a_max)` ahead. Davout's
+  total-torque clamp bounds the torque that lead could command.
+
+The lever the ADR names, `J_eff·a_c`, would restore the acceleration. `J_eff` is now bounded by
+the fit (ΔI −0.028 ± 0.034 kg·m² about the URDF), but the law has no key for it yet.
+
 ## Implementation plan
 
 1. **Phase 0: quick fixes and observability.** Done.
    - `db492cd3` (overshoot snap) and `8f9cff94` (low-angle band).
    - The trace columns (see Observability).
-2. **Phase 1: models first.** Not started (needs the bench).
+2. **Phase 1: models first.** Shoulder pitch identified on October 4, 2026 (Phase 3 trial
+   above); the other joints have not started.
    - Fix the elbow gravity model (~1.5× light).
    - Identify fs, fc and fv per joint from slow constant-velocity sweeps (GravityComp rule:
      before any gain change).
@@ -354,7 +400,8 @@ Deviations from the plan above, each forced by the simulation or by arithmetic:
      integral. `position_hold.rs` dispatches per joint and keeps the legacy path untouched.
    - The per-joint `position_law` selector is in place, with every joint on `legacy`.
    - Gates: see Phase 2 results.
-4. **Phase 3: bench qualification, one joint at a time.** Not started; no joint selects the law.
+4. **Phase 3: bench qualification, one joint at a time.** Pitch selects the law for its bench
+   trial; score each run with `scripts/analyze-position-trace.py --score-bench`.
    - Entry gate: open question 1 is closed (Davout bounds the total; see Davout interactions).
      Check every run's bench log for total-torque clamps.
    - Order: pitch bare → pitch weighted → roll → elbow → yaws.

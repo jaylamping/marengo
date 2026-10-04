@@ -8,7 +8,18 @@
 // (0.383 mrad) with ±0.3 count encoder noise, dq as the 5 ms grid difference (the ~0.077 rad/s
 // quantum the bench reports), one tick of transport delay.
 //
-// Each gate must fail on the legacy law and pass on the scaled-PD law.
+// Each Phase 2 gate must fail on the legacy law and pass on the scaled-PD law.
+//
+// The Phase 3 pitch trial (`pitch_bench_trial_meets_bench_criteria`) runs the master pitch
+// entry of `config/control.yaml` and the master URDF's τ_g against the plant the 2026-10-04
+// wave fit identified, and must meet the bench pass criteria before the bench runs them.
+
+#![allow(clippy::expect_used)]
+
+use std::path::{Path, PathBuf};
+
+use armee_dynamics::gravity_model_from_urdf;
+use armee_dynamics::lumped::lumped_terms;
 
 use super::*;
 use crate::position_law::{ReferenceFriction, ScaledPdGains};
@@ -18,7 +29,7 @@ const DT: f64 = 0.005;
 const HZ: u32 = 200;
 const SUBSTEPS: usize = 20;
 
-// Master pitch tuning (config/control.yaml); these are inputs, not changes to it.
+// Phase 2 pitch tuning (control.yaml before the 2026-10-04 fit); inputs, not config.
 const KP: f64 = 18.0;
 const KD: f64 = 3.0;
 const KI: f64 = 5.0;
@@ -33,7 +44,7 @@ const VELOCITY_CAP: f64 = 2.5;
 const TAU_LIMIT: f64 = 5.0;
 const TAU_FF_RATE_NM_S: f64 = 60.0;
 
-// Plant.
+// Phase 2 plant.
 const INERTIA: f64 = 0.12;
 const GRAVITY_NM: f64 = 2.7;
 const PLANT_FS: f64 = 0.14;
@@ -44,6 +55,15 @@ const PLANT_FV: f64 = 0.02;
 const TAU_STEP_GATE_NM: f64 = 0.05;
 /// ADR 0039 gate: measured velocity overshoot below this fraction of the planned peak.
 const OVERSHOOT_GATE: f64 = 0.20;
+
+/// Davout's total-torque prediction (`davout/src/total_torque.rs`): transport-delay horizon
+/// in ticks and velocity-estimate margin (rad/s).
+const TOTAL_TORQUE_HORIZON_TICKS: f64 = 2.0;
+const TOTAL_TORQUE_VELOCITY_MARGIN_RAD_S: f64 = 0.1;
+
+/// Window of the bench speed estimate (`scripts/analyze-position-trace.py --score-bench`):
+/// Δq over 50 ms, so one encoder count is 8 mrad/s rather than one 0.077 rad/s quantum.
+const SPEED_WINDOW_TICKS: usize = 10;
 
 fn rs03_count() -> f64 {
     f64::from(4.0 * std::f32::consts::PI) / 32767.0
@@ -115,30 +135,42 @@ impl Rng {
     }
 }
 
+/// True joint: inertia, gravity `a·sin q + b·cos q`, static/Coulomb/viscous friction.
+#[derive(Clone, Copy, Debug)]
+struct PlantModel {
+    inertia: f64,
+    gravity_a: f64,
+    gravity_b: f64,
+    fs: f64,
+    fc: f64,
+    fv: f64,
+}
+
 /// Rigid joint with stick-slip friction, driven by an MIT servo.
 struct Plant {
     q: f64,
     dq: f64,
-    gravity_scale: f64,
+    model: PlantModel,
 }
 
 impl Plant {
     fn step(&mut self, cmd: &DavoutMit) {
+        let m = self.model;
         let h = DT / SUBSTEPS as f64;
         for _ in 0..SUBSTEPS {
             let motor = (cmd.kp * (cmd.position_rad - self.q)
                 + cmd.kd * (cmd.velocity_rad_s - self.dq)
                 + cmd.torque_ff_nm)
                 .clamp(-TAU_LIMIT, TAU_LIMIT);
-            let drive = motor - self.gravity_scale * GRAVITY_NM * self.q.sin();
+            let drive = motor - m.gravity_a * self.q.sin() - m.gravity_b * self.q.cos();
             if self.dq == 0.0 {
-                if drive.abs() <= PLANT_FS {
+                if drive.abs() <= m.fs {
                     continue;
                 }
-                let accel = (drive - PLANT_FC * drive.signum()) / INERTIA;
+                let accel = (drive - m.fc * drive.signum()) / m.inertia;
                 self.dq = accel * h;
             } else {
-                let accel = (drive - PLANT_FC * self.dq.signum() - PLANT_FV * self.dq) / INERTIA;
+                let accel = (drive - m.fc * self.dq.signum() - m.fv * self.dq) / m.inertia;
                 let next = self.dq + accel * h;
                 // Sticks when the velocity crosses zero.
                 self.dq = if next * self.dq < 0.0 { 0.0 } else { next };
@@ -155,23 +187,46 @@ fn davout_tau_ff(previous: f64, requested: f64) -> f64 {
     (previous + (target - previous).clamp(-step, step)).clamp(-TAU_LIMIT, TAU_LIMIT)
 }
 
+/// Davout's worst-case total MIT torque for the sent command and its feedback (Nm).
+fn predicted_total_torque(cmd: &DavoutMit, q: f64, dq: f64) -> f64 {
+    let pd = cmd.kp * (cmd.position_rad - q) + cmd.kd * (cmd.velocity_rad_s - dq);
+    let e_max = dq.abs().max(cmd.velocity_rad_s.abs()) * TOTAL_TORQUE_HORIZON_TICKS / f64::from(HZ);
+    (pd + cmd.torque_ff_nm).abs() + cmd.kp * e_max + cmd.kd * TOTAL_TORQUE_VELOCITY_MARGIN_RAD_S
+}
+
 #[derive(Debug, Default)]
 struct Metrics {
     /// Largest host τ_ff change in one tick, outside retarget ticks (Nm).
     max_tau_step: f64,
+    /// Largest host τ_ff change in one tick, retarget ticks included (Nm).
+    max_tau_step_any: f64,
     /// Ticks with a full-rate moving reference, and those with measured dq exactly 0.
     moving_rows: usize,
     stuck_rows: usize,
     /// Per move: largest true speed above the planned peak, as a fraction of the plan.
     overshoot: Vec<f64>,
-    /// Largest speed excess over [`overshoot_bound`] (≤ 1 passes).
+    /// Per move: the same from Δq over [`SPEED_WINDOW_TICKS`] (the bench estimate).
+    overshoot_windowed: Vec<f64>,
+    /// Per move: furthest true position past the target in the direction of travel (rad).
+    end_overshoot: Vec<f64>,
+    /// Largest speed excess over the scenario's overshoot bound (≤ 1 passes).
     overshoot_vs_bound: f64,
     /// Largest true speed (rad/s).
     max_speed: f64,
     /// Wire kd / v_des toggles and planner phase changes while the joint rests at its target.
     rest_toggles: usize,
+    /// Ticks whose predicted total torque exceeds the cap (Davout would clamp them).
+    total_torque_clamps: usize,
+    /// Largest predicted total torque (Nm).
+    max_total_torque: f64,
     /// Fuse trip, if the law faulted.
     fault: Option<String>,
+}
+
+impl Metrics {
+    fn worst(values: &[f64]) -> f64 {
+        values.iter().copied().fold(f64::NEG_INFINITY, f64::max)
+    }
 }
 
 /// Velocity overshoot gate (rad/s above the planned peak): the ADR's 20 % of plan, floored at
@@ -195,13 +250,41 @@ const NOISE_COUNTS: f64 = 1.0;
 /// by a rest window. `(target rad, seconds)`.
 const MOVES: [(f64, f64); 4] = [(0.75, 2.5), (0.80, 2.0), (0.70, 2.0), (0.0, 2.5)];
 
-fn simulate(law: Law, gravity_scale: f64) -> Metrics {
-    let moves = MOVES;
+/// One simulated session: the joint's parameters, the τ_g model Berthier holds, the true plant.
+struct Scenario<'a> {
+    params: HoldJointParams,
+    /// `(A, B)` of the τ_g model Berthier feeds forward.
+    model: (f64, f64),
+    plant: PlantModel,
+    moves: &'a [(f64, f64)],
+    /// Overshoot bound for `overshoot_vs_bound` (rad/s) given the planned peak.
+    bound: fn(f64) -> f64,
+}
+
+fn phase2(law: Law, gravity_scale: f64) -> Scenario<'static> {
+    Scenario {
+        params: params(law),
+        model: (GRAVITY_NM, 0.0),
+        plant: PlantModel {
+            inertia: INERTIA,
+            gravity_a: gravity_scale * GRAVITY_NM,
+            gravity_b: 0.0,
+            fs: PLANT_FS,
+            fc: PLANT_FC,
+            fv: PLANT_FV,
+        },
+        moves: &MOVES,
+        bound: overshoot_bound,
+    }
+}
+
+fn simulate(scenario: &Scenario) -> Metrics {
+    let jp = &scenario.params;
     let mut hold = PositionHold::with_progress_thresholds(vec![progress_threshold()]);
     let mut plant = Plant {
         q: 0.0,
         dq: 0.0,
-        gravity_scale,
+        model: scenario.plant,
     };
     let mut rng = Rng(0x2545_f491_4f6c_dd1d);
     let grid = rs03_count();
@@ -210,25 +293,36 @@ fn simulate(law: Law, gravity_scale: f64) -> Metrics {
     };
     let mut q_meas = sense(plant.q, &mut rng);
     let mut dq_meas = 0.0;
-    let params = [params(law)];
+    let params = [jp.clone()];
     let names = [String::from("right_shoulder_pitch")];
+    let (model_a, model_b) = scenario.model;
+    let cap = jp.velocity_cap.unwrap_or(f64::INFINITY);
     let mut wave = None;
     let mut metrics = Metrics::default();
     let mut tick: u64 = 0;
     let mut tau_wire = 0.0;
     let mut last_tau: Option<f64> = None;
     let mut last_wire: Option<(f64, f64, &'static str)> = None;
+    let mut q_history: std::collections::VecDeque<f64> = std::collections::VecDeque::new();
     hold.set_joint_law(0, params[0].law.kind());
     hold.arm(&[q_meas], &[q_meas], 0);
-    for (move_index, (target, seconds)) in moves.into_iter().enumerate() {
+    for (move_index, &(target, seconds)) in scenario.moves.iter().enumerate() {
         let start = q_meas;
+        let direction = (target - start).signum();
         let v_plan = {
             let distance = (target - start).abs();
-            let v = if distance <= THRESHOLD { SLEW } else { V_TRAJ };
-            v.min((A_MAX * distance).sqrt()).min(VELOCITY_CAP)
+            let v = if distance <= jp.trajectory_threshold_rad {
+                jp.slew_rad_s
+            } else {
+                jp.trajectory_v_max
+            };
+            v.min((jp.a_max * distance).sqrt()).min(cap)
         };
         metrics.overshoot.push(f64::NEG_INFINITY);
-        let seed = downward_return_seed_velocity(SLEW, V_TRAJ, q_meas, target);
+        metrics.overshoot_windowed.push(f64::NEG_INFINITY);
+        metrics.end_overshoot.push(0.0);
+        let seed =
+            downward_return_seed_velocity(jp.slew_rad_s, jp.trajectory_v_max, q_meas, target);
         hold.apply_retarget(HoldRetarget {
             joint_idx: 0,
             clamped: target,
@@ -243,7 +337,7 @@ fn simulate(law: Law, gravity_scale: f64) -> Metrics {
         let rest_from = retarget_tick + ticks - u64::from(HZ);
         for _ in 0..ticks {
             tick += 1;
-            let tau_g = [GRAVITY_NM * q_meas.sin()];
+            let tau_g = [model_a * q_meas.sin() + model_b * q_meas.cos()];
             let out = match hold.tick(HoldWorld {
                 q: &[q_meas],
                 dq_meas: &[dq_meas],
@@ -264,10 +358,10 @@ fn simulate(law: Law, gravity_scale: f64) -> Metrics {
             let mut cmd = out.mit[0].clone();
             let diag = &out.diag[0];
             if let Some(previous) = last_tau {
+                let step = (cmd.torque_ff_nm - previous).abs();
+                metrics.max_tau_step_any = metrics.max_tau_step_any.max(step);
                 if tick > retarget_tick + 1 {
-                    metrics.max_tau_step = metrics
-                        .max_tau_step
-                        .max((cmd.torque_ff_nm - previous).abs());
+                    metrics.max_tau_step = metrics.max_tau_step.max(step);
                 }
             }
             last_tau = Some(cmd.torque_ff_nm);
@@ -289,6 +383,11 @@ fn simulate(law: Law, gravity_scale: f64) -> Metrics {
             last_wire = Some(wire);
             tau_wire = davout_tau_ff(tau_wire, cmd.torque_ff_nm);
             cmd.torque_ff_nm = tau_wire;
+            let total = predicted_total_torque(&cmd, q_meas, dq_meas);
+            metrics.max_total_torque = metrics.max_total_torque.max(total);
+            if total > TAU_LIMIT {
+                metrics.total_torque_clamps += 1;
+            }
             plant.step(&cmd);
             let speed = plant.dq.abs();
             metrics.max_speed = metrics.max_speed.max(speed);
@@ -296,7 +395,19 @@ fn simulate(law: Law, gravity_scale: f64) -> Metrics {
                 metrics.overshoot[move_index].max((speed - v_plan) / v_plan);
             metrics.overshoot_vs_bound = metrics
                 .overshoot_vs_bound
-                .max((speed - v_plan) / overshoot_bound(v_plan));
+                .max((speed - v_plan) / (scenario.bound)(v_plan));
+            q_history.push_back(plant.q);
+            if q_history.len() > SPEED_WINDOW_TICKS {
+                q_history.pop_front();
+                let windowed =
+                    (plant.q - q_history[0]).abs() / (SPEED_WINDOW_TICKS as f64 - 1.0) / DT;
+                metrics.overshoot_windowed[move_index] =
+                    metrics.overshoot_windowed[move_index].max((windowed - v_plan) / v_plan);
+            }
+            if direction != 0.0 {
+                metrics.end_overshoot[move_index] =
+                    metrics.end_overshoot[move_index].max((plant.q - target) * direction);
+            }
             // One tick of transport delay: the next tick sees this tick's end state.
             let q_next = sense(plant.q, &mut rng);
             dq_meas = (q_next - q_meas) / DT;
@@ -306,21 +417,34 @@ fn simulate(law: Law, gravity_scale: f64) -> Metrics {
     metrics
 }
 
-fn report(law: Law, scale: f64, metrics: &Metrics) -> String {
-    let overshoot: Vec<i64> = metrics
-        .overshoot
-        .iter()
-        .map(|v| (v * 100.0).round() as i64)
-        .collect();
+fn report(label: &str, metrics: &Metrics) -> String {
+    let percent = |v: &[f64]| {
+        v.iter()
+            .map(|v| (v * 100.0).round() as i64)
+            .collect::<Vec<_>>()
+    };
+    let mrad = |v: &[f64]| {
+        v.iter()
+            .map(|v| (v * 1000.0).round() as i64)
+            .collect::<Vec<_>>()
+    };
     format!(
-        "{law:?} gravity×{scale}: max τ_ff step {:.3} Nm, overshoot per move {overshoot:?} %, \
-         excess/bound {:.2}, max speed {:.2} rad/s, rest toggles {}, stuck rows {}/{}, fault {:?}",
+        "{label}: max τ_ff step {:.3} Nm ({:.3} with retargets), overshoot per move {:?} % \
+         (50 ms Δq {:?} %), end-of-travel overshoot {:?} mrad, excess/bound {:.2}, max speed \
+         {:.2} rad/s, rest toggles {}, stuck rows {}/{}, total-torque clamps {} (max {:.2} Nm), \
+         fault {:?}",
         metrics.max_tau_step,
+        metrics.max_tau_step_any,
+        percent(&metrics.overshoot),
+        percent(&metrics.overshoot_windowed),
+        mrad(&metrics.end_overshoot),
         metrics.overshoot_vs_bound,
         metrics.max_speed,
         metrics.rest_toggles,
         metrics.stuck_rows,
         metrics.moving_rows,
+        metrics.total_torque_clamps,
+        metrics.max_total_torque,
         metrics.fault
     )
 }
@@ -332,8 +456,8 @@ fn runs() -> (Vec<(f64, Metrics, Metrics)>, String) {
         .map(|&scale| {
             (
                 scale,
-                simulate(Law::Legacy, scale),
-                simulate(Law::ScaledPd, scale),
+                simulate(&phase2(Law::Legacy, scale)),
+                simulate(&phase2(Law::ScaledPd, scale)),
             )
         })
         .collect();
@@ -341,8 +465,8 @@ fn runs() -> (Vec<(f64, Metrics, Metrics)>, String) {
         .iter()
         .flat_map(|(scale, legacy, scaled)| {
             [
-                report(Law::Legacy, *scale, legacy),
-                report(Law::ScaledPd, *scale, scaled),
+                report(&format!("Legacy gravity×{scale}"), legacy),
+                report(&format!("ScaledPd gravity×{scale}"), scaled),
             ]
         })
         .collect::<Vec<_>>()
@@ -392,6 +516,190 @@ fn gate_no_chatter_at_rest() {
         assert!(
             legacy.rest_toggles > 0,
             "gate must reject legacy:\n{summary}"
+        );
+    }
+}
+
+// ---- Phase 3 pitch trial ----
+
+const PITCH: &str = "right_shoulder_pitch";
+
+/// Pitch friction the 2026-10-04 wave fit identified (record
+/// `2026-10-04-gravity-20261004T113836Z-20261004T113951Z`): Coulomb mean fc; fv unresolved
+/// (0, and 0.33 Nm·s/rad, the unidentified linear slope, as a variant).
+const FIT_FC: f64 = 0.3526;
+const FIT_FV_SLOPE: f64 = 0.3344;
+/// Breakaway: the static-hold band of the same arm (every hold fits ±0.37 Nm about gravity,
+/// `docs/commissioning/right-arm-calibration-suite.md`).
+const FIT_FS: f64 = 0.37;
+/// Gravity model error ±2·σ_A of the fit (σ_A 0.054 of A 2.661).
+const FIT_GRAVITY_ERROR: f64 = 0.04;
+/// Fitted inertia error ΔI and its σ (kg·m²): the URDF lacks the rotor, but the fit puts the
+/// URDF value inside its band, so the URDF is nominal and ΔI + 2σ the heavy variant.
+const FIT_DELTA_INERTIA: f64 = -0.028;
+const FIT_DELTA_INERTIA_SIGMA: f64 = 0.034;
+
+/// The bench pass criteria for the Phase 3 trial (per move).
+const BENCH_OVERSHOOT: f64 = 0.20;
+const BENCH_END_OVERSHOOT_RAD: f64 = 0.01;
+const BENCH_TAU_STEP_NM: f64 = 0.05;
+
+/// Calibration-like moves on both sides of hanging rest: up and the slow approaches, home,
+/// down, home. `(target rad, seconds)`.
+const TRIAL_MOVES: [(f64, f64); 6] = [
+    (0.75, 2.5),
+    (0.80, 2.0),
+    (0.70, 2.0),
+    (0.0, 2.5),
+    (-0.5, 2.5),
+    (0.0, 2.5),
+];
+
+fn repo() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// Master pitch parameters (resolved like `ControlLoop` does for Position mode), the master
+/// URDF's lumped pitch τ_g at the other joints' zero pose, and its pitch inertia.
+fn master_pitch() -> (HoldJointParams, (f64, f64), f64) {
+    let config = repo().join("config");
+    let control = marengo_config::load_control_config_from(&config).expect("control.yaml");
+    let joints = marengo_config::load_robot_config_from(&config)
+        .expect("robot.yaml")
+        .robot
+        .joints;
+    let entry = control.control.joints.get(PITCH).expect("pitch entry");
+    let cap = marengo_config::resolve_joint_velocity_cap(PITCH, entry.motor_type, &control.control)
+        .expect("velocity cap");
+    let law = match entry.position_law {
+        PositionLaw::ScaledPd => HoldLaw::ScaledPd(ScaledPdGains {
+            kd: entry.impedance.kd,
+            e0: entry.time_scale_e0_rad(),
+            e1: entry.time_scale_e1_rad(),
+            integral_band: entry.integral_band_rad(),
+            integral_leak_s: entry.integral_leak_s(),
+            friction: Some(ReferenceFriction::from_gains(&entry.friction, None)),
+        }),
+        PositionLaw::Legacy => HoldLaw::Legacy,
+    };
+    let params = HoldJointParams {
+        kp: entry.impedance.kp,
+        kd: entry.impedance.kd,
+        ki: entry.impedance.ki,
+        max_lead: entry.position_slew_max_lead_rad,
+        vel_deadband: entry.position_trajectory_velocity_deadband_rad,
+        advance_max_lead: entry.position_slew_max_lead_rad,
+        advance_vel_deadband: entry.position_trajectory_velocity_deadband_rad,
+        slew_rad_s: entry.position_slew_rad_s,
+        trajectory_v_max: entry.position_trajectory_velocity_rad_s,
+        trajectory_threshold_rad: entry.position_trajectory_threshold_rad,
+        a_max: entry.position_trajectory_accel_rad_s2,
+        velocity_cap: Some(cap),
+        friction: Some(entry.friction.clone()),
+        limit_policy: None,
+        tau_meas: 0.0,
+        law,
+    };
+    let urdf = gravity_model_from_urdf(repo().join("assets/urdf/marengo.urdf"), &joints)
+        .expect("master URDF");
+    let zero = vec![0.0; joints.len()];
+    let terms = lumped_terms(&urdf, PITCH, &zero).expect("lumped pitch τ_g");
+    let inertia = urdf.joint_inertia(PITCH, &zero).expect("pitch inertia");
+    (params, (terms.a_nm, terms.b_nm), inertia)
+}
+
+/// The fitted plant and its variants: `(label, plant)`.
+fn trial_plants(model: (f64, f64), inertia: f64) -> Vec<(String, PlantModel)> {
+    let nominal = PlantModel {
+        inertia,
+        gravity_a: model.0,
+        gravity_b: model.1,
+        fs: FIT_FS,
+        fc: FIT_FC,
+        fv: 0.0,
+    };
+    let scaled = |s: f64| PlantModel {
+        gravity_a: model.0 * s,
+        gravity_b: model.1 * s,
+        ..nominal
+    };
+    let heavy = inertia + FIT_DELTA_INERTIA + 2.0 * FIT_DELTA_INERTIA_SIGMA;
+    vec![
+        ("fitted".into(), nominal),
+        (
+            format!("fv {FIT_FV_SLOPE}"),
+            PlantModel {
+                fv: FIT_FV_SLOPE,
+                ..nominal
+            },
+        ),
+        (
+            format!("inertia {heavy:.3}"),
+            PlantModel {
+                inertia: heavy,
+                ..nominal
+            },
+        ),
+        (
+            format!("gravity×{}", 1.0 - FIT_GRAVITY_ERROR),
+            scaled(1.0 - FIT_GRAVITY_ERROR),
+        ),
+        (
+            format!("gravity×{}", 1.0 + FIT_GRAVITY_ERROR),
+            scaled(1.0 + FIT_GRAVITY_ERROR),
+        ),
+    ]
+}
+
+fn strict_overshoot_bound(v_plan: f64) -> f64 {
+    BENCH_OVERSHOOT * v_plan
+}
+
+/// The master pitch entry selects the scaled-PD law, and on the fitted plant (and its
+/// variants) it meets the bench pass criteria: velocity overshoot ≤ 20 % of the planned speed
+/// (Δq over 50 ms, as the bench scores it), ≤ 0.01 rad past every stop, no host τ_ff step above
+/// 0.05 Nm in one tick (retargets included), no predicted total-torque clamp, no fault.
+#[test]
+fn pitch_bench_trial_meets_bench_criteria() {
+    let (params, model, inertia) = master_pitch();
+    assert_eq!(
+        params.law.kind(),
+        PositionLaw::ScaledPd,
+        "pitch must select scaled_pd"
+    );
+    let results: Vec<(String, Metrics)> = trial_plants(model, inertia)
+        .into_iter()
+        .map(|(label, plant)| {
+            let metrics = simulate(&Scenario {
+                params: params.clone(),
+                model,
+                plant,
+                moves: &TRIAL_MOVES,
+                bound: strict_overshoot_bound,
+            });
+            (label, metrics)
+        })
+        .collect();
+    let summary = results
+        .iter()
+        .map(|(label, m)| report(label, m))
+        .collect::<Vec<_>>()
+        .join("\n");
+    for (_, m) in &results {
+        assert!(m.fault.is_none(), "{summary}");
+        assert!(m.max_tau_step_any <= BENCH_TAU_STEP_NM, "{summary}");
+        assert!(
+            Metrics::worst(&m.overshoot_windowed) <= BENCH_OVERSHOOT,
+            "{summary}"
+        );
+        assert!(
+            Metrics::worst(&m.end_overshoot) <= BENCH_END_OVERSHOOT_RAD,
+            "{summary}"
+        );
+        assert_eq!(m.total_torque_clamps, 0, "{summary}");
+        assert!(
+            m.max_speed < params.velocity_cap.unwrap_or(VELOCITY_CAP) + 0.5,
+            "{summary}"
         );
     }
 }

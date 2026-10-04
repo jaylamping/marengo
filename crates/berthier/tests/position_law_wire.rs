@@ -2,7 +2,7 @@
 //!
 //! A pitch hold at rest with one-count encoder dither (the bench's at-rest velocity dither) runs
 //! through the production ControlLoop → Davout → robstride encode path. The scaled-PD law must
-//! send the same kd and v_des in every frame; the legacy law (the default) toggles kd.
+//! send the same kd and v_des in every frame; the legacy law toggles kd.
 //! Virtual initial references are initial conditions, not device reference proof.
 
 #![allow(clippy::expect_used)]
@@ -38,11 +38,9 @@ fn select_law(root: &Path, law: PositionLaw) {
     write_control_config_from(&dir, &control).expect("write fixture control");
 }
 
-fn rest_hold_frames(law: Option<PositionLaw>) -> Vec<(u16, u16)> {
+fn rest_hold_frames(law: PositionLaw) -> Vec<(u16, u16)> {
     let fixture = support::fixture_tree_without_diagnostics("position-law-wire", &source());
-    if let Some(law) = law {
-        select_law(fixture.path(), law);
-    }
+    select_law(fixture.path(), law);
     let mut ctrl = ControlLoop::from_simulation(
         fixture.path(),
         SimulationBus::default(),
@@ -92,7 +90,7 @@ fn toggles(frames: &[(u16, u16)]) -> usize {
 
 #[test]
 fn scaled_pd_sends_constant_kd_and_v_des_at_rest_while_legacy_toggles() {
-    let scaled = rest_hold_frames(Some(PositionLaw::ScaledPd));
+    let scaled = rest_hold_frames(PositionLaw::ScaledPd);
     assert!(scaled.len() >= TICKS - 2, "one MIT frame per tick");
     assert_eq!(
         toggles(&scaled),
@@ -101,8 +99,8 @@ fn scaled_pd_sends_constant_kd_and_v_des_at_rest_while_legacy_toggles() {
     );
     assert_ne!(scaled[0].0, 0, "drive-side damping is on");
 
-    // The default (no key) is the legacy law, which gates drive kd on the dithering velocity.
-    let legacy = rest_hold_frames(None);
+    // The legacy law gates drive kd on the dithering velocity.
+    let legacy = rest_hold_frames(PositionLaw::Legacy);
     assert!(legacy.len() >= TICKS - 2, "one MIT frame per tick");
     assert!(toggles(&legacy) > 0, "gate must reject legacy");
 }

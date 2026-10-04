@@ -96,27 +96,13 @@ control:
         ki: 0.0
       impedance:
         kp: 18.0
-        # scaled_pd: drive kd (kd_mit), constant on the wire in Position.
         kd: 3.0
         ki: 5.0
-      # ADR 0039 Phase 3 bench trial (pitch only; every other joint stays legacy).
-      # e1 = position_slew_max_lead_rad (stop band) and e0 = e1/4 (full-rate band), the
-      # ADR defaults. Tuned in law_gates `pitch_bench_trial_meets_bench_criteria` against
-      # the 2026-10-04 fitted plant (kp unchanged):
-      # - integral band 0.02 ≈ the static dead zone fs/kp (0.37/18); the 0.1 default
-      #   carries a wound-up integral into the next slew (up to 21 % speed overshoot);
-      # - reference accel 1.5 (was 4.5): fc·k·a·dt bounds the τ_ff step per tick
-      #   (0.079 Nm at 4.5 with fc 0.353), and without J·a feed-forward the stop
-      #   overshoot is ≈ I·a/kp (up to 27 mrad at 4.5). Docs: ADR 0039 Phase 3 trial.
-      position_law: scaled_pd
-      position_time_scale_e0_rad: 0.03
-      position_integral_band_rad: 0.02
-      position_integral_leak_s: 0.5
       position_slew_rad_s: 0.15
       position_slew_max_lead_rad: 0.12
       position_trajectory_threshold_rad: 0.15
       position_trajectory_velocity_rad_s: 1.25
-      position_trajectory_accel_rad_s2: 1.5
+      position_trajectory_accel_rad_s2: 4.5
       position_trajectory_velocity_deadband_rad: 0.02
       position_hold_trim_rad: 0.0
       position_limit_margin_min_rad: 0.01
@@ -127,13 +113,13 @@ control:
       position_soft_lower_rad: -1.0882385473251344
       position_soft_upper_rad: 2.980078170776367
       friction:
-        fc: 0.3526
+        fc: 0.08
         fv: 0.0
         fo: 0.0
         k: 10.0
     right_upper_arm_yaw:
       motor_type: rs02
-      # ADR 0038 bound on the 2026-10-04 fitted URDF: pitch 2.86+0.54, roll 2.50+0.53 Nm.
+      # ADR 0038 bound on the 2026-10-04 URDF: pitch 2.82+0.47, roll 2.81+0.34 Nm.
       on_drive_loss: shed_subtree
       gravity_comp:
         kp: 0.0
@@ -165,7 +151,7 @@ control:
         k: 10.0
     right_elbow_pitch:
       motor_type: rs02
-      # ADR 0038 bound: pitch 2.86+0.48, roll 2.50+0.49, upper yaw 0.32+0.37 Nm.
+      # ADR 0038 bound: pitch 2.82+0.47, roll 2.81+0.33, upper yaw 0.30+0.45 Nm.
       on_drive_loss: shed_subtree
       gravity_comp:
         kp: 0.0

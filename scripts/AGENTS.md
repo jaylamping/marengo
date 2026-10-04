@@ -36,7 +36,7 @@ scripts/
 ├── bench-log-prune.sh        # Prune old bench logs
 ├── bench-set-weighted-mass.sh # Set weighted-arm mass for bench tests
 ├── measure-can-mit-rate.sh   # CAN MIT frame rate measurement
-├── analyze-position-trace.py # Parse position traces
+├── analyze-position-trace.py # Parse position traces; --score-bench = ADR 0039 bench pass/fail
 ├── profile-pi-loop.sh        # Pi control loop profiling
 ├── ci-vcan-host-setup.sh     # CI: vCAN host setup
 ├── test-compose-ssh.sh       # Docker compose SSH test

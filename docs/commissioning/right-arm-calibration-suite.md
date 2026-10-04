@@ -77,16 +77,23 @@ session as a no-refit check before the next phase.
   reproduces every fitted A, B, masses unchanged; refused above 0.05 m. The record
   lists how much it moves every other joint's gravity.
 - **Friction patch**: fc + fv·|q̇| over the pose/speed bins; `fs` only when the
-  Stribeck term (control.yaml `v_b`) is significant; independent of the gravity
-  verdict.
+  Stribeck term (control.yaml `v_b`) is significant, fv only when significant (else
+  fc is the Coulomb mean and fv 0, never a slope extrapolated from a narrow speed
+  span); independent of the gravity verdict.
 
 ## Gates
 
 - Wave method, derived from the data: σ_cross = pooled spread of per-session pose
   means; gate = max(3·σ_cross, torque readout step). Accepted only with ≥ 2 sessions
-  sharing a pose, ≥ 3 poses, gate ≤ 0.10 Nm (the data must be repeatable enough
-  to check the suite's residual), every pose residual ≤ gate, and σ_A, σ_B ≤ gate.
-  The friction patch uses the same rule on its bins.
+  sharing a pose, ≥ 3 replicated poses, gate ≤ 0.10 Nm (the data must be repeatable
+  enough to check the suite's residual), every replicated pose residual ≤ gate, and
+  σ_A, σ_B ≤ gate. A single-bin pose (one wave step of one session, e.g. a wave-edge
+  bin) stays in the fit and is reported, but never gates.
+- Friction: σ_cross must be repeatable (3·σ_cross ≤ 0.10 Nm), but the residual gate
+  and fv/fs significance use the bin noise, max(RMS sampling error of the bins,
+  σ_cross): gate = 3·noise, floored at the readout step, capped at 0.10 Nm. A wave
+  repeats the same torque swings at the same q every session, so σ_cross understates
+  how well a smooth friction model can match bins at other poses.
 - Static method: residual |τ_meas − (τ_g + friction sign)| ≤ 0.10 Nm per joint per
   pose; identifiability min singular value ≥ 0.05 Nm, condition ≤ 100.
 - No fault, fuse, watchdog or CAN error; no `rx_over` growth; candump + trace
@@ -112,3 +119,13 @@ A 2.86 ± 0.14 Nm (CAD 2.83 / 0.034), fitted ΔI ≈ 0; refused on identifiabili
 Without I·q̈ the same bins give A ≈ 2.2–2.4; with it they agree with CAD within
 σ_A, so these narrow waves can neither confirm nor rule out the 17–24 % deficit
 the static holds suggested. A wave session across the window decides it.
+
+Phase 1 applied (2026-10-04, sessions 113836Z + 113951Z, waves at five poses across
+±0.53 rad, three speeds): A 2.661 ± 0.054, B 0.038 ± 0.016 Nm (CAD 2.832 / 0.034);
+max residual 0.021 Nm over the replicated poses against a 0.097 Nm gate. The single-bin
+wave-edge poses at q ≈ ±0.026 (+0.135 / −0.118 Nm) are reported, not gated. The URDF patch
+moves the carried links' COMs (masses unchanged) to reproduce A, B. Friction: measured
+|q̇| spans only 0.16–0.22 rad/s (the 0.076 rad/s velocity quantum), so fv is not
+identifiable (0.33 ± 0.74) and no Stribeck term fits; fc 0.353 Nm is the Coulomb mean, with
+residual 0.080 Nm against bin noise 0.047 Nm (gate 0.10). Record:
+`calibrations/2026-10-04-gravity-20261004T113836Z-20261004T113951Z.md`.

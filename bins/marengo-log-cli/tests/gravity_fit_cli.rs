@@ -736,13 +736,15 @@ fn partial_session_fits_completed_steps() {
     assert_eq!(rec["sessions"][0]["session_complete"], false);
     let skipped = rec["sessions"][0]["skipped_steps"].as_array().unwrap();
     assert!(skipped.len() >= 2, "aborted steps reported: {rec:#}");
-    for (want, want_v) in [
-        (format!("mass:{UPPER_ARM}"), 1.15),
-        (format!("mass:{FOREARM}"), 1.2),
-    ] {
-        let got = fitted_param(&rec, &want);
-        assert!((got - want_v).abs() < 0.06, "{want}: {got} vs {want_v}");
-    }
+    // Three completed pitch poses cannot separate the two nearly collinear arm masses (the
+    // default set is whatever the master URDF leaves identifiable; the fused pitch + elbow
+    // test separates them), so judge the fit by how well it explains the completed holds.
+    let rms_before = rec["residual_nm"]["rms_before"].as_f64().unwrap();
+    let rms_after = rec["residual_nm"]["rms_after"].as_f64().unwrap();
+    assert!(
+        rms_before > 0.05 && rms_after < 0.01,
+        "rms {rms_before} → {rms_after}: {rec:#}"
+    );
 }
 
 #[test]
