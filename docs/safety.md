@@ -282,10 +282,17 @@ disables. The fault does not clear on its own.
 - **No Enable inside the post-SetZero blackout:** After receiving a SetZero
   (type 6) every Robstride drive transmits nothing for 45-61 ms, starting
   511-543 ms later (614 ms once, right_elbow_pitch 2026-10-03 15:34), and never
-  acts on a frame received in that window (firmware 0.3.1.42, 124 measured
-  blackouts on all five right-arm drives;
-  [behaviour doc](commissioning/firmware/robstride-firmware-behavior.md)). An
-  Enable written there leaves the drive in Reset, and its later Reset report
+  acts on a frame received in that window (124 measured blackouts on all five
+  right-arm drives: ids 1-2 run firmware 0.3.1.42, ids 3-4 0.2.3.34, id 5
+  0.0.3.32 per the PR #254 type-4 version readback;
+  [behaviour doc](commissioning/firmware/robstride-firmware-behavior.md)). These
+  blackouts were measured with SetZero written to an Enabled (armed) drive. In
+  six PR #254 lower-yaw captures (2026-10-02, 30 SetZeros) SetZero went to
+  Disabled drives, which were Enabled 35-56 ms later and then replied every
+  5 ms from 450 to 720 ms after it, with no silence. That counter-observation is
+  unverified (non-`0xFD` host id, different sequence) and needs a dedicated
+  capture before any rule changes. An Enable written inside a blackout leaves
+  the drive in Reset, and its later Reset report
   latches DriveState. Davout records each address's latest SetZero at its host
   echo (`EchoedCommand::SetZero`; the write time until the echo is read). On
   SocketCAN no Enable, and no gate Off preceding it, goes to that address until
@@ -382,7 +389,8 @@ disables. The fault does not clear on its own.
   host's own silence does not age it. While the host keeps ticking nothing
   changes (a silent drive is revoked about one period later than before).
   During a stall the drives keep the last command (no drive-side CAN
-  timeout); the first batch after it is computed from a pose as old as the
+  timeout is configured by Marengo; see the CanTimeout caveat below); the
+  first batch after it is computed from a pose as old as the
   stall, through every filter unchanged, and the next reply refreshes it. A
   drive that died during the stall is revoked `comm_watchdog_ms` after the
   first post-stall write, so detection takes the stall plus `comm_watchdog_ms`.
@@ -465,7 +473,12 @@ disables. The fault does not clear on its own.
   so a killed or hung `marengo-pi` leaves each drive on its last MIT frame
   (including τ_g feed-forward). SIGTERM is handled (`finish_owner_shutdown`);
   SIGKILL, panic and a hung loop are not. Undecided, see
-  `docs/reviews/2026-10-03-crate-audit/phase-b/WP-I.md`.
+  `docs/reviews/2026-10-03-crate-audit/phase-b/WP-I.md`. **Caveat:** on
+  2026-10-02 PR #254 wrote CanTimeout = 600 counts (~30 ms) to all five
+  right-arm drives and read 600 back on every later run; nothing records it
+  being cleared or the drives being power-cycled. The value may still be live,
+  so "no drive-side CAN timeout" is unverified on the bench until 0x7028 is read
+  back from each drive.
 
 ## When in doubt
 
