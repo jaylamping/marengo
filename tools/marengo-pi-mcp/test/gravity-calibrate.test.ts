@@ -8,17 +8,19 @@ import type { MarengoPiConfig } from "../src/config.js";
 import { MASTER_JOINTS } from "../src/bench-profiles.js";
 import {
   type GravityCalibrateArgs,
-  type GravityCalibrateDeps,
   checkPlanLimits,
+  planCalibrationSweep,
+  registerGravityCalibrateTools,
+} from "../src/tools/gravity-calibrate.js";
+import {
+  type CalibrationDeps,
   extractMarked,
   jointWindows,
   parsePreflight,
   parseSessionJson,
   parseYamlLite,
-  planCalibrationSweep,
   preflightReadShell,
-  registerGravityCalibrateTools,
-} from "../src/tools/gravity-calibrate.js";
+} from "../src/tools/calibration-session.js";
 import { benchLogWrapper } from "../src/tools/motion.js";
 import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
 
@@ -151,7 +153,7 @@ function harness(
     }
     throw new Error(`unexpected remote body:\n${body.slice(0, 400)}`);
   };
-  const deps: GravityCalibrateDeps = {
+  const deps: CalibrationDeps = {
     execLocal: async (command, args, o) => {
       h.fits.push({ command, args, opts: o });
       return { stdout: "proposal: docs/commissioning/calibrations/x.patch", stderr: opts.fitStderr ?? "", exitCode: opts.fitExit ?? 0 };
