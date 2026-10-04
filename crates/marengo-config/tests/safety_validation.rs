@@ -323,13 +323,12 @@ fn control_loader_rejects_invalid_scaled_pd_policy() {
 
 #[test]
 fn scaled_pd_needs_a_positive_stop_band() {
+    // Shoulder roll stays on the legacy law in master, with no scaled-PD keys set.
+    const JOINT: &str = "right_shoulder_roll";
     let dir = source_root().join("config");
     let mut control = load_control_config_from(&dir).expect("control");
-    let entry = control
-        .control
-        .joints
-        .get_mut("right_shoulder_pitch")
-        .expect("pitch");
+    let entry = control.control.joints.get_mut(JOINT).expect("roll");
+    assert_eq!(entry.position_law, PositionLaw::Legacy);
     entry.position_slew_max_lead_rad = 0.0;
     let temp = fixture();
     write_control_config_from(temp.path().join("config"), &control)
@@ -337,8 +336,8 @@ fn scaled_pd_needs_a_positive_stop_band() {
     control
         .control
         .joints
-        .get_mut("right_shoulder_pitch")
-        .expect("pitch")
+        .get_mut(JOINT)
+        .expect("roll")
         .position_law = PositionLaw::ScaledPd;
     assert!(matches!(
         write_control_config_from(temp.path().join("config"), &control),
@@ -346,27 +345,33 @@ fn scaled_pd_needs_a_positive_stop_band() {
     ));
 }
 
+/// ADR 0039 Phase 3: master selects the scaled-PD law for shoulder pitch only (bench trial);
+/// every other joint stays on the legacy law with its scaled-PD keys unset.
 #[test]
-fn every_master_joint_defaults_to_the_legacy_law() {
+fn master_selects_scaled_pd_for_pitch_only() {
     let dir = source_root().join("config");
     let control = load_control_config_from(&dir).expect("control");
     for (joint, entry) in &control.control.joints {
+        if joint == "right_shoulder_pitch" {
+            assert_eq!(entry.position_law, PositionLaw::ScaledPd, "{joint}");
+            continue;
+        }
         assert_eq!(entry.position_law, PositionLaw::Legacy, "{joint}");
         // Defaults resolve without touching the master tuning.
         assert!((entry.time_scale_e0_rad() - entry.position_slew_max_lead_rad / 4.0).abs() < 1e-12);
         assert!((entry.friction.static_nm() - entry.friction.fc).abs() < 1e-12);
-    }
-    // The selector and optional keys stay out of YAML until an operator sets them.
-    let text = serde_yaml::to_string(&control).expect("serialize");
-    for key in [
-        "position_law",
-        "position_time_scale_e0_rad",
-        "position_integral_band_rad",
-        "position_integral_leak_s",
-        "fs:",
-        "v_b:",
-    ] {
-        assert!(!text.contains(key), "{key} serialized by default");
+        // The selector and optional keys stay out of YAML until an operator sets them.
+        let text = serde_yaml::to_string(entry).expect("serialize");
+        for key in [
+            "position_law",
+            "position_time_scale_e0_rad",
+            "position_integral_band_rad",
+            "position_integral_leak_s",
+            "fs:",
+            "v_b:",
+        ] {
+            assert!(!text.contains(key), "{joint}: {key} serialized by default");
+        }
     }
     let mut scaled = control.clone();
     scaled
@@ -376,7 +381,7 @@ fn every_master_joint_defaults_to_the_legacy_law() {
         .expect("elbow")
         .position_law = PositionLaw::ScaledPd;
     let text = serde_yaml::to_string(&scaled).expect("serialize");
-    assert!(text.contains("position_law: scaled_pd"));
+    assert_eq!(text.matches("position_law: scaled_pd").count(), 2);
 }
 
 #[test]
