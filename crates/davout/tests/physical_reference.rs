@@ -2694,3 +2694,106 @@ fn status_solicit_disables_leave_one_spacing_apart() {
         assert!(pair[1].duration_since(pair[0]) >= BURST_GROUP_SPACING);
     }
 }
+
+// ---------------------------------------------------------------- enable bootstrap receive load
+//
+// 2026-10-04 `pi_enable_soak` at 9b1b3f8d, cycle 5: after activation the
+// controller's neutral solicit went to all five targets every tick, although
+// four Enables were still held for their post-SetZero quiet, and two of those
+// drives (roll, upper-arm yaw) still streamed type-24 because their gate Offs
+// wait for the same quiet. Type-24 has the lowest CAN priority, so reports
+// falling due while a batch held the bus left back to back behind it with its
+// replies. At 00:26:55.516 the two streams' reports filled both receive
+// buffers right behind the solicit to pitch, whose reply was lost
+// (rx_over_errors 9 to 10), and Transport latched.
+
+/// Spacing of the reports placed behind each solicit: inside one five-frame
+/// batch's bus time (about 1.5 ms), wider than one solicit and its reply
+/// (0.3 ms).
+const REPORT_STEP: Duration = Duration::from_micros(500);
+
+/// MIT frames the transport accepted (their arbitration ID carries the
+/// torque, not the host ID).
+fn mit_frames_sent(bench: &Bench) -> usize {
+    bench
+        .firmware
+        .borrow()
+        .tx
+        .iter()
+        .filter(|frame| {
+            (frame.id >> 24) & 0x1f == u32::from(CommunicationType::OperationControl.as_u8())
+        })
+        .count()
+}
+
+#[test]
+fn bootstrap_solicits_leave_streaming_targets_room_on_the_bus() {
+    let mut bench = Bench::physical("physical-bootstrap-solicit-load");
+    bench.home_in_sequence(&FIVE);
+    let all: Vec<String> = FIVE.iter().map(|joint| (*joint).to_owned()).collect();
+    bench
+        .supervisor
+        .enable_targets(&all)
+        .expect("identity admits");
+    let before = bench.firmware.borrow().rx_fifo.overruns;
+    let mut solicits_with_two_streams = 0;
+    let give_up = Instant::now() + POST_SET_ZERO_QUIET + millis(500);
+    for tick in 0_u32.. {
+        assert!(Instant::now() < give_up, "the Enables complete");
+        bench.supervisor.begin_tick_feedback();
+        bench
+            .supervisor
+            .drain_feedback()
+            .unwrap_or_else(|error| panic!("tick {tick} drain: {error}"));
+        // Every other tick (a 10 ms report period), each drive still streaming
+        // reports while this tick's solicit holds the bus.
+        let mut streams = 0;
+        if tick % 2 == 0 {
+            let start = Instant::now();
+            let mut firmware = bench.firmware.borrow_mut();
+            let streaming: Vec<String> = firmware
+                .drives
+                .iter()
+                .filter(|drive| drive.reporting)
+                .map(|drive| drive.joint.clone())
+                .collect();
+            streams = streaming.len();
+            for (rank, joint) in (1_u32..).zip(&streaming) {
+                firmware.report_at(joint, start + REPORT_STEP * rank);
+            }
+        }
+        // The controller's neutral solicit to every target.
+        let solicits = mit_frames_sent(&bench);
+        bench
+            .supervisor
+            .send_mit_batch(hold(&FIVE))
+            .unwrap_or_else(|error| panic!("tick {tick} solicit: {error}"));
+        if streams >= 2 && mit_frames_sent(&bench) > solicits {
+            solicits_with_two_streams += 1;
+        }
+        bench
+            .supervisor
+            .drain_feedback()
+            .unwrap_or_else(|error| panic!("tick {tick} drain after solicit: {error}"));
+        if !bench.supervisor.enable_writes_pending()
+            && FIVE
+                .iter()
+                .all(|joint| bench.supervisor.joint_feedback(joint).is_some())
+        {
+            break;
+        }
+        std::thread::sleep(PUMP_PERIOD);
+    }
+    assert!(
+        solicits_with_two_streams > 0,
+        "precondition: a written target is solicited while two held targets still stream"
+    );
+    let overruns = bench.firmware.borrow().rx_fifo.overruns - before;
+    assert_eq!(
+        overruns, 0,
+        "{overruns} frames lost behind bootstrap solicits ({solicits_with_two_streams} solicits with two or more streams)"
+    );
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+    assert!(!bench.supervisor.has_latched_fault());
+    bench.supervisor.disable_all().expect("stop");
+}

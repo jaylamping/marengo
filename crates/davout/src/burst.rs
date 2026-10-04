@@ -1,4 +1,4 @@
-//! Spacing for host write bursts during reference work.
+//! Spacing for host write bursts during reference work and the enable bootstrap.
 //!
 //! Every host frame solicits a drive reply and the bench mcp251x holds only two
 //! received frames. The Robstride stop sequence (speed zero, neutral MIT,
@@ -9,7 +9,8 @@
 //! Transport). Enable (see `issue_due_enable_writes`) and type-24 writes
 //! (`ACTIVE_REPORTING_WRITE_SPACING`) already take one slot per interface per
 //! control period; this spaces the groups of the stop, type-24 Off, type-0
-//! identity and status-solicit bursts.
+//! identity and status-solicit bursts, and the bootstrap's MIT solicits while a
+//! target may still stream type-24 (`Supervisor::write_mit_wires`).
 
 use std::time::{Duration, Instant};
 
@@ -37,6 +38,19 @@ impl BurstPacer {
                 std::thread::sleep(wait);
             }
         }
-        self.last_group.insert(interface.to_owned(), Instant::now());
+        self.record_group(interface);
+    }
+
+    /// A group starts on `interface` now, written by a caller with its own
+    /// slot rule (the Enable stagger, type-24 slots); the next
+    /// [`Self::begin_group`] there keeps the spacing from it.
+    pub(crate) fn record_group(&mut self, interface: &str) {
+        let now = Instant::now();
+        match self.last_group.get_mut(interface) {
+            Some(last) => *last = now,
+            None => {
+                self.last_group.insert(interface.to_owned(), now);
+            }
+        }
     }
 }

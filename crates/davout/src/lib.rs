@@ -428,6 +428,10 @@ pub struct Supervisor<B: MotorBus> {
     /// Echoing buses only: when the echo of each address's type-24 Off written
     /// since `reporting_off_since` was read (see [`Self::reporting_off_settled`]).
     reporting_off_echoed: FxHashMap<MotorAddress, Instant>,
+    /// Echoing buses only: group starts of this process's enable-bootstrap
+    /// writes (Enable waves, gate Offs, MIT solicits) per interface; see
+    /// [`Self::write_mit_wires`].
+    session_pacer: BurstPacer,
     /// Echoing buses only: each address's latest SetZero, at its host echo's
     /// read time (its write time until then). No Enable goes to that address
     /// before [`POST_SET_ZERO_QUIET`] has elapsed since.
@@ -591,6 +595,7 @@ impl<B: MotorBus> Supervisor<B> {
             enable_write_due: None,
             reporting_off_since: None,
             reporting_off_echoed: FxHashMap::default(),
+            session_pacer: BurstPacer::default(),
             set_zero_on_wire: FxHashMap::default(),
             invalid_feedback: FxHashSet::default(),
             last_tau_ff: FxHashMap::default(),
@@ -1687,6 +1692,7 @@ impl<B: MotorBus> Supervisor<B> {
                 .active_reporting
                 .write_off(&mut self.bus, motor, now, force)
             {
+                self.session_pacer.record_group(&motor.can_interface);
                 result?;
             }
         }
@@ -1734,6 +1740,7 @@ impl<B: MotorBus> Supervisor<B> {
         }
         for address in &wave {
             self.write_enable(address)?;
+            self.session_pacer.record_group(&address.interface);
         }
         self.enable_write_due = Some(now + self.loop_period());
         Ok(())
@@ -2209,7 +2216,7 @@ impl<B: MotorBus> Supervisor<B> {
         // Admission is atomic; delivery can still fail partway through a physical
         // bus write and is reported as an error for the owner's stop path.
         let written_at = Instant::now();
-        if let Err(error) = self.bus.mit_control_all_at(&scratch.wires) {
+        if let Err(error) = self.write_mit_wires(&scratch.wires) {
             let error = DavoutError::Bus(error);
             self.stop_after_runtime_error(&error);
             return Err(error);
@@ -2223,6 +2230,47 @@ impl<B: MotorBus> Supervisor<B> {
         }
         self.last_tick = Some(batch_tick);
         Ok(())
+    }
+
+    /// Write an admitted batch. Outside the enable bootstrap it goes out back
+    /// to back as before. While Enables of this session are unwritten (echoing
+    /// buses only), a target whose Enable is not yet written gets no frame:
+    /// its drive is in Reset, and its replies are neither session pose nor
+    /// liveness until its own Enable echo. While a drive on an interface may
+    /// still stream type-24 ([`Self::reporting_may_stream`]), each frame there
+    /// starts a [`BurstPacer`] group after the previous Enable, gate Off or
+    /// solicit. Type-24 has the lowest CAN priority, so reports falling due
+    /// while a back-to-back batch holds the bus leave behind it with its
+    /// replies and overrun the mcp251x's two receive buffers (2026-10-04 soak,
+    /// cycle 5: rx_over_errors 9 to 10, Transport latched).
+    fn write_mit_wires(&mut self, wires: &[AddressedMitCommand]) -> Result<(), BusError> {
+        if self.mode != OperationalMode::Active || self.enable_writes_pending.is_empty() {
+            return self.bus.mit_control_all_at(wires);
+        }
+        let now = Instant::now();
+        for wire in wires {
+            if self.enable_writes_pending.contains(&wire.address) {
+                continue;
+            }
+            if self.reporting_may_stream(&wire.address.interface, now) {
+                self.session_pacer.begin_group(&wire.address.interface);
+            }
+            self.bus.mit_control_all_at(std::slice::from_ref(wire))?;
+        }
+        Ok(())
+    }
+
+    /// A drive on `interface` may still stream type-24 in this enable
+    /// session: a target whose Enable is unwritten and whose gate Off has not
+    /// settled (a drive keeps reporting across processes, and the Off waits
+    /// for the post-SetZero quiet), or a drive this process turned On and has
+    /// not turned Off yet.
+    fn reporting_may_stream(&self, interface: &str, now: Instant) -> bool {
+        self.enable_writes_pending.iter().any(|address| {
+            address.interface == interface && !self.reporting_off_settled(address, now)
+        }) || self.motors.motors.iter().any(|motor| {
+            motor.can_interface == interface && self.active_reporting.applied_on(&motor.joint)
+        })
     }
 
     /// Filter every admitted command into `scratch.wires`, staging limiter/watchdog
