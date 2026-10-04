@@ -3724,9 +3724,9 @@ mod tests {
     fn limit_clamped_sub_home_target_does_not_seed_downward_return() {
         let mut loop_ctrl = test_loop();
         virtual_ready_active(&mut loop_ctrl);
-        // Past soft/hard lower (~-0.87/-0.9) so clamp_hold_target must raise the goal.
+        // Past soft/hard lower (~-1.09/-1.12) so clamp_hold_target must raise the goal.
         loop_ctrl
-            .enter_position_hold_at(Some("right_shoulder_pitch"), -0.95)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), -1.2)
             .expect("hold-at");
         let i = loop_ctrl
             .joint_names()
@@ -3735,7 +3735,7 @@ mod tests {
             .expect("joint index");
         let target = loop_ctrl.position_setpoints().expect("setpoints")[i];
         assert!(
-            target > -0.95,
+            target > -1.2,
             "requested lower-limit probe must clamp before planner reset"
         );
         let (_q_traj, dq_traj) = loop_ctrl

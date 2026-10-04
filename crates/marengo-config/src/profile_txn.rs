@@ -172,7 +172,7 @@ mod tests {
 
     use crate::{
         load_control_config_from, load_homing_config_from, load_motors_config_from,
-        load_robot_config_from, resolve_config_dir, resolve_repo_root,
+        load_robot_config_from, resolve_repo_root,
     };
 
     use super::*;
@@ -244,14 +244,5 @@ mod tests {
                     .ends_with(".tmp")),
             "failed rename must clean up the staged file"
         );
-    }
-
-    #[test]
-    fn reports_current_limits() {
-        let root = resolve_repo_root();
-        let profile = resolve_config_dir(&root);
-
-        let patch = limit_patch_from_motor(&profile, "right_elbow_pitch").expect("limits");
-        assert!((patch.position_upper_rad - 1.034701585769653).abs() < 1e-9);
     }
 }

@@ -279,7 +279,7 @@ fn wave_admission_refuses_non_finite_out_of_range_and_too_aggressive_waves() {
             .expect_err("non-finite wave");
         assert!(matches!(err, LoopError::NonFiniteWave { .. }), "{err:?}");
     }
-    // Pitch soft range is -0.873 .. 2.898 rad.
+    // Pitch soft range is -1.088 .. 2.980 rad.
     let err = ctrl
         .start_position_wave(JOINT, 0.0, 3.0, 1, 8.0)
         .expect_err("beyond the soft upper bound");
@@ -288,7 +288,7 @@ fn wave_admission_refuses_non_finite_out_of_range_and_too_aggressive_waves() {
         "{err:?}"
     );
     let err = ctrl
-        .start_position_wave(JOINT, -1.0, 0.5, 1, 8.0)
+        .start_position_wave(JOINT, -1.2, 0.5, 1, 8.0)
         .expect_err("beyond the soft lower bound");
     assert!(
         matches!(err, LoopError::WaveOutsideLimits { .. }),
