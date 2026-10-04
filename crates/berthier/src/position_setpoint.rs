@@ -106,7 +106,8 @@ pub fn low_angle_breakaway_active(
     approaching_target: bool,
 ) -> bool {
     const LOW_ANGLE_SPAN_MAX_RAD: f64 = 0.30;
-    if q > LOW_ANGLE_SPAN_MAX_RAD {
+    // The band is [0, 0.30]: below home a lower target is an outbound move, not a return.
+    if !(0.0..=LOW_ANGLE_SPAN_MAX_RAD).contains(&q) {
         return false;
     }
     if home_final_approach_stuck(q, target) {
@@ -532,14 +533,19 @@ pub fn clamp_trajectory_setpoint(
     }
 
     let settle_error = target - q;
-    // Snap to target only when the planner has actually arrived near it — not when a
-    // fresh descent retarget still has q_traj ≫ target (wave reverse fault).
-    let planner_near_target = (q_traj - target).abs() <= max_lead + TOL;
-    let overshot_past_target = if target >= 0.0 {
-        q > target + POSITION_RETURN_RESYNC_RAD && planner_near_target && q_traj >= target - TOL
-    } else {
-        q < target - POSITION_RETURN_RESYNC_RAD && planner_near_target && q_traj <= target + TOL
-    };
+    // Snap to target only once the planner reference has arrived at it, as
+    // `planner_should_latch_on_overshoot_hold` does. `q` beyond the target in the target's
+    // sign direction is an overshoot only then: on a move toward home (descent to a positive
+    // target, ascent to a negative one) that side is where the arm starts, and a planner
+    // still `max_lead` short of target there turned the rest of the move into one step
+    // (bench 2026-10-04: elbow fell at −2.46 rad/s, pitch tau_p 1.36 → 3.09 Nm).
+    let planner_at_target = (q_traj - target).abs() <= TOL;
+    let overshot_past_target = planner_at_target
+        && if target >= 0.0 {
+            q > target + POSITION_RETURN_RESYNC_RAD
+        } else {
+            q < target - POSITION_RETURN_RESYNC_RAD
+        };
     if overshot_past_target && target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD {
         q_des = target;
         if let Some(p) = policy {

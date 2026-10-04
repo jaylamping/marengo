@@ -1,0 +1,273 @@
+# ADR 0039: Position control simplification: drive-side PD on a feedback-scaled reference
+
+Status: Proposed, October 4, 2026. When accepted, this supersedes these parts of
+[ADR 0007](0007-bench-position-trajectory-control.md):
+
+- "Feedforward and damping policy" (host `tau_d`);
+- "Commanded MIT setpoints" (firmware `kd = 0`);
+- "Use firmware damping again" (rejected alternative).
+
+It keeps ADR 0007's trajectory generator, limits and safety boundaries.
+
+## Context
+
+The right arm moves jerkily in `ControlMode::Position`. The audit of the 2026-10-04 bench traces
+(`var/gravity-calibration/20261004T084615Z`, `…084416Z`, `…073640Z`) found the following.
+
+Shoulder pitch, kp 18, kd 3, 200 Hz:
+
+- 30–37% of moving trace rows have measured `dq` exactly 0.
+- Velocity overshoot p95 is +95–108% of plan, and the maximum is +170%.
+- 138–159 rows show a host `τ_ff` change above 0.3 Nm in 20 ms; the largest is 2.74 Nm.
+
+Elbow:
+
+- It stalled 6 mrad short of 0.75 for 2 s.
+- On a retarget to 0.5 it fell at −2.46 rad/s (planned −0.80) into Davout's
+  feedback-velocity fault.
+
+The causes are structural:
+
+1. **Host "damping" is a gated velocity-error push.** `tau_d = kd·(dq_traj − dq_f)` is held at
+   0 while `|dq_f|` is below a 0.02 rad/s deadband. Measured `dq` is quantized to ~0.075 rad/s,
+   so the gate releases the whole `kd·|dq_traj|` in one tick (0 → −1.61 Nm at breakaway). With
+   the EMA lag (~15 ms) it then pushes while the joint accelerates. It brakes only after the
+   overshoot. The brake cap applies in one direction only.
+2. **Double damping.** Within 0.1 rad of the target the drive also gets `kd_mit = kd`. That kd
+   is switched on and off by the same deadband (seen in 23% of pitch 1 Hz samples).
+3. **An open-loop planner plus repair heuristics.** The trapezoid advances regardless of `q`.
+   About twenty special cases repair the consequences, each stepping `q_des`, `dq_traj`, `τ_f`
+   or `kd_mit` at band edges one or a few encoder counts wide:
+   - planner state changes: resync, drift reset, premature-hold reopen, lead-follow hold-short,
+     descent freeze, ascent recovery, overshoot latch;
+   - setpoint overrides: overshoot snap, outrun clamp, stuck pull, pull-through;
+   - gain and reference shaping: the onset and low-angle lead boosts, the downward seed;
+   - friction recipes: three of them, plus onset, stuck and overspeed scales.
+
+   One of these, the overshoot snap, stepped `q_des` by up to 0.14 rad and caused the elbow
+   trip. It was fixed in `db492cd3`. The others stay as long as this architecture stays.
+
+The evidence above comes from the position traces and the 1 Hz `position hold command` log of
+those sessions. Phase 4 records the audit summary in `docs/position-hold-control-review.md`.
+
+ADR 0007 rejected firmware damping because "the drive's raw velocity estimate has been noisy".
+The host path uses *the same* estimate: Davout decodes the drive's reported velocity. The host
+only adds an EMA and ~20 ms of loop and transport delay. Until 2026-10-03, RS03 wire velocity
+was also decoded 2.5× high and `v_des` arrived at 0.4× intent (`docs/safety.md`, RS03 MIT
+velocity scale). [INFERENCE: some of the "noisy firmware damping" seen in mid-2026 may be that
+scale error.]
+
+## Decision
+
+### Control law (per joint, per 5 ms tick)
+
+```text
+reference:   (q_r, v_r, a_r) from the trapezoid planner, advanced by time scaling s
+time scale:  e   = q_r − q
+             s   = clamp(1 − (|e| − e0) / (e1 − e0), 0, 1)   (rate-limited, see below)
+             v_c = s · v_r          a_c = s · a_r   (q_r advances by v_c·dt)
+MIT frame:   position = clamp_envelope(q_r)
+             velocity = v_c
+             kp       = kp            (wire kp, ramped on mode entry by gain_runtime)
+             kd       = kd            (constant while in Position; no gating)
+             τ_ff     = τ_g(q) + τ_fric(v_c) [+ J_eff·a_c] [+ ki·I]
+friction:    τ_fric(v) = (fc + (fs − fc)·exp(−|v|/v_b)) · tanh(v / v_s) + fv·v
+integral:    İ = e_target  when |e_target| < i_band, else İ = −I/τ_leak;  |ki·I| ≤ 0.5 Nm
+```
+
+- **Drive-side PD.** All damping is `kd·(v_c − dq)`, computed in the drive's servo loop on its
+  own velocity estimate, with no host round trip. Berthier sends `kd` unchanged every tick.
+  Nothing in `τ_ff` depends on measured `dq`.
+- **The reference never jumps.** A retarget replans from the reference's own state
+  `(q_r, v_r)`, not from `q`. Only the first arm starts at `(q, 0)`. Velocity is therefore
+  continuous at every retarget, and `|Δv_c| ≤ a_max·dt` plus the time-scale slew.
+- **Feedback coupling by time scaling, not by resets.**
+  - While `|q_r − q| ≤ e0` the reference runs at full rate.
+  - Between `e0` and `e1` it slows linearly, and at `e1` it stops (s = 0, so v_c = 0).
+  - A stuck joint gets a stationary reference held `e1` ahead, so kp·e1 is the bounded
+    breakaway push. When the joint moves, s recovers continuously.
+  - `s` is rate-limited (`|Δs| ≤ a_max·dt / max(|v_r|, ε)`) so `v_c` respects `a_max`.
+  - A joint ahead of the reference gets full P and D braking back toward it (no outrun
+    branch).
+  - Lead is bounded by construction, `|q_r − q| ≤ e1` plus one tick, so no setpoint clamp other
+    than the limit envelope is needed.
+- **Friction from the reference velocity.** Direction and magnitude come from `v_c`, which is
+  continuous and free of dither. A small Stribeck term (`fs > fc` for `|v| < v_b`) supplies
+  breakaway while the reference starts moving, instead of a measured "stuck" detector. At rest
+  (`v_c = 0`) `τ_fric = 0`. P and the leaky integral handle the static dead zone
+  `(fs − fc)/kp`.
+- **Acceleration feed-forward** (`J_eff·a_c`) is optional and defaults off, until `J_eff` is
+  identified.
+
+### Heuristics deleted, and why each is unnecessary
+
+| Deleted | Why the new law does not need it |
+|---|---|
+| Host `tau_d`, its deadband substitution (`dq_for_d`), spike brake cap, Hold-branch `−kd·dq_f` | Drive kd·(v_c − dq) is continuous, symmetric and has no host delay |
+| dq EMA (`POSITION_DAMPING_DQ_FILTER_ALPHA`), dq seeding at retarget | No host torque term uses measured dq |
+| `kd_mit` gating (\|e\| < 0.1, \|dq\| ≥ deadband); `v_des` onset gating (`POSITION_HOLD_ONSET_MS`) | kd is constant; v_des = v_c always |
+| `planner_should_resync_stuck_lead`, `planner_drifted_from_measurement` reset | Time scaling keeps the reference within e1 of q; it never drifts |
+| Premature-hold reopen, lead-follow hold-short and `apply_lead_follow_hold_short`, overshoot latch, the `planner_overshot_*` predicates | The reference reaches the target only when the joint is within e1. The rest is ordinary P+I settling, with no Hold ↔ Cruise toggling |
+| `planner_should_freeze_on_descent`, ascent-recovery planner policy | Time scaling is the single freeze, and it is continuous |
+| `clamp_trajectory_setpoint` brake/follow/snap branches | q_des = q_r with only the limit-envelope clamp; the lead is bounded by construction |
+| Onset lead boost, low-angle sustained boost (`POSITION_HOLD_ONSET_MAX_LEAD_RAD`) | Breakaway push is kp·e1 plus Stribeck friction FF; there are no time windows |
+| Descent stuck pull, home-final pull and pull-through, breakaway latches | These were gain boosts in disguise. Residual error is closed by I. A gravity shortfall is fixed in the model (GravityComp rule) |
+| Downward return seed velocity | The reference starts from its own state; with a correct τ_g, descents need no seed |
+| Friction modes `traj_vel`/`settle`/cross-target, stuck, onset and overspeed scales, settle fade | One smooth function of v_c |
+
+**Kept:** the trapezoid planner and its v/a limits, the velocity caps (ADR 0010), the Berthier
+and Davout limit envelopes (ADR 0009), home classification, the integral (made leaky), and the
+three fuses (AscentStall, HoldTracking, WaveStall). HoldTracking's "net commanded torque" becomes
+the wire terms: `kp·(q_r − q) + kd·(v_c − dq) + τ_ff`.
+
+### Parameter migration (`config/control.yaml`)
+
+This ADR changes no values. A changed value needs its own bench evidence (test plan below).
+
+| Today | Proposed | Note |
+|---|---|---|
+| `impedance.kp` | MIT kp | unchanged meaning |
+| `impedance.kd` | MIT kd, always on in Position | today it is host `tau_d` plus an intermittent drive kd (effective 2·kd near target) |
+| `impedance.ki` | ki, leaky integral | the reset becomes a leak (`τ_leak`) |
+| `position_slew_max_lead_rad` | `e1` (time-scale stop band) | same role: the maximum lead |
+| — | `e0` (time-scale full-rate band) | new; start at e1/4 |
+| `position_trajectory_velocity_deadband_rad` | removed | was rad/s under a rad name |
+| `friction.fc`, `fv`, `fo` | same | |
+| `friction.k` | `v_s = 1/k` (tanh width, rad/s) | |
+| — | `friction.fs`, `friction.v_b` | new; `fs` defaults to `fc` (no Stribeck) until identified |
+| `position_slew_rad_s`, `position_trajectory_{threshold,velocity,accel}` | unchanged | planner |
+| Constants `POSITION_HOLD_ONSET_MS`, `POSITION_STUCK_EXIT_VELOCITY_RATIO`, `POSITION_DAMPING_*`, `POSITION_DESCENT_STUCK_LEAD_RAD`, `POSITION_HOME_FINAL_PULL_THROUGH_RAD`, `POSITION_RETURN_DESCENT_SEED_RAD`, `POSITION_RETURN_FREEZE_Q_MAX_RAD`, `POSITION_HOLD_ONSET_MAX_LEAD_RAD`, `POSITION_HOLD_FRICTION_FADE_RAD` | deleted | |
+
+### Davout interactions
+
+- **τ_ff cap and rate limit.** τ_ff becomes `τ_g + τ_fric (+J·a) (+ki·I)`. Its slope is bounded
+  by `|∂τ_g/∂q|·|v|` plus the tanh slope times `a_max`. That is well under 60 Nm/s
+  (pitch: ~2.7 Nm/rad × 2.5 rad/s ≈ 7 Nm/s). The rate limiter becomes a non-binding guard. Any
+  tick where it binds is logged and fails the bench metric.
+- **Drive kd is outside the τ_ff cap and the rate limit.** The torque bound is
+  `kp·e1 + kd·|v_c − dq| + |τ_ff|`. Davout already checks `kd/s² ≤ kd_max`. Before Phase 3,
+  verify that the drive enforces `motors.yaml` `bench.torque_limit_nm` on the total MIT torque
+  ([INFERENCE] today; open question 1).
+- **Danger zones.** `clamp_velocity` starts working: with kd > 0 the clamped `v_des` brakes.
+  This changes behaviour for `elevated_shoulder_pitch_fall` (0.45 rad/s) and must be re-verified
+  with the arm supported. `clamp_torque` is unchanged.
+- **Envelope.** Unchanged. Davout clamps q_des using `max(|v_des|, |dq_meas|)`. `v_des = v_c`
+  never exceeds the velocity cap, so Davout's `|v_des| > cap` refusal is never hit.
+- **Feedback velocity fault** (cap + 0.5 rad/s): unchanged. With continuous braking it should
+  never trip in normal motion. A trip is a test failure.
+
+### ADR 0038 degraded hold and the GravityComp rule
+
+- **Degraded hold.** The holding joints use the same law. The freeze arms the reference at
+  `(q, 0)`. The lower uses a planner capped at `lower_velocity_rad_s`.
+  - τ_ff now contains only `τ_g + τ_fric (+ki·I)`. So the offline admission bound
+    `max|τ_g| + max|Δτ_g| + tau_margin_nm ≤ cap` covers the real τ_ff once
+    `tau_margin_nm ≥ fc + 0.5` (the I cap). Today τ_d is outside the bound.
+  - Admission must be rerun with this margin before the cutover. The cutover must not ship if
+    any joint fails admission.
+  - Shed-subtree, deadline and refusal semantics do not change.
+- **GravityComp rule.** τ_g stays model-only. No term in the new law raises kp or ki, or pulls
+  harder, when the joint lags.
+  - The deleted stuck pulls were exactly such masks, and the elbow trip shows the hazard.
+  - A gravity or friction shortfall now shows up as steady time-scale stalls (`s → 0`) and as
+    HoldTracking or AscentStall fuse trips. Both are the intended signal to fix the model.
+  - GravityComp mode (`kp = kd = 0`, `τ_ff = τ_g`) is untouched.
+
+### Observability (precondition)
+
+The position trace gains `kd_mit` (wire), `v_des`, the post-Davout τ_ff, `s`, and `I`. It drops
+`tau_d` and `friction_mode`. Decimation stays configurable, but bench qualification runs at
+every tick.
+
+## Test plan
+
+**Unit tests (Berthier):**
+
+- Over random retarget storms: `|Δv_c| ≤ a_max·dt + ε`, `|Δq_des| ≤ v_max·dt + ε`, and
+  `|q_r − q| ≤ e1 + v_max·dt` for a stuck plant (`q` constant).
+- `τ_fric` is continuous and odd in v.
+- The leaky integral never steps.
+
+**Simulation** (`SimulationBus` and `ControlLoop`, `sim/` fixtures):
+
+- Plant: per-joint inertia, Coulomb + static friction (fs 0.14, fc 0.08 Nm), gravity with
+  ±50% model error.
+- Feedback: q quantized to 0.383 mrad, dq quantized to 0.075 rad/s, one tick of transport
+  delay.
+- Gates:
+  - no host τ_ff step > 0.05 Nm/tick outside retargets, and ≤ the rate limit at retargets;
+  - velocity overshoot < 20%;
+  - stuck-row share < 10%;
+  - a 0.75 → 0.5 elbow descent with a −50% model: |dq| stays below cap + 0.5 and the fuses
+    behave per `docs/safety.md`.
+
+**FirmwareBus / wire tests:**
+
+- Decode the MIT frames: kd constant across the move, `v_des` continuous, no frame with `kd`
+  toggling, and τ_ff deltas within the gate.
+
+**Bench metrics** (per joint, every-tick trace at 200 Hz, MCP `pi_joint_calibrate` and
+`pi_bench_harness`), against today's baselines:
+
+| Metric | Today (pitch) | Gate |
+|---|---|---|
+| stuck rows (`dq == 0` while `|v_c| > 0.05` and `s = 1`) | 30–37% | < 10% |
+| velocity overshoot p95 / max | +95% / +170% | < 15% / < 30% |
+| \|q − q_r\| p95 / max | 0.10 max | < 0.02 / ≤ e1 |
+| host τ_ff step per tick (outside retarget) | up to ~1.6 Nm | ≤ 0.05 Nm |
+| Davout τ_ff rate-limit binding ticks | not logged | 0 |
+| Davout feedback-velocity trips | 1 (elbow) | 0 across the calibration suite |
+| `v_des` or `kd` toggles at rest | ~500 per 75 s (elbow) | 0 |
+| final error after 1 s | 4–6 mrad | ≤ max(2 counts, (fs − fc)/kp) |
+
+## Implementation plan
+
+1. **Phase 0: quick fixes and observability.**
+   - Done: `db492cd3` (overshoot snap) and `8f9cff94` (low-angle band).
+   - To do: add the trace columns above (no control change).
+2. **Phase 1: models first.**
+   - Fix the elbow gravity model (~1.5× light).
+   - Identify fs, fc and fv per joint from slow constant-velocity sweeps (GravityComp rule:
+     before any gain change).
+3. **Phase 2: the law, in simulation.**
+   - Add `position_law.rs` with the reference generator, time scaling, friction and composition,
+     plus the unit and simulation gates.
+   - Leave the old path untouched.
+4. **Phase 3: bench qualification, one joint at a time.**
+   - Order: pitch bare → pitch weighted → roll → elbow → yaws.
+   - Use a per-joint `position_law: scaled_pd` key that exists only for the duration of this
+     phase.
+   - Verify the drive torque limit and the danger-zone `clamp_velocity` behaviour with the arm
+     supported.
+5. **Phase 4: cutover and deletion, in one change.**
+   - Remove the selection key, every heuristic and constant in the table above,
+     `position_feedforward.rs`, most of `position_setpoint.rs`, and the friction modes.
+   - Update ADR 0007 (superseded sections), `docs/safety.md` (position-hold fuses, the RS03
+     note), `docs/position-hold-control-review.md`, `docs/tuning.md` and the codemaps.
+6. **Phase 5: degraded admission.**
+   - Rerun ADR 0038 admission with the new margin.
+   - Run a degraded-lower drill on the bench with the arm supported.
+
+## Alternatives considered
+
+- **Keep host damping, but blend the gate continuously.** This removes the step in F2 but keeps
+  the ~20 ms delay, the quantized-dq push during acceleration, and the double damping with the
+  drive. It also keeps every repair heuristic.
+- **Host velocity observer** (a Kalman filter on q plus the model) feeding host damping. This
+  gives a better estimate, but the 200 Hz loop and CAN delay still limit the usable kd. It may
+  come later as an input to fuses and telemetry, not to torque.
+- **Raise kp, fc or ki to beat stiction.** Forbidden as a cure for model faults
+  (`docs/safety.md`, GravityComp rule). It also amplifies the step kicks.
+- **Drop the reference-velocity feed and send only q_des.** That loses the damping target; the
+  drive kd would brake all motion toward zero velocity.
+
+## Open questions
+
+1. Does Robstride firmware clamp the *total* MIT torque at `limit_torque` (parameter 0x700B)
+   in operation mode? If not, Davout needs a total-torque estimate before Phase 3.
+2. What is the drive's velocity estimator window? It sets the usable kd. The reported quantum
+   is ~0.075 rad/s; kd 3 means 0.23 Nm per count.
+3. Should Phase 3 keep `e1 = position_slew_max_lead_rad` (0.10–0.12), or start smaller (lower
+   breakaway push, more stall time)?
+4. RS00 MIT ranges (disputed ±50/±17 vs ±33/±14) must be settled before `right_lower_arm_yaw`
+   qualifies, because kd acts on the decoded velocity scale.
