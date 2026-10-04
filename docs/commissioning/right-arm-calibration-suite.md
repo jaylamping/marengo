@@ -40,9 +40,9 @@ Each sweep session (`pi_joint_calibrate`, `method: "wave"` by default):
    ± 0.37 Nm`), so it cannot place gravity better than F_s; a wave drives through
    stiction both ways. Sizing, from the Pi's config and the model:
    - amplitude a = (F_s + 0.6 × max|τ_g| at the poses) / kp (control.yaml
-     friction `fs`, else `fc`; impedance `kp`; 0.6 = the τ guard's distrust
-     factor − 1), at least 0.025 rad, refused above 0.1 rad (`wave_amplitude_rad`
-     overrides);
+     friction `fs`, else `fc`; impedance `kp`; 0.6 = the unverified τ guard
+     factor − 1, kept for calibrated joints too), at least 0.025 rad, refused
+     above 0.1 rad (`wave_amplitude_rad` overrides);
    - peak speeds from 0.2 rad/s (gravity-fit's centre bin stays above its 0.15 rad/s
      moving deadband) to what marengo-pi admits within 80 % of the velocity cap
      (`wave_speeds_rad_s` overrides);
@@ -53,14 +53,35 @@ Each sweep session (`pi_joint_calibrate`, `method: "wave"` by default):
 2. **`method: "static"`** keeps the earlier session: holds approached from below
    *and* from above (½Δ = Coulomb friction, mean = gravity), then
    constant-velocity passes (`velocity_passes`) in the gravity-free middle.
-3. **Pre-flight guard**: refuse any pose whose model τ_g × 1.6 (model distrust
-   factor) exceeds 80 % of the joint's τ_ff cap (wave method: over ±0.1 rad around
-   every pose).
+3. **Pre-flight guard**: refuse any pose whose model τ_g × the joint's uncertainty
+   factor exceeds 80 % of the joint's τ_ff cap (wave method: over ±0.1 rad around
+   every pose). The factor is 1.6 unless the joint is calibrated (below).
 
 After each phase: fit (gravity-fit, all sessions so far fused), review, apply
 the URDF patch (`pi_sync_bench_urdf`, ADR 0017) and friction patch to
 `control.yaml` (Pi first; Pi is the source of truth), then rerun that phase's
 session as a no-refit check before the next phase.
+
+### Calibrated joints (τ guard factor)
+
+[`calibrations/applied-gravity.json`](calibrations/applied-gravity.json) lists each
+joint whose fit is applied: its record and `urdf_gravity_sha256`, the gravity-model
+fingerprint of the URDF it was applied to (link masses and COMs, joint
+origins and axes; limits excluded, so Set Limits does not invalidate it). The
+τ guard of `pi_joint_calibrate` and `pi_motion_suite` then uses factor
+1 + max(3σ_A/A, 0.15) for that joint (pitch, 2026-10-04: A 2.661 ± 0.054 Nm → 1.15)
+when all hold:
+
+- the Pi URDF has that fingerprint (else the entry is stale);
+- the Pi URDF carries the record's fitted link masses and COMs;
+- every other joint sits at the fit's fixed pose (0 unless the record says
+  otherwise), the only configurations the fit measured.
+
+Anything else, a missing or unreadable index or record included, keeps 1.6;
+the tool output lists each joint's factor and why. After applying a fit, add or
+update the joint's entry with the fingerprint from `npm run gravity-fingerprint`
+in `tools/marengo-pi-mcp` (after `npm run build`). A URDF gravity change makes
+every entry stale: refit, or re-pin only after a no-refit check passes.
 
 ## Wave fit (`gravity-fit`, wave method)
 

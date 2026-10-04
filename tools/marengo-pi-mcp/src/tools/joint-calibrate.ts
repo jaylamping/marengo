@@ -7,21 +7,24 @@
  * gravity better than F_s; a wave drives through stiction both ways, and gravity-fit takes the
  * up/down mean per q bin (friction = half the difference). a = (F_s + (1.6 − 1)·max|τ_g|)/kp
  * from the Pi's control.yaml (breakaway `fs`, else `fc`; impedance `kp`) and the model τ_g at
- * the poses: the P term alone must break stiction plus the distrusted model error.
+ * the poses: the P term alone must break stiction plus the unverified model error.
  *
  * `method: "static"`: holds approached from below and from above (gravity and Coulomb
  * friction), then in-loop `wave` passes at several speeds (viscous friction).
  *
  * A pre-flight guard refuses before any motion unless every target clears the soft ∩ hard
- * window by 0.05 rad, the model gravity torque × 1.6 stays within 80 % of each joint's τ_ff cap
- * along every commanded path, every wave stays within 80 % of the joint's velocity cap, and the
- * session fits in 300 s. Output is the v2 `var/gravity-calibration/<TS>/` directory; nothing is
- * applied to the Pi.
+ * window by 0.05 rad, the model gravity torque × its uncertainty factor (1.6, or
+ * 1 + max(3σ_A/A, 0.15) for a fitted and applied joint: src/tau-factor.ts) stays within 80 % of
+ * each joint's τ_ff cap along every commanded path, every wave stays within 80 % of the joint's
+ * velocity cap, and the session fits in 300 s. Output is the v2 `var/gravity-calibration/<TS>/`
+ * directory; nothing is applied to the Pi.
  */
 
+import path from "node:path";
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, MASTER_JOINTS, profileMeta } from "../bench-profiles.js";
+import { type TauFactors, UNVERIFIED_TAU_FACTOR, resolveTauFactors } from "../tau-factor.js";
 import { wrapRemoteWithConfig } from "../env.js";
 import { soleCanOwnerShell } from "../can-owner.js";
 import { validateMotionConfirm } from "../safety.js";
@@ -68,9 +71,7 @@ const TOOL = "pi_joint_calibrate";
 
 /** Clearance every commanded target keeps from each soft ∩ hard window edge (rad). */
 export const LIMIT_INSET_RAD = 0.05;
-/** Model distrust factor on |τ_g| (elbow measured ≈ 1.5 × URDF on 2026-10-04). */
-export const TAU_DISTRUST_FACTOR = 1.6;
-/** Share of the joint's τ_ff cap the distrusted |τ_g| may use. */
+/** Share of the joint's τ_ff cap the factored |τ_g| may use. */
 export const TAU_CAP_SHARE = 0.8;
 /** Share of the joint's resolved velocity cap a wave's peak speed may use. */
 export const SPEED_CAP_SHARE = 0.8;
@@ -381,9 +382,10 @@ export function planJointCalibration(input: {
 }
 
 /**
- * Local-wave amplitude a = (F_s + (TAU_DISTRUST_FACTOR − 1)·max|τ_g|)/kp, rounded up to 1 mrad
+ * Local-wave amplitude a = (F_s + (UNVERIFIED_TAU_FACTOR − 1)·max|τ_g|)/kp, rounded up to 1 mrad
  * and at least {@link MIN_WAVE_AMPLITUDE_RAD}: the P torque kp·a alone must break stiction
- * (F_s = control.yaml `fs`, else `fc`) plus the model error the τ guard already distrusts
+ * (F_s = control.yaml `fs`, else `fc`) plus the unverified model error, even for a calibrated
+ * joint (a calibration session re-measures the model it would otherwise trust)
  * (`max|τ_g|` = the sweep joint's model gravity over the poses). Refuses without kp/F_s or
  * above {@link MAX_WAVE_AMPLITUDE_RAD}.
  */
@@ -399,12 +401,12 @@ export function deriveWaveAmplitude(
       message: `Refused: ${joint} has no control.yaml impedance.kp > 0 or friction fc/fs on the Pi; the wave amplitude cannot be derived (pass wave_amplitude_rad). No motion was run.`,
     };
   }
-  const modelErrorNm = (TAU_DISTRUST_FACTOR - 1) * maxAbsTauGNm;
+  const modelErrorNm = (UNVERIFIED_TAU_FACTOR - 1) * maxAbsTauGNm;
   const raw = (breakawayNm + modelErrorNm) / kp;
   const amplitudeRad = Math.max(MIN_WAVE_AMPLITUDE_RAD, ceilMrad(raw));
   const basis =
     `wave amplitude ${amplitudeRad} rad = max(${MIN_WAVE_AMPLITUDE_RAD}, (F_s ${breakawayNm} + ` +
-    `${(TAU_DISTRUST_FACTOR - 1).toFixed(1)} × max|τ_g| ${maxAbsTauGNm.toFixed(3)} Nm) / kp ${kp})`;
+    `${(UNVERIFIED_TAU_FACTOR - 1).toFixed(1)} × max|τ_g| ${maxAbsTauGNm.toFixed(3)} Nm) / kp ${kp})`;
   if (amplitudeRad > MAX_WAVE_AMPLITUDE_RAD) {
     return {
       ok: false,
@@ -776,21 +778,24 @@ function describeConfig(config: Record<string, number>): string {
 }
 
 /**
- * For every configuration and guarded joint: |τ_g| × 1.6 ≤ 0.8 × τ_ff cap. Fails closed on any
- * missing τ_g. On success, one summary line per joint (worst case).
+ * For every configuration and guarded joint: factor × |τ_g| ≤ 0.8 × τ_ff cap, the factor from
+ * {@link TauFactors} (per joint and configuration). Fails closed on any missing τ_g. On success,
+ * the factor report then one summary line per joint (worst case).
  */
 export function checkTauGuard(
   configs: readonly Record<string, number>[],
   tau: ReadonlyMap<number, Record<string, number>>,
   joints: readonly string[],
   limits: Readonly<Record<string, JointLimits>>,
+  factors: TauFactors,
 ): { ok: true; report: string[] } | Refusal {
   const report = [
-    `τ guard: ${configs.length} configurations along the commanded paths; |τ_g| × ${TAU_DISTRUST_FACTOR} must stay ≤ ${TAU_CAP_SHARE} × τ_ff cap`,
+    `τ guard: ${configs.length} configurations along the commanded paths; factor × |τ_g| must stay ≤ ${TAU_CAP_SHARE} × τ_ff cap`,
+    ...factors.report,
   ];
   for (const joint of joints) {
     const allowed = TAU_CAP_SHARE * limits[joint].tauFfCapNm;
-    let worst = { tau: 0, index: 0 };
+    let worst = { tau: 0, factor: factors.at(joint, configs[0] ?? {}), index: 0 };
     for (let i = 0; i < configs.length; i += 1) {
       const t = tau.get(i)?.[joint];
       if (t === undefined) {
@@ -799,17 +804,18 @@ export function checkTauGuard(
           message: `Refused: τ guard unavailable: gravity-preview gave no τ_g for ${joint} at ${describeConfig(configs[i])}; no motion was run.`,
         };
       }
-      if (Math.abs(t) > Math.abs(worst.tau)) worst = { tau: t, index: i };
+      const factor = factors.at(joint, configs[i]);
+      if (factor * Math.abs(t) > worst.factor * Math.abs(worst.tau)) worst = { tau: t, factor, index: i };
     }
-    const distrusted = TAU_DISTRUST_FACTOR * Math.abs(worst.tau);
+    const factored = worst.factor * Math.abs(worst.tau);
     const line =
       `${joint}: max |τ_g| ${Math.abs(worst.tau).toFixed(3)} Nm at ${describeConfig(configs[worst.index])}; ` +
-      `× ${TAU_DISTRUST_FACTOR} = ${distrusted.toFixed(3)} Nm vs ${TAU_CAP_SHARE} × cap ${limits[joint].tauFfCapNm} Nm = ${allowed.toFixed(3)} Nm`;
-    if (distrusted > allowed) {
+      `× ${worst.factor} = ${factored.toFixed(3)} Nm vs ${TAU_CAP_SHARE} × cap ${limits[joint].tauFfCapNm} Nm = ${allowed.toFixed(3)} Nm`;
+    if (factored > allowed) {
       return {
         ok: false,
         message:
-          `Refused: τ guard: ${line}. The distrusted model torque exceeds the feed-forward budget; ` +
+          `Refused: τ guard: ${line}. The factored model torque exceeds the feed-forward budget; ` +
           "reduce amplitude_fraction, poses_rad or the fixed poses. No motion was run.",
       };
     }
@@ -1017,8 +1023,10 @@ export function registerJointCalibrateTools(
         "confirm_weighted_motion (default profile arm_attached), set_zero + at_mechanical_reference, " +
         "skip_hanging_rest_gravity_check: true. Pre-flight guard, before any motion, on the Pi's live config: " +
         "every target, overshoot, fixed pose and wave extreme ≥ 0.05 rad inside [max(soft, hard) lower, " +
-        "min(soft, hard) upper]; model |τ_g| × 1.6 ≤ 0.8 × τ_ff cap on every joint along every commanded path " +
-        "(motor-repl gravity-preview, batched; wave method: ±0.1 rad around each pose); wave peak speed " +
+        "min(soft, hard) upper]; model |τ_g| × factor ≤ 0.8 × τ_ff cap on every joint along every commanded path " +
+        "(factor 1.6, or 1 + max(3σ_A/A, 0.15) for a joint whose fit docs/commissioning/calibrations/" +
+        "applied-gravity.json pins to the Pi URDF; τ_g from motor-repl gravity-preview, batched; wave method: " +
+        "±0.1 rad around each pose); wave peak speed " +
         "π·(max−min)/(2·half_period) ≤ 0.8 × velocity cap; total sleep budget ≤ 300 s. Writes " +
         "var/gravity-calibration/<TS>/ (plan.json version 2 with method and session_complete, " +
         "position-trace.csv, pi-marengo.urdf, config/*.yaml, bench-session.txt) and, with run_fit, runs " +
@@ -1054,6 +1062,11 @@ export function registerJointCalibrateTools(
         if (!preflight.ok) return refused(preflight.message);
         const read = readJointLimits(preflight, chain);
         if (!read.ok) return refused(read.message);
+        const factors = await resolveTauFactors({
+          urdf: preflight.urdf,
+          joints: chain,
+          readLocal: (rel) => deps.readFile(path.join(cfg.localRoot, rel)),
+        });
 
         const method = args.method ?? "wave";
         const approachOffsetRad = args.approach_offset_rad ?? DEFAULT_APPROACH_OFFSET_RAD;
@@ -1110,7 +1123,7 @@ export function registerJointCalibrateTools(
           if (!within.ok) return refused(within.message);
           session = within;
           const configs = guardConfigurations(plan);
-          const tauGuard = checkTauGuard(configs, await tauBatch(configs), chain, read.limits);
+          const tauGuard = checkTauGuard(configs, await tauBatch(configs), chain, read.limits, factors);
           if (!tauGuard.ok) return refused(tauGuard.message);
           preamble = tauGuard.report;
         } else {
@@ -1123,7 +1136,7 @@ export function registerJointCalibrateTools(
           if (!envelope.ok) return refused(envelope.message);
           const configs = guardConfigurations(envelope);
           const tau = await tauBatch(configs);
-          const tauGuard = checkTauGuard(configs, tau, chain, read.limits);
+          const tauGuard = checkTauGuard(configs, tau, chain, read.limits, factors);
           if (!tauGuard.ok) return refused(tauGuard.message);
           const sweepLimits = read.limits[sweepJoint];
           let amplitudeRad: number;

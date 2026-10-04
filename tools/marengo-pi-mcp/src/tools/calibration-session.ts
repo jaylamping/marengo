@@ -6,7 +6,7 @@
  * Nothing here ever applies a model or config change to the Pi.
  */
 
-import { mkdir as fsMkdir, writeFile as fsWriteFile } from "node:fs/promises";
+import { mkdir as fsMkdir, readFile as fsReadFile, writeFile as fsWriteFile } from "node:fs/promises";
 import path from "node:path";
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
@@ -447,6 +447,8 @@ export function parseSessionJson(output: string): { trace: string; ts: string } 
 export interface CalibrationDeps {
   execLocal: (command: string, args: string[], opts: { cwd?: string; timeoutMs?: number }) => Promise<RemoteExecResult>;
   writeFile: (file: string, data: string) => Promise<void>;
+  /** Workstation file as UTF-8 (rejects with ENOENT when missing). */
+  readFile: (file: string) => Promise<string>;
   mkdir: (dir: string) => Promise<void>;
   now: () => Date;
 }
@@ -454,6 +456,7 @@ export interface CalibrationDeps {
 export const defaultCalibrationDeps: CalibrationDeps = {
   execLocal: sshExecLocal,
   writeFile: (file, data) => fsWriteFile(file, data, "utf8"),
+  readFile: (file) => fsReadFile(file, "utf8"),
   mkdir: async (dir) => {
     await fsMkdir(dir, { recursive: true });
   },
