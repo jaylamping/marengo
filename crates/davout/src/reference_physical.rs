@@ -33,6 +33,15 @@ pub const IDENTITY_ADMISSION_RETRY: Duration = Duration::from_millis(10);
 pub const IDENTITY_ADMISSION_SPACING: Duration = crate::burst::BURST_GROUP_SPACING;
 /// One identity admission poll; replies normally arrive within a millisecond.
 pub(crate) const IDENTITY_ADMISSION_POLL: Duration = Duration::from_millis(5);
+/// Longest a type-24 On held back from a drive's possible post-SetZero
+/// blackout may stay unwritten once the hold ends (the quiet's end, or the end
+/// of owner reference work when later) before the drive loses its grant
+/// (ADR 0036, *Owed On*). Until the On is written the drive's silence is the
+/// host's; after it, `comm_watchdog_ms` counts from the write. Twice the
+/// slowest synchronous host work measured on the Pi (marengo-pi's gravity
+/// preflight, 96 ms), rounded up to 50 ms. Only a drive outside an Active
+/// session can owe an On, so no command depends on it meanwhile.
+pub const OWED_ON_WRITE_BOUND: Duration = Duration::from_millis(200);
 /// Retained replies per kind. A request only accepts replies popped after it.
 const INBOX_CAPACITY: usize = 32;
 
@@ -75,9 +84,58 @@ struct Device {
     last_position_rad: Option<f64>,
     /// Silence before this instant is the host's doing, not the drive's: the
     /// host withheld a frame the drive needs to speak (a type-24 On it kept out
-    /// of the post-SetZero blackout) or the drive has not yet had the chance to
-    /// answer one (an Enable whose echo was just read). Monotonic.
+    /// of the post-SetZero blackout, until its write) or the drive has not yet
+    /// had the chance to answer one (an Enable whose echo was just read; the
+    /// stop that ended an Active session). Monotonic.
     silence_counts_from: Option<Instant>,
+    /// A type-24 On the reporting sync held back to this instant (the end of
+    /// the drive's post-SetZero quiet) and has not written yet. Until it is
+    /// written the drive's silence is the host's, for at most
+    /// [`OWED_ON_WRITE_BOUND`].
+    owed_on_from: Option<Instant>,
+}
+
+/// Why a granted address failed the liveness rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Lapse {
+    /// No feedback within `comm_watchdog_ms` of the instant silence counts
+    /// from (or the address was never observed).
+    Silent,
+    /// A type-24 On held for the post-SetZero quiet was still unwritten
+    /// [`OWED_ON_WRITE_BOUND`] after the hold ended.
+    OwedOnUnwritten,
+}
+
+/// Where the liveness rule starts counting an address's silence (ADR 0036,
+/// *Host-caused silence*). Every excuse below ends at an instant the host
+/// controls; [`PhysicalDevices::count_silence_from`] and owner work apply in
+/// every mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SilenceFrom {
+    /// Outside an Active session, and for a granted joint outside the active
+    /// set: the address's last frame. A type-24 On the host still owes the
+    /// drive excuses it until written, for at most [`OWED_ON_WRITE_BOUND`].
+    LastFrame,
+    /// Active, the address's traffic withheld from pose until its Enable echo:
+    /// its last frame or this instant (activation, or its quiet end), whichever
+    /// is later. The Enable-echo bound fails the address closed meanwhile.
+    Withheld(Instant),
+    /// Active target: the write of the earliest host frame it answers that no
+    /// pose has followed. `None`: the host has asked nothing since the drive's
+    /// last pose, so no silence counts.
+    Solicited(Option<Instant>),
+}
+
+/// What became of an owed type-24 On at a reporting sync.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OwedOn {
+    /// Still due and unwritten.
+    Owed,
+    /// Written at this instant: silence counts from it.
+    Written(Instant),
+    /// No longer wanted (an Active session, an expired lease): silence counts
+    /// from the quiet's end, as for a held On that is no longer owed.
+    Released,
 }
 
 #[derive(Debug, Clone)]
@@ -128,6 +186,7 @@ impl PhysicalDevices {
                             last_seen: None,
                             last_position_rad: None,
                             silence_counts_from: None,
+                            owed_on_from: None,
                         },
                     )
                 })
@@ -153,6 +212,41 @@ impl PhysicalDevices {
     pub(crate) fn count_silence_from(&mut self, address: &MotorAddress, at: Instant) {
         if let Some(device) = self.devices.get_mut(address) {
             device.silence_counts_from = Some(device.silence_counts_from.map_or(at, |s| s.max(at)));
+        }
+    }
+
+    /// The reporting sync held `address`'s due type-24 On until `quiet_end`.
+    /// Until [`Self::settle_owed_reporting_ons`] sees it written, the drive's
+    /// silence is excused, for at most [`OWED_ON_WRITE_BOUND`] past the later
+    /// of `quiet_end` and the end of owner work.
+    pub(crate) fn owe_reporting_on(&mut self, address: &MotorAddress, quiet_end: Instant) {
+        if let Some(device) = self.devices.get_mut(address) {
+            device.owed_on_from = Some(device.owed_on_from.map_or(quiet_end, |s| s.max(quiet_end)));
+        }
+    }
+
+    /// Resolve every owed On with `fate`, called after each reporting sync.
+    /// A written On restarts liveness from its write; a released one from its
+    /// quiet's end.
+    pub(crate) fn settle_owed_reporting_ons(
+        &mut self,
+        mut fate: impl FnMut(&MotorAddress) -> OwedOn,
+    ) {
+        for (address, device) in &mut self.devices {
+            let Some(owed_from) = device.owed_on_from else {
+                continue;
+            };
+            let counts_from = match fate(address) {
+                OwedOn::Owed => continue,
+                OwedOn::Written(at) => at,
+                OwedOn::Released => owed_from,
+            };
+            device.owed_on_from = None;
+            device.silence_counts_from = Some(
+                device
+                    .silence_counts_from
+                    .map_or(counts_from, |s| s.max(counts_from)),
+            );
         }
     }
 
@@ -290,47 +384,62 @@ impl PhysicalDevices {
         self.devices.get(address).map(|device| device.epoch)
     }
 
-    /// Epoch of a granted address, or `None` once it went unobserved for longer
-    /// than `window` outside owner reference work (comm loss or a possible reboot).
-    /// Silence the host itself caused ([`Self::count_silence_from`]) is not
-    /// counted.
-    /// While an Active session withholds the address's traffic from pose (its
-    /// Enable echo is pending, since `withheld_since`), silence counts from that
-    /// start instead: the owner is not listening, and the Enable-echo bound
-    /// (the same window from activation) fails the address closed.
+    /// Epoch of a granted address, or why it lapsed: silent for longer than
+    /// `window` outside owner reference work (comm loss or a possible reboot),
+    /// counted from `from`, or an owed type-24 On left unwritten past
+    /// [`OWED_ON_WRITE_BOUND`]. Silence the host itself caused
+    /// ([`Self::count_silence_from`], owner work) is not counted.
     pub(crate) fn live_epoch(
         &self,
         address: &MotorAddress,
         now: Instant,
         window: Duration,
         owner_busy: bool,
-        withheld_since: Option<Instant>,
-    ) -> Option<u64> {
-        let device = self.devices.get(address)?;
+        from: SilenceFrom,
+    ) -> Result<u64, Lapse> {
+        let device = self.devices.get(address).ok_or(Lapse::Silent)?;
         if owner_busy {
-            return Some(device.epoch);
+            return Ok(device.epoch);
         }
-        (self.counted_silence(address, now, withheld_since)? <= window).then_some(device.epoch)
+        if let (SilenceFrom::LastFrame, Some(owed_from)) = (from, device.owed_on_from) {
+            // The host has not written the On the drive needs to speak. The
+            // excuse ends a fixed bound after the host could first write it.
+            let writable = self
+                .last_owner_work
+                .map_or(owed_from, |work| work.max(owed_from));
+            return if now.saturating_duration_since(writable) <= OWED_ON_WRITE_BOUND {
+                Ok(device.epoch)
+            } else {
+                Err(Lapse::OwedOnUnwritten)
+            };
+        }
+        match self.counted_silence(address, now, from) {
+            Some(silence) if silence <= window => Ok(device.epoch),
+            _ => Err(Lapse::Silent),
+        }
     }
 
     /// Silence the liveness rule counts for `address` at `now` (see
-    /// [`Self::live_epoch`]), or `None` when it was never observed.
+    /// [`Self::live_epoch`] and [`SilenceFrom`]), or `None` when it was never
+    /// observed.
     pub(crate) fn counted_silence(
         &self,
         address: &MotorAddress,
         now: Instant,
-        withheld_since: Option<Instant>,
+        from: SilenceFrom,
     ) -> Option<Duration> {
         let device = self.devices.get(address)?;
-        let reference = [
-            device.last_seen,
-            self.last_owner_work,
-            withheld_since,
-            device.silence_counts_from,
-        ]
-        .into_iter()
-        .flatten()
-        .max()?;
+        let counted_from = match from {
+            SilenceFrom::Solicited(None) => return Some(Duration::ZERO),
+            SilenceFrom::Solicited(Some(solicited)) => [Some(solicited), None],
+            SilenceFrom::Withheld(since) => [device.last_seen, Some(since)],
+            SilenceFrom::LastFrame => [device.last_seen, None],
+        };
+        let reference = counted_from
+            .into_iter()
+            .chain([self.last_owner_work, device.silence_counts_from])
+            .flatten()
+            .max()?;
         Some(now.saturating_duration_since(reference))
     }
 

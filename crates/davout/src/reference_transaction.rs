@@ -15,7 +15,7 @@ use crate::feedback_consumer::{
     AdvanceReceiveBudget, ReceiveContext, ReferenceReceiveContext, ReferenceReceivePhase,
 };
 use crate::reference_model::InstalledModelStamp;
-use crate::reference_physical::{PhysicalBackend, PhysicalDevices};
+use crate::reference_physical::{Lapse, PhysicalBackend, PhysicalDevices, SilenceFrom};
 use crate::{
     ControlMode, OperationalMode, Supervisor, POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
 };
@@ -429,26 +429,25 @@ impl<B: MotorBus> ReferenceOwner<B> {
         }
     }
 
-    /// Epoch of a selected grant. Physical grants also require liveness (ADR 0036).
-    /// `withheld_since`: start of an Active session that still withholds this
-    /// address's traffic from session pose (its Enable echo is pending).
+    /// Epoch of a selected grant. Physical grants also require liveness (ADR
+    /// 0036), with silence counted `from` the instant the caller's mode
+    /// selects. A virtual device without an epoch reads as silent.
     pub(super) fn live_device_epoch(
         &self,
         bus: &B,
         address: &MotorAddress,
         window: Duration,
         owner_busy: bool,
-        withheld_since: Option<Instant>,
-    ) -> Option<u64> {
-        match self.backend.as_ref()? {
-            ReferenceBackend::Virtual(backend) => (backend.current_device_epoch)(bus, address),
-            ReferenceBackend::Physical(_) => self.physical.live_epoch(
-                address,
-                Instant::now(),
-                window,
-                owner_busy,
-                withheld_since,
-            ),
+        from: SilenceFrom,
+    ) -> Result<u64, Lapse> {
+        match self.backend.as_ref().ok_or(Lapse::Silent)? {
+            ReferenceBackend::Virtual(backend) => {
+                (backend.current_device_epoch)(bus, address).ok_or(Lapse::Silent)
+            }
+            ReferenceBackend::Physical(_) => {
+                self.physical
+                    .live_epoch(address, Instant::now(), window, owner_busy, from)
+            }
         }
     }
 

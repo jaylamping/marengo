@@ -15,13 +15,13 @@ use davout::simulation::SimulationBus;
 use davout::{
     DavoutError, JointHomingState, OperationalMode, ReferenceAudit, ReferenceError,
     ReferenceOutcome, Supervisor, BURST_GROUP_SPACING, IDENTITY_ADMISSION_SPACING,
-    POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
+    OWED_ON_WRITE_BOUND, POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
 };
 use marengo_config::{load_homing_config_from, load_motors_config_from, HomingMethod};
 use physical_firmware::{
     Firmware, FirmwareBus, SharedFirmware, LATEST_SET_ZERO_BLACKOUT, SET_ZERO_BLACKOUT,
 };
-use robstride::{CommunicationType, DEFAULT_HOST_ID};
+use robstride::{encode_mit, CanFrame, CommunicationType, MitCommand, DEFAULT_HOST_ID};
 use support::TestDirectory;
 
 const PITCH: &str = "right_shoulder_pitch";
@@ -2004,17 +2004,22 @@ impl Bench {
         }
     }
 
-    /// The cycle-14 geometry. Pitch's stream is Off with its On held at its
-    /// quiet end. Then the host does synchronous work, reading nothing while
-    /// the drives keep reporting, from just before that quiet end until roll
-    /// enters its blackout. Roll's blackout is placed (within the measured
-    /// range) so admission waits in it past pitch's quiet end plus
-    /// `comm_watchdog_ms`.
-    fn hold_pitch_stream_off_across_its_quiet(&mut self) {
+    /// Synchronous host work until `until`: the host reads and writes nothing
+    /// while every streaming drive keeps reporting into the receive queue.
+    fn stall_until(&mut self, until: Instant) {
+        let report_period = self.firmware.borrow().drive(ROLL).report_period;
+        while Instant::now() < until {
+            self.firmware.borrow_mut().emit_reports();
+            std::thread::sleep(report_period);
+        }
+    }
+
+    /// Pitch's stream is Off with its type-24 On held to its quiet end, which
+    /// is returned: later references' baselines turned it Off, and its On fell
+    /// due inside pitch's possible blackout.
+    fn hold_pitch_stream_off(&mut self) -> Instant {
         self.home_in_sequence(&[PITCH]);
         let pitch_zeroed = set_zero_written_at(self, PITCH);
-        let quiet_end = pitch_zeroed + POST_SET_ZERO_QUIET;
-        let window = millis(self.supervisor.control.control.comm_watchdog_ms);
         self.tick_until(pitch_zeroed + millis(150));
         self.home_in_sequence(&[ROLL]);
         // This reference's baseline turns pitch's stream Off before pitch's
@@ -2026,6 +2031,18 @@ impl Bench {
             "precondition: pitch's stream is Off with its On held; pitch type-24 writes after its SetZero: {:?}",
             reporting_writes_since_set_zero(self, PITCH),
         );
+        pitch_zeroed + POST_SET_ZERO_QUIET
+    }
+
+    /// The cycle-14 geometry. Pitch's stream is Off with its On held at its
+    /// quiet end. Then the host does synchronous work, reading nothing while
+    /// the drives keep reporting, from just before that quiet end until roll
+    /// enters its blackout. Roll's blackout is placed (within the measured
+    /// range) so admission waits in it past pitch's quiet end plus
+    /// `comm_watchdog_ms`.
+    fn hold_pitch_stream_off_across_its_quiet(&mut self) {
+        let quiet_end = self.hold_pitch_stream_off();
+        let window = millis(self.supervisor.control.control.comm_watchdog_ms);
         let roll_blackout = {
             let mut firmware = self.firmware.borrow_mut();
             let roll = firmware.drive_mut(ROLL);
@@ -2044,11 +2061,7 @@ impl Bench {
             "precondition: admission waits on roll past pitch's quiet end + {window:?}"
         );
         self.tick_until(quiet_end - millis(5));
-        let report_period = self.firmware.borrow().drive(ROLL).report_period;
-        while Instant::now() < roll_blackout + millis(2) {
-            self.firmware.borrow_mut().emit_reports();
-            std::thread::sleep(report_period);
-        }
+        self.stall_until(roll_blackout + millis(2));
     }
 }
 
@@ -2089,6 +2102,146 @@ fn a_drive_silent_after_its_owed_on_still_loses_its_grant_in_admission() {
     // deadline.
     assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
     bench.assert_all_drives_stopped();
+}
+
+// ADR 0036 *Owed On* (amendment 2026-10-03). Writing the owed On during
+// admission (aa773418) left one gap: synchronous work of comm_watchdog_ms or
+// more that spans the quiet's end (the preflight measured up to 96 ms) revoked
+// pitch at the first check after it, before any sync could write the On,
+// because its silence counted from the quiet's end. It now counts from the
+// On's actual write, and the On must be written within OWED_ON_WRITE_BOUND.
+
+/// Scheduling slack of a wall-clock bound check: about two loop periods.
+const TICK_SLACK: Duration = Duration::from_millis(15);
+
+/// Write instant of the first type-24 On to `joint` after `since`.
+fn first_reporting_on_after(bench: &Bench, joint: &str, since: Instant) -> Option<Instant> {
+    let device = u32::from(bench.device(joint));
+    let firmware = bench.firmware.borrow();
+    firmware
+        .tx
+        .iter()
+        .zip(&firmware.tx_at)
+        .find(|(frame, at)| {
+            **at > since
+                && (frame.id >> 24) & 0x1f == u32::from(CommunicationType::ActiveReporting.as_u8())
+                && frame.id & 0xff == device
+                && frame.data[6] == 1
+        })
+        .map(|(_, at)| *at)
+}
+
+/// Last loop iteration before the stall: the hold ends after it.
+const BEFORE_QUIET_END: Duration = Duration::from_millis(20);
+/// Pitch's reply to a type-24 write: within the modeled range, so the drain
+/// right after the write cannot read it yet, as on the bench.
+const REPORTING_REPLY: Duration = Duration::from_micros(500);
+
+#[test]
+fn a_host_stall_across_a_held_on_keeps_the_grant_until_the_on_is_written() {
+    let mut bench = Bench::physical("physical-held-on-stall");
+    let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
+    let quiet_end = bench.hold_pitch_stream_off();
+    bench
+        .firmware
+        .borrow_mut()
+        .drive_mut(PITCH)
+        .reporting_reply_delay = REPORTING_REPLY;
+    bench.tick_until(quiet_end - BEFORE_QUIET_END);
+    bench.stall_until(quiet_end + window + millis(20));
+    assert!(
+        quiet_end.elapsed() < OWED_ON_WRITE_BOUND,
+        "precondition: the stall ends inside the bound"
+    );
+    // `enable` after the gravity preflight: target resolution runs the
+    // reporting sync and drains before it judges (resolve_enable_targets,
+    // which needs all five joints referenced), then admission.
+    bench.supervisor.sync_active_reporting();
+    bench
+        .supervisor
+        .drain_feedback()
+        .expect("drain after the stall");
+    bench
+        .supervisor
+        .enable_targets(&[PITCH.to_owned(), ROLL.to_owned()])
+        .unwrap_or_else(|error| panic!("pitch keeps its grant until its On is written: {error}"));
+    let written =
+        first_reporting_on_after(&bench, PITCH, quiet_end).expect("the sync writes the owed On");
+    assert!(
+        written > quiet_end + window,
+        "the On went out after the stall"
+    );
+    assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+    assert_eq!(bench.state(ROLL), JointHomingState::Verified);
+    assert!(!bench.supervisor.has_latched_fault());
+    bench.supervisor.disable_all().expect("stop");
+}
+
+#[test]
+fn a_drive_silent_after_its_owed_on_is_written_loses_its_grant() {
+    let mut bench = Bench::physical("physical-held-on-stall-silent");
+    let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
+    let quiet_end = bench.hold_pitch_stream_off();
+    bench.tick_until(quiet_end - BEFORE_QUIET_END);
+    // Pitch dies before its quiet ends, then the host stalls across it.
+    bench.firmware.borrow_mut().drive_mut(PITCH).silent_until =
+        Some(Instant::now() + Duration::from_secs(60));
+    bench.stall_until(quiet_end + window + millis(20));
+    let give_up = Instant::now() + window + OWED_ON_WRITE_BOUND;
+    loop {
+        bench.runtime_tick();
+        if bench.state(PITCH) != JointHomingState::Verified {
+            break;
+        }
+        assert!(Instant::now() < give_up, "a silent drive keeps its grant");
+        std::thread::sleep(PUMP_PERIOD);
+    }
+    let revoked = Instant::now();
+    let written = first_reporting_on_after(&bench, PITCH, quiet_end)
+        .expect("the first loop iteration writes the owed On");
+    assert!(
+        revoked > written + window,
+        "silence counts from the On's write: revoked {:?} after it",
+        revoked.saturating_duration_since(written)
+    );
+    assert!(
+        revoked <= written + window + TICK_SLACK,
+        "revoked {:?} after the On's write",
+        revoked.saturating_duration_since(written)
+    );
+    assert_eq!(bench.state(ROLL), JointHomingState::Verified);
+    assert_eq!(
+        bench.state("right_upper_arm_yaw"),
+        JointHomingState::Verified
+    );
+    assert!(!bench.supervisor.has_latched_fault());
+}
+
+#[test]
+fn an_owed_on_never_written_loses_the_grant_at_its_bound() {
+    // Every type-24 write to pitch fails, so its owed On never reaches the
+    // drive. (A host stall longer than the bound is not a separate case: four
+    // streams queue more than the 64 frames one drain reads, and the
+    // incomplete drain latches Transport, ADR 0021.)
+    let mut bench = Bench::physical("physical-owed-on-unwritten");
+    let quiet_end = bench.hold_pitch_stream_off();
+    bench.firmware.borrow_mut().drive_mut(PITCH).fail_writes =
+        vec![CommunicationType::ActiveReporting.as_u8()];
+    bench.tick_until(quiet_end + OWED_ON_WRITE_BOUND - TICK_SLACK);
+    assert_eq!(
+        bench.state(PITCH),
+        JointHomingState::Verified,
+        "the owed On is excused until its bound"
+    );
+    bench.tick_until(quiet_end + OWED_ON_WRITE_BOUND + TICK_SLACK * 2);
+    assert_eq!(
+        first_reporting_on_after(&bench, PITCH, quiet_end - BEFORE_QUIET_END),
+        None,
+        "precondition: no On reached pitch"
+    );
+    assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
+    assert_eq!(bench.state(ROLL), JointHomingState::Verified);
+    assert!(!bench.supervisor.has_latched_fault());
 }
 
 #[test]
@@ -2156,6 +2309,329 @@ fn a_grant_survives_the_gap_between_the_enable_echo_and_the_first_run_reply() {
             );
         }
         bench.supervisor.disable_all().expect("stop");
+    }
+}
+
+// ---------------------------------------------------------------- Active host stall
+//
+// ADR 0036 *Solicited silence while Active* (amendment 2026-10-03). While
+// Active every type-24 stream is Off: a drive speaks only when the host writes
+// to it (MIT, Enable). A host stall of about 95 ms or more (the gravity
+// preflight of a redundant `enable` runs 64-96 ms) revoked every grant and
+// stopped every drive at the next drain, which can drop an elevated arm held
+// in GravityComp. A target's silence now counts from the earliest host frame
+// it has not answered. These benches stamp each frame at its wire time, as
+// SocketCAN does with kernel RX timestamps, so replies queued during a stall
+// carry their true age.
+
+/// An Active session's targets, both on can0.
+const SESSION: [&str; 2] = [PITCH, ROLL];
+/// Synchronous host work while Active, on top of the loop's pacing sleep.
+const ACTIVE_STALL: Duration = Duration::from_millis(100);
+/// MIT reply latency inside the measured range (0.13-4.65 ms): a batch's
+/// replies arrive after the non-blocking drain that follows it.
+const MIT_REPLY: Duration = Duration::from_millis(1);
+/// Above pitch's live command envelope (URDF soft upper 3.20 rad).
+const ABOVE_PITCH_ENVELOPE_RAD: f64 = 3.24;
+
+/// Zero-gain hold of `joints` at 0 rad (the loop's neutral keepalive).
+fn hold(joints: &[&str]) -> Vec<davout::MitJointCommand> {
+    joints
+        .iter()
+        .map(|joint| davout::MitJointCommand {
+            joint: (*joint).to_owned(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: 0.0,
+        })
+        .collect()
+}
+
+/// [`hold`], with pitch servoed to a target above its envelope: Davout must
+/// clamp it.
+fn clamped_probe() -> Vec<davout::MitJointCommand> {
+    let mut batch = hold(&SESSION);
+    batch[0].kp = 1.0;
+    batch[0].position_rad = ABOVE_PITCH_ENVELOPE_RAD;
+    batch
+}
+
+/// The latest MIT frame written to `joint`.
+fn last_mit_frame(bench: &Bench, joint: &str) -> CanFrame {
+    let device = u32::from(bench.device(joint));
+    bench
+        .firmware
+        .borrow()
+        .tx
+        .iter()
+        .rev()
+        .find(|frame| {
+            (frame.id >> 24) & 0x1f == u32::from(CommunicationType::OperationControl.as_u8())
+                && frame.id & 0xff == device
+        })
+        .cloned()
+        .unwrap_or_else(|| panic!("{joint}: MIT written"))
+}
+
+impl Bench {
+    /// A physical owner whose bus stamps frames at their wire time and whose
+    /// drives answer MIT after [`MIT_REPLY`].
+    fn physical_wire_stamped(label: &str) -> Self {
+        let bench = Self::physical(label);
+        {
+            let mut firmware = bench.firmware.borrow_mut();
+            firmware.wire_time_stamps = true;
+            for drive in &mut firmware.drives {
+                drive.mit_reply_delay = MIT_REPLY;
+            }
+        }
+        bench
+    }
+
+    /// One Active control-loop tick in Berthier's order: drain, MIT batch, drain.
+    fn control_tick(&mut self, batch: Vec<davout::MitJointCommand>) -> Result<(), DavoutError> {
+        self.firmware.borrow_mut().emit_reports();
+        self.supervisor.begin_tick_feedback();
+        self.supervisor.drain_feedback()?;
+        self.supervisor.send_mit_batch(batch)?;
+        self.supervisor.drain_feedback().map(|_| ())
+    }
+
+    /// Reference `joints` and enable them; tick until every target answered
+    /// its Enable, then a few steady ticks.
+    fn active_session(&mut self, joints: &[&str]) {
+        self.home_in_sequence(joints);
+        let targets: Vec<String> = joints.iter().map(|joint| (*joint).to_owned()).collect();
+        self.supervisor
+            .enable_targets(&targets)
+            .expect("identity admits");
+        let give_up = Instant::now() + POST_SET_ZERO_QUIET + millis(500);
+        loop {
+            assert!(Instant::now() < give_up, "the Enables complete");
+            self.control_tick(hold(joints))
+                .unwrap_or_else(|error| panic!("enable bootstrap: {error}"));
+            if !self.supervisor.enable_writes_pending()
+                && joints
+                    .iter()
+                    .all(|joint| self.supervisor.joint_feedback(joint).is_some())
+            {
+                break;
+            }
+            std::thread::sleep(PUMP_PERIOD);
+        }
+        for _ in 0..5 {
+            std::thread::sleep(PUMP_PERIOD);
+            self.control_tick(hold(joints))
+                .unwrap_or_else(|error| panic!("steady tick: {error}"));
+        }
+        assert_eq!(self.supervisor.mode(), OperationalMode::Active);
+    }
+}
+
+#[test]
+fn an_active_session_keeps_every_grant_through_a_host_stall() {
+    let mut bench = Bench::physical_wire_stamped("physical-active-stall");
+    bench.active_session(&SESSION);
+    bench
+        .control_tick(clamped_probe())
+        .expect("tick before the stall");
+    let before = last_mit_frame(&bench, PITCH);
+    // The loop's pacing sleep, then synchronous work that reads and writes
+    // nothing. Both drives answer the last batch meanwhile.
+    std::thread::sleep(PUMP_PERIOD + ACTIVE_STALL);
+    let resumed = Instant::now();
+    bench
+        .control_tick(clamped_probe())
+        .unwrap_or_else(|error| panic!("first tick after the stall: {error}"));
+    // The first batch after the stall passes the same filters, from the same
+    // pose, as the one before it: the envelope clamp, not the raw target.
+    let after = last_mit_frame(&bench, PITCH);
+    assert_eq!((after.id, after.data), (before.id, before.data));
+    let (scale, motor_type, device_id) = {
+        let firmware = bench.firmware.borrow();
+        let drive = firmware.drive(PITCH);
+        (drive.scale, drive.motor_type, drive.device_id)
+    };
+    let (_, raw) = encode_mit(&MitCommand {
+        device_id,
+        motor_type,
+        position_rad: (ABOVE_PITCH_ENVELOPE_RAD * scale) as f32,
+        velocity_rad_s: 0.0,
+        kp: 0.0,
+        kd: 0.0,
+        torque_ff_nm: 0.0,
+    })
+    .expect("the raw target encodes");
+    assert_ne!(after.data[0..2], raw[0..2], "the envelope clamp applies");
+    for _ in 0..3 {
+        std::thread::sleep(PUMP_PERIOD);
+        bench
+            .control_tick(hold(&SESSION))
+            .unwrap_or_else(|error| panic!("ticks after the stall: {error}"));
+    }
+    for joint in SESSION {
+        assert_eq!(bench.state(joint), JointHomingState::Verified, "{joint}");
+        let feedback = bench
+            .supervisor
+            .joint_feedback(joint)
+            .expect("session pose");
+        assert!(
+            feedback.sample_age < resumed.elapsed(),
+            "{joint} answered the batches after the stall"
+        );
+    }
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+    assert!(!bench.supervisor.has_latched_fault());
+    bench.supervisor.disable_all().expect("stop");
+}
+
+#[test]
+fn a_drive_dead_through_an_active_host_stall_is_revoked_after_the_first_solicit() {
+    let mut bench = Bench::physical_wire_stamped("physical-active-stall-dead");
+    let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
+    bench.active_session(&SESSION);
+    bench
+        .control_tick(hold(&SESSION))
+        .expect("tick before the stall");
+    std::thread::sleep(PUMP_PERIOD);
+    // Roll's reply to that batch is on the wire; then roll loses power.
+    bench
+        .firmware
+        .borrow_mut()
+        .drive_mut(ROLL)
+        .reboot(Some(Instant::now() + Duration::from_secs(60)));
+    std::thread::sleep(ACTIVE_STALL);
+    let first_solicit = Instant::now();
+    bench
+        .control_tick(hold(&SESSION))
+        .unwrap_or_else(|error| panic!("both answered before the stall: {error}"));
+    for joint in SESSION {
+        assert_eq!(
+            bench.state(joint),
+            JointHomingState::Verified,
+            "{joint}: the stall alone revokes nothing"
+        );
+    }
+    let error = loop {
+        std::thread::sleep(PUMP_PERIOD);
+        if let Err(error) = bench.control_tick(hold(&SESSION)) {
+            break error;
+        }
+        assert!(
+            Instant::now() < first_solicit + window + TICK_SLACK,
+            "roll still granted {:?} after the first solicit it left unanswered",
+            first_solicit.elapsed()
+        );
+    };
+    let detected = first_solicit.elapsed();
+    assert!(
+        detected > window,
+        "silence counts from the first unanswered solicit: {detected:?}"
+    );
+    assert!(
+        matches!(&error, DavoutError::CommWatchdog { joint, .. } if joint == ROLL)
+            || matches!(&error, DavoutError::Homing { .. }),
+        "{error}"
+    );
+    assert_ne!(bench.state(ROLL), JointHomingState::Verified);
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    bench.assert_all_drives_stopped();
+}
+
+#[test]
+fn a_drive_that_stops_answering_while_the_host_ticks_is_revoked_as_before() {
+    // Every tick solicits, so the rule changes nothing here: the drive is
+    // revoked comm_watchdog_ms after its last answer, at most one control
+    // period later than when silence counted from the last frame.
+    let mut bench = Bench::physical("physical-active-silent");
+    let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
+    bench.active_session(&SESSION);
+    bench.control_tick(hold(&SESSION)).expect("tick");
+    let last_answer = Instant::now();
+    bench.firmware.borrow_mut().drive_mut(ROLL).silent_until = Some(last_answer + window * 10);
+    let disables_before: Vec<usize> = SESSION
+        .iter()
+        .map(|joint| bench.sent(CommunicationType::Disable, joint))
+        .collect();
+    let error = loop {
+        std::thread::sleep(PUMP_PERIOD);
+        if let Err(error) = bench.control_tick(hold(&SESSION)) {
+            break error;
+        }
+        assert!(
+            Instant::now() < last_answer + window + PUMP_PERIOD + TICK_SLACK,
+            "roll still granted {:?} after its last answer",
+            last_answer.elapsed()
+        );
+    };
+    let detected = last_answer.elapsed();
+    assert!(
+        detected + millis(1) > window,
+        "not before comm_watchdog_ms of silence: {detected:?}"
+    );
+    assert!(
+        matches!(&error, DavoutError::CommWatchdog { joint, .. } if joint == ROLL)
+            || matches!(&error, DavoutError::Homing { .. }),
+        "{error}"
+    );
+    assert_ne!(bench.state(ROLL), JointHomingState::Verified);
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    for (joint, before) in SESSION.iter().zip(disables_before) {
+        assert!(
+            bench.sent(CommunicationType::Disable, joint) > before,
+            "{joint}: stopped"
+        );
+    }
+}
+
+#[test]
+fn leaving_active_after_a_host_stall_counts_silence_from_the_stop() {
+    // The stop answers for itself: every drive replies to it. The stall before
+    // it stays the host's silence across the mode change, and a drive that
+    // died in it is revoked comm_watchdog_ms after the stop.
+    for dead in [false, true] {
+        let mut bench = Bench::physical_wire_stamped("physical-active-stall-stop");
+        let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
+        bench.active_session(&SESSION);
+        bench
+            .control_tick(hold(&SESSION))
+            .expect("tick before the stall");
+        std::thread::sleep(MIT_REPLY * 2);
+        bench
+            .supervisor
+            .drain_feedback()
+            .expect("both answered the last batch");
+        if dead {
+            bench
+                .firmware
+                .borrow_mut()
+                .drive_mut(ROLL)
+                .reboot(Some(Instant::now() + Duration::from_secs(60)));
+        }
+        std::thread::sleep(ACTIVE_STALL);
+        let stop = Instant::now();
+        bench.supervisor.disable_all().expect("ordinary stop");
+        for joint in SESSION {
+            assert_eq!(
+                bench.state(joint),
+                JointHomingState::Verified,
+                "dead={dead}: {joint} right after the stop"
+            );
+        }
+        bench.tick_until(stop + window + TICK_SLACK);
+        assert_eq!(
+            bench.state(PITCH),
+            JointHomingState::Verified,
+            "dead={dead}"
+        );
+        assert_eq!(
+            bench.state(ROLL) == JointHomingState::Verified,
+            !dead,
+            "dead={dead}: roll"
+        );
+        assert!(!bench.supervisor.has_latched_fault(), "dead={dead}");
     }
 }
 

@@ -105,6 +105,9 @@ pub use reference_commit::{
 };
 pub use reference_journal::{ReferenceJournalDrain, ReferenceJournalError, ReferenceJournalResult};
 pub use reference_journal_event::ReferenceHistoryRecord;
+/// Host timing bound of the liveness rule (ADR 0036, *Owed On*).
+pub use reference_physical::OWED_ON_WRITE_BOUND;
+use reference_physical::{Lapse, OwedOn, SilenceFrom};
 /// Firmware timing bounds, exported for the measured-profile conformance test.
 pub use reference_physical::{
     IDENTITY_ADMISSION_RETRY, IDENTITY_ADMISSION_SPACING, IDENTITY_ADMISSION_TIMEOUT,
@@ -353,7 +356,10 @@ struct FeedbackSample {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Liveness {
     Judge,
-    /// Left to the next judged check: the receive queue has not been read yet.
+    /// Left to the next judged check: the receive queue has not been read
+    /// yet. An address whose Enable echo is pending is still judged: its
+    /// traffic is not pose, so reading cannot renew it, and a staggered
+    /// Enable may be written to it before the read.
     Defer,
 }
 
@@ -439,6 +445,12 @@ pub struct Supervisor<B: MotorBus> {
     last_refresh_frames: usize,
     /// Joints whose drives were successfully enabled for the current Active session.
     active_joints: HashSet<String>,
+    /// Active session: per target address, the write instant of the earliest
+    /// host frame the drive answers that no admitted pose has followed since
+    /// (ADR 0036, *Solicited silence while Active*): its Enable, and every MIT
+    /// batch, whether or not the batch commands that target. Keys are the
+    /// session's targets, set at activation.
+    unanswered_solicits: FxHashMap<MotorAddress, Option<Instant>>,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -590,6 +602,7 @@ impl<B: MotorBus> Supervisor<B> {
             last_feedback_rx: FxHashMap::default(),
             last_refresh_frames: 0,
             active_joints: HashSet::new(),
+            unanswered_solicits: FxHashMap::default(),
         };
         Ok((supervisor, record_path))
     }
@@ -718,7 +731,9 @@ impl<B: MotorBus> Supervisor<B> {
         if state.updated.is_none() || self.invalid_feedback.contains(&*address) {
             return None;
         }
-        if self.mode == OperationalMode::Active && !self.pose_is_current(state, Instant::now()) {
+        if self.mode == OperationalMode::Active
+            && !self.pose_is_current(&address, state, Instant::now())
+        {
             return None;
         }
         if self.mode != OperationalMode::Active && state.is_stale(FREE_DRIVE_FEEDBACK_TTL) {
@@ -877,7 +892,8 @@ impl<B: MotorBus> Supervisor<B> {
     /// [`Self::reference_binding_valid`] with each physical grant's liveness
     /// judged now or deferred to the next judged check. Only a feedback drain
     /// defers, for the observation it makes before reading the receive queue:
-    /// last-seen times are host read times, so judging liveness there counts
+    /// receive times can be host read times, and an Active target's queued
+    /// replies answer what the host asked, so judging liveness there counts
     /// the host's own read gap (e.g. marengo-pi's gravity preflight) as drive
     /// silence. The drain judges liveness once it has read the queue.
     fn reference_binding_valid_with(&self, liveness: Liveness) -> bool {
@@ -927,33 +943,39 @@ impl<B: MotorBus> Supervisor<B> {
             if binding.is_revoked() {
                 continue;
             }
-            let withheld_since = self.enable_bounds_start(&binding.address).filter(|_| {
-                self.mode == OperationalMode::Active
-                    && self.enable_echo_pending.contains(&binding.address)
-            });
-            let current = match liveness {
-                Liveness::Judge => self.reference_owner.live_device_epoch(
+            let from = self.silence_from(&binding.joint, &binding.address);
+            let judge = match liveness {
+                Liveness::Judge => true,
+                Liveness::Defer => matches!(from, SilenceFrom::Withheld(_)),
+            };
+            let current = if judge {
+                self.reference_owner.live_device_epoch(
                     &self.bus,
                     &binding.address,
                     window,
                     owner_busy,
-                    withheld_since,
-                ),
-                Liveness::Defer => self
-                    .reference_owner
-                    .current_device_epoch(&self.bus, &binding.address),
+                    from,
+                )
+            } else {
+                self.reference_owner
+                    .current_device_epoch(&self.bus, &binding.address)
+                    .ok_or(Lapse::Silent)
             };
             let identity_holds = !physical
                 || binding.uid.is_some()
                     && self.reference_owner.physical.uid(&binding.address) == binding.uid;
-            if current != Some(binding.device_epoch) || !identity_holds {
+            if current != Ok(binding.device_epoch) || !identity_holds {
                 if physical {
                     let cause = if !identity_holds {
                         "device identity changed"
-                    } else if current.is_none() {
-                        "no feedback within comm_watchdog_ms"
                     } else {
-                        "coordinate epoch changed"
+                        match current {
+                            Err(Lapse::Silent) => "no feedback within comm_watchdog_ms",
+                            Err(Lapse::OwedOnUnwritten) => {
+                                "owed type-24 On not written within OWED_ON_WRITE_BOUND"
+                            }
+                            Ok(_) => "coordinate epoch changed",
+                        }
                     };
                     warn!(
                         joint = %binding.joint,
@@ -963,7 +985,7 @@ impl<B: MotorBus> Supervisor<B> {
                         silence = ?self.reference_owner.physical.counted_silence(
                             &binding.address,
                             Instant::now(),
-                            withheld_since,
+                            from,
                         ),
                         comm_watchdog_ms = self.control.control.comm_watchdog_ms,
                         "physical reference grant revoked"
@@ -1430,6 +1452,14 @@ impl<B: MotorBus> Supervisor<B> {
             self.poll_feedback(Duration::ZERO)?;
             self.ensure_reference_for(joints)?;
             self.active_joints = joints.iter().cloned().collect();
+            // A new session has asked its targets nothing yet.
+            self.unanswered_solicits.clear();
+            for motor in &self.motors.motors {
+                if self.active_joints.contains(&motor.joint) {
+                    self.unanswered_solicits
+                        .insert(MotorAddress::from(motor), None);
+                }
+            }
             self.mode = OperationalMode::Active;
             let activated_at = Instant::now();
             self.active_since = Some(activated_at);
@@ -1580,6 +1610,47 @@ impl<B: MotorBus> Supervisor<B> {
         )
     }
 
+    /// Where grant liveness counts `joint`'s silence from (ADR 0036). While
+    /// Active a target speaks only when the host writes to it, so its silence
+    /// counts from the earliest write it has not answered; until its Enable
+    /// echo, from its enable bounds start. Everything else counts from its
+    /// last frame.
+    fn silence_from(&self, joint: &str, address: &MotorAddress) -> SilenceFrom {
+        if self.mode != OperationalMode::Active || !self.active_joints.contains(joint) {
+            return SilenceFrom::LastFrame;
+        }
+        if self.enable_echo_pending.contains(address) {
+            if let Some(since) = self.enable_bounds_start(address) {
+                return SilenceFrom::Withheld(since);
+            }
+        }
+        SilenceFrom::Solicited(self.unanswered_solicit(address))
+    }
+
+    /// Write instant of the earliest host frame `address` answers that no
+    /// admitted pose has followed, in the current Active session.
+    fn unanswered_solicit(&self, address: &MotorAddress) -> Option<Instant> {
+        self.unanswered_solicits.get(address).copied().flatten()
+    }
+
+    /// An Active target was written a frame it answers with a status, at
+    /// `written_at` (sampled before the write, so never after the frame
+    /// reached the wire). Only the earliest unanswered one counts.
+    fn note_solicit(&mut self, address: &MotorAddress, written_at: Instant) {
+        if self.mode != OperationalMode::Active {
+            return;
+        }
+        match self.unanswered_solicits.get_mut(address) {
+            Some(slot) => {
+                slot.get_or_insert(written_at);
+            }
+            None => {
+                self.unanswered_solicits
+                    .insert(address.clone(), Some(written_at));
+            }
+        }
+    }
+
     /// Half of `comm_watchdog_ms` past `address`'s enable bounds start: its Off
     /// and Enable are written regardless of the stagger, so slow ticks never
     /// stretch the stagger into the missing-echo bound.
@@ -1633,8 +1704,10 @@ impl<B: MotorBus> Supervisor<B> {
             device_id = address.device_id,
             "enabling motor"
         );
+        let written_at = Instant::now();
         self.bus.enable_drive_at(address)?;
         self.bus.set_run_mode_at(address, RunMode::Mit)?;
+        self.note_solicit(address, written_at);
         Ok(())
     }
 
@@ -1811,19 +1884,15 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn poll_feedback(&mut self, budget: Duration) -> Result<usize, DavoutError> {
-        // Observe policy changes before projecting raw pose data. Restoring a
-        // public field after this drain must not restore a revoked reference.
+        // Observe policy, realm, model, identity and coordinate changes before
+        // projecting raw pose data. Restoring a public field after this drain
+        // must not restore a revoked reference. Grant liveness is judged once
+        // this drain has read the queue (below): judged here, a host stall
+        // would count as drive silence, both the read gap (receive times can
+        // be read times) and an Active target's replies still queued.
+        let valid_before_read = self.reference_binding_valid_with(Liveness::Defer);
         let lost_active_reference = self.mode == OperationalMode::Active
-            && (!self.reference_binding_valid()
-                || self
-                    .active_joints
-                    .iter()
-                    .any(|joint| !self.reference_authority.contains(joint)));
-        if self.mode != OperationalMode::Active {
-            // Grant liveness is judged after this drain has read the queue
-            // (below): judged here, the host's own read gap counts as silence.
-            let _ = self.reference_binding_valid_with(Liveness::Defer);
-        }
+            && !(valid_before_read && self.active_references_held());
         if !lost_active_reference {
             if let Err(error) = self.issue_due_enable_writes(Instant::now()) {
                 warn!(error = %error, "staggered enable write failed — disable_all");
@@ -1842,9 +1911,10 @@ impl<B: MotorBus> Supervisor<B> {
         let count = report.observations.len();
         self.last_refresh_frames = self.last_refresh_frames.saturating_add(count);
         let consumption = self.consume_feedback_report(report);
-        if self.mode != OperationalMode::Active {
-            let _ = self.reference_binding_valid();
-        }
+        let valid_after_read = self.reference_binding_valid();
+        let lapsed_active_reference = !lost_active_reference
+            && self.mode == OperationalMode::Active
+            && !(valid_after_read && self.active_references_held());
         let mut first_error = consumption.first_error;
         let mut first_transition = consumption.first_transition;
         if let Some((error, transition)) = self.enable_echo_overdue(Instant::now()) {
@@ -1856,13 +1926,18 @@ impl<B: MotorBus> Supervisor<B> {
         if first_transition {
             let _ = self.disable_all();
         }
-        if lost_active_reference {
+        if lost_active_reference || lapsed_active_reference {
             if self.mode == OperationalMode::Active {
                 let _ = self.disable_all();
             }
             if first_error.is_none() {
+                let message = if lost_active_reference {
+                    "current reference was revoked before feedback projection"
+                } else {
+                    "current reference was revoked after feedback projection"
+                };
                 first_error = Some(DavoutError::Homing {
-                    message: "current reference was revoked before feedback projection".into(),
+                    message: message.into(),
                 });
             }
         }
@@ -1919,7 +1994,13 @@ impl<B: MotorBus> Supervisor<B> {
         Some((error, transition))
     }
 
-    fn pose_is_current(&self, state: &MotorState, now: Instant) -> bool {
+    /// Session pose of `address` is current: received after activation, and
+    /// every host frame the drive answers was answered or is younger than
+    /// `comm_watchdog_ms` (ADR 0036, *Solicited silence while Active*). A
+    /// target speaks only when written to, so the age of a pose the host asked
+    /// nothing since is the host's silence, not the drive's: after a host
+    /// stall the first batch is computed from it, and its replies renew it.
+    fn pose_is_current(&self, address: &MotorAddress, state: &MotorState, now: Instant) -> bool {
         let Some(received_at) = state.updated else {
             return false;
         };
@@ -1928,8 +2009,17 @@ impl<B: MotorBus> Supervisor<B> {
         };
         received_at > active_since
             && received_at <= now
-            && now.duration_since(received_at)
-                <= Duration::from_millis(self.control.control.comm_watchdog_ms)
+            && self.unanswered_solicit(address).is_none_or(|solicited| {
+                now.saturating_duration_since(solicited)
+                    <= Duration::from_millis(self.control.control.comm_watchdog_ms)
+            })
+    }
+
+    /// Every joint of the Active set still holds its reference permission.
+    fn active_references_held(&self) -> bool {
+        self.active_joints
+            .iter()
+            .all(|joint| self.reference_authority.contains(joint))
     }
 
     fn check_comm_watchdog(&self, neutral_bootstrap: bool) -> Result<(), DavoutError> {
@@ -1974,7 +2064,7 @@ impl<B: MotorBus> Supervisor<B> {
             let address = self.address_for(index, motor);
             let state = self.motor_states.get(&*address);
             if !self.invalid_feedback.contains(&*address)
-                && state.is_some_and(|state| self.pose_is_current(state, now))
+                && state.is_some_and(|state| self.pose_is_current(&address, state, now))
             {
                 continue;
             }
@@ -2116,10 +2206,18 @@ impl<B: MotorBus> Supervisor<B> {
         }
         // Admission is atomic; delivery can still fail partway through a physical
         // bus write and is reported as an error for the owner's stop path.
+        let written_at = Instant::now();
         if let Err(error) = self.bus.mit_control_all_at(&scratch.wires) {
             let error = DavoutError::Bus(error);
             self.stop_after_runtime_error(&error);
             return Err(error);
+        }
+        // Each commanded target answers with a status (ADR 0036, *Solicited
+        // silence while Active*). The controller commands every Active joint
+        // each tick, so a target a batch leaves out ages as if asked: an
+        // omission fails closed through the pose watchdog.
+        for solicit in self.unanswered_solicits.values_mut() {
+            solicit.get_or_insert(written_at);
         }
         self.last_tick = Some(batch_tick);
         Ok(())
@@ -2217,6 +2315,9 @@ impl<B: MotorBus> Supervisor<B> {
         if self.has_latched_fault() {
             self.reference_authority.revoke();
         }
+        if self.mode == OperationalMode::Active {
+            self.carry_session_silence(Instant::now());
+        }
         let generation = self.fault_authority.begin_stop();
         let mut report = StopReport {
             generation,
@@ -2298,6 +2399,29 @@ impl<B: MotorBus> Supervisor<B> {
         report
     }
 
+    /// An Active session ends with a stop written at `stop_at`. Each target's
+    /// silence keeps counting from where the session counted it, and a target
+    /// the host had asked nothing since its last pose counts from the stop,
+    /// which every drive answers: a host stall just before a Disable is not the
+    /// drive's silence (ADR 0036, *Solicited silence while Active*).
+    fn carry_session_silence(&mut self, stop_at: Instant) {
+        let stop_motors = Arc::clone(&self.stop_motors);
+        for motor in stop_motors.iter() {
+            if !self.active_joints.contains(&motor.joint) {
+                continue;
+            }
+            let address = MotorAddress::from(motor);
+            let counts_from = match self.silence_from(&motor.joint, &address) {
+                SilenceFrom::LastFrame => continue,
+                SilenceFrom::Withheld(since) => since,
+                SilenceFrom::Solicited(solicited) => solicited.unwrap_or(stop_at),
+            };
+            self.reference_owner
+                .physical
+                .count_silence_from(&address, counts_from);
+        }
+    }
+
     /// Light status solicit for Hardware-page sensing (no continuous type-24).
     ///
     /// When not [`OperationalMode::Active`], re-TX RobStride Disable (type-4) once per
@@ -2361,8 +2485,9 @@ impl<B: MotorBus> Supervisor<B> {
         let now = Instant::now();
         // A drive in its possible blackout drops a type-24 On, and the stream
         // would stay Off until the stale retry, longer than the grant liveness
-        // bound. Hold those writes to the quiet's end and do not count the
-        // drive's silence meanwhile.
+        // bound. Hold those writes to the quiet's end; the drive's silence is
+        // the host's until the held On is actually written (bounded by
+        // OWED_ON_WRITE_BOUND), then counts from that write.
         let held: Vec<String> = if self.set_zero_on_wire.is_empty() {
             Vec::new()
         } else {
@@ -2390,9 +2515,26 @@ impl<B: MotorBus> Supervisor<B> {
             if let Some(until) = self.set_zero_quiet_until(&address) {
                 self.reference_owner
                     .physical
-                    .count_silence_from(&address, until);
+                    .owe_reporting_on(&address, until);
             }
         }
+        let motors = &self.motors.motors;
+        let reporting = &self.active_reporting;
+        self.reference_owner
+            .physical
+            .settle_owed_reporting_ons(|address| {
+                let Some(motor) = motors.iter().find(|motor| is_motor_address(address, motor))
+                else {
+                    return OwedOn::Released;
+                };
+                if reporting.applied_on(&motor.joint) {
+                    OwedOn::Written(reporting.last_on_written(&motor.joint).unwrap_or(now))
+                } else if reporting.desired(&motor.joint, mode_active, global, now) {
+                    OwedOn::Owed
+                } else {
+                    OwedOn::Released
+                }
+            });
     }
 
     /// Acquire or upsert a client-minted lease for `joint`.
@@ -4549,8 +4691,59 @@ mod tests {
         assert!(robstride::CommunicationType::from_u8(22).is_none());
     }
 
+    fn neutral_elbow() -> MitJointCommand {
+        MitJointCommand {
+            joint: "right_elbow_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: 0.0,
+        }
+    }
+
     #[test]
     fn comm_watchdog_fires_on_silence() {
+        // The host keeps sending and the drive never answers: the watchdog
+        // fires comm_watchdog_ms after the first unanswered command.
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 50;
+        sup.control.control.feedback_drain_quiet_us = 300;
+        let window = Duration::from_millis(50);
+        bench_ready_active(&mut sup);
+        std::thread::sleep(Duration::from_millis(10));
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
+            .expect("motor")
+            .clone();
+        let first = Instant::now();
+        sup.send_mit_joint(neutral_elbow(), &motor)
+            .expect("watchdog should not fire at 10 ms silence");
+        let err = loop {
+            std::thread::sleep(Duration::from_millis(5));
+            match sup.send_mit_joint(neutral_elbow(), &motor) {
+                Ok(()) => assert!(
+                    first.elapsed() <= window + Duration::from_millis(5),
+                    "admitted {:?} after the first unanswered command",
+                    first.elapsed()
+                ),
+                Err(err) => break err,
+            }
+        };
+        assert!(
+            matches!(err, DavoutError::CommWatchdog { ms: 50, .. }),
+            "{err}"
+        );
+        assert!(first.elapsed() > window);
+    }
+
+    #[test]
+    fn comm_watchdog_does_not_count_the_hosts_own_silence() {
+        // Nothing was asked of the drive while the host sent nothing (ADR
+        // 0036: host-caused silence is not counted). Once asked, it must
+        // answer within comm_watchdog_ms.
         let bus = SimulationBus::default();
         let mut sup =
             Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
@@ -4558,37 +4751,20 @@ mod tests {
         sup.control.control.comm_watchdog_ms = 50;
         sup.control.control.feedback_drain_quiet_us = 300;
         bench_ready_active(&mut sup);
-        std::thread::sleep(Duration::from_millis(10));
         let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
             .clone();
-        sup.send_mit_joint(
-            MitJointCommand {
-                joint: "right_elbow_pitch".to_string(),
-                kp: 0.0,
-                kd: 0.0,
-                position_rad: 0.0,
-                velocity_rad_s: 0.0,
-                torque_ff_nm: 0.0,
-            },
-            &motor,
-        )
-        .expect("watchdog should not fire at 10 ms silence");
-        std::thread::sleep(Duration::from_millis(45));
+        std::thread::sleep(Duration::from_millis(80));
+        sup.send_mit_joint(neutral_elbow(), &motor)
+            .expect("the host's own 80 ms silence is not the drive's");
+        std::thread::sleep(Duration::from_millis(60));
         let err = sup
-            .send_mit_joint(
-                MitJointCommand {
-                    joint: "right_elbow_pitch".to_string(),
-                    kp: 0.0,
-                    kd: 0.0,
-                    position_rad: 0.0,
-                    velocity_rad_s: 0.0,
-                    torque_ff_nm: 0.0,
-                },
-                &motor,
-            )
-            .expect_err("watchdog");
-        assert!(matches!(err, DavoutError::CommWatchdog { ms: 50, .. }));
+            .send_mit_joint(neutral_elbow(), &motor)
+            .expect_err("the command 60 ms ago is unanswered");
+        assert!(
+            matches!(err, DavoutError::CommWatchdog { ms: 50, .. }),
+            "{err}"
+        );
     }
 
     #[test]

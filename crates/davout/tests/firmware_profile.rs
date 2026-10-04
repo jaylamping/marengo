@@ -106,6 +106,11 @@ fn emulator_timing_model_covers_every_measured_range() {
         TIMING_MODEL.report_period,
         measured(&profile, "report_period_ms"),
     );
+    assert_covers(
+        "mit_reply_ms",
+        TIMING_MODEL.mit_reply,
+        measured(&profile, "mit_reply_ms"),
+    );
     // The measured start is the drive's last frame before the silence; the
     // true start is up to one report period later, still inside the model.
     let start = measured(&profile, "set_zero_silence_start_ms");

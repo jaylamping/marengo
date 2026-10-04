@@ -390,6 +390,14 @@ fn expired_watchdog_remains_a_communication_fault_after_healthy_diagnostics() {
         .queue_frame(status(&pitch))
         .expect("finite closed script");
     supervisor.drain_feedback().expect("pose");
+    // The pose expires once a command it must answer goes unanswered for
+    // comm_watchdog_ms (ADR 0036: the host's own silence does not age it).
+    supervisor
+        .send_mit_batch(vec![MitJointCommand {
+            torque_ff_nm: 0.0,
+            ..command(&pitch)
+        }])
+        .expect("neutral solicit with a current pose");
     std::thread::sleep(std::time::Duration::from_millis(3));
     assert!(supervisor.send_mit_batch(vec![command(&pitch)]).is_err());
     let snapshot = supervisor.safety_snapshot();
