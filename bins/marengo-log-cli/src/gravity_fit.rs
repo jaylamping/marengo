@@ -36,8 +36,10 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use thiserror::Error;
 
-/// Settled: every joint's |dq| at most this (rad/s).
-pub const SETTLED_DQ_RAD_S: f64 = 0.05;
+/// Settled: every joint's |dq| at most this (rad/s). Must exceed one drive velocity count:
+/// at rest Robstride feedback dithers between 0 and ±1 count (≈0.075–0.082 rad/s on the
+/// 2026-10-04 right arm), so a sub-count bound never sees five joints settled at once.
+pub const SETTLED_DQ_RAD_S: f64 = 0.1;
 /// Settled: the stepped joint within this of its target (rad).
 pub const SETTLED_BAND_RAD: f64 = 0.05;
 /// Shortest averaging window (s).

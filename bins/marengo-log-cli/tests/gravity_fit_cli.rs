@@ -131,7 +131,14 @@ fn write_session(poses: &[f64]) -> TempDir {
             let tau = truth.gravity_torques(&q).unwrap();
             for (j, name) in joints.iter().enumerate() {
                 let target_j = if j == pitch { target } else { 0.0 };
-                let dq = if moving && j == pitch { 0.4 } else { 0.0 };
+                // At rest, drive velocity feedback dithers by one count (~0.077 rad/s).
+                let dq = if moving && j == pitch {
+                    0.4
+                } else if !moving && (k as usize + j) % 3 == 0 {
+                    0.077
+                } else {
+                    0.0
+                };
                 let meas = tau[j] + if moving { 0.5 } else { dir * FRICTION_NM };
                 let _ = writeln!(
                     csv,
