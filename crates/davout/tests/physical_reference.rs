@@ -1694,7 +1694,16 @@ impl Bench {
             loop {
                 self.runtime_tick();
                 match self.supervisor.reference_outcome(&handle).expect("outcome") {
-                    ReferenceOutcome::Current { .. } => break,
+                    ReferenceOutcome::Current { .. } => {
+                        // One loop period passes before the next request or
+                        // the return: marengo-pi ticks at a steady 200 Hz, so
+                        // consecutive ticks never run back to back. Without
+                        // this, two report batches land on the modeled bus
+                        // microseconds apart and overrun the two receive
+                        // buffers, which the bench loop cannot produce.
+                        std::thread::sleep(PUMP_PERIOD);
+                        break;
+                    }
                     ReferenceOutcome::Failed { message } => panic!("{joint}: {message}"),
                     ReferenceOutcome::InProgress => {
                         assert!(Instant::now() < give_up, "{joint}: reference finishes");
