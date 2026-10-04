@@ -439,6 +439,7 @@ impl<B: MotorBus> ControlLoop<B> {
             .iter()
             .map(|joint| supervisor.joint_position_progress_threshold(joint))
             .collect::<Result<Vec<_>, _>>()?;
+        let position_trace = PositionTrace::from_env(loop_hz, &joint_names);
         Ok(Self {
             supervisor,
             dynamics,
@@ -452,7 +453,7 @@ impl<B: MotorBus> ControlLoop<B> {
             last_position_diag: None,
             tick_count: 0,
             loop_hz,
-            position_trace: PositionTrace::from_env(loop_hz),
+            position_trace,
             tick_phase: TickPhaseAccumulator::default(),
             last_enable_session: None,
             last_stop_generation: 0,
@@ -655,13 +656,17 @@ impl<B: MotorBus> ControlLoop<B> {
         }
     }
 
-    /// One trace row per joint for this tick (no-op unless `MARENGO_POSITION_TRACE` is set).
+    /// Trace rows for this tick: every full-rate joint, the rest on the decimation period
+    /// (no-op unless `MARENGO_POSITION_TRACE` is set).
     fn record_position_trace(&mut self, diag: &[HoldJointDiag]) {
         let Some(trace) = self.position_trace.as_mut() else {
             return;
         };
         let t_ms = self.tick_count.saturating_mul(1000) / u64::from(self.loop_hz);
-        for (name, d) in self.joint_names.iter().zip(diag) {
+        for (index, (name, d)) in self.joint_names.iter().zip(diag).enumerate() {
+            if !trace.records(self.tick_count, index) {
+                continue;
+            }
             let row = PositionTraceRow {
                 joint: name,
                 q: d.q,
@@ -700,7 +705,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 // Davout's last sent τ_ff (post-cap, post-rate-limit); NaN before any send.
                 tau_ff_wire: self.supervisor.last_tau_ff_nm(name).unwrap_or(f64::NAN),
             };
-            trace.maybe_record(self.tick_count, t_ms, &row);
+            trace.maybe_record(self.tick_count, t_ms, index, &row);
         }
     }
 

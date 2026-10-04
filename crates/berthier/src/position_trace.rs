@@ -1,15 +1,25 @@
 //! High-rate CSV trace for position-hold bench debugging (`MARENGO_POSITION_TRACE`).
 
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::sync::OnceLock;
+
+/// Comma-separated joints traced every tick regardless of `MARENGO_POSITION_TRACE_HZ`, so a
+/// bench sweep can score per-tick quantities (τ_ff step) on its joint while the rest stay
+/// decimated.
+pub const FULL_RATE_JOINTS_ENV: &str = "MARENGO_POSITION_TRACE_FULL_RATE_JOINTS";
 
 /// Buffered CSV writer for position-hold diagnostics (optional, env-gated).
 #[derive(Debug)]
 pub struct PositionTrace {
     writer: BufWriter<File>,
     period_ticks: u64,
+    /// Per joint index: traced every tick (`FULL_RATE_JOINTS_ENV`) instead of every period.
+    full_rate: Vec<bool>,
+    /// Reused row buffer: formatting a row allocates nothing once it has grown to a row.
+    line: String,
     byte_cap: u64,
     bytes_written: u64,
     failed: bool,
@@ -21,14 +31,25 @@ pub struct PositionTrace {
 pub const TRACE_SESSION_CAP_BYTES: u64 = 256 * 1024 * 1024;
 
 const TRACE_BUFFER_BYTES: usize = 512 * 1024;
+/// Room for one row (about 300 bytes) without regrowing `line`.
+const TRACE_LINE_CAPACITY: usize = 512;
 
 impl PositionTrace {
     /// Open trace file when `MARENGO_POSITION_TRACE` is set to a writable path.
     ///
-    /// Sample rate defaults to `loop_hz` unless `MARENGO_POSITION_TRACE_HZ` is set.
-    pub fn from_env(loop_hz: u32) -> Option<Self> {
+    /// Sample rate defaults to `loop_hz` unless `MARENGO_POSITION_TRACE_HZ` is set; joints named
+    /// in `MARENGO_POSITION_TRACE_FULL_RATE_JOINTS` are sampled every tick.
+    pub fn from_env(loop_hz: u32, joint_names: &[String]) -> Option<Self> {
         let path = std::env::var_os("MARENGO_POSITION_TRACE")?;
-        match Self::open(Path::new(&path), loop_hz) {
+        let trace_hz = std::env::var("MARENGO_POSITION_TRACE_HZ")
+            .ok()
+            .and_then(|s| s.parse::<u32>().ok())
+            .filter(|&hz| hz > 0)
+            .unwrap_or(loop_hz);
+        let full_rate = std::env::var(FULL_RATE_JOINTS_ENV)
+            .map(|list| full_rate_mask(&list, joint_names))
+            .unwrap_or_else(|_| vec![false; joint_names.len()]);
+        match Self::open(Path::new(&path), loop_hz, trace_hz, full_rate) {
             Ok(trace) => Some(trace),
             Err(error) => {
                 tracing::warn!(
@@ -41,21 +62,30 @@ impl PositionTrace {
         }
     }
 
-    fn open(path: &Path, loop_hz: u32) -> std::io::Result<Self> {
-        Self::open_inner(path, loop_hz, TRACE_BUFFER_BYTES, TRACE_SESSION_CAP_BYTES)
+    fn open(
+        path: &Path,
+        loop_hz: u32,
+        trace_hz: u32,
+        full_rate: Vec<bool>,
+    ) -> std::io::Result<Self> {
+        Self::open_inner(
+            path,
+            loop_hz,
+            trace_hz,
+            full_rate,
+            TRACE_BUFFER_BYTES,
+            TRACE_SESSION_CAP_BYTES,
+        )
     }
 
     fn open_inner(
         path: &Path,
         loop_hz: u32,
+        trace_hz: u32,
+        full_rate: Vec<bool>,
         buffer_bytes: usize,
         byte_cap: u64,
     ) -> std::io::Result<Self> {
-        let trace_hz = std::env::var("MARENGO_POSITION_TRACE_HZ")
-            .ok()
-            .and_then(|s| s.parse::<u32>().ok())
-            .filter(|&hz| hz > 0)
-            .unwrap_or(loop_hz);
         let period_ticks = (u64::from(loop_hz.max(1)) / u64::from(trace_hz.max(1))).max(1);
         let file = OpenOptions::new().create(true).append(true).open(path)?;
         let existing = file.metadata().map(|m| m.len()).unwrap_or(0);
@@ -78,6 +108,8 @@ impl PositionTrace {
         Ok(Self {
             writer,
             period_ticks,
+            full_rate,
+            line: String::with_capacity(TRACE_LINE_CAPACITY),
             byte_cap,
             bytes_written: 0,
             failed: false,
@@ -87,7 +119,7 @@ impl PositionTrace {
 
     #[cfg(test)]
     pub(crate) fn open_for_test(path: &Path, loop_hz: u32) -> std::io::Result<Self> {
-        Self::open(path, loop_hz)
+        Self::open(path, loop_hz, loop_hz, Vec::new())
     }
 
     /// Write failures observed since open (tick writes stop after the first).
@@ -105,16 +137,32 @@ impl PositionTrace {
         }
     }
 
-    /// Record one sample when `tick` matches the decimation period.
+    /// Whether a row of joint `joint_index` at `tick` would be written: a full-rate joint, or
+    /// `tick` on the decimation period. Lets the caller skip building rows that are dropped.
+    pub fn records(&self, tick: u64, joint_index: usize) -> bool {
+        let full_rate = self.full_rate.get(joint_index).copied().unwrap_or(false);
+        !self.failed && (full_rate || tick % self.period_ticks == 0)
+    }
+
+    /// Record one sample of joint `joint_index` when [`Self::records`] holds.
     ///
     /// Infallible by design: a failed tick write disables tracing with one
     /// warning instead of erroring (or retry-failing) every tick.
-    pub fn maybe_record(&mut self, tick: u64, t_ms: u64, row: &PositionTraceRow<'_>) {
-        if self.failed || tick % self.period_ticks != 0 {
+    pub fn maybe_record(
+        &mut self,
+        tick: u64,
+        t_ms: u64,
+        joint_index: usize,
+        row: &PositionTraceRow<'_>,
+    ) {
+        if !self.records(tick, joint_index) {
             return;
         }
-        let line = row.format_csv_with_meta(tick, t_ms);
-        if self.bytes_written.saturating_add(line.len() as u64) > self.byte_cap {
+        self.line.clear();
+        // Writing into a String cannot fail.
+        let _ = row.write_csv_with_meta(&mut self.line, tick, t_ms);
+        self.line.push('\n');
+        if self.bytes_written.saturating_add(self.line.len() as u64) > self.byte_cap {
             self.failed = true;
             tracing::warn!(
                 cap_bytes = self.byte_cap,
@@ -122,12 +170,12 @@ impl PositionTrace {
             );
             return;
         }
-        let result = writeln!(self.writer, "{line}");
+        let result = self.writer.write_all(self.line.as_bytes());
         self.note_write_result(result);
         if self.failed {
             return;
         }
-        self.bytes_written = self.bytes_written.saturating_add(line.len() as u64);
+        self.bytes_written = self.bytes_written.saturating_add(self.line.len() as u64);
     }
 
     #[allow(dead_code)]
@@ -182,12 +230,19 @@ pub struct PositionTraceRow<'a> {
 }
 
 impl PositionTraceRow<'_> {
-    pub fn format_csv_with_meta(&self, tick: u64, t_ms: u64) -> String {
-        format!(
+    /// The row (no newline) written into `out`.
+    pub fn write_csv_with_meta(
+        &self,
+        out: &mut impl fmt::Write,
+        tick: u64,
+        t_ms: u64,
+    ) -> fmt::Result {
+        write!(
+            out,
             "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{target_raw:.6},{q_env_lo:.6},{q_env_hi:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3},{joint_stuck},{planner_frozen},{retarget_age_ms},{planner_event},{law},{q_ref:.6},{dq_ref:.6},{time_scale:.6},{tau_i:.6},{kd_mit:.3},{tau_ff_wire:.6}",
             tick = tick,
             t_ms = t_ms,
-            joint = csv_escape(self.joint),
+            joint = CsvField(self.joint),
             q = self.q,
             dq = self.dq,
             q_traj = self.q_traj,
@@ -198,10 +253,10 @@ impl PositionTraceRow<'_> {
             q_env_lo = self.q_env_lo,
             q_env_hi = self.q_env_hi,
             lead = self.lead,
-            lead_sat = if self.lead_sat { 1 } else { 0 },
+            lead_sat = u8::from(self.lead_sat),
             settle_error = self.settle_error,
-            phase = csv_escape(self.phase),
-            friction_mode = csv_escape(self.friction_mode),
+            phase = CsvField(self.phase),
+            friction_mode = CsvField(self.friction_mode),
             tau_p = self.tau_p,
             tau_g = self.tau_g,
             tau_f = self.tau_f,
@@ -211,11 +266,11 @@ impl PositionTraceRow<'_> {
             dq_mit = self.dq_mit,
             kp = self.kp,
             kd = self.kd,
-            joint_stuck = if self.joint_stuck { 1 } else { 0 },
-            planner_frozen = if self.planner_frozen { 1 } else { 0 },
+            joint_stuck = u8::from(self.joint_stuck),
+            planner_frozen = u8::from(self.planner_frozen),
             retarget_age_ms = self.retarget_age_ms,
-            planner_event = csv_escape(self.planner_event),
-            law = csv_escape(self.law),
+            planner_event = CsvField(self.planner_event),
+            law = CsvField(self.law),
             q_ref = self.q_ref,
             dq_ref = self.dq_ref,
             time_scale = self.time_scale,
@@ -226,12 +281,33 @@ impl PositionTraceRow<'_> {
     }
 }
 
-fn csv_escape(s: &str) -> String {
-    if s.contains(',') {
-        format!("\"{s}\"")
-    } else {
-        s.to_string()
+/// A text field, double-quoted when it contains a comma (no allocation).
+struct CsvField<'a>(&'a str);
+
+impl fmt::Display for CsvField<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.contains(',') {
+            write!(f, "\"{}\"", self.0)
+        } else {
+            f.write_str(self.0)
+        }
     }
+}
+
+/// Per joint index: named in the comma-separated `list`. Unknown names are warned about and
+/// ignored (the trace is a diagnostic; the scorer reports a joint it finds decimated).
+fn full_rate_mask(list: &str, joint_names: &[String]) -> Vec<bool> {
+    let mut mask = vec![false; joint_names.len()];
+    for name in list.split(',').map(str::trim).filter(|n| !n.is_empty()) {
+        match joint_names.iter().position(|j| j == name) {
+            Some(i) => mask[i] = true,
+            None => tracing::warn!(
+                joint = name,
+                "{FULL_RATE_JOINTS_ENV}: unknown joint ignored"
+            ),
+        }
+    }
+    mask
 }
 
 static TRACE_INIT_LOGGED: OnceLock<()> = OnceLock::new();
@@ -290,7 +366,9 @@ mod tests {
             kd_mit: 3.0,
             tau_ff_wire: 1.7,
         };
-        let line = row.format_csv_with_meta(42, 1234);
+        let mut line = String::new();
+        row.write_csv_with_meta(&mut line, 42, 1234)
+            .expect("format row");
         assert!(line.starts_with("42,1234,right_shoulder_pitch,"));
         assert!(line.contains(",1.740000,1.500000,0.120000,"));
         assert!(line.contains(",Cruise,traj_vel,"));
@@ -348,8 +426,8 @@ mod tests {
         let path = dir.join("trace.csv");
         let row = sample_row();
         let mut trace = PositionTrace::open_for_test(&path, 200).expect("open");
-        trace.maybe_record(0, 0, &row);
-        trace.maybe_record(1, 5, &row);
+        trace.maybe_record(0, 0, 0, &row);
+        trace.maybe_record(1, 5, 0, &row);
         trace.flush().expect("flush");
         assert_eq!(trace.write_errors(), 0);
         let body = std::fs::read_to_string(&path).expect("readback");
@@ -366,9 +444,10 @@ mod tests {
         let path = dir.join("trace.csv");
         let row = sample_row();
         let mut trace =
-            PositionTrace::open_inner(&path, 200, TRACE_BUFFER_BYTES, 10).expect("open");
-        trace.maybe_record(0, 0, &row);
-        trace.maybe_record(1, 5, &row);
+            PositionTrace::open_inner(&path, 200, 200, Vec::new(), TRACE_BUFFER_BYTES, 10)
+                .expect("open");
+        trace.maybe_record(0, 0, 0, &row);
+        trace.maybe_record(1, 5, 0, &row);
         trace.flush().expect("flush");
         assert_eq!(trace.write_errors(), 0);
         let body = std::fs::read_to_string(&path).expect("readback");
@@ -382,7 +461,7 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("fixture dir");
         let path = dir.join("trace.csv");
         std::fs::write(&path, vec![b'x'; 64]).expect("prefill");
-        let err = PositionTrace::open_inner(&path, 200, TRACE_BUFFER_BYTES, 16)
+        let err = PositionTrace::open_inner(&path, 200, 200, Vec::new(), TRACE_BUFFER_BYTES, 16)
             .expect_err("huge file refused");
         assert_eq!(err.kind(), std::io::ErrorKind::QuotaExceeded);
         std::fs::remove_dir_all(&dir).ok();
@@ -394,8 +473,15 @@ mod tests {
         // never silently dropped. A directory is never writable as a file.
         let dir = std::env::temp_dir().join(format!("trace-dir-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("fixture dir");
-        PositionTrace::open_inner(&dir.join("missing-parent").join("t.csv"), 200, 1, u64::MAX)
-            .expect_err("unwritable file refused");
+        PositionTrace::open_inner(
+            &dir.join("missing-parent").join("t.csv"),
+            200,
+            200,
+            Vec::new(),
+            1,
+            u64::MAX,
+        )
+        .expect_err("unwritable file refused");
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -414,9 +500,46 @@ mod tests {
         )));
         assert_eq!(trace.write_errors(), 1);
         let row = sample_row();
-        trace.maybe_record(0, 0, &row);
-        trace.maybe_record(1, 5, &row);
+        trace.maybe_record(0, 0, 0, &row);
+        trace.maybe_record(1, 5, 0, &row);
         assert_eq!(trace.write_errors(), 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn full_rate_joint_records_every_tick_while_others_stay_decimated() {
+        // A 50 Hz trace at 200 Hz decimates by 4; the swept joint must still get every tick so
+        // the bench scorer can measure the per-tick τ_ff step.
+        let dir = std::env::temp_dir().join(format!("trace-full-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("fixture dir");
+        let path = dir.join("trace.csv");
+        let names = ["a".to_string(), "b".to_string()];
+        let mask = full_rate_mask(" b ,unknown", &names);
+        assert_eq!(mask, vec![false, true]);
+        let mut trace = PositionTrace::open(&path, 200, 50, mask).expect("open");
+        let mut row = sample_row();
+        for tick in 0..8 {
+            row.joint = "a";
+            trace.maybe_record(tick, tick * 5, 0, &row);
+            row.joint = "b";
+            trace.maybe_record(tick, tick * 5, 1, &row);
+        }
+        trace.flush().expect("flush");
+        let body = std::fs::read_to_string(&path).expect("readback");
+        let ticks = |joint: &str| -> Vec<u64> {
+            body.lines()
+                .skip(1)
+                .filter(|l| l.split(',').nth(2) == Some(joint))
+                .map(|l| {
+                    l.split(',')
+                        .next()
+                        .and_then(|t| t.parse().ok())
+                        .expect("tick")
+                })
+                .collect()
+        };
+        assert_eq!(ticks("a"), vec![0, 4]);
+        assert_eq!(ticks("b"), (0..8).collect::<Vec<_>>());
         std::fs::remove_dir_all(&dir).ok();
     }
 }
