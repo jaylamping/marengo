@@ -74,8 +74,9 @@ enum Commands {
         #[command(subcommand)]
         action: CandumpAction,
     },
-    /// Fit right-arm link masses/COMs to `pi_gravity_calibrate` sessions and propose a URDF
-    /// inertial patch plus a dated record. Exit 0 = proposed, 2 = refused, 1 = error.
+    /// Fit right-arm gravity to `pi_joint_calibrate` / `pi_gravity_calibrate` sessions and
+    /// propose a URDF patch, a `control.yaml` friction patch and a dated record.
+    /// Exit 0 = URDF patch proposed, 2 = refused, 1 = error.
     GravityFit {
         /// Session directory (`var/gravity-calibration/<TS>`); repeat to fuse sweeps.
         #[arg(long = "dir", required = true)]
@@ -92,6 +93,10 @@ enum Commands {
         /// Local URDF compared with the Pi base (reported, never modified).
         #[arg(long, required = true)]
         repo_urdf: PathBuf,
+        /// `wave` bins local waves (lumped A·sin q + B·cos q per swept joint); `static` fits
+        /// link inertials to holds; `auto` follows the plans' `method`.
+        #[arg(long, value_enum, default_value_t = FitMethod::Auto)]
+        method: FitMethod,
     },
     /// Measure Robstride firmware timing (Enable→Run, post-SetZero silence, reply
     /// latencies, report period) from `candump -L` or `candump -t z|a` captures.
@@ -103,6 +108,13 @@ enum Commands {
         #[arg(required = true)]
         captures: Vec<PathBuf>,
     },
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum FitMethod {
+    Auto,
+    Wave,
+    Static,
 }
 
 #[derive(Subcommand)]
@@ -298,6 +310,7 @@ fn main() -> ExitCode {
             fit_joints,
             out_dir,
             repo_urdf,
+            method,
         } => {
             return run_gravity_fit(&gravity_fit::GravityFitArgs {
                 dirs,
@@ -305,6 +318,11 @@ fn main() -> ExitCode {
                 fit_joints,
                 out_dir,
                 repo_urdf,
+                method: match method {
+                    FitMethod::Auto => gravity_fit::Method::Auto,
+                    FitMethod::Wave => gravity_fit::Method::Wave,
+                    FitMethod::Static => gravity_fit::Method::Static,
+                },
             })
         }
         Commands::Candump { action } => run_candump(action),

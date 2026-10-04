@@ -27,6 +27,13 @@
 //!    Patches touch only right-arm `<inertial>` lines and `friction.fc/fv` values.
 //!    Nothing is applied: URDF sync stays an explicit `pi_sync_bench_urdf`, and the
 //!    friction patch is applied by hand to `control.yaml`.
+//!
+//! Sessions recorded with `method: "wave"` (local waves at each pose, `pi_joint_calibrate`'s
+//! default) take the wave path instead: up/down bin means, a lumped `A·sin q + B·cos q` per
+//! swept joint, gates derived from the cross-session spread; see [`wave`]. `--method`
+//! overrides the plans (e.g. to bin older sessions' velocity-pass waves).
+
+mod wave;
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
@@ -67,6 +74,10 @@ pub const FRICTION_AGREE_ABS_NM: f64 = 0.05;
 pub const FRICTION_AGREE_REL: f64 = 0.25;
 /// Trace target match tolerance (trace prints 6 decimals).
 const TARGET_TOL_RAD: f64 = 5e-5;
+/// A `pose_index` wave's centre must equal its pose to this (plans round to 1e-9 rad).
+const WAVE_CENTRE_TOL_RAD: f64 = 1e-6;
+/// Half window of the q̈ second difference (ms): 8 ticks at 200 Hz.
+const DDQ_HALF_WINDOW_MS: u64 = 40;
 /// Patched-URDF τ must match the fit within this (rounding of printed mass/COM).
 const PATCH_ROUNDTRIP_TOL_NM: f64 = 0.005;
 /// Links lighter than this are fixtures, not fit candidates (mirrors the fitter's floor).
@@ -148,6 +159,26 @@ pub struct GravityFitArgs {
     pub fit_joints: Vec<String>,
     pub out_dir: PathBuf,
     pub repo_urdf: PathBuf,
+    pub method: Method,
+}
+
+/// Which data the fit uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Method {
+    /// The sessions' `plan.json` `method` (absent = static); mixed sessions are refused.
+    Auto,
+    /// Wave bins: lumped `A·sin q + B·cos q` per swept joint ([`wave`]).
+    Wave,
+    /// Static holds approached from below and above: per-link inertial parameters.
+    Static,
+}
+
+/// `plan.json` `method` written by `pi_joint_calibrate`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum PlanMethod {
+    Wave,
+    Static,
 }
 
 /// Result of a run that produced a fit.
@@ -173,6 +204,9 @@ struct Plan {
     #[serde(default = "default_measure_sec")]
     measure_sec: f64,
     steps: Vec<PlanStep>,
+    /// `wave` (local waves at each pose) or `static` (holds); absent in older plans = static.
+    #[serde(default)]
+    method: Option<PlanMethod>,
     #[serde(default)]
     gravity_gate_report: String,
     /// False when marengo-pi aborted: steps after the abort never appear in the trace.
@@ -222,6 +256,8 @@ enum PlanStep {
         max_rad: f64,
         cycles: u32,
         half_period_s: f64,
+        /// Pose the wave is centred on (wave method); absent for velocity-pass bands.
+        pose_index: Option<usize>,
     },
     Fixed {
         joint: String,
@@ -302,6 +338,7 @@ impl<'de> Deserialize<'de> for PlanStep {
                 half_period_s: raw
                     .half_period_s
                     .ok_or_else(|| serde::de::Error::missing_field("half_period_s"))?,
+                pose_index: raw.pose_index,
             }),
             "fixed" => Ok(PlanStep::Fixed {
                 joint,
@@ -363,11 +400,13 @@ struct PoseData {
     above: Measurement,
 }
 
-/// One moving wave sample: full joint positions, wave-joint velocity, measured torque.
+/// One moving wave sample: full joint positions, wave-joint velocity and acceleration,
+/// measured torque.
 #[derive(Debug, Clone)]
 struct WaveSample {
     q: Vec<f64>,
     dq: f64,
+    ddq: f64,
     tau: f64,
 }
 
@@ -397,7 +436,7 @@ struct Session {
     skipped: Vec<SkippedStep>,
 }
 
-/// Run `gravity-fit`; `Ok` carries whether a patch was proposed.
+/// Run `gravity-fit`; `Ok` carries whether a URDF patch was proposed.
 pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
     let first = args
         .dirs
@@ -424,6 +463,7 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
                 })
         })
         .collect::<Result<Vec<_>, _>>()?;
+    let wave_method = resolve_method(args.method, &args.dirs)? == Method::Wave;
     let mut sessions = Vec::with_capacity(args.dirs.len());
 
     let urdf_path = first.join(PI_URDF_FILE);
@@ -475,10 +515,24 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
                 )));
             }
         }
-        sessions.push(load_session(dir, &joints, &windows)?);
+        sessions.push(load_session(dir, &joints, &windows, wave_method)?);
     }
 
     let model = gravity_model_from_urdf(&urdf_path, &joints)?;
+    if wave_method {
+        return wave::run(&wave::Inputs {
+            args,
+            sessions: &sessions,
+            model: &model,
+            joints: &joints,
+            limbs: &robot.robot.limbs,
+            control: &control,
+            motors: &motors,
+            pi_urdf: &pi_urdf,
+            local_matches_pi: local_urdf == pi_urdf,
+            control_path: &first.join("config/control.yaml"),
+        });
+    }
     let samples: Vec<GravitySample> = sessions
         .iter()
         .flat_map(|s| s.poses.iter().map(|p| p.sample.clone()))
@@ -522,7 +576,19 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
     let control_path = first.join("config/control.yaml");
     let captured_control = std::fs::read_to_string(&control_path).map_err(io(&control_path))?;
     let control_patch_file = if fit.accepted() {
-        patch_control_friction(&captured_control, &friction).map(|patched| {
+        let proposals: Vec<FrictionProposal> = friction
+            .iter()
+            .filter_map(|f| match (f.proposed_fc_nm, f.proposed_fv) {
+                (Some(fc), Some(fv)) => Some(FrictionProposal {
+                    joint: f.joint.clone(),
+                    fc,
+                    fv,
+                    fs: None,
+                }),
+                _ => None,
+            })
+            .collect();
+        patch_control_friction(&captured_control, &proposals).map(|patched| {
             let diff = unified_diff(&captured_control, &patched, CONTROL_PATCH_PATH);
             let path = args.out_dir.join(format!("{stem}.control.patch"));
             std::fs::write(&path, &diff).map_err(io(&path))?;
@@ -585,17 +651,49 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
     }
 }
 
+/// `plan.json` of `dir`.
+fn read_plan(dir: &Path) -> Result<Plan, GravityFitError> {
+    let plan_path = dir.join(PLAN_FILE);
+    let text = std::fs::read_to_string(&plan_path).map_err(io(&plan_path))?;
+    serde_json::from_str(&text).map_err(|source| GravityFitError::Json {
+        path: plan_path,
+        source,
+    })
+}
+
+/// [`Method::Auto`] resolves to the plans' common `method` (absent = static); sessions of
+/// different methods are refused unless the caller names one.
+fn resolve_method(requested: Method, dirs: &[PathBuf]) -> Result<Method, GravityFitError> {
+    if requested != Method::Auto {
+        return Ok(requested);
+    }
+    let mut methods = Vec::new();
+    for dir in dirs {
+        let method = match read_plan(dir)?.method {
+            Some(PlanMethod::Wave) => Method::Wave,
+            Some(PlanMethod::Static) | None => Method::Static,
+        };
+        if !methods.contains(&method) {
+            methods.push(method);
+        }
+    }
+    match methods.as_slice() {
+        [one] => Ok(*one),
+        _ => Err(GravityFitError::Plan(
+            "sessions mix wave and static plans; pass --method wave or --method static".into(),
+        )),
+    }
+}
+
+/// Load one session. The static method needs at least one friction-cancelled pose; the
+/// wave method (`wave_method`) uses only wave steps, so it takes sessions without holds.
 fn load_session(
     dir: &Path,
     joints: &[String],
     windows: &[JointWindow],
+    wave_method: bool,
 ) -> Result<Session, GravityFitError> {
-    let plan_path = dir.join(PLAN_FILE);
-    let text = std::fs::read_to_string(&plan_path).map_err(io(&plan_path))?;
-    let plan: Plan = serde_json::from_str(&text).map_err(|source| GravityFitError::Json {
-        path: plan_path.clone(),
-        source,
-    })?;
+    let plan = read_plan(dir)?;
     validate_plan(&plan, joints, windows)?;
     let trace_path = dir.join(TRACE_FILE);
     let trace = std::fs::read_to_string(&trace_path).map_err(io(&trace_path))?;
@@ -608,7 +706,7 @@ fn load_session(
     skipped.extend(unsettled);
     skipped.extend(unpaired);
     skipped.sort_by_key(|s| s.index);
-    if poses.is_empty() {
+    if poses.is_empty() && !wave_method {
         return Err(GravityFitError::TooFewPoses {
             got: 0,
             skipped: skipped.len(),
@@ -698,6 +796,7 @@ fn validate_plan(
                 max_rad,
                 cycles,
                 half_period_s,
+                pose_index,
             } => {
                 window(joint)?;
                 if !min_rad.is_finite() || !max_rad.is_finite() || min_rad >= max_rad {
@@ -716,6 +815,17 @@ fn validate_plan(
                     return Err(GravityFitError::Plan(format!(
                         "wave step {i} needs a positive half_period_s"
                     )));
+                }
+                if let Some(p) = pose_index {
+                    let centred = plan.poses_rad.get(*p).is_some_and(|pose| {
+                        ((min_rad + max_rad) / 2.0 - pose).abs() <= WAVE_CENTRE_TOL_RAD
+                    });
+                    if !centred || joint != &plan.sweep_joint {
+                        return Err(GravityFitError::Plan(format!(
+                            "wave step {i}: pose_index {p} must name a pose the sweep-joint wave \
+                             is centred on"
+                        )));
+                    }
                 }
             }
             PlanStep::Fixed { joint, target_rad } => {
@@ -912,7 +1022,8 @@ fn segment_plan(plan: &Plan, ticks: &[Tick]) -> Segmentation {
             .unwrap_or(limit);
     }
     // Wave steps take the gap between their neighboring found holds (trace start/end
-    // when the wave leads or trails); consecutive waves in one gap split it evenly.
+    // when the wave leads or trails); consecutive waves in one gap are split by
+    // [`split_waves`].
     let wave_indices: Vec<usize> = plan
         .steps
         .iter()
@@ -956,10 +1067,7 @@ fn segment_plan(plan: &Plan, ticks: &[Tick]) -> Segmentation {
                 }
             }
         } else {
-            let n = h - g;
-            for (m, &k) in wave_indices[g..h].iter().enumerate() {
-                let start = lo + (hi - lo) * m / n;
-                let end = lo + (hi - lo) * (m + 1) / n;
+            for (k, start, end) in split_waves(plan, ticks, &wave_indices[g..h], lo, hi) {
                 if end > start {
                     waves.push(WaveSeg {
                         plan_index: k,
@@ -984,6 +1092,55 @@ fn segment_plan(plan: &Plan, ticks: &[Tick]) -> Segmentation {
         waves,
         skipped,
     }
+}
+
+/// Tick ranges `(plan index, start, end)` of the consecutive waves `ks` in the gap
+/// `[lo, hi)`. The trace prints a wave's raised-cosine reference as `target_raw`, which
+/// leaves the wave's `min_rad` once per cycle: wave `m` starts at its first departure from
+/// its `min_rad` after the previous wave, and ends one nominal duration
+/// (`cycles · 2 · half_period_s`) later, so the return to the next target (e.g. the
+/// session's final `hold-at 0`) never enters it. When a departure is missing (a trace that
+/// does not print the reference), the gap is split evenly.
+fn split_waves(
+    plan: &Plan,
+    ticks: &[Tick],
+    ks: &[usize],
+    lo: usize,
+    hi: usize,
+) -> Vec<(usize, usize, usize)> {
+    let mut out = Vec::with_capacity(ks.len());
+    let mut cursor = lo.max(1);
+    for &k in ks {
+        let PlanStep::Wave {
+            joint,
+            min_rad,
+            cycles,
+            half_period_s,
+            ..
+        } = &plan.steps[k]
+        else {
+            continue;
+        };
+        let target = |t: usize| ticks[t].rows.get(joint.as_str()).map(|r| r.target_raw);
+        let start = (cursor..hi).find(|&t| {
+            matches!((target(t - 1), target(t)), (Some(prev), Some(cur))
+                if (prev - min_rad).abs() <= TARGET_TOL_RAD && cur > min_rad + TARGET_TOL_RAD)
+        });
+        let Some(start) = start else {
+            let n = ks.len();
+            return ks
+                .iter()
+                .enumerate()
+                .map(|(m, &k)| (k, lo + (hi - lo) * m / n, lo + (hi - lo) * (m + 1) / n))
+                .collect();
+        };
+        let duration_ms = (f64::from(*cycles) * 2.0 * half_period_s * 1000.0).round() as u64;
+        let until = ticks[start].t_ms + duration_ms;
+        let end = (start..hi).find(|&t| ticks[t].t_ms > until).unwrap_or(hi);
+        out.push((k, start, end));
+        cursor = end.max(start + 1);
+    }
+    out
 }
 
 fn measure_steps(
@@ -1176,7 +1333,8 @@ fn pair_approaches(
 }
 
 /// Moving wave samples of each wave step: ticks with |dq| above the deadband on the
-/// wave joint, carrying the full joint positions for the fitted-gravity subtraction.
+/// wave joint, carrying the full joint positions for the fitted-gravity subtraction and
+/// the wave joint's acceleration ([`second_difference`]).
 fn collect_waves(
     plan: &Plan,
     ticks: &[Tick],
@@ -1189,7 +1347,7 @@ fn collect_waves(
             continue;
         };
         let mut samples = Vec::new();
-        for tick in &ticks[seg.start..seg.end] {
+        for (i, tick) in ticks.iter().enumerate().take(seg.end).skip(seg.start) {
             let Some(row) = tick.rows.get(joint.as_str()) else {
                 continue;
             };
@@ -1207,10 +1365,12 @@ fn collect_waves(
                     }
                 }
             }
-            if complete {
+            let ddq = second_difference(ticks, i, joint);
+            if let (true, Some(ddq)) = (complete, ddq) {
                 samples.push(WaveSample {
                     q,
                     dq: row.dq,
+                    ddq,
                     tau: row.tau_meas,
                 });
             }
@@ -1222,6 +1382,23 @@ fn collect_waves(
         });
     }
     out
+}
+
+/// q̈ of `joint` at tick `i`: second difference of the measured q over the nearest ticks at
+/// least [`DDQ_HALF_WINDOW_MS`] before and after (unequal spacing allowed), or `None` at the
+/// trace edges. The half window spans several encoder counts at wave speeds, so position
+/// quantisation stays well below the bin averages it feeds.
+fn second_difference(ticks: &[Tick], i: usize, joint: &str) -> Option<f64> {
+    let t0 = ticks[i].t_ms;
+    let before = (0..i)
+        .rev()
+        .find(|&k| t0.saturating_sub(ticks[k].t_ms) >= DDQ_HALF_WINDOW_MS)?;
+    let after = (i + 1..ticks.len()).find(|&k| ticks[k].t_ms - t0 >= DDQ_HALF_WINDOW_MS)?;
+    let q = |k: usize| ticks[k].rows.get(joint).map(|r| r.q);
+    let (qb, q0, qa) = (q(before)?, q(i)?, q(after)?);
+    let hb = (t0 - ticks[before].t_ms) as f64 / 1000.0;
+    let ha = (ticks[after].t_ms - t0) as f64 / 1000.0;
+    Some(2.0 * ((qa - q0) / ha - (q0 - qb) / hb) / (ha + hb))
 }
 
 /// Per-joint friction result: the static-hold Coulomb estimate, the wave-regression
@@ -1401,76 +1578,104 @@ fn fit_friction(
         .collect()
 }
 
-/// Rewrite `fc:`/`fv:` lines inside each proposed joint's `friction:` block of the
-/// captured `control.yaml` text. Returns the patched text, or `None` when no joint has
-/// a proposal or its block is missing (fail closed: that joint is left out).
-fn patch_control_friction(captured: &str, friction: &[JointFriction]) -> Option<String> {
-    let want: BTreeMap<&str, (f64, f64)> = friction
-        .iter()
-        .filter_map(|f| match (f.proposed_fc_nm, f.proposed_fv) {
-            (Some(fc), Some(fv)) => Some((f.joint.as_str(), (fc, fv))),
-            _ => None,
-        })
-        .collect();
-    if want.is_empty() {
+/// One joint's proposed `control.yaml` friction: Coulomb `fc`, viscous `fv`, and the
+/// breakaway `fs` when the data identify it.
+#[derive(Debug, Clone, PartialEq)]
+struct FrictionProposal {
+    joint: String,
+    fc: f64,
+    fv: f64,
+    fs: Option<f64>,
+}
+
+/// Rewrite `fc:`/`fv:` (and `fs:`) inside each proposed joint's `friction:` block of the
+/// captured `control.yaml` text. An identified `fs` replaces the `fs:` line or is inserted
+/// after `fv:`; without one, an existing `fs:` below the new `fc` is raised to it (the
+/// config requires `fs ≥ fc`). Returns the patched text, or `None` when there is no
+/// proposal or a proposed joint's block lacks `fc:`/`fv:` (fail closed).
+fn patch_control_friction(captured: &str, proposals: &[FrictionProposal]) -> Option<String> {
+    if proposals.is_empty() {
         return None;
     }
-    let mut out = Vec::new();
+    let value = |line: &str, key: &str, v: String| {
+        let rest = line.trim().strip_prefix(key).unwrap_or("");
+        let comment = rest.find('#').map(|i| &rest[i..]).unwrap_or("");
+        let sep = if comment.is_empty() { "" } else { " " };
+        format!("        {key} {v}{sep}{comment}\n")
+    };
+    let mut out: Vec<String> = Vec::new();
     let mut in_joints = false;
-    let mut joint: Option<String> = None;
+    let mut current: Option<&FrictionProposal> = None;
     let mut in_friction = false;
-    let mut patched: BTreeMap<String, (bool, bool)> = BTreeMap::new();
+    // Per proposed joint: fc written, fv written, fs written, index of the fv line.
+    type Done<'p> = BTreeMap<&'p str, (bool, bool, bool, Option<usize>)>;
+    let mut done: Done = BTreeMap::new();
+    /// At the end of a friction block: insert an identified `fs` after `fv` if no `fs:`
+    /// line was rewritten.
+    fn close_block<'p>(
+        out: &mut Vec<String>,
+        done: &mut Done<'p>,
+        p: Option<&'p FrictionProposal>,
+    ) {
+        let Some(p) = p else { return };
+        let entry = done.entry(p.joint.as_str()).or_default();
+        if let (Some(fs), false, Some(at)) = (p.fs, entry.2, entry.3) {
+            out.insert(at + 1, format!("        fs: {fs:.4}\n"));
+            entry.2 = true;
+        }
+    }
     for line in captured.split_inclusive('\n') {
         let indent = line.len() - line.trim_start().len();
         let trimmed = line.trim();
+        if in_friction && !trimmed.is_empty() && indent < 8 {
+            close_block(&mut out, &mut done, current);
+            in_friction = false;
+        }
         if indent == 2 && trimmed.starts_with("joints:") {
             in_joints = true;
-            joint = None;
-            in_friction = false;
+            current = None;
         } else if indent == 2 && in_joints && trimmed.contains(':') {
             in_joints = false;
-            joint = None;
-            in_friction = false;
+            current = None;
         } else if in_joints && indent == 4 && trimmed.ends_with(':') {
-            joint = Some(trimmed.trim_end_matches(':').to_string());
-            in_friction = false;
+            let name = trimmed.trim_end_matches(':');
+            current = proposals.iter().find(|p| p.joint == name);
         } else if indent == 6 && trimmed.starts_with("friction:") {
-            in_friction = joint.is_some();
-        } else if in_friction && indent == 8 {
-            if let (Some(j), Some(&(fc, fv))) = (
-                joint.as_ref(),
-                joint.as_deref().and_then(|name| want.get(name)),
-            ) {
-                if let Some(rest) = trimmed.strip_prefix("fc:") {
-                    let comment = rest.find('#').map(|i| &rest[i..]).unwrap_or("");
-                    let value = format!("{fc:.4}");
-                    out.push(format!("        fc: {value}{comment}\n"));
-                    patched.entry(j.clone()).or_insert((false, false)).0 = true;
-                    continue;
-                }
-                if let Some(rest) = trimmed.strip_prefix("fv:") {
-                    let comment = rest.find('#').map(|i| &rest[i..]).unwrap_or("");
-                    let value = format!("{fv:.5}");
-                    out.push(format!("        fv: {value}{comment}\n"));
-                    patched.entry(j.clone()).or_insert((false, false)).1 = true;
+            in_friction = current.is_some();
+        } else if let (true, 8, Some(p)) = (in_friction, indent, current) {
+            let entry = done.entry(p.joint.as_str()).or_default();
+            if trimmed.starts_with("fc:") {
+                out.push(value(line, "fc:", format!("{:.4}", p.fc)));
+                entry.0 = true;
+                continue;
+            }
+            if trimmed.starts_with("fv:") {
+                out.push(value(line, "fv:", format!("{:.5}", p.fv)));
+                entry.1 = true;
+                entry.3 = Some(out.len() - 1);
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("fs:") {
+                let old: Option<f64> = rest.split('#').next().and_then(|v| v.trim().parse().ok());
+                let fs = p.fs.or_else(|| old.filter(|&o| o < p.fc).map(|_| p.fc));
+                if let Some(fs) = fs {
+                    out.push(value(line, "fs:", format!("{fs:.4}")));
+                    entry.2 = true;
                     continue;
                 }
             }
-        } else if indent <= 4 {
-            in_friction = false;
         }
         out.push(line.to_string());
     }
-    let text: String = out.concat();
-    if want
-        .keys()
-        .all(|j| patched.get(*j).is_some_and(|&(fc, fv)| fc && fv))
-        && text != captured
-    {
-        Some(text)
-    } else {
-        None
+    if in_friction {
+        close_block(&mut out, &mut done, current);
     }
+    let text: String = out.concat();
+    let complete = proposals.iter().all(|p| {
+        done.get(p.joint.as_str())
+            .is_some_and(|&(fc, fv, fs, _)| fc && fv && (fs || p.fs.is_none()))
+    });
+    (complete && text != captured).then_some(text)
 }
 /// Default parameters covering every link excited by any fused session's sweep.
 ///
@@ -1696,45 +1901,71 @@ fn verify_patched(path: &Path, joints: &[String], fit: &GravityFit) -> Result<()
     Ok(())
 }
 
-/// Unified diff of two texts with equal line counts (inertial values rewritten in place).
+/// Unified diff of `old` → `new` where `new` only rewrites lines in place or inserts new
+/// ones (the URDF and `control.yaml` patchers): lines align greedily, a mismatch followed
+/// by the old line is an insertion, any other mismatch a replacement.
 fn unified_diff(old: &str, new: &str, path: &str) -> String {
     const CONTEXT: usize = 3;
+    /// `(old line index, new line index)`; `None` on the side that lacks the line.
+    type Op = (Option<usize>, Option<usize>);
     let a: Vec<&str> = old.split_inclusive('\n').collect();
     let b: Vec<&str> = new.split_inclusive('\n').collect();
-    let changed: Vec<usize> = (0..a.len().min(b.len()))
-        .filter(|&i| a[i] != b[i])
-        .collect();
-    let mut out = format!("--- a/{path}\n+++ b/{path}\n");
-    let mut i = 0;
-    while i < changed.len() {
-        let start = changed[i].saturating_sub(CONTEXT);
-        let mut last = changed[i];
-        while i + 1 < changed.len() && changed[i + 1] <= last + 2 * CONTEXT + 1 {
-            i += 1;
-            last = changed[i];
+    let mut ops: Vec<Op> = Vec::with_capacity(a.len().max(b.len()));
+    let (mut i, mut j) = (0, 0);
+    while i < a.len() || j < b.len() {
+        let op = match (a.get(i), b.get(j)) {
+            (Some(x), Some(y)) if x == y => (Some(i), Some(j)),
+            (Some(x), Some(_)) if b.get(j + 1) == Some(x) => (None, Some(j)),
+            (Some(_), Some(_)) => (Some(i), Some(j)),
+            (None, Some(_)) => (None, Some(j)),
+            _ => (Some(i), None),
+        };
+        i += usize::from(op.0.is_some());
+        j += usize::from(op.1.is_some());
+        ops.push(op);
+    }
+    let same = |op: &Op| matches!(op, (Some(x), Some(y)) if a[*x] == b[*y]);
+    let changed: Vec<usize> = (0..ops.len()).filter(|&k| !same(&ops[k])).collect();
+    let line = |s: &str| {
+        if s.ends_with('\n') {
+            s.to_string()
+        } else {
+            format!("{s}\n\\ No newline at end of file\n")
         }
-        let end = (last + CONTEXT + 1).min(a.len());
-        let len = end - start;
-        let _ = writeln!(out, "@@ -{},{len} +{},{len} @@", start + 1, start + 1);
-        for k in start..end {
-            let line = |s: &str| {
-                if s.ends_with('\n') {
-                    s.to_string()
-                } else {
-                    format!("{s}\n\\ No newline at end of file\n")
-                }
-            };
-            if a[k] == b[k] {
+    };
+    let mut out = format!("--- a/{path}\n+++ b/{path}\n");
+    let mut c = 0;
+    while c < changed.len() {
+        let start = changed[c].saturating_sub(CONTEXT);
+        let mut last = changed[c];
+        while c + 1 < changed.len() && changed[c + 1] <= last + 2 * CONTEXT + 1 {
+            c += 1;
+            last = changed[c];
+        }
+        let end = (last + CONTEXT + 1).min(ops.len());
+        let hunk = &ops[start..end];
+        let old_len = hunk.iter().filter(|op| op.0.is_some()).count();
+        let new_len = hunk.iter().filter(|op| op.1.is_some()).count();
+        // 1-based first line of each side: lines before the hunk, plus one.
+        let old_start = ops[..start].iter().filter(|op| op.0.is_some()).count() + 1;
+        let new_start = ops[..start].iter().filter(|op| op.1.is_some()).count() + 1;
+        let _ = writeln!(out, "@@ -{old_start},{old_len} +{new_start},{new_len} @@");
+        for op in hunk {
+            if same(op) {
                 out.push(' ');
-                out.push_str(&line(a[k]));
-            } else {
+                out.push_str(&line(a[op.0.unwrap_or_default()]));
+                continue;
+            }
+            if let Some(x) = op.0 {
                 out.push('-');
-                out.push_str(&line(a[k]));
+                out.push_str(&line(a[x]));
+            }
+            if let Some(y) = op.1 {
                 out.push('+');
-                out.push_str(&line(b[k]));
+                out.push_str(&line(b[y]));
             }
         }
-        i += 1;
+        c += 1;
     }
     out
 }
@@ -2219,6 +2450,7 @@ mod tests {
             approach_offset_rad: 0.05,
             measure_sec: 1.0,
             steps,
+            method: None,
             gravity_gate_report: String::new(),
             session_complete: true,
         }
@@ -2232,6 +2464,45 @@ mod tests {
             pose_index: approach.map(|_| 0),
             approach,
         }
+    }
+
+    const CONTROL: &str = "control:\n  loop_hz: 200\n  joints:\n    a:\n      motor_type: rs03\n      friction:\n        fc: 0.08\n        fv: 0.0  # viscous\n        fo: 0.0\n        k: 10.0\n    b:\n      friction:\n        fc: 0.05\n        fv: 0.0\n        fs: 0.06\n        k: 10.0\n";
+
+    #[test]
+    fn friction_patch_inserts_identified_fs_and_keeps_fs_at_least_fc() {
+        let proposals = [
+            FrictionProposal {
+                joint: "a".into(),
+                fc: 0.3,
+                fv: 0.12,
+                fs: Some(0.45),
+            },
+            FrictionProposal {
+                joint: "b".into(),
+                fc: 0.2,
+                fv: 0.1,
+                fs: None,
+            },
+        ];
+        let patched = patch_control_friction(CONTROL, &proposals).expect("patched");
+        assert_eq!(
+            patched,
+            "control:\n  loop_hz: 200\n  joints:\n    a:\n      motor_type: rs03\n      friction:\n        fc: 0.3000\n        fv: 0.12000 # viscous\n        fs: 0.4500\n        fo: 0.0\n        k: 10.0\n    b:\n      friction:\n        fc: 0.2000\n        fv: 0.10000\n        fs: 0.2000\n        k: 10.0\n"
+        );
+        let diff = unified_diff(CONTROL, &patched, CONTROL_PATCH_PATH);
+        assert!(diff.contains("@@ -4,13 +4,14 @@"), "{diff}");
+        assert!(
+            diff.contains("+        fs: 0.4500\n         fo: 0.0\n"),
+            "{diff}"
+        );
+        // A proposed joint without a friction block fails closed.
+        let missing = [FrictionProposal {
+            joint: "c".into(),
+            fc: 0.3,
+            fv: 0.1,
+            fs: None,
+        }];
+        assert!(patch_control_friction(CONTROL, &missing).is_none());
     }
 
     #[test]
