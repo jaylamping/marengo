@@ -132,7 +132,10 @@ pub use reference_transaction::{
     ReferenceStamp, ReferenceTerminal,
 };
 
-pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
+pub use active_reporting::{
+    ActiveReportingLeaseError, ActiveReportingState, ExitReportingOff, ExitReportingReport,
+    DEFAULT_LEASE_TTL,
+};
 use burst::BurstPacer;
 pub use burst::BURST_GROUP_SPACING;
 use faults::{bounded_message, FaultAuthority};
@@ -527,6 +530,9 @@ pub struct Supervisor<B: MotorBus> {
     unanswered_solicits: FxHashMap<MotorAddress, SolicitedState>,
     /// Single-drive-loss plans, episode and shed addresses (ADR 0038).
     drive_loss: drive_loss::DriveLossState,
+    /// Set by [`Self::release_reporting_for_exit`]: no type-24 On is written
+    /// again in this process.
+    exit_reporting_released: bool,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -683,6 +689,7 @@ impl<B: MotorBus> Supervisor<B> {
             active_joints: HashSet::new(),
             unanswered_solicits: FxHashMap::default(),
             drive_loss: drive_loss::DriveLossState::default(),
+            exit_reporting_released: false,
         };
         Ok((supervisor, record_path))
     }
@@ -2711,8 +2718,9 @@ impl<B: MotorBus> Supervisor<B> {
     /// Expires lease TTLs and resyncs type-24; call each control-loop iteration.
     /// Re-asserts enable on a 1 s heartbeat and when a joint's feedback goes stale
     /// while sensing is still desired (motors can drop Active Reporting mid-sweep).
+    /// No-op once [`Self::release_reporting_for_exit`] has run.
     pub fn sync_active_reporting(&mut self) {
-        if self.reference_busy() {
+        if self.reference_busy() || self.exit_reporting_released {
             return;
         }
         let mode_active = self.mode == OperationalMode::Active;
@@ -2783,6 +2791,69 @@ impl<B: MotorBus> Supervisor<B> {
                     OwedOn::Released
                 }
             });
+    }
+
+    /// Process exit: write a type-24 Off to every installed drive, whatever
+    /// this process applied, and write no On again. Robstride drives keep
+    /// type-24 reporting across host processes and a Disable does not end it;
+    /// a stream left On made every later start latch Transport on its first
+    /// bounded drain (2026-10-04, `docs/safety.md` *Reporting Off at exit*).
+    ///
+    /// Like the shutdown stop, the Offs are never paced. A shed drive gets no
+    /// write (ADR 0038). A drive inside its possible post-SetZero blackout
+    /// drops every frame, so its Off waits until the quiet ends (at most
+    /// `POST_SET_ZERO_QUIET` after its SetZero echo); one whose quiet ends
+    /// after `deadline` is reported [`ExitReportingOff::Blackout`]. Call it
+    /// after the shutdown stop: that stop's reporting sync may turn streams On.
+    pub fn release_reporting_for_exit(&mut self, deadline: Instant) -> ExitReportingReport {
+        self.exit_reporting_released = true;
+        let stop_motors = Arc::clone(&self.stop_motors);
+        let mut outcomes: Vec<Option<ExitReportingOff>> = vec![None; stop_motors.len()];
+        loop {
+            let now = Instant::now();
+            let mut next_quiet_end: Option<Instant> = None;
+            for (motor, outcome) in stop_motors.iter().zip(outcomes.iter_mut()) {
+                if outcome.is_some() {
+                    continue;
+                }
+                let address = MotorAddress::from(motor);
+                if self.drive_loss.is_shed(&address) {
+                    *outcome = Some(ExitReportingOff::Shed);
+                    continue;
+                }
+                if self.set_zero_blackout_possible(&address, now) {
+                    let quiet_end = self.set_zero_quiet_until(&address).unwrap_or(now);
+                    next_quiet_end =
+                        Some(next_quiet_end.map_or(quiet_end, |next| next.min(quiet_end)));
+                    continue;
+                }
+                *outcome = Some(match self.bus.disable_active_reporting_at(&address) {
+                    Ok(()) => {
+                        self.active_reporting.record_off(&motor.joint, now);
+                        ExitReportingOff::Sent
+                    }
+                    Err(error) => ExitReportingOff::Failed(bounded_message(&error.to_string())),
+                });
+            }
+            match next_quiet_end {
+                Some(quiet_end) if quiet_end <= deadline => {
+                    std::thread::sleep(quiet_end.saturating_duration_since(Instant::now()));
+                }
+                _ => break,
+            }
+        }
+        ExitReportingReport {
+            drives: stop_motors
+                .iter()
+                .zip(outcomes)
+                .map(|(motor, outcome)| {
+                    (
+                        MotorAddress::from(motor),
+                        outcome.unwrap_or(ExitReportingOff::Blackout),
+                    )
+                })
+                .collect(),
+        }
     }
 
     /// Acquire or upsert a client-minted lease for `joint`.

@@ -97,6 +97,19 @@ fn all_stop(failed_target_write: bool) -> Vec<Wire> {
     trace
 }
 
+/// The exit type-24 Off to every installed drive, after the stop.
+fn exit_reporting_offs() -> Vec<Wire> {
+    (1..=5)
+        .map(|device| {
+            wire(
+                device,
+                0x1800fd00 | u32::from(device),
+                [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x00, 0x00],
+            )
+        })
+        .collect()
+}
+
 fn target_run() -> ReceivedCanFrame {
     ReceivedCanFrame::full_data(
         Some("can0".into()),
@@ -531,8 +544,11 @@ fn armed_reference_shutdown_stops_before_real_storage_under_both_exit_policies()
         assert!(!case.at_wait.reference.usable_reference);
         assert_eq!(case.at_wait.reference.terminal.as_ref(), Some(mandatory));
         assert_eq!(case.at_wait.stop.as_ref(), Some(&mandatory.stop));
-        assert_eq!(case.at_wait.trace, all_stop(case.failed_target_write),
-            "mandatory fifteen reference cleanup attempts must precede persistence waiting under either exit policy");
+        let mut expected_trace = all_stop(case.failed_target_write);
+        expected_trace.extend(exit_reporting_offs());
+        assert_eq!(case.at_wait.trace, expected_trace,
+            "mandatory fifteen reference cleanup attempts, then the exit type-24 Offs, must precede persistence waiting under either exit policy");
+        assert!(case.outcome.reporting.all_sent());
         assert_eq!(
             case.final_trace, case.at_wait.trace,
             "ordinary exit policy must reuse mandatory cleanup without a second stop sequence"

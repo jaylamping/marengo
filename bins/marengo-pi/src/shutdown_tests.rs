@@ -144,6 +144,20 @@ fn stop_trace(frames: &[AttemptedFrame]) -> Vec<AttemptedFrame> {
         .collect()
 }
 
+/// The exit type-24 Off to every installed drive, literal like the stop trace.
+fn literal_exit_reporting_offs() -> Vec<AttemptedFrame> {
+    (1..=5)
+        .map(|device_id| AttemptedFrame {
+            address: Some(MotorAddress::new("can0", device_id)),
+            frame: CanFrame {
+                id: 0x1800fd00 | u32::from(device_id),
+                data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x00, 0x00],
+                extended: true,
+            },
+        })
+        .collect()
+}
+
 #[derive(Debug)]
 struct WaitObservation {
     frames: Vec<AttemptedFrame>,
@@ -303,6 +317,13 @@ fn all_original_stop_writes_precede_waiting_for_the_real_gated_writer() {
     assert!(!event.config_revision.is_empty());
     let final_frames = witness.lock().expect("final actual stop trace").clone();
     assert_eq!(stop_trace(&final_frames), literal_stop_trace());
+    // 2026-10-04: the stop's reporting sync turned streams On and nothing
+    // turned them Off; the exit now ends with one Off per drive.
+    assert!(
+        final_frames.ends_with(&literal_exit_reporting_offs()),
+        "exit must end with a type-24 Off to every drive: {final_frames:?}"
+    );
+    assert!(outcome.reporting.all_sent(), "{:?}", outcome.reporting);
     assert!(
         final_frames
             .iter()
@@ -1031,8 +1052,13 @@ fn explicit_no_disable_exit_policy_inhibits_intent_and_drains_without_stop_write
     assert_eq!(mode_at_wait, ControlMode::Disabled);
     assert_eq!(torque_at_wait, 0.0);
     assert_eq!(generation_at_wait, generation);
-    assert!(trace_at_wait.is_empty());
-    assert!(witness.lock().expect("final no-disable trace").is_empty());
+    // No stop writes: only the exit type-24 Off to every drive.
+    assert_eq!(trace_at_wait, literal_exit_reporting_offs());
+    assert_eq!(
+        *witness.lock().expect("final no-disable trace"),
+        literal_exit_reporting_offs()
+    );
+    assert!(outcome.reporting.all_sent());
     assert_eq!(controller.supervisor().stop_generation(), generation);
     assert!(controller
         .supervisor()
