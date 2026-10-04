@@ -118,6 +118,12 @@ control:
       position_time_scale_e0_rad: 0.03
       position_integral_band_rad: 0.02
       position_integral_leak_s: 0.5
+      # Friction direction from intent v_ref + λ·(q_ref − q) (magnitude still from v_ref): at
+      # slow-wave turnarounds the reference friction faded to 0 and the joint stuck 40–47 mrad
+      # short for up to 4.5 s (bench 2026-10-04 20:24/20:26Z, kp·e had to beat fs + ripple
+      # ≈ 1.05 Nm alone). λ 20 breaks away by ≈ 29 mrad on a ripple-crest plant (λ 30 no
+      # better: kp·e ≥ 1.05 − fs bounds it); bench_replay slow_wave_turnarounds_*.
+      position_friction_error_gain_per_s: 20.0
       position_slew_rad_s: 0.15
       position_slew_max_lead_rad: 0.12
       position_trajectory_threshold_rad: 0.15

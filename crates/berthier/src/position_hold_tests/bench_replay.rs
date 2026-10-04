@@ -714,7 +714,11 @@ fn slow_wave_turnarounds_break_away_within_the_tracking_bar() {
         .filter(|(s, _)| !s.failures().is_empty())
         .map(|(_, l)| l)
         .collect();
-    assert!(failed.is_empty(), "failures:\n{failed:#?}\n\nall:\n{}", lines.join("\n"));
+    assert!(
+        failed.is_empty(),
+        "failures:\n{failed:#?}\n\nall:\n{}",
+        lines.join("\n")
+    );
 }
 
 /// Every tick of a descent session: `(q_ref, dq_ref, measured q)`.

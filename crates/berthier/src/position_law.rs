@@ -138,6 +138,9 @@ pub struct ScaledPdState {
     pub v_prev: f64,
     /// Slew-limited `τ_fric + J·a` (Nm).
     pub tau_dyn: f64,
+    /// `tau_dyn` as it would be without the friction error assist (same slew), so the fuses
+    /// judge the torque the plain law commands (see [`ScaledPdFeedforward::tau_assist`]).
+    pub tau_dyn_plain: f64,
 }
 
 impl Default for ScaledPdState {
@@ -148,6 +151,7 @@ impl Default for ScaledPdState {
             tau_i: 0.0,
             v_prev: 0.0,
             tau_dyn: 0.0,
+            tau_dyn_plain: 0.0,
         }
     }
 }
@@ -160,6 +164,10 @@ pub struct ScaledPdFeedforward {
     pub tau_i: f64,
     /// `τ_g + tau_fric + tau_i`.
     pub tau_ff: f64,
+    /// Part of `tau_fric` from the friction error assist (Nm). The HoldTracking fuse judges
+    /// the net torque without it: the assist only helps a stuck joint toward its reference and
+    /// must never hide a gravity-model fault from the fuse.
+    pub tau_assist: f64,
 }
 
 /// Time scale for reference error magnitude `error_abs`: 1 up to `e0`, 0 from `e1`.
@@ -313,11 +321,24 @@ pub fn compose_feedforward(
     tau_g: f64,
     dt: f64,
 ) -> ScaledPdFeedforward {
-    let intent = state.v_c + gains.friction_error_gain * reference_error;
-    let intent = if intent.is_finite() { intent } else { state.v_c };
-    let friction = gains
+    // The assist acts near rest, where static friction holds the joint: weighted by
+    // exp(−|v_ref|/v_b), it vanishes at speed and leaves moving behaviour to v_ref.
+    let near_rest = gains
         .friction
-        .map_or(0.0, |friction| friction.torque_toward(state.v_c, intent) + friction.fo);
+        .filter(|friction| friction.v_b > 0.0)
+        .map_or(0.0, |friction| (-state.v_c.abs() / friction.v_b).exp());
+    let intent = state.v_c + near_rest * gains.friction_error_gain * reference_error;
+    let intent = if intent.is_finite() {
+        intent
+    } else {
+        state.v_c
+    };
+    let (friction, friction_plain) = gains.friction.map_or((0.0, 0.0), |friction| {
+        (
+            friction.torque_toward(state.v_c, intent) + friction.fo,
+            friction.torque(state.v_c) + friction.fo,
+        )
+    });
     let accel = if dt > 0.0 {
         (state.v_c - state.v_prev) / dt
     } else {
@@ -325,9 +346,16 @@ pub fn compose_feedforward(
     };
     state.v_prev = state.v_c;
     let target = friction + gains.inertia * accel;
+    let target_plain = friction_plain + gains.inertia * accel;
     let step = SCALED_PD_DYNAMIC_FF_RATE_NM_S * dt.max(0.0);
     let next = state.tau_dyn + (target - state.tau_dyn).clamp(-step, step);
     state.tau_dyn = if next.is_finite() { next } else { 0.0 };
+    let next_plain = state.tau_dyn_plain + (target_plain - state.tau_dyn_plain).clamp(-step, step);
+    state.tau_dyn_plain = if next_plain.is_finite() {
+        next_plain
+    } else {
+        0.0
+    };
     state.tau_i = integral_step(
         state.tau_i,
         target_error,
@@ -340,6 +368,7 @@ pub fn compose_feedforward(
         tau_fric: state.tau_dyn,
         tau_i: state.tau_i,
         tau_ff: tau_g + state.tau_dyn + state.tau_i,
+        tau_assist: state.tau_dyn - state.tau_dyn_plain,
     }
 }
 

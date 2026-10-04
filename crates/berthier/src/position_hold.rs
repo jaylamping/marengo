@@ -1756,11 +1756,12 @@ impl PositionHold {
         let lead = q_des - q;
         let tau_p = jp.kp * lead;
         let kd = joint.gains.kd;
+        // The fuses judge (and report) τ_ff without the friction error assist.
         let trip = HoldFuseTrip {
             q,
             target,
             tau_p,
-            tau_ff: ff.tau_ff,
+            tau_ff: ff.tau_ff - ff.tau_assist,
             tau_g: world.tau_g[i],
         };
         let ascent_stall_ms = self
@@ -1784,8 +1785,9 @@ impl PositionHold {
                 trip,
             });
         }
-        // ADR 0039: the net commanded torque is the wire terms, including the drive's damping.
-        let net_commanded = tau_p + kd * (v_c - dq_raw) + ff.tau_ff;
+        // ADR 0039: the net commanded torque is the wire terms, including the drive's damping,
+        // judged without the friction error assist so the assist can never mask a model fault.
+        let net_commanded = tau_p + kd * (v_c - dq_raw) + ff.tau_ff - ff.tau_assist;
         let tracking_armed = self.commanded_joints[i]
             && !joint.wave_owned
             && hold_tracking_opposed(q, target, net_commanded);
