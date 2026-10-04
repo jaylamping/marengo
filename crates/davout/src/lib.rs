@@ -894,8 +894,9 @@ impl<B: MotorBus> Supervisor<B> {
     /// defers, for the observation it makes before reading the receive queue:
     /// receive times can be host read times, and an Active target's queued
     /// replies answer what the host asked, so judging liveness there counts
-    /// the host's own read gap (e.g. marengo-pi's gravity preflight) as drive
-    /// silence. The drain judges liveness once it has read the queue.
+    /// the host's own read gap (e.g. a synchronous host stall; marengo-pi's
+    /// gravity preflight is now swept across ticks) as drive silence. The
+    /// drain judges liveness once it has read the queue.
     fn reference_binding_valid_with(&self, liveness: Liveness) -> bool {
         self.observe_staged_reference();
         self.observe_reference_commits();
@@ -1363,9 +1364,10 @@ impl<B: MotorBus> Supervisor<B> {
     /// Runs the reporting sync, then drains pending feedback
     /// ([`Self::drain_feedback`]), so the facets judge what the drives sent,
     /// not how long the caller went without reading. A caller's synchronous
-    /// work (marengo-pi's gravity preflight runs 66-96 ms) would otherwise
-    /// revoke the grant of a drive whose reports are queued. A type-24 On that
-    /// fell due meanwhile goes out first.
+    /// work (marengo-pi's gravity preflight is now swept across ticks, so it
+    /// no longer stalls reads) would otherwise revoke the grant of a drive
+    /// whose reports are queued. A type-24 On that fell due meanwhile goes
+    /// out first.
     pub fn resolve_enable_targets(
         &mut self,
         repo_root: impl AsRef<Path>,

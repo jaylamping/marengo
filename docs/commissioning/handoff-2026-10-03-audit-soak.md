@@ -58,11 +58,19 @@ Guard tests for both fixes prove that a drive that is genuinely silent still los
 `docs/safety.md` (*Host read gap*, *Owed On during Enable admission*) and in the ADR 0036 *Host-caused
 silence* amendment.
 
+## Liveness hardening (merged, not yet bench-soaked)
+
+- Kernel SocketCAN RX timestamps (`c5dc5307`): frames carry the kernel wire time instead of the host read time.
+- Solicited silence and bounded owed-On excuse (`1b8de9cf`, `fd78722b`): Active silence counts from the host's own solicitation; a held type-24 On is excused until written, bounded by `OWED_ON_WRITE_BOUND` (200 ms).
+- Gravity preflight swept across control ticks (`6b9ded86`, `938aa5f7`): at most 128 samples and 2 ms per tick, Enable only after a full passing sweep.
+- Firmware-timing analyzer stream-Off gaps (`d8f7be69`): unobservable post-SetZero gap samples no longer count as blackout silence.
+
 ## Next steps, in order
 
-1. **Gravity calibration sweep** (`pi_gravity_calibrate`). The operator must be present and must re-confirm.
+1. **Deploy and re-soak liveness hardening.** Deploy main to the Pi and re-run `pi_enable_soak`, then grep the bench log for `kernel receive timestamp unusable` and `physical reference grant revoked`.
+2. **Gravity calibration sweep** (`pi_gravity_calibrate`). The operator must be present and must re-confirm.
    Weighted profiles also need `confirm_weighted_motion: true`.
-2. **Bench re-check of RS03-tuned values.** The RS03 velocity scale was corrected from ±50 to ±20 rad/s in
+3. **Bench re-check of RS03-tuned values.** The RS03 velocity scale was corrected from ±50 to ±20 rad/s in
    `1ceeeb5`, so the `config/control.yaml` values tuned under the old scale need re-checking on the bench:
    - Pitch: velocity 1.25, accel 4.5, kd 3.0, slew 0.15.
    - Roll: velocity 0.7, accel 4.0, slew 0.35.
@@ -83,6 +91,7 @@ silence* amendment.
   Integrator decisions taken so far are in `docs/reviews/2026-10-03-crate-audit/decisions.md`.
 - Proto types that B13 marked deprecated are still on the wire. Deleting them needs a `buf breaking` exception.
 - Hardware E-stop (BCM 17) is not installed. Drive CanTimeout and the fault-clear frame are still open (see WP-I).
+- **Robstride vcan tests not run.** `just check-vcan` was not run for the RX-timestamp change: there is no Linux host here. Run it on Linux before treating the kernel-stamp path as bench-proven.
 
 ## Firmware and analyzer observations (no action taken)
 

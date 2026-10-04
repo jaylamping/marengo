@@ -230,6 +230,8 @@ disables. The fault does not clear on its own.
   does not bypass this gate. Berthier may send MIT only for active joints, but the
   gravity model couples all modeled positions: after neutral enable bootstrap,
   missing feedback for any modeled joint faults before τ_g is evaluated.
+- **Gravity preflight across ticks (fix after the 2026-10-03 enable soaks):** the preflight no longer runs inside Enable dispatch. marengo-pi captures each modeled joint's live envelope (`effective_command_bounds(policy, measured q, 0)`) when the request arrives, then evaluates the same 5^n grid (capped at 1,000,000 samples) one slice per control tick: at most 128 samples and 2 ms (about 95 samples on the Pi), before that tick's feedback drain. Resolution and Enable run only after every sample passes the same `tau_ff_max` rule. If, before the verdict, any drive is stopped (Disable, tick-error or fault stop), a fault latches, reference work starts, or a modeled joint's limits change, the sweep is voided and the Enable is refused fail-closed.
+
 - **Fault authority:** Observed runtime hazards persist across later healthy feedback, Disable and cache clearing. Davout attempts every configured stop address and retains failures; send acceptance is not physical stop acknowledgement. Qualified recovery/reset is not implemented. See [ADR 0020](decisions/0020-lossless-feedback-and-fault-authority.md).
 - **Receive integrity and work:** Status/detail feedback requires exactly eight Data bytes. Malformed configured feedback, kernel errors and incomplete receive work latch through fault authority. Every poll is limited to 64 raw frames and 256 nonblocking read attempts across all interfaces, including noise and interruptions; both enable flushes require observed quiescence. Host read order/deadlines do not qualify physical acquisition, drive behavior or Pi jitter. See [ADR 0021](decisions/0021-bounded-can-ingress.md).
 - **Enable wire order:** A SocketCAN write only queues a frame. On the bench
@@ -348,7 +350,7 @@ disables. The fault does not clear on its own.
   grant up to one stall later. Enable still needs each target's type-0 reply
   to a request sent after that drain. A revocation logs `physical reference
   grant revoked` with the joint, cause and counted silence; marengo-pi logs
-  the preflight duration (`gravity preflight sweep`, debug).
+  the preflight duration (`gravity preflight sweep`, debug). Since 6b9ded86 the preflight is swept across ticks (see *Gravity preflight across ticks* above), so it no longer stalls CAN reads; the liveness rules above still apply to any other synchronous host stall. Fallback stamps (missing stamp, realtime stepped backward, age over 1 s) are counted per socket and logged as `SocketCAN kernel receive timestamp unusable` WARN at power-of-two counts; check bench logs for it after kernel or driver changes.
 - **Owed On during Enable admission (re-soak at ad1eb887, cycle 14):** 1 of
   20 cycles failed `enable failed: joint right_shoulder_pitch: no private
   current-reference permission`. Later references' baselines had turned
@@ -367,7 +369,7 @@ disables. The fault does not clear on its own.
   (200 ms: twice the 96 ms preflight, rounded up) after the later of the
   quiet's end and owner work revokes the joint (cause `owed type-24 On not
   written within OWED_ON_WRITE_BOUND`). A drive that stays silent after its On
-  still loses its grant `comm_watchdog_ms` after the write.
+  still loses its grant `comm_watchdog_ms` after the write. Since 6b9ded86 the preflight is swept across ticks (see *Gravity preflight across ticks* above), so it no longer spans the quiet's end without a reporting sync; the excuse above still covers any other synchronous host work.
 - **Solicited silence while Active (2026-10-03, ADR 0036 amendment):** Active
   streams are Off, so a drive speaks only when written to. A host stall of
   about 95 ms or more (a redundant `enable`'s preflight) used to revoke every
