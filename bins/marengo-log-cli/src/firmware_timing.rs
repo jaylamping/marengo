@@ -86,6 +86,8 @@ pub const OFF_WINDOW_S: f64 = 0.500;
 pub const ECHO_LAG_S: f64 = 0.0005;
 const BUS_WINDOW_S: f64 = 0.010;
 const BUS_GAP_S: f64 = 0.005;
+/// Per-frame lines in the human-readable `kernel error frames:` section.
+const KERNEL_ERROR_TEXT_CAP: usize = 20;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct Stats {
@@ -146,6 +148,83 @@ pub struct NonNeutralMit {
     pub last_s: Option<f64>,
 }
 
+/// One kernel CAN error frame from the capture (`2000xxxx` id,
+/// `CAN_ERR_FLAG` set): bus-state evidence, never a Robstride frame.
+/// Error classes live in the id's low 16 bits and controller flags
+/// (`CAN_ERR_CRTL_*`) in data[1]; both follow linux/can/error.h.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KernelErrorFrame {
+    /// Seconds on the concatenated timeline (file offsets accumulate).
+    pub t_s: f64,
+    pub interface: String,
+    /// Canonical hex without `0x`, e.g. `20000004`.
+    pub can_id: String,
+    pub classes: Vec<String>,
+    /// Decoded `CAN_ERR_CRTL` data[1] flags; empty unless class `ctrl`.
+    pub ctrl: Vec<String>,
+    pub bus_off: bool,
+    pub restarted: bool,
+}
+
+/// `CAN_ERR_*` classes (linux/can/error.h) in snake_case.
+const ERROR_CLASSES: &[(u32, &str)] = &[
+    (0x01, "tx_timeout"),
+    (0x02, "lost_arbitration"),
+    (0x04, "ctrl"),
+    (0x08, "prot"),
+    (0x10, "trx"),
+    (0x20, "ack"),
+    (0x40, "busoff"),
+    (0x80, "bus_error"),
+    (0x100, "restarted"),
+];
+
+/// `CAN_ERR_CRTL_*` data[1] flags (linux/can/error.h) in snake_case.
+const CTRL_FLAGS: &[(u8, &str)] = &[
+    (0x01, "rx_overflow"),
+    (0x02, "tx_overflow"),
+    (0x04, "rx_warning"),
+    (0x08, "tx_warning"),
+    (0x10, "rx_passive"),
+    (0x20, "tx_passive"),
+    (0x40, "active"),
+];
+
+fn decode_kernel_error(can_id: u32, data: &[u8]) -> KernelErrorDecode {
+    let class = can_id & 0xFFFF;
+    let mut classes: Vec<String> = ERROR_CLASSES
+        .iter()
+        .filter(|(bit, _)| class & *bit != 0)
+        .map(|(_, name)| (*name).to_string())
+        .collect();
+    if class & !0x1FF != 0 {
+        classes.push(format!("unknown({:#x})", class & !0x1FF));
+    }
+    let mut ctrl = Vec::new();
+    if class & 0x04 != 0 {
+        let flags = data.get(1).copied().unwrap_or(0);
+        ctrl.extend(
+            CTRL_FLAGS
+                .iter()
+                .filter(|(bit, _)| flags & *bit != 0)
+                .map(|(_, name)| (*name).to_string()),
+        );
+    }
+    KernelErrorDecode {
+        classes,
+        ctrl,
+        bus_off: class & 0x40 != 0,
+        restarted: class & 0x100 != 0,
+    }
+}
+
+struct KernelErrorDecode {
+    classes: Vec<String>,
+    ctrl: Vec<String>,
+    bus_off: bool,
+    restarted: bool,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct BusTiming {
     pub max_frames_per_10ms: u64,
@@ -160,6 +239,10 @@ pub struct FirmwareTiming {
     pub drives: BTreeMap<String, DriveTiming>,
     pub non_neutral_mit: NonNeutralMit,
     pub bus: BusTiming,
+    /// Kernel error frames in capture order; diagnostic only, never drive
+    /// traffic and never a PASS input. Defaults empty for older JSON.
+    #[serde(default)]
+    pub kernel_error_frames: Vec<KernelErrorFrame>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -530,6 +613,7 @@ pub struct Analyzer {
     samples: BTreeMap<(String, u8), DriveSamples>,
     non_neutral: NonNeutralMit,
     bus: BusTiming,
+    errors: Vec<KernelErrorFrame>,
 }
 
 /// Per-file pairing state; dropped at the file boundary.
@@ -582,6 +666,15 @@ impl Analyzer {
     fn on_frame(&mut self, file: &mut FileState, frame: &Frame) {
         let t = frame.offset.as_secs_f64();
         file.last_t = t;
+        // Kernel error frames are bus-state evidence, never traffic: record
+        // them and return before bus, MIT-neutrality and pairing stats, so a
+        // mid-gap overflow report neither splits the gap nor joins the load
+        // window. (classify_frame already rejects them: unpack_ext_id
+        // refuses ids above 0x1FFFFFFF.)
+        if frame.can_id.is_error() {
+            self.on_kernel_error(frame, t);
+            return;
+        }
         self.on_bus(file, &frame.interface, t);
         // A candump `CanId` keeps the value, not the frame format, and a type-0
         // reply id such as 0x000001FE is numerically standard-sized. Robstride
@@ -610,6 +703,19 @@ impl Analyzer {
             }
             WireFrame::Drive { frame, .. } => state.on_drive(t, frame, samples),
         }
+    }
+
+    fn on_kernel_error(&mut self, frame: &Frame, t: f64) {
+        let decoded = decode_kernel_error(frame.can_id.get(), &frame.data);
+        self.errors.push(KernelErrorFrame {
+            t_s: ((self.span_s + t) * 1e6).round() / 1e6,
+            interface: frame.interface.clone(),
+            can_id: frame.can_id.to_canonical_hex(),
+            classes: decoded.classes,
+            ctrl: decoded.ctrl,
+            bus_off: decoded.bus_off,
+            restarted: decoded.restarted,
+        });
     }
 
     fn on_bus(&mut self, file: &mut FileState, interface: &str, t: f64) {
@@ -650,6 +756,7 @@ impl Analyzer {
                 ..self.non_neutral
             },
             bus: self.bus,
+            kernel_error_frames: self.errors,
         }
     }
 }
@@ -719,6 +826,30 @@ pub fn format_text(timing: &FirmwareTiming) -> String {
         "bus max_frames_per_10ms={} gaps_over_5ms={}\n",
         timing.bus.max_frames_per_10ms, timing.bus.gaps_over_5ms
     ));
+    out.push_str(&format!(
+        "kernel error frames: {}\n",
+        timing.kernel_error_frames.len()
+    ));
+    for err in timing
+        .kernel_error_frames
+        .iter()
+        .take(KERNEL_ERROR_TEXT_CAP)
+    {
+        let mut what = err.classes.join(",");
+        if !err.ctrl.is_empty() {
+            what.push_str(&format!("({})", err.ctrl.join(",")));
+        }
+        out.push_str(&format!(
+            "  t={:.6} {} {} {}\n",
+            err.t_s, err.interface, err.can_id, what
+        ));
+    }
+    if timing.kernel_error_frames.len() > KERNEL_ERROR_TEXT_CAP {
+        out.push_str(&format!(
+            "  ... and {} more\n",
+            timing.kernel_error_frames.len() - KERNEL_ERROR_TEXT_CAP
+        ));
+    }
     out
 }
 
@@ -965,6 +1096,7 @@ mod tests {
             "drives",
             "non_neutral_mit",
             "bus",
+            "kernel_error_frames",
         ] {
             assert!(value.get(key).is_some(), "{key}");
         }
@@ -993,5 +1125,79 @@ mod tests {
         assert!(value["non_neutral_mit"]["first_s"].is_null());
         assert!(value["bus"]["max_frames_per_10ms"].is_u64());
         assert!(d1["set_zero_silence_unobservable"].is_u64());
+    }
+    // `candump -t z` renders a kernel error frame with a trailing
+    // `ERRORFRAME` marker (can-utils lib.c): here an mcp251x RX-overflow
+    // report (CAN_ERR_CRTL, data[1] RX_OVERFLOW) between two drive reports.
+    const RX_OVERFLOW_BETWEEN_REPORTS: &str = "\
+(1.000000) can0 180001FD#7FFF7FF57FFF00E6
+(1.003000) can0 20000004 [8] 00 01 00 00 00 00 00 00   ERRORFRAME
+(1.006000) can0 180001FD#7FFF7FF57FFF00E6
+";
+
+    #[test]
+    fn kernel_error_frame_is_recorded_not_drive_traffic() {
+        let timing = run(RX_OVERFLOW_BETWEEN_REPORTS);
+        assert_eq!(timing.kernel_error_frames.len(), 1);
+        let err = &timing.kernel_error_frames[0];
+        assert_eq!(err.interface, "can0");
+        assert_eq!(err.can_id, "20000004");
+        assert_eq!(err.classes, ["ctrl"]);
+        assert_eq!(err.ctrl, ["rx_overflow"]);
+        assert!(!err.bus_off);
+        assert!(!err.restarted);
+        assert!((err.t_s - 0.003).abs() < 1e-9);
+        // The error frame is bus-state evidence, not traffic: the 6 ms
+        // drive gap stays one gap and the window holds two drive frames.
+        assert_eq!(timing.bus.gaps_over_5ms, 1);
+        assert_eq!(timing.bus.max_frames_per_10ms, 2);
+        assert_eq!(timing.non_neutral_mit.count, 0);
+        assert_eq!(drive(&timing, "can0/1").report_period_ms.n, 1);
+    }
+
+    #[test]
+    fn error_frame_bytes_never_read_as_mit() {
+        // Adversarial payload: every byte set, still a kernel error frame.
+        let timing = run("\
+(1.000000) can0 20000004 [8] FF FF FF FF FF FF FF FF   ERRORFRAME
+");
+        assert_eq!(timing.non_neutral_mit.count, 0);
+        assert!(timing.drives.is_empty());
+        assert_eq!(timing.kernel_error_frames.len(), 1);
+        let err = &timing.kernel_error_frames[0];
+        assert_eq!(err.classes, ["ctrl"]);
+        assert_eq!(
+            err.ctrl,
+            [
+                "rx_overflow",
+                "tx_overflow",
+                "rx_warning",
+                "tx_warning",
+                "rx_passive",
+                "tx_passive",
+                "active"
+            ]
+        );
+        // No drive traffic at all: the error frame leaves bus stats empty.
+        assert_eq!(timing.bus.gaps_over_5ms, 0);
+        assert_eq!(timing.bus.max_frames_per_10ms, 0);
+    }
+
+    #[test]
+    fn bus_off_and_restarted_classes_decode() {
+        let timing = run("\
+(1.000000) can0 20000040 [8] 00 00 00 00 00 00 00 00   ERRORFRAME
+(1.001000) can0 20000100 [8] 00 00 00 00 00 00 00 00   ERRORFRAME
+");
+        assert_eq!(timing.kernel_error_frames.len(), 2);
+        let off = &timing.kernel_error_frames[0];
+        assert_eq!(off.classes, ["busoff"]);
+        assert!(off.bus_off);
+        assert!(!off.restarted);
+        assert!(off.ctrl.is_empty());
+        let restarted = &timing.kernel_error_frames[1];
+        assert_eq!(restarted.classes, ["restarted"]);
+        assert!(restarted.restarted);
+        assert!(!restarted.bus_off);
     }
 }
