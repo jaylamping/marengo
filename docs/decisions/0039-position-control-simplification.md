@@ -1,7 +1,8 @@
 # ADR 0039: Position control simplification: drive-side PD on a feedback-scaled reference
 
 Status: Proposed, October 4, 2026. Phases 0 and 2 implemented October 4, 2026 (trace columns;
-the scaled-PD law in simulation, selectable per joint, every joint on the legacy law). When
+the scaled-PD law in simulation, selectable per joint, every joint on the legacy law). Open
+question 1 closed the same day: Davout bounds the predicted total MIT torque. When
 accepted, this supersedes these parts of
 [ADR 0007](0007-bench-position-trajectory-control.md):
 
@@ -163,24 +164,46 @@ invite an unmeasured value.
   (pitch: ~2.7 Nm/rad × 2.5 rad/s ≈ 7 Nm/s). The rate limiter becomes a non-binding guard. Any
   tick where it binds is logged and fails the bench metric.
 - **Drive kd is outside the τ_ff cap and the rate limit.** The torque bound is
-  `kp·e1 + kd·|v_c − dq| + |τ_ff|`. Davout already checks `kd/s² ≤ kd_max`. Before Phase 3,
-  verify that the drive enforces `motors.yaml` `bench.torque_limit_nm` on the total MIT torque
-  ([INFERENCE] today; open question 1).
-  - *Phase 2 status.* Davout bounds every input it owns, unchanged: kp and kd above the motor-type
-    maximum are refused (never clamped), `|v_des|` above the cap is refused, and τ_ff is capped
-    and rate limited whatever kd is (`torque_output_contract_drive_damping_is_bounded_and_tau_ff_stays_capped`).
-    It does not bound the drive-computed total. The worst case is large: on pitch
-    `kd·(|v_c| + |dq|)` alone reaches 3·(1.25 + 3.0) ≈ 13 Nm at the feedback-velocity fault
-    threshold, against `torque_limit_nm` 5.
-  - *Open question 1 is a Phase 3 entry gate, not answered here.* No tool reads 0x700B today. Before
-    any joint runs `scaled_pd` on hardware: read `limit_torque` on every drive, and run a
-    supported-arm test whose `kd·(v_des − dq)` alone exceeds `bench.torque_limit_nm`. If the
-    firmware does not clamp the total, Davout gets a total-torque estimate before Phase 3 (a
-    separate change). The trace's `tau_ff_wire`, `kd_mit`, `dq_ref` and `q_des` columns give the
-    bench the inputs of that bound every tick.
+  `kp·e1 + kd·|v_c − dq| + |τ_ff|`. Davout already checks `kd/s² ≤ kd_max`. On pitch
+  `kd·(|v_c| + |dq|)` alone reaches 3·(1.25 + 3.0) ≈ 13 Nm at the feedback-velocity fault
+  threshold, against `torque_limit_nm` 5. Phase 2 bounded only the inputs Davout owns: kp and kd
+  above the motor-type maximum are refused (never clamped), `|v_des|` above the cap is refused,
+  and τ_ff is capped and rate limited whatever kd is
+  (`torque_output_contract_drive_damping_is_bounded_and_tau_ff_stays_capped`).
+- **Total-torque bound (open question 1, closed October 4, 2026).**
+  - *Firmware.* No drive-side clamp can be relied on. The RS03 manual lists `limit_torque`
+    (0x700B, 0–60 Nm, W/R) with no mode qualifier, and gives the operation-mode law
+    `t_ref = Kd·(v_set − v) + Kp·(p_set − p) + t_ff` with no clamp. `limit_cur` (0x7018) is
+    scoped to the velocity and position modes. Marengo never reads or writes 0x700B
+    (`protocol-inspect` reads six other registers), so even a clamp would sit at an unread
+    value.
+  - *Davout.* `crates/davout/src/total_torque.rs` runs on every MIT command, after the τ_ff cap
+    and rate limiter, with the same per-joint cap (`tau_ff_max` ∩ `bench.torque_limit_nm` ∩
+    motor-type `tau_ff_max_nm` ∩ danger-zone `clamp_torque`). Predicted worst case from the
+    latest published `q` and `dq`:
+    `|kp·(q_des − q) + kd·(dq_des − dq) + τ_ff| + kp·max(|dq|, |dq_des|)·2/loop_hz + kd·0.1`.
+    The second term is the motion over one tick of transport delay plus the command's own
+    period. The third is the velocity-estimate margin, one reported quantum (~0.077 rad/s).
+  - *Clamp.* Above the cap, `q_des` moves toward `q` and `dq_des` toward `dq` by one factor
+    `λ ∈ [0, 1]`, the largest that fits. kp, kd and τ_ff are untouched. The drive torque
+    depends on λ only through `λ·(kp·e + kd·ė)`, which is continuous, so the clamp never steps
+    torque. It never moves a setpoint past or away from feedback. If τ_ff plus the margins
+    alone exceed the cap, the PD part goes to zero only when it adds to τ_ff.
+  - *Semantics.* A command already under the cap is sent bit for bit, so both laws behave as
+    before there. Clamps are counted per joint (`Supervisor::total_torque_clamp_count`) and
+    logged at most once per second. Non-finite inputs, cap or horizon are refused, as is a
+    clamped setpoint outside the hard limits (possible only while `q` is outside them).
+  - *Tests.* `torque_output_contract_predicted_total_torque_is_clamped_continuously` (wire
+    decode; without the clamp, 5.02 Nm at the first over-cap lead).
+    `scaled_pd_pitch_never_predicts_total_torque_above_the_cap`: pitch on `scaled_pd`, jammed
+    and then dragged down at 2.4 rad/s. Without the clamp it predicts 11.0 Nm.
+  - *Remaining bench check (Phase 3 entry).* With the arm supported, grep each qualification
+    run's bench log for `MIT total torque clamped`. A clamp on a normal move means the law or
+    its gains ask for more than the cap. The count is not yet in the trace or `SafetyState`.
 - **Danger zones.** `clamp_velocity` starts working: with kd > 0 the clamped `v_des` brakes.
   This changes behaviour for `elevated_shoulder_pitch_fall` (0.45 rad/s) and must be re-verified
-  with the arm supported. `clamp_torque` is unchanged.
+  with the arm supported. `clamp_torque` is unchanged. The total-torque clamp runs after them:
+  it may move `v_des` from the zone's limit toward `dq`, which caps braking at the torque cap.
 - **Envelope.** Unchanged. Davout clamps q_des using `max(|v_des|, |dq_meas|)`. `v_des = v_c`
   never exceeds the velocity cap, so Davout's `|v_des| > cap` refusal is never hit.
 - **Feedback velocity fault** (cap + 0.5 rad/s): unchanged. With continuous braking it should
@@ -332,11 +355,12 @@ Deviations from the plan above, each forced by the simulation or by arithmetic:
    - The per-joint `position_law` selector is in place, with every joint on `legacy`.
    - Gates: see Phase 2 results.
 4. **Phase 3: bench qualification, one joint at a time.** Not started; no joint selects the law.
-   - Entry gate: answer open question 1 first (see Davout interactions).
+   - Entry gate: open question 1 is closed (Davout bounds the total; see Davout interactions).
+     Check every run's bench log for total-torque clamps.
    - Order: pitch bare → pitch weighted → roll → elbow → yaws.
    - Use a per-joint `position_law: scaled_pd` key that exists only for the duration of this
      phase.
-   - Verify the drive torque limit and the danger-zone `clamp_velocity` behaviour with the arm
+   - Verify the total-torque clamp and the danger-zone `clamp_velocity` behaviour with the arm
      supported.
 5. **Phase 4: cutover and deletion, in one change.**
    - Remove the selection key, every heuristic and constant in the table above,
@@ -363,8 +387,9 @@ Deviations from the plan above, each forced by the simulation or by arithmetic:
 ## Open questions
 
 1. Does Robstride firmware clamp the *total* MIT torque at `limit_torque` (parameter 0x700B)
-   in operation mode? If not, Davout needs a total-torque estimate before Phase 3. Handling:
-   open, and a Phase 3 entry gate (Davout interactions); Phase 2 adds no total-torque guard.
+   in operation mode? **Closed October 4, 2026.** The vendor manual does not say so, and
+   Marengo never reads the value. Davout now bounds the predicted total itself (Davout
+   interactions, *Total-torque bound*).
 2. What is the drive's velocity estimator window? It sets the usable kd. The reported quantum
    is ~0.075 rad/s; kd 3 means 0.23 Nm per count.
 3. Should Phase 3 keep `e1 = position_slew_max_lead_rad` (0.10–0.12), or start smaller (lower

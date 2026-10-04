@@ -39,6 +39,7 @@ Branch `audit/wp-h`, against the assigned worktree baseline.
 - **A (recommended):** Bound the combined motor-space torque contribution (kp error + kd velocity error + feed-forward) against a defined total torque envelope, with explicit saturation/fault semantics and a position-error regression. This enforces a true total bound but changes impedance response and needs supported-arm validation.
 - **B:** Keep separate kp/kd/feed-forward caps. It preserves current response but does not satisfy a total-torque cap.
 - Recommendation: define whether the bound is a motor rating or configured bench limit and select saturation versus refusal before implementing A; do not infer a cap from the present feed-forward-only setting.
+- **Decision (2026-10-04, ADR 0039 open question 1):** A, as saturation. The bound is the configured joint torque cap (the τ_ff cap). Over it, Davout scales `q_des − q` and `dq_des − dq` by one factor; gains and τ_ff are unchanged. Non-finite inputs are refused. See `crates/davout/src/total_torque.rs`.
 
 ### L-davout-26 — CS14 danger zone
 - **A (recommended):** Add a fail-closed `fault/disable` action for dangerous measured states; this acts independently of MIT `kd`, but is abrupt and requires recovery semantics.
