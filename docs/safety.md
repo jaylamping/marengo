@@ -388,8 +388,8 @@ disables. The fault does not clear on its own.
   the pose is stale once a write goes unanswered for `comm_watchdog_ms`; the
   host's own silence does not age it. While the host keeps ticking nothing
   changes (a silent drive is revoked about one period later than before).
-  During a stall the drives keep the last command (no drive-side CAN
-  timeout is configured by Marengo; see the CanTimeout caveat below); the
+  During a stall shorter than the drive CanTimeout the drives keep the last
+  command (Marengo never configures it; the right arm reads 600 ≈ 30 ms, see below); the
   first batch after it is computed from a pose as old as the
   stall, through every filter unchanged, and the next reply refreshes it. A
   drive that died during the stall is revoked `comm_watchdog_ms` after the
@@ -473,12 +473,11 @@ disables. The fault does not clear on its own.
   so a killed or hung `marengo-pi` leaves each drive on its last MIT frame
   (including τ_g feed-forward). SIGTERM is handled (`finish_owner_shutdown`);
   SIGKILL, panic and a hung loop are not. Undecided, see
-  `docs/reviews/2026-10-03-crate-audit/phase-b/WP-I.md`. **Caveat:** on
-  2026-10-02 PR #254 wrote CanTimeout = 600 counts (~30 ms) to all five
-  right-arm drives and read 600 back on every later run; nothing records it
-  being cleared or the drives being power-cycled. The value may still be live,
-  so "no drive-side CAN timeout" is unverified on the bench until 0x7028 is read
-  back from each drive.
+  `docs/reviews/2026-10-03-crate-audit/phase-b/WP-I.md`. **Bench fact
+  (2026-10-03 `pi_protocol_inspect`, deploy 7b70624a):** all five right-arm
+  drives read CanTimeout = 600 (~30 ms), left there by PR #254 on 2026-10-02.
+  On this bench a host stall over ~30 ms therefore stops the drives
+  drive-side; whether the value survives a power cycle is unverified.
 
 ## When in doubt
 

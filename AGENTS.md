@@ -170,7 +170,7 @@ just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
   - No Enable or type-24 write before `POST_SET_ZERO_QUIET` = 800 ms. Type-24 writes are held from 450 ms.
   - `cargo test -p davout --test firmware_profile` guards the margin against `docs/commissioning/firmware/robstride-timing-profile.json`.
 - **RS03 MIT velocity scale is ±20 rad/s.** control.yaml values tuned under the old ±50 need bench re-checks. Never change physical tuning (gains, velocities, caps, limits) without bench evidence.
-- **E-stop GPIO is not wired;** the physical E-stop is authoritative. `marengo-pi.service` runs `ExecStopPost=-/opt/marengo/bin/motor-repl disable` on every exit. Marengo never writes a drive-side CAN timeout, but PR #254 wrote CanTimeout = 600 (~30 ms) to all five right-arm drives with no record of it being cleared: treat the drive timeout as unknown until 0x7028 is read back (`docs/safety.md`).
+- **E-stop GPIO is not wired;** the physical E-stop is authoritative. `marengo-pi.service` runs `ExecStopPost=-/opt/marengo/bin/motor-repl disable` on every exit. Marengo never writes a drive-side CAN timeout, but PR #254 wrote CanTimeout = 600 (~30 ms) to all five right-arm drives, and `pi_protocol_inspect` read 600 back on 2026-10-03: a host stall over ~30 ms stops the drives drive-side (`docs/safety.md`).
 
 ---
 
