@@ -11,7 +11,9 @@
 //! ## Does not
 //!
 //! - Forward/inverse kinematics for arbitrary frames (see [`armee_kinematics`] for limits/FK growth).
-//! - Coriolis, mass matrix, or contact dynamics (future extensions need a new ADR).
+//! - Coriolis, the full mass matrix, or contact dynamics (future extensions need a new ADR).
+//!   [`UrdfGravityModel::joint_inertia`] gives one joint's own inertia for calibration
+//!   analysis only (I·q̈ on bench waves); the control loop never uses it.
 //! - Send commands or read encoders (Berthier / robstride).
 //!
 //! ## Accuracy
@@ -62,6 +64,7 @@
 
 pub mod calibration;
 pub mod drive_loss;
+pub mod lumped;
 mod urdf_gravity;
 
 use std::path::Path;

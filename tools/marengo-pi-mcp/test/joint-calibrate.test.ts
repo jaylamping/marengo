@@ -12,15 +12,22 @@ import {
   type JointCalibrateArgs,
   type JointLimits,
   LIMIT_INSET_RAD,
+  MAX_WAVE_AMPLITUDE_RAD,
+  MIN_WAVE_AMPLITUDE_RAD,
+  MIN_WAVE_PEAK_SPEED_RAD_S,
   SPEED_CAP_SHARE,
   TAU_SAMPLE_STEP_RAD,
   checkJointCalLimits,
+  checkWavePoseSpacing,
   checkWaveSpeeds,
   defaultPoses,
   defaultVelocityPasses,
+  deriveWaveAmplitude,
   gravityBatchShell,
   guardConfigurations,
   jointCalibrationScript,
+  localWaves,
+  maxSweepTauAtPoses,
   parseGravityBatch,
   planJointCalibration,
   readJointLimits,
@@ -196,6 +203,7 @@ function plan(overrides: Partial<Parameters<typeof planJointCalibration>[0]> = {
     fixedRad: {},
     amplitudeFraction: 0.25,
     approachOffsetRad: 0.05,
+    method: "static",
     ...overrides,
   });
   assert.ok(p.ok, p.ok ? "" : p.message);
@@ -404,7 +412,7 @@ describe("pi_joint_calibrate refusals", () => {
   it("limit: a pose within 0.05 rad of the window refuses after the read-only pre-flight", async () => {
     const upper = repoLimits()[ELBOW].window.upper;
     const h = harness();
-    const out = await h.run({ ...OPT_INS, sweep_joint: ELBOW, poses_rad: [0.1, roundTo3(upper - 0.06)] });
+    const out = await h.run({ ...OPT_INS, method: "static", sweep_joint: ELBOW, poses_rad: [0.1, roundTo3(upper - 0.06)] });
     assert.match(out, /right_elbow_pitch step \d+ target .* is outside its allowed window .* shrunk by 0\.05 rad on each side\); no motion was run\./);
     assert.equal(h.bodies.length, 1, "only the pre-flight read ran");
     assert.deepEqual(h.audits, [{ tool: "pi_joint_calibrate", exitCode: 1 }]);
@@ -455,6 +463,7 @@ describe("pi_joint_calibrate refusals", () => {
     const h = harness();
     const out = await h.run({
       ...OPT_INS,
+      method: "static",
       sweep_joint: ELBOW,
       velocity_passes: { min_rad: 0.1, max_rad: 0.7, half_periods_s: [0.6], cycles: 1 },
     });
@@ -466,6 +475,7 @@ describe("pi_joint_calibrate refusals", () => {
     const h = harness();
     const out = await h.run({
       ...OPT_INS,
+      method: "static",
       sweep_joint: ELBOW,
       poses_rad: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45],
       settle_sec: 10,
@@ -479,7 +489,7 @@ describe("pi_joint_calibrate refusals", () => {
 describe("pi_joint_calibrate session and v2 plan.json", () => {
   it("runs one session and writes plan.json version 2 with session_complete true", async () => {
     const h = harness();
-    const out = await h.run({ ...OPT_INS, sweep_joint: ELBOW, fixed_rad: { [PITCH]: 0.5 } });
+    const out = await h.run({ ...OPT_INS, method: "static", sweep_joint: ELBOW, fixed_rad: { [PITCH]: 0.5 } });
     assert.equal(h.bodies.length, 6, "pre-flight, τ batch, gate snapshot, gate preview, session, trace");
     const session = h.bodies[4];
     const lines = stdinLines(session);
@@ -493,6 +503,7 @@ describe("pi_joint_calibrate session and v2 plan.json", () => {
       "created_utc",
       "session_ts",
       "profile",
+      "method",
       "sweep_joint",
       "fixed_rad",
       "poses_rad",
@@ -552,6 +563,134 @@ describe("pi_joint_calibrate session and v2 plan.json", () => {
     const planJson = JSON.parse(h.writes.get(`${CAL_DIR}/plan.json`) ?? "{}");
     assert.equal(planJson.session_complete, false);
     assert.deepEqual(h.audits, [{ tool: "pi_joint_calibrate", exitCode: 1 }]);
+  });
+});
+
+describe("pi_joint_calibrate wave method", () => {
+  const wavePlan = (joint: string, amplitudeRad: number, overrides: Partial<Parameters<typeof planJointCalibration>[0]> = {}) => {
+    const limits = repoLimits();
+    const waves = localWaves(joint, limits[joint], amplitudeRad, 200);
+    assert.ok(waves.ok, waves.ok ? "" : waves.message);
+    return plan({ sweepJoint: joint, method: "wave", waves: waves.waves, ...overrides });
+  };
+
+  it("reads kp, the friction breakaway and the loop rate from control.yaml", () => {
+    const read = readJointLimits(FILES, CHAIN);
+    assert.ok(read.ok);
+    assert.equal(read.loopHz, 200);
+    assert.equal(read.limits[PITCH].kp, 18);
+    assert.equal(read.limits[PITCH].breakawayNm, 0.08, "no fs: Coulomb fc");
+    assert.equal(read.limits[ELBOW].kp, 12);
+  });
+
+  it("amplitude = (F_s + 0.6 × max|τ_g|)/kp, at least the floor, refused above the cap", () => {
+    const pitch = repoLimits()[PITCH];
+    const derived = deriveWaveAmplitude(PITCH, pitch, 1.4);
+    assert.ok(derived.ok);
+    // (0.08 + 0.6 × 1.4) / 18 = 0.05111 → 0.052 (up to 1 mrad).
+    assert.equal(derived.amplitudeRad, 0.052);
+    assert.match(derived.basis, /F_s 0\.08 \+ 0\.6 × max\|τ_g\| 1\.400 Nm\) \/ kp 18/);
+    const floor = deriveWaveAmplitude(PITCH, pitch, 0);
+    assert.ok(floor.ok && floor.amplitudeRad === MIN_WAVE_AMPLITUDE_RAD);
+    const big = deriveWaveAmplitude(PITCH, pitch, 3);
+    assert.ok(!big.ok && /exceeds 0\.1 rad/.test(big.message));
+    const noKp = deriveWaveAmplitude(PITCH, { ...pitch, kp: undefined }, 1);
+    assert.ok(!noKp.ok && /impedance\.kp/.test(noKp.message));
+  });
+
+  it("speeds run from 0.2 rad/s to the admissible speed, with cycles enough for the centre bin", () => {
+    const limits = repoLimits();
+    for (const joint of CHAIN) {
+      for (const a of [MIN_WAVE_AMPLITUDE_RAD, 0.05, MAX_WAVE_AMPLITUDE_RAD]) {
+        const r = localWaves(joint, limits[joint], a, 200);
+        assert.ok(r.ok, r.ok ? "" : r.message);
+        const speeds = r.waves.passes.map((p) => wavePeakSpeed(-a, a, p.half_period_s));
+        assert.ok(speeds.length >= 2 && speeds.length <= 3, `${joint} ${a}: ${speeds}`);
+        assert.ok(speeds[0] >= MIN_WAVE_PEAK_SPEED_RAD_S, `${joint} ${a}: slowest ${speeds[0]}`);
+        for (const [i, p] of r.waves.passes.entries()) {
+          // Centre bin a/2 wide at 200 Hz: samples per direction ≥ 1.5 × 10.
+          assert.ok((p.cycles * (0.5 * a * 200)) / speeds[i] >= 15, `${joint} ${a} ${speeds[i]} × ${p.cycles}`);
+        }
+        const p = wavePlan(joint, a);
+        assert.deepEqual(checkWaveSpeeds(p, limits), { ok: true }, `${joint} ${a}`);
+      }
+    }
+    const slow = localWaves(PITCH, limits[PITCH], 0.05, 200, [0.1, 0.3]);
+    assert.ok(!slow.ok && /below 0\.2 rad\/s/.test(slow.message));
+  });
+
+  it("plans a park and one local wave per speed at every pose, centred on the pose", () => {
+    const limits = repoLimits();
+    for (const joint of CHAIN) {
+      const p = wavePlan(joint, MAX_WAVE_AMPLITUDE_RAD);
+      assert.equal(p.method, "wave");
+      assert.equal(p.waveAmplitudeRad, MAX_WAVE_AMPLITUDE_RAD);
+      assert.deepEqual(checkJointCalLimits(p, limits), { ok: true }, `${joint}: default poses leave room for the cap`);
+      assert.equal(p.steps.filter((s) => s.kind === "hold" && s.measure).length, 0, "no static holds");
+      p.posesRad.forEach((pose, i) => {
+        const waves = p.steps.filter((s) => s.kind === "wave" && s.pose_index === i);
+        assert.ok(waves.length >= 2, `${joint} pose ${i}`);
+        for (const w of waves) {
+          assert.ok(w.kind === "wave");
+          assert.ok(Math.abs((w.min_rad + w.max_rad) / 2 - pose) < 1e-9);
+          assert.ok(Math.abs(w.max_rad - w.min_rad - 2 * MAX_WAVE_AMPLITUDE_RAD) < 1e-9);
+        }
+        const park = p.steps[p.steps.indexOf(waves[0]) - 1];
+        assert.ok(park.kind === "hold" && waves[0].kind === "wave" && park.target_rad === waves[0].min_rad, "parked at the wave's start");
+      });
+      const script = jointCalibrationScript(p, { operator: "bench", settleSec: 2.5, measureSec: 1.5, returnHomeSec: 6 });
+      assert.ok(!script.includes("sleep 4"), "parks settle only (settle_sec), no measure dwell");
+      assert.ok(scriptSleepTotalSec(script) <= MAX_SESSION_SLEEP_SEC, `${joint} ${scriptSleepTotalSec(script)}`);
+      const motion = script.filter((l) => /^(hold-at|wave) /.test(l));
+      assert.equal(stepsSeenInTrace(p.steps, traceFor(motion)), p.steps.length);
+    }
+  });
+
+  it("poses closer than 2a refuse; τ at the poses comes from the guard batch", () => {
+    const close = wavePlan(PITCH, 0.05, { posesRad: [0, 0.09, 0.3] });
+    const spacing = checkWavePoseSpacing(close);
+    assert.ok(!spacing.ok && /0\.09 rad apart, not more than 2 × wave amplitude 0\.05 rad/.test(spacing.message));
+    const p = wavePlan(PITCH, 0.05, { posesRad: [-0.4, 0, 0.4] });
+    const configs = guardConfigurations(p);
+    const tau = new Map(configs.map((c, i) => [i, { [PITCH]: 2 * Math.sin(c[PITCH] ?? 0) }]));
+    assert.ok(Math.abs((maxSweepTauAtPoses(p, configs, tau) ?? 0) - 2 * Math.sin(0.4)) < 1e-12);
+  });
+
+  it("runs a wave session by default: τ batch, derived amplitude, plan.json method wave", async () => {
+    const tauOf = (q: number) => Math.round(2.4 * Math.sin(q) * 1e4) / 1e4;
+    const h = harness({ tau: (q) => ({ [PITCH]: tauOf(q[PITCH] ?? 0) }) });
+    const out = await h.run({ ...OPT_INS, sweep_joint: PITCH });
+    assert.equal(h.bodies.length, 6, "pre-flight, τ batch, gate snapshot, gate preview, session, trace");
+    assert.match(h.bodies[1], /@@gravcal_pose/);
+    const planJson = JSON.parse(h.writes.get(`${CAL_DIR}/plan.json`) ?? "{}");
+    assert.equal(planJson.method, "wave");
+    assert.equal(planJson.session_complete, true);
+    const poses: number[] = planJson.poses_rad;
+    const expectedPoses = defaultPoses(repoLimits()[PITCH].window, 0.25, MAX_WAVE_AMPLITUDE_RAD);
+    assert.ok(expectedPoses.ok);
+    assert.deepEqual(poses, expectedPoses.poses);
+    const maxTau = Math.max(...poses.map((q) => Math.abs(tauOf(q))));
+    const expected = deriveWaveAmplitude(PITCH, repoLimits()[PITCH], maxTau);
+    assert.ok(expected.ok);
+    assert.equal(planJson.wave_amplitude_rad, expected.amplitudeRad);
+    assert.ok(!("approach_offset_rad" in planJson) && !("measure_sec" in planJson));
+    const waves = planJson.steps.filter((s: { kind: string }) => s.kind === "wave");
+    assert.equal(new Set(waves.map((w: { pose_index: number }) => w.pose_index)).size, poses.length);
+    assert.match(h.writes.get(`${CAL_DIR}/bench-session.txt`) ?? "", /wave amplitude 0\.\d+ rad = max\(0\.025, \(F_s 0\.08/);
+    assert.equal(h.fits.length, 1);
+    assert.match(out, /gravity-fit: proposal written/);
+    assert.deepEqual(h.audits, [{ tool: "pi_joint_calibrate", exitCode: 0 }]);
+  });
+
+  it("velocity_passes belong to the static method", async () => {
+    const h = harness();
+    const out = await h.run({
+      ...OPT_INS,
+      sweep_joint: ELBOW,
+      velocity_passes: { min_rad: 0.1, max_rad: 0.3, half_periods_s: [1], cycles: 1 },
+    });
+    assert.match(out, /^Refused: velocity_passes is for method static/);
+    assert.equal(h.bodies.length, 1, "pre-flight only");
   });
 });
 

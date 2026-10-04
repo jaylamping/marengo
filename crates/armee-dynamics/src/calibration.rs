@@ -214,6 +214,10 @@ pub enum CalibrationError {
     },
     #[error("unknown fit joint {joint}")]
     UnknownFitJoint { joint: String },
+    /// No COM shift of the allowed links reproduces the lumped targets
+    /// ([`crate::lumped::lumped_com_patch`]).
+    #[error("lumped COM patch: {reason}")]
+    LumpedUnreachable { reason: String },
 }
 
 /// Why no change is proposed (or that one is).

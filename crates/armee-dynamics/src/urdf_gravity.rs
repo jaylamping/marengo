@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use armee_kinematics::load_urdf;
-use nalgebra::{Isometry3, Point3, Rotation3, Translation3, Unit, Vector3};
+use nalgebra::{Isometry3, Matrix3, Point3, Rotation3, Translation3, Unit, Vector3};
 use urdf_rs::{JointType, Robot};
 
 use crate::{DynamicsError, PureGravityTorque};
@@ -176,6 +176,56 @@ impl UrdfGravityModel {
             })
             .map(|(index, _)| index)
             .collect())
+    }
+
+    /// Moment of inertia (kg·m²) of everything `joint` carries about its own axis at pose
+    /// `q`: Σ m·|a × (c − o)|² + aᵀ·I_c·a over the downstream links (COM `c`, link inertia
+    /// tensor `I_c` rotated into the world). It is the joint's diagonal entry of the mass
+    /// matrix, for calibration analysis (I·q̈ on bench waves) only, never for control.
+    /// Actuator rotor inertia is not in the URDF and is not included.
+    pub fn joint_inertia(&self, joint: &str, q: &[f64]) -> Result<f64, DynamicsError> {
+        let idx = self
+            .robot
+            .joints
+            .iter()
+            .position(|j| j.name == joint)
+            .ok_or_else(|| DynamicsError::UnknownJoint {
+                joint: joint.to_string(),
+            })?;
+        let q_map = self.q_map(q)?;
+        let urdf_joint = &self.robot.joints[idx];
+        // The child frame sits on the joint axis; the joint's own rotation leaves it fixed.
+        let frame = self.link_transform(&urdf_joint.child.link, &q_map);
+        let a = urdf_joint.axis.xyz.0;
+        let axis = Unit::new_normalize(frame.rotation * Vector3::new(a[0], a[1], a[2]));
+        let origin = frame.translation.vector;
+        let mut inertia = 0.0;
+        for link in &self.robot.links {
+            let carried = self
+                .link_chains
+                .get(&link.name)
+                .is_some_and(|chain| chain.contains(&idx));
+            let mass = link.inertial.mass.value;
+            if !carried || mass <= 0.0 {
+                continue;
+            }
+            let inertial =
+                self.link_transform(&link.name, &q_map) * pose_to_isometry(&link.inertial.origin);
+            let lever = axis.cross(&(inertial.translation.vector - origin));
+            let t = &link.inertial.inertia;
+            let local = Matrix3::new(
+                t.ixx, t.ixy, t.ixz, t.ixy, t.iyy, t.iyz, t.ixz, t.iyz, t.izz,
+            );
+            let rotation = inertial.rotation.to_rotation_matrix();
+            let world = rotation.matrix() * local * rotation.matrix().transpose();
+            inertia += mass * lever.norm_squared() + axis.dot(&(world * axis.into_inner()));
+        }
+        if !inertia.is_finite() {
+            return Err(DynamicsError::NonFiniteInput {
+                what: "joint inertia",
+            });
+        }
+        Ok(inertia)
     }
 
     /// Joint-space holding torque (Nm) of a **unit** point mass fixed at `point_m` in
