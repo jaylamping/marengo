@@ -201,10 +201,13 @@ export function suiteBand(g: SuiteGeometry, fraction: number): [number, number] 
   return [ceilMrad(start), floorMrad(start + width)];
 }
 
-/** Half period (0.01 s, rounded up) of a single-cycle wave over `span` at `share` × v_adm(span). */
-export function suiteWaveHalfPeriod(limits: JointLimits, span: number, share: number): number {
-  const v = share * admissibleWaveSpeed(limits, span);
-  return Math.ceil(((Math.PI * span) / (2 * v)) * 100 - 1e-9) / 100;
+/**
+ * Half period (0.01 s, rounded up) of a single-cycle wave over [a, b] at `share` × the speed
+ * marengo-pi admits for that band (danger-zone descent cap included).
+ */
+export function suiteWaveHalfPeriod(limits: JointLimits, a: number, b: number, share: number): number {
+  const v = share * admissibleWaveSpeed(limits, a, b);
+  return Math.ceil(((Math.PI * (b - a)) / (2 * v)) * 100 - 1e-9) / 100;
 }
 
 /** Time a rest-to-rest trapezoid at speed v and accel a needs for distance d. */
@@ -317,7 +320,7 @@ function renderBlock(block: Block, start: number, g: SuiteGeometry, limits: Join
   const r: Rendered = { lines: [], steps: [], end: start };
   for (const op of block) {
     if (op.kind === "wave") {
-      const half = suiteWaveHalfPeriod(limits, op.b - op.a, op.share);
+      const half = suiteWaveHalfPeriod(limits, op.a, op.b, op.share);
       r.lines.push(`wave ${J} ${String(op.a)} ${String(op.b)} 1 ${String(half)}`, `sleep ${ceilTenth(2 * half + WAVE_END_SLACK_SEC)}`);
       r.steps.push({ kind: "wave", joint: J, min_rad: op.a, max_rad: op.b, cycles: 1, half_period_s: half });
       r.end = op.a;

@@ -181,8 +181,9 @@ impl UrdfGravityModel {
     /// Moment of inertia (kg·m²) of everything `joint` carries about its own axis at pose
     /// `q`: Σ m·|a × (c − o)|² + aᵀ·I_c·a over the downstream links (COM `c`, link inertia
     /// tensor `I_c` rotated into the world). It is the joint's diagonal entry of the mass
-    /// matrix, for calibration analysis (I·q̈ on bench waves) only, never for control.
-    /// Actuator rotor inertia is not in the URDF and is not included.
+    /// matrix. Calibration analysis uses it for I·q̈ on bench waves; Berthier evaluates it once
+    /// at load (zero pose) as the scaled-PD law's `J·a` feed-forward constant (ADR 0039), never
+    /// per tick. Actuator rotor inertia is not in the URDF and is not included.
     pub fn joint_inertia(&self, joint: &str, q: &[f64]) -> Result<f64, DynamicsError> {
         let idx = self
             .robot

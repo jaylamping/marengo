@@ -25,6 +25,7 @@ fn params() -> HoldJointParams {
         limit_policy: None,
         tau_meas: 0.0,
         law: HoldLaw::Legacy,
+        descent_cap: None,
     }
 }
 
@@ -424,6 +425,7 @@ fn wave_velocity_feedforward_follows_the_wave_above_slew_speed() {
         e1: 0.12,
         integral_band: 0.02,
         integral_leak_s: 0.5,
+        inertia: 0.0,
         friction: None,
     };
     for law in [HoldLaw::Legacy, HoldLaw::ScaledPd(scaled)] {

@@ -335,8 +335,8 @@ fn valid_output_only_cap_and_watchdog_changes_preserve_reference() {
         .motor_type_defaults
         .get_mut("rs03")
         .expect("type policy")
-        // Above master pitch friction (fs = fc 0.3526 Nm), which validation requires.
-        .tau_ff_max_nm = 0.4;
+        // Above master pitch static friction (fs 0.65 Nm), which validation requires.
+        .tau_ff_max_nm = 0.7;
     supervisor
         .set_homing_complete()
         .expect("validated compatible output policy");

@@ -29,8 +29,8 @@ use crate::gain_runtime::{
 };
 use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
-    HoldError, HoldFuseTrip, HoldJointDiag, HoldJointParams, HoldLaw, HoldRetarget, HoldWorld,
-    PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
+    DescentCap, HoldError, HoldFuseTrip, HoldJointDiag, HoldJointParams, HoldLaw, HoldRetarget,
+    HoldWorld, PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
 };
 use crate::position_law::{ReferenceFriction, ScaledPdGains};
 use crate::position_profile::position_profile_v_max;
@@ -88,6 +88,17 @@ pub enum LoopError {
         quantity: &'static str,
         requested: f64,
         limit: f64,
+    },
+    #[error(
+        "position wave on {joint}: descends at up to {requested:.4} rad/s above {above_rad:.4} rad, where danger zone(s) {zones} clamp descent to {limit:.4} rad/s; use a half period of at least {min_half_period_s:.2} s"
+    )]
+    WaveExceedsDangerZone {
+        joint: String,
+        zones: String,
+        above_rad: f64,
+        requested: f64,
+        limit: f64,
+        min_half_period_s: f64,
     },
     #[error("position hold: target for {joint} must be finite (got {value})")]
     NonFiniteTarget { joint: String, value: f64 },
@@ -170,6 +181,9 @@ impl From<HoldError> for LoopError {
 pub struct ControlLoop<B: MotorBus> {
     supervisor: Supervisor<B>,
     dynamics: UrdfGravityModel,
+    /// Per joint, the URDF inertia about its axis at the zero pose (kg·m²): the scaled-PD
+    /// `J·a` feed-forward constant (ADR 0039). Rotor inertia is not in the URDF.
+    reference_inertia: Vec<f64>,
     /// Repo root for commissioning-scope / robot.yaml resolution on re-arm.
     repo_root: PathBuf,
     joint_names: Vec<String>,
@@ -434,6 +448,11 @@ impl<B: MotorBus> ControlLoop<B> {
         let joint_names = robot.robot.joints.clone();
         let urdf = resolve_urdf_path(root, &robot)?;
         let dynamics = UrdfGravityModel::from_urdf(&urdf, &joint_names)?;
+        let zero_pose = vec![0.0; joint_names.len()];
+        let reference_inertia = joint_names
+            .iter()
+            .map(|joint| dynamics.joint_inertia(joint, &zero_pose))
+            .collect::<Result<Vec<_>, _>>()?;
         let supervisor = build_supervisor(root, bus)?;
         let progress_thresholds = joint_names
             .iter()
@@ -443,6 +462,7 @@ impl<B: MotorBus> ControlLoop<B> {
         Ok(Self {
             supervisor,
             dynamics,
+            reference_inertia,
             repo_root: root.to_path_buf(),
             joint_names,
             control_mode: ControlMode::Disabled,
@@ -848,6 +868,9 @@ impl<B: MotorBus> ControlLoop<B> {
     /// - Peak speed `A·ω` within the Davout velocity cap and the joint's configured
     ///   `position_trajectory_velocity_rad_s`.
     /// - Peak acceleration `A·ω²` within `position_trajectory_accel_rad_s2`.
+    /// - Descent above a `clamp_velocity` danger zone's threshold within its speed (see
+    ///   [`DescentCap::wave_descent_speed`]): Davout would clamp the MIT velocity there, and
+    ///   with drive damping the clamp brakes against the wave and steps torque on release.
     ///
     /// `A = (max − min)/2` and `ω = π / T` use the tick-quantized half period `T`, so a tiny
     /// `half_period_sec` that rounds to one tick is judged at its true speed.
@@ -898,6 +921,28 @@ impl<B: MotorBus> ControlLoop<B> {
                     quantity: "acceleration (rad/s²)",
                     requested: peak_accel,
                     limit: accel_limit,
+                });
+            }
+        }
+        let zones = &self.supervisor.control.control.danger_zones;
+        if let Some(cap) = DescentCap::from_zones(zones, joint) {
+            let factor = cap.wave_descent_speed(min_rad, max_rad, 1.0);
+            let descent = peak_speed * factor;
+            if descent > cap.max_velocity_rad_s {
+                let names = zones
+                    .iter()
+                    .filter(|z| z.joint == joint && z.action == "clamp_velocity")
+                    .map(|z| z.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Err(LoopError::WaveExceedsDangerZone {
+                    joint: joint.to_string(),
+                    zones: names,
+                    above_rad: cap.above_rad,
+                    requested: descent,
+                    limit: cap.max_velocity_rad_s,
+                    min_half_period_s: std::f64::consts::PI * amplitude * factor
+                        / cap.max_velocity_rad_s,
                 });
             }
         }
@@ -1728,6 +1773,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                         e1: c.time_scale_e1_rad(),
                                         integral_band: c.integral_band_rad(),
                                         integral_leak_s: c.integral_leak_s(),
+                                        inertia: self.reference_inertia[i],
                                         friction: Some(ReferenceFriction::from_gains(
                                             &c.friction,
                                             r.law_fc,
@@ -1774,6 +1820,10 @@ impl<B: MotorBus> ControlLoop<B> {
                                 limit_policy: self.supervisor.joint_limit_policy(name).cloned(),
                                 tau_meas: self.joint_torque(name),
                                 law,
+                                descent_cap: DescentCap::from_zones(
+                                    &self.supervisor.control.control.danger_zones,
+                                    name,
+                                ),
                             }
                         })
                         .collect();

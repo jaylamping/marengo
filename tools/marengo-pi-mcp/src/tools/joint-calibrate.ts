@@ -176,6 +176,18 @@ export interface JointLimits {
   kp?: number;
   /** control.yaml friction breakaway `fs`, else Coulomb `fc` (Nm). */
   breakawayNm?: number;
+  /**
+   * Tightest `control.danger_zones` `clamp_velocity` rule naming the joint: the lowest
+   * threshold and the lowest speed over all of them (marengo-pi `DescentCap::from_zones`).
+   */
+  descentCap?: DescentCap;
+}
+
+/** Davout clamps the MIT velocity of a joint descending above `aboveRad` to `maxVelocityRadS`. */
+export interface DescentCap {
+  zones: string[];
+  aboveRad: number;
+  maxVelocityRadS: number;
 }
 
 /** Local waves of the wave method: amplitude and one (half period, cycles) per speed. */
@@ -235,13 +247,35 @@ export function wavePeakSpeed(minRad: number, maxRad: number, halfPeriodS: numbe
   return (Math.PI * (maxRad - minRad)) / (2 * halfPeriodS);
 }
 
-/** Highest wave peak speed marengo-pi admits for `span`, within 80 % of the velocity cap. */
-export function admissibleWaveSpeed(limits: JointLimits, span: number): number {
+/**
+ * Share of a raised-cosine wave's peak speed spent descending while q is above `aboveRad`:
+ * q = c + A·cos θ descends at A·ω·sin θ, so above max(aboveRad, c) the speed is at most
+ * peak·√(1 − u²), u = (max(aboveRad, c) − c)/A; 0 when the band stays at or below the
+ * threshold. Mirrors marengo-pi `DescentCap::wave_descent_speed`.
+ */
+export function waveDescentFactor(minRad: number, maxRad: number, aboveRad: number): number {
+  if (!(maxRad > aboveRad)) return 0;
+  const center = (minRad + maxRad) / 2;
+  const amplitude = (maxRad - minRad) / 2;
+  const u = Math.min(1, Math.max(0, (Math.max(aboveRad, center) - center) / amplitude));
+  return Math.sqrt(1 - u * u);
+}
+
+/**
+ * Highest wave peak speed marengo-pi admits for a wave over [minRad, maxRad]: within 80 % of
+ * the velocity cap, the trajectory speed and acceleration, and the joint's descent cap above
+ * its danger-zone threshold (no extra share: marengo-pi admits up to the cap itself).
+ */
+export function admissibleWaveSpeed(limits: JointLimits, minRad: number, maxRad: number): number {
+  const span = maxRad - minRad;
+  const cap = limits.descentCap;
+  const factor = cap === undefined ? 0 : waveDescentFactor(minRad, maxRad, cap.aboveRad);
   return Math.min(
     SPEED_CAP_SHARE * limits.velocityCapRadS,
     limits.trajectoryVelocityRadS ?? Number.POSITIVE_INFINITY,
     // Peak acceleration (span/2)·ω² with ω = v/(span/2): v² ≤ accel · span/2.
     limits.trajectoryAccelRadS2 === undefined ? Number.POSITIVE_INFINITY : Math.sqrt((limits.trajectoryAccelRadS2 * span) / 2),
+    cap === undefined || factor === 0 ? Number.POSITIVE_INFINITY : cap.maxVelocityRadS / factor,
   );
 }
 
@@ -256,7 +290,7 @@ export function defaultVelocityPasses(poses: readonly number[], limits: JointLim
   const half = Math.min(DEFAULT_WAVE_SPAN_RAD, b - a) / 2;
   const minRad = ceilMrad(center - half);
   const maxRad = floorMrad(center + half);
-  const vMax = admissibleWaveSpeed(limits, maxRad - minRad);
+  const vMax = admissibleWaveSpeed(limits, minRad, maxRad);
   const halfPeriods = DEFAULT_WAVE_SPEED_SHARES.map(
     (share) => Math.ceil((Math.PI * (maxRad - minRad) * 20) / (2 * share * vMax)) / 20,
   );
@@ -419,7 +453,8 @@ export function deriveWaveAmplitude(
  * {@link MIN_WAVE_PEAK_SPEED_RAD_S} to what marengo-pi admits within 80 % of the velocity cap),
  * half period π·a/v to 0.01 s (the slowest rounded down, the others up, so every speed stays in
  * that band), and per speed enough cycles for gravity-fit's centre bin to collect
- * 1.5 × 10 samples per direction at `loopHz`.
+ * 1.5 × 10 samples per direction at `loopHz`. The admissible speed is the lowest over the waves
+ * centred on `centersRad` (the poses; a danger-zone descent cap depends on where a wave runs).
  */
 export function localWaves(
   joint: string,
@@ -427,8 +462,9 @@ export function localWaves(
   amplitudeRad: number,
   loopHz: number,
   speedsRadS?: readonly number[],
+  centersRad: readonly number[] = [0],
 ): { ok: true; waves: LocalWaves } | Refusal {
-  const vMax = admissibleWaveSpeed(limits, 2 * amplitudeRad);
+  const vMax = Math.min(...centersRad.map((c) => admissibleWaveSpeed(limits, c - amplitudeRad, c + amplitudeRad)));
   let speeds: number[];
   if (speedsRadS === undefined) {
     if (!(vMax > MIN_WAVE_PEAK_SPEED_RAD_S)) {
@@ -548,6 +584,8 @@ export function readJointLimits(
     return { ok: false, message: "Refused: Pi robot.yaml robot.joints missing or invalid; no motion was run." };
   }
   const groups = yamlGet(control, "control", "actuator_groups");
+  const zoneList = yamlGet(control, "control", "danger_zones");
+  const zones = Array.isArray(zoneList) ? zoneList : [];
   const limits: Record<string, JointLimits> = {};
   for (const joint of joints) {
     if (!robotJoints.includes(joint)) {
@@ -601,6 +639,7 @@ export function readJointLimits(
       trajectoryThresholdRad: yamlNumber(yamlGet(entry, "position_trajectory_threshold_rad")),
       kp: yamlNumber(yamlGet(entry, "impedance", "kp")),
       breakawayNm: yamlNumber(yamlGet(friction, "fs")) ?? yamlNumber(yamlGet(friction, "fc")),
+      descentCap: descentCapFor(zones, joint),
     };
   }
   return { ok: true, limits, robotJoints, loopHz: yamlNumber(yamlGet(control, "control", "loop_hz")) };
@@ -679,8 +718,39 @@ export function checkWaveSpeeds(
         message: `Refused: ${wave} peaks at ${fmt(accel)} rad/s², above position_trajectory_accel_rad_s2 ${l.trajectoryAccelRadS2}; marengo-pi would refuse it. No motion was run.`,
       };
     }
+    const cap = l.descentCap;
+    if (cap !== undefined) {
+      const descent = peak * waveDescentFactor(s.min_rad, s.max_rad, cap.aboveRad);
+      if (descent > cap.maxVelocityRadS) {
+        return {
+          ok: false,
+          message:
+            `Refused: ${wave} descends at up to ${fmt(descent)} rad/s above ${cap.aboveRad} rad, where danger zone ` +
+            `${cap.zones.join(", ")} clamps descent to ${cap.maxVelocityRadS} rad/s; marengo-pi would refuse it. No motion was run.`,
+        };
+      }
+    }
   }
   return { ok: true };
+}
+
+/** {@link DescentCap} over the `clamp_velocity` zones naming `joint`, or undefined. */
+function descentCapFor(zones: readonly YamlNode[], joint: string): DescentCap | undefined {
+  let cap: DescentCap | undefined;
+  for (const z of zones) {
+    if (yamlGet(z, "joint") !== joint || yamlGet(z, "action") !== "clamp_velocity") continue;
+    const above = yamlNumber(yamlGet(z, "position_above_rad"));
+    const speed = yamlNumber(yamlGet(z, "max_velocity_rad_s"));
+    const name = yamlGet(z, "name");
+    // marengo-pi refuses a zone without these at load, so a planner never sees one.
+    if (above === undefined || speed === undefined) continue;
+    cap = {
+      zones: [...(cap?.zones ?? []), typeof name === "string" ? name : "unnamed"],
+      aboveRad: Math.min(cap?.aboveRad ?? above, above),
+      maxVelocityRadS: Math.min(cap?.maxVelocityRadS ?? speed, speed),
+    };
+  }
+  return cap;
 }
 
 /** Points from `a` to `b` (both included) at most TAU_SAMPLE_STEP_RAD apart. */
@@ -1143,7 +1213,14 @@ export function registerJointCalibrateTools(
           if (read.loopHz === undefined || !(read.loopHz > 0)) {
             return refused("Refused: Pi control.yaml control.loop_hz missing; wave cycles cannot be sized. No motion was run.");
           }
-          const waves = localWaves(sweepJoint, sweepLimits, amplitudeRad, read.loopHz, args.wave_speeds_rad_s);
+          const waves = localWaves(
+            sweepJoint,
+            sweepLimits,
+            amplitudeRad,
+            read.loopHz,
+            args.wave_speeds_rad_s,
+            envelope.posesRad,
+          );
           if (!waves.ok) return refused(waves.message);
           if (args.wave_cycles !== undefined) {
             for (const p of waves.waves.passes) p.cycles = args.wave_cycles;

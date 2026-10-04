@@ -65,11 +65,11 @@ const TOTAL_TORQUE_VELOCITY_MARGIN_RAD_S: f64 = 0.1;
 /// Δq over 50 ms, so one encoder count is 8 mrad/s rather than one 0.077 rad/s quantum.
 const SPEED_WINDOW_TICKS: usize = 10;
 
-fn rs03_count() -> f64 {
+pub(super) fn rs03_count() -> f64 {
     f64::from(4.0 * std::f32::consts::PI) / 32767.0
 }
 
-fn progress_threshold() -> f64 {
+pub(super) fn progress_threshold() -> f64 {
     let span = f64::from(4.0 * std::f32::consts::PI);
     span / 32767.0 / 2.0 + 16.0 * f64::from(f32::EPSILON) * span
 }
@@ -101,6 +101,8 @@ fn params(law: Law) -> HoldJointParams {
             e1: LEAD,
             integral_band: marengo_config::DEFAULT_POSITION_INTEGRAL_BAND_RAD,
             integral_leak_s: marengo_config::DEFAULT_POSITION_INTEGRAL_LEAK_S,
+            // The Phase 2 plant gates predate the J·a feed-forward; they keep it off.
+            inertia: 0.0,
             friction: Some(ReferenceFriction::from_gains(&friction_gains(), None)),
         }),
     };
@@ -121,6 +123,7 @@ fn params(law: Law) -> HoldJointParams {
         limit_policy: None,
         tau_meas: 0.0,
         law: hold_law,
+        descent_cap: None,
     }
 }
 
@@ -561,7 +564,7 @@ fn repo() -> PathBuf {
 
 /// Master pitch parameters (resolved like `ControlLoop` does for Position mode), the master
 /// URDF's lumped pitch τ_g at the other joints' zero pose, and its pitch inertia.
-fn master_pitch() -> (HoldJointParams, (f64, f64), f64) {
+pub(super) fn master_pitch() -> (HoldJointParams, (f64, f64), f64) {
     let config = repo().join("config");
     let control = marengo_config::load_control_config_from(&config).expect("control.yaml");
     let joints = marengo_config::load_robot_config_from(&config)
@@ -571,6 +574,12 @@ fn master_pitch() -> (HoldJointParams, (f64, f64), f64) {
     let entry = control.control.joints.get(PITCH).expect("pitch entry");
     let cap = marengo_config::resolve_joint_velocity_cap(PITCH, entry.motor_type, &control.control)
         .expect("velocity cap");
+    let urdf = gravity_model_from_urdf(repo().join("assets/urdf/marengo.urdf"), &joints)
+        .expect("master URDF");
+    let zero = vec![0.0; joints.len()];
+    let terms = lumped_terms(&urdf, PITCH, &zero).expect("lumped pitch τ_g");
+    // Like `ControlLoop`: the URDF inertia at the zero pose is the law's J·a constant.
+    let inertia = urdf.joint_inertia(PITCH, &zero).expect("pitch inertia");
     let law = match entry.position_law {
         PositionLaw::ScaledPd => HoldLaw::ScaledPd(ScaledPdGains {
             kd: entry.impedance.kd,
@@ -578,6 +587,7 @@ fn master_pitch() -> (HoldJointParams, (f64, f64), f64) {
             e1: entry.time_scale_e1_rad(),
             integral_band: entry.integral_band_rad(),
             integral_leak_s: entry.integral_leak_s(),
+            inertia,
             friction: Some(ReferenceFriction::from_gains(&entry.friction, None)),
         }),
         PositionLaw::Legacy => HoldLaw::Legacy,
@@ -599,12 +609,8 @@ fn master_pitch() -> (HoldJointParams, (f64, f64), f64) {
         limit_policy: None,
         tau_meas: 0.0,
         law,
+        descent_cap: DescentCap::from_zones(&control.control.danger_zones, PITCH),
     };
-    let urdf = gravity_model_from_urdf(repo().join("assets/urdf/marengo.urdf"), &joints)
-        .expect("master URDF");
-    let zero = vec![0.0; joints.len()];
-    let terms = lumped_terms(&urdf, PITCH, &zero).expect("lumped pitch τ_g");
-    let inertia = urdf.joint_inertia(PITCH, &zero).expect("pitch inertia");
     (params, (terms.a_nm, terms.b_nm), inertia)
 }
 

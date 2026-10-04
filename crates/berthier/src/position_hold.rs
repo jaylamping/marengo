@@ -300,6 +300,63 @@ impl HoldLaw {
     }
 }
 
+/// Descent speed cap from Davout `clamp_velocity` danger zones (`control.danger_zones`): while
+/// the joint is above `above_rad` and descending, Davout clamps the MIT velocity to
+/// `max_velocity_rad_s`. Under drive damping that clamp brakes against a faster reference and
+/// steps the drive torque when it releases, so the reference itself respects it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DescentCap {
+    pub above_rad: f64,
+    pub max_velocity_rad_s: f64,
+}
+
+impl DescentCap {
+    /// The tightest cap over the joint's `clamp_velocity` zones: the lowest threshold and the
+    /// lowest speed, so the result covers every zone. `None` when no zone names the joint.
+    pub fn from_zones(zones: &[marengo_config::DangerZoneRule], joint: &str) -> Option<Self> {
+        zones
+            .iter()
+            .filter(|z| z.joint == joint && z.action == "clamp_velocity")
+            .fold(None, |acc: Option<Self>, z| {
+                Some(match acc {
+                    None => Self {
+                        above_rad: z.position_above_rad,
+                        max_velocity_rad_s: z.max_velocity_rad_s,
+                    },
+                    Some(cap) => Self {
+                        above_rad: cap.above_rad.min(z.position_above_rad),
+                        max_velocity_rad_s: cap.max_velocity_rad_s.min(z.max_velocity_rad_s),
+                    },
+                })
+            })
+    }
+
+    /// Reference speed limit for one tick: capped while the reference moves down
+    /// (`target < q_ref`) with the reference or the measured joint above the threshold (Davout
+    /// tests measured q, which lags a descending reference).
+    pub fn limit(&self, v_max: f64, q_ref: f64, q: f64, target: f64) -> f64 {
+        if target < q_ref && q_ref.max(q) > self.above_rad {
+            v_max.min(self.max_velocity_rad_s)
+        } else {
+            v_max
+        }
+    }
+
+    /// Largest descending speed of a raised-cosine wave over `[min_rad, max_rad]` with peak
+    /// speed `peak` while q is above the threshold: `q = c + A·cos θ` descends at `A·ω·sin θ`,
+    /// so above `max(above, c)` the speed is at most `peak·√(1 − u²)`, `u = (max(above, c) −
+    /// c)/A`. Zero when the band stays at or below the threshold.
+    pub fn wave_descent_speed(&self, min_rad: f64, max_rad: f64, peak: f64) -> f64 {
+        if max_rad <= self.above_rad {
+            return 0.0;
+        }
+        let center = 0.5 * (min_rad + max_rad);
+        let amplitude = 0.5 * (max_rad - min_rad);
+        let u = ((self.above_rad.max(center) - center) / amplitude).clamp(0.0, 1.0);
+        peak * (1.0 - u * u).sqrt()
+    }
+}
+
 /// Per-joint config + measurements needed for one hold tick.
 #[derive(Debug, Clone)]
 pub struct HoldJointParams {
@@ -325,6 +382,8 @@ pub struct HoldJointParams {
     pub tau_meas: f64,
     /// Position law for this joint (selector + scaled-PD parameters).
     pub law: HoldLaw,
+    /// Danger-zone descent cap on the reference speed (scaled-PD law only), if any.
+    pub descent_cap: Option<DescentCap>,
 }
 
 /// Atomic operator retarget — owns raw/clamped/planner/latch/dq ordering.
@@ -1149,6 +1208,11 @@ impl PositionHold {
                 }
                 let planner = &mut planners[i];
                 let v_max = Self::scaled_v_max(jp, planner, targets[i]);
+                // reference_step changes speed by at most a_max·dt, so entering or leaving the
+                // cap is acceleration-limited (no velocity step at the threshold).
+                let v_max = jp.descent_cap.as_ref().map_or(v_max, |cap| {
+                    cap.limit(v_max, planner.q_traj, world.q[i], targets[i])
+                });
                 let v_tick = jp
                     .limit_policy
                     .as_ref()
@@ -1836,6 +1900,10 @@ mod fuse_audit_tests;
 mod law_gates;
 
 #[cfg(test)]
+#[path = "position_hold_tests/bench_replay.rs"]
+mod bench_replay;
+
+#[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
@@ -1859,6 +1927,7 @@ mod tests {
             limit_policy: None,
             tau_meas: 0.0,
             law: HoldLaw::Legacy,
+            descent_cap: None,
         }
     }
 
