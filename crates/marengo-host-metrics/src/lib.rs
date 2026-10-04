@@ -533,6 +533,7 @@ mod linux {
 
     #[cfg(test)]
     mod linux_collector_tests {
+        #![allow(clippy::expect_used)]
         use super::*;
 
         #[test]
