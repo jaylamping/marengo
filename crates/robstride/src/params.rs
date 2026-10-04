@@ -34,6 +34,8 @@ pub enum ParameterId {
     CanTimeout = 0x7028,
     /// Load-side mechanical position (rad). Read-only (manual §4.1.14).
     MechPos = 0x7019,
+    /// Load-side mechanical velocity (rad/s). Read-only (manual parameter table).
+    MechVel = 0x701B,
     /// Power-on position range flag: 0 = 0..2π, 1 = -π..π. Volatile unless saved (type 22).
     ZeroSta = 0x7029,
     /// Offset added to the current zero (rad). Volatile unless saved (type 22).
@@ -59,6 +61,7 @@ impl ParameterId {
             Self::EPScanTime,
             Self::CanTimeout,
             Self::MechPos,
+            Self::MechVel,
             Self::ZeroSta,
             Self::AddOffset,
         ]
@@ -79,7 +82,7 @@ impl ParameterId {
 
     /// Vendor read-only registers reject type-18 encoding before transmission.
     pub fn is_read_only(self) -> bool {
-        matches!(self, Self::MechPos)
+        matches!(self, Self::MechPos | Self::MechVel)
     }
 }
 
@@ -281,6 +284,18 @@ impl ParameterReadReply {
 
     pub fn as_u8(self) -> u8 {
         self.value[0]
+    }
+
+    /// The value in the register's [`ParameterKind`], little-endian from data
+    /// bytes 4..8. `None` for an index this driver does not know.
+    pub fn typed_value(self) -> Option<ParameterValue> {
+        let value = self.value;
+        Some(match self.parameter()?.value_kind() {
+            ParameterKind::U8 => ParameterValue::U8(value[0]),
+            ParameterKind::U16 => ParameterValue::U16(u16::from_le_bytes([value[0], value[1]])),
+            ParameterKind::U32 => ParameterValue::U32(u32::from_le_bytes(value)),
+            ParameterKind::F32 => ParameterValue::F32(f32::from_le_bytes(value)),
+        })
     }
 }
 

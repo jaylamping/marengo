@@ -102,6 +102,11 @@ Relevant policy mismatch is permanently observed through facets, admission and r
 - Checked Ready transition refuses Active; unchecked Ready is removed. Legacy calibration enable refuses before arming, including existing Active motion.
 - The latest stop report and first failed report distinguish transport acceptance from unconfirmed physical stop. No automatic recovery or firmware fault-clear transaction is implemented. See ADRs 0020/0021 and the remediation ledger for remaining Pi/protobuf generation/publication, reference and drive-local qualification. Receive bounds do not qualify TX latency, command-dispatch priority, kernel queue loss, physical acquisition time or Pi loop jitter.
 
+### Disabled drive protocol inspection (`protocol_inspection.rs`, ADR 0037)
+- `Supervisor::from_repo_for_protocol_inspection` loads like `from_repo` but transmits nothing (no startup type-24 On). `inspect_drive_protocol(joints)` (empty = all) requires Disabled, no reference work, clear faults and no E-stop.
+- Wire: a Disable-only all-address stop and type-24 Off per address, a 50 ms settle, then per drive one query at a time in its own `BurstPacer` group: type-4 `C4` version, type-0 identity, type-17 reads of `INSPECTED_PARAMETERS` (RunMode, MechPos, MechVel, CanTimeout 0x7028, ZeroSta, AddOffset), a final settle and the Disable-only stop again on every result. No zero-speed write, MIT, Enable, SetZero, parameter write or save.
+- Every drain goes through `consume_report_in_context` with `ReceiveContext::DisabledInspection` (any non-Reset header latches DriveState; a version reply elsewhere latches Feedback). A reply no pending query asked for, a version reply to another host, or two different replies to one query latch Feedback and refuse. A nonzero read status or a 300 ms timeout refuses without latching. Never grants or creates Ready.
+
 ## Flow
 ```
 Berthier MitJointCommand batch

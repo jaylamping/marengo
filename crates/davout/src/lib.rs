@@ -38,6 +38,10 @@
 //!   discontinuity, Calibration mode, or silence beyond `comm_watchdog_ms` outside owner
 //!   reference work revokes that joint. Fault/E-stop/uncertain stop revokes all.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
+//! - [`Supervisor::inspect_drive_protocol`] (ADR 0037): standalone, blocking read of
+//!   firmware version, MCU identity and registers (including 0x7028 CAN timeout)
+//!   from stopped drives through [`Supervisor::from_repo_for_protocol_inspection`].
+//!   It writes only Disable, reporting Off and read queries, and never grants.
 //! - [`drain_feedback`](Supervisor::drain_feedback): non-blocking RX queue drain
 //!   (Berthier control loop; per-tick frame accounting via `begin_tick_feedback`).
 //!
@@ -86,6 +90,7 @@ pub(crate) mod homing_facets;
 #[cfg(test)]
 mod limit_build_tests;
 mod limit_envelope;
+mod protocol_inspection;
 mod reference;
 mod reference_codec;
 mod reference_commit;
@@ -99,6 +104,9 @@ mod reference_transaction;
 mod reference_urdf_codec;
 pub mod simulation;
 
+pub use protocol_inspection::{
+    DriveProtocolInspection, INSPECTED_PARAMETERS, INSPECTION_QUERY_TIMEOUT, INSPECTION_SETTLE,
+};
 pub use reference_commit::{
     ReferenceAudit, ReferenceCommitError, ReferenceCommitHandle, ReferenceCommitPhase,
     ReferenceCommitSnapshot, ReferenceOutcome,
@@ -300,6 +308,8 @@ pub enum DavoutError {
     LimitPatchActive,
     #[error("active enable set cannot change while ACTIVE; disable first")]
     ActiveSetChangeRefused,
+    #[error("drive protocol inspection: {message}")]
+    ProtocolInspection { message: String },
 }
 
 pub use robstride::bus::{BusError, MemoryBus, MotorAddress, MotorBus};

@@ -12,6 +12,8 @@
 //! - [`command`](command): typed rejection of nonfinite input, negative gains and wrong register types.
 //! - [`lifecycle`](lifecycle): enable, disable, and set-zero frames.
 //! - [`identity`](identity): type-0 device-ID request and 64-bit MCU UID reply decoding.
+//! - [`version`](version): type-4 `C4` firmware version query and its type-2 reply, decoded
+//!   apart from MIT poses (header flags/mode retained, payload never a position).
 //! - [`feedback`]: addressed observations retain status flags, drive mode and complete raw
 //!   detailed-fault/warning payloads, malformed prefixes and transport errors in raw delivery order.
 //! - [`receive`]: one shared nonblocking engine caps every poll at 64 raw frames and 256
@@ -53,6 +55,7 @@ pub mod params;
 pub mod receive;
 pub mod rx_time;
 pub mod state;
+pub mod version;
 pub mod wire;
 
 pub use bus::{
@@ -89,6 +92,10 @@ pub use receive::{
 };
 pub use rx_time::{RxTimestampCounts, MAX_KERNEL_RX_AGE};
 pub use state::MotorState;
+pub use version::{
+    decode_firmware_version_reply, encode_default_get_firmware_version,
+    encode_get_firmware_version, FirmwareVersion, FirmwareVersionFeedback, FIRMWARE_VERSION_QUERY,
+};
 pub use wire::{classify_frame, DriveFrame, HostCommand, MitCommandFields, WireFrame};
 
 #[cfg(all(feature = "socketcan", target_os = "linux"))]

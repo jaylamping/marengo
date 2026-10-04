@@ -19,6 +19,7 @@ use crate::lifecycle;
 use crate::mit::{self, MitCommand};
 use crate::params::{self, ParameterId, ParameterValue, RunMode};
 use crate::receive::{RawReceiveReport, ReceiveAttempt, ReceiveCompletion, ReceiveLimits};
+use crate::version;
 
 fn trace_skipped_frame(
     interface: Option<&str>,
@@ -387,6 +388,13 @@ pub trait MotorBus: CanBus {
         send_encoded_frame_to(self, address, id, data)
     }
 
+    /// Communication type 4 with `C4`: a Disable that also requests the firmware
+    /// version (see [`crate::version`]). Byte[0] stays 0, so it never clears a fault.
+    fn get_firmware_version_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+        let (id, data) = version::encode_default_get_firmware_version(address.device_id);
+        send_encoded_frame_to(self, address, id, data)
+    }
+
     fn write_parameter_at(
         &mut self,
         address: &MotorAddress,
@@ -617,12 +625,16 @@ fn ingest_feedback_frames(
             match comm_type {
                 CommunicationType::OperationStatus | CommunicationType::ActiveReporting => {
                     // Eight-byte Data payload and status comm type were checked above.
-                    FeedbackEvent::Status(mit::decode_status_payload(
-                        motor_type,
-                        comm_type,
-                        frame.id,
-                        &frame.data,
-                    ))
+                    // A `00 C4 56` type-2 payload answers a version query: never a pose.
+                    match version::decode_firmware_version_reply(frame.id, &frame.data) {
+                        Some(version) => FeedbackEvent::FirmwareVersion(version),
+                        None => FeedbackEvent::Status(mit::decode_status_payload(
+                            motor_type,
+                            comm_type,
+                            frame.id,
+                            &frame.data,
+                        )),
+                    }
                 }
                 CommunicationType::FaultReport => {
                     FeedbackEvent::DetailedFault(DetailedFaultFeedback { raw: frame.data })

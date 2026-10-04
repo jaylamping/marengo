@@ -29,11 +29,14 @@ fn usage() {
          motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
            motor-repl disable\n  \
            motor-repl set-zero <joint> [--sign-tested]\n  \
+           motor-repl protocol-inspect [joint...]  (all joints when none listed)\n  \
            motor-repl gravity-preview [q...]  (robot.yaml joint order)\n\
          Reference grants are process-local; reference and enable in one long-running marengo-pi process.\n\
          set-zero runs the qualified physical reference workflow (ADR 0036); its current grant\n\
          ends with this process.\n\
          disable reads only drive addresses from motors.yaml and sends one Disable to each.\n\
+         protocol-inspect (ADR 0037) stops every drive, then reads firmware version, MCU id and\n\
+         registers (incl. 0x7028 CAN timeout) one query at a time; it never enables or writes.\n\
          set-zero arms an independent exit stop on SIGTERM/SIGINT/SIGHUP and error exit.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
          Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
@@ -329,8 +332,83 @@ fn is_read_only_command(command: &str) -> bool {
 fn is_supported_command(command: &str) -> bool {
     matches!(
         command,
-        "status" | "disable" | "set-zero" | "gravity-preview"
+        "status" | "disable" | "set-zero" | "protocol-inspect" | "gravity-preview"
     )
+}
+
+/// `CanTimeout` (0x7028) counts: 20000 = 1 s, 0 = off.
+const CAN_TIMEOUT_COUNTS_PER_SECOND: f64 = 20_000.0;
+
+fn parameter_label(parameter: robstride::ParameterId) -> &'static str {
+    use robstride::ParameterId;
+    match parameter {
+        ParameterId::RunMode => "run_mode",
+        ParameterId::MechPos => "mech_pos",
+        ParameterId::MechVel => "mech_vel",
+        ParameterId::CanTimeout => "can_timeout",
+        ParameterId::ZeroSta => "zero_sta",
+        ParameterId::AddOffset => "add_offset",
+        _ => "register",
+    }
+}
+
+/// One line per drive; `pi_protocol_inspect` reads `firmware=` and `can_timeout=`.
+fn format_inspection(drive: &davout::DriveProtocolInspection) -> String {
+    use robstride::{ParameterId, ParameterValue};
+    let mut line = format!(
+        "inspect {} {}:{} firmware={} uid={}",
+        drive.joint, drive.address.interface, drive.address.device_id, drive.firmware, drive.uid
+    );
+    for (parameter, value) in &drive.parameters {
+        let label = parameter_label(*parameter);
+        match (parameter, value) {
+            (ParameterId::CanTimeout, ParameterValue::U32(0)) => {
+                line.push_str(&format!(" {label}=0 (off)"));
+            }
+            (ParameterId::CanTimeout, ParameterValue::U32(counts)) => line.push_str(&format!(
+                " {label}={counts} ({:.3} s)",
+                f64::from(*counts) / CAN_TIMEOUT_COUNTS_PER_SECOND
+            )),
+            (_, ParameterValue::U8(v)) => line.push_str(&format!(" {label}={v}")),
+            (_, ParameterValue::U16(v)) => line.push_str(&format!(" {label}={v}")),
+            (_, ParameterValue::U32(v)) => line.push_str(&format!(" {label}={v}")),
+            (_, ParameterValue::F32(v)) => line.push_str(&format!(" {label}={v:.4}")),
+        }
+    }
+    line
+}
+
+/// `protocol-inspect [joint...]` (ADR 0037). The owner transmits nothing at
+/// construction; Davout stops every drive before and after the read queries.
+fn run_protocol_inspect(
+    root: &std::path::Path,
+    bus: RuntimeBus,
+    joints: &[String],
+    bus_label: &str,
+) -> i32 {
+    let mut owner = match davout::Supervisor::from_repo_for_protocol_inspection(root, bus) {
+        Ok(owner) => owner,
+        Err(e) => {
+            eprintln!("protocol-inspect: {e}");
+            return 1;
+        }
+    };
+    match owner.inspect_drive_protocol(joints) {
+        Ok(drives) => {
+            for drive in &drives {
+                println!("{}", format_inspection(drive));
+            }
+            println!(
+                "protocol-inspect: {} drives read, all drives Disabled again (SocketCAN {bus_label})",
+                drives.len()
+            );
+            0
+        }
+        Err(e) => {
+            eprintln!("protocol-inspect refused: {e}");
+            1
+        }
+    }
 }
 
 fn run_command(root: &std::path::Path, can_interface: Option<String>, args: &[String]) -> i32 {
@@ -393,6 +471,9 @@ fn run_command(root: &std::path::Path, can_interface: Option<String>, args: &[St
         interfaces = ?can_interfaces,
         "motor-repl opened SocketCAN"
     );
+    if args[1] == "protocol-inspect" {
+        return run_protocol_inspect(root, bus, &args[2..], &bus_label);
+    }
     // Only set-zero needs the physical reference owner and its journal; every
     // other command keeps the ordinary owner so a journal resource fault can
     // never block it.
@@ -540,8 +621,38 @@ mod argument_tests {
         ] {
             assert!(!is_supported_command(command), "{command}");
         }
-        for command in ["status", "disable", "set-zero", "gravity-preview"] {
+        for command in [
+            "status",
+            "disable",
+            "set-zero",
+            "protocol-inspect",
+            "gravity-preview",
+        ] {
             assert!(is_supported_command(command), "{command}");
         }
+    }
+
+    #[test]
+    fn inspection_line_carries_firmware_and_can_timeout() {
+        use robstride::{DeviceUid, FirmwareVersion, MotorAddress, ParameterId, ParameterValue};
+        let drive = davout::DriveProtocolInspection {
+            joint: "right_elbow_pitch".into(),
+            address: MotorAddress::new("can0", 4),
+            firmware: FirmwareVersion([0, 2, 3, 34]),
+            uid: DeviceUid([4, 0, 0, 0, 0, 0, 0, 0]),
+            parameters: vec![
+                (ParameterId::CanTimeout, ParameterValue::U32(600)),
+                (ParameterId::MechPos, ParameterValue::F32(0.25)),
+            ],
+        };
+        let line = format_inspection(&drive);
+        assert!(line.starts_with("inspect right_elbow_pitch can0:4 firmware=0.2.3.34 "));
+        assert!(line.contains(" can_timeout=600 (0.030 s)"), "{line}");
+        assert!(line.contains(" mech_pos=0.2500"), "{line}");
+        let off = davout::DriveProtocolInspection {
+            parameters: vec![(ParameterId::CanTimeout, ParameterValue::U32(0))],
+            ..drive
+        };
+        assert!(format_inspection(&off).ends_with(" can_timeout=0 (off)"));
     }
 }

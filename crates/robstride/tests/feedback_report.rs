@@ -99,7 +99,9 @@ fn every_raw_fault_and_status_survives_all_same_batch_orders() {
             assert_eq!(observed.can_id, raw.id);
             match observed.event {
                 FeedbackEvent::DetailedFault(fault) => assert_eq!(fault.raw, raw.data),
-                FeedbackEvent::Malformed(_) => panic!("full data is not malformed"),
+                FeedbackEvent::Malformed(_) | FeedbackEvent::FirmwareVersion(_) => {
+                    panic!("full pose data is neither malformed nor a version reply")
+                }
                 FeedbackEvent::Status(status) => {
                     assert_eq!(raw.id, 0x0280_01fd);
                     assert_eq!(status.status_flags, 0);
@@ -108,6 +110,23 @@ fn every_raw_fault_and_status_survives_all_same_batch_orders() {
             }
         }
     }
+}
+
+#[test]
+fn firmware_version_reply_is_never_a_pose_and_keeps_header_hazards() {
+    let mut bus = MemoryBus::default();
+    // Type 2, Reset, flag bit 16, motor 1, host 0xFD.
+    bus.rx_queue
+        .push(frame(0x0201_01fd, [0, 0xC4, 0x56, 0, 3, 1, 42, 0]));
+    let report = bus.recv_feedback_report(&types(), Duration::ZERO, Duration::ZERO);
+    assert_eq!(report.observations.len(), 1);
+    let FeedbackEvent::FirmwareVersion(reply) = report.observations[0].event else {
+        panic!("a 00 C4 56 status payload is a version reply, not a pose");
+    };
+    assert_eq!(reply.version.to_string(), "0.3.1.42");
+    assert_eq!(reply.status_flags, 1);
+    assert_eq!(reply.drive_mode, DriveMode::Reset);
+    assert_eq!(reply.host_id, 0xFD);
 }
 
 struct TimedBus {

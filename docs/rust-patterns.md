@@ -117,6 +117,7 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - Inspect every raw device/mode/position hazard before pose admission. Infer velocity once per address per drain; consecutive dequeue timestamps do not prove physical acquisition intervals.
 - Davout's private fault authority survives healthy feedback, Disable and cache operations. Invalid operator input is a rejected request; an observed runtime hazard latches and attempts all-address stop.
 - A stop attempt records every write failure. Software Disabled and accepted CAN writes do not certify a physical stop; ordinary stop payloads do not clear firmware faults.
+- A type-2 payload starting `00 C4 56` answers a firmware version query (`FeedbackEvent::FirmwareVersion`): retain its status flags and mode, never project its bytes into pose. Only Disabled protocol inspection asks for one; anywhere else it latches ([ADR 0037](decisions/0037-disabled-drive-protocol-inspection.md)).
 - Berthier propagates both post-send receive failures, checks the persistent latch before new planner/torque intent, and discards previous intent when Davout's stop generation changes. Explicit recovery and Pi/protobuf publication remain separate migration work.
 
 **Bounded receive work** ([ADR0021](decisions/0021-bounded-can-ingress.md)):
