@@ -18,14 +18,23 @@ Onset diagnostics (first 250 ms after each retarget):
   python scripts/analyze-position-trace.py trace.csv --onset
   python scripts/analyze-position-trace.py trace.csv --onset --onset-window-ms 300
 
-ADR 0039 Phase 3 bench score (one joint, every-tick trace; per move):
+ADR 0039 Phase 3 bench score (one joint; per move, automatic):
   python scripts/analyze-position-trace.py trace.csv --score-bench \\
       --joint right_shoulder_pitch --bench-log bench-session.txt
-  Pass: speed overshoot <= 20 % of the reference peak (dq_ref, else dq_traj), with speed
-  from dq over 50 ms (one 0.077 rad/s feedback quantum would be 51 % of a 0.15 rad/s slew);
-  <= 0.01 rad past the target at the stop; no single-tick tau_ff_cmd step > 0.05 Nm
-  (retargets included); and no "MIT total torque clamped" line for the joint in the bench
-  log. A criterion that cannot be scored (decimated trace, no bench log) fails the verdict.
+  Moves are cut where the commanded target (target_raw) changes; runs of <= 3 rows merge into
+  one wave. Kinds: move (hold-at), wave, hold (no commanded change).
+  - Fast moves/waves: speed overshoot (q over 50 ms) <= 20 % of the reference peak (dq_ref for
+    hold-at moves; q_ref's own slope for waves).
+  - Slow moves/waves (plan <= 0.3 rad/s, or a move <= 0.1 rad): max |q - q_ref| <= 0.03 rad
+    instead; speed is reported over a window where two counts are <= 5 % of the plan.
+  - Every move/wave: <= 0.01 rad past the target (waves: past the band) at the stop.
+  - Rest >= 8 s after arrival + 2 s settle: q drift <= 0.005 rad.
+  - Moves repeated >= 3 times with the same start and target: final q spread <= 0.01 rad.
+  - Every-tick trace only: no single-tick tau_ff_cmd step > 0.05 Nm (retargets included).
+  - No "MIT total torque clamped" line for the joint in the bench log.
+  A criterion that cannot be scored (decimated trace, no bench log) fails the verdict; record
+  the swept joint every tick with MARENGO_POSITION_TRACE_FULL_RATE_JOINTS=<joint>.
+  Constants and their justification: BENCH_* below.
 """
 
 from __future__ import annotations
@@ -101,8 +110,32 @@ BENCH_TAU_STEP_NM = 0.05
 # Reference peaks below this are holds, not moves: no speed overshoot is scored.
 BENCH_MIN_PLAN_RAD_S = 0.05
 BENCH_MIN_MOVE_RAD = 1e-3
-# A target held for at most this many rows is a wave sample, not a hold-at move.
-BENCH_WAVE_RUN_ROWS = 2
+# A target_raw held for at most this many rows is a wave sample, not a hold-at move (a wave's
+# target_raw changes every tick except for a rounding tie at a turnaround).
+BENCH_WAVE_RUN_ROWS = 3
+# RS03 position feedback quantum: 4π over 16 bits (0.077 rad/s per count per 5 ms tick).
+BENCH_ENCODER_COUNT_RAD = 4.0 * math.pi / 32767.0
+# Slow moves are scored on position, not speed ratio:
+# - plan ≤ 0.3 rad/s: over the 50 ms speed window, one count of jitter at each end
+#   (2 × 0.38 mrad / 50 ms = 0.015 rad/s) exceeds 5 % of the plan, a quarter of the 20 % budget;
+# - move ≤ 0.1 rad: the joint starts anywhere in its static dead zone fs/kp (0.37/18 ≈ 0.02 rad
+#   for the pitch), and catching up 0.02 rad on a 0.1 rad move is itself 20 % of the move.
+BENCH_SLOW_PLAN_RAD_S = 0.3
+BENCH_SHORT_MOVE_RAD = 0.1
+# Slow-move tracking: max |q − q_ref| ≤ the dead zone (≈ 0.02 rad) plus the 0.01 rad stop budget.
+BENCH_SLOW_TRACK_MAX_RAD = 0.03
+# Slow-move speed (reported, not scored) uses a window where 2 counts are ≤ 5 % of the plan.
+BENCH_SLOW_SPEED_QUANT_SHARE = 0.05
+BENCH_SLOW_SPEED_WINDOW_MAX_MS = 1000
+# Drift: a hold whose rest (after the reference arrives + settle) lasts ≥ this is scored.
+BENCH_SETTLE_S = 2.0
+BENCH_DRIFT_MIN_REST_S = 8.0
+# q may wander at most this over the rest: a quarter of the 0.02 rad integral band.
+BENCH_HOLD_DRIFT_MAX_RAD = 0.005
+# Repeatability: moves with the same (start, target) seen at least this often; their final q
+# must agree within the stop-overshoot budget.
+BENCH_REPEAT_MIN_COUNT = 3
+BENCH_REPEAT_SPREAD_MAX_RAD = BENCH_END_OVERSHOOT_RAD
 TOTAL_TORQUE_CLAMP_MARKER = "MIT total torque clamped"
 
 
@@ -455,8 +488,10 @@ def evaluate_layer2_gate(
     }
 
 
-def _windowed_speeds(seg: list[dict[str, str]], window_ms: int) -> list[float | None]:
-    """Signed speed at each row from q over the latest earlier row >= window_ms back."""
+def _windowed_speeds(
+    seg: list[dict[str, str]], window_ms: int, key: str = "q"
+) -> list[float | None]:
+    """Signed speed of column `key` at each row over the latest earlier row >= window_ms back."""
     out: list[float | None] = []
     j = 0
     for i, row in enumerate(seg):
@@ -467,15 +502,33 @@ def _windowed_speeds(seg: list[dict[str, str]], window_ms: int) -> list[float | 
         if j >= i or dt_ms < window_ms:
             out.append(None)
         else:
-            out.append((_f(row, "q") - _f(seg[j], "q")) / (dt_ms / 1000.0))
+            out.append((_f(row, key) - _f(seg[j], key)) / (dt_ms / 1000.0))
     return out
 
 
+def _target_key(row: dict[str, str]) -> str:
+    """The commanded target: `target_raw` (before the envelope clamp) when traced."""
+    return "target_raw" if _has(row, "target_raw") else "target"
+
+
+def _ref_keys(row: dict[str, str]) -> tuple[str, str]:
+    """Reference position / velocity columns: ADR 0039 `q_ref,dq_ref`, else the planner's."""
+    return ("q_ref", "dq_ref") if _has(row, "q_ref") else ("q_traj", "dq_traj")
+
+
 def _split_moves(rows: list[dict[str, str]]) -> list[list[dict[str, str]]]:
-    """One joint's rows cut at each target change. A wave moves `target` with every sample, so
-    consecutive runs of at most BENCH_WAVE_RUN_ROWS rows merge into one wave move."""
+    """One joint's rows cut wherever the commanded target changes (exact text: a hold-at holds it
+    bit-identical). A wave moves its target every tick, so consecutive runs of at most
+    BENCH_WAVE_RUN_ROWS rows merge into one wave."""
+    runs: list[list[dict[str, str]]] = []
+    for row in rows:
+        key = _target_key(row)
+        if runs and runs[-1][-1][key] == row[key]:
+            runs[-1].append(row)
+        else:
+            runs.append([row])
     moves: list[tuple[bool, list[dict[str, str]]]] = []
-    for run in _split_segments(rows):
+    for run in runs:
         short = len(run) <= BENCH_WAVE_RUN_ROWS
         if short and moves and moves[-1][0]:
             moves[-1][1].extend(run)
@@ -484,68 +537,202 @@ def _split_moves(rows: list[dict[str, str]]) -> list[list[dict[str, str]]]:
     return [m for _, m in moves]
 
 
+def _trace_period_ticks(rows: list[dict[str, str]]) -> int | None:
+    """Smallest tick step between one joint's consecutive rows: 1 = every tick."""
+    steps = [_i(b, "tick") - _i(a, "tick") for a, b in zip(rows, rows[1:])]
+    positive = [s for s in steps if s > 0]
+    return min(positive) if positive else None
+
+
+def _slow_speed_window_ms(v_plan: float) -> int:
+    """Window over which two encoder counts are at most 5 % of `v_plan` (50 ms .. 1 s)."""
+    if v_plan <= 0.0:
+        return BENCH_SLOW_SPEED_WINDOW_MAX_MS
+    ms = math.ceil(2.0 * BENCH_ENCODER_COUNT_RAD / (BENCH_SLOW_SPEED_QUANT_SHARE * v_plan) * 1000.0)
+    return max(BENCH_SPEED_WINDOW_MS, min(BENCH_SLOW_SPEED_WINDOW_MAX_MS, ms))
+
+
+def _peak_speed_ratio(
+    seg: list[dict[str, str]], window_ms: int, v_plan: float, direction: float
+) -> tuple[float | None, float | None]:
+    """(measured peak speed, overshoot vs `v_plan`) along `direction` (0 = either way)."""
+    speeds = [s for s in _windowed_speeds(seg, window_ms) if s is not None]
+    along = [abs(s) for s in speeds] if direction == 0 else [s * direction for s in speeds]
+    if not along or v_plan <= 0.0:
+        return None, None
+    peak = max(along)
+    return peak, (peak - v_plan) / v_plan
+
+
+def _rest_drift(
+    seg: list[dict[str, str]], target: float, q_key: str, dq_key: str
+) -> tuple[float | None, float]:
+    """(drift, rest seconds): q range after the reference has arrived and BENCH_SETTLE_S passed;
+    drift is None when that rest is shorter than BENCH_DRIFT_MIN_REST_S."""
+    arrived = next(
+        (
+            _i(r, "t_ms")
+            for r in seg
+            if abs(_f(r, q_key) - target) < 1e-6 and abs(_f(r, dq_key)) < 1e-9
+        ),
+        None,
+    )
+    if arrived is None:
+        return None, 0.0
+    rest = [r for r in seg if _i(r, "t_ms") >= arrived + BENCH_SETTLE_S * 1000.0]
+    if len(rest) < 2:
+        return None, 0.0
+    rest_s = (_i(rest[-1], "t_ms") - _i(rest[0], "t_ms")) / 1000.0
+    if rest_s < BENCH_DRIFT_MIN_REST_S:
+        return None, rest_s
+    qs = [_f(r, "q") for r in rest]
+    return max(qs) - min(qs), rest_s
+
+
 def _score_move(
-    seg: list[dict[str, str]], prev: dict[str, str] | None, window_ms: int
+    seg: list[dict[str, str]],
+    prev: dict[str, str] | None,
+    window_ms: int,
+    per_tick: bool,
 ) -> dict:
-    targets = [_f(r, "target") for r in seg]
-    # A wave moves its own target every tick: no stop to overshoot, only its speed.
-    wave = max(targets) - min(targets) > 1e-4
-    target = targets[-1]
+    tkey = _target_key(seg[0])
+    q_key, dq_key = _ref_keys(seg[0])
+    commanded = [_f(r, tkey) for r in seg]
+    wave = max(commanded) - min(commanded) > 1e-4
+    target = _f(seg[-1], "target")
     q_start = _f(seg[0], "q")
-    distance = target - q_start
-    direction = 0.0 if abs(distance) < BENCH_MIN_MOVE_RAD else math.copysign(1.0, distance)
-    plan_key = "dq_ref" if _has(seg[0], "dq_ref") else "dq_traj"
-    v_plan = max(abs(_f(r, plan_key)) for r in seg)
+    qs = [_f(r, "q") for r in seg]
+    # The move starts from the previous commanded target (the joint may rest anywhere in its
+    # dead zone around it), or from q for the first move.
+    start_ref = _f(prev, "target") if prev is not None else q_start
+    distance = target - start_ref
+    dq_ref_peak = max(abs(_f(r, dq_key)) for r in seg)
+    tracking = max(abs(_f(r, "q") - _f(r, q_key)) for r in seg)
 
-    speed_overshoot = None
-    v_peak = None
-    if (direction or wave) and v_plan >= BENCH_MIN_PLAN_RAD_S:
-        speeds = [s for s in _windowed_speeds(seg, window_ms) if s is not None]
-        along = [abs(s) for s in speeds] if wave else [s * direction for s in speeds]
-        if along:
-            v_peak = max(along)
-            speed_overshoot = (v_peak - v_plan) / v_plan
+    info: dict = {}
+    if wave:
+        kind = "wave"
+        # The reference speed from q_ref itself, over the same window as q, so a clamped
+        # dq_ref column (pre-fix wave feed-forward) cannot fake an overshoot.
+        ref_speeds = [abs(s) for s in _windowed_speeds(seg, window_ms, q_key) if s is not None]
+        v_plan = max(ref_speeds) if ref_speeds else dq_ref_peak
+        direction = 0.0
+        lo, hi = min(commanded), max(commanded)
+        end_overshoot = max(0.0, max(qs) - hi, lo - min(qs))
+        info.update(band_rad=[lo, hi], swept_rad=[min(qs), max(qs)], dq_ref_peak_rad_s=dq_ref_peak)
+        if dq_ref_peak < 0.8 * v_plan:
+            info["hint"] = (
+                f"dq_ref peaked at {dq_ref_peak:.2f} rad/s while q_ref moved at {v_plan:.2f} rad/s: "
+                "wave velocity feed-forward clamped (pre-1d521ae5 Berthier)"
+            )
+    elif abs(distance) < BENCH_MIN_MOVE_RAD:
+        kind = "hold"
+        v_plan = dq_ref_peak
+        direction = 0.0
+        end_overshoot = None
+    else:
+        kind = "move"
+        v_plan = dq_ref_peak
+        direction = math.copysign(1.0, distance)
+        end_overshoot = max(0.0, max((q - target) * direction for q in qs))
+    slow = kind != "hold" and (
+        v_plan <= BENCH_SLOW_PLAN_RAD_S
+        or (kind == "move" and abs(distance) <= BENCH_SHORT_MOVE_RAD + 1e-9)
+    )
 
-    end_overshoot = None
-    if direction and not wave:
-        end_overshoot = max(0.0, max((_f(r, "q") - target) * direction for r in seg))
+    speed_overshoot = v_peak = None
+    speed_window = window_ms
+    if kind != "hold" and v_plan >= BENCH_MIN_PLAN_RAD_S:
+        if slow:
+            speed_window = _slow_speed_window_ms(v_plan)
+        v_peak, speed_overshoot = _peak_speed_ratio(seg, speed_window, v_plan, direction)
 
-    pairs = list(zip(seg, seg[1:]))
-    if prev is not None:
-        pairs.insert(0, (prev, seg[0]))
-    steps = [
-        abs(_f(b, "tau_ff_cmd") - _f(a, "tau_ff_cmd"))
-        for a, b in pairs
-        if _i(b, "tick") - _i(a, "tick") == 1
-    ]
-    tau_step = max(steps) if steps else None
+    drift = None
+    rest_s = 0.0
+    if kind != "wave":
+        drift, rest_s = _rest_drift(seg, target, q_key, dq_key)
+
+    tau_step = None
+    if per_tick:
+        pairs = list(zip(seg, seg[1:]))
+        if prev is not None:
+            pairs.insert(0, (prev, seg[0]))
+        steps = [
+            abs(_f(b, "tau_ff_cmd") - _f(a, "tau_ff_cmd"))
+            for a, b in pairs
+            if _i(b, "tick") - _i(a, "tick") == 1
+        ]
+        tau_step = max(steps) if steps else None
     wire_binding = sum(
         1
         for r in seg
         if _has(r, "tau_ff_wire") and abs(_f(r, "tau_ff_wire") - _f(r, "tau_ff_cmd")) > 1e-6
     )
 
-    checks = {
-        "speed_overshoot_ok": speed_overshoot is None
-        or speed_overshoot <= BENCH_OVERSHOOT_FRACTION,
-        "end_overshoot_ok": end_overshoot is None or end_overshoot <= BENCH_END_OVERSHOOT_RAD,
-        "tau_step_ok": tau_step is not None and tau_step <= BENCH_TAU_STEP_NM,
-    }
+    checks: dict[str, bool] = {}
+    if kind != "hold":
+        if slow:
+            checks["tracking_ok"] = tracking <= BENCH_SLOW_TRACK_MAX_RAD
+        elif speed_overshoot is not None:
+            checks["speed_overshoot_ok"] = speed_overshoot <= BENCH_OVERSHOOT_FRACTION
+        checks["end_overshoot_ok"] = end_overshoot <= BENCH_END_OVERSHOOT_RAD
+    if drift is not None:
+        checks["drift_ok"] = drift <= BENCH_HOLD_DRIFT_MAX_RAD
+    if tau_step is not None:
+        checks["tau_step_ok"] = tau_step <= BENCH_TAU_STEP_NM
     return {
+        "kind": kind,
+        "slow": slow,
         "target_rad": target,
         "wave": wave,
+        "start_ref_rad": start_ref,
         "q_start": q_start,
+        "q_end": qs[-1],
         "t_start_ms": _i(seg[0], "t_ms"),
         "duration_s": (_i(seg[-1], "t_ms") - _i(seg[0], "t_ms")) / 1000.0,
         "plan_peak_rad_s": v_plan,
         "measured_peak_rad_s": v_peak,
+        "speed_window_ms": speed_window,
         "speed_overshoot": speed_overshoot,
+        "max_tracking_error_rad": tracking,
         "end_overshoot_rad": end_overshoot,
+        "final_error_rad": qs[-1] - target,
+        "rest_s": rest_s,
+        "drift_rad": drift,
         "max_tau_ff_step_nm": tau_step,
         "tau_ff_wire_binding_rows": wire_binding,
+        **info,
         "checks": checks,
         "pass": all(checks.values()),
     }
+
+
+def _repeatability(moves: list[dict]) -> list[dict]:
+    """Moves repeated with the same (start, target) at least BENCH_REPEAT_MIN_COUNT times: the
+    spread of their final q and of their stop overshoot."""
+    groups: dict[tuple[float, float], list[int]] = {}
+    for i, m in enumerate(moves):
+        if m["kind"] == "move":
+            key = (round(m["start_ref_rad"], 3), round(m["target_rad"], 3))
+            groups.setdefault(key, []).append(i)
+    out = []
+    for (start, target), idx in groups.items():
+        if len(idx) < BENCH_REPEAT_MIN_COUNT:
+            continue
+        finals = [moves[i]["q_end"] for i in idx]
+        stops = [moves[i]["end_overshoot_rad"] for i in idx]
+        spread = max(finals) - min(finals)
+        out.append(
+            {
+                "start_rad": start,
+                "target_rad": target,
+                "moves": [i + 1 for i in idx],
+                "final_q_spread_rad": spread,
+                "end_overshoot_spread_rad": max(stops) - min(stops),
+                "pass": spread <= BENCH_REPEAT_SPREAD_MAX_RAD,
+            }
+        )
+    return out
 
 
 def _count_total_torque_clamps(log: Path, joint: str) -> int:
@@ -572,32 +759,58 @@ def score_bench(
     bench_log: Path | None = None,
 ) -> dict:
     joint_rows = [r for r in rows if r.get("joint") == joint]
+    period = _trace_period_ticks(joint_rows)
+    per_tick = period == 1
     moves = []
     prev: dict[str, str] | None = None
     for seg in _split_moves(joint_rows):
-        moves.append(_score_move(seg, prev, window_ms))
+        moves.append(_score_move(seg, prev, window_ms, per_tick))
         prev = seg[-1]
+    repeats = _repeatability(moves)
     clamps = _count_total_torque_clamps(bench_log, joint) if bench_log is not None else None
     unscored = []
     if not moves:
         unscored.append(f"no rows for {joint}")
-    if any(m["max_tau_ff_step_nm"] is None for m in moves):
-        unscored.append("tau_ff step: no consecutive ticks (decimated trace?)")
+    elif not per_tick:
+        unscored.append(
+            f"tau_ff step: trace decimated (every {period} ticks for {joint}); record with "
+            f"MARENGO_POSITION_TRACE_FULL_RATE_JOINTS={joint}"
+        )
     if clamps is None:
         unscored.append("total-torque clamps: no --bench-log")
+    by_kind: dict[str, dict[str, int]] = {}
+    for m in moves:
+        label = f"slow {m['kind']}" if m["slow"] else m["kind"]
+        tally = by_kind.setdefault(label, {"moves": 0, "passed": 0})
+        tally["moves"] += 1
+        tally["passed"] += int(m["pass"])
+    passed = sum(1 for m in moves if m["pass"])
     return {
         "joint": joint,
+        "trace_period_ticks": period,
+        "decimated": not per_tick,
         "criteria": {
             "speed_window_ms": window_ms,
             "speed_overshoot_max": BENCH_OVERSHOOT_FRACTION,
             "end_overshoot_max_rad": BENCH_END_OVERSHOOT_RAD,
             "tau_ff_step_max_nm": BENCH_TAU_STEP_NM,
+            "slow_plan_max_rad_s": BENCH_SLOW_PLAN_RAD_S,
+            "short_move_max_rad": BENCH_SHORT_MOVE_RAD,
+            "slow_tracking_max_rad": BENCH_SLOW_TRACK_MAX_RAD,
+            "hold_drift_max_rad": BENCH_HOLD_DRIFT_MAX_RAD,
+            "repeat_spread_max_rad": BENCH_REPEAT_SPREAD_MAX_RAD,
             "total_torque_clamps_max": 0,
         },
         "moves": moves,
+        "repeatability": repeats,
+        "summary": {"moves": len(moves), "passed": passed, "by_kind": by_kind},
         "total_torque_clamps": clamps,
         "unscored": unscored,
-        "pass": bool(moves) and not unscored and clamps == 0 and all(m["pass"] for m in moves),
+        "pass": bool(moves)
+        and not unscored
+        and clamps == 0
+        and passed == len(moves)
+        and all(r["pass"] for r in repeats),
     }
 
 
@@ -703,26 +916,74 @@ def _print_human(report: dict) -> None:
         c = score["criteria"]
         print()
         print(
-            f"=== ADR 0039 bench score: {score['joint']} (speed over {c['speed_window_ms']} ms; "
-            f"overshoot <= {c['speed_overshoot_max']:.0%}, stop <= {c['end_overshoot_max_rad']} rad, "
-            f"tau_ff step <= {c['tau_ff_step_max_nm']} Nm, total-torque clamps 0) ==="
+            f"=== ADR 0039 bench score: {score['joint']} (fast moves: speed over "
+            f"{c['speed_window_ms']} ms <= +{c['speed_overshoot_max']:.0%}; slow moves (plan <= "
+            f"{c['slow_plan_max_rad_s']} rad/s or <= {c['short_move_max_rad']} rad): "
+            f"|q - q_ref| <= {c['slow_tracking_max_rad']} rad; stop <= "
+            f"{c['end_overshoot_max_rad']} rad; tau_ff step <= {c['tau_ff_step_max_nm']} Nm; "
+            f"hold drift <= {c['hold_drift_max_rad']} rad; repeat spread <= "
+            f"{c['repeat_spread_max_rad']} rad; total-torque clamps 0) ==="
+        )
+        period = score["trace_period_ticks"]
+        print(
+            f"  trace: {'every tick' if period == 1 else f'decimated (every {period} ticks)'}"
         )
         fmt = lambda v, f: "-" if v is None else format(v, f)  # noqa: E731
         for i, m in enumerate(score["moves"], 1):
             failed = [k for k, ok in m["checks"].items() if not ok]
+            verdict = "PASS" if not failed else "FAIL " + ",".join(failed)
+            label = f"slow {m['kind']}" if m["slow"] else m["kind"]
+            if m["kind"] == "wave":
+                lo, hi = m["band_rad"]
+                q_lo, q_hi = m["swept_rad"]
+                what = (
+                    f"band [{lo:+.3f}, {hi:+.3f}] swept [{q_lo:+.3f}, {q_hi:+.3f}] rad  "
+                    f"ref {m['plan_peak_rad_s']:.2f} rad/s"
+                )
+            elif m["kind"] == "hold":
+                what = f"at {m['target_rad']:+.3f} rad  final err {m['final_error_rad']:+.4f} rad"
+            else:
+                what = (
+                    f"{m['start_ref_rad']:+.3f} -> {m['target_rad']:+.3f} rad (q0 "
+                    f"{m['q_start']:+.3f})  plan {m['plan_peak_rad_s']:.2f} rad/s"
+                )
+            parts = [f"  move {i} [{label}]: {what}"]
+            if m["kind"] != "hold":
+                speed = f"speed {fmt(m['speed_overshoot'], '+.0%')}"
+                if m["slow"]:
+                    speed += f" over {m['speed_window_ms']} ms (not scored)"
+                parts += [
+                    speed,
+                    f"track {m['max_tracking_error_rad']:.4f} rad",
+                    f"stop {fmt(m['end_overshoot_rad'], '.4f')} rad",
+                ]
+            if m["drift_rad"] is not None:
+                parts.append(f"drift {m['drift_rad']:.4f} rad over {m['rest_s']:.1f} s")
+            parts += [
+                f"tau_ff step {fmt(m['max_tau_ff_step_nm'], '.3f')} Nm",
+                f"wire-binding rows {m['tau_ff_wire_binding_rows']}",
+                verdict,
+            ]
+            print("  ".join(parts))
+            if "hint" in m:
+                print(f"    ! {m['hint']}")
+        for r in score["repeatability"]:
             print(
-                f"  move {i}: {m['q_start']:+.3f} -> {m['target_rad']:+.3f} rad  "
-                f"plan {m['plan_peak_rad_s']:.2f} rad/s  speed overshoot "
-                f"{fmt(m['speed_overshoot'], '+.0%')}  stop overshoot "
-                f"{fmt(m['end_overshoot_rad'], '.4f')} rad  tau_ff step "
-                f"{fmt(m['max_tau_ff_step_nm'], '.3f')} Nm  wire-binding rows "
-                f"{m['tau_ff_wire_binding_rows']}  {'PASS' if not failed else 'FAIL ' + ','.join(failed)}"
+                f"  repeat {r['start_rad']:+.3f} -> {r['target_rad']:+.3f} rad x{len(r['moves'])} "
+                f"(moves {','.join(map(str, r['moves']))}): final q spread "
+                f"{r['final_q_spread_rad']:.4f} rad, stop spread {r['end_overshoot_spread_rad']:.4f} rad  "
+                f"{'PASS' if r['pass'] else 'FAIL'}"
             )
         clamps = score["total_torque_clamps"]
         print(f"  total-torque clamps: {'unchecked' if clamps is None else clamps}")
         for item in score["unscored"]:
             print(f"  ! not scored: {item}")
-        print(f"  verdict: {'PASS' if score['pass'] else 'FAIL'}")
+        s = score["summary"]
+        kinds = ", ".join(f"{k} {v['passed']}/{v['moves']}" for k, v in s["by_kind"].items())
+        print(
+            f"  verdict: {'PASS' if score['pass'] else 'FAIL'} "
+            f"({s['passed']}/{s['moves']} moves pass: {kinds})"
+        )
 
 
 def main(argv: Iterable[str] | None = None) -> int:
