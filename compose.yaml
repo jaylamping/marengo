@@ -17,18 +17,21 @@ services:
     command: ["/bin/bash"]
 
   check:
-    image: marengo-dev:local
+    # Native host arch (no `platform` pin): the wall-clock 100 ms watchdog tests
+    # starve under linux/amd64 emulation on Apple silicon. Own image tag and
+    # target/node_modules volumes because those hold arch-specific artifacts.
+    # CI runs check.sh in marengo-dev:local directly and is unaffected.
+    image: marengo-check:local
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
-    platform: linux/amd64
     working_dir: /workspace
     volumes:
       - .:/workspace
-      - cargo-target:/workspace/target
+      - cargo-target-check:/workspace/target
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
-      - consul-node-modules:/workspace/consul/node_modules
+      - consul-node-modules-check:/workspace/consul/node_modules
     command: ["bash", "./scripts/check.sh"]
 
   vcan:
@@ -102,3 +105,5 @@ volumes:
   cargo-registry:
   cargo-git:
   consul-node-modules:
+  cargo-target-check:
+  consul-node-modules-check:

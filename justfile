@@ -8,7 +8,8 @@ build:
     docker compose build dev
 
 # CI-parity checks (container)
-check: build
+check:
+    docker compose build check
     docker compose run --rm check
 
 # Fast container bootstrap
