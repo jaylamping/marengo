@@ -322,3 +322,21 @@ fn extended_flag_comes_from_wire_width() {
     );
     assert_ne!(report.frames[0].can_id, report.frames[1].can_id);
 }
+
+#[test]
+fn ascii_error_frame_marker_parses_as_kernel_error() {
+    // Default `candump -t z` renders a kernel error frame with a trailing
+    // `ERRORFRAME` marker (can-utils lib.c `snprintf_long_canframe`); the
+    // marker is rendering, not payload.
+    let bytes = b"\
+(0.000000)  can0  20000004   [8]  00 01 00 00 00 00 00 00   ERRORFRAME
+";
+    let page = FramePage::new(0, 10).unwrap_or_else(|e| panic!("page: {e}"));
+    let report = inspect_ok(bytes, InspectRequest::page(TimestampMode::Delta, page));
+    assert_eq!(report.summary.parsed_frames, 1);
+    assert_eq!(report.frames.len(), 1);
+    let frame = &report.frames[0];
+    assert!(frame.can_id.is_error());
+    assert_eq!(frame.can_id.get(), 0x2000_0004);
+    assert_eq!(frame.data, [0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+}

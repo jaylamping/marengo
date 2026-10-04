@@ -367,6 +367,14 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
         return None;
     }
     let parts: Vec<&str> = line.split_whitespace().collect();
+    // can-utils appends a trailing `ERRORFRAME` marker to kernel error
+    // frames in ASCII mode (`20000004 [8] … ERRORFRAME`, lib.c
+    // `snprintf_long_canframe`). It is rendering, not payload: only error
+    // frames carry it, and it is never valid hex, so drop it before parsing.
+    let parts: Vec<&str> = match parts.as_slice() {
+        [rest @ .., "ERRORFRAME"] => rest.to_vec(),
+        _ => parts,
+    };
     if parts.len() < 3 {
         return None;
     }
