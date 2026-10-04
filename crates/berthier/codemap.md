@@ -29,9 +29,10 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - `position_setpoint` — Setpoint mapping from planner reference to MIT q_des: clamp to limit envelope, breakaway detection, stuck-pull lead, descent freeze hysteresis, low-angle breakaway logic.
 - `position_profile` — Cruise `v_max` selection (`position_hold_v_max` / `position_profile_v_max`) and `PlannerEvent` tags.
 - `position_hold` — `PositionHold` lifecycle + advance/compose control law for `ControlMode::Position`.
+- `position_law` — ADR 0039 scaled-PD law, selected per joint by `control.yaml` `position_law: scaled_pd` (default `legacy`): drive-side PD with constant kd, a reference that changes velocity by at most `a_max·dt` and slows as its lead grows from `e0` to `e1`, friction FF on the reference velocity, leaky integral.
 - `mit_feedforward` — `MitFeedforward::compose` for non-Position Active modes; consumes pre-resolved `wire_kp` / `wire_kd` / `fc`.
 - `position_friction` — Two-rule friction model: trajectory-velocity Coulomb + settle fade (ADR 0007). Constants for onset window, deadband, hysteresis.
-- `position_trace` — Optional CSV trace file (`MARENGO_POSITION_TRACE` env var) for high-rate position-hold debugging.
+- `position_trace` — Optional CSV trace file (`MARENGO_POSITION_TRACE` env var) for high-rate position-hold debugging. Rows are written after the Davout send; ADR 0039 columns `law,q_ref,dq_ref,time_scale,tau_i,kd_mit,tau_ff_wire` are appended.
 - `position_wave` — In-loop triangle wave generator on one joint while others hold (bench diagnostics).
 - `mode_isolation` (test-only) — Property tests verifying non-gravity FF components (tau_f, tau_d) are independent of tau_g changes.
 
@@ -41,6 +42,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - `tests/feedback_bootstrap.rs` covers neutral solicitation, expiry, re-enable session separation and nonzero hard ranges installed before reference declaration in isolated resource trees.
 - `tests/feedback_failure_propagation.rs` covers receive errors in every control mode, unsafe post-send pose, failed mode-entry intent, latched fault refusal and stopped intent cancellation.
 - `tests/friction_mode_output.rs` checks actual wire torque responds to the impedance friction override while GravityComp ignores it; this replaces a local arithmetic identity property.
+- `src/position_hold_tests/law_gates.rs` runs both laws against a stick-slip plant (ADR 0039 τ_ff-step, velocity-overshoot, rest-chatter and stuck-row gates); `tests/position_law_wire.rs` decodes the MIT frames of a dithering rest hold (constant kd and v_des under `scaled_pd`).
 - Small-move slew cases hold the raw encoder stationary and inspect planner/actual MIT output. Stationary controller stall cases use raw receive observations; the progress-reset law case supplies independent measured q/dq and fixed dt directly to production `PositionHold::tick`. These are software admission/output contracts, not plant tracking, reference acquisition, SetZero correlation or physical commissioning proof.
 
 ## Flow (`ControlLoop::tick`)

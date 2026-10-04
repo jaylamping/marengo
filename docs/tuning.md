@@ -33,6 +33,12 @@ See [homing.md](homing.md).
 
 Tune `fc`, `fv`, `fo`, `k` under each joint in `config/control.yaml` (Berthier `friction_torque` model).
 
+The ADR 0039 scaled-PD law (per joint `position_law: scaled_pd`, default `legacy`) adds the
+optional `friction.fs` / `friction.v_b` Stribeck terms and `position_time_scale_e0_rad`,
+`position_integral_band_rad`, `position_integral_leak_s`. Defaults, validation and the Phase 3
+entry gate are in [ADR 0039](decisions/0039-position-control-simplification.md); leave every joint
+on `legacy` until that gate is met.
+
 ## Modes
 
 These are Marengo control modes, not Robstride firmware `run_mode` values. Marengo `Position` still sends MIT operation-control frames with non-zero gains; it does not switch the drive to firmware Position mode (`run_mode=1`).

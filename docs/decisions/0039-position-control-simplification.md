@@ -1,6 +1,8 @@
 # ADR 0039: Position control simplification: drive-side PD on a feedback-scaled reference
 
-Status: Proposed, October 4, 2026. When accepted, this supersedes these parts of
+Status: Proposed, October 4, 2026. Phases 0 and 2 implemented October 4, 2026 (trace columns;
+the scaled-PD law in simulation, selectable per joint, every joint on the legacy law). When
+accepted, this supersedes these parts of
 [ADR 0007](0007-bench-position-trajectory-control.md):
 
 - "Feedforward and damping policy" (host `tau_d`);
@@ -138,6 +140,22 @@ This ADR changes no values. A changed value needs its own bench evidence (test p
 | `position_slew_rad_s`, `position_trajectory_{threshold,velocity,accel}` | unchanged | planner |
 | Constants `POSITION_HOLD_ONSET_MS`, `POSITION_STUCK_EXIT_VELOCITY_RATIO`, `POSITION_DAMPING_*`, `POSITION_DESCENT_STUCK_LEAD_RAD`, `POSITION_HOME_FINAL_PULL_THROUGH_RAD`, `POSITION_RETURN_DESCENT_SEED_RAD`, `POSITION_RETURN_FREEZE_Q_MAX_RAD`, `POSITION_HOLD_ONSET_MAX_LEAD_RAD`, `POSITION_HOLD_FRICTION_FADE_RAD` | deleted | |
 
+**Implemented keys (Phase 2).** Every key is optional, per joint, refused when invalid
+(`deny_unknown_fields`, `validate_joint_numbers`, `validate_entry_gains_against_motor_type`), and
+left out of serialized YAML while unset, so the master `control.yaml` is unchanged.
+
+| Key | Default | Validation | Why this default |
+|---|---|---|---|
+| `position_law` | `legacy` | `legacy` or `scaled_pd`; `scaled_pd` needs `position_slew_max_lead_rad > 0` | bench behaviour unchanged until a joint is selected |
+| `position_time_scale_e0_rad` | `e1/4` | finite, `0 ≤ e0 < position_slew_max_lead_rad` | this ADR's starting point |
+| `position_integral_band_rad` | 0.1 | finite, `> 0` | the legacy integral window, unchanged meaning |
+| `position_integral_leak_s` | 0.5 | finite, `> 0` | bounds the decay of the 0.5 Nm integral to 1 Nm/s (0.005 Nm per tick) and drops a stale term within ~1.5 s |
+| `friction.fs` | `fc` | finite, `fc ≤ fs ≤ tau_ff_max_nm` | no Stribeck term until Phase 1 identifies it |
+| `friction.v_b` | 0.05 rad/s | finite, `> 0` | inert while `fs = fc` |
+
+`J_eff·a_c` has no key: it stays off until `J_eff` is identified, and an unused key would only
+invite an unmeasured value.
+
 ### Davout interactions
 
 - **τ_ff cap and rate limit.** τ_ff becomes `τ_g + τ_fric (+J·a) (+ki·I)`. Its slope is bounded
@@ -148,6 +166,18 @@ This ADR changes no values. A changed value needs its own bench evidence (test p
   `kp·e1 + kd·|v_c − dq| + |τ_ff|`. Davout already checks `kd/s² ≤ kd_max`. Before Phase 3,
   verify that the drive enforces `motors.yaml` `bench.torque_limit_nm` on the total MIT torque
   ([INFERENCE] today; open question 1).
+  - *Phase 2 status.* Davout bounds every input it owns, unchanged: kp and kd above the motor-type
+    maximum are refused (never clamped), `|v_des|` above the cap is refused, and τ_ff is capped
+    and rate limited whatever kd is (`torque_output_contract_drive_damping_is_bounded_and_tau_ff_stays_capped`).
+    It does not bound the drive-computed total. The worst case is large: on pitch
+    `kd·(|v_c| + |dq|)` alone reaches 3·(1.25 + 3.0) ≈ 13 Nm at the feedback-velocity fault
+    threshold, against `torque_limit_nm` 5.
+  - *Open question 1 is a Phase 3 entry gate, not answered here.* No tool reads 0x700B today. Before
+    any joint runs `scaled_pd` on hardware: read `limit_torque` on every drive, and run a
+    supported-arm test whose `kd·(v_des − dq)` alone exceeds `bench.torque_limit_nm`. If the
+    firmware does not clamp the total, Davout gets a total-torque estimate before Phase 3 (a
+    separate change). The trace's `tau_ff_wire`, `kd_mit`, `dq_ref` and `q_des` columns give the
+    bench the inputs of that bound every tick.
 - **Danger zones.** `clamp_velocity` starts working: with kd > 0 the clamped `v_des` brakes.
   This changes behaviour for `elevated_shoulder_pitch_fall` (0.45 rad/s) and must be re-verified
   with the arm supported. `clamp_torque` is unchanged.
@@ -178,6 +208,14 @@ This ADR changes no values. A changed value needs its own bench evidence (test p
 The position trace gains `kd_mit` (wire), `v_des`, the post-Davout τ_ff, `s`, and `I`. It drops
 `tau_d` and `friction_mode`. Decimation stays configurable, but bench qualification runs at
 every tick.
+
+*Phase 0 status.* Done. The trace appends `law`, `q_ref`, `dq_ref` (the reference the law
+commands, for both laws), `time_scale` (`s`; legacy writes 0 while its planner is frozen, else 1),
+`tau_i` (the integral torque), `kd_mit` and `tau_ff_wire` (Davout's last sent τ_ff, after the cap
+and the rate limiter: binding ticks are `tau_ff_wire ≠ tau_ff_cmd`). `dq_mit` is `v_des`. Rows are
+written after the Davout send. `tau_d` and `friction_mode` stay until the Phase 4 cutover because
+the legacy law still fills them and `gravity-fit`, `analyze-position-trace.py` and the MCP read
+the schema by name; the scaled law writes `tau_d = 0` and `friction_mode = reference`.
 
 ## Test plan
 
@@ -220,20 +258,81 @@ every tick.
 | `v_des` or `kd` toggles at rest | ~500 per 75 s (elbow) | 0 |
 | final error after 1 s | 4–6 mrad | ≤ max(2 counts, (fs − fc)/kp) |
 
+### Phase 2 results (simulation)
+
+`crates/berthier/src/position_hold_tests/law_gates.rs` drives both laws through production
+`PositionHold::{apply_retarget, tick}` against a pitch-like plant: inertia 0.12 kg·m², gravity
+2.7·sin q Nm, fs 0.14 / fc 0.08 / fv 0.02 Nm, a drive running the MIT law on its own velocity at
+4 kHz with the 5 Nm limit, Davout's τ_ff cap and 60 Nm/s limiter, q on the RS03 grid with one
+count of encoder noise, dq as the 5 ms grid difference, one tick of delay. The session is a
+calibration-like 0 → 0.75 (1.25 rad/s), 0.80 and 0.70 (0.15 rad/s slews), → 0. Master pitch
+gains; every scaled-PD parameter at its default. Plants: true gravity ×1, ×0.67, ×1.5, ×2 of the
+model.
+
+| Gate | Legacy (worst plant) | Scaled PD (worst plant) |
+|---|---|---|
+| host τ_ff step per tick outside retargets ≤ 0.05 Nm | 2.57 Nm (fails every plant) | 0.021 Nm |
+| velocity excess ≤ max(20 % of plan, fs/kd) | 3.3–6.7× the bound with a model error (+104 %, +111 %, +209 %) | 0.91× the bound |
+| kd / v_des / phase changes in the last 1 s of each rest | 12–190 | 0 |
+| stuck rows (< 10 %) | 3–13 % | 3–4 % |
+| fuse trips, max speed | none, 1.61 rad/s | none, 1.41 rad/s |
+
+The wire gate `crates/berthier/tests/position_law_wire.rs` runs a dithering rest hold through
+ControlLoop, Davout and the robstride encoder: `scaled_pd` sends one kd and one v_des code in all
+300 frames; the legacy default toggles kd.
+
+Deviations from the plan above, each forced by the simulation or by arithmetic:
+
+- **The governor scales the reference speed limit, not its clock.** `v_ref` advances by a
+  trapezoid step whose speed limit is `s·v_max`, with `|Δv_ref| ≤ a_max·dt`, `s` as specified
+  while advancing would grow `|q_r − q|`, and `s = 1` while it closes the lead. Scaling virtual
+  time freezes the reference's own braking at `s = 0`, so a retarget back toward a stuck joint
+  never moves, and `s·v_r` with a frozen nominal `v_r` releases a stale velocity when `s`
+  recovers. As a result `|Δv_c| ≤ a_max·dt` with no extra slew term.
+- **The reference rides a discrete braking curve** and reverses, overshoots a too-short
+  retarget and returns, all within `a_max·dt` per tick. It snaps to `(target, 0)` only from a
+  speed within one tick of rest. The legacy trapezoid snaps velocity on reversal.
+- **Stuck-plant lead bound.** From rest the lead stays below `e1 + e0`. A joint that jams at
+  speed carries the reference up to `e1 + v²/(2·a_max)`; `e1 + v_max·dt` is unreachable for any
+  continuous reference (pitch: 1.25²/9 = 0.17 rad > e1).
+- **Static dead zone is `fs/kp`, not `(fs − fc)/kp`**, because `τ_fric(0) = 0` at rest.
+- **Velocity-overshoot gate.** A PD with drive damping catches a lag `e` up at `(kp/kd)·e` above
+  the reference speed, and a joint resting in its dead zone starts a move up to `fs/kp` behind.
+  So the excess has a floor of `fs/kd` (pitch: 0.047 rad/s, 31 % of a 0.15 rad/s slew) for any
+  law that does not snap its reference to `q`. The gate is therefore
+  `excess ≤ max(20 % of plan, fs/kd)`. Against a strict 20 % the scaled law fails twice: 28 % on
+  the exact-model 0.15 rad/s descent (legacy 17 %, because it resets its planner to `q`), and
+  23 % on the ×1.5 slow approach. `J_eff·a_c` (once identified) and an identified `fs` are the
+  levers; raising gains is not.
+- **The same arithmetic applies to the bench metric.** One measured-velocity quantum
+  (0.077 rad/s) is 51 % of a 0.15 rad/s slew. [INFERENCE: much of today's +95–108 % p95 is
+  quantization.] Phase 3 must compute overshoot from Δq over ≥ 50 ms, or only where the plan is
+  ≥ 0.4 rad/s.
+- **Integral.** Stored as torque, so a gain change never steps it. It accumulates only with
+  `ki > 0`, leaks otherwise, and is never reset by a retarget (the legacy law zeroed it).
+- **`fo`** stays a constant term of τ_ff, outside the odd `τ_fric(v)`.
+- **HoldTracking** judges the wire terms `kp·(q_des − q) + kd·(v_c − dq) + τ_ff`. Measured dq
+  appears only in that fuse, never in torque.
+- **Wave.** A wave-owned joint uses the wave sample as its reference, without the governor.
+- **Not modelled:** the ADR's `J_eff·a_c` (no key), and the elbow 0.75 → 0.5 case as a separate
+  scenario. The ×2 plant's 0.70 → 0 descent covers a −50 % model (+3 %, 1.29 rad/s, no trip).
+
 ## Implementation plan
 
-1. **Phase 0: quick fixes and observability.**
-   - Done: `db492cd3` (overshoot snap) and `8f9cff94` (low-angle band).
-   - To do: add the trace columns above (no control change).
-2. **Phase 1: models first.**
+1. **Phase 0: quick fixes and observability.** Done.
+   - `db492cd3` (overshoot snap) and `8f9cff94` (low-angle band).
+   - The trace columns (see Observability).
+2. **Phase 1: models first.** Not started (needs the bench).
    - Fix the elbow gravity model (~1.5× light).
    - Identify fs, fc and fv per joint from slow constant-velocity sweeps (GravityComp rule:
      before any gain change).
-3. **Phase 2: the law, in simulation.**
-   - Add `position_law.rs` with the reference generator, time scaling, friction and composition,
-     plus the unit and simulation gates.
-   - Leave the old path untouched.
-4. **Phase 3: bench qualification, one joint at a time.**
+3. **Phase 2: the law, in simulation.** Done.
+   - `crates/berthier/src/position_law.rs` holds the reference step, governor, friction and
+     integral. `position_hold.rs` dispatches per joint and keeps the legacy path untouched.
+   - The per-joint `position_law` selector is in place, with every joint on `legacy`.
+   - Gates: see Phase 2 results.
+4. **Phase 3: bench qualification, one joint at a time.** Not started; no joint selects the law.
+   - Entry gate: answer open question 1 first (see Davout interactions).
    - Order: pitch bare → pitch weighted → roll → elbow → yaws.
    - Use a per-joint `position_law: scaled_pd` key that exists only for the duration of this
      phase.
@@ -264,7 +363,8 @@ every tick.
 ## Open questions
 
 1. Does Robstride firmware clamp the *total* MIT torque at `limit_torque` (parameter 0x700B)
-   in operation mode? If not, Davout needs a total-torque estimate before Phase 3.
+   in operation mode? If not, Davout needs a total-torque estimate before Phase 3. Handling:
+   open, and a Phase 3 entry gate (Davout interactions); Phase 2 adds no total-torque guard.
 2. What is the drive's velocity estimator window? It sets the usable kd. The reported quantum
    is ~0.075 rad/s; kd 3 means 0.23 Nm per count.
 3. Should Phase 3 keep `e1 = position_slew_max_lead_rad` (0.10–0.12), or start smaller (lower
