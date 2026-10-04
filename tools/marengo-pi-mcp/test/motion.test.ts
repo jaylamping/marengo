@@ -7,6 +7,7 @@ import path from "node:path";
 import type { MarengoPiConfig } from "../src/config.js";
 import {
   benchCanKernelDeltaShell,
+  benchCandumpStartShell,
   benchCanKernelSnapshotShell,
   benchLogArchiveShell,
   expandScriptWithWaveWaits,
@@ -528,6 +529,19 @@ describe("marengo-pi script tool", () => {
     assert.match(benchCanKernelDeltaShell(), /can kernel delta/);
     assert.match(benchCanKernelDeltaShell(), /_rx0=\$\{_rx0:-0\}/);
     assert.match(benchCanKernelDeltaShell(), /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
+  });
+
+  it("requests kernel error frames on every UP interface without -e", () => {
+    const shell = benchCandumpStartShell();
+    // can-utils `iface,#FFFFFFFF` sets CAN_RAW_ERR_FILTER while keeping the
+    // default receive-all data filter (no CAN_RAW_FILTER is installed when
+    // no data filter is given). -e would append multi-line human-readable
+    // decodes that break line-oriented parsing, so raw frames are recorded
+    // and decoded by marengo-log-cli instead.
+    assert.match(shell, /\$_if,#FFFFFFFF/);
+    assert.match(shell, /candump -t z \$CANDUMP_ARGS/);
+    assert.doesNotMatch(shell, /candump -t z -e/);
+    assert.doesNotMatch(shell, / -e /);
   });
 
   describe("benchCanKernelDeltaShell rates", () => {

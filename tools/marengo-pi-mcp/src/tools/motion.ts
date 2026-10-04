@@ -131,7 +131,7 @@ export function benchCandumpStartShell(): string {
     'CANDUMP="$LOGDIR/candump-$TS.log"',
     'CANDUMP_ARGS=""',
     "for _if in can0 can1 can2; do",
-    '  ip link show "$_if" 2>/dev/null | grep -q " state UP " && CANDUMP_ARGS="$CANDUMP_ARGS $_if"',
+    '  ip link show "$_if" 2>/dev/null | grep -q " state UP " && CANDUMP_ARGS="$CANDUMP_ARGS $_if,#FFFFFFFF"',
     "done",
     'if [ -n "$CANDUMP_ARGS" ]; then',
     '  candump -t z $CANDUMP_ARGS > "$CANDUMP" 2>&1 &',
