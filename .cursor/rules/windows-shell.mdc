@@ -5,7 +5,11 @@ alwaysApply: true
 
 # Windows Shell Safety
 
-The default shell on this workspace is PowerShell. Avoid Bash-only command
+**Scope: native Windows hosts only.** On macOS or Linux (check the session's OS
+before writing a command) use ordinary bash/zsh syntax: `&&`, `||`, heredocs and
+`export` are correct there, and the PowerShell forms below are syntax errors.
+
+On native Windows the default shell is PowerShell. Avoid Bash-only command
 syntax unless the command is explicitly executed through `sh` / `bash`.
 
 **Enforced:** `.cursor/hooks/check-powershell-shell.js` (built from the `.ts`
@@ -44,8 +48,8 @@ After installing CLI tools with `winget` or `npm -g`, update `$env:Path` in the
 current session before verifying the command. New terminals may not see PATH
 changes until restarted.
 
-## Software vs CAD host
+## Hosts (ADR 0018)
 
-- **Software** (`just check`, cargo, Pi deploy): WSL clone `~/code/marengo`.
-- **CAD / SolidWorks MCP**: Windows `C:\code\marengo`.
-- Session start injects which host you are on — do not invent bash pipelines on Windows.
+- **macOS host checkout** (`~/code/marengo`): software work (`just check` via Docker, cargo, Pi deploy). Bash/zsh syntax.
+- **Windows** `J:\code\marengo`: software and local CAD / SolidWorks MCP. PowerShell rules above apply.
+- There is no WSL checkout. Session start injects which host you are on; do not mix shell syntaxes across hosts.
