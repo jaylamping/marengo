@@ -2817,15 +2817,23 @@ mod tests {
 
     #[test]
     fn clamp_latches_setpoint_at_target_on_large_hold_overshoot() {
-        let q_des = clamp_trajectory_setpoint(1.65, 1.64, 1.57, 0.10, None, -0.3);
+        // Hold: the planner reference sits at the target.
+        let q_des = clamp_trajectory_setpoint(1.57, 1.64, 1.57, 0.10, None, 0.0);
         assert!(
             (q_des - 1.57).abs() < 1e-12,
-            "hold overshoot must not chase q_traj above measured q"
+            "hold overshoot must latch at target"
         );
-        let q_des_negative = clamp_trajectory_setpoint(-0.66, -0.70, -0.64, 0.10, None, -0.3);
+        let q_des_negative = clamp_trajectory_setpoint(-0.64, -0.70, -0.64, 0.10, None, 0.0);
         assert!(
             (q_des_negative + 0.64).abs() < 1e-12,
             "negative hold overshoot must latch at target"
+        );
+        // Planner still above the target (a descent in progress): no snap, and no chase of
+        // q_traj above measured q.
+        let q_des_descent = clamp_trajectory_setpoint(1.65, 1.64, 1.57, 0.10, None, -0.3);
+        assert!(
+            (q_des_descent - 1.64).abs() < 1e-12,
+            "descent must not chase q_traj above measured q: {q_des_descent}"
         );
     }
 
@@ -2839,6 +2847,35 @@ mod tests {
         assert!(
             q_des > -0.6417,
             "q_des must not command the lower-limit target before planner reaches it"
+        );
+    }
+
+    #[test]
+    fn clamp_does_not_snap_to_target_on_descent_toward_positive_target() {
+        // Bench 2026-10-04T07:36:40Z elbow, t=31.76 s: 0.75 → 0.5 descent, planner 0.14 short
+        // of target on the arm's side. The snap commanded q_des=0.5 (tau_p −1.70 Nm) and the
+        // elbow fell at −2.46 rad/s into the Davout feedback-velocity fault.
+        let q_des = clamp_trajectory_setpoint(0.640, 0.642, 0.5, 0.15, None, -0.85);
+        assert!(
+            (q_des - 0.640).abs() < 1e-12,
+            "descent must follow q_traj until the planner arrives: {q_des}"
+        );
+    }
+
+    #[test]
+    fn clamp_does_not_snap_to_target_on_ascent_toward_negative_target() {
+        // Bench 2026-10-04T08:46:15Z pitch, t=8.16 s: −0.518 → −0.254, planner 0.10 short.
+        // The snap stepped tau_p 1.36 → 3.09 Nm and dq reached 2.13 rad/s (plan 0.79).
+        let q_des = clamp_trajectory_setpoint(-0.355, -0.426, -0.254, 0.12, None, 0.975);
+        assert!(
+            (q_des + 0.355).abs() < 1e-12,
+            "move toward home must follow q_traj until the planner arrives: {q_des}"
+        );
+        // Same run, t=3.96 s: a 0.05 rad move −0.556 → −0.508 became a single step.
+        let q_des_small = clamp_trajectory_setpoint(-0.555, -0.556, -0.508, 0.12, None, 0.09);
+        assert!(
+            (q_des_small + 0.555).abs() < 1e-12,
+            "small move must not step to target: {q_des_small}"
         );
     }
 

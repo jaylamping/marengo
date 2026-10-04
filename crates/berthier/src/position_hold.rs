@@ -1535,6 +1535,81 @@ mod tests {
         }
     }
 
+    /// Bench 2026-10-04T07:36:40Z: an elbow retarget 0.75 → 0.5 stepped `q_des` to the target
+    /// once the planner came within `max_lead` of it (overshoot snap judged by target sign).
+    /// With the arm following the planner, `q_des` must stay continuous and lead-bounded.
+    #[test]
+    fn descent_toward_positive_target_never_steps_q_des() {
+        use crate::position_setpoint::{
+            POSITION_DESCENT_STUCK_LEAD_RAD, POSITION_HOLD_ONSET_MAX_LEAD_RAD,
+        };
+
+        let params = [HoldJointParams {
+            kp: 12.0,
+            kd: 1.5,
+            max_lead: 0.10,
+            advance_max_lead: 0.10,
+            advance_vel_deadband: 0.02,
+            slew_rad_s: 0.12,
+            trajectory_v_max: 1.43,
+            a_max: 2.5,
+            velocity_cap: Some(1.5),
+            ..test_joint_params()
+        }];
+        let names = [String::from("right_elbow_pitch")];
+        let dt = 0.005;
+        let (start, target) = (0.75, 0.5);
+        let mut hold = PositionHold::new(1);
+        hold.arm(&[start], &[start], 0);
+        assert!(hold.apply_retarget(HoldRetarget {
+            joint_idx: 0,
+            clamped: target,
+            requested: target,
+            q: start,
+            tick: 1,
+            dq_seed: Some(0.0),
+            downward_seed: Some(downward_return_seed_velocity(0.12, 1.43, start, target)),
+        }));
+        let mut q = start;
+        let mut dq = 0.0;
+        let mut last_q_des: Option<f64> = None;
+        let mut wave = None;
+        for tick in 1..400u64 {
+            let world = HoldWorld {
+                q: &[q],
+                dq_meas: &[dq],
+                tau_g: &[0.0],
+                joints: &params,
+                joint_names: &names,
+                dt,
+                hz: 200,
+                tick_count: tick,
+                wave: &mut wave,
+            };
+            let out = hold.tick(world).unwrap();
+            let q_des = out.mit[0].position_rad;
+            assert!(
+                (q_des - q).abs() <= POSITION_HOLD_ONSET_MAX_LEAD_RAD + 1e-9,
+                "tick {tick}: lead {} exceeds the lead bound",
+                q_des - q
+            );
+            if let Some(last) = last_q_des {
+                // The descent stuck pull (`q − 0.03` while `dq` is still zero) releases in one
+                // step of at most its own lead; the snap stepped by up to the boosted lead.
+                assert!(
+                    (q_des - last).abs() <= POSITION_DESCENT_STUCK_LEAD_RAD,
+                    "tick {tick}: q_des stepped {last:.4} → {q_des:.4} (q={q:.4})"
+                );
+            }
+            last_q_des = Some(q_des);
+            // Ideal follower one tick behind the planner reference.
+            let q_next = hold.q_traj().unwrap()[0];
+            dq = (q_next - q) / dt;
+            q = q_next;
+        }
+        assert!((q - target).abs() < 1e-6, "follower must arrive: q={q}");
+    }
+
     #[test]
     fn same_target_retarget_is_full_noop_on_planner_and_fuse() {
         let mut hold = PositionHold::new(1);
