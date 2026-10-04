@@ -53,7 +53,14 @@ proptest! {
         // Position mode: tau_ff = tau_g + tau_f + tau_d.
         // The non-gravity components (tau_f, tau_d) come from
         // `compose_position_hold_feedforward` and must not depend on tau_g.
-        let friction = friction.map(|(fc, fv, fo, k)| FrictionGains { fc, fv, fo, k });
+        let friction = friction.map(|(fc, fv, fo, k)| FrictionGains {
+            fc,
+            fv,
+            fo,
+            k,
+            fs: None,
+            v_b: None,
+        });
         let friction_ref = friction.as_ref();
 
         let out1: PositionHoldFeedforward = compose_position_hold_feedforward(

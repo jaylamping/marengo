@@ -9,7 +9,7 @@ use std::time::Duration;
 use crate::{
     motor_for_joint, motor_type_key, resolve_joint_velocity_cap, validate_control_against_limits,
     ConfigError, ControlConfigFile, HomingConfigFile, HomingMethod, JointControlEntry,
-    MotorsConfigFile, RobotConfigFile,
+    MotorsConfigFile, PositionLaw, RobotConfigFile,
 };
 
 fn invalid(field: impl Into<String>, message: impl Into<String>) -> ConfigError {
@@ -157,6 +157,54 @@ pub(crate) fn validate_joint_numbers(
         format_args!("control.joints.{joint}.position_hold_trim_rad"),
         entry.position_hold_trim_rad,
     )?;
+    validate_scaled_pd_numbers(joint, entry)
+}
+
+/// ADR 0039 scaled-PD parameters. Optional keys are checked whenever present; the law
+/// itself additionally needs a positive stop band `e1` with `e0 < e1`.
+fn validate_scaled_pd_numbers(joint: &str, entry: &JointControlEntry) -> Result<(), ConfigError> {
+    if let Some(e0) = entry.position_time_scale_e0_rad {
+        nonnegative(
+            format_args!("control.joints.{joint}.position_time_scale_e0_rad"),
+            e0,
+        )?;
+        if e0 >= entry.position_slew_max_lead_rad {
+            return Err(invalid(
+                format!("control.joints.{joint}.position_time_scale_e0_rad"),
+                "must be below position_slew_max_lead_rad (e1)",
+            ));
+        }
+    }
+    if let Some(band) = entry.position_integral_band_rad {
+        positive(
+            format_args!("control.joints.{joint}.position_integral_band_rad"),
+            band,
+        )?;
+    }
+    if let Some(leak) = entry.position_integral_leak_s {
+        positive(
+            format_args!("control.joints.{joint}.position_integral_leak_s"),
+            leak,
+        )?;
+    }
+    if let Some(fs) = entry.friction.fs {
+        finite(format_args!("control.joints.{joint}.friction.fs"), fs)?;
+        if fs < entry.friction.fc {
+            return Err(invalid(
+                format!("control.joints.{joint}.friction.fs"),
+                "must be >= friction.fc",
+            ));
+        }
+    }
+    if let Some(v_b) = entry.friction.v_b {
+        positive(format_args!("control.joints.{joint}.friction.v_b"), v_b)?;
+    }
+    if entry.position_law == PositionLaw::ScaledPd {
+        positive(
+            format_args!("control.joints.{joint}.position_slew_max_lead_rad"),
+            entry.position_slew_max_lead_rad,
+        )?;
+    }
     Ok(())
 }
 
