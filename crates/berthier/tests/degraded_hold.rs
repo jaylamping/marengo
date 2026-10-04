@@ -74,6 +74,8 @@ struct Rig {
     // Drop order: the controller (and its journal worker) before the tree.
     controller: ControlLoop<FirmwareBus>,
     firmware: SharedFirmware,
+    /// Start of the previous tick, so ticks are paced like marengo-pi's loop.
+    last_tick: Instant,
     _tree: FixtureTree,
 }
 
@@ -99,6 +101,7 @@ impl Rig {
         let mut rig = Self {
             controller,
             firmware,
+            last_tick: Instant::now(),
             _tree: tree,
         };
         rig.controller
@@ -173,7 +176,11 @@ impl Rig {
 
     /// One `marengo-pi` loop iteration: reports, reporting sync, tick, pacing.
     fn tick(&mut self) -> Result<Vec<DegradedEvent>, LoopError> {
-        std::thread::sleep(PERIOD);
+        // Pace like marengo-pi (`sleep(period − elapsed)`): the episode deadline is wall-clock,
+        // so a debug-build tick that sleeps a whole period after computing runs slower than
+        // 200 Hz and the lower misses a deadline it meets on the Pi.
+        std::thread::sleep(PERIOD.saturating_sub(self.last_tick.elapsed()));
+        self.last_tick = Instant::now();
         self.firmware.borrow_mut().emit_reports();
         self.controller.supervisor_mut().sync_active_reporting();
         self.controller.tick(None)?;
@@ -259,7 +266,7 @@ fn distal_loss_holds_then_lowers_to_rest_at_the_capped_speed_and_disables() {
         .iter()
         .position(|joint| joint == PITCH)
         .expect("pitch");
-    let mut previous: Option<(Instant, f64)> = None;
+    let mut previous: Option<f64> = None;
     let mut fastest = 0.0_f64;
     let give_up = Instant::now() + Duration::from_secs(6);
     loop {
@@ -274,12 +281,12 @@ fn distal_loss_holds_then_lowers_to_rest_at_the_capped_speed_and_disables() {
             "the lower completes before the deadline: {events:?}"
         );
         if let Some(q_traj) = rig.controller.position_hold_commands() {
-            let now = Instant::now();
-            if let Some((at, q)) = previous {
-                let dt = (now - at).as_secs_f64();
-                fastest = fastest.max((q_traj[index] - q).abs() / dt);
+            // The planner advances one control period per tick, whatever the wall-clock jitter.
+            if let Some(q) = previous {
+                let step: f64 = q_traj[index] - q;
+                fastest = fastest.max(step.abs() / PERIOD.as_secs_f64());
             }
-            previous = Some((now, q_traj[index]));
+            previous = Some(q_traj[index]);
         }
         assert!(Instant::now() < give_up, "lower completes");
     }
