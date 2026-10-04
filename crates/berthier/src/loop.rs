@@ -3072,6 +3072,22 @@ mod tests {
     }
 
     #[test]
+    fn low_angle_knee_boost_stays_inside_its_0_to_030_band() {
+        // The knee band is ~0–30° above home. A joint well below home (pitch at −0.6 holding
+        // toward −0.9, planner not approaching) is outside it and keeps max_lead.
+        let below_home = position_hold_effective_max_lead(0.10, 5000, false, -0.3, -0.6);
+        assert!(
+            (below_home - 0.10).abs() < 1e-12,
+            "no sustained knee boost below home: {below_home}"
+        );
+        let in_band = position_hold_effective_max_lead(0.10, 5000, false, -0.1, 0.2);
+        assert!(
+            (in_band - 0.15).abs() < 1e-12,
+            "in-band return keeps the sustained knee boost: {in_band}"
+        );
+    }
+
+    #[test]
     fn planner_resyncs_when_stuck_at_lead_cap() {
         let mut planner = JointPositionPlanner::new_for_target(1.02, 1.57);
         planner.q_traj = 0.92;

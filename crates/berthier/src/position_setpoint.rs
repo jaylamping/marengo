@@ -106,7 +106,8 @@ pub fn low_angle_breakaway_active(
     approaching_target: bool,
 ) -> bool {
     const LOW_ANGLE_SPAN_MAX_RAD: f64 = 0.30;
-    if q > LOW_ANGLE_SPAN_MAX_RAD {
+    // The band is [0, 0.30]: below home a lower target is an outbound move, not a return.
+    if !(0.0..=LOW_ANGLE_SPAN_MAX_RAD).contains(&q) {
         return false;
     }
     if home_final_approach_stuck(q, target) {
