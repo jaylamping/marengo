@@ -1,0 +1,67 @@
+# Right-arm calibration suite
+
+Status: in build (2026-10-04). Profile `arm_attached`, all five joints referenced
+in every session (ADR 0036). Trust nothing from CAD or earlier tuning: each phase
+measures gravity and friction on the current hardware, fits, applies, and is
+validated before the next phase may run.
+
+## Why
+
+2026-10-04, pitch 0.8 elbow sweep: elbow measured τ ≈ 1.5 × URDF τ_g and
+static friction ≈ ±0.14 Nm (config `fc` 0.05). On a downward step the
+under-compensated forearm fell at 2.46 rad/s (planned 0.8) and tripped the feedback
+velocity fault. The earlier pitch fit (session 20261004T045804Z) was refused:
+forearm and upper-arm mass were not separable from one sweep.
+
+## Order and rules
+
+Shoulder first, then down the chain, then compound. Low-gravity poses before
+loaded ones. One joint moves per session; the others hold fixed poses.
+
+| Phase | Sweep joint | Fixed poses | Measures |
+|---|---|---|---|
+| 0 | none | rest | 5-cycle enable soak (wire health) |
+| 1 | shoulder_pitch | all others 0 | whole-arm mass × COM about pitch; pitch friction |
+| 2 | shoulder_roll | all others 0 | whole-arm mass × COM about roll; roll friction |
+| 3a | upper_arm_yaw | all 0 (axis ≈ vertical) | yaw friction only |
+| 3b | upper_arm_yaw | pitch 0.5, elbow 0.5 | forearm COM offset about yaw |
+| 4a | elbow_pitch | all 0 | forearm + hand mass × COM |
+| 4b | elbow_pitch | pitch 0.5 | same, loaded (fit check) |
+| 5a | lower_arm_yaw | all 0 | wrist-yaw friction only |
+| 5b | lower_arm_yaw | elbow 0.5 | hand COM offset |
+| 6 | validation | grid of fixed poses | residual gate, no refit |
+| 7 | compound | waypoint sequences | tracking, coupling, repeatability |
+
+Each sweep session:
+
+1. **Static holds**: poses across the joint's window, approached from below
+   *and* from above (½Δ = Coulomb friction, mean = gravity). Amplitude grows by
+   phase run: 25 %, 50 %, then 90 % of the soft window, never within 0.05 rad of a limit.
+2. **Constant-velocity passes**: slow bidirectional moves at several speeds in
+   the gravity-free middle of the window; torque vs velocity gives viscous `fv`
+   and Coulomb `fc` independently of the static holds.
+3. **Pre-flight guard**: refuse any pose whose model τ_g × 1.6 (model distrust
+   factor) exceeds 80 % of the joint's τ_ff cap.
+
+After each phase: fit (gravity-fit, all sessions so far fused), review, apply
+the URDF patch (`pi_sync_bench_urdf`, ADR 0017) and friction patch to
+`control.yaml` (Pi first; Pi is the source of truth), then rerun that phase's
+holds as a no-refit check before the next phase.
+
+## Gates
+
+- Static residual |τ_meas − (τ_g + friction sign)| ≤ 0.10 Nm per joint per pose.
+- Fit identifiability: min singular value ≥ 0.05 Nm, condition ≤ 100.
+- No fault, fuse, watchdog or CAN error; no `rx_over` growth; candump + trace
+  reviewed after every motion session.
+- Phase 6: every grid pose passes the residual gate with the fitted model.
+- Phase 7 needs the operator's forbidden-pose list (collisions with torso,
+  stand, cables) before any compound move is commanded.
+
+## Tooling
+
+- `pi_joint_calibrate` (MCP): one session = one sweep joint, fixed poses,
+  holds + velocity passes, pre-flight guard, ≤ 300 s.
+- `marengo-log-cli gravity-fit`: any sweep joint, fused sessions, partial
+  sessions (completed steps only), friction fit → proposed `control.yaml`
+  friction patch next to the URDF patch. Nothing is applied automatically.
