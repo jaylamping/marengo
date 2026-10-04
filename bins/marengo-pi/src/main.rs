@@ -65,8 +65,8 @@ use chappe::topics::{
 };
 use chappe::Bus;
 use davout::{
-    DavoutError, MotorBus, OperationalMode, ReferenceHandle, ReferenceTerminal, StopReport,
-    DEFAULT_LEASE_TTL,
+    DavoutError, ExitReportingReport, MotorBus, OperationalMode, ReferenceHandle,
+    ReferenceTerminal, StopReport, DEFAULT_LEASE_TTL,
 };
 use enable_gate::{emit, EnableGate, PreflightFor, PreflightRefusal};
 use gravity_preflight::{GravitySweep, SliceBudget, SweepAbort, SweepStats, SweepStep};
@@ -1703,6 +1703,17 @@ fn main() {
             "mandatory reference cleanup preceded storage drain; physical stop unconfirmed"
         );
     }
+    if outcome.reporting.all_sent() {
+        info!(
+            reporting = ?outcome.reporting,
+            "exit type-24 Off sent to every drive; drive quiescence unconfirmed"
+        );
+    } else {
+        warn!(
+            reporting = ?outcome.reporting,
+            "type-24 Off not sent to every drive at exit; a drive may keep streaming"
+        );
+    }
     info!(
         persist_idle = outcome.persist_idle,
         status = ?outcome.persist.status,
@@ -1734,6 +1745,8 @@ enum ExitStopOutcome {
 struct ShutdownOutcome {
     persist_idle: bool,
     stop: ExitStopOutcome,
+    /// Type-24 Off per installed drive, written after the stop.
+    reporting: ExitReportingReport,
     mandatory_reference: Option<ReferenceTerminal>,
     persist: PersistDrainReport,
     reference_journal: davout::ReferenceJournalDrain,
@@ -1780,6 +1793,11 @@ fn finish_owner_shutdown<B: MotorBus>(
     let deadline = Instant::now()
         .checked_add(persist_timeout)
         .unwrap_or_else(Instant::now);
+    // Every exit, with or without the exit stop: no drive is left streaming
+    // type-24 for the next owner (docs/safety.md, *Reporting Off at exit*).
+    let reporting = loop_ctrl
+        .supervisor_mut()
+        .release_reporting_for_exit(deadline);
     actuator_overlay.close_persist_admission();
     loop_ctrl.supervisor().close_reference_journal_admission();
     #[cfg(test)]
@@ -1822,6 +1840,7 @@ fn finish_owner_shutdown<B: MotorBus>(
     ShutdownOutcome {
         persist_idle,
         stop,
+        reporting,
         mandatory_reference,
         persist,
         reference_journal,

@@ -31,7 +31,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
                        └─ Berthier ControlLoop ─▶ Davout Supervisor ─▶ robstride ─▶ SocketCAN can0/can1 ─▶ drives
 ```
 
-**Fixed motor path: Berthier → Davout → robstride.** Berthier never opens CAN. Only `marengo-pi` and `motor-repl` open SocketCAN. `motor-repl disable` intentionally **bypasses Davout**: it sends one type-4 Disable per `motors.yaml` address (`bins/motor-repl/src/stop.rs`) so it can stop drives when no owner is running.
+**Fixed motor path: Berthier → Davout → robstride.** Berthier never opens CAN. Only `marengo-pi` and `motor-repl` open SocketCAN. `motor-repl disable` intentionally **bypasses Davout**: it sends one type-4 Disable, then one type-24 Off, per `motors.yaml` address (`bins/motor-repl/src/stop.rs`) so it can stop drives and their active reporting when no owner is running.
 
 | Layer | Owns | Must not |
 |---|---|---|

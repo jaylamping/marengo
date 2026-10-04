@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use davout::{
-    ControlMode, DavoutError, DegradedEnd, DriveLossPlan, FaultClass, OperationalMode,
-    ReferenceAudit, ReferenceOutcome, Supervisor, SHED_REPLY_GRACE,
+    ControlMode, DavoutError, DegradedEnd, DriveLossPlan, ExitReportingOff, FaultClass,
+    OperationalMode, ReferenceAudit, ReferenceOutcome, Supervisor, SHED_REPLY_GRACE,
 };
 use marengo_config::{
     load_control_config_from, load_homing_config_from, load_motors_config_from,
@@ -595,5 +595,38 @@ fn operator_stop_and_completion_end_the_episode_with_a_latched_fault() {
             bench.supervisor.enable_targets(&[PITCH.to_owned()]),
             Err(DavoutError::FaultLatched { .. })
         ));
+    }
+}
+
+/// The exit type-24 Off goes to every drive but a shed one, which this
+/// process never writes again except Disable (ADR 0038).
+#[test]
+fn the_exit_reporting_off_skips_a_shed_drive() {
+    let mut bench = Bench::active("drive-loss-exit-reporting");
+    bench.lose(LOWER_YAW).expect("loss sheds");
+    bench.supervisor.disable_all().expect("stop");
+    let mark = bench.trace_len();
+
+    let report = bench
+        .supervisor
+        .release_reporting_for_exit(Instant::now() + Duration::from_secs(1));
+
+    let shed = bench.device(LOWER_YAW);
+    assert_eq!(report.drives.len(), FIVE.len());
+    for (address, outcome) in &report.drives {
+        let expected = if address.device_id == shed {
+            ExitReportingOff::Shed
+        } else {
+            ExitReportingOff::Sent
+        };
+        assert_eq!(*outcome, expected, "{address:?}");
+    }
+    assert!(bench.written_since(LOWER_YAW, mark).is_empty());
+    for joint in [PITCH, ROLL, UPPER_YAW, ELBOW] {
+        assert_eq!(
+            bench.written_since(joint, mark),
+            vec![CommunicationType::ActiveReporting.as_u8()],
+            "{joint}"
+        );
     }
 }

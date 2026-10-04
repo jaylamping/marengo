@@ -316,6 +316,40 @@ disables. The fault does not clear on its own.
   Enable echo is pending, grant liveness counts from activation (or its
   post-SetZero quiet end), because its traffic is withheld from pose and the
   echo bound covers that silence.
+- **Reporting Off at exit (2026-10-04):** a session ended on a Feedback fault
+  (right_elbow_pitch velocity 2.43 > 2.0 rad/s). The tick-error stop's
+  reporting sync and the Disabled loop after it turned every stream On
+  (`active_reporting_diagnostics: true`), the shutdown stop's sync kept them
+  On, and `motor-repl disable` (ExecStopPost) sent only Disable, which does not
+  end type-24. All five drives kept reporting every 10 ms (about 500 frames/s
+  on can0) with no owner. Every later start then latched Transport on its
+  first control tick (`receive ended without observed quiescence: WorkLimit;
+  raw frames=64`, 5 of 5 soak cycles): marengo-pi opens its sockets before
+  loading config, URDF, journal and drive-loss admission, so more than 64
+  reports were queued before the first bounded drain [INFERENCE: no socket
+  queue measurement]. `motor-repl protocol-inspect` (type-24 Off per drive)
+  silenced the bus and the next soak passed 5 of 5. Every exit now leaves
+  reporting Off:
+  - `finish_owner_shutdown` calls `Supervisor::release_reporting_for_exit`
+    after the exit stop, with or without `disable_on_exit`. It writes one
+    type-24 Off to every installed drive whatever this process applied,
+    unpaced like the shutdown stop, and the reporting sync writes nothing
+    afterwards. A shed drive gets no Off (ADR 0038). A drive inside its
+    possible post-SetZero blackout gets its Off when the quiet ends, within
+    the shutdown budget; otherwise it is reported `Blackout`.
+  - `motor-repl disable` sends each address a Disable, then a type-24 Off,
+    back to back. It runs as `ExecStopPost` on every service exit (crash,
+    panic and SIGKILL included), as `pi_motor_disable` and before and after
+    every MCP session, and in motor-repl's own exit and signal stops. It is a
+    separate process without shed or SetZero state, so it also writes a drive
+    marengo-pi shed, and an Off it writes inside a blackout is dropped.
+  - Startup still latches Transport when it finds a streaming bus. Silencing
+    or discarding a pre-session backlog would mean more than one bounded poll,
+    or no latch on `WorkLimit`, before the first owner drain. That changes
+    ADR 0021 and needs its own ADR. A drive left streaming by a path no exit
+    covers (Pi power loss, kernel hang, an Off dropped in a blackout) still
+    fails the next start until `motor-repl disable` or `pi_protocol_inspect`
+    runs.
 - **No Enable inside the post-SetZero blackout:** After receiving a SetZero
   (type 6) every Robstride drive transmits nothing for 45-61 ms, starting
   511-543 ms later (614 ms once, right_elbow_pitch 2026-10-03 15:34), and never
@@ -493,10 +527,11 @@ disables. The fault does not clear on its own.
   `marengo-pi`/`motor-repl` process (ADR 0036); installed-owner client migration
   (gateway/MCP/proto) remains incomplete. `motor-repl disable` no longer builds
   a Supervisor: it reads only each drive's `can_interface` and `device_id` from
-  `motors.yaml` and sends one type-4 Disable (Byte[0]=0) per drive, so a missing
+  `motors.yaml` and sends one type-4 Disable (Byte[0]=0), then one type-24 Off,
+  per drive (see *Reporting Off at exit*), so a missing
   `control.yaml`/URDF, corrupt calibration history or a down CAN interface
   cannot stop it from reaching the drives it can reach. It prints a per-drive
-  outcome and exits 1 if any drive was not reached. A sent frame is queued on the
+  outcome per frame and exits 1 if any Disable or Off was not sent. A sent frame is queued on the
   bus, not drive-confirmed, and it is **not** a fault clear: no type-4
   Byte[0]=1 frame is ever sent (ADR 0020), so a latched drive fault persists.
   `set-zero` arms the independent stop on SIGTERM/SIGINT/SIGHUP and error exit,

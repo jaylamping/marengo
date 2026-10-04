@@ -286,14 +286,15 @@ fn both_writers_share_one_shutdown_budget_after_the_required_stop() {
         );
         assert_eq!(outcome.reference_journal.accepted_credits, 1);
         assert!(outcome.reference_journal.admission_closed);
-        let stops = usize::from(disable_on_exit || armed) * 15;
+        // The stop when one runs, then one exit type-24 Off per drive.
+        let writes = usize::from(disable_on_exit || armed) * 15 + 5;
         assert_eq!(
             *observed.lock().expect("before-wait evidence"),
-            Some((before_writes + stops, false))
+            Some((before_writes + writes, false))
         );
         assert_eq!(
             owner.supervisor().bus().transmissions().len(),
-            before_writes + stops,
+            before_writes + writes,
             "late disk completion adds no stop"
         );
         assert_eq!(outcome.mandatory_reference.is_some(), armed);

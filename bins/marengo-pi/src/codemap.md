@@ -29,7 +29,8 @@ Pi runtime implementation modules.
 See parent [codemap.md](../codemap.md) — `run_control_loop` and `handle_command` are the core paths.
 
 `finish_owner_shutdown` inhibits controller intent and retains the configured
-Davout stop result/report before waiting for persistence. Its outcomes keep
+Davout stop result/report, then writes the exit type-24 Off to every drive
+(`release_reporting_for_exit`), before waiting for persistence. Its outcomes keep
 skipped/failed stop separate from storage completion and physical acceptance.
 `run_control_loop` exits immediately on Quit and checks observed shutdown at
 each later dispatch/tick boundary. These checks cannot interrupt an already

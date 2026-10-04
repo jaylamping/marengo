@@ -87,6 +87,38 @@ pub(super) struct ReportingSuspendReport {
     pub(super) attempts: Vec<ReportingSuspendAttempt>,
 }
 
+/// Outcome of one installed drive's type-24 Off at process exit
+/// ([`super::Supervisor::release_reporting_for_exit`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExitReportingOff {
+    /// The interface accepted the Off (not drive-confirmed).
+    Sent,
+    /// The write failed; the drive may keep streaming.
+    Failed(String),
+    /// Shed drive (ADR 0038): this process writes it nothing but Disable.
+    Shed,
+    /// Still inside its possible post-SetZero blackout at the deadline, where
+    /// the drive drops every frame; nothing was written.
+    Blackout,
+}
+
+/// Exit Off outcome per installed drive, in configured order.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ExitReportingReport {
+    pub drives: Vec<(MotorAddress, ExitReportingOff)>,
+}
+
+impl ExitReportingReport {
+    /// Every installed drive's Off was accepted.
+    pub fn all_sent(&self) -> bool {
+        !self.drives.is_empty()
+            && self
+                .drives
+                .iter()
+                .all(|(_, outcome)| *outcome == ExitReportingOff::Sent)
+    }
+}
+
 impl ActiveReportingState {
     /// Suspend previously applied streams, plus the `unrecorded` route's stream
     /// whatever this process applied, without changing desired leases. A
@@ -166,7 +198,7 @@ impl ActiveReportingState {
         self.last_enable_tx.get(joint).copied()
     }
 
-    fn record_off(&mut self, joint: &str, now: Instant) {
+    pub(super) fn record_off(&mut self, joint: &str, now: Instant) {
         self.applied.insert(joint.to_string(), false);
         self.last_enable_tx.remove(joint);
         self.off_written_at.insert(joint.to_string(), now);

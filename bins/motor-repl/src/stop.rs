@@ -3,12 +3,18 @@
 //! A stop must not depend on anything that can be broken when it is needed:
 //! no Supervisor, no `control.yaml`, no URDF, no calibration history, and no
 //! CAN interface other than the one a given drive sits on. The only inputs are
-//! the `(interface, device_id)` rows of `motors.yaml` and one Robstride type-4
-//! Disable per drive. Every drive gets its own attempt and its own outcome; a
-//! failure on one drive or interface never skips another.
+//! the `(interface, device_id)` rows of `motors.yaml`, one Robstride type-4
+//! Disable per drive and, right after it, one type-24 Off. Robstride drives
+//! keep type-24 reporting across host processes and a Disable does not end it:
+//! on 2026-10-04 five drives left streaming by a faulted session (about 500
+//! frames/s) made every later `marengo-pi` start latch Transport on its first
+//! bounded drain (`docs/safety.md`, *Reporting Off at exit*). Every drive gets
+//! its own attempts and its own outcome; a failure on one drive or interface
+//! never skips another. Stops are never paced.
 //!
 //! The outcome is honest about what it proves: `sent` means the kernel accepted
-//! the frame for transmission, not that the drive left Run mode.
+//! the frame for transmission, not that the drive left Run mode or stopped
+//! reporting.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -16,12 +22,15 @@ use std::fmt;
 use marengo_config::MotorStopTarget;
 use robstride::{BusError, MotorAddress, MotorBus};
 
-/// Result of the Disable attempt for one drive.
+/// Result of the stop writes for one drive. `Err` carries the interface-open
+/// or write failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DriveStop {
     pub address: MotorAddress,
-    /// `Err` carries the interface-open or write failure.
-    pub result: Result<(), String>,
+    /// Type-4 Disable.
+    pub disable: Result<(), String>,
+    /// Type-24 Off, written after the Disable whatever its outcome.
+    pub reporting_off: Result<(), String>,
 }
 
 /// Per-drive outcomes of one stop, in the order the addresses were given.
@@ -31,29 +40,38 @@ pub struct StopReport {
 }
 
 impl StopReport {
+    /// Drives whose Disable was not sent.
     pub fn failed(&self) -> usize {
-        self.drives.iter().filter(|d| d.result.is_err()).count()
+        self.drives.iter().filter(|d| d.disable.is_err()).count()
     }
 
+    /// Drives whose type-24 Off was not sent (they may keep streaming).
+    pub fn reporting_off_failed(&self) -> usize {
+        self.drives
+            .iter()
+            .filter(|d| d.reporting_off.is_err())
+            .count()
+    }
+
+    /// Every drive's Disable and type-24 Off were sent.
     pub fn all_sent(&self) -> bool {
-        !self.drives.is_empty() && self.failed() == 0
+        !self.drives.is_empty() && self.failed() == 0 && self.reporting_off_failed() == 0
     }
 }
 
 impl fmt::Display for StopReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for drive in &self.drives {
-            match &drive.result {
-                Ok(()) => writeln!(
-                    f,
-                    "disable {}:{} sent",
-                    drive.address.interface, drive.address.device_id
-                )?,
-                Err(error) => writeln!(
-                    f,
-                    "disable {}:{} FAILED: {error}",
-                    drive.address.interface, drive.address.device_id
-                )?,
+            let interface = &drive.address.interface;
+            let device_id = drive.address.device_id;
+            for (frame, result) in [
+                ("disable", &drive.disable),
+                ("reporting-off", &drive.reporting_off),
+            ] {
+                match result {
+                    Ok(()) => writeln!(f, "{frame} {interface}:{device_id} sent")?,
+                    Err(error) => writeln!(f, "{frame} {interface}:{device_id} FAILED: {error}")?,
+                }
             }
         }
         Ok(())
@@ -78,8 +96,9 @@ pub fn stop_addresses(
     addresses
 }
 
-/// Send one Disable to every address. `open` is called once per distinct
-/// interface; an interface that cannot be opened fails only its own drives.
+/// Send one Disable, then one type-24 Off, to every address, back to back.
+/// `open` is called once per distinct interface; an interface that cannot be
+/// opened fails only its own drives.
 pub fn disable_drives<B: MotorBus>(
     addresses: &[MotorAddress],
     mut open: impl FnMut(&str) -> Result<B, BusError>,
@@ -90,15 +109,19 @@ pub fn disable_drives<B: MotorBus>(
         let bus = buses
             .entry(address.interface.as_str())
             .or_insert_with(|| open(&address.interface).map_err(|error| format!("open: {error}")));
-        let result = match bus {
-            Ok(bus) => bus
-                .disable_drive_at(address)
-                .map_err(|error| error.to_string()),
-            Err(error) => Err(error.clone()),
+        let (disable, reporting_off) = match bus {
+            Ok(bus) => (
+                bus.disable_drive_at(address)
+                    .map_err(|error| error.to_string()),
+                bus.disable_active_reporting_at(address)
+                    .map_err(|error| error.to_string()),
+            ),
+            Err(error) => (Err(error.clone()), Err(error.clone())),
         };
         drives.push(DriveStop {
             address: address.clone(),
-            result,
+            disable,
+            reporting_off,
         });
     }
     StopReport { drives }
@@ -203,6 +226,25 @@ mod tests {
     }
     impl MotorBus for SharedBus {}
 
+    /// Accepts every write except type-24.
+    struct NoReportingBus(MemoryBus);
+
+    impl CanBus for NoReportingBus {
+        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
+            let id = unpack_ext_id(frame.id).expect("extended id");
+            if id.comm_type == CommunicationType::ActiveReporting.as_u8() {
+                return Err(BusError::Send {
+                    message: "No buffer space available".into(),
+                });
+            }
+            self.0.send_frame(frame)
+        }
+        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+            Ok(ReceiveAttempt::Idle)
+        }
+    }
+    impl MotorBus for NoReportingBus {}
+
     fn assert_is_disable_to(frame: &CanFrame, device_id: u8) {
         let id = unpack_ext_id(frame.id).expect("extended id");
         assert_eq!(id.comm_type, CommunicationType::Disable.as_u8());
@@ -212,10 +254,27 @@ mod tests {
         assert!(frame.extended);
     }
 
+    fn assert_is_reporting_off_to(frame: &CanFrame, device_id: u8) {
+        let id = unpack_ext_id(frame.id).expect("extended id");
+        assert_eq!(id.comm_type, CommunicationType::ActiveReporting.as_u8());
+        assert_eq!(id.extra_data, u16::from(DEFAULT_HOST_ID));
+        assert_eq!(id.device_id, device_id);
+        assert_eq!(frame.data[6], 0x00, "type-24 Off");
+        assert!(frame.extended);
+    }
+
+    /// 2026-10-04: a Disable does not end type-24 reporting, so a stop that
+    /// sent only Disable left inherited streams running for the next owner.
     #[test]
-    fn every_configured_address_gets_exactly_one_type_4_disable() {
+    fn every_address_gets_a_disable_then_a_type_24_off() {
         let addresses = stop_addresses(
-            &[target("can0", 1), target("can0", 2), target("can0", 5)],
+            &[
+                target("can0", 1),
+                target("can0", 2),
+                target("can0", 3),
+                target("can0", 4),
+                target("can0", 5),
+            ],
             None,
         );
         let log = Rc::new(RefCell::new(MemoryBus::default()));
@@ -225,13 +284,29 @@ mod tests {
             Ok(SharedBus(Rc::clone(&log)))
         });
         assert!(report.all_sent());
-        assert_eq!(report.drives.len(), 3);
+        assert_eq!(report.drives.len(), 5);
         assert_eq!(opened.into_inner(), vec!["can0"], "one open per interface");
         let log = log.borrow();
-        assert_eq!(log.tx.len(), 3);
-        for (frame, id) in log.tx.iter().zip([1, 2, 5]) {
-            assert_is_disable_to(frame, id);
+        assert_eq!(log.tx.len(), 10, "one Disable and one Off per address");
+        for (pair, id) in log.tx.chunks(2).zip(1..=5) {
+            assert_is_disable_to(&pair[0], id);
+            assert_is_reporting_off_to(&pair[1], id);
         }
+    }
+
+    #[test]
+    fn a_failed_off_is_reported_without_hiding_the_sent_disable() {
+        let addresses = stop_addresses(&[target("can0", 1), target("can0", 2)], None);
+        let report = disable_drives(&addresses, |_| Ok(NoReportingBus(MemoryBus::default())));
+        assert_eq!(report.failed(), 0, "every Disable was sent");
+        assert_eq!(report.reporting_off_failed(), 2);
+        assert!(!report.all_sent());
+        let text = report.to_string();
+        assert!(text.contains("disable can0:1 sent"), "{text}");
+        assert!(
+            text.contains("reporting-off can0:1 FAILED: CAN send failed"),
+            "{text}"
+        );
     }
 
     #[test]
@@ -257,14 +332,18 @@ mod tests {
                 .find(|d| d.address.device_id == id)
                 .expect("drive outcome")
         };
-        assert!(by_id(1).result.is_ok());
-        assert!(by_id(3).result.is_ok());
-        let error = by_id(2).result.clone().expect_err("can1 unopened");
+        assert!(by_id(1).disable.is_ok() && by_id(1).reporting_off.is_ok());
+        assert!(by_id(3).disable.is_ok() && by_id(3).reporting_off.is_ok());
+        let error = by_id(2).disable.clone().expect_err("can1 unopened");
         assert!(error.contains("No such device"), "{error}");
+        assert!(by_id(2).reporting_off.is_err());
+        assert_eq!(report.reporting_off_failed(), 1);
         let log = log.borrow();
-        assert_eq!(log.tx.len(), 2, "can0 drives still stopped");
+        assert_eq!(log.tx.len(), 4, "can0 drives still stopped");
         assert_is_disable_to(&log.tx[0], 1);
-        assert_is_disable_to(&log.tx[1], 3);
+        assert_is_reporting_off_to(&log.tx[1], 1);
+        assert_is_disable_to(&log.tx[2], 3);
+        assert_is_reporting_off_to(&log.tx[3], 3);
     }
 
     #[test]
@@ -272,12 +351,15 @@ mod tests {
         let addresses = stop_addresses(&[target("can0", 1), target("can0", 2)], None);
         let report = disable_drives(&addresses, |_| Ok(DeadBus));
         assert_eq!(report.failed(), 2);
+        assert_eq!(report.reporting_off_failed(), 2);
         let text = report.to_string();
         assert!(
             text.contains("disable can0:1 FAILED: CAN send failed"),
             "{text}"
         );
+        assert!(text.contains("reporting-off can0:1 FAILED"), "{text}");
         assert!(text.contains("disable can0:2 FAILED"), "{text}");
+        assert!(text.contains("reporting-off can0:2 FAILED"), "{text}");
     }
 
     #[test]
@@ -293,7 +375,9 @@ mod tests {
         let text = report.to_string();
         assert_eq!(
             text,
-            "disable can0:1 sent\ndisable can1:9 FAILED: open: driver error: down\n"
+            "disable can0:1 sent\nreporting-off can0:1 sent\n\
+             disable can1:9 FAILED: open: driver error: down\n\
+             reporting-off can1:9 FAILED: open: driver error: down\n"
         );
     }
 
