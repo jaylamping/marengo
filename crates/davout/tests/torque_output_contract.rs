@@ -240,3 +240,60 @@ fn torque_output_contract_disable_reenable_discards_old_torque() {
         );
     }
 }
+
+#[test]
+fn torque_output_contract_drive_damping_is_bounded_and_tau_ff_stays_capped() {
+    // ADR 0039 scaled PD sends constant drive kd with v_des = the reference velocity; the
+    // damping torque kd·(v_des − dq) is computed in the drive, outside Davout's τ_ff cap.
+    for measured in [-8.0, 8.0] {
+        let mut supervisor = supervisor();
+        let motor = pitch_motor(&supervisor);
+        activate(&mut supervisor, &motor);
+        inject_measured_torque(&mut supervisor, &motor, measured);
+        supervisor.seed_tau_ff_rate_limiter();
+        let defaults = supervisor.control.control.motor_type_defaults["rs03"].clone();
+        let cap = defaults.tau_ff_max_nm.min(motor.bench.torque_limit_nm);
+        let mut request = command(&motor, 10.0 * measured);
+        request.kp = 18.0;
+        request.kd = 3.0;
+        request.velocity_rad_s = 1.0;
+        supervisor
+            .send_mit_batch(vec![request])
+            .expect("drive damping within kd_max");
+        let output = last_wire_joint_torque(&mut supervisor, &motor);
+        assert!(
+            output.abs() <= cap + 0.002,
+            "kd > 0 let τ_ff {output} Nm past the {cap} Nm cap"
+        );
+        // Independent wire oracle: RS03 kd is 0..100 over the 16-bit payload field.
+        let frame = supervisor
+            .bus()
+            .frames()
+            .iter()
+            .rev()
+            .find(|frame| frame.id >> 24 == u32::from(CommunicationType::OperationControl.as_u8()))
+            .expect("outgoing MIT frame")
+            .clone();
+        let wire_kd =
+            f64::from(u16::from_be_bytes([frame.data[6], frame.data[7]])) / 65535.0 * 100.0;
+        let motor_kd = 3.0 / motor.gear_ratio.powi(2);
+        assert!((wire_kd - motor_kd).abs() < 0.01, "wire kd {wire_kd}");
+    }
+
+    // Drive kd above the motor-type maximum is refused, never clamped.
+    let mut supervisor = supervisor();
+    let motor = pitch_motor(&supervisor);
+    activate(&mut supervisor, &motor);
+    let kd_max = supervisor.control.control.motor_type_defaults["rs03"].kd_max;
+    let mut request = command(&motor, 0.0);
+    request.kd = 1.01 * kd_max * motor.gear_ratio.powi(2);
+    assert!(supervisor.send_mit_batch(vec![request]).is_err());
+    assert!(
+        supervisor
+            .bus()
+            .frames()
+            .iter()
+            .all(|frame| frame.id >> 24 != u32::from(CommunicationType::OperationControl.as_u8())),
+        "refused kd reached the wire"
+    );
+}

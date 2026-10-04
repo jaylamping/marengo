@@ -13,7 +13,7 @@ use davout::{
 };
 use marengo_config::{
     load_robot_config_from, motor_type_key, resolve_config_dir, resolve_urdf_path, ModeGains,
-    MotorTypeDefaults,
+    MotorTypeDefaults, PositionLaw,
 };
 use thiserror::Error;
 use tracing::{debug, info, warn};
@@ -29,9 +29,10 @@ use crate::gain_runtime::{
 };
 use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
-    HoldError, HoldFuseTrip, HoldJointParams, HoldRetarget, HoldWorld, PositionHold,
-    ADVANCE_MAX_LEAD_DEFAULT,
+    HoldError, HoldFuseTrip, HoldJointDiag, HoldJointParams, HoldLaw, HoldRetarget, HoldWorld,
+    PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
 };
+use crate::position_law::{ReferenceFriction, ScaledPdGains};
 use crate::position_profile::position_profile_v_max;
 use crate::position_setpoint::{downward_return_seed_velocity, envelope_dq_cmd_for_hold_clamp};
 use crate::position_trace::{PositionTrace, PositionTraceRow};
@@ -627,6 +628,9 @@ impl<B: MotorBus> ControlLoop<B> {
         } else {
             None
         };
+        // Retargets follow the joint's configured law (scaled PD replans from its reference).
+        self.position_hold
+            .set_joint_law(i, self.configured_position_law(joint));
         let target_changed = self.position_hold.apply_retarget(HoldRetarget {
             joint_idx: i,
             clamped: target,
@@ -649,6 +653,65 @@ impl<B: MotorBus> ControlLoop<B> {
                 "position hold retarget"
             );
         }
+    }
+
+    /// One trace row per joint for this tick (no-op unless `MARENGO_POSITION_TRACE` is set).
+    fn record_position_trace(&mut self, diag: &[HoldJointDiag]) {
+        let Some(trace) = self.position_trace.as_mut() else {
+            return;
+        };
+        let t_ms = self.tick_count.saturating_mul(1000) / u64::from(self.loop_hz);
+        for (name, d) in self.joint_names.iter().zip(diag) {
+            let row = PositionTraceRow {
+                joint: name,
+                q: d.q,
+                dq: d.dq_raw,
+                q_traj: d.q_traj,
+                dq_traj: d.dq_traj,
+                q_des: d.q_des,
+                target: d.target,
+                target_raw: d.target_raw,
+                q_env_lo: d.q_env_lo,
+                q_env_hi: d.q_env_hi,
+                lead: d.lead,
+                lead_sat: d.lead_sat,
+                settle_error: d.settle_error,
+                phase: d.phase,
+                friction_mode: d.friction_mode,
+                tau_p: d.tau_p,
+                tau_g: d.tau_g,
+                tau_f: d.tau_f,
+                tau_d: d.tau_d,
+                tau_ff_cmd: d.tau_ff_cmd,
+                tau_meas: d.tau_meas,
+                dq_mit: d.mit_velocity,
+                kp: d.kp,
+                kd: d.kd,
+                joint_stuck: d.joint_stuck,
+                planner_frozen: d.planner_frozen,
+                retarget_age_ms: d.retarget_age_ms,
+                planner_event: d.planner_event.as_str(),
+                law: d.law.as_str(),
+                q_ref: d.q_ref,
+                dq_ref: d.dq_ref,
+                time_scale: d.time_scale,
+                tau_i: d.tau_i,
+                kd_mit: d.mit_kd,
+                // Davout's last sent τ_ff (post-cap, post-rate-limit); NaN before any send.
+                tau_ff_wire: self.supervisor.last_tau_ff_nm(name).unwrap_or(f64::NAN),
+            };
+            trace.maybe_record(self.tick_count, t_ms, &row);
+        }
+    }
+
+    fn configured_position_law(&self, joint: &str) -> PositionLaw {
+        self.supervisor
+            .control
+            .control
+            .joints
+            .get(joint)
+            .map(|c| c.position_law)
+            .unwrap_or_default()
     }
 
     fn hold_target_trim(&self, joint: &str, position_rad: f64) -> f64 {
@@ -1619,7 +1682,7 @@ impl<B: MotorBus> ControlLoop<B> {
                         .map(|t| t.elapsed() >= Duration::from_secs(1))
                         .unwrap_or(true);
                 let mut batch = Vec::new();
-                let mut trace_us_this_tick = 0u64;
+                let mut position_diag: Option<Vec<HoldJointDiag>> = None;
 
                 if self.control_mode == ControlMode::Position {
                     static POSITION_DEFAULT_IMPEDANCE: ModeGains = ModeGains {
@@ -1652,6 +1715,22 @@ impl<B: MotorBus> ControlLoop<B> {
                                     f.fc = fc;
                                 }
                             }
+                            let law = match cfg {
+                                Some(c) if c.position_law == PositionLaw::ScaledPd => {
+                                    HoldLaw::ScaledPd(ScaledPdGains {
+                                        kd: r.wire_kd,
+                                        e0: c.time_scale_e0_rad(),
+                                        e1: c.time_scale_e1_rad(),
+                                        integral_band: c.integral_band_rad(),
+                                        integral_leak_s: c.integral_leak_s(),
+                                        friction: Some(ReferenceFriction::from_gains(
+                                            &c.friction,
+                                            r.law_fc,
+                                        )),
+                                    })
+                                }
+                                _ => HoldLaw::Legacy,
+                            };
                             HoldJointParams {
                                 // The torque the law judges (fuses, evidence, diag) is the
                                 // torque on the wire: override > ramp > YAML.
@@ -1689,6 +1768,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 friction,
                                 limit_policy: self.supervisor.joint_limit_policy(name).cloned(),
                                 tau_meas: self.joint_torque(name),
+                                law,
                             }
                         })
                         .collect();
@@ -1752,6 +1832,9 @@ impl<B: MotorBus> ControlLoop<B> {
                                 dq_mit = d.mit_velocity,
                                 kp_mit = d.kp,
                                 kd_mit = d.mit_kd,
+                                law = d.law.as_str(),
+                                time_scale = d.time_scale,
+                                tau_i = d.tau_i,
                                 move_dist = d.move_dist,
                                 v_max_eff = d.v_max_eff,
                                 "position hold command"
@@ -1782,50 +1865,11 @@ impl<B: MotorBus> ControlLoop<B> {
                                 "position hold onset"
                             );
                         }
-                        if let Some(trace) = self.position_trace.as_mut() {
-                            let trace_start = Instant::now();
-                            let t_ms =
-                                self.tick_count.saturating_mul(1000) / u64::from(self.loop_hz);
-                            let row = PositionTraceRow {
-                                joint: name,
-                                q: d.q,
-                                dq: d.dq_raw,
-                                q_traj: d.q_traj,
-                                dq_traj: d.dq_traj,
-                                q_des: d.q_des,
-                                target: d.target,
-                                target_raw: d.target_raw,
-                                q_env_lo: d.q_env_lo,
-                                q_env_hi: d.q_env_hi,
-                                lead: d.lead,
-                                lead_sat: d.lead_sat,
-                                settle_error: d.settle_error,
-                                phase: d.phase,
-                                friction_mode: d.friction_mode,
-                                tau_p: d.tau_p,
-                                tau_g: d.tau_g,
-                                tau_f: d.tau_f,
-                                tau_d: d.tau_d,
-                                tau_ff_cmd: d.tau_ff_cmd,
-                                tau_meas: d.tau_meas,
-                                dq_mit: d.mit_velocity,
-                                kp: d.kp,
-                                kd: d.kd,
-                                joint_stuck: d.joint_stuck,
-                                planner_frozen: d.planner_frozen,
-                                retarget_age_ms: d.retarget_age_ms,
-                                planner_event: d.planner_event.as_str(),
-                            };
-                            trace.maybe_record(self.tick_count, t_ms, &row);
-                            trace_us_this_tick = trace_us_this_tick.saturating_add(
-                                u64::try_from(trace_start.elapsed().as_micros())
-                                    .unwrap_or(u64::MAX),
-                            );
-                        }
                     }
                     if log_position_diag {
                         self.last_position_diag = Some(Instant::now());
                     }
+                    position_diag = Some(hold_out.diag);
                 } else {
                     (phase.planner_us, t) = phase_elapsed_us(t);
                     static ZERO_IMPEDANCE: ModeGains = ModeGains {
@@ -1859,12 +1903,16 @@ impl<B: MotorBus> ControlLoop<B> {
                         .collect();
                     batch = MitFeedforward::compose(self.control_mode, &ff_joints);
                 }
-                phase.trace_us = trace_us_this_tick;
                 (phase.compose_us, t) = phase_elapsed_us(t);
 
                 let batch = self.filter_mit_to_active(batch);
                 self.supervisor.send_mit_batch(batch)?;
                 (phase.send_us, t) = phase_elapsed_us(t);
+                // After the send, so the row carries the τ_ff Davout actually sent.
+                if let Some(diag) = position_diag.as_deref() {
+                    self.record_position_trace(diag);
+                    (phase.trace_us, t) = phase_elapsed_us(t);
+                }
                 self.supervisor.drain_feedback()?;
                 self.gains.advance_tick();
                 self.complete_degraded_lower_at_rest(&q)?;

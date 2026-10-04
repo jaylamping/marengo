@@ -15,7 +15,8 @@ FIXTURES = REPO / "scripts" / "fixtures" / "position-trace"
 HEADER_NEW = (
     "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,"
     "lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,"
-    "tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event"
+    "tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event,"
+    "law,q_ref,dq_ref,time_scale,tau_i,kd_mit,tau_ff_wire"
 )
 HEADER_OLD = (
     "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,lead,lead_sat,settle_error,"
@@ -94,6 +95,13 @@ def _smooth_segment(
                 "0",
                 str(i * dt_ms),
                 "tick",
+                "legacy",
+                f"{q:.6f}",
+                f"{sign * dq:.6f}",
+                "1.000000",
+                "0.000000",
+                "1.000",
+                f"{tau_ff:.6f}",
             ]
         )
     return rows
@@ -201,8 +209,9 @@ def test_old_schema_still_analyzes(tmp_path: Path) -> None:
 def test_planner_event_counts_in_segment(tmp_path: Path) -> None:
     path = tmp_path / "planner_events.csv"
     rows = _smooth_segment(0.1, 0.0, steps=20)
-    rows[5][-1] = "reset"
-    rows[10][-1] = "latch"
+    pe = HEADER_NEW.split(",").index("planner_event")
+    rows[5][pe] = "reset"
+    rows[10][pe] = "latch"
     _write_rows(path, HEADER_NEW, rows)
     report = _run_analyzer(path)
     seg = report["segments"][0]

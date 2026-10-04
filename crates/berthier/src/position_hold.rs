@@ -11,12 +11,13 @@ use armee_kinematics::{
     approach_velocity_cap, clamp_position_in_envelope, effective_command_bounds, JointLimitPolicy,
 };
 use davout::MitJointCommand as DavoutMit;
-use marengo_config::FrictionGains;
+use marengo_config::{FrictionGains, PositionLaw};
 use thiserror::Error;
 use tracing::{info, trace};
 
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::position_feedforward::compose_position_hold_feedforward;
+use crate::position_law::{advance_reference, compose_feedforward, ScaledPdGains, ScaledPdState};
 use crate::position_profile::{position_hold_v_max, PlannerEvent};
 use crate::position_setpoint::{
     apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
@@ -281,6 +282,24 @@ pub enum HoldError {
     InvalidPeriod { seconds: f64 },
 }
 
+/// Position law for one joint, with the scaled-PD parameters resolved for this tick.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum HoldLaw {
+    /// ADR 0007 law (default).
+    Legacy,
+    /// ADR 0039 scaled-PD law ([`crate::position_law`]).
+    ScaledPd(ScaledPdGains),
+}
+
+impl HoldLaw {
+    pub fn kind(&self) -> PositionLaw {
+        match self {
+            Self::Legacy => PositionLaw::Legacy,
+            Self::ScaledPd(_) => PositionLaw::ScaledPd,
+        }
+    }
+}
+
 /// Per-joint config + measurements needed for one hold tick.
 #[derive(Debug, Clone)]
 pub struct HoldJointParams {
@@ -304,6 +323,8 @@ pub struct HoldJointParams {
     pub friction: Option<FrictionGains>,
     pub limit_policy: Option<JointLimitPolicy>,
     pub tau_meas: f64,
+    /// Position law for this joint (selector + scaled-PD parameters).
+    pub law: HoldLaw,
 }
 
 /// Atomic operator retarget — owns raw/clamped/planner/latch/dq ordering.
@@ -372,6 +393,29 @@ pub struct HoldJointDiag {
     pub ascent_stall_ms: u64,
     /// Nominal time off target with opposing net commanded torque and no progress (ms).
     pub hold_tracking_ms: u64,
+    pub law: PositionLaw,
+    /// Reference the law commands: legacy planner `q_traj`, scaled-PD `q_ref`.
+    pub q_ref: f64,
+    /// Reference velocity the law commands: legacy `dq_traj`, scaled-PD `v_ref`.
+    pub dq_ref: f64,
+    /// Reference governor scale `s` (legacy: 0 while the planner is frozen, else 1).
+    pub time_scale: f64,
+    /// Integral torque term (Nm).
+    pub tau_i: f64,
+}
+
+/// Per-joint inputs [`PositionHold::compose`] hands to the scaled-PD compose.
+#[derive(Debug, Clone, Copy)]
+struct ScaledJointTick {
+    index: usize,
+    gains: ScaledPdGains,
+    q_ref: f64,
+    phase: TrapezoidPhase,
+    target: f64,
+    target_raw: f64,
+    retarget_age_ms: u64,
+    move_dist: f64,
+    wave_owned: bool,
 }
 
 /// Output of [`PositionHold::tick`]: MIT batch + per-joint diag.
@@ -406,6 +450,10 @@ pub struct PositionHold {
     /// Post-advance effective max lead for compose (FIX A: one value per joint per tick).
     tick_effective_max_lead: Vec<f64>,
     tick_stuck_residual: Vec<bool>,
+    /// Last law each joint ran (retargets between ticks follow it).
+    laws: Vec<PositionLaw>,
+    /// Scaled-PD time scale, commanded velocity and integral, per joint.
+    scaled: Vec<ScaledPdState>,
 }
 
 impl PositionHold {
@@ -429,6 +477,8 @@ impl PositionHold {
             integral_error: None,
             tick_effective_max_lead: vec![0.0; n_joints],
             tick_stuck_residual: vec![false; n_joints],
+            laws: vec![PositionLaw::Legacy; n_joints],
+            scaled: vec![ScaledPdState::default(); n_joints],
         }
     }
 
@@ -441,6 +491,18 @@ impl PositionHold {
     pub(crate) fn set_commanded_joint(&mut self, joint: usize, commanded: bool) {
         if let Some(slot) = self.commanded_joints.get_mut(joint) {
             *slot = commanded;
+        }
+    }
+
+    /// Law joint `joint` runs; retargets between ticks follow it. Each tick also adopts
+    /// [`HoldJointParams::law`]. Switching law restarts the scaled-PD state (time scale 1,
+    /// integral 0); the reference itself continues.
+    pub(crate) fn set_joint_law(&mut self, joint: usize, law: PositionLaw) {
+        if let Some(slot) = self.laws.get_mut(joint) {
+            if *slot != law {
+                *slot = law;
+                self.scaled[joint] = ScaledPdState::default();
+            }
         }
     }
 
@@ -538,7 +600,10 @@ impl PositionHold {
         let changed = self.set_clamped_target(cmd.joint_idx, clamped, cmd.tick);
         // First arm sees equal targets after `arm`, so treat unarmed as a full retarget apply.
         if was_unarmed || changed {
-            self.sync_retarget_planner(cmd.joint_idx, cmd.q, clamped, cmd.downward_seed);
+            // Scaled PD replans from the reference's own state; only the first arm starts at q.
+            if self.laws[cmd.joint_idx] == PositionLaw::Legacy {
+                self.sync_retarget_planner(cmd.joint_idx, cmd.q, clamped, cmd.downward_seed);
+            }
             if let Some(dq) = cmd.dq_seed {
                 self.seed_dq_filter(cmd.joint_idx, dq);
             }
@@ -594,9 +659,12 @@ impl PositionHold {
     }
 
     pub fn clear(&mut self) {
-        // Disable/mode changes clear intent, never the installed measurement profile.
+        // Disable/mode changes clear intent, never the installed measurement profile or the
+        // per-joint law selection.
         let progress_thresholds = std::mem::take(&mut self.progress_thresholds);
+        let laws = std::mem::take(&mut self.laws);
         *self = Self::with_progress_thresholds(progress_thresholds);
+        self.laws = laws;
     }
 
     /// Force Hold at `q_traj` (tests: residual lead-follow / AscentStall scenarios).
@@ -773,6 +841,7 @@ impl PositionHold {
         }
         self.hold_tracking.fill(HoldTracking::default());
         self.wave_motion.fill(WaveMotionWatch::default());
+        self.scaled.fill(ScaledPdState::default());
         Self::fill_bool(&mut self.descent_breakaway, false);
         Self::fill_bool(&mut self.descent_was_stuck, false);
     }
@@ -877,6 +946,21 @@ impl PositionHold {
         velocity_cap.map_or(v_requested, |cap| v_requested.min(cap))
     }
 
+    /// Scaled-PD cruise speed: the legacy selection with the move measured from the
+    /// reference, so it never depends on measured `q`.
+    fn scaled_v_max(jp: &HoldJointParams, planner: &JointPositionPlanner, target: f64) -> f64 {
+        Self::clamp_v_max(
+            jp.velocity_cap,
+            position_hold_v_max(
+                (target - planner.q_traj).abs(),
+                jp.slew_rad_s,
+                jp.trajectory_v_max,
+                jp.trajectory_threshold_rad,
+                planner.dq_traj.abs(),
+            ),
+        )
+    }
+
     fn reset_planner_with_downward_seed(
         planner: &mut JointPositionPlanner,
         q: f64,
@@ -941,6 +1025,9 @@ impl PositionHold {
             }
         }
         self.init_latch_state();
+        for (i, jp) in world.joints.iter().enumerate() {
+            self.set_joint_law(i, jp.law.kind());
+        }
 
         let dq_filtered: Vec<f64> = (0..self.n_joints)
             .map(|i| self.filtered_dq(i, world.dq_meas[i]))
@@ -1024,6 +1111,57 @@ impl PositionHold {
                     settle,
                     world.q[i],
                 );
+                if let Some(events) = self.planner_events.as_mut() {
+                    events[i] = event;
+                }
+                // The wave sample is the reference; the governor does not scale it.
+                self.scaled[i].s = 1.0;
+                self.scaled[i].v_c = planners[i].dq_traj;
+                continue;
+            }
+
+            if let HoldLaw::ScaledPd(gains) = &jp.law {
+                self.wave_motion[i] = WaveMotionWatch::default();
+                Self::set_bool_at(&mut self.planner_frozen, i, false);
+                let outbound = if self.commanded_joints[i] {
+                    outbound_stall_direction(targets[i], targets[i] - world.q[i])
+                } else {
+                    None
+                };
+                // Budget only; compose trips the fuse once it knows this tick's torques.
+                if let Some(recovery) = self
+                    .ascent_recovery
+                    .as_mut()
+                    .and_then(|states| states.get_mut(i))
+                {
+                    recovery.update(
+                        false,
+                        outbound,
+                        world.q[i],
+                        self.progress_thresholds[i],
+                        period,
+                    );
+                }
+                let planner = &mut planners[i];
+                let v_max = Self::scaled_v_max(jp, planner, targets[i]);
+                let v_tick = jp
+                    .limit_policy
+                    .as_ref()
+                    .map(|policy| approach_velocity_cap(policy, world.q[i], planner.dq_traj, v_max))
+                    .unwrap_or(v_max);
+                let (q_ref, v_ref, phase) = advance_reference(
+                    &mut self.scaled[i],
+                    gains,
+                    planner.q_traj,
+                    planner.dq_traj,
+                    world.q[i],
+                    targets[i],
+                    v_tick,
+                    jp.a_max,
+                    dt,
+                );
+                planner.set_reference(q_ref, v_ref, phase);
+                self.tick_effective_max_lead[i] = gains.e1;
                 if let Some(events) = self.planner_events.as_mut() {
                     events[i] = event;
                 }
@@ -1289,6 +1427,24 @@ impl PositionHold {
                 ),
             );
 
+            if let HoldLaw::ScaledPd(gains) = jp.law {
+                let joint = ScaledJointTick {
+                    index: i,
+                    gains,
+                    q_ref: q_traj,
+                    phase: traj_phase,
+                    target,
+                    target_raw,
+                    retarget_age_ms,
+                    move_dist,
+                    wave_owned: wave_joint_index == Some(i),
+                };
+                let (command, joint_diag) = self.compose_scaled_joint(world, period, joint)?;
+                mit.push(command);
+                diag.push(joint_diag);
+                continue;
+            }
+
             let mut breakaway = Self::bool_at(&self.descent_breakaway, i);
             let limit_policy = jp.limit_policy.as_ref();
             let mut q_des = clamp_trajectory_setpoint(
@@ -1470,6 +1626,11 @@ impl PositionHold {
                 retarget_tick,
                 ascent_stall_ms,
                 hold_tracking_ms,
+                law: PositionLaw::Legacy,
+                q_ref: q_traj,
+                dq_ref: dq_traj,
+                time_scale: if planner_frozen { 0.0 } else { 1.0 },
+                tau_i: tau_ff_cmd - ff.tau_ff_cmd,
             });
             mit.push(DavoutMit {
                 joint: name.clone(),
@@ -1482,6 +1643,162 @@ impl PositionHold {
         }
 
         Ok(HoldTickOut { mit, diag })
+    }
+
+    /// ADR 0039 scaled-PD compose for one joint: drive-side PD on the reference, feed-forward
+    /// from the reference velocity, the leaky integral, and the three fuses.
+    fn compose_scaled_joint(
+        &mut self,
+        world: &HoldWorld<'_>,
+        period: Duration,
+        joint: ScaledJointTick,
+    ) -> Result<(DavoutMit, HoldJointDiag), HoldError> {
+        let i = joint.index;
+        let name = &world.joint_names[i];
+        let jp = &world.joints[i];
+        let q = world.q[i];
+        let dq_raw = world.dq_meas[i];
+        let target = joint.target;
+        let settle_error = target - q;
+        let state = &mut self.scaled[i];
+        let ff = compose_feedforward(
+            state,
+            &joint.gains,
+            jp.ki,
+            settle_error,
+            world.tau_g[i],
+            world.dt,
+        );
+        let v_c = state.v_c;
+        let time_scale = state.s;
+        let limit_policy = jp.limit_policy.as_ref();
+        let mut planner_event = PlannerEvent::Tick;
+        let q_des = match limit_policy {
+            Some(policy) => {
+                let clamped = clamp_position_in_envelope(policy, q, v_c, joint.q_ref);
+                if (clamped - joint.q_ref).abs() > 1e-9 {
+                    planner_event = PlannerEvent::EnvelopeClamp;
+                }
+                clamped
+            }
+            None => joint.q_ref,
+        };
+        let lead = q_des - q;
+        let tau_p = jp.kp * lead;
+        let kd = joint.gains.kd;
+        let trip = HoldFuseTrip {
+            q,
+            target,
+            tau_p,
+            tau_ff: ff.tau_ff,
+            tau_g: world.tau_g[i],
+        };
+        let ascent_stall_ms = self
+            .ascent_recovery
+            .as_ref()
+            .and_then(|v| v.get(i).copied())
+            .unwrap_or_default()
+            .stalled_ms();
+        if ascent_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
+            return Err(HoldError::AscentStall {
+                joint: name.clone(),
+                ms: ascent_stall_ms,
+                trip,
+            });
+        }
+        let wave_stall_ms = self.wave_motion[i].stalled_ms();
+        if wave_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
+            return Err(HoldError::WaveStall {
+                joint: name.clone(),
+                ms: wave_stall_ms,
+                trip,
+            });
+        }
+        // ADR 0039: the net commanded torque is the wire terms, including the drive's damping.
+        let net_commanded = tau_p + kd * (v_c - dq_raw) + ff.tau_ff;
+        let tracking_armed = self.commanded_joints[i]
+            && !joint.wave_owned
+            && hold_tracking_opposed(q, target, net_commanded);
+        let hold_tracking_ms = self.hold_tracking[i].update(
+            tracking_armed,
+            q,
+            target,
+            self.progress_thresholds[i],
+            period,
+        );
+        if hold_tracking_ms >= POSITION_ASCENT_STALL_FAULT_MS {
+            return Err(HoldError::HoldTracking {
+                joint: name.clone(),
+                ms: hold_tracking_ms,
+                trip,
+            });
+        }
+        let (q_env_lo, q_env_hi) = limit_policy
+            .map(|p| effective_command_bounds(p, q, v_c))
+            .unwrap_or((f64::NAN, f64::NAN));
+        let planner_event = match self.planner_events.as_ref().and_then(|e| e.get(i).copied()) {
+            Some(event) if event != PlannerEvent::Tick => event,
+            _ => planner_event,
+        };
+        let diag = HoldJointDiag {
+            move_dist: joint.move_dist,
+            v_max_eff: self
+                .planners
+                .as_ref()
+                .and_then(|p| p.get(i))
+                .map_or(0.0, |planner| Self::scaled_v_max(jp, planner, target)),
+            planner_event,
+            q,
+            dq_raw,
+            dq_filt: dq_raw,
+            q_traj: joint.q_ref,
+            dq_traj: v_c,
+            q_des,
+            target,
+            target_raw: joint.target_raw,
+            lead,
+            lead_sat: lead.abs() >= joint.gains.e1 - 1e-6,
+            settle_error,
+            settling: matches!(joint.phase, TrapezoidPhase::Hold)
+                && settle_error.abs() <= POSITION_SETTLE_TOLERANCE_RAD,
+            friction_mode: "reference",
+            retarget_age_ms: joint.retarget_age_ms,
+            joint_stuck: false,
+            planner_frozen: false,
+            phase: joint.phase.as_str(),
+            kp: jp.kp,
+            kd,
+            tau_g: world.tau_g[i],
+            tau_f: ff.tau_fric,
+            tau_d: 0.0,
+            tau_ff_cmd: ff.tau_ff,
+            tau_meas: jp.tau_meas,
+            tau_p,
+            mit_velocity: v_c,
+            mit_kd: kd,
+            q_env_lo,
+            q_env_hi,
+            retarget_tick: self
+                .retarget_tick
+                .as_ref()
+                .and_then(|ticks| ticks.get(i).copied()),
+            ascent_stall_ms,
+            hold_tracking_ms,
+            law: PositionLaw::ScaledPd,
+            q_ref: joint.q_ref,
+            dq_ref: v_c,
+            time_scale,
+            tau_i: ff.tau_i,
+        };
+        let command = DavoutMit {
+            joint: name.clone(),
+            kp: jp.kp,
+            kd,
+            position_rad: q_des,
+            velocity_rad_s: v_c,
+            torque_ff_nm: ff.tau_ff,
+        };
+        Ok((command, diag))
     }
 }
 
@@ -1510,6 +1827,10 @@ mod hold_tracking_tests;
 mod fuse_audit_tests;
 
 #[cfg(test)]
+#[path = "position_hold_tests/law_gates.rs"]
+mod law_gates;
+
+#[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
@@ -1532,6 +1853,7 @@ mod tests {
             friction: None,
             limit_policy: None,
             tau_meas: 0.0,
+            law: HoldLaw::Legacy,
         }
     }
 

@@ -1339,6 +1339,12 @@ impl<B: MotorBus> Supervisor<B> {
         debug!(?mode, "control mode set");
     }
 
+    /// Last feed-forward torque Davout sent for `joint` (joint space, after the cap and the
+    /// rate limiter), or `None` before the first send of this session. Telemetry only.
+    pub fn last_tau_ff_nm(&self, joint: &str) -> Option<f64> {
+        self.last_tau_ff.get(joint).copied()
+    }
+
     /// Seed the tau_ff rate limiter with current measured torque for each joint.
     ///
     /// Called on mode transitions to slew from measured torque, bounded by the

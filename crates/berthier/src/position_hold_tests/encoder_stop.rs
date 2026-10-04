@@ -75,6 +75,7 @@ fn coherent_motion_then_stationary_encoder_trips_stall_fuse() -> Result<(), Hold
         friction: None,
         limit_policy: None,
         tau_meas: 0.0,
+        law: HoldLaw::Legacy,
     }];
     let names = [String::from("measured_joint")];
 
