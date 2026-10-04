@@ -1,12 +1,22 @@
 /**
  * pi_joint_calibrate: one right-arm calibration session (docs/commissioning/
- * right-arm-calibration-suite.md). One joint sweeps while the others hold fixed poses: static
- * holds approached from below and from above (gravity and Coulomb friction), then in-loop
- * `wave` passes at several speeds (viscous friction). A pre-flight guard refuses before any
- * motion unless every target clears the soft ∩ hard window by 0.05 rad, the model gravity
- * torque × 1.6 stays within 80 % of each joint's τ_ff cap along every commanded path, every
- * wave stays within 80 % of the joint's velocity cap, and the session fits in 300 s.
- * Output is the v2 `var/gravity-calibration/<TS>/` directory; nothing is applied to the Pi.
+ * right-arm-calibration-suite.md). One joint sweeps while the others hold fixed poses.
+ *
+ * `method: "wave"` (default): at each pose a local raised-cosine `wave` of amplitude a at 2–3
+ * peak speeds. A static hold rests anywhere inside the ±F_s stiction band, so it cannot place
+ * gravity better than F_s; a wave drives through stiction both ways, and gravity-fit takes the
+ * up/down mean per q bin (friction = half the difference). a = (F_s + (1.6 − 1)·max|τ_g|)/kp
+ * from the Pi's control.yaml (breakaway `fs`, else `fc`; impedance `kp`) and the model τ_g at
+ * the poses: the P term alone must break stiction plus the distrusted model error.
+ *
+ * `method: "static"`: holds approached from below and from above (gravity and Coulomb
+ * friction), then in-loop `wave` passes at several speeds (viscous friction).
+ *
+ * A pre-flight guard refuses before any motion unless every target clears the soft ∩ hard
+ * window by 0.05 rad, the model gravity torque × 1.6 stays within 80 % of each joint's τ_ff cap
+ * along every commanded path, every wave stays within 80 % of the joint's velocity cap, and the
+ * session fits in 300 s. Output is the v2 `var/gravity-calibration/<TS>/` directory; nothing is
+ * applied to the Pi.
  */
 
 import { z } from "zod";
@@ -68,6 +78,8 @@ export const SPEED_CAP_SHARE = 0.8;
 export const TAU_SAMPLE_STEP_RAD = 0.05;
 
 export const AMPLITUDE_FRACTIONS = [0.25, 0.5, 0.9] as const;
+export const CALIBRATION_METHODS = ["wave", "static"] as const;
+export type CalibrationMethod = (typeof CALIBRATION_METHODS)[number];
 const DEFAULT_POSE_COUNT = 5;
 const MIN_POSES = 2;
 const MAX_POSES = 12;
@@ -82,6 +94,26 @@ const DEFAULT_WAVE_SPEED_SHARES = [0.25, 0.5, 0.75] as const;
 const DEFAULT_WAVE_CYCLES = 2;
 /** Narrowest wave the trace check can tell apart from hold noise (rad). */
 const MIN_WAVE_SPAN_RAD = 0.05;
+/** Smallest local-wave amplitude (rad): half the narrowest traceable wave. */
+export const MIN_WAVE_AMPLITUDE_RAD = MIN_WAVE_SPAN_RAD / 2;
+/**
+ * Largest local-wave amplitude (rad). Default wave poses keep this much (plus the 0.05 rad
+ * inset) inside the window; a derived amplitude above it refuses (the model or friction is
+ * too far off for a local wave).
+ */
+export const MAX_WAVE_AMPLITUDE_RAD = 0.1;
+/**
+ * Slowest local-wave peak speed (rad/s). gravity-fit's centre bin (|q − pose| ≤ a/4) runs at
+ * ≥ 97 % of the peak, so 0.2 keeps it clear of the fitter's 0.15 rad/s moving deadband.
+ */
+export const MIN_WAVE_PEAK_SPEED_RAD_S = 0.2;
+/**
+ * gravity-fit bins a wave in a/2-wide bins and needs ≥ 10 moving samples per direction in
+ * each (marengo-log-cli `BIN_SHARE_OF_AMPLITUDE`, `MIN_BIN_SAMPLES`); cycles keep 1.5× that.
+ */
+const FIT_BIN_SHARE = 0.5;
+const FIT_MIN_BIN_SAMPLES = 10;
+const BIN_SAMPLE_MARGIN = 1.5;
 /** Wait past a wave's nominal duration before the next stdin line (s). */
 const WAVE_END_SLACK_SEC = 0.5;
 /** Trace target match tolerance for hold-at steps (the trace prints 6 decimals). */
@@ -112,6 +144,8 @@ export interface WaveStep {
   max_rad: number;
   cycles: number;
   half_period_s: number;
+  /** Wave method: the pose (index into poses_rad) this local wave is centred on. */
+  pose_index?: number;
 }
 
 export type JointCalStep = HoldStep | FixedStep | WaveStep;
@@ -134,9 +168,20 @@ export interface JointLimits {
   trajectoryVelocityRadS?: number;
   /** control.yaml position_trajectory_accel_rad_s2, when set (marengo-pi wave admission). */
   trajectoryAccelRadS2?: number;
+  /** control.yaml impedance.kp: the P gain that drives a local wave through stiction. */
+  kp?: number;
+  /** control.yaml friction breakaway `fs`, else Coulomb `fc` (Nm). */
+  breakawayNm?: number;
+}
+
+/** Local waves of the wave method: amplitude and one (half period, cycles) per speed. */
+export interface LocalWaves {
+  amplitudeRad: number;
+  passes: { half_period_s: number; cycles: number }[];
 }
 
 export interface JointCalPlan {
+  method: CalibrationMethod;
   sweepJoint: string;
   /** Profile joints in chain order (proximal first). */
   chain: string[];
@@ -144,6 +189,8 @@ export interface JointCalPlan {
   fixedRad: Record<string, number>;
   posesRad: number[];
   approachOffsetRad: number;
+  /** Wave method: the local-wave amplitude (rad). */
+  waveAmplitudeRad?: number;
   steps: JointCalStep[];
 }
 
@@ -213,8 +260,11 @@ export function defaultVelocityPasses(poses: readonly number[], limits: JointLim
 }
 
 /**
- * The session's step list: fixed poses (chain order), the static sweep (up pass from below, down
- * pass from above), then a hold at the wave band's lower edge and one `wave` per half period.
+ * The session's step list: fixed poses (chain order), then
+ * - method `wave`: per pose (ascending) a park hold at pose − a, then one local `wave`
+ *   [pose − a, pose + a] per speed (`pose_index` = the pose);
+ * - method `static`: the static sweep (up pass from below, down pass from above), then a hold
+ *   at the wave band's lower edge and one velocity-pass `wave` per half period.
  */
 export function planJointCalibration(input: {
   sweepJoint: string;
@@ -224,9 +274,12 @@ export function planJointCalibration(input: {
   posesRad?: readonly number[];
   amplitudeFraction: number;
   approachOffsetRad: number;
+  method: CalibrationMethod;
+  /** Method `wave`: amplitude and passes (see {@link localWaves}). */
+  waves?: LocalWaves;
   velocityPasses?: VelocityPasses;
 }): ({ ok: true } & JointCalPlan) | Refusal {
-  const { sweepJoint, chain, approachOffsetRad: delta } = input;
+  const { sweepJoint, chain, approachOffsetRad: delta, method } = input;
   const refuse = (message: string): Refusal => ({ ok: false, message: `Refused: ${message}` });
   if (!chain.includes(sweepJoint)) return refuse(`sweep_joint ${sweepJoint} is not referenced by the bench profile`);
   if (!Number.isFinite(delta) || delta <= 0) return refuse("approach_offset_rad must be positive");
@@ -243,7 +296,9 @@ export function planJointCalibration(input: {
 
   let poses: number[];
   if (input.posesRad === undefined) {
-    const defaults = defaultPoses(sweepLimits.window, input.amplitudeFraction, delta);
+    // Wave poses keep room for the largest admissible amplitude; static ones for δ.
+    const inset = method === "wave" ? MAX_WAVE_AMPLITUDE_RAD : delta;
+    const defaults = defaultPoses(sweepLimits.window, input.amplitudeFraction, inset);
     if (!defaults.ok) return defaults;
     poses = defaults.poses;
   } else {
@@ -258,24 +313,48 @@ export function planJointCalibration(input: {
     joint,
     target_rad: rad,
   }));
-  const holds = holdSweepSteps(sweepJoint, poses, delta);
-  steps.push(...holds.map((h): HoldStep => ({ kind: "hold", ...h })));
-
-  const passes = input.velocityPasses ?? defaultVelocityPasses(poses, sweepLimits);
-  if (passes.half_periods_s.length > 0) {
-    const { min_rad: minRad, max_rad: maxRad, cycles } = passes;
-    if (!Number.isFinite(minRad) || !Number.isFinite(maxRad) || maxRad - minRad < MIN_WAVE_SPAN_RAD) {
-      return refuse(`velocity_passes needs max_rad − min_rad ≥ ${MIN_WAVE_SPAN_RAD} rad (got [${minRad}, ${maxRad}])`);
+  if (method === "wave") {
+    if (input.velocityPasses !== undefined) {
+      return refuse("velocity_passes is for method static; the wave method's local waves already run at several speeds");
     }
-    if (!Number.isInteger(cycles) || cycles < 1) return refuse("velocity_passes cycles must be a positive integer");
-    if (passes.half_periods_s.some((t) => !Number.isFinite(t) || t <= 0)) {
-      return refuse("velocity_passes half_periods_s entries must be positive");
+    const waves = input.waves;
+    if (waves === undefined) return refuse("method wave needs local waves (amplitude and speeds)");
+    const a = waves.amplitudeRad;
+    if (!(a >= MIN_WAVE_AMPLITUDE_RAD && a <= MAX_WAVE_AMPLITUDE_RAD)) {
+      return refuse(`wave amplitude ${a} rad outside [${MIN_WAVE_AMPLITUDE_RAD}, ${MAX_WAVE_AMPLITUDE_RAD}]`);
     }
-    if (holds[holds.length - 1].target_rad !== minRad) {
+    if (waves.passes.length === 0) return refuse("method wave needs at least one wave speed");
+    for (const p of waves.passes) {
+      if (!Number.isInteger(p.cycles) || p.cycles < 1) return refuse("wave cycles must be a positive integer");
+      if (!Number.isFinite(p.half_period_s) || p.half_period_s <= 0) return refuse("wave half periods must be positive");
+    }
+    poses.forEach((pose, i) => {
+      const minRad = roundRad(pose - a);
+      const maxRad = roundRad(pose + a);
       steps.push({ kind: "hold", joint: sweepJoint, target_rad: minRad, measure: false });
-    }
-    for (const halfPeriod of passes.half_periods_s) {
-      steps.push({ kind: "wave", joint: sweepJoint, min_rad: minRad, max_rad: maxRad, cycles, half_period_s: halfPeriod });
+      for (const p of waves.passes) {
+        steps.push({ kind: "wave", joint: sweepJoint, min_rad: minRad, max_rad: maxRad, ...p, pose_index: i });
+      }
+    });
+  } else {
+    const holds = holdSweepSteps(sweepJoint, poses, delta);
+    steps.push(...holds.map((h): HoldStep => ({ kind: "hold", ...h })));
+    const passes = input.velocityPasses ?? defaultVelocityPasses(poses, sweepLimits);
+    if (passes.half_periods_s.length > 0) {
+      const { min_rad: minRad, max_rad: maxRad, cycles } = passes;
+      if (!Number.isFinite(minRad) || !Number.isFinite(maxRad) || maxRad - minRad < MIN_WAVE_SPAN_RAD) {
+        return refuse(`velocity_passes needs max_rad − min_rad ≥ ${MIN_WAVE_SPAN_RAD} rad (got [${minRad}, ${maxRad}])`);
+      }
+      if (!Number.isInteger(cycles) || cycles < 1) return refuse("velocity_passes cycles must be a positive integer");
+      if (passes.half_periods_s.some((t) => !Number.isFinite(t) || t <= 0)) {
+        return refuse("velocity_passes half_periods_s entries must be positive");
+      }
+      if (holds[holds.length - 1].target_rad !== minRad) {
+        steps.push({ kind: "hold", joint: sweepJoint, target_rad: minRad, measure: false });
+      }
+      for (const halfPeriod of passes.half_periods_s) {
+        steps.push({ kind: "wave", joint: sweepJoint, min_rad: minRad, max_rad: maxRad, cycles, half_period_s: halfPeriod });
+      }
     }
   }
   for (let i = 1; i < steps.length; i += 1) {
@@ -284,19 +363,135 @@ export function planJointCalibration(input: {
       return refuse(`plan repeats hold-at ${cur.joint} ${cur.target_rad} on consecutive steps`);
     }
   }
-  return { ok: true, sweepJoint, chain: [...chain], fixedRad, posesRad: poses, approachOffsetRad: delta, steps };
+  return {
+    ok: true,
+    method,
+    sweepJoint,
+    chain: [...chain],
+    fixedRad,
+    posesRad: poses,
+    approachOffsetRad: delta,
+    ...(method === "wave" ? { waveAmplitudeRad: input.waves?.amplitudeRad } : {}),
+    steps,
+  };
+}
+
+/**
+ * Local-wave amplitude a = (F_s + (TAU_DISTRUST_FACTOR − 1)·max|τ_g|)/kp, rounded up to 1 mrad
+ * and at least {@link MIN_WAVE_AMPLITUDE_RAD}: the P torque kp·a alone must break stiction
+ * (F_s = control.yaml `fs`, else `fc`) plus the model error the τ guard already distrusts
+ * (`max|τ_g|` = the sweep joint's model gravity over the poses). Refuses without kp/F_s or
+ * above {@link MAX_WAVE_AMPLITUDE_RAD}.
+ */
+export function deriveWaveAmplitude(
+  joint: string,
+  limits: JointLimits,
+  maxAbsTauGNm: number,
+): { ok: true; amplitudeRad: number; basis: string } | Refusal {
+  const { kp, breakawayNm } = limits;
+  if (kp === undefined || !(kp > 0) || breakawayNm === undefined || !(breakawayNm >= 0)) {
+    return {
+      ok: false,
+      message: `Refused: ${joint} has no control.yaml impedance.kp > 0 or friction fc/fs on the Pi; the wave amplitude cannot be derived (pass wave_amplitude_rad). No motion was run.`,
+    };
+  }
+  const modelErrorNm = (TAU_DISTRUST_FACTOR - 1) * maxAbsTauGNm;
+  const raw = (breakawayNm + modelErrorNm) / kp;
+  const amplitudeRad = Math.max(MIN_WAVE_AMPLITUDE_RAD, ceilMrad(raw));
+  const basis =
+    `wave amplitude ${amplitudeRad} rad = max(${MIN_WAVE_AMPLITUDE_RAD}, (F_s ${breakawayNm} + ` +
+    `${(TAU_DISTRUST_FACTOR - 1).toFixed(1)} × max|τ_g| ${maxAbsTauGNm.toFixed(3)} Nm) / kp ${kp})`;
+  if (amplitudeRad > MAX_WAVE_AMPLITUDE_RAD) {
+    return {
+      ok: false,
+      message: `Refused: ${basis} exceeds ${MAX_WAVE_AMPLITUDE_RAD} rad: friction or model error too large for a local wave; fix the model first or pass a smaller wave_amplitude_rad. No motion was run.`,
+    };
+  }
+  return { ok: true, amplitudeRad, basis };
+}
+
+/**
+ * Local-wave passes for amplitude `a`: peak speeds (default 3, evenly spaced from
+ * {@link MIN_WAVE_PEAK_SPEED_RAD_S} to what marengo-pi admits within 80 % of the velocity cap),
+ * half period π·a/v to 0.01 s (the slowest rounded down, the others up, so every speed stays in
+ * that band), and per speed enough cycles for gravity-fit's centre bin to collect
+ * 1.5 × 10 samples per direction at `loopHz`.
+ */
+export function localWaves(
+  joint: string,
+  limits: JointLimits,
+  amplitudeRad: number,
+  loopHz: number,
+  speedsRadS?: readonly number[],
+): { ok: true; waves: LocalWaves } | Refusal {
+  const vMax = admissibleWaveSpeed(limits, 2 * amplitudeRad);
+  let speeds: number[];
+  if (speedsRadS === undefined) {
+    if (!(vMax > MIN_WAVE_PEAK_SPEED_RAD_S)) {
+      return {
+        ok: false,
+        message: `Refused: ${joint} admits at most ${vMax.toFixed(3)} rad/s for a ±${amplitudeRad} rad wave, not above the ${MIN_WAVE_PEAK_SPEED_RAD_S} rad/s floor gravity-fit needs; increase wave_amplitude_rad. No motion was run.`,
+      };
+    }
+    speeds = [0, 0.5, 1].map((s) => MIN_WAVE_PEAK_SPEED_RAD_S + s * (vMax - MIN_WAVE_PEAK_SPEED_RAD_S));
+  } else {
+    speeds = [...speedsRadS].sort((x, y) => x - y);
+    if (speeds[0] < MIN_WAVE_PEAK_SPEED_RAD_S) {
+      return {
+        ok: false,
+        message: `Refused: wave_speeds_rad_s ${speeds[0]} is below ${MIN_WAVE_PEAK_SPEED_RAD_S} rad/s: gravity-fit's centre bin would sit in its moving deadband. No motion was run.`,
+      };
+    }
+  }
+  const binRad = FIT_BIN_SHARE * amplitudeRad;
+  const passes = speeds.map((v, i) => {
+    const t = (Math.PI * amplitudeRad) / v;
+    const halfPeriod = i === 0 ? Math.floor(t * 100 + 1e-9) / 100 : Math.ceil(t * 100 - 1e-9) / 100;
+    const peak = (Math.PI * amplitudeRad) / halfPeriod;
+    const perPass = (binRad * loopHz) / peak;
+    const cycles = Math.max(DEFAULT_WAVE_CYCLES, Math.ceil((BIN_SAMPLE_MARGIN * FIT_MIN_BIN_SAMPLES) / perPass));
+    return { half_period_s: halfPeriod, cycles };
+  });
+  const unique = passes.filter((p, i) => passes.findIndex((q) => q.half_period_s === p.half_period_s) === i);
+  if (unique.length < 2 || unique.some((p) => !(p.half_period_s > 0))) {
+    return {
+      ok: false,
+      message: `Refused: local waves need ≥ 2 distinct speeds (got half periods ${passes.map((p) => p.half_period_s).join(", ")} s); gravity-fit separates inertia from gravity by speed. No motion was run.`,
+    };
+  }
+  return { ok: true, waves: { amplitudeRad, passes: unique } };
+}
+
+/**
+ * Wave method: adjacent poses more than 2a apart, so each park target (pose − a) lies outside
+ * the previous wave and the trace segments every step unambiguously.
+ */
+export function checkWavePoseSpacing(plan: JointCalPlan): { ok: true } | Refusal {
+  const a = plan.waveAmplitudeRad;
+  if (plan.method !== "wave" || a === undefined) return { ok: true };
+  for (let i = 1; i < plan.posesRad.length; i += 1) {
+    const gap = plan.posesRad[i] - plan.posesRad[i - 1];
+    if (!(gap > 2 * a + 2 * TRACE_TARGET_TOL_RAD)) {
+      return {
+        ok: false,
+        message: `Refused: poses ${plan.posesRad[i - 1]} and ${plan.posesRad[i]} are ${roundRad(gap)} rad apart, not more than 2 × wave amplitude ${a} rad; use fewer poses or a wider amplitude_fraction. No motion was run.`,
+      };
+    }
+  }
+  return { ok: true };
 }
 
 /**
  * marengo-pi stdin script: reference every profile joint (awaited), home, enable, the steps,
  * then `hold-at <joint> 0` for every profile joint distal first (waiting return_home_sec after
- * each moved joint), status, disable, quit.
+ * each moved joint), status, disable, quit. Static holds dwell settle + measure; in the wave
+ * method, fixed poses and wave parks only settle.
  */
 export function jointCalibrationScript(
   plan: JointCalPlan,
   opts: { operator: string; settleSec: number; measureSec: number; returnHomeSec: number },
 ): string[] {
-  const dwell = roundRad(opts.settleSec + opts.measureSec);
+  const dwell = plan.method === "wave" ? opts.settleSec : roundRad(opts.settleSec + opts.measureSec);
   const script = [referenceAcquireLine(plan.chain), "home", `enable ${opts.operator}`];
   for (const step of plan.steps) {
     if (step.kind === "wave") {
@@ -323,11 +518,14 @@ export function jointCalibrationScript(
 // ---------------------------------------------------------------------------
 // Pre-flight guard
 
-/** Per-joint τ_ff cap, velocity cap and pose window from the Pi's config, or a refusal. */
+/**
+ * Per-joint τ_ff cap, velocity cap, pose window, impedance kp and friction breakaway from the
+ * Pi's config, plus the control loop rate, or a refusal.
+ */
 export function readJointLimits(
   preflight: Pick<PreflightFiles, "robotYaml" | "controlYaml" | "motorsYaml" | "urdf">,
   joints: readonly string[],
-): { ok: true; limits: Record<string, JointLimits>; robotJoints: string[] } | Refusal {
+): { ok: true; limits: Record<string, JointLimits>; robotJoints: string[]; loopHz?: number } | Refusal {
   const windows = jointWindows(preflight.controlYaml, preflight.motorsYaml, joints);
   if (!windows.ok) return windows;
   let robot: YamlNode;
@@ -388,15 +586,18 @@ export function readJointLimits(
         message: `Refused: ${joint} torque/velocity caps missing or unparseable on the Pi: ${missing.join(", ") || "velocity cap ≤ 0"}; no motion was run.`,
       };
     }
+    const friction = yamlGet(entry, "friction");
     limits[joint] = {
       window: windows.windows[joint],
       tauFfCapNm: Math.min(urdfEffortNm, torqueLimitNm, robotMaxNm, typeTauNm),
       velocityCapRadS: velocityCap,
       trajectoryVelocityRadS: yamlNumber(yamlGet(entry, "position_trajectory_velocity_rad_s")),
       trajectoryAccelRadS2: yamlNumber(yamlGet(entry, "position_trajectory_accel_rad_s2")),
+      kp: yamlNumber(yamlGet(entry, "impedance", "kp")),
+      breakawayNm: yamlNumber(yamlGet(friction, "fs")) ?? yamlNumber(yamlGet(friction, "fc")),
     };
   }
-  return { ok: true, limits, robotJoints };
+  return { ok: true, limits, robotJoints, loopHz: yamlNumber(yamlGet(control, "control", "loop_hz")) };
 }
 
 /** `<limit effort="…">` of URDF joint `joint`, or undefined. */
@@ -485,8 +686,8 @@ function samplePath(a: number, b: number): number[] {
 /**
  * Distinct joint configurations along every commanded path (other joints 0): each fixed joint
  * from 0 to its pose in chain order with the earlier ones already fixed (the distal-first return
- * retraces these), then the sweep joint over [min, max] of its targets, wave extremes and 0
- * with every fixed pose held; samples ≤ 0.05 rad apart plus every exact target.
+ * retraces these), then the sweep joint over [min, max] of its targets, wave extremes, poses and
+ * 0 with every fixed pose held; samples ≤ 0.05 rad apart plus every exact target and pose.
  */
 export function guardConfigurations(plan: JointCalPlan): Record<string, number>[] {
   const out = new Map<string, Record<string, number>>();
@@ -499,7 +700,7 @@ export function guardConfigurations(plan: JointCalPlan): Record<string, number>[
     for (const q of samplePath(0, rad)) add({ ...base, [joint]: q });
     base[joint] = rad;
   }
-  const sweepTargets = [0];
+  const sweepTargets = [0, ...plan.posesRad];
   for (const s of plan.steps) {
     if (s.joint !== plan.sweepJoint) continue;
     if (s.kind === "wave") sweepTargets.push(s.min_rad, s.max_rad);
@@ -509,6 +710,28 @@ export function guardConfigurations(plan: JointCalPlan): Record<string, number>[
   const hi = Math.max(...sweepTargets);
   for (const q of [...samplePath(lo, hi), ...sweepTargets]) add({ ...base, [plan.sweepJoint]: q });
   return [...out.values()];
+}
+
+/**
+ * Largest |τ_g| of the sweep joint at the plan's poses (fixed poses held), from the τ guard's
+ * batch over {@link guardConfigurations} (which includes every pose); undefined when one is
+ * missing.
+ */
+export function maxSweepTauAtPoses(
+  plan: JointCalPlan,
+  configs: readonly Record<string, number>[],
+  tau: ReadonlyMap<number, Record<string, number>>,
+): number | undefined {
+  const key = (c: Record<string, number>) => plan.chain.map((j) => (c[j] ?? 0).toFixed(6)).join(" ");
+  const index = new Map(configs.map((c, i) => [key(c), i]));
+  let worst = 0;
+  for (const pose of plan.posesRad) {
+    const i = index.get(key({ ...plan.fixedRad, [plan.sweepJoint]: pose }));
+    const t = i === undefined ? undefined : tau.get(i)?.[plan.sweepJoint];
+    if (t === undefined) return undefined;
+    worst = Math.max(worst, Math.abs(t));
+  }
+  return worst;
 }
 
 /**
@@ -680,6 +903,13 @@ export const jointCalibrateSchema = motionConfirmSchema.extend({
         "the calibration exists to fix that model",
     ),
   sweep_joint: z.enum(MASTER_JOINTS).describe("The one joint this session moves"),
+  method: z
+    .enum(CALIBRATION_METHODS)
+    .default("wave")
+    .describe(
+      "wave (default): at each pose a local wave through stiction at 2–3 speeds; gravity-fit takes up/down " +
+        "bin means. static: holds approached from below and above, plus velocity_passes",
+    ),
   fixed_rad: z
     .record(z.string().regex(JOINT_NAME), z.number())
     .default({})
@@ -689,14 +919,55 @@ export const jointCalibrateSchema = motionConfirmSchema.extend({
     .min(MIN_POSES)
     .max(MAX_POSES)
     .optional()
-    .describe("Static poses (rad); default 5 evenly spaced across amplitude_fraction of the window"),
+    .describe(
+      "Poses (rad); default 5 evenly spaced across amplitude_fraction of the window, kept 0.05 rad plus δ " +
+        `(static) or ${MAX_WAVE_AMPLITUDE_RAD} rad (wave) inside the limits`,
+    ),
   amplitude_fraction: z
     .union([z.literal(0.25), z.literal(0.5), z.literal(0.9)])
     .default(0.25)
     .describe("Default poses span this share of the soft ∩ hard window, centred on 0, ≥ 0.05 rad inside the limits"),
-  approach_offset_rad: z.number().min(0.02).max(0.15).default(DEFAULT_APPROACH_OFFSET_RAD),
-  settle_sec: z.number().min(1).max(10).default(DEFAULT_SETTLE_SEC),
-  measure_sec: z.number().min(1).max(5).default(DEFAULT_MEASURE_SEC),
+  wave_amplitude_rad: z
+    .number()
+    .min(MIN_WAVE_AMPLITUDE_RAD)
+    .max(MAX_WAVE_AMPLITUDE_RAD)
+    .optional()
+    .describe(
+      "Wave method: local-wave amplitude a (rad). Default (F_s + 0.6 × max|τ_g| at the poses) / kp from the Pi's " +
+        `control.yaml friction fs|fc and impedance kp, ≥ ${MIN_WAVE_AMPLITUDE_RAD}, refused above ${MAX_WAVE_AMPLITUDE_RAD}`,
+    ),
+  wave_speeds_rad_s: z
+    .array(z.number().positive())
+    .min(2)
+    .max(3)
+    .optional()
+    .describe(
+      `Wave method: 2–3 local-wave peak speeds (rad/s), each ≥ ${MIN_WAVE_PEAK_SPEED_RAD_S}. Default 3 evenly spaced ` +
+        `from ${MIN_WAVE_PEAK_SPEED_RAD_S} to the admissible speed (80 % velocity cap, trajectory velocity/accel)`,
+    ),
+  wave_cycles: z
+    .number()
+    .int()
+    .min(1)
+    .max(5)
+    .optional()
+    .describe(
+      `Wave method: cycles per local wave. Default per speed: ≥ ${DEFAULT_WAVE_CYCLES}, enough for gravity-fit's ` +
+        `centre bin to hold ${BIN_SAMPLE_MARGIN} × ${FIT_MIN_BIN_SAMPLES} samples per direction`,
+    ),
+  approach_offset_rad: z
+    .number()
+    .min(0.02)
+    .max(0.15)
+    .default(DEFAULT_APPROACH_OFFSET_RAD)
+    .describe("Static method: overshoot δ before each pass"),
+  settle_sec: z
+    .number()
+    .min(1)
+    .max(10)
+    .default(DEFAULT_SETTLE_SEC)
+    .describe("Settle after each hold-at (static holds, wave parks, fixed poses)"),
+  measure_sec: z.number().min(1).max(5).default(DEFAULT_MEASURE_SEC).describe("Static method: measured hold tail"),
   velocity_passes: z
     .object({
       min_rad: z.number(),
@@ -706,7 +977,8 @@ export const jointCalibrateSchema = motionConfirmSchema.extend({
     })
     .optional()
     .describe(
-      "In-loop `wave` passes for friction vs speed; default ≤ 0.3 rad mid-band at 25/50/75 % of the admissible speed, 2 cycles",
+      "Static method only: in-loop `wave` passes for friction vs speed; default ≤ 0.3 rad mid-band at 25/50/75 % of " +
+        "the admissible speed, 2 cycles",
     ),
   return_home_sec: z.number().int().min(5).max(120).default(DEFAULT_RETURN_HOME_SEC),
   config_dir: z
@@ -730,18 +1002,21 @@ export function registerJointCalibrateTools(
       description:
         "Right-arm calibration session (docs/commissioning/right-arm-calibration-suite.md) in ONE marengo-pi " +
         "session: `home <profile joints> sign-tested` (awaited), home, enable (awaited), hold-at each fixed_rad pose " +
-        "(chain order), then static holds of sweep_joint (any right-arm joint) approached from below (after a " +
-        "min−δ overshoot) and from above (after a max+δ overshoot), then `wave` velocity passes at several speeds, " +
-        "then every profile joint back to 0 distal first, disable, quit. Default poses: 5 across amplitude_fraction " +
-        "(0.25|0.5|0.9) of the soft ∩ hard window, centred on 0. Needs confirm + confirm_weighted_motion (default " +
-        "profile arm_attached), set_zero + at_mechanical_reference, skip_hanging_rest_gravity_check: true. " +
-        "Pre-flight guard, before any motion, on the Pi's live config: every target, overshoot, fixed pose and wave " +
-        "extreme ≥ 0.05 rad inside [max(soft, hard) lower, min(soft, hard) upper]; model |τ_g| × 1.6 ≤ 0.8 × τ_ff " +
-        "cap on every joint along every commanded path (motor-repl gravity-preview, batched); wave peak speed " +
+        "(chain order), then sweep_joint (any right-arm joint) per method, then every profile joint back to 0 " +
+        "distal first, disable, quit. method wave (default): at each pose a park hold-at pose−a, then a local " +
+        "`wave` [pose−a, pose+a] at 2–3 peak speeds; a = (F_s + 0.6 × max|τ_g|)/kp from the Pi's control.yaml " +
+        "unless wave_amplitude_rad. method static: holds approached from below (after a min−δ overshoot) and " +
+        "from above (after a max+δ overshoot), then `wave` velocity passes. Default poses: 5 across " +
+        "amplitude_fraction (0.25|0.5|0.9) of the soft ∩ hard window, centred on 0. Needs confirm + " +
+        "confirm_weighted_motion (default profile arm_attached), set_zero + at_mechanical_reference, " +
+        "skip_hanging_rest_gravity_check: true. Pre-flight guard, before any motion, on the Pi's live config: " +
+        "every target, overshoot, fixed pose and wave extreme ≥ 0.05 rad inside [max(soft, hard) lower, " +
+        "min(soft, hard) upper]; model |τ_g| × 1.6 ≤ 0.8 × τ_ff cap on every joint along every commanded path " +
+        "(motor-repl gravity-preview, batched; wave method: ±0.1 rad around each pose); wave peak speed " +
         "π·(max−min)/(2·half_period) ≤ 0.8 × velocity cap; total sleep budget ≤ 300 s. Writes " +
-        "var/gravity-calibration/<TS>/ (plan.json version 2 with session_complete, position-trace.csv, " +
-        "pi-marengo.urdf, config/*.yaml, bench-session.txt) and, with run_fit, runs `marengo-log-cli gravity-fit` " +
-        "(completed steps only). Never applies anything (ADR 0017). " +
+        "var/gravity-calibration/<TS>/ (plan.json version 2 with method and session_complete, " +
+        "position-trace.csv, pi-marengo.urdf, config/*.yaml, bench-session.txt) and, with run_fit, runs " +
+        "`marengo-log-cli gravity-fit` (completed steps only). Never applies anything (ADR 0017). " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: jointCalibrateSchema,
       handler: async (args: JointCalibrateArgs): Promise<string> => {
@@ -774,8 +1049,11 @@ export function registerJointCalibrateTools(
         const read = readJointLimits(preflight, chain);
         if (!read.ok) return refused(read.message);
 
+        const method = args.method ?? "wave";
         const approachOffsetRad = args.approach_offset_rad ?? DEFAULT_APPROACH_OFFSET_RAD;
-        const plan = planJointCalibration({
+        const settleSec = args.settle_sec ?? DEFAULT_SETTLE_SEC;
+        const measureSec = args.measure_sec ?? DEFAULT_MEASURE_SEC;
+        const planInput = {
           sweepJoint,
           chain,
           limits: read.limits,
@@ -783,38 +1061,106 @@ export function registerJointCalibrateTools(
           posesRad: args.poses_rad,
           amplitudeFraction: args.amplitude_fraction ?? AMPLITUDE_FRACTIONS[0],
           approachOffsetRad,
+          method,
           velocityPasses: args.velocity_passes,
-        });
-        if (!plan.ok) return refused(plan.message);
-        const limitsOk = checkJointCalLimits(plan, read.limits);
-        if (!limitsOk.ok) return refused(limitsOk.message);
-        const speedsOk = checkWaveSpeeds(plan, read.limits);
-        if (!speedsOk.ok) return refused(speedsOk.message);
-
-        const settleSec = args.settle_sec ?? DEFAULT_SETTLE_SEC;
-        const measureSec = args.measure_sec ?? DEFAULT_MEASURE_SEC;
-        const script = jointCalibrationScript(plan, {
-          operator,
-          settleSec,
-          measureSec,
-          returnHomeSec: args.return_home_sec ?? DEFAULT_RETURN_HOME_SEC,
-        });
-        const budgetSec = scriptSleepTotalSec(script);
-        if (budgetSec > MAX_SESSION_SLEEP_SEC) {
-          return refused(
-            `Refused: session budget ${budgetSec} s (sleeps + reference acquisition) exceeds ${MAX_SESSION_SLEEP_SEC} s. ` +
-              "Split it into several pi_joint_calibrate sessions (e.g. holds in one, velocity_passes in another), " +
-              "or use fewer poses, fewer velocity passes/cycles, or shorter settle_sec/measure_sec.",
+        };
+        const scriptWithin = (p: JointCalPlan): { ok: true; script: string[]; budgetSec: number } | Refusal => {
+          const script = jointCalibrationScript(p, {
+            operator,
+            settleSec,
+            measureSec,
+            returnHomeSec: args.return_home_sec ?? DEFAULT_RETURN_HOME_SEC,
+          });
+          const budgetSec = scriptSleepTotalSec(script);
+          if (budgetSec <= MAX_SESSION_SLEEP_SEC) return { ok: true, script, budgetSec };
+          return {
+            ok: false,
+            message:
+              `Refused: session budget ${budgetSec} s (sleeps + reference acquisition) exceeds ${MAX_SESSION_SLEEP_SEC} s. ` +
+              "Split it into several pi_joint_calibrate sessions (e.g. half the poses each, or holds in one and " +
+              "velocity_passes in another), or use fewer poses, speeds or cycles, or shorter settle_sec/measure_sec.",
+          };
+        };
+        const tauBatch = async (configs: Record<string, number>[]) =>
+          parseGravityBatch(
+            await runRemote(
+              wrapRemoteWithConfig(cfg, soleCanOwnerShell(gravityBatchShell(configs, read.robotJoints)), configDir),
+              TAU_GUARD_TIMEOUT_MS + CAN_SESSION_SLACK_MS,
+            ),
           );
-        }
 
-        const configs = guardConfigurations(plan);
-        const tauOut = await runRemote(
-          wrapRemoteWithConfig(cfg, soleCanOwnerShell(gravityBatchShell(configs, read.robotJoints)), configDir),
-          TAU_GUARD_TIMEOUT_MS + CAN_SESSION_SLACK_MS,
-        );
-        const tauGuard = checkTauGuard(configs, parseGravityBatch(tauOut), chain, read.limits);
-        if (!tauGuard.ok) return refused(tauGuard.message);
+        let plan: JointCalPlan;
+        let session: { script: string[]; budgetSec: number };
+        let preamble: string[];
+        if (method === "static") {
+          const planned = planJointCalibration(planInput);
+          if (!planned.ok) return refused(planned.message);
+          plan = planned;
+          const limitsOk = checkJointCalLimits(plan, read.limits);
+          if (!limitsOk.ok) return refused(limitsOk.message);
+          const speedsOk = checkWaveSpeeds(plan, read.limits);
+          if (!speedsOk.ok) return refused(speedsOk.message);
+          const within = scriptWithin(plan);
+          if (!within.ok) return refused(within.message);
+          session = within;
+          const configs = guardConfigurations(plan);
+          const tauGuard = checkTauGuard(configs, await tauBatch(configs), chain, read.limits);
+          if (!tauGuard.ok) return refused(tauGuard.message);
+          preamble = tauGuard.report;
+        } else {
+          // The τ guard covers the largest admissible amplitude around every pose (a superset of
+          // the final paths) and supplies τ_g at the poses for the derived amplitude.
+          const envelope = planJointCalibration({
+            ...planInput,
+            waves: { amplitudeRad: MAX_WAVE_AMPLITUDE_RAD, passes: [{ half_period_s: 1, cycles: 1 }] },
+          });
+          if (!envelope.ok) return refused(envelope.message);
+          const configs = guardConfigurations(envelope);
+          const tau = await tauBatch(configs);
+          const tauGuard = checkTauGuard(configs, tau, chain, read.limits);
+          if (!tauGuard.ok) return refused(tauGuard.message);
+          const sweepLimits = read.limits[sweepJoint];
+          let amplitudeRad: number;
+          let basis: string;
+          if (args.wave_amplitude_rad !== undefined) {
+            amplitudeRad = args.wave_amplitude_rad;
+            basis = `wave amplitude ${amplitudeRad} rad (wave_amplitude_rad)`;
+          } else {
+            const maxTau = maxSweepTauAtPoses(envelope, configs, tau);
+            if (maxTau === undefined) {
+              return refused(`Refused: no τ_g for ${sweepJoint} at every pose; the wave amplitude cannot be derived. No motion was run.`);
+            }
+            const derived = deriveWaveAmplitude(sweepJoint, sweepLimits, maxTau);
+            if (!derived.ok) return refused(derived.message);
+            ({ amplitudeRad, basis } = derived);
+          }
+          if (read.loopHz === undefined || !(read.loopHz > 0)) {
+            return refused("Refused: Pi control.yaml control.loop_hz missing; wave cycles cannot be sized. No motion was run.");
+          }
+          const waves = localWaves(sweepJoint, sweepLimits, amplitudeRad, read.loopHz, args.wave_speeds_rad_s);
+          if (!waves.ok) return refused(waves.message);
+          if (args.wave_cycles !== undefined) {
+            for (const p of waves.waves.passes) p.cycles = args.wave_cycles;
+          }
+          const planned = planJointCalibration({ ...planInput, waves: waves.waves });
+          if (!planned.ok) return refused(planned.message);
+          plan = planned;
+          for (const check of [
+            checkWavePoseSpacing(plan),
+            checkJointCalLimits(plan, read.limits),
+            checkWaveSpeeds(plan, read.limits),
+          ]) {
+            if (!check.ok) return refused(check.message);
+          }
+          const within = scriptWithin(plan);
+          if (!within.ok) return refused(within.message);
+          session = within;
+          const speeds = waves.waves.passes.map(
+            (p) => `${wavePeakSpeed(-amplitudeRad, amplitudeRad, p.half_period_s).toFixed(3)} rad/s × ${p.cycles}`,
+          );
+          preamble = [...tauGuard.report, basis, `local waves per pose: ${speeds.join(", ")} cycles`];
+        }
+        const { script, budgetSec } = session;
 
         return runCalibrationSession(cfg, runRemote, auditMotion, deps, {
           tool: TOOL,
@@ -826,7 +1172,7 @@ export function registerJointCalibrateTools(
           script,
           budgetSec,
           preflight,
-          preamble: tauGuard.report,
+          preamble,
           runFit: args.run_fit !== false,
           fitParams: [],
           fitIncomplete: true,
@@ -840,12 +1186,15 @@ export function registerJointCalibrateTools(
                 created_utc: deps.now().toISOString(),
                 session_ts: sessionTs,
                 profile,
+                method: plan.method,
                 sweep_joint: plan.sweepJoint,
                 fixed_rad: plan.fixedRad,
                 poses_rad: plan.posesRad,
-                approach_offset_rad: approachOffsetRad,
+                ...(plan.method === "wave"
+                  ? { wave_amplitude_rad: plan.waveAmplitudeRad }
+                  : { approach_offset_rad: approachOffsetRad }),
                 settle_sec: settleSec,
-                measure_sec: measureSec,
+                ...(plan.method === "static" ? { measure_sec: measureSec } : {}),
                 steps: plan.steps,
                 gravity_gate_report: gateReport,
                 session_complete: complete,
