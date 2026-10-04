@@ -1,0 +1,893 @@
+{
+  "accepted": false,
+  "apply": "Never automatic. Review the patches; apply the URDF patch to the Pi URDF copy at assets/urdf/marengo.urdf, commit, then pi_sync_bench_urdf (ADR 0017). Apply the friction patch by hand to config/control.yaml on the Pi.",
+  "bins": [
+    {
+      "center_rad": -0.508,
+      "friction_nm": 0.34445,
+      "gravity_nm": -1.23039,
+      "half_period_s": 0.81,
+      "inertia_torque_nm": -0.01865,
+      "q_rad": [
+        -0.50765,
+        -0.00077,
+        0.00003,
+        0.00402,
+        -0.00025
+      ],
+      "samples": [
+        12,
+        11
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.1779,
+      "step": 1
+    },
+    {
+      "center_rad": -0.508,
+      "friction_nm": 0.37528,
+      "gravity_nm": -1.27275,
+      "half_period_s": 0.48,
+      "inertia_torque_nm": -0.00543,
+      "q_rad": [
+        -0.50799,
+        -0.00089,
+        0.00003,
+        0.00408,
+        -0.00038
+      ],
+      "samples": [
+        13,
+        12
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.1834,
+      "step": 2
+    },
+    {
+      "center_rad": -0.254,
+      "friction_nm": 0.34032,
+      "gravity_nm": -0.63895,
+      "half_period_s": 0.81,
+      "inertia_torque_nm": 0.04168,
+      "q_rad": [
+        -0.25355,
+        -0.0008,
+        0.00002,
+        0.00394,
+        -0.00077
+      ],
+      "samples": [
+        11,
+        11
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.1899,
+      "step": 5
+    },
+    {
+      "center_rad": -0.254,
+      "friction_nm": 0.39727,
+      "gravity_nm": -0.6623,
+      "half_period_s": 0.48,
+      "inertia_torque_nm": 0.02644,
+      "q_rad": [
+        -0.25455,
+        -0.00082,
+        0.00006,
+        0.0041,
+        -0.00073
+      ],
+      "samples": [
+        10,
+        10
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.2236,
+      "step": 6
+    },
+    {
+      "center_rad": 0.0,
+      "friction_nm": 0.33748,
+      "gravity_nm": -0.00444,
+      "half_period_s": 0.81,
+      "inertia_torque_nm": 0.00996,
+      "q_rad": [
+        -0.00073,
+        -0.0008,
+        0.00005,
+        0.00376,
+        -0.00075
+      ],
+      "samples": [
+        13,
+        12
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.1941,
+      "step": 9
+    },
+    {
+      "center_rad": 0.026,
+      "friction_nm": 0.29596,
+      "gravity_nm": 0.00669,
+      "half_period_s": 0.81,
+      "inertia_torque_nm": -0.05997,
+      "q_rad": [
+        0.02399,
+        -0.00079,
+        0.00002,
+        0.00389,
+        -0.00075
+      ],
+      "samples": [
+        10,
+        10
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.167,
+      "step": 9
+    },
+    {
+      "center_rad": 0.0,
+      "friction_nm": 0.38529,
+      "gravity_nm": 0.02756,
+      "half_period_s": 0.48,
+      "inertia_torque_nm": 0.00724,
+      "q_rad": [
+        0.00106,
+        -0.00082,
+        0.00002,
+        0.00375,
+        -0.00077
+      ],
+      "samples": [
+        11,
+        11
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.213,
+      "step": 10
+    },
+    {
+      "center_rad": 0.254,
+      "friction_nm": 0.27112,
+      "gravity_nm": 0.71898,
+      "half_period_s": 0.81,
+      "inertia_torque_nm": -0.02278,
+      "q_rad": [
+        0.25455,
+        -0.00077,
+        0.00003,
+        0.00326,
+        -0.00072
+      ],
+      "samples": [
+        12,
+        12
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.2328,
+      "step": 13
+    },
+    {
+      "center_rad": 0.508,
+      "friction_nm": 0.39782,
+      "gravity_nm": 1.33323,
+      "half_period_s": 0.48,
+      "inertia_torque_nm": -0.00933,
+      "q_rad": [
+        0.50772,
+        -0.00063,
+        -0.00003,
+        0.00284,
+        -0.0007
+      ],
+      "samples": [
+        13,
+        12
+      ],
+      "session": "20261004T113836Z",
+      "speed_rad_s": 0.1972,
+      "step": 18
+    }
+  ],
+  "control_patch": null,
+  "dropped_bins": [
+    {
+      "center_rad": -0.534,
+      "samples": [
+        8,
+        5
+      ],
+      "session": "20261004T113836Z",
+      "step": 1
+    },
+    {
+      "center_rad": -0.482,
+      "samples": [
+        8,
+        0
+      ],
+      "session": "20261004T113836Z",
+      "step": 1
+    },
+    {
+      "center_rad": -0.534,
+      "samples": [
+        6,
+        6
+      ],
+      "session": "20261004T113836Z",
+      "step": 2
+    },
+    {
+      "center_rad": -0.482,
+      "samples": [
+        6,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 2
+    },
+    {
+      "center_rad": -0.534,
+      "samples": [
+        8,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 3
+    },
+    {
+      "center_rad": -0.508,
+      "samples": [
+        10,
+        7
+      ],
+      "session": "20261004T113836Z",
+      "step": 3
+    },
+    {
+      "center_rad": -0.482,
+      "samples": [
+        2,
+        0
+      ],
+      "session": "20261004T113836Z",
+      "step": 3
+    },
+    {
+      "center_rad": -0.28,
+      "samples": [
+        7,
+        8
+      ],
+      "session": "20261004T113836Z",
+      "step": 5
+    },
+    {
+      "center_rad": -0.228,
+      "samples": [
+        7,
+        8
+      ],
+      "session": "20261004T113836Z",
+      "step": 5
+    },
+    {
+      "center_rad": -0.28,
+      "samples": [
+        5,
+        6
+      ],
+      "session": "20261004T113836Z",
+      "step": 6
+    },
+    {
+      "center_rad": -0.228,
+      "samples": [
+        9,
+        5
+      ],
+      "session": "20261004T113836Z",
+      "step": 6
+    },
+    {
+      "center_rad": -0.28,
+      "samples": [
+        4,
+        0
+      ],
+      "session": "20261004T113836Z",
+      "step": 7
+    },
+    {
+      "center_rad": -0.254,
+      "samples": [
+        8,
+        10
+      ],
+      "session": "20261004T113836Z",
+      "step": 7
+    },
+    {
+      "center_rad": -0.228,
+      "samples": [
+        3,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 7
+    },
+    {
+      "center_rad": -0.026,
+      "samples": [
+        9,
+        8
+      ],
+      "session": "20261004T113836Z",
+      "step": 9
+    },
+    {
+      "center_rad": -0.026,
+      "samples": [
+        11,
+        9
+      ],
+      "session": "20261004T113836Z",
+      "step": 10
+    },
+    {
+      "center_rad": 0.026,
+      "samples": [
+        4,
+        5
+      ],
+      "session": "20261004T113836Z",
+      "step": 10
+    },
+    {
+      "center_rad": -0.026,
+      "samples": [
+        6,
+        4
+      ],
+      "session": "20261004T113836Z",
+      "step": 11
+    },
+    {
+      "center_rad": 0.0,
+      "samples": [
+        8,
+        11
+      ],
+      "session": "20261004T113836Z",
+      "step": 11
+    },
+    {
+      "center_rad": 0.026,
+      "samples": [
+        1,
+        0
+      ],
+      "session": "20261004T113836Z",
+      "step": 11
+    },
+    {
+      "center_rad": 0.228,
+      "samples": [
+        7,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 13
+    },
+    {
+      "center_rad": 0.28,
+      "samples": [
+        13,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 13
+    },
+    {
+      "center_rad": 0.228,
+      "samples": [
+        6,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 14
+    },
+    {
+      "center_rad": 0.254,
+      "samples": [
+        9,
+        11
+      ],
+      "session": "20261004T113836Z",
+      "step": 14
+    },
+    {
+      "center_rad": 0.28,
+      "samples": [
+        7,
+        6
+      ],
+      "session": "20261004T113836Z",
+      "step": 14
+    },
+    {
+      "center_rad": 0.228,
+      "samples": [
+        7,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 15
+    },
+    {
+      "center_rad": 0.254,
+      "samples": [
+        9,
+        9
+      ],
+      "session": "20261004T113836Z",
+      "step": 15
+    },
+    {
+      "center_rad": 0.28,
+      "samples": [
+        2,
+        1
+      ],
+      "session": "20261004T113836Z",
+      "step": 15
+    },
+    {
+      "center_rad": 0.482,
+      "samples": [
+        5,
+        4
+      ],
+      "session": "20261004T113836Z",
+      "step": 17
+    },
+    {
+      "center_rad": 0.508,
+      "samples": [
+        9,
+        10
+      ],
+      "session": "20261004T113836Z",
+      "step": 17
+    },
+    {
+      "center_rad": 0.534,
+      "samples": [
+        8,
+        9
+      ],
+      "session": "20261004T113836Z",
+      "step": 17
+    },
+    {
+      "center_rad": 0.482,
+      "samples": [
+        3,
+        5
+      ],
+      "session": "20261004T113836Z",
+      "step": 18
+    },
+    {
+      "center_rad": 0.534,
+      "samples": [
+        6,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 18
+    },
+    {
+      "center_rad": 0.482,
+      "samples": [
+        2,
+        3
+      ],
+      "session": "20261004T113836Z",
+      "step": 19
+    },
+    {
+      "center_rad": 0.508,
+      "samples": [
+        11,
+        8
+      ],
+      "session": "20261004T113836Z",
+      "step": 19
+    },
+    {
+      "center_rad": 0.534,
+      "samples": [
+        2,
+        2
+      ],
+      "session": "20261004T113836Z",
+      "step": 19
+    }
+  ],
+  "friction": {
+    "right_shoulder_pitch": {
+      "accepted": false,
+      "cross_session_sigma_nm": null,
+      "current": {
+        "fc": 0.08,
+        "fs": 0.08,
+        "fv": 0.0
+      },
+      "fc_nm": 0.32327,
+      "fs_nm": null,
+      "fs_note": "not identifiable: fs − fc = -18.4931 ± 8.1172 Nm at v_b 0.05 rad/s (slowest bin 0.167 rad/s)",
+      "fv": 0.13242,
+      "max_residual_nm": 0.08298,
+      "points": [
+        {
+          "center_rad": -0.508,
+          "fit_nm": 0.34756,
+          "friction_nm": 0.37528,
+          "half_period_s": 0.48,
+          "session_means_nm": {
+            "20261004T113836Z": 0.37528
+          },
+          "speed_rad_s": 0.1834
+        },
+        {
+          "center_rad": -0.508,
+          "fit_nm": 0.34683,
+          "friction_nm": 0.34445,
+          "half_period_s": 0.81,
+          "session_means_nm": {
+            "20261004T113836Z": 0.34445
+          },
+          "speed_rad_s": 0.1779
+        },
+        {
+          "center_rad": -0.254,
+          "fit_nm": 0.35287,
+          "friction_nm": 0.39727,
+          "half_period_s": 0.48,
+          "session_means_nm": {
+            "20261004T113836Z": 0.39727
+          },
+          "speed_rad_s": 0.2236
+        },
+        {
+          "center_rad": -0.254,
+          "fit_nm": 0.34842,
+          "friction_nm": 0.34032,
+          "half_period_s": 0.81,
+          "session_means_nm": {
+            "20261004T113836Z": 0.34032
+          },
+          "speed_rad_s": 0.1899
+        },
+        {
+          "center_rad": 0.0,
+          "fit_nm": 0.35147,
+          "friction_nm": 0.38529,
+          "half_period_s": 0.48,
+          "session_means_nm": {
+            "20261004T113836Z": 0.38529
+          },
+          "speed_rad_s": 0.213
+        },
+        {
+          "center_rad": 0.0,
+          "fit_nm": 0.34897,
+          "friction_nm": 0.33748,
+          "half_period_s": 0.81,
+          "session_means_nm": {
+            "20261004T113836Z": 0.33748
+          },
+          "speed_rad_s": 0.1941
+        },
+        {
+          "center_rad": 0.026,
+          "fit_nm": 0.34538,
+          "friction_nm": 0.29596,
+          "half_period_s": 0.81,
+          "session_means_nm": {
+            "20261004T113836Z": 0.29596
+          },
+          "speed_rad_s": 0.167
+        },
+        {
+          "center_rad": 0.254,
+          "fit_nm": 0.3541,
+          "friction_nm": 0.27112,
+          "half_period_s": 0.81,
+          "session_means_nm": {
+            "20261004T113836Z": 0.27112
+          },
+          "speed_rad_s": 0.2328
+        },
+        {
+          "center_rad": 0.508,
+          "fit_nm": 0.34938,
+          "friction_nm": 0.39782,
+          "half_period_s": 0.48,
+          "session_means_nm": {
+            "20261004T113836Z": 0.39782
+          },
+          "speed_rad_s": 0.1972
+        }
+      ],
+      "refusals": [
+        "cross-session spread unavailable: needs ≥ 2 sessions sharing a pose/speed bin"
+      ],
+      "residual_gate_nm": null,
+      "sigma_fc_nm": 0.15404,
+      "sigma_fv": 0.77516,
+      "speeds": 2,
+      "v_b_rad_s": 0.05
+    }
+  },
+  "groups": [
+    {
+      "accepted": false,
+      "cad": {
+        "a_nm": 2.83166,
+        "b_nm": 0.03373,
+        "c_nm": 2.83186,
+        "phi_rad": 0.01191
+      },
+      "fit": {
+        "a_nm": 2.66065,
+        "b_nm": 0.02059,
+        "c_nm": 2.66073,
+        "delta_inertia_kg_m2": {
+          "sigma": 0.03519,
+          "value": 0.02843
+        },
+        "phi_rad": 0.00774,
+        "sigma_a_nm": 0.04366,
+        "sigma_b_nm": 0.01431,
+        "speeds": 2
+      },
+      "fixed_rad": {},
+      "gate": {
+        "cross_session_sigma_nm": null,
+        "max_residual_cad_nm": 0.10058,
+        "max_residual_nm": 0.05455,
+        "readout_floor_nm": 0.001831,
+        "repeat_sigma_nm": 0.02467,
+        "residual_gate_nm": null,
+        "rms_residual_nm": 0.03233
+      },
+      "inertia_kg_m2": [
+        0.07359,
+        0.07359
+      ],
+      "joint": "right_shoulder_pitch",
+      "poses": [
+        {
+          "bins": 2,
+          "cad_nm": -1.3475,
+          "center_rad": -0.508,
+          "cross_session_spread_nm": null,
+          "fit_nm": -1.27581,
+          "gravity_nm": -1.24692,
+          "q_rad": -0.50782,
+          "session_means_nm": {
+            "20261004T113836Z": -1.24692
+          }
+        },
+        {
+          "bins": 2,
+          "cad_nm": -0.67903,
+          "center_rad": -0.254,
+          "cross_session_spread_nm": null,
+          "fit_nm": -0.64876,
+          "gravity_nm": -0.66378,
+          "q_rad": -0.25405,
+          "session_means_nm": {
+            "20261004T113836Z": -0.66378
+          }
+        },
+        {
+          "bins": 2,
+          "cad_nm": 0.03421,
+          "center_rad": 0.0,
+          "cross_session_spread_nm": null,
+          "fit_nm": 0.02104,
+          "gravity_nm": 0.00823,
+          "q_rad": 0.00017,
+          "session_means_nm": {
+            "20261004T113836Z": 0.00823
+          }
+        },
+        {
+          "bins": 1,
+          "cad_nm": 0.10164,
+          "center_rad": 0.026,
+          "cross_session_spread_nm": null,
+          "fit_nm": 0.08441,
+          "gravity_nm": 0.02986,
+          "q_rad": 0.02399,
+          "session_means_nm": {
+            "20261004T113836Z": 0.02986
+          }
+        },
+        {
+          "bins": 1,
+          "cad_nm": 0.74569,
+          "center_rad": 0.254,
+          "cross_session_spread_nm": null,
+          "fit_nm": 0.68991,
+          "gravity_nm": 0.72778,
+          "q_rad": 0.25455,
+          "session_means_nm": {
+            "20261004T113836Z": 0.72778
+          }
+        },
+        {
+          "bins": 1,
+          "cad_nm": 1.40618,
+          "center_rad": 0.508,
+          "cross_session_spread_nm": null,
+          "fit_nm": 1.31156,
+          "gravity_nm": 1.33683,
+          "q_rad": 0.50772,
+          "session_means_nm": {
+            "20261004T113836Z": 1.33683
+          }
+        }
+      ],
+      "refusals": [
+        "cross-session spread unavailable: needs ≥ 2 sessions sharing a pose bin"
+      ],
+      "sessions": [
+        "20261004T113836Z"
+      ]
+    }
+  ],
+  "kind": "gravity_calibration",
+  "local_urdf_matches_pi": true,
+  "method": "wave",
+  "options": {
+    "bin_share_of_amplitude": 0.5,
+    "deadband_rad_s": 0.15,
+    "gate_sigmas": 3.0,
+    "inertia": "I from the URDF links about the swept axis (no rotor), q̈ = measured second difference; with ≥ 2 speeds the error ΔI is fitted with A, B, else only centre bins are used",
+    "max_com_shift_m": 0.05,
+    "min_bin_samples": 10,
+    "suite_residual_gate_nm": 0.1
+  },
+  "sessions": [
+    {
+      "dir": "var/gravity-calibration/20261004T113836Z",
+      "fixed_rad": {},
+      "gravity_gate_report": "gravity gate (basis=hanging_rest): gateway RobotState snapshot unavailable; a disabled drive reports ~0 Nm regardless of load, so the gate checks |τ_g| at the arm_attached hanging rest pose (physical gravity torque ~0)\n  right_shoulder_pitch: q=0.0000 rad τ_g=0.0337 Nm residual=0.0337 Nm ok\n  right_shoulder_roll: q=0.0000 rad τ_g=-0.0258 Nm residual=0.0258 Nm ok\n  right_upper_arm_yaw: q=0.0000 rad τ_g=0.0000 Nm residual=0.0000 Nm ok\n  right_elbow_pitch: q=0.0000 rad τ_g=-0.0026 Nm residual=0.0026 Nm ok\n  right_lower_arm_yaw: q=0.0000 rad τ_g=0.0000 Nm residual=0.0000 Nm ok\nPASS gravity gate: |τ_g| at the hanging rest < 0.20 Nm on every modeled joint",
+      "plan_version": 2,
+      "poses_rad": [
+        -0.508,
+        -0.254,
+        0.0,
+        0.254,
+        0.508
+      ],
+      "profile": "arm_attached",
+      "session_complete": true,
+      "session_ts": "20261004T113836Z",
+      "skipped_steps": [
+        {
+          "joint": "right_shoulder_pitch",
+          "kind": "hold",
+          "reason": "pose 0 (-0.508 rad): no Below measurement; friction cannot cancel",
+          "step": 0,
+          "target_rad": -0.508
+        },
+        {
+          "joint": "right_shoulder_pitch",
+          "kind": "hold",
+          "reason": "pose 1 (-0.254 rad): no Below measurement; friction cannot cancel",
+          "step": 0,
+          "target_rad": -0.254
+        },
+        {
+          "joint": "right_shoulder_pitch",
+          "kind": "hold",
+          "reason": "pose 2 (0 rad): no Below measurement; friction cannot cancel",
+          "step": 0,
+          "target_rad": 0.0
+        },
+        {
+          "joint": "right_shoulder_pitch",
+          "kind": "hold",
+          "reason": "pose 3 (0.254 rad): no Below measurement; friction cannot cancel",
+          "step": 0,
+          "target_rad": 0.254
+        },
+        {
+          "joint": "right_shoulder_pitch",
+          "kind": "hold",
+          "reason": "pose 4 (0.508 rad): no Below measurement; friction cannot cancel",
+          "step": 0,
+          "target_rad": 0.508
+        }
+      ],
+      "sweep_joint": "right_shoulder_pitch",
+      "wave_steps": [
+        {
+          "moving_samples": 47,
+          "plan_index": 1
+        },
+        {
+          "moving_samples": 46,
+          "plan_index": 2
+        },
+        {
+          "moving_samples": 32,
+          "plan_index": 3
+        },
+        {
+          "moving_samples": 56,
+          "plan_index": 5
+        },
+        {
+          "moving_samples": 46,
+          "plan_index": 6
+        },
+        {
+          "moving_samples": 30,
+          "plan_index": 7
+        },
+        {
+          "moving_samples": 62,
+          "plan_index": 9
+        },
+        {
+          "moving_samples": 51,
+          "plan_index": 10
+        },
+        {
+          "moving_samples": 34,
+          "plan_index": 11
+        },
+        {
+          "moving_samples": 50,
+          "plan_index": 13
+        },
+        {
+          "moving_samples": 42,
+          "plan_index": 14
+        },
+        {
+          "moving_samples": 31,
+          "plan_index": 15
+        },
+        {
+          "moving_samples": 46,
+          "plan_index": 17
+        },
+        {
+          "moving_samples": 42,
+          "plan_index": 18
+        },
+        {
+          "moving_samples": 28,
+          "plan_index": 19
+        }
+      ]
+    }
+  ],
+  "urdf_base": "Pi live URDF captured before the session (pi-marengo.urdf), ADR 0017",
+  "urdf_patch": {
+    "refused": "no group passed its gates"
+  },
+  "verdict": "refused: no group passed its gates",
+  "version": 2
+}
