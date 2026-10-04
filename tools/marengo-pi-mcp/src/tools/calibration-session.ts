@@ -603,7 +603,7 @@ export async function runCalibrationSession(
   }
   if (run.afterSession !== undefined) {
     const after = await run.afterSession({ dir, complete: plan.complete, sessionExit });
-    out.push(...after.lines);
+    for (const line of after.lines) out.push(line);
     return finish(after.exitCode);
   }
   const failExit = plan.complete ? 0 : sessionExit || 1;

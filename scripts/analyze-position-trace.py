@@ -848,9 +848,16 @@ def analyze(
     return result
 
 
-def _print_human(report: dict) -> None:
+def _print_human(report: dict, segment_detail: bool = True) -> None:
     print(f"trace: {report['path']} ({report['samples']} samples)")
-    for i, seg in enumerate(report["segments"], 1):
+    if not segment_detail:
+        # Every-tick waves retarget each tick, so the per-target segment dump grows to one block
+        # per row (51,369 segments, 16 MiB on a 2026-10-04 pitch sweep) and buries the verdict.
+        print(
+            f"{len(report['segments'])} per-target segments (detail omitted under --score-bench; "
+            "rerun without it for the segment report)"
+        )
+    for i, seg in enumerate(report["segments"] if segment_detail else [], 1):
         print()
         print(f"--- segment {i}: target={seg['target_rad']:.4f} rad ({seg['duration_s']:.1f}s) ---")
         print(
@@ -1057,7 +1064,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         json.dump(report, sys.stdout, indent=2)
         print()
     else:
-        _print_human(report)
+        _print_human(report, segment_detail=not args.score_bench)
     if args.score_bench and not report["bench_score"]["pass"]:
         return 2
     return 0

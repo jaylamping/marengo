@@ -322,6 +322,19 @@ def test_score_bench_passes_a_clean_trial(tmp_path: Path) -> None:
     assert score["total_torque_clamps"] == 0
 
 
+def test_score_bench_text_omits_segment_detail_but_keeps_the_verdict(tmp_path: Path) -> None:
+    trace = tmp_path / "trace.csv"
+    _write_rows(trace, HEADER_NEW, _bench_trace(TRIAL))
+    log = tmp_path / "bench-session.txt"
+    log.write_text("")
+    cmd = [sys.executable, str(ANALYZER), str(trace), "--score-bench", "--bench-log", str(log)]
+    proc = subprocess.run(cmd, text=True, capture_output=True, check=False)
+    assert proc.returncode == 0, proc.stderr
+    assert "--- segment" not in proc.stdout
+    assert "per-target segments (detail omitted under --score-bench" in proc.stdout
+    assert "verdict: PASS" in proc.stdout
+
+
 def test_score_bench_fails_each_criterion(tmp_path: Path) -> None:
     cases = {
         "speed_overshoot_ok": _bench_trace(TRIAL, speed_scale=1.3),

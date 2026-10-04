@@ -487,11 +487,22 @@ export const motionSuiteSchema = motionConfirmSchema.extend({
 
 export type MotionSuiteArgs = Partial<z.infer<typeof motionSuiteSchema>> & { confirm: true };
 
-/** Lines from the scorer's bench-score header to the end. */
+/** Tail kept when the scorer printed no bench-score header (crash or truncated output). */
+export const SCORE_TAIL_LINES = 40;
+
+/**
+ * Lines from the scorer's bench-score header to the end. Without the header (a scorer crash, or
+ * output truncated at the exec buffer), only the last SCORE_TAIL_LINES lines are kept, so the
+ * tool result stays bounded.
+ */
 export function scoreBlock(stdout: string): string[] {
   const lines = stdout.trimEnd().split("\n");
   const start = lines.findIndex((l) => l.startsWith(SCORE_HEADER));
-  return start < 0 ? lines : lines.slice(start);
+  if (start >= 0) return lines.slice(start);
+  const tail = lines.slice(-SCORE_TAIL_LINES);
+  return lines.length > tail.length
+    ? [`(no bench-score block; last ${tail.length} of ${lines.length} scorer lines)`, ...tail]
+    : tail;
 }
 
 interface PartOutcome {

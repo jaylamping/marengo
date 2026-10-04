@@ -21,6 +21,8 @@ import {
   planSuite,
   registerMotionSuiteTools,
   reversalSleep,
+  SCORE_TAIL_LINES,
+  scoreBlock,
   suiteBand,
   suiteGeometry,
   suiteWaveHalfPeriod,
@@ -316,7 +318,13 @@ interface Harness {
 }
 
 function harness(
-  opts: { refuseSession?: string; scorerExit?: number; files?: Record<string, string>; tau?: typeof PITCH_TAU } = {},
+  opts: {
+    refuseSession?: string;
+    scorerExit?: number;
+    scorerStdout?: string;
+    files?: Record<string, string>;
+    tau?: typeof PITCH_TAU;
+  } = {},
 ): Harness {
   const h: Harness = { bodies: [], writes: new Map(), scorer: [], audits: [], run: async () => "" };
   let session = "";
@@ -352,7 +360,9 @@ function harness(
       h.scorer.push(args);
       const exitCode = opts.scorerExit ?? 0;
       return {
-        stdout: `trace: x\n\n=== ADR 0039 bench score: ${PITCH} (…) ===\n  move 1 [move]: PASS\n  verdict: ${exitCode === 0 ? "PASS" : "FAIL"} (1/1 moves pass: move 1/1)\n`,
+        stdout:
+          opts.scorerStdout ??
+          `trace: x\n\n=== ADR 0039 bench score: ${PITCH} (…) ===\n  move 1 [move]: PASS\n  verdict: ${exitCode === 0 ? "PASS" : "FAIL"} (1/1 moves pass: move 1/1)\n`,
         stderr: "",
         exitCode,
       };
@@ -458,6 +468,26 @@ describe("pi_motion_suite tool", () => {
     assert.match(out, /repeatability \| 20261004T130002Z \| \d+(\.\d+)? \| PASS/);
     assert.match(out, /overall: PASS/);
     assert.deepEqual(h.audits.at(-1), { tool: "pi_motion_suite", exitCode: 0 });
+  });
+
+  it("survives a huge scorer output without a bench-score block and keeps the result bounded", async () => {
+    // 2026-10-04: 51,369 legacy segments filled the 16 MiB exec buffer, the score block was cut
+    // off and spreading every line into one push overflowed the stack.
+    const huge = Array.from({ length: 400_000 }, (_, i) => `--- segment ${i} ---`).join("\n");
+    const h = harness({ scorerExit: 2, scorerStdout: huge });
+    const out = await h.run({ sessions: ["repeatability"] });
+    assert.match(out, /no bench-score block; last 40 of 400000 scorer lines/);
+    assert.ok(out.split("\n").length < 200, "tool output stays bounded");
+  });
+
+  it("scoreBlock keeps everything from the bench-score header, or a bounded tail", () => {
+    assert.deepEqual(scoreBlock("a\n=== ADR 0039 bench score: x ===\n  verdict: PASS\n"), [
+      "=== ADR 0039 bench score: x ===",
+      "  verdict: PASS",
+    ]);
+    const tail = scoreBlock(Array.from({ length: 100 }, (_, i) => `l${i}`).join("\n"));
+    assert.equal(tail.length, SCORE_TAIL_LINES + 1);
+    assert.equal(tail.at(-1), "l99");
   });
 
   it("stops at a refused session and fails the suite", async () => {
