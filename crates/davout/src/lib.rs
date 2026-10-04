@@ -150,8 +150,9 @@ pub const FREE_DRIVE_FEEDBACK_TTL: Duration = Duration::from_secs(5);
 /// Minimum time from a SetZero on the wire to the next Enable (or the type-24
 /// Off that precedes it) written to the same address on an echoing bus.
 ///
-/// Bench candumps of firmware 0.3.1.42 (eight captures 2026-10-03, 128
-/// SetZeros on all five right-arm drives; profile
+/// Bench candumps of the right-arm drives (eight captures 2026-10-03, 128
+/// SetZeros on all five; drives 1-2 run firmware 0.3.1.42, 3-4 0.2.3.34 and
+/// 5 0.0.3.32; profile
 /// `docs/commissioning/firmware/robstride-timing-profile.json`): after
 /// receiving a SetZero (type 6) every Robstride drive transmits nothing for
 /// 45-61 ms, starting 511-543 ms later in 127 cases and 614 ms once

@@ -17,7 +17,8 @@ use rustc_hash::FxHashMap;
 /// Upper bound for the type-0 identity round trip at each Enable admission,
 /// from the first request (plus two [`IDENTITY_ADMISSION_SPACING`] per further target). A Robstride drive transmits nothing for 45-61 ms
 /// starting 511-614 ms after a SetZero, and never answers a type-0 request it
-/// received meanwhile (firmware 0.3.1.42, 124 measured blackouts; profile
+/// received meanwhile (right-arm drives 1-2 on firmware 0.3.1.42, 3-4 on
+/// 0.2.3.34, 5 on 0.0.3.32; 124 measured blackouts; profile
 /// `docs/commissioning/firmware/robstride-timing-profile.json`, replies
 /// otherwise within 0.5 ms), so the window spans that blackout plus
 /// [`IDENTITY_ADMISSION_RETRY`]; `tests/firmware_profile.rs` keeps that
