@@ -777,13 +777,12 @@ fn drain_chappe_commands<B: MotorBus>(
         if shutdown.load(Ordering::SeqCst) {
             return;
         }
-        match lease_rx.try_recv() {
-            Ok(bytes) => {
-                let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
-                    continue;
-                };
-                let Ok(request) = ActiveReportingLeaseRequest::decode(envelope.payload.as_slice())
-                else {
+        match poll_channel(lease_rx) {
+            Polled::Message(bytes) => {
+                let Some(request) = decode_chappe_payload::<ActiveReportingLeaseRequest>(
+                    &bytes,
+                    TOPIC_ACTIVE_REPORTING_LEASE,
+                ) else {
                     continue;
                 };
                 if shutdown.load(Ordering::SeqCst) {
@@ -798,14 +797,25 @@ fn drain_chappe_commands<B: MotorBus>(
                     );
                 }
             }
-            Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
-            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+            Polled::Lagged(n) => {
+                // A dropped Release keeps type-24 streaming until the lease TTL.
                 warn!(
                     skipped = n,
                     "Chappe active_reporting_lease lagged; dropped oldest commands"
                 );
+                publish_audit(
+                    chappe,
+                    "chappe_lagged",
+                    false,
+                    "marengo-pi",
+                    "",
+                    &format!(
+                        "{TOPIC_ACTIVE_REPORTING_LEASE} lagged; {n} lease commands dropped; \
+                         a dropped release expires with its TTL; resend"
+                    ),
+                );
             }
-            Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+            Polled::Empty => break,
         }
     }
     // Collapse bursts: only the latest solicit matters before the next control tick.

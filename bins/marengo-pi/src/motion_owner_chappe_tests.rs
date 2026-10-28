@@ -540,6 +540,43 @@ fn lagged_enable_channel_never_silently_drops_a_disable() {
     }
 }
 
+/// RT-17: a lagged active-reporting lease channel may have dropped a Release;
+/// the drop is audited like every other command topic, never silent.
+#[test]
+fn lagged_active_reporting_lease_channel_is_audited() {
+    use armee_proto::{ActiveReportingLeaseAction, ActiveReportingLeaseRequest};
+
+    let bus = Bus::new(4);
+    let mut rx = channels(&bus);
+    let mut loop_ctrl = impedance_loop();
+    let mut queue = idle_queue();
+    for _ in 0..8 {
+        bus.publish(
+            "robot/active_reporting_lease",
+            "test",
+            "marengo.v1.ActiveReportingLeaseRequest",
+            &ActiveReportingLeaseRequest {
+                joint: JOINT.into(),
+                client_id: "consul-tab".into(),
+                lease_id: "lease-1".into(),
+                action: ActiveReportingLeaseAction::Release as i32,
+                ..Default::default()
+            },
+        )
+        .expect("publish lease");
+    }
+
+    drain_chappe(&mut loop_ctrl, &mut queue, CHAPPE_OWNS, &bus, &mut rx);
+
+    let events = audit_events(&mut rx.audit);
+    assert!(
+        events.iter().any(|event| event.action == "chappe_lagged"
+            && !event.accepted
+            && event.reject_reason.contains("robot/active_reporting_lease")),
+        "the lease lag must be visible: {events:?}"
+    );
+}
+
 // ---- CS19: gains survive the mode switch ------------------------------------
 
 /// A Testing POSITION batch with gains arriving in GravityComp: the gains used
