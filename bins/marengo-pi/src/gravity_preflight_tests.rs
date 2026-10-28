@@ -387,8 +387,38 @@ fn position_batch() -> MitCommandBatch {
 }
 
 #[test]
+fn testing_batch_on_a_new_process_is_refused_without_a_sweep() {
+    let mut loop_ctrl = measured_loop();
+    let mut runtime = Runtime::new();
+    let mut testing = runtime.chappe.subscribe("robot/testing/mit_command_batch");
+    runtime
+        .chappe
+        .publish(
+            "robot/testing/mit_command_batch",
+            "test",
+            "marengo.v1.MitCommandBatch",
+            &position_batch(),
+        )
+        .expect("publish batch");
+    drain_testing_commands(
+        &mut loop_ctrl,
+        &runtime.queue,
+        &mut runtime.gate,
+        MotionLease::new(CommandSource::Chappe),
+        &runtime.chappe,
+        &mut testing,
+        &AtomicBool::new(false),
+    );
+    assert!(!runtime.gate.preflight_pending());
+    assert_eq!(loop_ctrl.supervisor().mode(), OperationalMode::Disabled);
+    assert_eq!(enable_frames(&mut loop_ctrl), 0);
+}
+
+#[test]
 fn reference_work_mid_sweep_refuses_the_waiting_testing_batch() {
     let mut loop_ctrl = measured_loop();
+    // Testing auto-enable needs an earlier explicit enable (RT-01).
+    loop_ctrl.allow_implicit_enable();
     let mut runtime = Runtime::new();
     let mut testing = runtime.chappe.subscribe("robot/testing/mit_command_batch");
     let mut audit = runtime.chappe.subscribe("robot/audit/action");

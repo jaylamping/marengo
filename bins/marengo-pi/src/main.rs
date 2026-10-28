@@ -971,6 +971,18 @@ fn drain_testing_commands<B: MotorBus>(
             Ok(ProtoControlMode::Position)
         );
         if want_position && loop_ctrl.supervisor().mode() != OperationalMode::Active {
+            // Only an explicit enable arms implicit re-enable (RT-01); without it
+            // the batch would run the sweep and then be refused anyway.
+            if loop_ctrl.implicit_enable_forbidden() {
+                report_refusal(
+                    chappe,
+                    "consul",
+                    "",
+                    "testing batch",
+                    "testing batch refused: enable the drives explicitly first",
+                );
+                continue;
+            }
             let started = GravitySweep::start(loop_ctrl)
                 .map_err(|()| "gravity saturation preflight refused motion");
             let begun = started.and_then(|sweep| {

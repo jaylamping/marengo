@@ -7,7 +7,9 @@
 use std::path::{Path, PathBuf};
 
 fn repo_file(relative: &str) -> String {
-    let path: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(relative);
+    let path: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(relative);
     std::fs::read_to_string(&path).expect("repo file")
 }
 
@@ -20,7 +22,9 @@ fn unit_runs_without_stdin_control() {
         .collect();
     assert_eq!(exec_start.len(), 1, "one ExecStart: {exec_start:?}");
     assert!(
-        exec_start[0].split_whitespace().any(|arg| arg == "--no-stdin-ctl"),
+        exec_start[0]
+            .split_whitespace()
+            .any(|arg| arg == "--no-stdin-ctl"),
         "{}",
         exec_start[0]
     );
@@ -33,7 +37,10 @@ fn installer_keeps_no_stdin_ctl_when_it_rewrites_exec_start() {
         .lines()
         .filter(|line| line.contains("ExecStart=") && line.contains("marengo-pi.service"))
         .collect();
-    assert!(!rewrites.is_empty(), "installer no longer rewrites ExecStart");
+    assert!(
+        !rewrites.is_empty(),
+        "installer no longer rewrites ExecStart"
+    );
     for line in rewrites {
         assert!(line.contains("--no-stdin-ctl"), "{line}");
     }

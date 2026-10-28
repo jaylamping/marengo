@@ -169,6 +169,8 @@ fn enable_not_completing_within_the_bound_is_refused_and_stops() {
     assert_eq!(loop_ctrl.supervisor().mode(), OperationalMode::Disabled);
     assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
     assert_eq!(held_position(&loop_ctrl), None);
+    // RT-07: the failed enable must not let a later motion command re-enable.
+    assert!(loop_ctrl.implicit_enable_forbidden());
     assert!(gate.poll(&mut loop_ctrl, Instant::now()).is_empty());
 }
 

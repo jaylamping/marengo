@@ -499,7 +499,7 @@ impl<B: MotorBus> ControlLoop<B> {
             gains: GainRuntime::for_loop_hz(loop_hz),
             torque_cmds: TorqueCmdLatch::new(),
             position_wave: None,
-            implicit_enable_forbidden: false,
+            implicit_enable_forbidden: true,
             telemetry_failures: 0,
             tick_overruns: 0,
             degraded: None,
@@ -1033,10 +1033,11 @@ impl<B: MotorBus> ControlLoop<B> {
     /// Targets come from [`Supervisor::resolve_enable_targets`] (persisted scope or
     /// full-master Robot Ready).
     ///
-    /// After an operator disable ([`Self::forbid_implicit_enable`]) a motion
-    /// command no longer implies Enable: it is refused with
-    /// [`LoopError::ExplicitEnableRequired`] until the operator enables
-    /// explicitly (L-berthier-28).
+    /// A motion command implies Enable only after an explicit, preflighted
+    /// enable in this process ([`Self::allow_implicit_enable`]). A new loop and
+    /// an operator disable ([`Self::forbid_implicit_enable`]) refuse it with
+    /// [`LoopError::ExplicitEnableRequired`]: implicit enable never runs the
+    /// gravity preflight itself (RT-01, L-berthier-28).
     pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
         self.refuse_degraded()?;
         self.synchronize_stop_generation();
@@ -2550,6 +2551,8 @@ mod tests {
     fn hold_at_reenables_after_safety_disable() {
         let mut loop_ctrl = test_loop();
         virtual_ready_active(&mut loop_ctrl);
+        // An explicit, preflighted enable is what allows implicit re-enable.
+        loop_ctrl.allow_implicit_enable();
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");

@@ -137,3 +137,35 @@ fn retargeting_another_joint_keeps_the_wave() {
         "retargeting the waving joint ends its wave"
     );
 }
+
+/// RT-01: a fresh loop never enables the drives because of a motion command;
+/// only an explicit enable (which runs the gravity preflight) does.
+#[test]
+fn motion_command_on_a_new_loop_requires_explicit_enable() {
+    let fixture = support::fixture_tree_without_diagnostics("rt01", &source());
+    let mut ctrl = ControlLoop::from_simulation(
+        fixture.path(),
+        SimulationBus::default(),
+        InitialVirtualReference::AllConfigured,
+        200,
+        50,
+    )
+    .expect("sim");
+    let err = ctrl
+        .enter_position_hold()
+        .expect_err("hold-on before enable");
+    assert!(
+        matches!(err, LoopError::ExplicitEnableRequired),
+        "unexpected error: {err}"
+    );
+    assert_eq!(ctrl.supervisor().mode(), davout::OperationalMode::Disabled);
+    let err = ctrl
+        .enter_position_hold_at(Some(PITCH), 0.2)
+        .expect_err("hold-at before enable");
+    assert!(matches!(err, LoopError::ExplicitEnableRequired), "{err}");
+    let err = ctrl
+        .start_position_wave(PITCH, 0.0, 0.2, 1, 2.0)
+        .expect_err("wave before enable");
+    assert!(matches!(err, LoopError::ExplicitEnableRequired), "{err}");
+    assert_eq!(ctrl.supervisor().mode(), davout::OperationalMode::Disabled);
+}
