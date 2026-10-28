@@ -358,6 +358,7 @@ fn operator_disable_blocks_implicit_reenable_from_either_source() {
         PiCommand::HoldAt {
             joint: Some(JOINT.into()),
             position_rad: 0.05,
+            speed_fraction: None,
         },
         Instant::now(),
     );
@@ -612,4 +613,123 @@ fn impedance_batch_in_gravity_comp_stashes_nothing() {
     drain_testing(&mut loop_ctrl, &idle_queue(), CHAPPE_OWNS, &bus, &mut rx);
     assert!(loop_ctrl.gain_override(JOINT).is_none());
     assert_eq!(loop_ctrl.control_mode(), ControlMode::GravityComp);
+}
+
+// ---- ADR 0040 amendment: Testing POSITION speed fraction ----------------------------------
+
+#[allow(deprecated)]
+fn speed_batch(mode: ProtoControlMode, name: &str, position: f64, speed: f64) -> MitCommandBatch {
+    MitCommandBatch {
+        timestamp_ms: 1,
+        mode: mode as i32,
+        joints: vec![MitJointCommand {
+            name: name.into(),
+            position,
+            speed_fraction: Some(speed),
+            ..MitJointCommand::default()
+        }],
+    }
+}
+
+fn speed_refusals(rx: &mut Rx) -> Vec<String> {
+    refusals(&audit_events(rx))
+        .iter()
+        .map(|event| event.reject_reason.clone())
+        .collect()
+}
+
+#[test]
+fn testing_position_speed_fraction_reaches_the_hold() {
+    let bus = Bus::new(32);
+    let mut rx = channels(&bus);
+    let mut loop_ctrl = enabled_without_pose();
+    first_session_status(&mut loop_ctrl);
+    publish_batch(
+        &bus,
+        &speed_batch(ProtoControlMode::Position, JOINT, 0.05, 0.5),
+    );
+    drain_testing(&mut loop_ctrl, &idle_queue(), CHAPPE_OWNS, &bus, &mut rx);
+
+    assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
+    assert_eq!(
+        loop_ctrl
+            .position_speed_fraction(JOINT)
+            .map(berthier::SpeedFraction::get),
+        Some(0.5)
+    );
+    assert!(speed_refusals(&mut rx.audit).is_empty());
+}
+
+#[test]
+fn testing_batch_with_a_bad_speed_fraction_is_refused_whole_and_changes_nothing() {
+    let bus = Bus::new(64);
+    let mut rx = channels(&bus);
+    let mut loop_ctrl = enabled_without_pose();
+    first_session_status(&mut loop_ctrl);
+    publish_batch(
+        &bus,
+        &speed_batch(ProtoControlMode::Position, JOINT, 0.05, 0.5),
+    );
+    drain_testing(&mut loop_ctrl, &idle_queue(), CHAPPE_OWNS, &bus, &mut rx);
+    let _ = audit_events(&mut rx.audit);
+    let targets = loop_ctrl.position_setpoints().expect("armed").to_vec();
+    let speed = loop_ctrl.position_speed_fraction(JOINT);
+
+    let bad = [0.0, -0.5, 1.5, f64::NAN, f64::INFINITY, f64::NEG_INFINITY]
+        .map(|value| speed_batch(ProtoControlMode::Position, JOINT, 0.2, value));
+    let misplaced = [
+        // Valid value, wrong place: a speed fraction only slows a POSITION hold target.
+        speed_batch(ProtoControlMode::Impedance, JOINT, 0.2, 0.5),
+        speed_batch(
+            ProtoControlMode::Position,
+            &format!("wave:{JOINT}:0.04:0.06:1:0.5"),
+            0.0,
+            0.5,
+        ),
+    ];
+    for batch in bad.iter().chain(&misplaced) {
+        publish_batch(&bus, batch);
+        drain_testing(&mut loop_ctrl, &idle_queue(), CHAPPE_OWNS, &bus, &mut rx);
+        let reasons = speed_refusals(&mut rx.audit);
+        assert_eq!(reasons.len(), 1, "{batch:?}: {reasons:?}");
+        assert!(reasons[0].contains("speed"), "{}", reasons[0]);
+        assert_eq!(
+            loop_ctrl.position_setpoints(),
+            Some(targets.as_slice()),
+            "{batch:?}"
+        );
+        assert_eq!(loop_ctrl.position_speed_fraction(JOINT), speed);
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
+        assert!(loop_ctrl.gain_override(JOINT).is_none());
+        assert!(!loop_ctrl.position_wave_active());
+    }
+}
+
+#[test]
+fn bad_speed_fraction_refuses_before_the_auto_enable_preflight() {
+    let bus = Bus::new(32);
+    let mut rx = channels(&bus);
+    let mut loop_ctrl = ControlLoop::from_simulation(
+        repo_root(),
+        SimulationBus::default(),
+        davout::simulation::InitialVirtualReference::AllConfigured,
+        200,
+        50,
+    )
+    .expect("simulation loop");
+    publish_batch(
+        &bus,
+        &speed_batch(ProtoControlMode::Position, JOINT, 0.05, 0.0),
+    );
+    drain_testing(&mut loop_ctrl, &idle_queue(), CHAPPE_OWNS, &bus, &mut rx);
+
+    assert!(!rx.gate.preflight_pending(), "no gravity sweep was started");
+    assert_eq!(
+        loop_ctrl.supervisor().mode(),
+        davout::OperationalMode::Disabled
+    );
+    assert!(loop_ctrl.position_setpoints().is_none());
+    let reasons = speed_refusals(&mut rx.audit);
+    assert_eq!(reasons.len(), 1, "{reasons:?}");
+    assert!(reasons[0].contains("speed fraction 0"), "{}", reasons[0]);
 }

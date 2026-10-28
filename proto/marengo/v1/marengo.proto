@@ -188,6 +188,11 @@ message MitJointCommand {
   double torque_ff = 6 [deprecated = true];
   double ki = 7;  // integral gain (Testing page)
   double fc = 8;  // Coulomb friction compensation (Testing page)
+  // POSITION batches only: share (0, 1] of the joint's configured planner speeds for this
+  // hold target (ADR 0040 amendment); it can only slow the move. Absent = configured speed.
+  // Any other value (0, negative, > 1, NaN, ±inf), or a value on a wave entry or in a
+  // non-POSITION batch, refuses the whole batch.
+  optional double speed_fraction = 9;
 }
 
 message MitCommandBatch {
