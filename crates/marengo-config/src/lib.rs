@@ -220,8 +220,8 @@ pub(crate) const REFERENCE_JOURNAL_FILE: &str = "reference-journal.sqlite3";
 /// [`REFERENCE_JOURNAL_FILE`] beside the calibration history
 /// (`MARENGO_CALIBRATION_RECORD`, else `homing.yaml` `calibration_record_path`
 /// under `repo_root`). Relative results are anchored at the working directory
-/// and `.`/`..` are collapsed lexically, because the journal requires an
-/// absolute normal path.
+/// and `.`/`..` are collapsed, because the journal requires an absolute normal
+/// path (see [`normal_absolute_path`]).
 pub fn resolve_reference_journal_path(
     repo_root: impl AsRef<Path>,
     config_dir: impl AsRef<Path>,
@@ -242,8 +242,16 @@ pub fn resolve_reference_journal_path(
             .unwrap_or_else(|| Path::new(""))
             .join(REFERENCE_JOURNAL_FILE)
     };
-    let absolute = std::path::absolute(&path).map_err(|e| ConfigError::Io {
-        path: path.clone(),
+    normal_absolute_path(&path)
+}
+
+/// `path` made absolute with `.` dropped and each `..` resolved as the OS
+/// would: an existing prefix is canonicalized first, so `link/..` leaves the
+/// symlink's target, not the link's parent (REF-13). A missing prefix can
+/// only be collapsed lexically.
+fn normal_absolute_path(path: &Path) -> Result<PathBuf, ConfigError> {
+    let absolute = std::path::absolute(path).map_err(|e| ConfigError::Io {
+        path: path.to_owned(),
         message: e.to_string(),
     })?;
     let mut normal = PathBuf::new();
@@ -251,6 +259,9 @@ pub fn resolve_reference_journal_path(
         match component {
             std::path::Component::CurDir => {}
             std::path::Component::ParentDir => {
+                if let Ok(resolved) = normal.canonicalize() {
+                    normal = resolved;
+                }
                 normal.pop();
             }
             other => normal.push(other),
@@ -1538,6 +1549,21 @@ mod tests {
 
     fn repo_root() -> PathBuf {
         resolve_repo_root()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn journal_path_parent_of_a_symlink_is_the_targets_parent() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path().canonicalize().expect("canonical tempdir");
+        std::fs::create_dir_all(root.join("real/sub")).expect("target");
+        std::os::unix::fs::symlink(root.join("real/sub"), root.join("link")).expect("link");
+        let resolved =
+            normal_absolute_path(&root.join("link/../cal/journal.sqlite3")).expect("normal");
+        assert_eq!(resolved, root.join("real/cal/journal.sqlite3"));
+        let missing = normal_absolute_path(&root.join("gone/../cal/./journal.sqlite3"))
+            .expect("lexical for a missing prefix");
+        assert_eq!(missing, root.join("cal/journal.sqlite3"));
     }
 
     #[test]
