@@ -144,9 +144,9 @@ pub use reference_transaction::{
     ReferenceStamp, ReferenceTerminal,
 };
 
+use active_reporting::ActiveReportingState;
 pub use active_reporting::{
-    ActiveReportingLeaseError, ActiveReportingState, ExitReportingOff, ExitReportingReport,
-    DEFAULT_LEASE_TTL,
+    ActiveReportingLeaseError, ExitReportingOff, ExitReportingReport, DEFAULT_LEASE_TTL,
 };
 use burst::BurstPacer;
 pub use burst::BURST_GROUP_SPACING;
