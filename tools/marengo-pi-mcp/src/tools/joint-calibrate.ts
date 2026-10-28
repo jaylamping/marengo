@@ -26,7 +26,6 @@ import type { MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, MASTER_JOINTS, profileMeta } from "../bench-profiles.js";
 import { type TauFactors, UNVERIFIED_TAU_FACTOR, resolveTauFactors } from "../tau-factor.js";
 import { wrapRemoteWithConfig } from "../env.js";
-import { soleCanOwnerShell } from "../can-owner.js";
 import { validateMotionConfirm } from "../safety.js";
 import {
   type AuditMotion,
@@ -56,11 +55,9 @@ import {
   yamlStringList,
 } from "./calibration-session.js";
 import {
-  BENCH_CONFIG_MASTER,
-  CAN_SESSION_SLACK_MS,
   REFERENCE_OPT_IN_REQUIRED,
   SOLE_CAN_OWNER_NOTE,
-  benchConfigDirForJoint,
+  benchConfigDir,
   motionConfirmSchema,
   referenceAcquireLine,
   referenceOptInShape,
@@ -813,7 +810,8 @@ export function maxSweepTauAtPoses(
 }
 
 /**
- * Remote shell (sole CAN owner, like the gravity gate's preview): one `motor-repl gravity-preview`
+ * Remote shell (model only, like the gravity gate's preview: never opens CAN, so no CAN
+ * ownership is needed; TOOL-16): one `motor-repl gravity-preview`
  * per configuration, each a full robot.yaml-order vector, every block headed `@@gravcal_pose <i>`.
  */
 export function gravityBatchShell(configs: readonly Record<string, number>[], robotJoints: readonly string[]): string {
@@ -1120,7 +1118,7 @@ export function registerJointCalibrateTools(
           return `Refused: bench profile ${profile} does not reference ${unreferenced.join(", ")}; pick a profile whose joints include the sweep and fixed joints.`;
         }
 
-        const configDir = benchConfigDirForJoint(cfg, sweepJoint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const refused = (message: string) => {
           auditMotion(TOOL, args, message, 1);
           return message;
@@ -1173,8 +1171,9 @@ export function registerJointCalibrateTools(
         const tauBatch = async (configs: Record<string, number>[]) =>
           parseGravityBatch(
             await runRemote(
-              wrapRemoteWithConfig(cfg, soleCanOwnerShell(gravityBatchShell(configs, read.robotJoints)), configDir),
-              TAU_GUARD_TIMEOUT_MS + CAN_SESSION_SLACK_MS,
+              // gravity-preview never opens CAN: no ownership needed (TOOL-16).
+              wrapRemoteWithConfig(cfg, gravityBatchShell(configs, read.robotJoints), configDir),
+              TAU_GUARD_TIMEOUT_MS,
             ),
           );
 

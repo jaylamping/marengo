@@ -2,7 +2,8 @@
 /**
  * Cross-platform MCP entry for Cursor.
  * Prefer this over bare `sh`/`bash`: Cursor's spawn PATH often lacks Git shims
- * on Windows (and sometimes mise `node`). Defaults stay HERE — not in mcp.json.
+ * on Windows (and sometimes mise `node`). Defaults come from config.ts MCP_DEFAULTS,
+ * not mcp.json.
  *
  * Compiled to `dist/launch.js` (`npm run build` / `just mcp-build`).
  */
@@ -10,6 +11,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { MCP_DEFAULTS } from "./config.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const home = homedir();
@@ -18,11 +20,7 @@ function setDefault(key: string, value: string): void {
   if (!process.env[key]?.trim()) process.env[key] = value;
 }
 
-setDefault("MARENGO_PI_HOST", "joey-robot.tail0b414.ts.net");
-setDefault("MARENGO_PI_USER", "joey");
-setDefault("MARENGO_PI_ROOT", "/opt/marengo");
-setDefault("MARENGO_CONFIG_DIR", "/opt/marengo/config");
-setDefault("MARENGO_BENCH_PROFILE", "elbow_attached");
+for (const [key, value] of Object.entries(MCP_DEFAULTS)) setDefault(key, value);
 
 if (!process.env.SSH_IDENTITY_FILE?.trim()) {
   for (const candidate of [

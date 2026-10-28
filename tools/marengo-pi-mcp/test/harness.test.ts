@@ -22,25 +22,25 @@ const cfg: MarengoPiConfig = {
 describe("bench harness config", () => {
   it("uses master config for weighted_single_arm profile", () => {
     assert.equal(
-      harnessConfigDir(cfg, "weighted_single_arm"),
+      harnessConfigDir(cfg),
       "/opt/marengo/config",
     );
   });
 
   it("keeps default master config for bare_motor profile", () => {
-    assert.equal(harnessConfigDir(cfg, "bare_motor"), cfg.configDir);
+    assert.equal(harnessConfigDir(cfg), cfg.configDir);
   });
 
   it("ignores legacy bringup slug overrides", () => {
     assert.equal(
-      harnessConfigDir(cfg, "bare_motor", "arm_3dof_right"),
+      harnessConfigDir(cfg, "arm_3dof_right"),
       "/opt/marengo/config",
     );
   });
 
   it("accepts absolute config_dir overrides", () => {
     assert.equal(
-      harnessConfigDir(cfg, "bare_motor", "/tmp/custom-config"),
+      harnessConfigDir(cfg, "/tmp/custom-config"),
       "/tmp/custom-config",
     );
   });
@@ -189,6 +189,29 @@ describe("bench harness config", () => {
     assert.match(out, new RegExp(`\\[PASS\\] ${names[0]}\\n`));
     assert.match(out, new RegExp(`\\[FAIL\\] ${names[1]}\\n`));
     for (const name of names.slice(2)) assert.match(out, new RegExp(`\\[FAIL\\] ${name}\\n`));
+  });
+
+  it("fails a session that exits 2 (a marengo-pi argv error), not only 1 (TOOL-24)", async () => {
+    const names = harnessScriptSuite("arm_2dof_smoke")?.scripts.map((s) => s.name) ?? [];
+    const out = await runBenchHarness(
+      cfg,
+      async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
+        if (!body.includes("sign-tested")) return "ok";
+        return [
+          "reference right_shoulder_pitch current pos=0.0000",
+          "reference right_shoulder_roll current pos=0.0001",
+          "reference right_upper_arm_yaw current pos=-0.0001",
+          ...names.flatMap((name) => [`=== harness suite ${name} ===`, "operational: Active"]),
+          "error: unexpected argument '--bogus' found",
+          "[exit 2]",
+        ].join("\n");
+      },
+      { profile: "arm_2dof_smoke", ...OPT_IN },
+    );
+
+    assert.match(out, new RegExp(`\\[FAIL\\] ${names[names.length - 1]}\\n`));
+    assert.match(out, /"pass": false/);
   });
 
   it("refuses on a gravity model mismatch before any enable, then restores the unit", async () => {

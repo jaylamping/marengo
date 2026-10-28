@@ -82,7 +82,7 @@ mcp-build:
     cd .cursor/hooks && npm install && npm run build && npm run typecheck
 
 # Clear Cursor disabled state / refresh approval for marengo-pi
-# (dry-run default; --write after quit; sessionStart hook uses --write --best-effort)
+# (dry-run default; --write after quit; never run automatically)
 mcp-ensure-enabled *args:
     python3 ./scripts/ensure-marengo-pi-mcp-enabled.py {{args}}
 

@@ -2,6 +2,12 @@ import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
+/**
+ * The gateway as seen from the Pi itself: these scripts run there over ssh, so they use the
+ * loopback like pi_health and pi-remote.sh, not the MCP's ssh host name (P2B-09).
+ */
+export const GATEWAY_ON_PI = "http://127.0.0.1:8080";
+
 export function registerLogTools(
   cfg: MarengoPiConfig,
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
@@ -56,7 +62,7 @@ export function registerLogTools(
         limit: z.number().int().min(1).max(50).default(15),
       }),
       handler: async (args: { limit: number }) => {
-        const gw = `http://${cfg.host}:8080`;
+        const gw = GATEWAY_ON_PI;
         const body = wrapRemote(
           cfg,
           [
@@ -96,7 +102,7 @@ export function registerLogTools(
         limit: z.number().int().min(1).max(50).default(15),
       }),
       handler: async (args: { limit: number }) => {
-        const gw = `http://${cfg.host}:8080`;
+        const gw = GATEWAY_ON_PI;
         const body = wrapRemote(
           cfg,
           [

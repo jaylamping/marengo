@@ -264,21 +264,23 @@ export async function runSyncBenchUrdfAssets(
     assets: BenchUrdfAsset[];
     install_to_opt: boolean;
   },
+  local: typeof execLocal = execLocal,
 ): Promise<string> {
   const localDir = path.join(cfg.localRoot, "assets", "urdf");
   const remoteRel = "assets/urdf";
   const remoteStaging = `${cfg.piStagingRoot}/${remoteRel}`.replace(/\/+/g, "/");
   const remoteOpt = `${cfg.piRoot}/${remoteRel}`;
-  const localFiles = args.assets.map((asset) => path.join(localDir, asset));
 
-  let sync = await execLocal(
+  // Archive assets are nested (archive/<seed>/contributor.urdf): -R keeps each path relative
+  // to assets/urdf, where the verify and install steps read it (TOOL-21).
+  let sync = await local(
     "rsync",
     [
-      "-av",
-      ...localFiles,
+      "-avR",
+      ...args.assets,
       `${sshTarget(cfg)}:${remoteStaging}/`,
     ],
-    { cwd: cfg.localRoot, timeoutMs: 60_000 },
+    { cwd: localDir, timeoutMs: 60_000 },
   );
 
   const steps: string[] = [
@@ -287,23 +289,27 @@ export async function runSyncBenchUrdfAssets(
   ];
 
   if (sync.exitCode !== 0) {
+    const dirs = [...new Set(args.assets.map((asset) => path.posix.dirname(asset)))];
     await runRemote(
       wrapRemote(
         cfg,
-        `mkdir -p ${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
+        dirs
+          .map((dir) => `mkdir -p ${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}/${dir}`)}`)
+          .join("\n"),
       ),
       15_000,
     );
     steps.push("[mkdir URDF staging]");
-    sync = await execLocal(
-      "scp",
-      [
-        ...localFiles,
-        `${sshTarget(cfg)}:${remoteStaging}/`,
-      ],
-      { cwd: cfg.localRoot, timeoutMs: 60_000 },
-    );
-    steps.push(`[local scp fallback]\n${formatRemoteResult(sync)}`);
+    // scp has no -R: one copy per asset to its own nested path.
+    for (const asset of args.assets) {
+      sync = await local(
+        "scp",
+        [path.join(localDir, asset), `${sshTarget(cfg)}:${remoteStaging}/${asset}`],
+        { cwd: cfg.localRoot, timeoutMs: 60_000 },
+      );
+      steps.push(`[local scp fallback ${asset}]\n${formatRemoteResult(sync)}`);
+      if (sync.exitCode !== 0) break;
+    }
   } else {
     steps.push(formatRemoteResult(sync));
   }

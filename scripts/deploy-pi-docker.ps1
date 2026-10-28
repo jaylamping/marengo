@@ -18,11 +18,16 @@
 .PARAMETER PiHost
   user@host for the Pi deploy target. Defaults to MARENGO_PI_HOST /
   MARENGO_PI_USER env vars, or joey@marengo.local.
+
+.PARAMETER NoInstall
+  Build and rsync only; skip `deploy-pi.sh --install`. The marengo-pi MCP passes
+  it and runs install-pi.sh once itself.
 #>
 [CmdletBinding()]
 param(
   [Parameter(Position = 0)]
-  [string]$PiHost
+  [string]$PiHost,
+  [switch]$NoInstall
 )
 
 $ErrorActionPreference = "Stop"
@@ -136,10 +141,10 @@ Ensure-DeployImage
 
 # --- run compose -------------------------------------------------------------
 
-$deployArgs = @("./scripts/deploy-pi.sh", "--install", $PiHost)
-if ($env:MARENGO_SKIP_CONSUL -eq "1") {
-  $deployArgs = @("./scripts/deploy-pi.sh", "--install", "--skip-consul", $PiHost)
-}
+$deployArgs = @("./scripts/deploy-pi.sh")
+if (-not $NoInstall) { $deployArgs += "--install" }
+if ($env:MARENGO_SKIP_CONSUL -eq "1") { $deployArgs += "--skip-consul" }
+$deployArgs += $PiHost
 
 # Deploy is non-interactive; do not pass --ansi always or -t: Docker Desktop
 # on Windows PowerShell fails with "creating a console from a file is not supported".

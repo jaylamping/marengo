@@ -445,7 +445,8 @@ describe("pi_joint_calibrate refusals", () => {
     assert.match(out, /No motion was run\.$/);
     assert.equal(h.bodies.length, 2, "pre-flight and the τ_g batch only");
     assert.match(h.bodies[1], /@@gravcal_pose/);
-    assert.match(h.bodies[1], /sudo -n .* stop/, "the batch runs as sole CAN owner, like the gate");
+    // gravity-preview never opens CAN: the batch leaves marengo-pi.service alone (TOOL-16).
+    assert.doesNotMatch(h.bodies[1], /pi-restart-marengo-pi\.sh|restore after session/);
     assert.equal(h.writes.size, 0);
   });
 

@@ -54,7 +54,7 @@ Detailed per-finding status: [prior-review-status.md](reviews/2026-10-03-crate-a
 - Proto types marked deprecated by prune batch B13 are still on the wire (removal needs a `buf breaking` exception).
 
 **Platform**
-- Local `just check` on Apple Silicon runs the amd64 image under Rosetta and Berthier wall-clock tests time out. Options: treat CI + native `cargo test` as the gate on the Mac, add an arm64 dev image, or make those tests clock-independent.
+- Local `just check` runs the `check` service on the native host arch since 2026-10-04 (`compose.yaml`, commit 617f02c), so Apple Silicon no longer emulates amd64 and the Berthier wall-clock tests no longer starve under Rosetta. CI runs `check.sh` in the amd64 `marengo-dev:local` image.
 - Native Windows cannot build the full workspace (Chappe IPC is Unix-only; CS22/G11).
 - `justfile` still has `setup-wsl` / `deploy-pi-wsl` recipes although ADR 0018 retired the WSL checkout.
 

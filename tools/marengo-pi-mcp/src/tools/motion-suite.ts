@@ -22,7 +22,6 @@ import type { MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, MASTER_JOINTS, profileMeta } from "../bench-profiles.js";
 import { type TauFactors, resolveTauFactors } from "../tau-factor.js";
 import { wrapRemoteWithConfig } from "../env.js";
-import { soleCanOwnerShell } from "../can-owner.js";
 import { validateMotionConfirm } from "../safety.js";
 import {
   type AuditMotion,
@@ -56,11 +55,9 @@ import {
   wavePeakSpeed,
 } from "./joint-calibrate.js";
 import {
-  BENCH_CONFIG_MASTER,
-  CAN_SESSION_SLACK_MS,
   REFERENCE_OPT_IN_REQUIRED,
   SOLE_CAN_OWNER_NOTE,
-  benchConfigDirForJoint,
+  benchConfigDir,
   motionConfirmSchema,
   referenceAcquireLine,
   referenceOptInShape,
@@ -569,7 +566,7 @@ export function registerMotionSuiteTools(
           auditMotion(TOOL, args, message, 1);
           return message;
         };
-        const configDir = benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const preflight = parsePreflight(
           await runRemote(wrapRemoteWithConfig(cfg, preflightReadShell(), configDir), PREFLIGHT_TIMEOUT_MS),
           cfg.piRoot,
@@ -582,19 +579,13 @@ export function registerMotionSuiteTools(
           joints: chain,
           readLocal: (rel) => deps.readFile(path.join(cfg.localRoot, rel)),
         });
-        // gravity-preview reads robot.yaml and the URDF only, so a dry run leaves a running
-        // marengo-pi (possibly holding the arm for Consul) untouched.
+        // gravity-preview reads robot.yaml and the URDF only and never opens CAN, so the τ
+        // guard leaves a running marengo-pi (possibly holding the arm for Consul) untouched.
         const tauBatch = async (configs: Record<string, number>[]) =>
           parseGravityBatch(
             await runRemote(
-              wrapRemoteWithConfig(
-                cfg,
-                dryRun
-                  ? gravityBatchShell(configs, read.robotJoints)
-                  : soleCanOwnerShell(gravityBatchShell(configs, read.robotJoints)),
-                configDir,
-              ),
-              TAU_GUARD_TIMEOUT_MS + CAN_SESSION_SLACK_MS,
+              wrapRemoteWithConfig(cfg, gravityBatchShell(configs, read.robotJoints), configDir),
+              TAU_GUARD_TIMEOUT_MS,
             ),
           );
 

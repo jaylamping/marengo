@@ -7,7 +7,7 @@ import {
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadConfig } from "./config.js";
-import { callContext, makeRunRemote } from "./cancel.js";
+import { type CallContext, callContext, makeRunRemote, toolResultIsError } from "./cancel.js";
 import { registerReadonlyTools } from "./tools/readonly.js";
 import { registerLogTools } from "./tools/logs.js";
 import { registerAdminTools } from "./tools/admin.js";
@@ -92,19 +92,11 @@ async function main() {
       const parsed = (tool.inputSchema as z.ZodTypeAny).parse(
         request.params.arguments ?? {},
       );
-      const text = await callContext.run(
-        { signal: extra.signal, motion: name in motionTools },
-        () => tool.handler(parsed),
-      );
-      const isError =
-        text.startsWith("Motion blocked") ||
-        text.startsWith("Weighted motion blocked") ||
-        text.startsWith("Error:") ||
-        text.startsWith("Local repo dirty") ||
-        text.includes("RECOVER_FAIL");
+      const call: CallContext = { signal: extra.signal, motion: name in motionTools };
+      const text = await callContext.run(call, () => tool.handler(parsed));
       return {
         content: [{ type: "text", text }],
-        isError,
+        isError: toolResultIsError(text, call),
       };
     } catch (err) {
       return {

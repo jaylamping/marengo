@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Launcher for Cursor MCP: Cursor's spawn PATH often lacks mise `node` (ENOENT).
 #
-# Profile / SSH defaults live in src/launch.ts → dist/launch.js — not here and
-# not in `.cursor/mcp.json` (env thrash auto-disables the project MCP; ADR 0016).
+# Profile / SSH defaults live in src/config.ts MCP_DEFAULTS (exported by
+# dist/launch.js) — not here and not in `.cursor/mcp.json` (env thrash
+# auto-disables the project MCP; ADR 0018).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 

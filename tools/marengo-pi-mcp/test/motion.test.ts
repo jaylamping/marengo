@@ -10,15 +10,18 @@ import {
   benchCandumpStartShell,
   benchCanKernelSnapshotShell,
   benchLogArchiveShell,
+  REFERENCE_OPT_IN_REQUIRED,
   expandScriptWithWaveWaits,
   holdSessionRemoteBody,
+  makeAuditMotion,
   marengoPiPipeLine,
-  marengoPiPipeTimeoutSec,
   referenceAcquireLine,
   registerMotionTools,
   scriptSleepTotalSec,
 } from "../src/tools/motion.js";
 import { MASTER_JOINTS } from "../src/bench-profiles.js";
+import { type CallContext, callContext, toolResultIsError } from "../src/cancel.js";
+import { managementRefusal } from "../src/management-gate.js";
 import { encodeRobotState } from "./robot-state-fixture.js";
 import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
 
@@ -120,10 +123,23 @@ describe("removed motor-repl tools", () => {
 });
 
 describe("marengo-pi script tool", () => {
-  it("uses timeout_sec as total pipe budget", () => {
+  it("uses timeout_sec as total pipe budget", async () => {
     assert.equal(scriptSleepTotalSec(["hold-at 0", "sleep 2", "sleep 1.5"]), 3.5);
-    assert.equal(marengoPiPipeTimeoutSec(["sleep 35", "disable"], 15), 15);
-    assert.equal(marengoPiPipeTimeoutSec(["home", "disable"], 20), 20);
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        script = body;
+        return body;
+      },
+      () => {},
+    );
+    await tools.pi_marengo_pi_script.handler({
+      confirm: true,
+      script: ["sleep 35", "disable"],
+      timeout_sec: 15,
+    });
+    assert.match(script, /\} \| timeout --foreground 15 \$PI_BIN/);
   });
 
   it("expands wave lines with auto wait sleep", () => {
@@ -172,11 +188,13 @@ describe("marengo-pi script tool", () => {
 
   it("sends disable and quit after a timed hold dwell", async () => {
     let script = "";
+    let sshMs: number | undefined;
     const tools = registerMotionTools(
       cfg,
-      async (body) => {
+      async (body, timeoutMs) => {
         if (isGravityPreviewBody(body)) return gravityPreviewReply();
         script = body;
+        sshMs = timeoutMs;
         return body;
       },
       () => {},
@@ -200,8 +218,10 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /sleep 6;/);
     assert.match(script, /printf '%s\\n' 'disable';/);
     assert.match(script, /printf '%s\\n' 'quit';/);
-    // 10 s dwell + 6 s return + 10 s acquisition budget (1 joint) + 10 s slack.
-    assert.match(script, /\} \| timeout --foreground 36 \$PI_BIN/);
+    // 10 s dwell + 6 s return + 10 s acquisition budget (1 joint) + 2 × 10 s for the awaited
+    // home and enable replies (TOOL-19) + 10 s slack; ssh outlives the pipe.
+    assert.match(script, /\} \| timeout --foreground 56 \$PI_BIN/);
+    assert.equal(sshMs, 46_000 + 20_000 + 20_000);
     assert.match(script, /bin\/motor-repl disable/);
   });
 
@@ -276,10 +296,12 @@ describe("marengo-pi script tool", () => {
     assert.match(out, /right_shoulder_pitch: q=0\.0000 rad τ_g=-1\.5951 Nm residual=1\.5951 Nm FAIL/);
     assert.match(out, /right_shoulder_roll: .* ok/);
     assert.deepEqual(audits, [1]);
-    // Only the CAN-free snapshot read and the read-only preview (as sole CAN owner) ran.
+    // Only the CAN-free snapshot read and the CAN-free preview ran; neither touched
+    // marengo-pi.service (TOOL-16).
     assert.equal(bodies.length, 2);
     assert.doesNotMatch(bodies[0], /motor-repl|marengo-pi\.sh' stop/);
-    assert.match(bodies[1], /pi-restart-marengo-pi\.sh' stop[\s\S]*\nbin\/motor-repl gravity-preview$/);
+    assert.match(bodies[1], /\nbin\/motor-repl gravity-preview$/);
+    assert.doesNotMatch(bodies[1], /pi-restart-marengo-pi\.sh|restore after session/);
     assert.ok(
       !bodies.some((b) => /sign-tested|enable|hold-on|hold-at|PI_BIN/.test(b)),
       "no motion command may reach the Pi",
@@ -923,5 +945,66 @@ describe("hold session CAN ownership (Transport race)", () => {
     assert.equal(r.trace[r.trace.length - 1], "marengo-pi exit");
     assert.ok(!r.trace.some((l) => l.startsWith("motor-repl")));
     assert.match(r.stdout, /post-session bin\/motor-repl disable skipped: marengo-pi \(pid 4242\) owns CAN/);
+  });
+});
+
+describe("motion audit status (TOOL-20)", () => {
+  function auditing(reply: (body: string) => string) {
+    const audits: Array<[string, number]> = [];
+    // The real audit function with the file append replaced: it still reports to the call context.
+    const audit = makeAuditMotion(cfg, (entry) => audits.push([entry.tool, entry.exitCode ?? 0]));
+    const tools = registerMotionTools(cfg, async (body) => reply(body), audit);
+    return { tools, audits };
+  }
+
+  it("pi_motor_recover audits RECOVER_FAIL and RECOVER_UNKNOWN as failures", async () => {
+    for (const [line, code] of [
+      ["RECOVER_OK: fault=0x0000", 0],
+      ["RECOVER_FAIL: non-zero motor fault", 1],
+      ["RECOVER_UNKNOWN: no fault= feedback", 1],
+    ] as const) {
+      const { tools, audits } = auditing(() => line);
+      await tools.pi_motor_recover.handler({ confirm: true });
+      assert.deepEqual(audits, [["pi_motor_recover", code]], line);
+    }
+  });
+
+  it("pi_set_zero audits the remote exit", async () => {
+    const { tools, audits } = auditing(() => "set-zero right_shoulder_pitch failed\n\n[exit 3]");
+    await tools.pi_set_zero.handler({ confirm: true });
+    assert.deepEqual(audits, [["pi_set_zero", 3]]);
+  });
+
+  it("pi_hold_on audits a failed session even without a refusal line", async () => {
+    const { tools, audits } = auditing((body) =>
+      isGravityPreviewBody(body) ? gravityPreviewReply() : "PRE-SESSION DISABLE INCOMPLETE\n\n[exit 1]",
+    );
+    await tools.pi_hold_on.handler({ confirm: true, set_zero: true, at_mechanical_reference: true });
+    assert.deepEqual(audits, [["pi_hold_on", 1]]);
+  });
+
+  it("pi_bench_harness audits a failed matrix", async () => {
+    const { tools, audits } = auditing(() => "ok");
+    await tools.pi_bench_harness.handler({ confirm: true, confirm_weighted_motion: true, profile: "arm_2dof_smoke" });
+    assert.deepEqual(audits, [["pi_bench_harness", 1]]);
+  });
+
+  it("a gravity-gate refusal reaches the client as isError", async () => {
+    const { tools } = auditing((body) =>
+      isGravityPreviewBody(body) ? gravityPreviewReply({ right_shoulder_pitch: -1.5951 }) : "",
+    );
+    const call: CallContext = { motion: true };
+    const text = await callContext.run(call, () =>
+      tools.pi_hold_on.handler({ confirm: true, set_zero: true, at_mechanical_reference: true }),
+    );
+    assert.match(text, /^FAIL gravity_model_mismatch/m);
+    assert.equal(toolResultIsError(text, call), true);
+    assert.equal(toolResultIsError("pi_health ok", { motion: false }), false);
+    for (const refusal of [
+      REFERENCE_OPT_IN_REQUIRED,
+      managementRefusal("", "pi_restart_marengo_pi restart") ?? "",
+    ]) {
+      assert.equal(toolResultIsError(refusal, { motion: false }), true, refusal);
+    }
   });
 });

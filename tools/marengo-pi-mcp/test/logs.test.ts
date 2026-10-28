@@ -68,6 +68,19 @@ describe("log tools", () => {
     assert.match(script, /tail -n 100 /);
   });
 
+  it("session listings query the gateway on the Pi's loopback, not the ssh host (P2B-09)", async () => {
+    for (const name of ["pi_logs_list", "pi_logs_archive_list"] as const) {
+      let script = "";
+      const tools = registerLogTools(cfg, async (body) => {
+        script = body;
+        return "";
+      });
+      await tools[name].handler({ limit: 5 });
+      assert.match(script, /gateway_curl "http:\/\/127\.0\.0\.1:8080\/logs\/sessions\?limit=5"/, name);
+      assert.doesNotMatch(script, /marengo\.local:8080/, name);
+    }
+  });
+
   it("pi_candump_summary invokes marengo-log-cli JSON summary", async () => {
     let script = "";
     const tools = registerLogTools(cfg, async (body) => {

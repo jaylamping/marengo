@@ -10,11 +10,12 @@ import { mkdir as fsMkdir, readFile as fsReadFile, writeFile as fsWriteFile } fr
 import path from "node:path";
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
-import { soleCanOwnerShell } from "../can-owner.js";
 import { gravityGateSnapshotShell, runGravityGate } from "../gravity-gate.js";
 import { execLocal as sshExecLocal, type RemoteExecResult } from "../ssh.js";
 import {
   CAN_SESSION_SLACK_MS,
+  GRAVITY_PREVIEW_TIMEOUT_MS,
+  admissionReplyBudgetSec,
   benchLogWrapper,
   marengoPiAdmittedPipe,
   marengoPiSessionBody,
@@ -531,7 +532,7 @@ export async function runCalibrationSession(
     joints: run.gateJoints,
     snapshotOutput: await runRemote(wrapRemoteWithConfig(cfg, gravityGateSnapshotShell(), configDir), 15_000),
     runPreview: (shell) =>
-      runRemote(wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir), 30_000 + CAN_SESSION_SLACK_MS),
+      runRemote(wrapRemoteWithConfig(cfg, shell, configDir), GRAVITY_PREVIEW_TIMEOUT_MS),
     allowHangingRestMismatch: run.allowHangingRestMismatch ?? true,
   });
   const preamble = run.preamble.length > 0 ? [...run.preamble, ""] : [];
@@ -541,10 +542,11 @@ export async function runCalibrationSession(
     return text;
   }
 
-  const pipeCmd = marengoPiSessionBody(cfg, marengoPiAdmittedPipe(run.script, run.budgetSec + 10));
+  const pipeSec = run.budgetSec + admissionReplyBudgetSec(run.script);
+  const pipeCmd = marengoPiSessionBody(cfg, marengoPiAdmittedPipe(run.script, pipeSec + 10));
   const sessionOut = await runRemote(
     benchLogWrapper(cfg, pipeCmd, run.label, configDir, run.fullRateJoints),
-    run.budgetSec * 1000 + 30_000 + CAN_SESSION_SLACK_MS,
+    pipeSec * 1000 + 30_000 + CAN_SESSION_SLACK_MS,
   );
   const sessionText = [...preamble, gravity.report, sessionOut].join("\n");
   const sessionExit = Number(/\[exit (\d+)\]\s*$/.exec(sessionOut)?.[1] ?? 0);

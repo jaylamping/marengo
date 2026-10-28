@@ -160,12 +160,13 @@ fi
   npm run typecheck
   # Committed hook JS must match TypeScript sources (Cursor loads .js with no build step).
   npm run build
-  if ! git_root diff --quiet -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js; then
+  if ! git_root diff --quiet -- '.cursor/hooks/*.js'; then
     echo "error: .cursor/hooks/*.js out of date — run \`just mcp-build\` and commit the regenerated JS" >&2
-    git_root --no-pager diff -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js || true
+    git_root --no-pager diff -- '.cursor/hooks/*.js' || true
     exit 1
   fi
 )
+bash "${ROOT}/scripts/cursor-session-start.test.sh"
 
 # Kinematics, sim-harness and config fixture tests run in cargo test --workspace
 # below. The standalone validate-urdf.sh intentionally offers a focused check;
@@ -202,6 +203,10 @@ cargo test -p davout "${DAVOUT_TIMING_TESTS[@]/#/--test=}" -- --test-threads=1
 
 echo "==> virtual CAN setup contracts (no interfaces required)"
 bash "${ROOT}/scripts/vcan-up.test.sh"
+
+echo "==> marengo-pi restart helper contracts (fake systemctl)"
+bash "${ROOT}/scripts/pi-restart-marengo-pi.test.sh"
+bash "${ROOT}/scripts/pi-remote.test.sh"
 
 echo "==> dependency gate contracts"
 bash "${ROOT}/scripts/check-dependencies.test.sh"

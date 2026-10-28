@@ -43,7 +43,9 @@ export function registerAdminTools(
 
     pi_sync_main: {
       description:
-        "Sync local main, cross-build, deploy to Pi, install-pi (writes /opt/marengo/.deploy-rev), " +
+        "cross: refuses unless the local checkout is a clean main (never switches branches), pulls it, " +
+        "cross-builds, rsyncs and runs install-pi once (writes /opt/marengo/.deploy-rev); " +
+        "pi_native: builds origin/main on the Pi. Both " +
         "then poll until gateway /health OK and deploy rev matches (default wait 180s). " +
         "Refused while marengo-pi is Active, its mode, heartbeat or config save state is unknown, a config save is pending or failed, or motor-repl runs.",
       inputSchema: z.object({

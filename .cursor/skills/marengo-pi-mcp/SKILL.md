@@ -60,7 +60,7 @@ Omitted **`config_dir`** always means the master `/opt/marengo/config`. Narrow a
 | `bare_motor` | `confirm: true` |
 | `weighted_single_arm`, `arm_attached` | `confirm: true` + `confirm_weighted_motion: true` (after **two** chat approvals) |
 
-Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_marengo_pi_script`** (not `pi_motor_enable` alone).
+Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_marengo_pi_script`**.
 
 **Encoder zero (replaces Motor Studio):** grants are process-local (ADR 0036), so reference and enable in **one** marengo-pi session: position the arm at its mechanical reference → **`pi_hold_on`** / **`pi_bench_harness`** with `set_zero: true` + `at_mechanical_reference: true` (or `home <joints> sign-tested` in **`pi_marengo_pi_script`**). **`pi_set_zero`** checks SetZero and readback but its grant ends with motor-repl. **`pi_homing_status`** never opens CAN: live RobotState while marengo-pi runs, else `no live marengo-pi session` plus journal history. `pi_hold_on` defaults `set_zero: false` — only set true when intentionally recalibrating.
 

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Keep marengo-pi MCP enabled in Cursor's workspace storage.
+"""Re-enable marengo-pi MCP in Cursor's workspace storage (manual use only).
+
+Never call it from a hook: disabling the motor-driving server is a kill switch,
+and only the user may undo it (TOOL-09).
 
 Cursor stores per-workspace disabled MCP identifiers in
 `cursor/disabledMcpServers`. It also hashes `.cursor/mcp.json` command/args/env
@@ -10,12 +13,12 @@ This script:
   1. Removes `project-0-*-marengo-pi` from every marengo workspace disabled list
   2. Re-approves the current mcp.json hash for known marengo workspaces
 
-Prefer keeping profile/SSH defaults in `tools/marengo-pi-mcp/run-mcp.sh` (not
-mcp.json) so the approval hash stays stable.
+Keep profile/SSH defaults in `MCP_DEFAULTS` (tools/marengo-pi-mcp/src/config.ts),
+not mcp.json, so the approval hash stays stable.
 
 Close Cursor (or at least fully quit) before running with --write when possible,
 otherwise the live state DB may race the WAL. Dry-run is the default.
-sessionStart hooks may pass --write --best-effort to soft-fail on locks.
+--write --best-effort soft-fails on locked DBs.
 """
 
 from __future__ import annotations
@@ -261,7 +264,7 @@ def main() -> int:
         "--best-effort",
         action="store_true",
         help=(
-            "With --write: soft-fail on locked DBs (for sessionStart hooks while "
+            "With --write: soft-fail on locked DBs (while "
             "Cursor is running). Still exits 0 when scrub/approve cannot complete."
         ),
     )

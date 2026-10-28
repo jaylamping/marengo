@@ -22,6 +22,19 @@ export interface MarengoPiConfig {
   piStagingRoot: string;
 }
 
+/**
+ * The one set of defaults for every entry point: loadConfig falls back to them and
+ * launch.ts (Cursor's entry) exports them to the environment for child processes.
+ * Never put them in `.cursor/mcp.json` `env` (that thrash auto-disables the server).
+ */
+export const MCP_DEFAULTS = {
+  MARENGO_PI_HOST: "joey-robot.tail0b414.ts.net",
+  MARENGO_PI_USER: "joey",
+  MARENGO_PI_ROOT: "/opt/marengo",
+  MARENGO_CONFIG_DIR: "/opt/marengo/config",
+  MARENGO_BENCH_PROFILE: "elbow_attached",
+} as const;
+
 function env(key: string, fallback?: string): string {
   const v = process.env[key]?.trim();
   if (v) return v;
@@ -37,17 +50,14 @@ export function defaultLocalRoot(): string {
 
 export function loadConfig(): MarengoPiConfig {
   return {
-    host: env("MARENGO_PI_HOST", "marengo.local"),
-    user: env("MARENGO_PI_USER", "joey"),
-    piRoot: env("MARENGO_PI_ROOT", "/opt/marengo"),
-    configDir: env(
-      "MARENGO_CONFIG_DIR",
-      "/opt/marengo/config",
-    ),
+    host: env("MARENGO_PI_HOST", MCP_DEFAULTS.MARENGO_PI_HOST),
+    user: env("MARENGO_PI_USER", MCP_DEFAULTS.MARENGO_PI_USER),
+    piRoot: env("MARENGO_PI_ROOT", MCP_DEFAULTS.MARENGO_PI_ROOT),
+    configDir: env("MARENGO_CONFIG_DIR", MCP_DEFAULTS.MARENGO_CONFIG_DIR),
     localRoot: env("MARENGO_LOCAL_ROOT", defaultLocalRoot()),
     sshIdentityFile: process.env.SSH_IDENTITY_FILE?.trim() || undefined,
     benchProfile: (() => {
-      const raw = process.env.MARENGO_BENCH_PROFILE?.trim() || "bare_motor";
+      const raw = process.env.MARENGO_BENCH_PROFILE?.trim() || MCP_DEFAULTS.MARENGO_BENCH_PROFILE;
       if (!isBenchProfile(raw)) {
         throw new Error(
           `Invalid MARENGO_BENCH_PROFILE=${raw}; expected one of ${BENCH_PROFILES.join(", ")}`,

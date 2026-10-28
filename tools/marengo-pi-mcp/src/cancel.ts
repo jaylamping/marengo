@@ -21,12 +21,31 @@ export interface CallContext {
   signal?: AbortSignal;
   /** The tool can move the arm: cancel kills its remote session and stops. */
   motion: boolean;
+  /** Last nonzero exit code a motion tool wrote to the audit log during this call. */
+  auditedExitCode?: number;
 }
 
 export const callContext = new AsyncLocalStorage<CallContext>();
 
 export function callCancelled(): boolean {
   return callContext.getStore()?.signal?.aborted === true;
+}
+
+/** Text prefixes that mark a refusal or failure for tools that do not audit. */
+const ERROR_PREFIXES = ["Motion blocked", "Weighted motion blocked", "Error:", "Local repo dirty", "Refused"];
+
+/**
+ * MCP isError for a finished call: a refusal or failure prefix (including the management
+ * gate's `<tool> refused:`), RECOVER_FAIL, or a motion tool that audited a nonzero exit
+ * (gravity-gate refusals, refused sessions; TOOL-20).
+ */
+export function toolResultIsError(text: string, call: CallContext): boolean {
+  return (
+    ERROR_PREFIXES.some((p) => text.startsWith(p)) ||
+    /^pi_[\w ]+ refused: /.test(text) ||
+    text.includes("RECOVER_FAIL") ||
+    (call.auditedExitCode ?? 0) !== 0
+  );
 }
 
 export const CANCELLED_TEXT = "Cancelled by the client: no further remote step was started.";
