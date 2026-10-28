@@ -707,3 +707,113 @@ fn derived_velocity_spike_never_pushes_wire_velocity_past_the_cap() {
         "wire dq_des {wire} rad/s above the {cap} rad/s cap"
     );
 }
+
+/// P2C-01 trade-off, option (a), pinned until the owner decides (see docs/safety.md,
+/// "Total MIT torque"). The total-torque clamp predicts with the measured velocity clipped
+/// to the joint's velocity cap. While the real `|dq|` lies between the cap and the feedback
+/// velocity-fault threshold (cap + 0.5 rad/s), the command is admitted, the prediction uses
+/// the clipped velocity, and the drive's actual damping torque `kd·(dq_des − dq)` can exceed
+/// the total-torque cap by at most `kd·(|dq| − cap)`, always opposing the motion (braking).
+///
+/// Option (b), still open: predict with the real `dq`, so the actual torque stays within
+/// the cap and a command whose clamp would carry `dq_des` past the velocity cap is refused
+/// (the pre-P2C-01 behaviour). Choosing (b) makes this the test to flip.
+#[test]
+fn p2c01_option_a_in_band_velocity_admits_with_damping_over_torque_cap() {
+    const KD: f64 = 3.0;
+    let mut supervisor = supervisor();
+    let pitch = motor(&supervisor, "right_shoulder_pitch");
+    activate(&mut supervisor, std::slice::from_ref(&pitch));
+    let policy = *supervisor.joint_limit_policy(&pitch.joint).expect("policy");
+    let vel_cap = policy.velocity;
+    let tau_cap = policy
+        .tau_ff_max
+        .min(pitch.bench.torque_limit_nm)
+        .min(supervisor.control.control.motor_type_defaults["rs03"].tau_ff_max_nm);
+    let to_motor = |q: f64| (q * f64::from(pitch.direction) * pitch.gear_ratio) as f32;
+    let address = MotorAddress::from(&pitch);
+    let at = |q: f64, received: Instant| MotorState {
+        position_rad: to_motor(q),
+        ..status(received)
+    };
+
+    // Sustained motion 0.3 rad/s over the cap, inside the 0.5 rad/s fault margin: well past
+    // the 3-sample velocity fault's sample count, and it never trips.
+    let speed = vel_cap + 0.3;
+    let step = Duration::from_millis(50);
+    let q0 = 0.10;
+    let t0 = Instant::now();
+    let mut q = q0;
+    for sample in 0..5_u32 {
+        let received = t0 + step * sample;
+        q = q0 + speed * step.as_secs_f64() * f64::from(sample);
+        std::thread::sleep(
+            received.saturating_duration_since(Instant::now()) + Duration::from_millis(1),
+        );
+        inject(&mut supervisor, address.clone(), at(q, received));
+        supervisor
+            .drain_feedback()
+            .expect("in-band velocity never faults");
+    }
+    assert!(!supervisor.has_latched_fault());
+    let dq = supervisor
+        .joint_feedback(&pitch.joint)
+        .expect("fresh pose")
+        .velocity_rad_s;
+    assert!(
+        dq > vel_cap + 0.1 && dq < vel_cap + 0.5,
+        "fixture dq {dq} rad/s must lie between the {vel_cap} rad/s cap and the fault threshold"
+    );
+
+    // Pure damping to rest at the current pose: kd·(0 − dq) is far over the torque cap.
+    supervisor.bus_mut().clear_trace();
+    supervisor
+        .send_mit_batch(vec![MitJointCommand {
+            joint: pitch.joint.clone(),
+            kp: 0.0,
+            kd: KD,
+            position_rad: q,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: 0.0,
+        }])
+        .expect("option (a): admitted, not refused");
+    assert_eq!(supervisor.total_torque_clamp_count(&pitch.joint), 1);
+    let frame = supervisor.bus().frames().last().expect("pitch frame");
+    let fields = robstride::decode_mit_command_fields(frame.id, &frame.data).expect("MIT");
+    let dq_des = (f64::from(fields.velocity) / 32767.0 - 1.0) * 20.0
+        / (f64::from(pitch.direction) * pitch.gear_ratio);
+    assert!(
+        dq_des.abs() <= vel_cap + 1e-3,
+        "wire dq_des {dq_des} over the cap"
+    );
+
+    // The clamp's prediction (with its kd·0.1 rad/s margin) used the clipped velocity: it
+    // lands on the torque cap. With the real dq it would have been over the cap.
+    let quantum = 1e-2;
+    let margin = KD * 0.1;
+    let predicted_clipped = (KD * (dq_des - vel_cap)).abs() + margin;
+    assert!(
+        (predicted_clipped - tau_cap).abs() < quantum,
+        "clipped prediction {predicted_clipped} Nm vs cap {tau_cap} Nm"
+    );
+    let predicted_real = (KD * (dq_des - dq)).abs() + margin;
+    assert!(predicted_real > tau_cap + quantum);
+
+    // What the drive computes against the real velocity: over the cap, by at most
+    // kd·(|dq| − cap), and braking (opposite sign to dq).
+    let actual = KD * (dq_des - dq);
+    assert!(
+        actual.abs() > tau_cap,
+        "actual {actual} Nm within the cap: the band no longer exceeds it"
+    );
+    assert!(
+        actual.abs() - tau_cap <= KD * (dq.abs() - vel_cap) + quantum,
+        "excess {} Nm over kd·(|dq| − cap) = {} Nm",
+        actual.abs() - tau_cap,
+        KD * (dq.abs() - vel_cap)
+    );
+    assert!(
+        actual * dq < 0.0,
+        "excess torque {actual} Nm must oppose dq {dq}"
+    );
+}
