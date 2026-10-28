@@ -299,3 +299,33 @@ fn hold_off_band_with_net_torque_toward_target_trips_return_stall_not_hold_track
     assert!(trip.tau_p + trip.tau_ff > 0.0, "{trip:?}");
     assert!(trip.to_string().contains("q="), "{trip}");
 }
+
+#[test]
+fn deep_sag_at_home_with_opposing_torque_reports_hold_tracking_not_return_stall() {
+    // PR #260 review: an incident-shaped sag to -0.10 rad. While q falls, the integral briefly
+    // flips the net command toward the target, which resets the hold-tracking budget, so the
+    // return budget (armed from the first tick beyond the band) is spent first. The net command
+    // still opposes the target when it is spent, so the trip names the model fault, not the rub.
+    let deep_sag = |step: u32| {
+        let fraction = (f64::from(step) / 180.0).min(1.0);
+        on_grid(fraction * -0.10)
+    };
+    let run = run_hold(0.0, 0.0, BAD_MODEL_TAU_G, 1_000, deep_sag);
+    assert!(
+        matches!(run.terminal, Some((HoldError::HoldTracking { .. }, _))),
+        "a sag at home under opposing net torque must report HoldTracking; got {run:#?}"
+    );
+    let Some((HoldError::HoldTracking { joint, ms, trip }, step)) = run.terminal else {
+        return;
+    };
+    assert_eq!(joint, JOINT);
+    assert!(ms >= POSITION_ASCENT_STALL_FAULT_MS, "budget kept: {ms}");
+    // Sag (0.9 s) plus the 2 s budget, at 5 ms ticks: the trip is no later than before.
+    assert!(step <= 180 + 400 + 1, "trip too late at step {step}");
+    assert_eq!(trip.target, 0.0);
+    assert!((trip.q - on_grid(-0.10)).abs() < 1e-12, "trip q {}", trip.q);
+    assert!(
+        trip.tau_p > 0.0 && trip.tau_p + trip.tau_ff < 0.0,
+        "P pulls toward target but net command pushes away: {trip:?}"
+    );
+}

@@ -101,8 +101,11 @@ Wave sign-off or infer physical readiness from software checks.
   It is watched in the direction of `target − q` with the same measure (`direction * q`), the
   same 2,000 ms budget and the same retarget rule, and trips `ReturnStall`, which latches a
   controller fault like the other fuses. It uses only the latched target and measured `q`.
-- When a sag arms both `HoldTracking` and the return budget, `HoldTracking` is reported: it
-  names the model fault the trip points to.
+- When the return budget runs out on a tick where `HoldTracking` is armed (off the band with the
+  net command opposing the target), the trip is reported as `HoldTracking`: it names the model
+  fault the trip points to. The hold-tracking budget restarts on any tick where the net command
+  stops opposing, so on a sag at home the return budget can run out first. The relabel only
+  changes the report. Both latch a controller fault, and no budget or band changes.
 - Residual: a return that settles more than 0.03 rad short of its target now trips after 2 s,
   as an outbound move already did. Watch for it on the bench while the shoulder still rubs. The
   band is the existing hold-tracking band, not a new tuning value.

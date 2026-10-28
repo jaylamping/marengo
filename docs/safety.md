@@ -220,7 +220,12 @@ disables. The fault does not clear on its own.
   (a same-side target closer to home, or home itself) is a return, watched in the direction of
   `target − q` with the same measure and budget. `HoldTracking` arms only when the net command
   opposes the target, so before 2026-10-28 a return jammed while the law kept pushing toward the
-  target (a pinch toward the body) ran unfused. When a sag arms both, `HoldTracking` is reported.
+  target (a pinch toward the body) ran unfused. When the return budget runs out on a tick where
+  `HoldTracking` is armed (more than 0.03 rad off target with the net command opposing it), the
+  trip is reported as `HoldTracking`, not `ReturnStall`. A sag at home can spend the return budget
+  first, because the hold-tracking budget restarts on any tick where the net command stops
+  opposing (an integral sign flip, for example). A `ReturnStall` therefore always means the net
+  command was pushing toward the target when the budget ran out.
 - **Hold tracking failure** (`HoldTracking`): this fuse covers any target, home included. It trips
   when `|q − target|` is more than 0.03 rad, the net commanded torque `tau_p + tau_ff` (which
   includes model `τ_g`) points away from the target, and `q` makes no new closest approach. This

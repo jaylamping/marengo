@@ -1455,17 +1455,19 @@ impl PositionHold {
         Ok(())
     }
 
-    /// Trip the travel stall fuse once its budget is spent: `AscentStall` for an outbound move,
-    /// `ReturnStall` for a move toward home.
     /// Stalled time (ms) of the travel stall budget, or its trip once spent on a `side` move:
-    /// `AscentStall` for outbound, `ReturnStall` toward home. Compose checks a return after
-    /// `HoldTracking`, so a sag that both see is reported as the model fault it points to.
+    /// `AscentStall` for outbound, `ReturnStall` toward home. A return budget spent on a tick
+    /// where `tracking_armed` holds (hold tracking's own arming: off band, net command opposing
+    /// the target) is reported as `HoldTracking`, the model fault it points to. The hold-tracking
+    /// budget resets on any tick the net command does not oppose, so on such a sag the return
+    /// budget can run out first.
     fn check_travel_stall(
         &self,
         i: usize,
         side: StallSide,
         name: &str,
         trip: HoldFuseTrip,
+        tracking_armed: bool,
     ) -> Result<u64, HoldError> {
         let recovery = self
             .ascent_recovery
@@ -1479,6 +1481,7 @@ impl PositionHold {
         let joint = name.to_string();
         Err(match side {
             StallSide::Outbound => HoldError::AscentStall { joint, ms, trip },
+            StallSide::Return if tracking_armed => HoldError::HoldTracking { joint, ms, trip },
             StallSide::Return => HoldError::ReturnStall { joint, ms, trip },
         })
     }
@@ -1637,7 +1640,8 @@ impl PositionHold {
                 tau_ff: tau_ff_cmd,
                 tau_g: world.tau_g[i],
             };
-            let ascent_stall_ms = self.check_travel_stall(i, StallSide::Outbound, name, trip)?;
+            let ascent_stall_ms =
+                self.check_travel_stall(i, StallSide::Outbound, name, trip, false)?;
             let wave_stall_ms = self.wave_motion[i].stalled_ms();
             if wave_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
                 return Err(HoldError::WaveStall {
@@ -1665,7 +1669,7 @@ impl PositionHold {
                     trip,
                 });
             }
-            self.check_travel_stall(i, StallSide::Return, name, trip)?;
+            self.check_travel_stall(i, StallSide::Return, name, trip, tracking_armed)?;
             let mit_velocity = position_hold_mit_velocity(
                 dq,
                 dq_traj,
@@ -1803,7 +1807,7 @@ impl PositionHold {
             tau_ff: ff.tau_ff,
             tau_g: world.tau_g[i],
         };
-        let ascent_stall_ms = self.check_travel_stall(i, StallSide::Outbound, name, trip)?;
+        let ascent_stall_ms = self.check_travel_stall(i, StallSide::Outbound, name, trip, false)?;
         let wave_stall_ms = self.wave_motion[i].stalled_ms();
         if wave_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
             return Err(HoldError::WaveStall {
@@ -1831,7 +1835,7 @@ impl PositionHold {
                 trip,
             });
         }
-        self.check_travel_stall(i, StallSide::Return, name, trip)?;
+        self.check_travel_stall(i, StallSide::Return, name, trip, tracking_armed)?;
         let (q_env_lo, q_env_hi) = limit_policy
             .map(|p| effective_command_bounds(p, q, v_c))
             .unwrap_or((f64::NAN, f64::NAN));
