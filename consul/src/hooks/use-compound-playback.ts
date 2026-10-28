@@ -408,8 +408,9 @@ export function useCompoundPlayback() {
         runnerRef.current.settledSinceMs === null
           ? 0
           : (nowMs - runnerRef.current.settledSinceMs) / 1000;
+      // A Dry Run moves nothing, so measured q never settles: it previews on time (UI-15).
       const mayAdvance =
-        (preset.advance ?? 'settle') === 'timed'
+        (preset.advance ?? 'settle') === 'timed' || runnerRef.current.dry
           ? elapsedSec >= dwellSec
           : elapsedSec >= dwellSec &&
             positionVelocityOk &&

@@ -80,6 +80,17 @@ describe('compound playback', () => {
     expect(vi.mocked(postTestingMitCommandBatch).mock.calls.length).toBe(before);
   });
 
+  it('a Dry Run of a settle-advance preset finishes on time (UI-15)', async () => {
+    useTestingStore.setState({ dryRun: true });
+    act(() => useCompoundStore.getState().setSelectedPresetId('arm_out_forward'));
+    const { result } = renderPlayback();
+    act(() => result.current.startRunner());
+    expect(useCompoundStore.getState().isRunning).toBe(true);
+    await runFor(10_000);
+    expect(useCompoundStore.getState().isRunning).toBe(false);
+    expect(postTestingMitCommandBatch).not.toHaveBeenCalled();
+  });
+
   it('a second Start replaces the run interval instead of adding one (P2B-01)', async () => {
     useTestingStore.setState({ dryRun: true });
     const { result } = renderPlayback();
