@@ -5,7 +5,8 @@
 set -euo pipefail
 SCRIPT="${1:-$(cd "$(dirname "$0")" && pwd)/pi-restart-marengo-pi.sh}"
 
-if [[ "$(uname -s)" != Linux ]]; then
+if [[ "$(uname -s)" != Linux ]] || ! command -v pgrep >/dev/null || ! command -v pkill >/dev/null ||
+  ! command -v ps >/dev/null; then
   echo "skip: pi-restart-marengo-pi.test.sh needs Linux procps (the helper runs on the Pi)"
   exit 0
 fi
