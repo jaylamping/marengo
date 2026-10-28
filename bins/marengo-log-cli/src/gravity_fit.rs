@@ -936,7 +936,23 @@ fn parse_trace(text: &str) -> Result<Vec<Tick>, GravityFitError> {
             ticks.push((tick, Tick { t_ms, rows }));
         }
     }
-    Ok(ticks.into_iter().map(|(_, tick)| tick).collect())
+    // Sessions trace the sweep joint every tick and the held joints at the
+    // trace rate (CAL-01). A held joint's last row stands until its next one,
+    // so every tick after a joint's first row carries every joint.
+    let mut last: BTreeMap<String, Row> = BTreeMap::new();
+    let mut out = Vec::with_capacity(ticks.len());
+    for (_, mut tick) in ticks {
+        for (joint, row) in &tick.rows {
+            last.insert(joint.clone(), row.clone());
+        }
+        for (joint, row) in &last {
+            tick.rows
+                .entry(joint.clone())
+                .or_insert_with(|| row.clone());
+        }
+        out.push(tick);
+    }
+    Ok(out)
 }
 
 fn targets(tick: &Tick) -> BTreeMap<&str, f64> {
@@ -2542,6 +2558,34 @@ mod tests {
         assert!((poses[0].sample.tau_meas[0] - 1.0).abs() < 1e-9);
         assert!((poses[0].friction[0] - 0.08).abs() < 1e-9);
         assert!((poses[0].sample.q[0] - 0.5).abs() < 1e-9);
+    }
+
+    /// CAL-01: held joints traced at 50 Hz beside a 200 Hz sweep joint are
+    /// forward-filled, so holds still settle and measure as at full rate.
+    #[test]
+    fn decimated_held_joints_measure_like_a_full_rate_trace() {
+        let mut csv = vec![HEADER.to_string()];
+        let mut tick = 0;
+        let mut push = |target: f64, q: f64, tau: f64, n: u64, csv: &mut Vec<String>| {
+            for _ in 0..n {
+                csv.push(row(tick, "a", q, 0.0, target, tau));
+                if tick % 4 == 0 {
+                    csv.push(row(tick, "b", 0.0, 0.0, 0.0, 0.01));
+                }
+                tick += 1;
+            }
+        };
+        push(0.45, 0.45, 9.0, 100, &mut csv);
+        push(0.5, 0.498, 1.08, 400, &mut csv);
+        let p = plan(vec![step(0.45, None), step(0.5, Some(Approach::Below))]);
+        let ticks = parse_trace(&csv.join("\n")).unwrap();
+        assert!(ticks.iter().all(|tick| tick.rows.len() == 2));
+        let joints = vec!["a".to_string(), "b".to_string()];
+        let seg = segment_plan(&p, &ticks);
+        let (m, skipped) = measure_steps(&p, &ticks, &joints, &seg.holds);
+        assert!(skipped.is_empty(), "{skipped:?}");
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].samples, 201);
     }
 
     #[test]
