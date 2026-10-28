@@ -545,6 +545,14 @@ disables. The fault does not clear on its own.
   pre-session disable did not reach every drive. Reference-independent stopping
   through the installed owner remains required; use the physical E-stop as the
   independent stop path.
+- **One motor owner per interface:** every motor owner (`marengo-pi`,
+  `motor-repl status`/`set-zero`/`protocol-inspect`, through
+  `SocketCanRouter::open` or `SocketCanBus::open_owner`) first binds the
+  abstract Unix socket `marengo/can-owner/<iface>`; a second owner of the
+  same interface on this host is refused before it opens CAN. The kernel
+  releases the claim when the process exits. Stops (`motor-repl disable`, the
+  set-zero exit stop) open unowned sockets and are never refused; the owner
+  reads their frames as another writer and latches Transport.
 - **No drive-side or independent watchdog:** Marengo never writes `ParameterId::CanTimeout` (0x7028);
   `motor-repl protocol-inspect` / `pi_protocol_inspect` read it back (ADR 0037). Nothing outside the 200 Hz thread watches it,
   so a killed or hung `marengo-pi` leaves each drive on its last MIT frame

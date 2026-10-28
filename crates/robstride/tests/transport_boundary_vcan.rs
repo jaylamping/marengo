@@ -246,6 +246,39 @@ fn socketcan_router_refuses_duplicate_addresses_before_opening_interfaces() {
     ));
 }
 
+/// P2A-03: one motor owner per interface. A second router (a `motor-repl
+/// set-zero` under a live marengo-pi) is refused; an unowned stop socket is
+/// not, and the claim ends with the owner.
+#[test]
+#[ignore = "requires virtual vcan0/vcan1; no physical robot; run tests serially"]
+fn second_motor_owner_of_an_interface_is_refused_but_a_stop_is_not() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut motors = marengo_config::load_motors_config(root).expect("fixture motor entries");
+    motors.motors.truncate(2);
+    for (motor, interface) in motors.motors.iter_mut().zip(["vcan0", "vcan1"]) {
+        motor.can_interface = interface.into();
+        motor.device_id = 1;
+    }
+    let owner = RuntimeBus::socketcan_from_motors(&motors).expect("first owner");
+    for second in [
+        RuntimeBus::socketcan_from_motors(&motors),
+        RuntimeBus::socketcan_owner("vcan1"),
+    ] {
+        assert!(
+            matches!(
+                &second,
+                Err(robstride::BusError::Driver(message)) if message.contains("already has a motor owner")
+            ),
+            "{second:?}"
+        );
+    }
+    let mut stop = RuntimeBus::socketcan("vcan0").expect("stops need no ownership");
+    stop.disable_drive_at(&MotorAddress::new("vcan0", 1))
+        .expect("stop while owned");
+    drop(owner);
+    RuntimeBus::socketcan_from_motors(&motors).expect("claim released with the owner");
+}
+
 /// DRV-05 / P2A-03: every local socket receives every other local socket's
 /// frames. An exact Enable another process wrote to a configured drive is not
 /// this socket's echo: it fails the receive (the owner latches Transport and

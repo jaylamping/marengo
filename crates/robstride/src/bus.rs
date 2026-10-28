@@ -975,6 +975,8 @@ pub enum RuntimeBus {
 }
 
 impl RuntimeBus {
+    /// One unowned interface socket: for stops and observers, which must
+    /// work while a motor owner holds the interface.
     pub fn socketcan(interface: &str) -> Result<Self, BusError> {
         #[cfg(all(feature = "socketcan", target_os = "linux"))]
         {
@@ -990,6 +992,20 @@ impl RuntimeBus {
         }
     }
 
+    /// One interface for a motor owner (see [`SocketCanBus::open_owner`]).
+    pub fn socketcan_owner(interface: &str) -> Result<Self, BusError> {
+        #[cfg(all(feature = "socketcan", target_os = "linux"))]
+        {
+            SocketCanBus::open_owner(interface).map(Self::Socket)
+        }
+        #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+        {
+            let _ = interface;
+            Err(socketcan_unavailable())
+        }
+    }
+
+    /// Every configured interface, each claimed for this motor owner.
     pub fn socketcan_from_motors(motors: &MotorsConfigFile) -> Result<Self, BusError> {
         #[cfg(all(feature = "socketcan", target_os = "linux"))]
         {
@@ -1104,6 +1120,8 @@ mod socketcan {
     use std::collections::{BTreeSet, HashMap, HashSet};
     use std::io::{ErrorKind, IoSliceMut, Write};
     use std::os::fd::{AsFd, AsRawFd};
+    use std::os::linux::net::SocketAddrExt;
+    use std::os::unix::net::{SocketAddr, UnixListener};
     use std::time::SystemTime;
 
     use ::socketcan::{
@@ -1166,6 +1184,37 @@ mod socketcan {
         }
     }
 
+    /// Exclusive motor ownership of one CAN interface on this host: a bound
+    /// abstract Unix socket named after the interface. The kernel releases it
+    /// when the process exits, however it exits; it needs no file, directory
+    /// or permission, and is not inherited across exec. Abstract names are
+    /// per network namespace, like the CAN interfaces themselves.
+    #[derive(Debug)]
+    struct InterfaceClaim {
+        _listener: UnixListener,
+    }
+
+    fn claim_interface(interface: &str) -> Result<InterfaceClaim, BusError> {
+        let name = format!("marengo/can-owner/{interface}");
+        let address = SocketAddr::from_abstract_name(name.as_bytes())
+            .map_err(|e| BusError::Driver(format!("claim SocketCAN {interface}: {e}")))?;
+        match UnixListener::bind_addr(&address) {
+            Ok(listener) => Ok(InterfaceClaim {
+                _listener: listener,
+            }),
+            Err(error) if error.kind() == ErrorKind::AddrInUse => {
+                tracing::warn!(interface, "SocketCAN interface already has a motor owner");
+                Err(BusError::Driver(format!(
+                    "SocketCAN {interface} already has a motor owner on this host \
+                     (marengo-pi or motor-repl); stop it first (motor-repl disable needs no ownership)"
+                )))
+            }
+            Err(error) => Err(BusError::Driver(format!(
+                "claim SocketCAN {interface}: {error}"
+            ))),
+        }
+    }
+
     #[derive(Debug)]
     pub struct SocketCanBus {
         interface: String,
@@ -1174,9 +1223,24 @@ mod socketcan {
         control: Vec<u8>,
         rx_clock: RxClock,
         echoes: EchoLedger,
+        /// Held for the socket's lifetime by a motor owner; `None` for stops
+        /// and observers.
+        _claim: Option<InterfaceClaim>,
     }
 
     impl SocketCanBus {
+        /// Open as a motor owner: claim the interface first, so a second
+        /// owner on this host (a `motor-repl set-zero` under a live
+        /// marengo-pi) is refused before it opens a socket or sends a frame.
+        pub fn open_owner(interface: &str) -> Result<Self, BusError> {
+            let claim = claim_interface(interface)?;
+            let mut bus = Self::open(interface)?;
+            bus._claim = Some(claim);
+            Ok(bus)
+        }
+
+        /// Open without ownership. Stops (`motor-repl disable`, the exit
+        /// stop) use this so an owner can never block them.
         pub fn open(interface: &str) -> Result<Self, BusError> {
             tracing::debug!(interface, "opening SocketCAN interface");
             // Before bind: no frame can be queued on this socket earlier.
@@ -1210,6 +1274,7 @@ mod socketcan {
                 control: nix::cmsg_space!(TimeSpec),
                 rx_clock: RxClock::new(opened),
                 echoes: EchoLedger::default(),
+                _claim: None,
             })
         }
 
@@ -1404,7 +1469,7 @@ mod socketcan {
             let interfaces: Vec<_> = interfaces.into_iter().collect();
             let mut sockets = HashMap::new();
             for interface in &interfaces {
-                sockets.insert(interface.clone(), SocketCanBus::open(interface)?);
+                sockets.insert(interface.clone(), SocketCanBus::open_owner(interface)?);
             }
 
             Ok(Self {
@@ -1511,6 +1576,49 @@ mod socketcan {
     }
 
     impl MotorBus for SocketCanRouter {}
+
+    #[cfg(test)]
+    mod ownership_tests {
+        #![allow(clippy::expect_used)]
+
+        use super::*;
+
+        fn message(error: BusError) -> String {
+            match error {
+                BusError::Driver(message) => message,
+                other => format!("{other:?}"),
+            }
+        }
+
+        /// P2A-03: a second motor owner of an interface is refused before
+        /// it opens a socket (the interface here does not even exist).
+        #[test]
+        fn a_second_owner_is_refused_before_opening_the_interface() {
+            let interface = "mrgtest-own0";
+            let held = claim_interface(interface).expect("first owner");
+            let refused = message(SocketCanBus::open_owner(interface).expect_err("second owner"));
+            assert!(refused.contains("already has a motor owner"), "{refused}");
+            drop(held);
+            let reopened =
+                message(SocketCanBus::open_owner(interface).expect_err("no such interface"));
+            assert!(reopened.contains("SocketCAN open failed"), "{reopened}");
+        }
+
+        /// A stop never needs ownership, so a live owner cannot block it.
+        #[test]
+        fn an_unowned_open_ignores_a_held_claim() {
+            let interface = "mrgtest-own1";
+            let _held = claim_interface(interface).expect("owner");
+            let error = message(SocketCanBus::open(interface).expect_err("no such interface"));
+            assert!(error.contains("SocketCAN open failed"), "{error}");
+        }
+
+        #[test]
+        fn claims_are_per_interface() {
+            let _first = claim_interface("mrgtest-own2").expect("first interface");
+            let _second = claim_interface("mrgtest-own3").expect("second interface");
+        }
+    }
 }
 
 #[cfg(all(feature = "socketcan", target_os = "linux"))]

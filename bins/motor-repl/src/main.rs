@@ -292,7 +292,7 @@ fn run_status(root: &std::path::Path, interface: Option<&str>) -> i32 {
         }
     };
     let bus = match interface {
-        Some(interface) => RuntimeBus::socketcan(interface),
+        Some(interface) => RuntimeBus::socketcan_owner(interface),
         None => RuntimeBus::socketcan_from_motors(&motors),
     };
     match bus {
@@ -470,7 +470,7 @@ fn run_command(root: &std::path::Path, can_interface: Option<String>, args: &[St
         }
     };
     let bus = match can_interface.as_deref() {
-        Some(interface) => match RuntimeBus::socketcan(interface) {
+        Some(interface) => match RuntimeBus::socketcan_owner(interface) {
             Ok(bus) => bus,
             Err(e) => {
                 eprintln!("open SocketCAN {interface}: {e}");

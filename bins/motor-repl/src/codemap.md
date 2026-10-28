@@ -15,6 +15,11 @@ builds Davout's transmit-free inspection owner
 can_timeout=… zero_sta=… add_offset=…` line per drive. It arms no exit stop: it
 never enables, and Davout stops every drive before and after the queries.
 
+Every command that opens CAN as an owner (`status`, `set-zero`,
+`protocol-inspect`, also with `--can-interface`) claims each interface and is
+refused while marengo-pi or another motor-repl owns it; `disable` and the exit
+stop open unowned sockets.
+
 `stop.rs` is the independent stop: `stop_addresses` (from `motors.yaml` via
 `marengo_config::load_motor_stop_targets`), `disable_drives` (one Disable then
 one type-24 Off per drive, one bus open per interface, per-drive outcome per
