@@ -13,9 +13,11 @@ use crate::{
     ReferenceCommitHandle, ReferenceCommitPhase, ReferenceHandle, ReferenceJournalResult,
     ReferenceRequest, ReferenceStageInvalidation, ReferenceStageStatus, Supervisor,
 };
-use robstride::{CanFrame, MotorAddress, ReceivedCanFrame};
+use robstride::{CanFrame, CommunicationType, MotorAddress, MotorBus, ReceivedCanFrame};
 use rusqlite::{Connection, TransactionBehavior};
 
+#[path = "../tests/physical_firmware/mod.rs"]
+mod physical_firmware;
 #[path = "../../berthier/tests/support/mod.rs"]
 pub(super) mod support;
 const TARGET: &str = "right_elbow_pitch";
@@ -35,22 +37,22 @@ fn zero() -> ReceivedCanFrame {
         },
     )
 }
-struct TestOwner<'a> {
-    owner: Supervisor<SimulationBus>,
+struct TestOwner<'a, B: MotorBus = SimulationBus> {
+    owner: Supervisor<B>,
     pause: Option<&'a JournalTestPause>,
 }
-impl std::ops::Deref for TestOwner<'_> {
-    type Target = Supervisor<SimulationBus>;
+impl<B: MotorBus> std::ops::Deref for TestOwner<'_, B> {
+    type Target = Supervisor<B>;
     fn deref(&self) -> &Self::Target {
         &self.owner
     }
 }
-impl std::ops::DerefMut for TestOwner<'_> {
+impl<B: MotorBus> std::ops::DerefMut for TestOwner<'_, B> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.owner
     }
 }
-impl Drop for TestOwner<'_> {
+impl<B: MotorBus> Drop for TestOwner<'_, B> {
     fn drop(&mut self) {
         if let Some(pause) = self.pause {
             pause.release();
@@ -312,9 +314,10 @@ fn late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops() 
 }
 
 #[test]
-fn enable_is_refused_while_a_cancelled_commit_awaits_its_journal_write() {
-    // REF-06: the controller skips every tick while reference work is
-    // pending, so Enable must not admit drives it would leave uncommanded.
+fn enable_of_the_cancelled_target_reports_reference_busy() {
+    // REF-06, error kind only: TARGET holds no grant, so Enable would be
+    // refused without the pending-work check too. The peer case below is the
+    // one that proves Enable is refused at all.
     let tree = tree();
     let pause =
         JournalTestPause::new(JournalPausePoint::BeforePublication, 1).expect("declarative pause");
@@ -342,6 +345,130 @@ fn enable_is_refused_while_a_cancelled_commit_awaits_its_journal_write() {
     finish(&mut owner, &handle);
     assert!(!owner.reference_work_pending());
     close(&mut owner);
+}
+
+/// Pre-reference joint poses inside every bench envelope (as in
+/// `tests/physical_reference.rs`).
+const PHYSICAL_INITIAL: [(&str, f64); 5] = [
+    ("right_shoulder_pitch", 1.5),
+    ("right_shoulder_roll", 0.4),
+    ("right_upper_arm_yaw", 0.2),
+    ("right_elbow_pitch", 0.3),
+    ("right_lower_arm_yaw", 0.3),
+];
+
+/// Control-loop drains for `duration` while the drives stream type-24 reports.
+fn pump_physical(owner: &mut Supervisor<physical_firmware::FirmwareBus>, duration: Duration) {
+    let end = Instant::now() + duration;
+    loop {
+        owner.bus.0.borrow_mut().emit_reports();
+        owner.sync_active_reporting();
+        let _ = owner.drain_feedback();
+        if Instant::now() >= end {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn enable_of_a_granted_peer_is_refused_while_a_cancelled_commit_awaits_its_journal_write() {
+    // REF-06: the controller skips every tick while reference work is
+    // pending, so Enable must not admit drives it would leave uncommanded.
+    // Virtual acquisition revokes every grant, so a peer that keeps a current
+    // grant through another joint's commit needs the physical owner, whose
+    // grants accumulate per joint (ADR 0036).
+    const PEER: &str = "right_shoulder_pitch";
+    const OTHER: &str = "right_shoulder_roll";
+    let tree = support::FixtureTree::new(
+        "reference-pending-peer",
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
+    );
+    let motors = marengo_config::load_motors_config_from(tree.path().join("config"))
+        .expect("fixture motors");
+    let firmware = physical_firmware::Firmware::from_motors(&motors.motors, &PHYSICAL_INITIAL);
+    let journal = tree.path().join("reference-journal.sqlite3");
+    let mut owner = Supervisor::from_repo_with_physical_reference(
+        tree.path(),
+        physical_firmware::FirmwareBus(firmware.clone()),
+        &journal,
+    )
+    .expect("physical reference owner");
+    // The second commit (OTHER's) stops before it publishes its journal write.
+    let pause =
+        JournalTestPause::new(JournalPausePoint::BeforePublication, 2).expect("declarative pause");
+    owner.reference_commits.install(
+        crate::reference_journal::Journal::spawn(journal, Some(pause.worker()))
+            .expect("paused journal worker"),
+        crate::reference_commit::CommitSelection::CurrentPhysical,
+    );
+    let mut owner = TestOwner {
+        owner,
+        pause: Some(&pause),
+    };
+
+    owner
+        .calibrate_joint_zero(PEER, "fixture-operator", true)
+        .expect("PEER current grant");
+    pump_physical(&mut owner, Duration::from_millis(30));
+    assert_eq!(
+        owner.joint_homing_state(PEER),
+        crate::JointHomingState::Verified
+    );
+
+    let acquisition = owner
+        .request_reference(OTHER, true, audit())
+        .expect("OTHER request admitted");
+    let start = Instant::now();
+    while !pause.wait_paused(Duration::ZERO) {
+        assert!(
+            start.elapsed() < WAIT,
+            "OTHER commit never reached its write"
+        );
+        owner.advance_reference_work().expect("owner work advances");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let handle = owner
+        .begin_reference_commit(&acquisition, audit())
+        .expect("identical retry names the pending job");
+    owner
+        .cancel_reference_commit(&handle, ReferenceCancelReason::Disable)
+        .expect("cancel eligibility only");
+    assert!(!owner.reference_busy());
+    assert!(owner.reference_work_pending());
+    assert_eq!(
+        owner.joint_homing_state(PEER),
+        crate::JointHomingState::Verified,
+        "PEER must still hold its grant, or the refusal below proves nothing"
+    );
+
+    let writes = firmware.borrow().tx.len();
+    let refused = owner
+        .enable_targets(&[PEER.into()])
+        .expect_err("pending work refuses Enable of a granted peer");
+    assert!(
+        matches!(refused, crate::DavoutError::ReferenceBusy { .. }),
+        "{refused}"
+    );
+    assert_eq!(
+        firmware.borrow().tx.len(),
+        writes,
+        "refusal writes no frame"
+    );
+    assert_eq!(
+        firmware.borrow().sent_any(CommunicationType::Enable),
+        2,
+        "only the two acquisitions' Enables"
+    );
+    assert_eq!(owner.mode(), crate::OperationalMode::Disabled);
+
+    pause.release();
+    let start = Instant::now();
+    while owner.reference_work_pending() {
+        assert!(start.elapsed() < WAIT, "cancelled commit never completed");
+        owner.advance_reference_work().expect("owner work advances");
+        std::thread::sleep(Duration::from_millis(1));
+    }
 }
 
 #[test]
