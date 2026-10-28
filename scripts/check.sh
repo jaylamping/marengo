@@ -184,7 +184,21 @@ echo "==> cargo clippy"
 cargo clippy --workspace --all-targets -- -D warnings
 
 echo "==> cargo test"
-cargo test --workspace
+# Davout's drive-loss and physical-reference tests assert wall-clock windows
+# and fail under parallel threads on a loaded host (DAV-06): run those two
+# binaries one test at a time, and every other Davout target in parallel.
+DAVOUT_TIMING_TESTS=(drive_loss physical_reference)
+DAVOUT_PARALLEL_TARGETS=(--lib)
+for test_file in "${ROOT}"/crates/davout/tests/*.rs; do
+  name="$(basename "${test_file}" .rs)"
+  if [[ " ${DAVOUT_TIMING_TESTS[*]} " != *" ${name} "* ]]; then
+    DAVOUT_PARALLEL_TARGETS+=(--test "${name}")
+  fi
+done
+cargo test --workspace --exclude davout
+cargo test -p davout "${DAVOUT_PARALLEL_TARGETS[@]}"
+cargo test -p davout --doc
+cargo test -p davout "${DAVOUT_TIMING_TESTS[@]/#/--test=}" -- --test-threads=1
 
 echo "==> virtual CAN setup contracts (no interfaces required)"
 bash "${ROOT}/scripts/vcan-up.test.sh"
