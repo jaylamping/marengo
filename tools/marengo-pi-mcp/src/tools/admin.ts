@@ -101,7 +101,8 @@ export function registerAdminTools(
     pi_sync_bench_config: {
       description:
         "Rsync master config (robot/motors/control/homing.yaml) from local repo config/ to Pi. " +
-        "Use after editing master YAML on the workstation; sets ~/marengo and optionally /opt/marengo/config.",
+        "Use after editing master YAML on the workstation; sets ~/marengo and optionally /opt/marengo/config. " +
+        "An /opt write keeps taught Set Limits via preserve-taught-limits.py, like install-pi.sh.",
       inputSchema: syncBenchConfigSchema,
       handler: async (args: {
         install_to_opt?: boolean;
@@ -116,7 +117,8 @@ export function registerAdminTools(
       description:
         "Rsync live marengo.urdf (and optional archive slice URDFs) from local assets/urdf to the Pi. " +
         "ADR 0017: prefer sync only after Set Limits persist_status=durable, or pull Pi URDF before deploy — " +
-        "unchecked sync can clobber expand-only bench limits.",
+        "unchecked sync can clobber expand-only bench limits. An /opt write runs preserve-taught-limits.py " +
+        "and puts the previous files back if that merge fails.",
       inputSchema: syncBenchUrdfSchema,
       handler: async (args: z.infer<typeof syncBenchUrdfSchema>) => {
         return runSyncBenchUrdfAssets(cfg, runRemote, {

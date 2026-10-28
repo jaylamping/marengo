@@ -68,6 +68,39 @@ export function benchUrdfStagingVerifyBody(
   );
 }
 
+/** Files whose taught Set Limits a direct /opt write must keep (as install-pi.sh does). */
+const TAUGHT_LIMIT_FILES = ["config/motors.yaml", "config/control.yaml", "assets/urdf/marengo.urdf"];
+
+/**
+ * Remote shell: run `install` (which writes into `optRoot`) between a backup of the taught
+ * limit files and preserve-taught-limits.py, the same merge install-pi.sh runs (ADR 0012/0017).
+ * If the merge fails the backed-up files are put back and the step exits 1 (TOOL-08).
+ */
+export function preserveTaughtLimitsShell(
+  optRoot: string,
+  install: string[],
+  preserveScript = `${optRoot}/scripts/preserve-taught-limits.py`,
+): string {
+  const files = TAUGHT_LIMIT_FILES.join(" ");
+  return [
+    `OPT=${shellQuote(optRoot)}`,
+    '_taught="$(mktemp -d)"',
+    `for f in ${files}; do`,
+    '  if [[ -f "$OPT/$f" ]]; then mkdir -p "$_taught/$(dirname "$f")"; cp -a "$OPT/$f" "$_taught/$f"; fi',
+    "done",
+    ...install,
+    `if ! python3 ${shellQuote(preserveScript)} --previous "$_taught" --install-root "$OPT"; then`,
+    '  echo "error: preserve-taught-limits failed; putting the previous limit files back" >&2',
+    `  for f in ${files}; do`,
+    '    if [[ -f "$_taught/$f" ]]; then cp -a "$_taught/$f" "$OPT/$f"; fi',
+    "  done",
+    '  rm -rf "$_taught"',
+    "  exit 1",
+    "fi",
+    'rm -rf "$_taught"',
+  ].join("\n");
+}
+
 /** True when a remote step string includes a non-zero `[exit N]` from formatRemoteResult. */
 export function remoteStepFailed(output: string): boolean {
   return /\[exit [1-9]\d*\]/.test(output);
@@ -87,10 +120,14 @@ export function benchUrdfInstallBody(
       `SRC=${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
       `DST=${shellQuote(remoteOpt)}`,
       'if [[ -d "$DST" && -w "$DST" ]]; then',
+      preserveTaughtLimitsShell(cfg.piRoot, [
+        "for asset in " + assetNames + "; do",
+        '  mkdir -p "$(dirname "$DST/$asset")"',
+        '  install -m 0644 "$SRC/$asset" "$DST/$asset"',
+        '  echo "installed $DST/$asset (direct write)"',
+        "done",
+      ]),
       "  for asset in " + assetNames + "; do",
-      '    mkdir -p "$(dirname "$DST/$asset")"',
-      '    install -m 0644 "$SRC/$asset" "$DST/$asset"',
-      '    echo "installed $DST/$asset (direct write)"',
       '    echo "--- $DST/$asset"',
       '    grep -A3 "<inertial>" "$DST/$asset" | sed -n "1,4p"',
       "  done",
@@ -98,6 +135,27 @@ export function benchUrdfInstallBody(
       '  echo "warn: cannot write $DST; run pi_install_staging to refresh /opt from ~/marengo"',
       '  echo "  (without passwordless sudo, once on the Pi: cd $HOME/marengo && sudo ./scripts/install-pi.sh)"',
       "  exit 1",
+      "fi",
+    ].join("\n"),
+  );
+}
+
+/** Remote shell: write staged master config into /opt, keeping taught limits (TOOL-08). */
+export function benchConfigInstallBody(cfg: MarengoPiConfig): string {
+  return wrapRemote(
+    cfg,
+    [
+      `SRC=${remotePathExpr(`${expandStagingRoot(cfg)}/config`)}`,
+      `DST=${shellQuote(`${cfg.piRoot}/config`)}`,
+      'if [[ -d "$DST" && -w "$DST" ]]; then',
+      preserveTaughtLimitsShell(cfg.piRoot, [
+        directInstallRsyncLine,
+        'echo "installed to $DST (direct write)"',
+      ]),
+      '  grep -A3 impedance "$DST/control.yaml"',
+      "else",
+      '  echo "warn: cannot write $DST; run pi_install_staging to refresh /opt from ~/marengo"',
+      '  echo "  (without passwordless sudo, once on the Pi: cd $HOME/marengo && sudo ./scripts/install-pi.sh)"',
       "fi",
     ].join("\n"),
   );
@@ -163,21 +221,7 @@ export async function runSyncBenchConfig(
   steps.push(`[staging control.yaml]\n${verify}`);
 
   if (args.install_to_opt) {
-    const installBody = wrapRemote(
-      cfg,
-      [
-        `SRC=${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
-        `DST=${shellQuote(remoteOpt)}`,
-        'if [[ -d "$DST" && -w "$DST" ]]; then',
-        `  ${directInstallRsyncLine}`,
-        '  echo "installed to $DST (direct write)"',
-        '  grep -A3 impedance "$DST/control.yaml"',
-        "else",
-        '  echo "warn: cannot write $DST; run pi_install_staging to refresh /opt from ~/marengo"',
-        '  echo "  (without passwordless sudo, once on the Pi: cd $HOME/marengo && sudo ./scripts/install-pi.sh)"',
-        "fi",
-      ].join("\n"),
-    );
+    const installBody = benchConfigInstallBody(cfg);
     const install = await runRemote(installBody, 30_000);
     steps.push(`[install → ${remoteOpt}]\n${install}`);
 
