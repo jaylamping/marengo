@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { ActiveFaultsBadge } from '@/components/dashboard/site-header/active-faults-badge';
 import { NeedsRestartBadge } from '@/components/dashboard/needs-restart/needs-restart-badge';
 import {
   Tooltip,
@@ -290,6 +291,7 @@ export function SiteHeaderStatusBadges() {
           </span>
         </HeaderBadgeTooltip>
       ) : null}
+      <ActiveFaultsBadge />
       {/* Machine state — the one element in the header that must read at a glance. */}
       <HeaderBadgeTooltip
         ariaLabel={`Machine state ${machine.label}`}
