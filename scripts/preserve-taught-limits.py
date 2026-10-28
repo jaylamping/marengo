@@ -17,7 +17,9 @@ import argparse
 import copy
 import os
 import re
+import shutil
 import sys
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -220,6 +222,40 @@ def preserve_urdf_expand_only(previous_urdf: Path, installed_urdf: Path) -> list
     return widened
 
 
+def _urdf_without_limit_bounds(path: Path) -> str:
+    """Canonical URDF text with `<limit>` lower/upper removed (whitespace ignored)."""
+    root = ET.parse(path).getroot()
+    for lim in root.iter("limit"):
+        lim.attrib.pop("lower", None)
+        lim.attrib.pop("upper", None)
+    return ET.canonicalize(ET.tostring(root, encoding="unicode"), strip_text=True)
+
+
+def keep_replaced_urdf(
+    previous_urdf: Path, installed_urdf: Path, install_root: Path
+) -> Path | None:
+    """Keep and name a live URDF this deploy replaced beyond its limits (EDGE-03).
+
+    Only `<limit>` bounds survive a deploy (the union below). A URDF activated
+    in the Hardware UI (new inertials, origins) is otherwise silently replaced
+    by git's. Copy the Pi's file under var/replaced-urdf/ and say so.
+    """
+    if _urdf_without_limit_bounds(previous_urdf) == _urdf_without_limit_bounds(installed_urdf):
+        return None
+    keep_dir = install_root / "var" / "replaced-urdf"
+    keep_dir.mkdir(parents=True, exist_ok=True)
+    kept = keep_dir / f"{previous_urdf.name}.{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
+    shutil.copy2(previous_urdf, kept)
+    print(
+        "preserve-taught-limits: WARNING: the Pi's URDF differed from git beyond "
+        "<limit> bounds (for example a URDF activated in the Hardware UI). This "
+        f"deploy installed git's URDF; the Pi's copy is kept at {kept}. Commit it "
+        "to assets/urdf/ to keep it.",
+        file=sys.stderr,
+    )
+    return kept
+
+
 def _narrowed(
     kind: str, joint: str, git: tuple[float, float], pi: tuple[float, float]
 ) -> str | None:
@@ -355,6 +391,7 @@ def run_preserve(previous_root: Path, install_root: Path) -> int:
 
     urdf_joints: list[str] = []
     if urdf_prev.is_file() and urdf_inst.is_file():
+        keep_replaced_urdf(urdf_prev, urdf_inst, install_root)
         git_urdf = _urdf_bounds(urdf_inst)
         pi_urdf = _urdf_bounds(urdf_prev)
         urdf_joints = preserve_urdf_expand_only(urdf_prev, urdf_inst)

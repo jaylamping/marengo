@@ -25,6 +25,7 @@ preserve_control_soft = preserve_taught_limits.preserve_control_soft
 preserve_motors_hard = preserve_taught_limits.preserve_motors_hard
 preserve_urdf_expand_only = preserve_taught_limits.preserve_urdf_expand_only
 run_preserve = preserve_taught_limits.run_preserve
+keep_replaced_urdf = preserve_taught_limits.keep_replaced_urdf
 
 
 class PreserveTaughtLimitsTests(unittest.TestCase):
@@ -298,6 +299,42 @@ motors:
 """,
             encoding="utf-8",
         )
+
+    def test_activated_urdf_replaced_by_deploy_is_kept_and_named(self) -> None:
+        urdf = """<?xml version="1.0"?>
+<robot name="t">
+  <link name="upper_arm"><inertial><mass value="{mass}"/></inertial></link>
+  <joint name="right_shoulder_roll" type="revolute">
+    <limit lower="{lower}" upper="3.14" effort="60" velocity="2"/>
+  </joint>
+</robot>
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prev = root / "prev" / "marengo.urdf"
+            inst = root / "inst" / "marengo.urdf"
+            prev.parent.mkdir()
+            inst.parent.mkdir()
+            install_root = root / "opt"
+            # Limits differ only (Set Limits): nothing to keep, no warning.
+            prev.write_text(urdf.format(mass="1.2", lower="-0.3"), encoding="utf-8")
+            inst.write_text(
+                urdf.format(mass="1.2", lower="-0.1").replace("\n  ", "\n    "),
+                encoding="utf-8",
+            )
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                self.assertIsNone(keep_replaced_urdf(prev, inst, install_root))
+            self.assertEqual(err.getvalue(), "")
+            # An activated URDF with a new inertial: kept and named.
+            prev.write_text(urdf.format(mass="1.9", lower="-0.3"), encoding="utf-8")
+            with contextlib.redirect_stderr(err):
+                kept = keep_replaced_urdf(prev, inst, install_root)
+            self.assertIsNotNone(kept)
+            assert kept is not None
+            self.assertEqual(kept.parent, install_root / "var" / "replaced-urdf")
+            self.assertIn('mass value="1.9"', kept.read_text(encoding="utf-8"))
+            self.assertIn(str(kept), err.getvalue())
 
     def test_git_narrowing_is_reported_not_silently_dropped(self) -> None:
         """EDGE-02: a tightened limit in git that the deploy did not apply is named."""
