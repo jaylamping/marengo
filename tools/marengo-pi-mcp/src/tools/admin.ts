@@ -159,12 +159,12 @@ export function registerAdminTools(
         "Numerical Set Limits Apply hot-reloads Davout in-memory hard bounds + write-behind YAML/URDF " +
         "(ADR 0012 / 0017) — do not restart for a successful Durable Apply. Prefer restart after binary " +
         "deploy, structural wiring changes, or a failed persist that left disk stale vs live. " +
-        "Motors go limp during stop — support elevated arms. Requires confirm: true. " +
-        "mode=restart is refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs; " +
-        "mode=stop is a stop and is never refused. " +
+        "Motors go limp during stop — support elevated arms. mode=restart requires confirm: true " +
+        "and is refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs; " +
+        "mode=stop is a stop: it needs no confirm and is never refused. " +
         "Does not restart marengo-gateway.",
       inputSchema: restartMarengoPiSchema,
-      handler: async (args: { confirm: true; mode: "restart" | "stop" }) => {
+      handler: async (args: { confirm?: true; mode: "restart" | "stop" }) => {
         return runRestartMarengoPi(cfg, runRemote, args);
       },
     },
