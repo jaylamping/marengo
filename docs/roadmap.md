@@ -106,7 +106,7 @@ Statuses: **done** · **active** · **next** · **later**
 
 | Subsystem | DOF | State |
 |-----------|-----|-------|
-| Right arm | 5 | Built; URDF geometry and inertials from CAD (2026-10-03). Meshes not exported yet |
+| Right arm | 5 | Built; URDF geometry and masses from CAD (2026-10-03), COMs fitted 2026-10-04 while the shoulder rubbed. Meshes not exported yet |
 | Left arm | 5 | Next; mirror the right arm once the naming decision is made |
 | Waist | 1 | RS03 in the committed waist bay; adapter plate designed |
 | Legs (×2) | 12 | Next; RS04 hip pitch / knee first for sign tests under load |

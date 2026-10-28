@@ -12,7 +12,7 @@ The **right 5-DOF arm** on the bench is a deliberate first slice to prove the co
 
 | Area | State |
 |------|-------|
-| Mechanical | 2020 upper-torso cage committed (125 × 150 × 380 mm). Right arm built; its URDF geometry and inertials come from CAD (2026-10-03). Pelvis, legs, shell, battery bays and head are draft. CAD is local-only on Joey's PC. |
+| Mechanical | 2020 upper-torso cage committed (125 × 150 × 380 mm). Right arm built; its URDF geometry, masses and inertia tensors come from CAD (2026-10-03), but the link COMs were fitted on 2026-10-04 while the shoulder rubbed (see the URDF header). Pelvis, legs, shell, battery bays and head are draft. CAD is local-only on Joey's PC. |
 | Electrical | Pi 5 + Waveshare 2-CH MCP2515 CAN HAT (`can0` in use, `can1` free) + BNO085 IMU on I2C. Right arm drives on `can0`, ids 1–5. E-stop GPIO not wired (physical E-stop in motor power is the authority). PDB KiCad project is an empty stub. |
 | Runtime | Rust workspace (15 crates, 6 bins): `marengo-pi` 200 Hz loop, Berthier control, Davout safety supervisor (sole motor path), robstride CAN driver, Chappe bus, `marengo-gateway`. Physical Set Zero with process-local grants (ADR 0036), motion-owner lease, enable completion gate, gravity preflight, single-drive-loss degraded hold (ADR 0038), Davout total-torque bound. |
 | Control | GravityComp, Impedance, TorqueOnly and Position modes. Position uses the ADR 0007 law on four joints; `right_shoulder_pitch` runs the ADR 0039/0040 `scaled_pd` law as a reduced-speed bench trial. |
