@@ -27,6 +27,7 @@ function LogsOverviewInner() {
   const {
     sessionsState,
     linesState,
+    linesTotal,
     selectedSession,
     setSelectedSession,
     archiveView,
@@ -70,7 +71,17 @@ function LogsOverviewInner() {
       return <p className="p-4 text-sm text-muted-foreground">No lines for this session.</p>;
     }
 
-    return <VirtualLinesList lines={linesState.data} emptyMessage="Select a session." />;
+    const truncated = linesTotal !== null && linesTotal > linesState.data.length;
+    return (
+      <>
+        {truncated ? (
+          <p className="px-4 pt-2 text-xs text-muted-foreground" data-testid="archive-lines-truncated">
+            Showing the first {linesState.data.length} of {linesTotal} lines.
+          </p>
+        ) : null}
+        <VirtualLinesList lines={linesState.data} emptyMessage="Select a session." />
+      </>
+    );
   };
 
   return (
