@@ -24,6 +24,7 @@ stop open unowned sockets.
 `marengo_config::load_motor_stop_targets`), `disable_drives` (one Disable then
 one type-24 Off per drive, one transmit-only bus open per interface, up to
 three attempts for a refused write, per-drive outcome per frame), and `install_signal_stop`
-(SIGTERM/SIGINT/SIGHUP thread with its own sockets). The retired commands
+(SIGTERM/SIGINT/SIGHUP thread with its own sockets; `signal_stop` runs two
+passes 20 ms apart so an Enable the main thread writes meanwhile is stopped). The retired commands
 `home`, `enable`, `jog`, `speed`, `speed-stop`, `gravity-on`, `gravity-off`, and
 `torque-cmd` are rejected before owner construction.

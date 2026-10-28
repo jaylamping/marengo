@@ -189,6 +189,24 @@ pub fn signal_exit_code(signal: i32) -> i32 {
     128 + signal
 }
 
+/// Pause before the signal stop's second pass.
+const SIGNAL_STOP_SECOND_PASS_AFTER: Duration = Duration::from_millis(20);
+
+/// The signal stop: every drive, a pause, then every drive again. The main
+/// thread may be inside Davout's set-zero transaction between Enable writes
+/// when the signal arrives; an Enable it writes after the first pass is
+/// caught by the second (the owner's socket also reads the first pass as
+/// another writer and latches Transport on its next receive).
+pub fn signal_stop<B: MotorBus>(
+    addresses: &[MotorAddress],
+    mut open: impl FnMut(&str) -> Result<B, BusError>,
+    pause: Duration,
+) -> [StopReport; 2] {
+    let first = disable_drives(addresses, &mut open);
+    std::thread::sleep(pause);
+    [first, disable_drives(addresses, open)]
+}
+
 /// Stop all drives from a dedicated thread when SIGTERM/SIGINT/SIGHUP arrives,
 /// then exit. It uses its own sockets, so it works while the main thread is
 /// blocked inside a Davout transaction.
@@ -204,8 +222,14 @@ pub fn install_signal_stop(addresses: Vec<MotorAddress>) -> Result<(), String> {
         .spawn(move || {
             if let Some(signal) = signals.forever().next() {
                 eprintln!("motor-repl: signal {signal}, disabling every drive");
-                let report = disable_drives_socketcan(&addresses);
-                eprint!("{report}");
+                let reports = signal_stop(
+                    &addresses,
+                    robstride::RuntimeBus::socketcan_transmit_only,
+                    SIGNAL_STOP_SECOND_PASS_AFTER,
+                );
+                for report in &reports {
+                    eprint!("{report}");
+                }
                 std::process::exit(signal_exit_code(signal));
             }
         })
@@ -542,6 +566,33 @@ mod tests {
         );
         for command in ["home", "enable", "jog", "speed", "speed-stop"] {
             assert!(!exit_stop_required(command, 1), "{command}");
+        }
+    }
+
+    /// DRV-08: an Enable the main thread writes after the first pass is
+    /// still followed by a Disable.
+    #[test]
+    fn signal_stop_disables_every_drive_twice() {
+        let addresses = stop_addresses(&[target("can0", 1), target("can1", 2)], None);
+        let log = Rc::new(RefCell::new(MemoryBus::default()));
+        let mut opens = 0;
+        let reports = signal_stop(
+            &addresses,
+            |_| {
+                opens += 1;
+                Ok(SharedBus(Rc::clone(&log)))
+            },
+            Duration::ZERO,
+        );
+        assert!(reports.iter().all(StopReport::all_sent));
+        assert_eq!(opens, 4, "each pass opens its own sockets");
+        let log = log.borrow();
+        assert_eq!(log.tx.len(), 8);
+        for pass in log.tx.chunks(4) {
+            assert_is_disable_to(&pass[0], 1);
+            assert_is_reporting_off_to(&pass[1], 1);
+            assert_is_disable_to(&pass[2], 2);
+            assert_is_reporting_off_to(&pass[3], 2);
         }
     }
 

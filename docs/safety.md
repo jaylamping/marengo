@@ -542,7 +542,8 @@ disables. The fault does not clear on its own.
   outcome per frame and exits 1 if any Disable or Off was not sent. A sent frame is queued on the
   bus, not drive-confirmed, and it is **not** a fault clear: no type-4
   Byte[0]=1 frame is ever sent (ADR 0020), so a latched drive fault persists.
-  `set-zero` arms the independent stop on SIGTERM/SIGINT/SIGHUP and error exit,
+  `set-zero` arms the independent stop on SIGTERM/SIGINT/SIGHUP (two passes
+  20 ms apart, so an Enable written meanwhile is stopped too) and error exit,
   and refuses to start if it cannot be armed. Its successful Davout transaction
   performs its own stop before returning. The MCP aborts a session when its
   pre-session disable did not reach every drive. Reference-independent stopping
