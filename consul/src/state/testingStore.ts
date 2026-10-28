@@ -27,6 +27,11 @@ interface TestingStore {
   gains: Record<string, { kp: number; kd: number; ki: number; fc: number }>;
   dryRun: boolean;
   isRunning: boolean;
+  /**
+   * Dry Run as it was when the running hold started. Stop uses this, never the
+   * live toggle, so a dry run can never end in a live batch.
+   */
+  runDryRun: boolean | null;
 
   selectJoint: (name: string) => void;
   deselectJoint: (name: string) => void;
@@ -67,6 +72,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   gains: {},
   dryRun: true,
   isRunning: false,
+  runDryRun: null,
 
   selectJoint: (name) =>
     set((state) => ({
@@ -87,7 +93,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       return;
     }
     const { selectedJointNames, gains, setpointRad, dryRun } = get();
-    set({ isRunning: true });
+    set({ isRunning: true, runDryRun: dryRun });
 
     const joints: MitJointCommand[] = selectedJointNames.map((name) => {
       const gain = gains[name] || { kp: 0, kd: 0, ki: 0, fc: 0 };
@@ -116,8 +122,10 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
     }
   },
   stopTest: async () => {
-    const { selectedJointNames, gains, dryRun } = get();
-    set({ isRunning: false });
+    const { selectedJointNames, gains, runDryRun, dryRun: dryRunNow } = get();
+    // The run's own mode, not the toggle as it is now (a dry run stays dry).
+    const dryRun = runDryRun ?? dryRunNow;
+    set({ isRunning: false, runDryRun: null });
     if (dryRun || selectedJointNames.length === 0) return;
     const { operationalMode, robotState: robot } = useRobotStore.getState();
     if (operationalMode === 'DISABLED' || operationalMode === 'READY') {
@@ -166,7 +174,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       return;
     }
     const { selectedJointNames, gains, dryRun } = get();
-    set({ isRunning: false, setpointRad: 0 });
+    set({ isRunning: false, runDryRun: null, setpointRad: 0 });
 
     const joints: MitJointCommand[] = selectedJointNames.map((name) => {
       const gain = gains[name] || { kp: 0, kd: 0, ki: 0, fc: 0 };
@@ -195,7 +203,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   },
 
   disable: async () => {
-    set({ isRunning: false });
+    set({ isRunning: false, runDryRun: null });
     useCompoundStore.getState().setIsRunning(false);
     await postEnableCommand(false);
   },

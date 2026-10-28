@@ -17,7 +17,12 @@ const JOINT = 'right_elbow_pitch';
 beforeEach(() => {
   vi.mocked(postEnableCommand).mockReset();
   vi.mocked(postTestingMitCommandBatch).mockReset();
-  useTestingStore.setState({ selectedJointNames: [JOINT], isRunning: true, dryRun: false });
+  useTestingStore.setState({
+    selectedJointNames: [JOINT],
+    isRunning: true,
+    dryRun: false,
+    runDryRun: null,
+  });
   useCompoundStore.getState().setIsRunning(true);
   useRobotStore.setState({ robotState: null, operationalMode: 'ACTIVE' });
 });
@@ -60,6 +65,21 @@ describe('testing store stop paths', () => {
       expect(postEnableCommand).not.toHaveBeenCalled();
     },
   );
+
+  it('a dry run stopped after the Dry Run toggle flips posts nothing', async () => {
+    useTestingStore.setState({ isRunning: false, dryRun: true });
+    useRobotStore.setState({
+      robotState: { joints: [{ name: JOINT, position: 0.42 }] } as never,
+    });
+    await useTestingStore.getState().startTest();
+    expect(postTestingMitCommandBatch).not.toHaveBeenCalled();
+    useTestingStore.getState().toggleDryRun();
+    expect(useTestingStore.getState().dryRun).toBe(false);
+    await useTestingStore.getState().stopTest();
+    expect(useTestingStore.getState().isRunning).toBe(false);
+    expect(postTestingMitCommandBatch).not.toHaveBeenCalled();
+    expect(postEnableCommand).not.toHaveBeenCalled();
+  });
 
   it('Stop with an unknown mode disables rather than holding', async () => {
     useRobotStore.setState({
