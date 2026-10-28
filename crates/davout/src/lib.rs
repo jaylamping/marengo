@@ -1569,6 +1569,10 @@ impl<B: MotorBus> Supervisor<B> {
         // Status has no command-generation field. Drain already queued traffic
         // before activation; only later received poses may authorize this session.
         self.poll_feedback(Duration::ZERO)?;
+        if let Err(error) = self.check_disabled_poses_at_enable(joints) {
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
         let result = (|| {
             let mut addresses = Vec::with_capacity(joints.len());
             for joint in joints {
@@ -1652,6 +1656,42 @@ impl<B: MotorBus> Supervisor<B> {
             }
         }
         result
+    }
+
+    /// A target moved by hand past its hard limit while Disabled would latch
+    /// Feedback on its first Active pose, after its Enable was written. A pose
+    /// fresh within `comm_watchdog_ms` latches the same fault before any Enable
+    /// (DAV-09). Without such a pose the Active check still applies.
+    fn check_disabled_poses_at_enable(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        let fresh = Duration::from_millis(self.control.control.comm_watchdog_ms);
+        for joint in joints {
+            let Some(index) = self.motor_index(joint) else {
+                continue;
+            };
+            let Some(position) = self
+                .published_state(index)
+                .filter(|state| !state.is_stale(fresh))
+                .map(|state| f64::from(state.position_rad))
+            else {
+                continue;
+            };
+            let Some(lim) = self.limits.get(joint) else {
+                continue;
+            };
+            if armee_kinematics::measured_position_fault(position, lim) {
+                self.out_of_limits.mark(joint, true);
+                return Err(DavoutError::Limit {
+                    joint: joint.clone(),
+                    message: format!(
+                        "measured position {position} outside [{}, {}] (+ slack {}) at Enable",
+                        lim.hard_lower(),
+                        lim.hard_upper(),
+                        lim.margin.measured_fault_slack_rad
+                    ),
+                });
+            }
+        }
+        Ok(())
     }
 
     fn loop_period(&self) -> Duration {
@@ -3890,6 +3930,37 @@ mod tests {
     }
 
     #[test]
+    fn disabled_pose_past_hard_limit_latches_before_any_enable_write() {
+        // DAV-09: a joint moved by hand past its limit while Disabled used to
+        // be enabled and latch only on its first Active pose.
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        let joint = "right_elbow_pitch";
+        let lim = *sup.joint_limit_policy(joint).expect("policy");
+        let outside = (lim.hard_upper() + lim.margin.measured_fault_slack_rad + 0.5) as f32;
+        initial_poses(&mut sup, joint, outside, 0.0);
+        assert!(!sup.has_latched_fault(), "Disabled poses are not judged");
+        let before = sup.bus.frames().len();
+        let joints = sup.robot.robot.joints.clone();
+        let error = sup.enable_targets(&joints).expect_err("out of limits");
+        assert!(matches!(error, DavoutError::Limit { .. }), "{error}");
+        assert!(sup.has_latched_fault());
+        assert!(sup.joint_out_of_limits(joint));
+        assert_eq!(sup.mode(), OperationalMode::Disabled);
+        let enable = u32::from(robstride::CommunicationType::Enable.as_u8());
+        assert!(
+            sup.bus.frames()[before..]
+                .iter()
+                .all(|frame| (frame.id >> 24) & 0x1f != enable),
+            "no Enable written"
+        );
+    }
+
+    #[test]
     fn scoped_watchdog_ignores_cached_motor_fault_on_inactive_peer() {
         let mut sup = Supervisor::from_simulation(
             repo_root(),
@@ -3998,6 +4069,7 @@ mod tests {
             InitialVirtualReference::AllConfigured,
         )
         .expect("supervisor");
+        receive_pose(&mut sup, "right_elbow_pitch", 0.5, 0.0);
 
         sup.apply_limit_patch(&elbow_limit_patch(0.1, 1.5))
             .expect("apply patch");
@@ -4050,6 +4122,7 @@ mod tests {
         )
         .expect("supervisor");
         let urdf_before = joint_limits(sup.urdf_robot(), "right_elbow_pitch").expect("urdf");
+        receive_pose(&mut sup, "right_elbow_pitch", 0.5, 0.0);
 
         sup.apply_limit_patch(&elbow_limit_patch(-0.5, 3.0))
             .expect("expand past URDF hard");
@@ -4101,6 +4174,29 @@ mod tests {
             .expect_err("measured q must remain inside hard bounds");
 
         assert!(matches!(err, DavoutError::Limit { .. }));
+    }
+
+    #[test]
+    fn limit_patch_without_a_fresh_measured_position_refuses() {
+        // DAV-09: the measured-position check was skipped, so a patch that
+        // might exclude the joint was accepted unchecked.
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        let before = *sup.joint_limit_policy("right_elbow_pitch").expect("policy");
+
+        let err = sup
+            .apply_limit_patch(&elbow_limit_patch(0.1, 0.9))
+            .expect_err("no pose to check");
+
+        assert!(matches!(err, DavoutError::Limit { .. }), "{err}");
+        assert_eq!(
+            *sup.joint_limit_policy("right_elbow_pitch").expect("policy"),
+            before
+        );
     }
 
     #[test]
