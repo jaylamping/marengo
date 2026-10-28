@@ -1623,6 +1623,24 @@ fn plain_owner_refuses_reference_without_transmitting() {
 }
 
 #[test]
+fn physical_owner_refuses_a_transport_that_does_not_echo() {
+    // DAV-05: every firmware timing rule (post-SetZero quiet, Off before
+    // Enable, stagger) runs only on an echoing bus, so a non-echoing physical
+    // owner would write Enable straight into a drive's SetZero blackout.
+    let directory = TestDirectory::new("physical-no-echo");
+    let root = fixture_root(directory.path());
+    let journal = directory.path().join("reference-journal.sqlite3");
+    let refused =
+        Supervisor::from_repo_with_physical_reference(&root, SimulationBus::default(), &journal);
+    assert!(
+        matches!(&refused, Err(DavoutError::Homing { message }) if message.contains("echo")),
+        "{:?}",
+        refused.err()
+    );
+    assert!(!journal.exists());
+}
+
+#[test]
 fn hall_and_none_methods_refuse_on_physical_owner() {
     for method in [HomingMethod::HallThreeSensor, HomingMethod::None] {
         let mut bench = Bench::physical("physical-method");

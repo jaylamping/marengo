@@ -578,6 +578,17 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn from_repo_physical_inner(root: &Path, bus: B, journal: &Path) -> Result<Self, DavoutError> {
+        // The post-SetZero quiet, Enable stagger and Off-before-Enable rules
+        // run only on an echoing bus; a transport that does not echo would
+        // skip them silently, so it cannot own physical references (DAV-05).
+        if !bus.echoes_transmissions() {
+            return Err(DavoutError::Homing {
+                message: "physical reference owner needs a transport that echoes its own \
+                          transmissions (post-SetZero quiet and Off-before-Enable are ordered \
+                          by those echoes)"
+                    .into(),
+            });
+        }
         let (mut owner, record) = Self::build_unsynced(root, &resolve_config_dir(root), bus)?;
         reference_journal::distinct_history_path(&record, journal).map_err(|error| {
             DavoutError::Homing {
