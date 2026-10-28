@@ -517,6 +517,16 @@ fn single_bin_pose_residual_is_reported_not_gated() {
         "artefact {worst} must exceed the gate {gate}: {group:#}"
     );
     assert!(group["gate"]["max_residual_nm"].as_f64().unwrap() <= gate);
+    // CAL-04: the accepted verdict still names the ungated residual above the gate.
+    let warnings = group["warnings"].to_string();
+    assert!(warnings.contains("single-bin pose residual"), "{group:#}");
+    let stdout = String::from_utf8_lossy(&o.stdout);
+    assert!(
+        stdout.contains("accepted; WARNING single-bin pose residual"),
+        "{stdout}"
+    );
+    let md = std::fs::read_to_string(file_ending(out.path(), ".md").unwrap()).unwrap();
+    assert!(md.contains("**Warning:** single-bin pose residual"), "{md}");
     let (a_true, _) = lumped(&truth());
     let a_fit = group["fit"]["a_nm"].as_f64().unwrap();
     assert!((a_fit - a_true).abs() < 0.02, "A {a_fit} vs {a_true}");

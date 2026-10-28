@@ -28,7 +28,8 @@
 //!    be repeatable enough to check it), every replicated pose residual within the gate, and
 //!    σ_A, σ_B within the gate (the sweep identifies both). A pose with a single bin (one
 //!    wave step of one session) has no spread to judge it by: it stays in the fit and its
-//!    residual is reported, but it never decides the verdict.
+//!    residual is reported, but it never decides the verdict; one above the gate is a
+//!    warning in the summary and the record.
 //! 4. **URDF patch.** For accepted groups, the smallest COM shift of the carried right-arm
 //!    links that reproduces every fitted (A, B), masses unchanged
 //!    ([`armee_dynamics::lumped::lumped_com_patch`]), refused above
@@ -366,6 +367,18 @@ struct GroupFit {
 impl GroupFit {
     fn accepted(&self) -> bool {
         self.fit.is_some() && self.refusals.is_empty()
+    }
+
+    /// A single-bin pose residual above the gate. It never refuses (one bin has no spread to
+    /// judge it by), but the summary and record name it so an accepted fit cannot hide it.
+    fn ungated_warning(&self) -> Option<String> {
+        match (self.max_ungated_residual_nm, self.gate_nm) {
+            (Some(r), Some(g)) if r > g => Some(format!(
+                "single-bin pose residual {r:.4} Nm > gate {g:.4} Nm (not gated: replicate the \
+                 pose to judge it)"
+            )),
+            _ => None,
+        }
     }
 }
 
@@ -1187,6 +1200,7 @@ fn record_json(
             "sessions": g.sessions,
             "accepted": g.accepted(),
             "refusals": g.refusals,
+            "warnings": g.ungated_warning().into_iter().collect::<Vec<_>>(),
             "cad": {"a_nm": round(g.cad.a_nm, 5), "b_nm": round(g.cad.b_nm, 5),
                     "c_nm": round(g.cad.amplitude_nm(), 5), "phi_rad": round(g.cad.phase_rad(), 5)},
             "fit": g.fit.map_or(Value::Null, |f| json!({
@@ -1329,6 +1343,9 @@ fn summary(groups: &[GroupFit], friction: &[FrictionFit]) -> String {
                 format!("refused: {}", g.refusals.join("; "))
             }
         );
+        if let Some(w) = g.ungated_warning() {
+            let _ = write!(s, "; WARNING {w}");
+        }
     }
     for f in friction {
         let _ = write!(
@@ -1429,6 +1446,9 @@ fn record_markdown(
                 format!(": {}", g.refusals.join("; "))
             }
         );
+        if let Some(w) = g.ungated_warning() {
+            let _ = writeln!(md, "**Warning:** {w}.\n");
+        }
         let _ = writeln!(md, "| term | CAD | fit | ±σ |");
         let _ = writeln!(md, "|---|---|---|---|");
         let f = g.fit;
