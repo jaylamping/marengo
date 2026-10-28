@@ -654,3 +654,56 @@ fn replayed_sample_cannot_poison_current_pose_or_velocity_policy() {
         .expect("replay did not trip current position/velocity policy");
     assert_eq!(supervisor.bus().frames().len(), 1);
 }
+
+/// P2C-01: one sample whose derived velocity spikes below the fault threshold
+/// must not let the total-torque clamp carry dq_des past the joint's velocity
+/// cap (the drive damps against its own, near-zero, velocity).
+#[test]
+fn derived_velocity_spike_never_pushes_wire_velocity_past_the_cap() {
+    let mut supervisor = supervisor();
+    let pitch = motor(&supervisor, "right_shoulder_pitch");
+    activate(&mut supervisor, std::slice::from_ref(&pitch));
+    let cap = supervisor
+        .joint_limit_policy(&pitch.joint)
+        .expect("policy")
+        .velocity;
+    let to_motor = |q: f64| (q * f64::from(pitch.direction) * pitch.gear_ratio) as f32;
+    let address = MotorAddress::from(&pitch);
+    let at = |q: f64, received: Instant| MotorState {
+        position_rad: to_motor(q),
+        ..status(received)
+    };
+    let t0 = Instant::now();
+    inject(&mut supervisor, address.clone(), at(0.30, t0));
+    supervisor.drain_feedback().expect("first pose");
+    std::thread::sleep(Duration::from_millis(6));
+    // 25 mrad in 5 ms: a derived 5 rad/s, one sample, below the 3-sample trip.
+    inject(
+        &mut supervisor,
+        address,
+        at(0.325, t0 + Duration::from_millis(5)),
+    );
+    supervisor
+        .drain_feedback()
+        .expect("spiked pose, no fault yet");
+    assert!(!supervisor.has_latched_fault());
+    supervisor.bus_mut().clear_trace();
+    supervisor
+        .send_mit_batch(vec![MitJointCommand {
+            joint: pitch.joint.clone(),
+            kp: 0.0,
+            kd: 3.0,
+            position_rad: 0.325,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: 0.0,
+        }])
+        .expect("admitted with an in-cap velocity");
+    let frame = supervisor.bus().frames().last().expect("pitch frame");
+    let fields = robstride::decode_mit_command_fields(frame.id, &frame.data).expect("MIT");
+    let wire = (f64::from(fields.velocity) / 32767.0 - 1.0) * 20.0
+        / (f64::from(pitch.direction) * pitch.gear_ratio);
+    assert!(
+        wire.abs() <= cap + 1e-3,
+        "wire dq_des {wire} rad/s above the {cap} rad/s cap"
+    );
+}

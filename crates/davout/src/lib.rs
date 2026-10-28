@@ -104,6 +104,8 @@ mod reference_model;
 mod reference_physical;
 mod reference_transaction;
 mod reference_urdf_codec;
+#[cfg(test)]
+mod runtime_error_tests;
 pub mod simulation;
 mod total_torque;
 
@@ -1300,6 +1302,15 @@ impl<B: MotorBus> Supervisor<B> {
             DavoutError::Bus(
                 BusError::Send { .. } | BusError::Driver(_) | BusError::ReceiveIncomplete { .. },
             ) => (FaultClass::Transport, None),
+            // A batch the bus refused after admission is a controller defect;
+            // a valid prefix may already be on the wire (P2C-02).
+            DavoutError::Bus(
+                BusError::InvalidCommand(_)
+                | BusError::CommandAddressMismatch { .. }
+                | BusError::DuplicateMotorAddress { .. }
+                | BusError::DuplicateCommand { .. }
+                | BusError::UnknownMotorAddress { .. },
+            ) => (FaultClass::Controller, None),
             DavoutError::Bus(BusError::MalformedFeedback { address, .. }) => {
                 let joint = self
                     .motors
@@ -2405,7 +2416,16 @@ impl<B: MotorBus> Supervisor<B> {
                 return Err(error);
             }
         }
-        // Commit before transmit: a delivery failure's stop path clears this state.
+        // Admission is atomic; delivery can still fail partway through a physical
+        // bus write and is reported as an error for the owner's stop path.
+        let written_at = Instant::now();
+        if let Err(error) = self.write_mit_wires(&scratch.wires) {
+            let error = DavoutError::Bus(error);
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
+        // Commit only what was sent: a refused write must not bank a slew
+        // step the drives never received (P2C-02).
         for stage in &scratch.staged {
             let joint = &self.motors.motors[stage.motor].joint;
             store_by_joint(&mut self.last_tau_ff, joint, stage.tau_ff_nm);
@@ -2415,14 +2435,6 @@ impl<B: MotorBus> Supervisor<B> {
             if let Some(clamp) = stage.total_torque {
                 self.total_torque_clamps.record(joint, clamp, batch_tick);
             }
-        }
-        // Admission is atomic; delivery can still fail partway through a physical
-        // bus write and is reported as an error for the owner's stop path.
-        let written_at = Instant::now();
-        if let Err(error) = self.write_mit_wires(&scratch.wires) {
-            let error = DavoutError::Bus(error);
-            self.stop_after_runtime_error(&error);
-            return Err(error);
         }
         // Each commanded target answers with a status (ADR 0036, *Solicited
         // silence while Active*). The controller commands every Active joint
@@ -3097,7 +3109,21 @@ impl<B: MotorBus> Supervisor<B> {
         // The drive adds kp·(q_des − q) + kd·(dq_des − dq) to τ_ff with no documented clamp;
         // bound the predicted total by the same cap (ADR 0039 open question 1).
         let horizon_s = TOTAL_TORQUE_HORIZON_TICKS / f64::from(self.control.control.loop_hz);
-        let total_torque = clamp_total_torque(&mut out, q_meas, dq_meas, torque_cap, horizon_s)?;
+        // The derived velocity can spike for one sample (two receive stamps
+        // close together) without tripping the 3-sample velocity fault. The
+        // clamp moves dq_des toward it, so feed it a velocity within the cap:
+        // dq_des then stays a blend of two in-cap values (P2C-01).
+        let dq_bounded = dq_meas.clamp(-vel_cap, vel_cap);
+        let total_torque = clamp_total_torque(&mut out, q_meas, dq_bounded, torque_cap, horizon_s)?;
+        if out.velocity_rad_s.abs() > vel_cap {
+            return Err(DavoutError::Limit {
+                joint: out.joint.clone(),
+                message: format!(
+                    "total-torque clamp moved |velocity| {} above {}",
+                    out.velocity_rad_s, vel_cap
+                ),
+            });
+        }
         // The clamped setpoint lies between q_des and measured q; refuse it if q is outside.
         if total_torque.is_some()
             && (out.position_rad < lim.hard_lower() || out.position_rad > lim.hard_upper())
