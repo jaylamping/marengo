@@ -90,3 +90,19 @@ Wave sign-off or infer physical readiness from software checks.
   inside the soft envelope and the joint's speed/acceleration limits.
 - **Law kp.** The hold law's `kp` is the wire `kp`, so fuse torque, trip evidence and diagnostics
   describe the torque actually sent during a mode-transition ramp.
+
+## Update 2026-10-28 (code review BER-03)
+
+- **Returns are watched too.** The outbound rule left every move toward home unfused: a
+  same-side target closer to home, or home itself. `HoldTracking` arms only when the net command
+  opposes the target, so a return jammed while the law kept pushing toward the target (a pinch
+  toward the body) ran for as long as the operator let it. Any move that is not outbound and
+  whose target is more than 0.03 rad (the hold-tracking band) from `q` is now a return episode.
+  It is watched in the direction of `target − q` with the same measure (`direction * q`), the
+  same 2,000 ms budget and the same retarget rule, and trips `ReturnStall`, which latches a
+  controller fault like the other fuses. It uses only the latched target and measured `q`.
+- When a sag arms both `HoldTracking` and the return budget, `HoldTracking` is reported: it
+  names the model fault the trip points to.
+- Residual: a return that settles more than 0.03 rad short of its target now trips after 2 s,
+  as an outbound move already did. Watch for it on the bench while the shoulder still rubs. The
+  band is the existing hold-tracking band, not a new tuning value.

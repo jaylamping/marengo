@@ -176,10 +176,9 @@ fn exact_zero_latch_sag_with_opposing_torque_trips_hold_tracking() {
         trip.tau_p > 0.0 && trip.tau_p + trip.tau_ff < 0.0,
         "P pulls toward target but net command pushes away: {trip:?}"
     );
-    assert_eq!(
-        run.max_ascent_stall_ms, 0,
-        "home hold never arms the ascent fuse"
-    );
+    // The return budget (BER-03) runs alongside on the same measure; the sag is reported as the
+    // model fault HoldTracking points to.
+    assert!(run.max_ascent_stall_ms < POSITION_ASCENT_STALL_FAULT_MS);
     let message = HoldError::HoldTracking {
         joint: JOINT.to_string(),
         ms,
@@ -229,8 +228,8 @@ fn one_count_latch_classifies_exactly_like_exact_zero() {
     );
     assert!(matches!(outcome(&one), Some(("hold_tracking", ..))));
     assert_eq!(
-        one.max_ascent_stall_ms, 0,
-        "a home latch never arms the ascent fuse"
+        one.max_ascent_stall_ms, exact.max_ascent_stall_ms,
+        "a one-count latch runs the travel budget exactly like an exact-zero latch"
     );
 
     // Outside the grid tolerance an outbound latch keeps its value.
@@ -283,9 +282,20 @@ fn hold_within_band_does_not_trip() {
 }
 
 #[test]
-fn hold_off_band_with_net_torque_toward_target_does_not_trip() {
-    // Weak but correctly signed: outside the band, command pulls toward target.
+fn hold_off_band_with_net_torque_toward_target_trips_return_stall_not_hold_tracking() {
+    // Weak but correctly signed: outside the band, command pulls toward target. Hold tracking
+    // never arms; the joint is jammed short of home, which the return fuse catches (BER-03).
     let run = run_hold(0.0, 0.0, 0.0, 1_200, |_| on_grid(-0.05));
-    assert!(run.terminal.is_none(), "{run:#?}");
     assert_eq!(run.max_hold_tracking_ms, 0);
+    assert!(
+        matches!(run.terminal, Some((HoldError::ReturnStall { .. }, _))),
+        "expected ReturnStall; got {run:#?}"
+    );
+    let Some((HoldError::ReturnStall { ms, trip, .. }, step)) = run.terminal else {
+        return;
+    };
+    assert!(ms >= POSITION_ASCENT_STALL_FAULT_MS);
+    assert!(step <= 401, "trip at step {step}");
+    assert!(trip.tau_p + trip.tau_ff > 0.0, "{trip:?}");
+    assert!(trip.to_string().contains("q="), "{trip}");
 }

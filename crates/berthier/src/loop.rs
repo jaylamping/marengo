@@ -131,6 +131,14 @@ pub enum LoopError {
         trip: HoldFuseTrip,
     },
     #[error(
+        "position hold: return stall on {joint}: no measured progress toward target for {ms} ms ({trip})"
+    )]
+    ReturnStall {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
+    #[error(
         "position hold: hold tracking failure on {joint}: off target with net commanded torque opposing it and no measured progress for {ms} ms ({trip})"
     )]
     HoldTracking {
@@ -182,6 +190,7 @@ impl From<HoldError> for LoopError {
     fn from(err: HoldError) -> Self {
         match err {
             HoldError::AscentStall { joint, ms, trip } => Self::AscentStall { joint, ms, trip },
+            HoldError::ReturnStall { joint, ms, trip } => Self::ReturnStall { joint, ms, trip },
             HoldError::HoldTracking { joint, ms, trip } => Self::HoldTracking { joint, ms, trip },
             HoldError::MissingSetpoint { joint } => Self::MissingSetpoint { joint },
             HoldError::WaveStall { joint, ms, trip } => Self::WaveStall { joint, ms, trip },
@@ -1625,6 +1634,10 @@ impl<B: MotorBus> ControlLoop<B> {
                     "position ascent stalled without measured progress",
                     Some(joint),
                 ),
+                LoopError::ReturnStall { joint, .. } => self.supervisor.latch_control_fault(
+                    "position return toward home stalled without measured progress",
+                    Some(joint),
+                ),
                 LoopError::HoldTracking { joint, .. } => self.supervisor.latch_control_fault(
                     "position hold off target with opposing commanded torque and no progress",
                     Some(joint),
@@ -1661,6 +1674,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     | LoopError::HoldLenMismatch
                     | LoopError::MissingFeedback { .. }
                     | LoopError::AscentStall { .. }
+                    | LoopError::ReturnStall { .. }
                     | LoopError::HoldTracking { .. }
                     | LoopError::WaveStall { .. }
             ) {

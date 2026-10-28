@@ -206,7 +206,7 @@ not establish client delivery or physical stop/support acceptance. See
 
 ## Position-hold fuses (Berthier)
 
-In `ControlMode::Position`, Berthier trips two fuses on a 2000 ms no-progress budget. Progress
+In `ControlMode::Position`, Berthier trips these fuses on a 2000 ms no-progress budget. Progress
 counts only when the encoder reaches a new best level by more than Davout's feedback-grid threshold
 ([ADR 0025](decisions/0025-measured-ascent-progress.md)). A trip latches a controller fault and
 disables. The fault does not clear on its own.
@@ -216,6 +216,11 @@ disables. The fault does not clear on its own.
   for a negative one) and the encoder makes no new best level in that direction. The direction
   comes from the latched target and measured `q`, never from `τ_g`, so a wrong gravity model
   cannot switch the fuse off, and a joint whose range lies below home is covered.
+- **Return stall** (`ReturnStall`): every other move whose target is more than 0.03 rad from `q`
+  (a same-side target closer to home, or home itself) is a return, watched in the direction of
+  `target − q` with the same measure and budget. `HoldTracking` arms only when the net command
+  opposes the target, so before 2026-10-28 a return jammed while the law kept pushing toward the
+  target (a pinch toward the body) ran unfused. When a sag arms both, `HoldTracking` is reported.
 - **Hold tracking failure** (`HoldTracking`): this fuse covers any target, home included. It trips
   when `|q − target|` is more than 0.03 rad, the net commanded torque `tau_p + tau_ff` (which
   includes model `τ_g`) points away from the target, and `q` makes no new closest approach. This
@@ -230,13 +235,13 @@ disables. The fault does not clear on its own.
   `position_trajectory_accel_rad_s2`. The initial step to the wave's first target is not shaped;
   it is bounded by the lead clamp and Davout.
 - **Retargets never renew a budget.** Only measured progress, or the commanded condition ending,
-  does (a target flipping the outbound direction starts a new episode). A stream of small
+  does (a target flipping the travel direction starts a new episode). A stream of small
   retargets cannot keep a stalled or sagging joint unfused. Residual: alternating up/down
   retargets that each end the commanded condition still restart it.
 - **Controller invariants:** a Position tick without a latched setpoint, mismatched joint
   vectors, a gravity-model error or non-parallel gain inputs latch a controller fault and discard
   intent, instead of erroring every tick until a watchdog acts.
-- Both errors report `q`, `target`, `tau_p`, `tau_ff` and `tau_g` at the trip.
+- Every fuse error reports `q`, `target`, `tau_p`, `tau_ff` and `tau_g` at the trip.
 - A latched target within two feedback counts of zero counts as home and is commanded as exactly
   `0.0`. Home/outbound classification therefore never depends on a single encoder count.
 - A tracking trip at home points to a gravity or model fault. Do not raise kp or ki to get past

@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use super::*;
+use crate::position_setpoint::{outbound_stall_direction, travel_stall_direction, StallSide};
 
 const PERIOD_S: f64 = 0.005;
 const HZ: u32 = 200;
@@ -212,6 +213,100 @@ fn outbound_direction_flip_starts_a_new_episode() {
         "direction change restarts the episode, got {} ms",
         rig.hold.ascent_stall_ms_at(0)
     );
+}
+
+// ---- BER-03: a jammed move toward home trips ReturnStall --------------------------------
+
+fn scaled_pd() -> ScaledPdGains {
+    ScaledPdGains {
+        kd: 3.0,
+        e0: 0.03,
+        e1: 0.12,
+        integral_band: 0.02,
+        integral_leak_s: 0.5,
+        integral_mode: crate::position_law::IntegralMode::TargetBand,
+        integral_cap_nm: crate::position_law::SCALED_PD_INTEGRAL_MAX_NM,
+        host_damping: 0.0,
+        velocity_filter_s: marengo_config::DEFAULT_POSITION_HOST_DAMPING_FILTER_S,
+        ff_step_max_nm: None,
+        inertia: 0.0,
+        friction: None,
+    }
+}
+
+#[test]
+fn travel_direction_watches_returns_beyond_the_tracking_band() {
+    assert_eq!(
+        travel_stall_direction(0.5, 0.4),
+        Some((1.0, StallSide::Outbound))
+    );
+    assert_eq!(
+        travel_stall_direction(-0.5, -0.4),
+        Some((-1.0, StallSide::Outbound))
+    );
+    // A same-side target closer to home, home itself, and the mirrored negative side.
+    assert_eq!(
+        travel_stall_direction(0.3, -0.7),
+        Some((-1.0, StallSide::Return))
+    );
+    assert_eq!(
+        travel_stall_direction(0.0, -0.031),
+        Some((-1.0, StallSide::Return))
+    );
+    assert_eq!(
+        travel_stall_direction(0.0, 0.3),
+        Some((1.0, StallSide::Return))
+    );
+    assert_eq!(
+        travel_stall_direction(-0.2, 0.5),
+        Some((1.0, StallSide::Return))
+    );
+    // Inside the band (0.03 rad) neither side watches; non-finite input never arms it.
+    assert_eq!(travel_stall_direction(0.0, 0.03), None);
+    assert_eq!(travel_stall_direction(0.5, -0.03), None);
+    assert_eq!(travel_stall_direction(0.5, 0.03), None);
+    assert_eq!(travel_stall_direction(f64::NAN, 0.4), None);
+    assert_eq!(travel_stall_direction(0.0, f64::NAN), None);
+}
+
+#[test]
+fn jammed_return_toward_home_trips_return_stall_in_both_laws() {
+    // 1.0 → 0.3 and −0.3 → 0 with the joint jammed: the law keeps pushing toward the target, so
+    // HoldTracking never arms. Before BER-03 neither law tripped any fuse in 6 s.
+    for law in [HoldLaw::Legacy, HoldLaw::ScaledPd(scaled_pd())] {
+        for (q, target) in [(1.0, 0.3), (-0.3, 0.0)] {
+            let mut rig = Rig::new(1);
+            rig.params[0].law = law;
+            rig.hold.arm(&[q], &[target], 0);
+            let (err, step) = rig
+                .stall_until_error(q, 0.0, 1_200)
+                .unwrap_or_else(|| panic!("{law:?} {q} -> {target}: jammed return never fused"));
+            let HoldError::ReturnStall { ms, trip, .. } = err else {
+                panic!("{law:?} {q} -> {target}: expected ReturnStall, got {err:?}");
+            };
+            assert!(
+                (POSITION_ASCENT_STALL_FAULT_MS..POSITION_ASCENT_STALL_FAULT_MS + 10).contains(&ms)
+            );
+            assert!(step <= 401, "{law:?} {q} -> {target}: trip at step {step}");
+            assert_eq!(trip.target, target);
+        }
+    }
+}
+
+#[test]
+fn a_creeping_return_renews_its_budget() {
+    for law in [HoldLaw::Legacy, HoldLaw::ScaledPd(scaled_pd())] {
+        let mut rig = Rig::new(1);
+        rig.params[0].law = law;
+        rig.hold.arm(&[0.9], &[0.1], 0);
+        // 1 mrad per 10 ticks toward the target: each new closest level renews the budget.
+        for step in 0..1_500 {
+            let q = 0.9 - 0.001 * f64::from(step / 10);
+            rig.tick(&[q], &[-0.02], &[0.0]).unwrap_or_else(|err| {
+                panic!("{law:?}: progressing return tripped at step {step}: {err:?}")
+            });
+        }
+    }
 }
 
 // ---- L-berthier-04 (index) / L8: retargets must not renew a safety budget ----------------
