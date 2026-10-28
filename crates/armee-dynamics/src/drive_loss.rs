@@ -1,12 +1,14 @@
-//! Offline gravity bound for single-drive-loss admission (ADR 0038).
+//! Offline gravity estimate for single-drive-loss admission (ADR 0038).
 //!
 //! When one joint's drive is lost, it and every joint distal to it (its
 //! subtree) are disabled and swing freely, while the joints proximal to it keep
 //! holding with a gravity model whose subtree angles are frozen at their last
-//! measured value. This module bounds, over a grid, what that costs each
-//! holding joint: its full `τ_g` and the change of `τ_g` the frozen angles can
-//! hide. It is a static bound: the swing of a free subtree adds dynamic load
-//! that no gravity grid captures.
+//! measured value. This module estimates, over a coarse grid, what that costs
+//! each holding joint: its full `τ_g` and the change of `τ_g` the frozen angles
+//! can hide. The grid maximum is a sample, not a bound: between grid points
+//! `|τ_g|` can be larger (a pendulum over [−3, 3] rad reads 15 % low), so
+//! `tau_margin_nm` has to absorb the sampling error too. It is also static: the
+//! swing of a free subtree adds dynamic load that no gravity grid captures.
 
 use crate::{DynamicsError, DynamicsModel};
 
@@ -18,7 +20,7 @@ pub const HOLDING_GRID_STEPS: usize = 4;
 /// Refuse a grid larger than this many model evaluations instead of stalling.
 pub const MAX_LOSS_GRID_EVALUATIONS: usize = 50_000;
 
-/// Worst case over the grid for one joint that keeps holding.
+/// Worst case over the grid (sampled, not a bound) for one joint that keeps holding.
 #[derive(Debug, Clone, PartialEq)]
 pub struct HoldingTorqueBound {
     /// Index of the holding joint in the model's joint order.
@@ -55,7 +57,7 @@ fn next_combination(counter: &mut [usize], sizes: &[usize]) -> bool {
     false
 }
 
-/// Bound `τ_g` of every joint outside `shed` when the `shed` joints (indices in
+/// Sample `τ_g` of every joint outside `shed` when the `shed` joints (indices in
 /// the model's joint order) hang anywhere in their `ranges` while the others
 /// sit anywhere on theirs. `ranges` holds one `(lower, upper)` per model joint.
 ///
