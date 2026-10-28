@@ -5,7 +5,8 @@ use std::path::Path;
 
 use crate::ConfigError;
 
-/// Stable SHA-256 content hash of robot/motors/control/homing YAML for CAS.
+/// Stable SHA-256 content hash of robot/motors/control/homing YAML plus the URDF bytes
+/// `robot.yaml` names, for CAS.
 pub fn profile_content_revision(config_dir: impl AsRef<Path>) -> Result<String, ConfigError> {
     let dir = config_dir.as_ref();
     let _lock = crate::ProfileWriteLock::acquire(dir)?;
@@ -17,6 +18,7 @@ pub(crate) fn profile_content_revision_unlocked(
 ) -> Result<String, ConfigError> {
     let dir = config_dir.as_ref();
     let mut hasher = Sha256::new();
+    let mut urdf = None;
     for name in ["robot.yaml", "motors.yaml", "control.yaml", "homing.yaml"] {
         let path = dir.join(name);
         let raw = std::fs::read(&path).map_err(|e| ConfigError::Io {
@@ -37,6 +39,41 @@ pub(crate) fn profile_content_revision_unlocked(
         hasher.update(name.as_bytes());
         hasher.update((canonical.len() as u64).to_be_bytes());
         hasher.update(canonical.as_bytes());
+        if name == "robot.yaml" {
+            urdf = value
+                .get("robot")
+                .and_then(|robot| robot.get("urdf"))
+                .and_then(serde_yaml::Value::as_str)
+                .map(str::to_owned);
+        }
+    }
+    // The URDF is durable source of truth too (ADR 0012): Set Limits expands it and a URDF
+    // activation replaces it, so a client's CAS must not pass across either. It sits at
+    // `robot.urdf` under the profile root (the config dir's parent, as on the Pi). A missing
+    // file hashes as absent (a YAML-only tree still has a revision; boot refuses it anyway),
+    // so adding or removing it changes the revision too.
+    if let Some(urdf) = urdf {
+        let path = dir.parent().unwrap_or(dir).join(&urdf);
+        let raw = match std::fs::read(&path) {
+            Ok(raw) => Some(raw),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => {
+                return Err(ConfigError::Io {
+                    path,
+                    message: e.to_string(),
+                })
+            }
+        };
+        hasher.update((urdf.len() as u64).to_be_bytes());
+        hasher.update(urdf.as_bytes());
+        match raw {
+            Some(raw) => {
+                hasher.update([1]);
+                hasher.update((raw.len() as u64).to_be_bytes());
+                hasher.update(&raw);
+            }
+            None => hasher.update([0]),
+        }
     }
     Ok(format!("{:x}", hasher.finalize()))
 }
@@ -89,18 +126,42 @@ mod tests {
     use super::*;
     use crate::{resolve_config_dir, resolve_repo_root};
 
-    #[test]
-    fn revision_stable_for_master_config_without_touching_repo() {
+    /// A copy of the master profile: `<temp>/config/*.yaml` and `<temp>/assets/urdf`.
+    fn master_profile() -> tempfile::TempDir {
         let root = resolve_repo_root();
         let source = resolve_config_dir(&root);
         let temp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(temp.path().join("config")).unwrap();
+        std::fs::create_dir_all(temp.path().join("assets/urdf")).unwrap();
         for name in ["robot.yaml", "motors.yaml", "control.yaml", "homing.yaml"] {
-            std::fs::copy(source.join(name), temp.path().join(name)).unwrap();
+            std::fs::copy(source.join(name), temp.path().join("config").join(name)).unwrap();
         }
-        let a = profile_content_revision(temp.path()).unwrap();
-        let b = profile_content_revision(temp.path()).unwrap();
+        std::fs::copy(
+            root.join("assets/urdf/marengo.urdf"),
+            temp.path().join("assets/urdf/marengo.urdf"),
+        )
+        .unwrap();
+        temp
+    }
+
+    #[test]
+    fn revision_stable_for_master_config_without_touching_repo() {
+        let temp = master_profile();
+        let a = profile_content_revision(temp.path().join("config")).unwrap();
+        let b = profile_content_revision(temp.path().join("config")).unwrap();
         assert_eq!(a, b);
         assert_eq!(a.len(), 64);
+    }
+
+    #[test]
+    fn revision_changes_when_the_urdf_changes() {
+        let temp = master_profile();
+        let config = temp.path().join("config");
+        let before = profile_content_revision(&config).unwrap();
+        let urdf = temp.path().join("assets/urdf/marengo.urdf");
+        let text = std::fs::read_to_string(&urdf).unwrap();
+        std::fs::write(&urdf, text.replacen("upper=\"3.25\"", "upper=\"3.3\"", 1)).unwrap();
+        assert_ne!(profile_content_revision(&config).unwrap(), before);
     }
 
     #[test]
