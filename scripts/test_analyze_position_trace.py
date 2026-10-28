@@ -140,6 +140,29 @@ def test_multi_joint_trace_segments_one_joint(tmp_path: Path) -> None:
     assert [s["target_rad"] for s in elbow["segments"]] == [0.5]
 
 
+def test_multi_joint_trace_without_the_joint_exits_listing_its_joints(tmp_path: Path) -> None:
+    # An elbow + upper-arm-yaw trace run with the default --joint (right_shoulder_pitch) used to
+    # report 0 segments and fail the Layer 2 gate on "missing segments" without saying why.
+    rows: list[list] = []
+    for row in _smooth_segment(0.1, 0.0, steps=20):
+        for name in ("right_elbow_pitch", "right_upper_arm_yaw"):
+            other = list(row)
+            other[2] = name
+            rows.append(other)
+    path = tmp_path / "elbow-yaw.csv"
+    _write_rows(path, HEADER_NEW, rows)
+    run = subprocess.run(
+        [sys.executable, str(ANALYZER), str(path), "--json", "--gate", "layer2"],
+        capture_output=True,
+        text=True,
+    )
+    assert run.returncode != 0
+    assert run.stdout == ""
+    assert "right_shoulder_pitch" in run.stderr
+    assert "right_elbow_pitch" in run.stderr
+    assert "right_upper_arm_yaw" in run.stderr
+
+
 def test_jerk_fail_detected(tmp_path: Path) -> None:
     path = tmp_path / "jerk_fail.csv"
     rows = _smooth_segment(0.1, 0.0, dq=0.08, steps=40)

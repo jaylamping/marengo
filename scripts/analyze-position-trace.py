@@ -261,17 +261,27 @@ def _rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+class TraceJointError(ValueError):
+    """`--joint` names a joint that a multi-joint trace does not contain."""
+
+
 def _segment_rows(
     rows: list[dict[str, str]], joint: str | None
 ) -> tuple[str | None, list[dict[str, str]]]:
     """The joint whose rows are segmented and those rows.
 
     A trace with one joint (or no joint column) is used whole. A multi-joint trace interleaves
-    every joint's row each tick, so only `joint`'s rows are kept.
+    every joint's row each tick, so only `joint`'s rows are kept; a joint the trace does not
+    contain raises TraceJointError (it would give 0 segments and a misleading gate FAIL).
     """
     joints = {r["joint"] for r in rows if r.get("joint")}
     if len(joints) <= 1:
         return next(iter(joints), None), rows
+    if joint not in joints:
+        raise TraceJointError(
+            f"joint {joint} is not in this multi-joint trace; "
+            f"pass --joint with one of: {', '.join(sorted(joints))}"
+        )
     return joint, [r for r in rows if r.get("joint") == joint]
 
 
@@ -1075,17 +1085,21 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(f"error: not found: {args.bench_log}", file=sys.stderr)
         return 1
 
-    report = analyze(
-        args.csv,
-        gate=args.gate,
-        tau_ff_rate_limit_nm_s=args.tau_ff_rate_limit,
-        onset=args.onset,
-        onset_window_ms=args.onset_window_ms,
-        require_home_start=args.require_home_start,
-        bench_joint=args.joint if args.score_bench else None,
-        bench_log=args.bench_log,
-        joint=args.joint,
-    )
+    try:
+        report = analyze(
+            args.csv,
+            gate=args.gate,
+            tau_ff_rate_limit_nm_s=args.tau_ff_rate_limit,
+            onset=args.onset,
+            onset_window_ms=args.onset_window_ms,
+            require_home_start=args.require_home_start,
+            bench_joint=args.joint if args.score_bench else None,
+            bench_log=args.bench_log,
+            joint=args.joint,
+        )
+    except TraceJointError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     if args.json:
         json.dump(report, sys.stdout, indent=2)
         print()
