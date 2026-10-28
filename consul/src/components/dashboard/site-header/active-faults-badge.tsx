@@ -1,6 +1,10 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatSafetyFaults } from '@/lib/enable-feedback';
+import type { Fault } from '@/gen/marengo/v1/marengo_pb';
 import { useRobotStore } from '@/state/robotStore';
+
+// A stable empty list: a fresh `[]` per selector call makes zustand re-render forever.
+const NO_FAULTS: Fault[] = [];
 
 /**
  * `SafetyState.active_faults` on every route (UI-07): the count reads at a
@@ -8,7 +12,7 @@ import { useRobotStore } from '@/state/robotStore';
  * label and tooltip. Nothing renders while the list is empty.
  */
 export function ActiveFaultsBadge() {
-  const faults = useRobotStore((s) => s.safetyState?.activeFaults ?? []);
+  const faults = useRobotStore((s) => s.safetyState?.activeFaults ?? NO_FAULTS);
   if (faults.length === 0) {
     return null;
   }
