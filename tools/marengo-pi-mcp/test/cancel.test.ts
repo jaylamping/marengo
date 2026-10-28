@@ -94,23 +94,35 @@ describe("MCP cancel (TOOL-03)", () => {
     assert.equal(seen, undefined);
   });
 
-  it("the cancel shell ends the tagged session's whole process group", async () => {
+  // The Pi has procps; a build image without pgrep/ps cannot run the shell under test.
+  const procps = ["pgrep", "ps"].every((tool) => spawnSync("sh", ["-c", `command -v ${tool}`]).status === 0);
+
+  it("the cancel shell ends the tagged session's whole process group", { skip: !procps && "needs procps" }, async () => {
     const tag = remoteSessionTag();
     const dir = mkdtempSync(path.join(tmpdir(), "cancel-group-"));
     const marker = path.join(dir, "child-alive");
-    // The session: a setsid'd `bash -s <tag>` (as sshd starts it) whose child keeps writing.
-    const session = spawn("setsid", ["bash", "-s", tag], { stdio: ["pipe", "ignore", "ignore"] });
-    session.stdin.end(`while true; do date +%s%N > ${marker}; sleep 0.1; done & wait\n`);
-    await new Promise((r) => setTimeout(r, 400));
-    // Run only the group-kill part; the sole-owner stop needs a Pi.
-    const shell = cancelMotionSessionShell(tag).split("\npkill -x motor-repl")[0];
-    // Async, so node reaps the session shell (sshd does on the Pi) and pgrep -g sees no zombie.
-    const r = await execFileAsync("bash", ["-c", `set -euo pipefail\n${shell}`], { encoding: "utf8" });
-    assert.match(r.stdout, /cancel: ending remote session \d+ \(group \d+\)/);
-    const left = spawnSync("pgrep", ["-f", "-x", `bash -s ${tag}`]);
-    assert.notEqual(left.status, 0, "session shell is gone");
-    const before = spawnSync("cat", [marker], { encoding: "utf8" }).stdout;
-    await new Promise((r) => setTimeout(r, 300));
-    assert.equal(spawnSync("cat", [marker], { encoding: "utf8" }).stdout, before, "child stopped writing");
+    // The session: `bash -s <tag>` leading its own session (as sshd starts it) whose child
+    // keeps writing. The loop ends by itself after 30 s so a failed kill cannot hang the run.
+    const session = spawn("bash", ["-s", tag], { detached: true, stdio: ["pipe", "ignore", "ignore"] });
+    session.stdin.end(`for _ in $(seq 300); do date +%s%N > ${marker}; sleep 0.1; done & wait\n`);
+    try {
+      await new Promise((r) => setTimeout(r, 400));
+      // Run only the group-kill part; the sole-owner stop needs a Pi.
+      const shell = cancelMotionSessionShell(tag).split("\npkill -x motor-repl")[0];
+      // Async, so node reaps the session shell (sshd does on the Pi) and pgrep -g sees no zombie.
+      const r = await execFileAsync("bash", ["-c", `set -euo pipefail\n${shell}`], { encoding: "utf8" });
+      assert.match(r.stdout, /cancel: ending remote session \d+ \(group \d+\)/);
+      const left = spawnSync("pgrep", ["-f", "-x", `bash -s ${tag}`]);
+      assert.notEqual(left.status, 0, "session shell is gone");
+      const before = spawnSync("cat", [marker], { encoding: "utf8" }).stdout;
+      await new Promise((r) => setTimeout(r, 300));
+      assert.equal(spawnSync("cat", [marker], { encoding: "utf8" }).stdout, before, "child stopped writing");
+    } finally {
+      try {
+        if (session.pid !== undefined) process.kill(-session.pid, "SIGKILL");
+      } catch {
+        // Already gone: the cancel shell did its job.
+      }
+    }
   });
 });
