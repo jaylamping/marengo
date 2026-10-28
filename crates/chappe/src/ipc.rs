@@ -287,7 +287,7 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
             };
             if let Ok((DIRECTION_GATEWAY_TO_RUNTIME, topic, payload)) = decode_frame(&frame) {
                 if command_is_current(&topic, &payload) {
-                    let _ = bus.publish_bytes(&topic, payload);
+                    bus.publish_local_bytes(&topic, payload);
                 } else {
                     warn!(topic, "ipc command topic or timestamp refused");
                 }
