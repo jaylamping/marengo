@@ -200,6 +200,10 @@ if [[ "${MARENGO_REPLACE_LIMITS:-0}" != "1" ]] && [[ -f "${INSTALL_ROOT}/config/
   if [[ -f "${INSTALL_ROOT}/assets/urdf/marengo.urdf" ]]; then
     cp -a "${INSTALL_ROOT}/assets/urdf/marengo.urdf" "${TAUGHT_BACKUP}/assets/urdf/" || true
   fi
+  # The previously deployed revision tells a git URDF change from one activated on the Pi.
+  if [[ -f "${INSTALL_ROOT}/.deploy-rev" ]]; then
+    cp "${INSTALL_ROOT}/.deploy-rev" "${TAUGHT_BACKUP}/.deploy-rev" || true
+  fi
   echo "install-pi: backed up taught limits for preserve merge"
 fi
 
@@ -217,6 +221,7 @@ if [[ -n "${TAUGHT_BACKUP}" ]]; then
     python3 "${ROOT}/scripts/preserve-taught-limits.py" \
       --previous "${TAUGHT_BACKUP}" \
       --install-root "${INSTALL_ROOT}" \
+      --repo "${ROOT}" \
       || echo "warning: preserve-taught-limits failed; Pi may have lost taught Set Limits" >&2
   else
     echo "warning: preserve-taught-limits.py missing from deploy bundle" >&2

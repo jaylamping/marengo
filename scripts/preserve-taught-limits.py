@@ -18,6 +18,7 @@ import copy
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -222,37 +223,101 @@ def preserve_urdf_expand_only(previous_urdf: Path, installed_urdf: Path) -> list
     return widened
 
 
-def _urdf_without_limit_bounds(path: Path) -> str:
+URDF_PATH = "assets/urdf/marengo.urdf"
+_REV = re.compile(r"[0-9a-f]{7,40}")
+
+
+def _urdf_without_limit_bounds(text: str) -> str:
     """Canonical URDF text with `<limit>` lower/upper removed (whitespace ignored)."""
-    root = ET.parse(path).getroot()
+    root = ET.fromstring(text)
     for lim in root.iter("limit"):
         lim.attrib.pop("lower", None)
         lim.attrib.pop("upper", None)
     return ET.canonicalize(ET.tostring(root, encoding="unicode"), strip_text=True)
 
 
+def deployed_urdf_text(repo: Path | None, previous_root: Path) -> str | None:
+    """The URDF of the previously deployed revision, or None when unknown.
+
+    `previous_root/.deploy-rev` is the backed-up `/opt/marengo/.deploy-rev`
+    ("<sha> <timestamp>"); the URDF is read from `repo` (the staging checkout)
+    at that commit. A missing file, a malformed or ambiguous revision, a
+    commit absent from the checkout or no URDF at that commit are all unknown.
+    """
+    if repo is None:
+        return None
+    try:
+        fields = (previous_root / ".deploy-rev").read_text(encoding="utf-8").split()
+    except OSError:
+        return None
+    if not fields or not _REV.fullmatch(fields[0]):
+        return None
+    # The checkout belongs to the deploy user while install runs as root.
+    git = ["git", "-c", f"safe.directory={repo}", "-C", str(repo)]
+    try:
+        commit = subprocess.run(
+            [*git, "rev-parse", "--verify", "--quiet", f"{fields[0]}^{{commit}}"],
+            capture_output=True, text=True, check=False,
+        )
+        if commit.returncode != 0:
+            return None
+        shown = subprocess.run(
+            [*git, "show", f"{commit.stdout.strip()}:{URDF_PATH}"],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return None
+    return shown.stdout if shown.returncode == 0 else None
+
+
 def keep_replaced_urdf(
-    previous_urdf: Path, installed_urdf: Path, install_root: Path
+    previous_urdf: Path,
+    installed_urdf: Path,
+    install_root: Path,
+    deployed_urdf: str | None = None,
 ) -> Path | None:
     """Keep and name a live URDF this deploy replaced beyond its limits (EDGE-03).
 
     Only `<limit>` bounds survive a deploy (the union below). A URDF activated
     in the Hardware UI (new inertials, origins) is otherwise silently replaced
-    by git's. Copy the Pi's file under var/replaced-urdf/ and say so.
+    by git's. `deployed_urdf` is the URDF of the previously deployed revision:
+    when the Pi's copy still matches it, the difference is git's own change
+    since that deploy and nothing is kept. When it is unknown the Pi's copy is
+    kept with a neutral note, since a git change and an activation look alike.
     """
-    if _urdf_without_limit_bounds(previous_urdf) == _urdf_without_limit_bounds(installed_urdf):
+    pi = _urdf_without_limit_bounds(previous_urdf.read_text(encoding="utf-8"))
+    if pi == _urdf_without_limit_bounds(installed_urdf.read_text(encoding="utf-8")):
+        return None
+    deployed = None
+    if deployed_urdf is not None:
+        try:
+            deployed = _urdf_without_limit_bounds(deployed_urdf)
+        except ET.ParseError:
+            deployed = None
+    if deployed is not None and deployed == pi:
+        print("preserve-taught-limits: git changed the URDF since the last deploy; installed git's")
         return None
     keep_dir = install_root / "var" / "replaced-urdf"
     keep_dir.mkdir(parents=True, exist_ok=True)
     kept = keep_dir / f"{previous_urdf.name}.{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
     shutil.copy2(previous_urdf, kept)
-    print(
-        "preserve-taught-limits: WARNING: the Pi's URDF differed from git beyond "
-        "<limit> bounds (for example a URDF activated in the Hardware UI). This "
-        f"deploy installed git's URDF; the Pi's copy is kept at {kept}. Commit it "
-        "to assets/urdf/ to keep it.",
-        file=sys.stderr,
-    )
+    if deployed is not None:
+        print(
+            "preserve-taught-limits: WARNING: the Pi's URDF differed from the last "
+            "deployed revision beyond <limit> bounds (for example a URDF activated in "
+            "the Hardware UI). This deploy installed git's URDF; the Pi's copy is kept "
+            f"at {kept}. Commit its changes to assets/urdf/ to keep them.",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            "preserve-taught-limits: note: the Pi's URDF differed from git beyond "
+            "<limit> bounds and the previously deployed revision is unknown, so this "
+            "may be git's own change or a URDF activated on the Pi. This deploy "
+            f"installed git's URDF; the Pi's previous copy is kept at {kept}. Diff it "
+            "against assets/urdf/marengo.urdf before acting on it.",
+            file=sys.stderr,
+        )
     return kept
 
 
@@ -303,7 +368,8 @@ def report_narrowed(narrowed: list[str]) -> None:
     )
 
 
-def run_preserve(previous_root: Path, install_root: Path) -> int:
+def run_preserve(previous_root: Path, install_root: Path, repo: Path | None = None) -> int:
+    """`repo` is the staging checkout, used to read the previously deployed URDF."""
     motors_prev = previous_root / "config" / "motors.yaml"
     control_prev = previous_root / "config" / "control.yaml"
     urdf_prev = previous_root / "assets" / "urdf" / "marengo.urdf"
@@ -391,7 +457,9 @@ def run_preserve(previous_root: Path, install_root: Path) -> int:
 
     urdf_joints: list[str] = []
     if urdf_prev.is_file() and urdf_inst.is_file():
-        keep_replaced_urdf(urdf_prev, urdf_inst, install_root)
+        keep_replaced_urdf(
+            urdf_prev, urdf_inst, install_root, deployed_urdf_text(repo, previous_root)
+        )
         git_urdf = _urdf_bounds(urdf_inst)
         pi_urdf = _urdf_bounds(urdf_prev)
         urdf_joints = preserve_urdf_expand_only(urdf_prev, urdf_inst)
@@ -422,7 +490,7 @@ def main(argv: list[str] | None = None) -> int:
         "--previous",
         type=Path,
         required=True,
-        help="Backup tree with previous config/ and assets/urdf/",
+        help="Backup tree with previous config/, assets/urdf/ and .deploy-rev",
     )
     parser.add_argument(
         "--install-root",
@@ -430,8 +498,14 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="Newly installed /opt/marengo (or staging) root",
     )
+    parser.add_argument(
+        "--repo",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent,
+        help="Git checkout holding the previously deployed revision (default: this bundle)",
+    )
     args = parser.parse_args(argv)
-    return run_preserve(args.previous, args.install_root)
+    return run_preserve(args.previous, args.install_root, args.repo)
 
 
 if __name__ == "__main__":
