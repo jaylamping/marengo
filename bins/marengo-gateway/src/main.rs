@@ -301,6 +301,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     });
 
+    let mut https_tls = None;
     if let Some(https_addr) = args.https_addr {
         let web_root = args
             .web_root
@@ -316,6 +317,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let https_state = Arc::clone(&state);
         let https_listener_state = Arc::clone(&state);
         let rustls = RustlsConfig::from_pem_file(&cert_pem, &key_pem).await?;
+        https_tls = Some(rustls.clone());
         tokio::spawn(async move {
             let app = http::router(https_state, Some(web_root.as_path()));
             let listener = match tokio::net::TcpListener::bind(https_addr).await {
@@ -351,7 +353,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
     }
 
-    webtransport::run_webtransport(state, args.wt_addr, tls).await?;
+    let renewal = webtransport::TlsRenewal {
+        cert_pem,
+        key_pem,
+        https: https_tls,
+    };
+    webtransport::run_webtransport(state, args.wt_addr, tls, renewal).await?;
     Ok(())
 }
 
