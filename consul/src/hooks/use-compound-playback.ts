@@ -331,6 +331,11 @@ export function useCompoundPlayback() {
       if (!dry) await postPositionBatch([command]);
     };
 
+    // A second Start replaces the run: two intervals would both post (P2B-01).
+    if (runnerRef.current.intervalId !== null) {
+      window.clearInterval(runnerRef.current.intervalId);
+      runnerRef.current.intervalId = null;
+    }
     Object.assign(runnerRef.current, {
       segmentIndex: 0,
       activeTargets: {},
