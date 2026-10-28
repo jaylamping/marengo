@@ -2,8 +2,8 @@
 # Run pi-self-update.sh end to end against a local origin, a fake sudo and
 # no-op build/install scripts. Covers (P2B-14, TOOL-15/EDGE-18, EDGE-17):
 # - a short SHA that matches two commits is refused, never resolved to one;
-# - a second run while one holds the staging lock exits without touching the
-#   job ledger;
+# - a second run while one holds the staging lock exits; it marks its own
+#   enqueued job failed and never touches another job's ledger entry;
 # - every job write waits for deploy-job.json.lock (shared with marengo-deploy);
 # - each run starts a fresh log and keeps the previous one as .1.
 # Run: ./scripts/pi-self-update.test.sh
@@ -121,10 +121,28 @@ run_worker "${MAIN_SHA}"
 kill "${LOCK_PID}" 2>/dev/null || true
 wait "${LOCK_PID}" 2>/dev/null || true
 LOCK_PID=""
-if [[ "${status}" -ne 0 && "$(job_field job_id)" == other ]] && grep -q 'another self-update' "${TMP}/out"; then
-  ok "second run refuses without touching the job ledger"
+if [[ "${status}" -ne 0 && "$(job_field job_id)" == other && "$(job_field state)" == running ]] &&
+  grep -q 'another self-update' "${TMP}/out"; then
+  ok "second run refuses without touching another job's ledger entry"
 else
   bad "second run proceeded or wrote the ledger (status ${status}, job_id $(job_field job_id))"
+fi
+
+# 3b. A refused run that the enqueue helper recorded as running/enqueue marks
+# its own job failed with the reason, instead of leaving it running.
+echo '{"state":"running","job_id":"job-test","phase":"enqueue","started_at":"2026-10-28T00:00:00Z"}' >"${JOB_FILE}"
+flock -o "${STAGING}.self-update.lock" sleep 30 &
+LOCK_PID=$!
+sleep 0.3
+run_worker "${MAIN_SHA}"
+kill "${LOCK_PID}" 2>/dev/null || true
+wait "${LOCK_PID}" 2>/dev/null || true
+LOCK_PID=""
+if [[ "${status}" -ne 0 && "$(job_field job_id)" == job-test && "$(job_field state)" == failed &&
+  "$(job_field phase)" == enqueue ]] && job_field message | grep -q 'another self-update'; then
+  ok "refused enqueued job is marked failed with the reason"
+else
+  bad "refused enqueued job left as $(job_field state)/$(job_field phase) (status ${status})"
 fi
 
 # 4. Job writes wait for the shared ledger lock.

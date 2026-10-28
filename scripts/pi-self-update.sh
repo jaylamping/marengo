@@ -31,9 +31,60 @@ mkdir -p "$(dirname "${JOB_FILE}")" "$(dirname "${LOG_FILE}")" 2>/dev/null || tr
 # One run per staging checkout. A second run (Consul Update during an MCP
 # pi_native deploy, or the reverse) would build in the same tree and overwrite
 # the running job's ledger entries, so it exits before touching either.
+#
+# The enqueue helper has already written this job as running/enqueue; mark it
+# failed with the reason, but only while the ledger still names this job, so
+# the run in progress keeps its entry. Read, compare and replace all happen
+# under JOB_LOCK, as every other ledger writer does.
+refuse_enqueued_job() {
+  local reason="$1"
+  [[ -n "${JOB_ID:-}" && -f "${JOB_FILE}" ]] || return 0
+  flock -w 30 "${JOB_LOCK}" python3 - "${JOB_FILE}" "${JOB_ID}" "${TARGET_SHA}" \
+    "${UNIT_NAME}" "${reason}" <<'PY' || true
+import datetime
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+path, job_id, target_sha, unit, reason = sys.argv[1:]
+try:
+    with open(path, encoding="utf-8") as source:
+        current = json.load(source)
+except (OSError, ValueError):
+    sys.exit(0)
+if not isinstance(current, dict) or current.get("job_id") != job_id:
+    sys.exit(0)
+now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+record = dict(state="failed", job_id=job_id, target_sha=target_sha, result_sha="",
+              unit_name=unit, started_at=current.get("started_at") or now,
+              updated_at=now, message=reason, phase="enqueue")
+directory = os.path.dirname(path) or "."
+try:
+    descriptor, temporary = tempfile.mkstemp(prefix=os.path.basename(path) + ".tmp.",
+                                             dir=directory)
+except OSError:
+    descriptor, temporary = tempfile.mkstemp(prefix="deploy-job.tmp.")
+with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+    json.dump(record, output, indent=2)
+    output.write("\n")
+os.chmod(temporary, 0o664)
+try:
+    os.replace(temporary, path)
+except OSError:
+    # Same fallback as write_job: the ledger directory may be root-owned.
+    if subprocess.run(["sudo", "-n", "mv", "-f", temporary, path]).returncode != 0:
+        os.unlink(temporary)
+        sys.exit(1)
+PY
+}
+
 exec 7>>"${RUN_LOCK}"
 if ! flock -n 7; then
-  echo "error: another self-update holds ${RUN_LOCK}; not starting a second build" >&2
+  refusal="another self-update holds ${RUN_LOCK}; not starting a second build"
+  echo "error: ${refusal}" >&2
+  refuse_enqueued_job "${refusal}"
   exit 1
 fi
 
