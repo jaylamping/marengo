@@ -109,3 +109,58 @@ fn actual_sql_full_error_keeps_preexisting_history_and_refuses_success() {
         .expect("intact actual database")
         .is_empty());
 }
+
+/// REF-01: a writer opening a new session drops whole oldest sessions, so a
+/// full journal can never refuse the row a grant needs.
+#[test]
+fn opening_a_session_drops_the_oldest_sessions_past_retention() {
+    let tree = resource();
+    let path = tree.path().join("journal.sqlite3");
+    let input = crate::reference_journal_tests::actual_input();
+    let mut sessions = Vec::new();
+    for _ in 0..3 {
+        let mut database = Database::open(&path, true, true).expect("session");
+        for job in 1..=2 {
+            let body = input.encode(database.session, job).expect("body");
+            database
+                .append(job, &body, &state(), None)
+                .expect("durable row");
+        }
+        sessions.push(database.session);
+    }
+    let mut database = Database::open(&path, true, true).expect("fourth session");
+    let dropped = database
+        .prune_oldest_sessions(4, PAGE_CAPACITY)
+        .expect("prune");
+    assert_eq!(dropped, 1);
+    let kept: Vec<u64> = {
+        let mut query = database
+            .connection
+            .prepare("SELECT DISTINCT session FROM reference_events ORDER BY session")
+            .expect("query");
+        query
+            .query_map([], |row| row.get::<_, i64>(0))
+            .expect("rows")
+            .map(|session| session.expect("session") as u64)
+            .collect()
+    };
+    assert_eq!(kept, sessions[1..].to_vec(), "only the oldest session goes");
+    let body = input.encode(database.session, 1).expect("body");
+    database
+        .append(1, &body, &state(), None)
+        .expect("the new session still writes");
+    assert_eq!(
+        database
+            .prune_oldest_sessions(0, PAGE_CAPACITY)
+            .expect("prune"),
+        2,
+        "every older session may go, never the current one"
+    );
+    let left: i64 = database
+        .connection
+        .query_row("SELECT count(*) FROM reference_events", [], |row| {
+            row.get(0)
+        })
+        .expect("count");
+    assert_eq!(left, 1);
+}
