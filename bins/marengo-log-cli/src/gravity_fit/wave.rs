@@ -54,16 +54,16 @@ use std::path::{Path, PathBuf};
 
 use armee_dynamics::calibration::{FitOptions, FittedLink};
 use armee_dynamics::lumped::{lumped_com_patch, lumped_terms, LumpedTarget, LumpedTerms};
-use armee_dynamics::{gravity_model_from_urdf, DynamicsModel, UrdfGravityModel};
+use armee_dynamics::{DynamicsModel, UrdfGravityModel};
 use marengo_config::{motor_for_joint, ControlConfigFile, MotorsConfigFile};
 use robstride::motor_type::MitRanges;
 use serde_json::{json, Value};
 
 use super::{
     display_relative, fmt_xyz, io, limb_links, patch_control_friction, patch_inertials,
-    record_stem, round, unified_diff, FrictionProposal, GravityFitArgs, GravityFitError, Outcome,
-    PlanStep, Session, CONTROL_PATCH_PATH, PATCH_PATH, PATCH_ROUNDTRIP_TOL_NM, PROPOSED_URDF_FILE,
-    WAVE_DQ_DEADBAND_RAD_S,
+    record_stem, round, unified_diff, write_checked_urdf, FrictionProposal, GravityFitArgs,
+    GravityFitError, Outcome, PlanStep, Session, CONTROL_PATCH_PATH, PATCH_PATH,
+    PATCH_ROUNDTRIP_TOL_NM, PROPOSED_URDF_FILE, WAVE_DQ_DEADBAND_RAD_S,
 };
 
 /// Bin width as a share of the wave amplitude: three bins (c, c ± a/2) cover the central
@@ -960,21 +960,23 @@ fn propose_urdf(
         .args
         .out_dir
         .join(format!("{stem}.{PROPOSED_URDF_FILE}"));
-    std::fs::write(&proposed, &patched_text).map_err(io(&proposed))?;
-    let patched = gravity_model_from_urdf(&proposed, inputs.joints)?;
-    let mut reproduced = Vec::new();
-    for t in &targets {
-        let got = lumped_terms(&patched, &t.joint, &t.q_fixed)?;
-        if (got.a_nm - t.terms.a_nm).abs() > PATCH_ROUNDTRIP_TOL_NM
-            || (got.b_nm - t.terms.b_nm).abs() > PATCH_ROUNDTRIP_TOL_NM
-        {
-            return Err(GravityFitError::Patch(format!(
-                "{}: patched URDF gives A {:.4} B {:.4} Nm, fit A {:.4} B {:.4} Nm",
-                t.joint, got.a_nm, got.b_nm, t.terms.a_nm, t.terms.b_nm
-            )));
-        }
-        reproduced.push(got);
-    }
+    let (patched, reproduced) =
+        write_checked_urdf(&proposed, &patched_text, inputs.joints, |patched| {
+            let mut reproduced = Vec::new();
+            for t in &targets {
+                let got = lumped_terms(&patched, &t.joint, &t.q_fixed)?;
+                if (got.a_nm - t.terms.a_nm).abs() > PATCH_ROUNDTRIP_TOL_NM
+                    || (got.b_nm - t.terms.b_nm).abs() > PATCH_ROUNDTRIP_TOL_NM
+                {
+                    return Err(GravityFitError::Patch(format!(
+                        "{}: patched URDF gives A {:.4} B {:.4} Nm, fit A {:.4} B {:.4} Nm",
+                        t.joint, got.a_nm, got.b_nm, t.terms.a_nm, t.terms.b_nm
+                    )));
+                }
+                reproduced.push(got);
+            }
+            Ok((patched, reproduced))
+        })?;
     let mut side = vec![0.0f64; inputs.joints.len()];
     for g in &accepted {
         let j = inputs.joints.iter().position(|n| n == &g.joint);

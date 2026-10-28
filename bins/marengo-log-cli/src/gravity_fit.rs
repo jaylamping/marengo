@@ -562,8 +562,9 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
     let patch_file = if fit.accepted() {
         let patched = patch_inertials(&pi_urdf, &fit.links)?;
         let proposed = args.out_dir.join(format!("{stem}.{PROPOSED_URDF_FILE}"));
-        std::fs::write(&proposed, &patched).map_err(io(&proposed))?;
-        verify_patched(&proposed, &joints, &fit)?;
+        write_checked_urdf(&proposed, &patched, &joints, |model| {
+            verify_patched(&model, &joints, &fit)
+        })?;
         let diff = unified_diff(&pi_urdf, &patched, PATCH_PATH);
         let path = args.out_dir.join(format!("{stem}.urdf.patch"));
         std::fs::write(&path, diff).map_err(io(&path))?;
@@ -1907,9 +1908,34 @@ fn patch_inertials(urdf: &str, links: &[FittedLink]) -> Result<String, GravityFi
     Ok(out)
 }
 
-/// Reload the patched URDF and confirm it reproduces the fitted torques.
-fn verify_patched(path: &Path, joints: &[String], fit: &GravityFit) -> Result<(), GravityFitError> {
-    let patched = gravity_model_from_urdf(path, joints)?;
+/// Write `text` as the proposed URDF at `proposed` only once `check` accepts the model it
+/// loads to. The check reads a staging copy beside `proposed`, removed when the check
+/// fails, so a refused round trip leaves no proposed URDF without a record to explain it.
+fn write_checked_urdf<T>(
+    proposed: &Path,
+    text: &str,
+    joints: &[String],
+    check: impl FnOnce(UrdfGravityModel) -> Result<T, GravityFitError>,
+) -> Result<T, GravityFitError> {
+    let staging = proposed.with_extension("urdf.staging");
+    std::fs::write(&staging, text).map_err(io(&staging))?;
+    let checked = gravity_model_from_urdf(&staging, joints)
+        .map_err(GravityFitError::from)
+        .and_then(check);
+    if checked.is_err() {
+        let _ = std::fs::remove_file(&staging);
+        return checked;
+    }
+    std::fs::rename(&staging, proposed).map_err(io(proposed))?;
+    checked
+}
+
+/// Confirm the reloaded patched URDF reproduces the fitted torques.
+fn verify_patched(
+    patched: &UrdfGravityModel,
+    joints: &[String],
+    fit: &GravityFit,
+) -> Result<(), GravityFitError> {
     for pose in &fit.poses {
         let tau = patched.gravity_torques(&pose.q)?;
         for (j, (got, want)) in tau.iter().zip(&pose.tau_fit).enumerate() {
@@ -2593,6 +2619,34 @@ mod tests {
         assert!(skipped.is_empty(), "{skipped:?}");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].samples, 201);
+    }
+
+    /// CAL-09: a failed round trip leaves nothing in the out dir; a passed one leaves only
+    /// the proposed URDF.
+    #[test]
+    fn proposed_urdf_is_written_only_after_its_check_passes() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let urdf = std::fs::read_to_string(repo.join("assets/urdf/marengo.urdf")).unwrap();
+        let joints = load_robot_config_from(repo.join("config"))
+            .unwrap()
+            .robot
+            .joints;
+        let out = tempfile::TempDir::new().unwrap();
+        let proposed = out.path().join(format!("stem.{PROPOSED_URDF_FILE}"));
+        let files = || {
+            std::fs::read_dir(out.path())
+                .unwrap()
+                .map(|e| e.unwrap().file_name())
+                .collect::<Vec<_>>()
+        };
+        let refused = write_checked_urdf(&proposed, &urdf, &joints, |_| {
+            Err::<(), _>(GravityFitError::Patch("round trip".into()))
+        });
+        assert!(matches!(refused, Err(GravityFitError::Patch(_))));
+        assert!(files().is_empty(), "{:?}", files());
+        write_checked_urdf(&proposed, &urdf, &joints, |_| Ok(())).unwrap();
+        assert_eq!(files(), vec![proposed.file_name().unwrap().to_owned()]);
+        assert_eq!(std::fs::read_to_string(&proposed).unwrap(), urdf);
     }
 
     /// CAL-05: a held joint's ½·(below − above) is ≈ 0 (it is never approached from both
