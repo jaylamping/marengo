@@ -3247,13 +3247,14 @@ impl<B: MotorBus> Supervisor<B> {
         // close together) without tripping the 3-sample velocity fault. The
         // clamp moves dq_des toward it, so feed it a velocity within the cap:
         // dq_des then stays a blend of two in-cap values (P2C-01).
-        // Trade-off (owner decision open, not settled): while the real |dq| lies between
-        // vel_cap and the velocity-fault threshold, the prediction understates the drive's
-        // damping term, so the actual total can exceed torque_cap by up to kd·(|dq| − vel_cap).
-        // That excess always opposes the motion (braking). The alternative is to predict with
-        // dq_meas and refuse when the clamp would carry dq_des past vel_cap (pre-P2C-01).
+        // Trade-off, decided 2026-10-28 (owner): keep this on purpose. While the real |dq|
+        // lies between vel_cap and the velocity-fault threshold, the prediction understates
+        // the drive's damping term, so the actual total can exceed torque_cap by up to
+        // kd·(|dq| − vel_cap). That excess is bounded and always opposes the motion
+        // (braking), whereas predicting with dq_meas and refusing when the clamp would carry
+        // dq_des past vel_cap (pre-P2C-01) refused on single-sample spikes.
         // Pinned by tests/command_admission.rs
-        // p2c01_option_a_in_band_velocity_admits_with_damping_over_torque_cap.
+        // p2c01_in_band_velocity_admits_with_damping_over_torque_cap.
         let dq_bounded = dq_meas.clamp(-vel_cap, vel_cap);
         let total_torque = clamp_total_torque(&mut out, q_meas, dq_bounded, torque_cap, horizon_s)?;
         if out.velocity_rad_s.abs() > vel_cap {
