@@ -41,7 +41,7 @@ mod stop_path_tests;
 #[path = "../../../crates/berthier/tests/support/mod.rs"]
 mod test_support;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::env;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
@@ -73,7 +73,7 @@ use enable_gate::{emit, EnableGate, PreflightFor, PreflightRefusal};
 use gravity_preflight::{GravitySweep, SliceBudget, SweepAbort, SweepStats, SweepStep};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
-    resolve_urdf_path,
+    resolve_urdf_path, ControlConfigFile, MotorsConfigFile, RobotConfigFile,
 };
 use robstride::RuntimeBus;
 use tracing::{debug, error, info, warn};
@@ -1530,6 +1530,23 @@ fn usage() {
     );
 }
 
+/// The motors this process drives: `motors.yaml` narrowed to
+/// `MARENGO_JOINT_SUBSET` the same way Davout narrows its own copy, so a
+/// subset run opens only the CAN interfaces its joints use (RT-20).
+fn owned_motors(
+    robot: &RobotConfigFile,
+    motors: &MotorsConfigFile,
+    control: &ControlConfigFile,
+    subset: Option<&HashSet<String>>,
+) -> Result<MotorsConfigFile, marengo_config::ConfigError> {
+    let Some(subset) = subset else {
+        return Ok(motors.clone());
+    };
+    let (mut robot, mut motors, mut control) = (robot.clone(), motors.clone(), control.clone());
+    marengo_config::apply_joint_subset(&mut robot, &mut motors, &mut control, subset)?;
+    Ok(motors)
+}
+
 struct CliArgs {
     config_dir: Option<PathBuf>,
     stdin_ctl: bool,
@@ -1621,6 +1638,18 @@ fn main() {
         Ok(r) => r,
         Err(e) => {
             say_err!("robot.yaml: {e}");
+            std::process::exit(1);
+        }
+    };
+    let motors = match owned_motors(
+        &robot,
+        &motors,
+        &control,
+        marengo_config::joint_subset_from_env().as_ref(),
+    ) {
+        Ok(m) => m,
+        Err(e) => {
+            say_err!("MARENGO_JOINT_SUBSET: {e}");
             std::process::exit(1);
         }
     };
@@ -2418,6 +2447,39 @@ mod status_poll_tests {
     #[test]
     fn decode_motor_status_poll_envelope_rejects_garbage() {
         assert!(decode_motor_status_poll_envelope(b"nope").is_none());
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod owned_motor_tests {
+    use std::collections::HashSet;
+    use std::path::PathBuf;
+
+    use marengo_config::{
+        load_control_config_from, load_motors_config_from, load_robot_config_from,
+    };
+
+    use super::owned_motors;
+
+    #[test]
+    fn a_joint_subset_narrows_the_motors_the_runtime_opens() {
+        let config = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../config");
+        let robot = load_robot_config_from(&config).expect("robot.yaml");
+        let motors = load_motors_config_from(&config).expect("motors.yaml");
+        let control = load_control_config_from(&config).expect("control.yaml");
+        assert!(motors.motors.len() > 1, "fixture has more than one motor");
+
+        let all = owned_motors(&robot, &motors, &control, None).expect("no subset");
+        assert_eq!(all.motors.len(), motors.motors.len());
+
+        let subset = HashSet::from(["right_elbow_pitch".to_string()]);
+        let owned = owned_motors(&robot, &motors, &control, Some(&subset)).expect("subset");
+        let joints: Vec<_> = owned.motors.iter().map(|m| m.joint.as_str()).collect();
+        assert_eq!(joints, ["right_elbow_pitch"]);
+
+        let unknown = HashSet::from(["no_such_joint".to_string()]);
+        assert!(owned_motors(&robot, &motors, &control, Some(&unknown)).is_err());
     }
 }
 

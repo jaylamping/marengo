@@ -15,7 +15,7 @@
 - `src/safety_publication_tests.rs` exercises the installed control loop and Chappe wire across one-shot transport/device faults, two peers, observed E-stop input and healthy startup, including subsequent ordinary Disable.
 
 ## Flow
-1. `main` → parse args → load config → `RuntimeBus::open(can_interface)`
+1. `main` → parse args → load config → narrow `motors.yaml` to `MARENGO_JOINT_SUBSET` (as Davout does) → `RuntimeBus::socketcan_from_motors` opens only those interfaces
 2. Resolve the reference journal (`marengo_config::resolve_reference_journal_path`; fatal on error) and build `ControlLoop::from_repo_with_physical_reference` (qualified physical Robstride owner + durable journal)
 3. Spawn stdin reader + Chappe IPC bridge
 4. `run_control_loop`: deferred/new stdin → `dispatch_stdin_command`; tick → pump reference queue → publish RobotState/SafetyState/Heartbeat on Chappe
