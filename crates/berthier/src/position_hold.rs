@@ -38,8 +38,9 @@ use crate::position_trajectory::{
 };
 use crate::position_wave::PositionWave;
 
-/// Historical advance-path default when a joint has no `control.yaml` entry.
-/// Compose used `unwrap_or(0.15)`; keep that split.
+/// Advance-path lead for law-level test fixtures, below their 0.15 rad compose lead so the
+/// split stays exercised. `ControlLoop` feeds both from `position_slew_max_lead_rad`.
+#[cfg(test)]
 pub const ADVANCE_MAX_LEAD_DEFAULT: f64 = 0.10;
 
 /// Outstanding outbound or return move without measured progress before tick faults (disable
@@ -376,13 +377,13 @@ pub struct HoldJointParams {
     pub kp: f64,
     pub kd: f64,
     pub ki: f64,
-    /// MIT / compose max lead (legacy default 0.15 when cfg missing).
+    /// MIT / compose max lead (rad, `position_slew_max_lead_rad`).
     pub max_lead: f64,
-    /// MIT / compose velocity deadband (legacy default 0.02 when cfg missing).
+    /// MIT / compose velocity deadband (rad/s, `position_trajectory_velocity_deadband_rad`).
     pub vel_deadband: f64,
-    /// Advance freeze/resync max lead (legacy default 0.10 when cfg missing).
+    /// Advance freeze/resync max lead (rad); `ControlLoop` passes `max_lead`.
     pub advance_max_lead: f64,
-    /// Advance freeze/resync deadband (legacy default [`POSITION_HOLD_ERROR_DEADBAND_RAD`]).
+    /// Advance freeze/resync velocity deadband (rad/s); `ControlLoop` passes `vel_deadband`.
     pub advance_vel_deadband: f64,
     pub slew_rad_s: f64,
     pub trajectory_v_max: f64,

@@ -512,3 +512,27 @@ fn position_law_kp_is_the_wire_kp_during_a_gain_ramp() {
     assert_eq!(wire_kp_raw[0], 0, "ramp starts at zero on the wire");
     assert!(wire_kp_raw[1] > 0 && wire_kp_raw[2] > wire_kp_raw[1]);
 }
+
+// ---- BER-15: the Davout reshape watch does not outlive Position --------------------------
+
+#[test]
+fn leaving_position_drops_the_reshape_watch() {
+    // The watch compares Davout's sent τ_ff with the last Position command. Kept across another
+    // mode, the first tick after re-entry compared against a stale command and was flagged as
+    // reshaped, freezing the scaled-PD integral for that tick.
+    let mut ctrl = test_loop();
+    ready_active_at(&mut ctrl, 0.0);
+    ctrl.enter_position_hold().expect("hold-on");
+    replay_feedback(&mut ctrl, 0.0);
+    ctrl.tick(None).expect("position tick");
+    assert!(
+        !ctrl.hold_reshape_watch.is_empty(),
+        "Position fills the watch"
+    );
+    ctrl.try_set_control_mode(ControlMode::GravityComp)
+        .expect("leave Position");
+    assert!(
+        ctrl.hold_reshape_watch.is_empty(),
+        "a watch from the previous Position episode must not survive leaving it"
+    );
+}
