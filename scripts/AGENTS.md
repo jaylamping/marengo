@@ -33,7 +33,6 @@ scripts/
 ├── pi-native-build.sh        # Native cargo build on Pi
 ├── pi-bno085-shtp-init.py    # BNO085 SHTP init verification
 ├── pi-i2c-plain-read.py      # Plain I2C read test (not smbus)
-├── pi-i2c-raw-read.py        # Raw I2C read test
 ├── pi-bno085-smoke.py        # One-shot BNO085 smoke test (CircuitPython)
 ├── setup-cloud.sh            # Cloud VM: protoc + pinned cargo-deny/cargo-audit tools
 ├── setup-cloud-pi.sh         # Cloud VM: Tailscale + SSH to Pi

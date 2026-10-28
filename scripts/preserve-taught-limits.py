@@ -194,12 +194,73 @@ def _urdf_limits(root: ET.Element) -> dict[str, ET.Element]:
     return out
 
 
+_XML_TAG = re.compile(r"<(/?)([A-Za-z_][\w:.-]*)\b[^>]*?(/?)>")
+
+
+def _top_level_joint_body(masked: str, joint: str) -> tuple[int, int] | None:
+    """(body start, body end) of the `<joint name=joint>` that is a direct child of `<robot>`.
+
+    Same joints `_urdf_limits` reads (`root.findall("joint")`): a `<joint>` nested in a
+    `<transmission>` or `<gazebo>` block is skipped. `<?...?>` and `<!...>` never match the tag
+    pattern, so they do not change the depth.
+    """
+    name = re.compile(rf"\bname\s*=\s*([\"']){re.escape(joint)}\1")
+    depth = 0
+    body_start: int | None = None
+    for tag in _XML_TAG.finditer(masked):
+        closing, kind, self_closing = tag.groups()
+        if closing:
+            depth -= 1
+            if body_start is not None and depth == 1 and kind == "joint":
+                return body_start, tag.start()
+            continue
+        if body_start is None and depth == 1 and kind == "joint" and name.search(tag.group(0)):
+            if self_closing:
+                return None
+            body_start = tag.end()
+        if not self_closing:
+            depth += 1
+    return None
+
+
+def patch_urdf_limit_text(text: str, joint: str, lower: float, upper: float) -> str | None:
+    """Surgically set one joint's URDF `<limit lower upper>`; keep comments/layout.
+
+    None when the joint, its `<limit>` or either attribute is missing from the text.
+    """
+    # Search with comments blanked (same offsets) so a commented-out tag never matches.
+    masked = re.sub(r"<!--.*?-->", lambda m: " " * len(m.group(0)), text, flags=re.DOTALL)
+    body = _top_level_joint_body(masked, joint)
+    if body is None:
+        return None
+    body_start, body_end = body
+    limit = re.search(r"<limit\b[^>]*>", masked[body_start:body_end])
+    if not limit:
+        return None
+    start = body_start + limit.start()
+    end = body_start + limit.end()
+    tag = text[start:end]
+    for key, value in (("lower", lower), ("upper", upper)):
+        tag, count = re.subn(
+            rf"(\b{key}\s*=\s*)([\"'])[^\"']*\2",
+            lambda m, v=value: f"{m.group(1)}{m.group(2)}{v:.6g}{m.group(2)}",
+            tag,
+            count=1,
+        )
+        if count != 1:
+            return None
+    return text[:start] + tag + text[end:]
+
+
 def preserve_urdf_expand_only(previous_urdf: Path, installed_urdf: Path) -> list[str]:
-    """Union previous + installed URDF hard (expand-only; never shrink)."""
-    prev_tree = ET.parse(previous_urdf)
-    inst_tree = ET.parse(installed_urdf)
-    prev_lims = _urdf_limits(prev_tree.getroot())
-    inst_lims = _urdf_limits(inst_tree.getroot())
+    """Union previous + installed URDF hard (expand-only; never shrink).
+
+    Only the widened `lower`/`upper` attributes change: the rest of the installed file,
+    comments and XML declaration included, stays byte-for-byte as git has it.
+    """
+    prev_lims = _urdf_limits(ET.parse(previous_urdf).getroot())
+    inst_lims = _urdf_limits(ET.parse(installed_urdf).getroot())
+    text = installed_urdf.read_text(encoding="utf-8")
     widened: list[str] = []
     for name, inst_lim in inst_lims.items():
         prev_lim = prev_lims.get(name)
@@ -215,11 +276,18 @@ def preserve_urdf_expand_only(previous_urdf: Path, installed_urdf: Path) -> list
         new_lo = min(prev_lo, inst_lo)
         new_hi = max(prev_hi, inst_hi)
         if new_lo != inst_lo or new_hi != inst_hi:
-            inst_lim.set("lower", f"{new_lo:.6g}")
-            inst_lim.set("upper", f"{new_hi:.6g}")
+            patched = patch_urdf_limit_text(text, name, new_lo, new_hi)
+            if patched is None:
+                print(
+                    f"preserve-taught-limits: warning: could not expand-merge URDF hard for "
+                    f"{name}; git's values stand",
+                    file=sys.stderr,
+                )
+                continue
+            text = patched
             widened.append(name)
     if widened:
-        inst_tree.write(installed_urdf, encoding="unicode", xml_declaration=True)
+        installed_urdf.write_text(text, encoding="utf-8")
     return widened
 
 

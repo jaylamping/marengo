@@ -138,6 +138,77 @@ class PreserveTaughtLimitsTests(unittest.TestCase):
             self.assertAlmostEqual(float(lim.get("lower")), -0.1)
             self.assertAlmostEqual(float(lim.get("upper")), 3.14)
 
+    def test_urdf_merge_keeps_the_repo_urdf_byte_for_byte_except_the_bound(self) -> None:
+        # CAL-06: an ElementTree rewrite dropped every comment and the declaration, so the
+        # Pi URDF never matched the repo again after any widening.
+        repo_urdf = (
+            Path(__file__).resolve().parent.parent / "assets" / "urdf" / "marengo.urdf"
+        ).read_text(encoding="utf-8")
+        line = '<limit lower="-0.099415" upper="3.22308" effort="60" velocity="2.0"/>'
+        self.assertEqual(repo_urdf.count(line), 1)
+        widened_line = line.replace('lower="-0.099415"', 'lower="-0.2"')
+        with tempfile.TemporaryDirectory() as tmp:
+            prev = Path(tmp) / "prev.urdf"
+            inst = Path(tmp) / "inst.urdf"
+            prev.write_text(repo_urdf.replace(line, widened_line), encoding="utf-8")
+            inst.write_text(repo_urdf, encoding="utf-8")
+            self.assertEqual(preserve_urdf_expand_only(prev, inst), ["right_shoulder_roll"])
+            self.assertEqual(
+                inst.read_text(encoding="utf-8"), repo_urdf.replace(line, widened_line)
+            )
+
+    def test_patch_urdf_limit_ignores_commented_tags(self) -> None:
+        text = """<robot name="t">
+  <!-- <joint name="j"><limit lower="9" upper="9"/></joint> -->
+  <joint name='j' type="revolute">
+    <limit effort="60" upper="1.0" lower="-1.0" velocity="2"/>
+  </joint>
+</robot>
+"""
+        patched = preserve_taught_limits.patch_urdf_limit_text(text, "j", -1.5, 1.25)
+        self.assertEqual(
+            patched,
+            text.replace('upper="1.0" lower="-1.0"', 'upper="1.25" lower="-1.5"'),
+        )
+        self.assertIsNone(preserve_taught_limits.patch_urdf_limit_text(text, "k", -1, 1))
+
+    def test_patch_urdf_limit_skips_a_transmission_joint_before_the_real_one(self) -> None:
+        # _urdf_limits reads only <robot>'s direct <joint> children; the patcher took the first
+        # <joint name=j> anywhere, hit the transmission's (no <limit>) and gave up, so the
+        # deploy kept git's narrower hard bound.
+        text = """<?xml version="1.0"?>
+<robot name="t">
+  <transmission name="j_trans">
+    <joint name="j"><hardwareInterface>EffortJointInterface</hardwareInterface></joint>
+  </transmission>
+  <gazebo><joint name="j"/></gazebo>
+  <joint name="j" type="revolute">
+    <limit lower="-1.25" upper="1.5" effort="60" velocity="2"/>
+  </joint>
+</robot>
+"""
+        patched = preserve_taught_limits.patch_urdf_limit_text(text, "j", -1.5, 1.75)
+        self.assertEqual(
+            patched, text.replace('lower="-1.25" upper="1.5"', 'lower="-1.5" upper="1.75"')
+        )
+        only_nested = text.replace(
+            """  <joint name="j" type="revolute">
+    <limit lower="-1.25" upper="1.5" effort="60" velocity="2"/>
+  </joint>
+""",
+            "",
+        )
+        self.assertIsNone(preserve_taught_limits.patch_urdf_limit_text(only_nested, "j", -1, 1))
+        with tempfile.TemporaryDirectory() as tmp:
+            prev = Path(tmp) / "prev.urdf"
+            inst = Path(tmp) / "inst.urdf"
+            prev.write_text(text.replace('lower="-1.25"', 'lower="-1.5"'), encoding="utf-8")
+            inst.write_text(text, encoding="utf-8")
+            self.assertEqual(preserve_urdf_expand_only(prev, inst), ["j"])
+            self.assertEqual(
+                inst.read_text(encoding="utf-8"), text.replace('lower="-1.25"', 'lower="-1.5"')
+            )
+
     def test_patch_motors_keeps_comments(self) -> None:
         text = """# header
 motors:

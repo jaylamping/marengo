@@ -42,8 +42,8 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use armee_dynamics::calibration::{
-    assess_identifiability, cancel_friction, fit_gravity_params, CalibrationError, FitOptions,
-    FittedLink, GravityFit, GravitySample, InertialParam, JointWindow,
+    cancel_friction, default_params, fit_gravity_params, CalibrationError, FitOptions, FittedLink,
+    GravityFit, GravitySample, InertialParam, JointWindow,
 };
 use armee_dynamics::{gravity_model_from_urdf, DynamicsError, DynamicsModel, UrdfGravityModel};
 use marengo_config::{
@@ -87,10 +87,6 @@ const WAVE_CENTRE_TOL_RAD: f64 = 1e-6;
 const DDQ_HALF_WINDOW_MS: u64 = 40;
 /// Patched-URDF τ must match the fit within this (rounding of printed mass/COM).
 const PATCH_ROUNDTRIP_TOL_NM: f64 = 0.005;
-/// Links lighter than this are fixtures, not fit candidates (mirrors the fitter's floor).
-const MIN_FIT_MASS_KG: f64 = 0.01;
-/// A COM closer than this to its link origin defines no principal axis (fitter's floor).
-const MIN_PRINCIPAL_AXIS_M: f64 = 1e-6;
 /// Limb whose links the patch may touch.
 const PATCH_LIMB: &str = "right_arm";
 
@@ -549,7 +545,11 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
     let opts = FitOptions::default();
     let params = if args.fit.is_empty() {
         let sweep_poses: Vec<Vec<f64>> = samples.iter().map(|s| s.q.clone()).collect();
-        default_params_union(&model, &sessions, &sweep_poses, &args.fit_joints, &opts)?
+        let sweeps: Vec<&str> = sessions
+            .iter()
+            .map(|s| s.plan.sweep_joint.as_str())
+            .collect();
+        default_params(&model, &sweeps, &sweep_poses, &args.fit_joints, &opts)?
     } else {
         args.fit
             .iter()
@@ -571,8 +571,9 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
     let patch_file = if fit.accepted() {
         let patched = patch_inertials(&pi_urdf, &fit.links)?;
         let proposed = args.out_dir.join(format!("{stem}.{PROPOSED_URDF_FILE}"));
-        std::fs::write(&proposed, &patched).map_err(io(&proposed))?;
-        verify_patched(&proposed, &joints, &fit)?;
+        write_checked_urdf(&proposed, &patched, &joints, |model| {
+            verify_patched(&model, &joints, &fit)
+        })?;
         let diff = unified_diff(&pi_urdf, &patched, PATCH_PATH);
         let path = args.out_dir.join(format!("{stem}.urdf.patch"));
         std::fs::write(&path, diff).map_err(io(&path))?;
@@ -1574,8 +1575,19 @@ fn regress_friction(samples: &[(f64, f64)]) -> Option<(f64, f64, f64)> {
     Some((fc, fv, r2))
 }
 
+/// ½·(below − above) of `joint` (model index `j`) at every pose of the sessions that swept
+/// it. A held joint is not approached from both sides, so its ½Δ is no friction estimate.
+fn static_friction(sessions: &[Session], joint: &str, j: usize) -> Vec<f64> {
+    sessions
+        .iter()
+        .filter(|s| s.plan.sweep_joint == joint)
+        .flat_map(|s| &s.poses)
+        .map(|p| p.friction[j])
+        .collect()
+}
+
 /// Per-joint friction table. The static estimate is the mean ½·(below − above) holding
-/// torque over matched poses; the wave estimate regresses (τ_meas − τ_g fitted) against
+/// torque over the swept joint's matched poses; the wave estimate regresses (τ_meas − τ_g fitted) against
 /// dq. A patch is proposed only when both exist, both Coulomb estimates and fv are
 /// non-negative, and they agree within [`FRICTION_AGREE_ABS_NM`] / [`FRICTION_AGREE_REL`];
 /// the proposed fc is their mean, fv comes from the wave. With no accepted gravity fit
@@ -1606,11 +1618,7 @@ fn fit_friction(
         .iter()
         .enumerate()
         .map(|(j, joint)| {
-            let statics: Vec<f64> = sessions
-                .iter()
-                .flat_map(|s| &s.poses)
-                .map(|p| p.friction[j])
-                .collect();
+            let statics = static_friction(sessions, joint, j);
             let static_fc = if statics.is_empty() {
                 None
             } else {
@@ -1792,90 +1800,6 @@ fn patch_control_friction(captured: &str, proposals: &[FrictionProposal]) -> Opt
     });
     (complete && text != captured).then_some(text)
 }
-/// Default parameters covering every link excited by any fused session's sweep.
-///
-/// Candidates are the mass scales of every massive link downstream of *each* distinct
-/// sweep joint (then their COM offsets), each group ordered by how strongly one plausible
-/// change moves the torques over *all* poses. A candidate is kept only if the set stays
-/// identifiable. Same greedy rule as the fitter's single-sweep default, but the union
-/// keeps links (e.g. a forearm loaded only by an elbow sweep) that one sweep's
-/// downstream set would drop.
-fn default_params_union(
-    model: &UrdfGravityModel,
-    sessions: &[Session],
-    poses: &[Vec<f64>],
-    fit_joints: &[String],
-    opts: &FitOptions,
-) -> Result<Vec<InertialParam>, GravityFitError> {
-    let mut sweeps: Vec<&str> = Vec::new();
-    for s in sessions {
-        if !sweeps.contains(&s.plan.sweep_joint.as_str()) {
-            sweeps.push(&s.plan.sweep_joint);
-        }
-    }
-    // Most-upstream sweep first, so shared links rank under the sweep that loads them
-    // most; ties keep session order.
-    sweeps.sort_by_key(|s| {
-        std::cmp::Reverse(model.links_downstream_of(s).map(|l| l.len()).unwrap_or(0))
-    });
-    if sweeps.is_empty() {
-        return Err(GravityFitError::Plan("no sessions".into()));
-    }
-    let mut masses = Vec::new();
-    let mut coms = Vec::new();
-    for sweep in &sweeps {
-        for link in model.links_downstream_of(sweep)? {
-            let inertial = model.link_inertial(&link)?;
-            if inertial.mass_kg <= MIN_FIT_MASS_KG {
-                continue;
-            }
-            let mass = InertialParam::mass(&link);
-            if !masses.contains(&mass) {
-                masses.push(mass);
-            }
-            let com_norm = inertial.com_m.iter().map(|v| v * v).sum::<f64>().sqrt();
-            if com_norm > MIN_PRINCIPAL_AXIS_M {
-                let com = InertialParam::com(&link);
-                if !coms.contains(&com) {
-                    coms.push(com);
-                }
-            }
-        }
-    }
-    let mut chosen: Vec<InertialParam> = Vec::new();
-    for group in [masses, coms] {
-        let mut ranked = group
-            .into_iter()
-            .map(|p| {
-                let single = assess_identifiability(
-                    model,
-                    std::slice::from_ref(&p),
-                    poses,
-                    fit_joints,
-                    opts,
-                )?;
-                Ok((single.max_singular_nm, p))
-            })
-            .collect::<Result<Vec<_>, GravityFitError>>()?;
-        ranked.sort_by(|a, b| b.0.total_cmp(&a.0).then_with(|| a.1.link.cmp(&b.1.link)));
-        for (_, p) in ranked {
-            chosen.push(p);
-            let ident = assess_identifiability(model, &chosen, poses, fit_joints, opts)?;
-            if ident.min_singular_nm.is_nan()
-                || ident.min_singular_nm < opts.min_identifiable_nm
-                || ident.condition.is_nan()
-                || ident.condition > opts.max_condition
-            {
-                chosen.pop();
-            }
-        }
-    }
-    if chosen.is_empty() {
-        return Err(CalibrationError::NoParams.into());
-    }
-    Ok(chosen)
-}
-
 /// Links downstream of the first modelled joint of [`PATCH_LIMB`].
 fn limb_links(
     model: &UrdfGravityModel,
@@ -1999,9 +1923,34 @@ fn patch_inertials(urdf: &str, links: &[FittedLink]) -> Result<String, GravityFi
     Ok(out)
 }
 
-/// Reload the patched URDF and confirm it reproduces the fitted torques.
-fn verify_patched(path: &Path, joints: &[String], fit: &GravityFit) -> Result<(), GravityFitError> {
-    let patched = gravity_model_from_urdf(path, joints)?;
+/// Write `text` as the proposed URDF at `proposed` only once `check` accepts the model it
+/// loads to. The check reads a staging copy beside `proposed`, removed when the check
+/// fails, so a refused round trip leaves no proposed URDF without a record to explain it.
+fn write_checked_urdf<T>(
+    proposed: &Path,
+    text: &str,
+    joints: &[String],
+    check: impl FnOnce(UrdfGravityModel) -> Result<T, GravityFitError>,
+) -> Result<T, GravityFitError> {
+    let staging = proposed.with_extension("urdf.staging");
+    std::fs::write(&staging, text).map_err(io(&staging))?;
+    let checked = gravity_model_from_urdf(&staging, joints)
+        .map_err(GravityFitError::from)
+        .and_then(check);
+    if checked.is_err() {
+        let _ = std::fs::remove_file(&staging);
+        return checked;
+    }
+    std::fs::rename(&staging, proposed).map_err(io(proposed))?;
+    checked
+}
+
+/// Confirm the reloaded patched URDF reproduces the fitted torques.
+fn verify_patched(
+    patched: &UrdfGravityModel,
+    joints: &[String],
+    fit: &GravityFit,
+) -> Result<(), GravityFitError> {
     for pose in &fit.poses {
         let tau = patched.gravity_torques(&pose.q)?;
         for (j, (got, want)) in tau.iter().zip(&pose.tau_fit).enumerate() {
@@ -2720,6 +2669,76 @@ mod tests {
         assert!(skipped.is_empty(), "{skipped:?}");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].samples, 201);
+    }
+
+    /// CAL-09: a failed round trip leaves nothing in the out dir; a passed one leaves only
+    /// the proposed URDF.
+    #[test]
+    fn proposed_urdf_is_written_only_after_its_check_passes() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let urdf = std::fs::read_to_string(repo.join("assets/urdf/marengo.urdf")).unwrap();
+        let joints = load_robot_config_from(repo.join("config"))
+            .unwrap()
+            .robot
+            .joints;
+        let out = tempfile::TempDir::new().unwrap();
+        let proposed = out.path().join(format!("stem.{PROPOSED_URDF_FILE}"));
+        let files = || {
+            std::fs::read_dir(out.path())
+                .unwrap()
+                .map(|e| e.unwrap().file_name())
+                .collect::<Vec<_>>()
+        };
+        let refused = write_checked_urdf(&proposed, &urdf, &joints, |_| {
+            Err::<(), _>(GravityFitError::Patch("round trip".into()))
+        });
+        assert!(matches!(refused, Err(GravityFitError::Patch(_))));
+        assert!(files().is_empty(), "{:?}", files());
+        write_checked_urdf(&proposed, &urdf, &joints, |_| Ok(())).unwrap();
+        assert_eq!(files(), vec![proposed.file_name().unwrap().to_owned()]);
+        assert_eq!(std::fs::read_to_string(&proposed).unwrap(), urdf);
+    }
+
+    /// CAL-05: a held joint's ½·(below − above) is ≈ 0 (it is never approached from both
+    /// sides), so a fused session that held `a` must not pull `a`'s static fc toward zero.
+    #[test]
+    fn static_friction_counts_only_sessions_that_swept_the_joint() {
+        let session = |sweep: &str, friction: [f64; 2]| {
+            let m = Measurement {
+                plan_index: 0,
+                pose_index: 0,
+                approach: Approach::Below,
+                q: vec![0.0; 2],
+                tau: vec![0.0; 2],
+                tau_cmd: vec![0.0; 2],
+                samples: 1,
+                window_s: 1.0,
+            };
+            Session {
+                dir: PathBuf::new(),
+                plan: Plan {
+                    sweep_joint: sweep.into(),
+                    ..plan(Vec::new())
+                },
+                poses: vec![PoseData {
+                    sample: GravitySample {
+                        label: String::new(),
+                        q: vec![0.0; 2],
+                        tau_meas: vec![0.0; 2],
+                    },
+                    friction: friction.to_vec(),
+                    tau_cmd: vec![0.0; 2],
+                    below: m.clone(),
+                    above: m,
+                }],
+                waves: Vec::new(),
+                skipped: Vec::new(),
+                stale: Vec::new(),
+            }
+        };
+        let sessions = [session("a", [0.3, 0.001]), session("b", [-0.002, 0.08])];
+        assert_eq!(static_friction(&sessions, "a", 0), vec![0.3]);
+        assert_eq!(static_friction(&sessions, "b", 1), vec![0.08]);
     }
 
     /// A held joint that stops being traced mid-session is not carried forward past two of

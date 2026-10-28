@@ -118,6 +118,51 @@ def test_layer2_pass_fixture(tmp_path: Path) -> None:
     assert report["layer2_gate"]["analyzer_pass"] is True
 
 
+def test_multi_joint_trace_segments_one_joint(tmp_path: Path) -> None:
+    # CAL-07: every tick carries a row per joint; split as one stream, each row of the held
+    # elbow (other target) started a new segment and the Layer 2 gate passed on 1-row segments.
+    pitch = _smooth_segment(0.1, 0.0, steps=100)
+    pitch += _smooth_segment(0.0, 0.1, t0_ms=500, steps=100)
+    rows: list[list] = []
+    for row in pitch:
+        elbow = list(row)
+        elbow[2] = "right_elbow_pitch"
+        elbow[8] = elbow[9] = "0.500000"
+        rows += [row, elbow]
+    path = tmp_path / "two-joint.csv"
+    _write_rows(path, HEADER_NEW, rows)
+    report = _run_analyzer(path, "--gate", "layer2")
+    assert report["segment_joint"] == "right_shoulder_pitch"
+    assert report["segment_samples"] == len(pitch)
+    assert [s["target_rad"] for s in report["segments"]] == [0.1, 0.0]
+    assert report["layer2_gate"]["analyzer_pass"] is True
+    elbow = _run_analyzer(path, "--joint", "right_elbow_pitch")
+    assert [s["target_rad"] for s in elbow["segments"]] == [0.5]
+
+
+def test_multi_joint_trace_without_the_joint_exits_listing_its_joints(tmp_path: Path) -> None:
+    # An elbow + upper-arm-yaw trace run with the default --joint (right_shoulder_pitch) used to
+    # report 0 segments and fail the Layer 2 gate on "missing segments" without saying why.
+    rows: list[list] = []
+    for row in _smooth_segment(0.1, 0.0, steps=20):
+        for name in ("right_elbow_pitch", "right_upper_arm_yaw"):
+            other = list(row)
+            other[2] = name
+            rows.append(other)
+    path = tmp_path / "elbow-yaw.csv"
+    _write_rows(path, HEADER_NEW, rows)
+    run = subprocess.run(
+        [sys.executable, str(ANALYZER), str(path), "--json", "--gate", "layer2"],
+        capture_output=True,
+        text=True,
+    )
+    assert run.returncode != 0
+    assert run.stdout == ""
+    assert "right_shoulder_pitch" in run.stderr
+    assert "right_elbow_pitch" in run.stderr
+    assert "right_upper_arm_yaw" in run.stderr
+
+
 def test_jerk_fail_detected(tmp_path: Path) -> None:
     path = tmp_path / "jerk_fail.csv"
     rows = _smooth_segment(0.1, 0.0, dq=0.08, steps=40)
