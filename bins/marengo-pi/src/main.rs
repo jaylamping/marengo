@@ -17,6 +17,7 @@ mod limit_persist;
 mod motion_owner;
 #[cfg(test)]
 mod motion_owner_chappe_tests;
+mod operator_output;
 mod overlay;
 #[cfg(test)]
 mod reference_busy_overlay_tests;
@@ -82,6 +83,7 @@ use crate::motion_owner::{
     classify_stdin, publish_audit, report_refusal, resolve_owner, CommandClass, CommandSource,
     MotionLease, MOTION_OWNER_ENV,
 };
+use crate::operator_output::{say, say_err};
 use crate::reference_queue::{ReferenceEvent, ReferenceQueue};
 
 /// Stdin reference queue: Davout handles in flight, stdin commands deferred.
@@ -156,7 +158,7 @@ where
 {
     token.parse().map_err(|_| {
         let error = format!("{command}: invalid {field} value {token:?}");
-        eprintln!("{error}");
+        say_err!("{error}");
         error
     })
 }
@@ -225,7 +227,7 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                     })
                 }
                 _ => {
-                    eprintln!("hold-at usage: hold-at <rad>  OR  hold-at <joint> <rad>");
+                    say_err!("hold-at usage: hold-at <rad>  OR  hold-at <joint> <rad>");
                     None
                 }
             }
@@ -260,7 +262,7 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                     })
                 }
                 _ => {
-                    eprintln!(
+                    say_err!(
                         "wave usage: wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]"
                     );
                     None
@@ -275,14 +277,14 @@ fn parse_command(line: &str) -> Option<PiCommand> {
             None
         }
         _ => {
-            eprintln!("unknown command: {line} (type help)");
+            say_err!("unknown command: {line} (type help)");
             None
         }
     }
 }
 
 fn print_usage() {
-    eprintln!(
+    say_err!(
         "marengo-pi commands (stdin):\n  \
          home                                   (readiness check only)\n  \
          home <joint> [<joint>...] sign-tested  (physical reference, one joint at a time;\n  \
@@ -311,7 +313,7 @@ fn is_configured_joint<B: MotorBus>(supervisor: &davout::Supervisor<B>, joint: &
 /// Print the stdout contract lines and mirror them as structured logs.
 fn emit_reference_events(events: Vec<ReferenceEvent>) {
     for event in events {
-        println!("{event}");
+        say!("{event}");
         match &event {
             ReferenceEvent::Current {
                 joint,
@@ -351,7 +353,7 @@ fn dispatch_stdin_command<B: MotorBus>(
 ) -> bool {
     if queue.is_busy() && defers_while_referencing(&cmd) {
         if !queue.defer(cmd) {
-            eprintln!("reference in progress: deferred command limit reached; command refused");
+            say_err!("reference in progress: deferred command limit reached; command refused");
         }
         return true;
     }
@@ -360,7 +362,7 @@ fn dispatch_stdin_command<B: MotorBus>(
     // Quit overtake it; they void it.
     if gate.preflight_pending() && !matches!(cmd, PiCommand::Disable | PiCommand::Quit) {
         if !gate.defer_stdin(cmd) {
-            eprintln!(
+            say_err!(
                 "gravity preflight in progress: deferred command limit reached; command refused"
             );
         }
@@ -380,9 +382,9 @@ fn admit_stdin_command(lease: MotionLease, chappe: &Bus, cmd: &PiCommand) -> boo
             let reason = refusal.to_string();
             if name.starts_with("home") {
                 // `home failed:` is the stdout contract MCP scripts wait on.
-                println!("home failed: {reason}");
+                say!("home failed: {reason}");
             } else {
-                eprintln!("{reason}");
+                say_err!("{reason}");
             }
             report_refusal(chappe, STDIN_REFERENCE_OPERATOR, "", name, &reason);
             false
@@ -395,7 +397,7 @@ fn read_stdin_commands(reader: impl BufRead, tx: Sender<PiCommand>) {
         let line = match line {
             Ok(line) => line,
             Err(error) => {
-                eprintln!("stdin read failed: {error}");
+                say_err!("stdin read failed: {error}");
                 break;
             }
         };
@@ -1258,7 +1260,7 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
     let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();
-    println!(
+    say!(
         "config: {}\noperational: {:?}\ncontrol: {:?}",
         config_dir.display(),
         operational,
@@ -1268,7 +1270,7 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
         let (homing_state, drive_active, out_of_limits) =
             supervisor.joint_commissioning_wire(&motor.joint);
         match supervisor.joint_feedback(&motor.joint) {
-            Some(state) => println!(
+            Some(state) => say!(
                 "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x} \
                  homing={} drive_active={} out_of_limits={}",
                 motor.joint,
@@ -1282,7 +1284,7 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
                 drive_active,
                 out_of_limits,
             ),
-            None => println!(
+            None => say!(
                 "{} ({}/id{}): no feedback yet homing={} drive_active={} out_of_limits={}",
                 motor.joint,
                 motor.can_interface,
@@ -1393,9 +1395,9 @@ fn enable_after_stdin_preflight<B: MotorBus>(
                 loop_ctrl.allow_implicit_enable();
                 emit(gate.begin_enable(operator_id, targets, Instant::now()));
             }
-            Err(e) => eprintln!("enable failed: {e}"),
+            Err(e) => say_err!("enable failed: {e}"),
         },
-        Err(e) => eprintln!("enable blocked: {e}"),
+        Err(e) => say_err!("enable blocked: {e}"),
     }
 }
 
@@ -1408,8 +1410,8 @@ fn handle_command<B: MotorBus>(
 ) -> bool {
     match cmd {
         PiCommand::Home => match loop_ctrl.supervisor_mut().set_homing_complete() {
-            Ok(()) => println!("homing verified → Ready"),
-            Err(e) => eprintln!("home failed: {e}"),
+            Ok(()) => say!("homing verified → Ready"),
+            Err(e) => say_err!("home failed: {e}"),
         },
         PiCommand::HomeJoints {
             joints,
@@ -1421,7 +1423,7 @@ fn handle_command<B: MotorBus>(
                     is_configured_joint(supervisor, joint)
                 })
             {
-                println!("home failed: {message}");
+                say!("home failed: {message}");
             }
         }
         // The Enable runs once the gravity sweep passes (advance_gravity_preflight).
@@ -1431,56 +1433,56 @@ fn handle_command<B: MotorBus>(
                     .begin_preflight(sweep, PreflightFor::StdinEnable { operator_id })
                     .is_err()
                 {
-                    eprintln!("enable refused: gravity preflight already in progress");
+                    say_err!("enable refused: gravity preflight already in progress");
                 }
             }
-            Err(()) => eprintln!("enable refused: gravity saturation preflight failed closed"),
+            Err(()) => say_err!("enable refused: gravity saturation preflight failed closed"),
         },
         PiCommand::Disable => {
             // An operator disable stands until an explicit enable (L-berthier-28).
             loop_ctrl.forbid_implicit_enable();
             // Davout's disable_all also cancels a live reference transaction.
             if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
-                eprintln!("disable failed: {e}");
+                say_err!("disable failed: {e}");
             }
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             emit_reference_events(queue.cancel());
             emit(gate.cancel());
-            println!("disabled");
+            say!("disabled");
         }
         PiCommand::GravityOn => match loop_ctrl.try_set_control_mode(ControlMode::GravityComp) {
-            Ok(()) => println!(
+            Ok(()) => say!(
                 "control mode → GravityComp (operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
             ),
-            Err(e) => eprintln!("gravity-on refused: {e}"),
+            Err(e) => say_err!("gravity-on refused: {e}"),
         },
         PiCommand::GravityOff => match loop_ctrl.enter_torque_only_zero() {
-            Ok(()) => println!(
+            Ok(()) => say!(
                 "control mode → TorqueOnly (τ_cmd≡0; operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
             ),
-            Err(e) => eprintln!("gravity-off refused: {e}"),
+            Err(e) => say_err!("gravity-off refused: {e}"),
         },
         PiCommand::TorqueCmd { joint, tau_nm } => match loop_ctrl.set_torque_cmd(&joint, tau_nm) {
             Ok(()) => {
-                println!(
+                say!(
                     "τ_cmd {joint} = {tau_nm:.4} Nm (mode=TorqueOnly, operational={:?})",
                     loop_ctrl.supervisor_mut().mode()
                 );
             }
-            Err(e) => eprintln!("torque-cmd failed: {e}"),
+            Err(e) => say_err!("torque-cmd failed: {e}"),
         },
         PiCommand::ImpedanceOn => match loop_ctrl.try_set_control_mode(ControlMode::Impedance) {
-            Ok(()) => println!(
+            Ok(()) => say!(
                 "control mode → Impedance (operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
             ),
-            Err(e) => eprintln!("impedance-on refused: {e}"),
+            Err(e) => say_err!("impedance-on refused: {e}"),
         },
         PiCommand::ImpedanceOff => match loop_ctrl.try_set_control_mode(ControlMode::Disabled) {
-            Ok(()) => println!("control mode → Disabled"),
-            Err(e) => eprintln!("impedance-off refused: {e}"),
+            Ok(()) => say!("control mode → Disabled"),
+            Err(e) => say_err!("impedance-off refused: {e}"),
         },
         cmd @ (PiCommand::HoldOn | PiCommand::HoldAt { .. } | PiCommand::Wave { .. }) => {
             emit(gate.submit(loop_ctrl, cmd, Instant::now()));
@@ -1489,11 +1491,11 @@ fn handle_command<B: MotorBus>(
             loop_ctrl.clear_position_hold();
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             emit(gate.cancel_arms("cancelled by hold-off"));
-            println!("hold-off → Disabled");
+            say!("hold-off → Disabled");
         }
         PiCommand::Lower => {
             if let Err(e) = loop_ctrl.request_degraded_lower() {
-                eprintln!("{e}");
+                say_err!("{e}");
             }
         }
         PiCommand::Status => print_status(loop_ctrl, config_dir),
@@ -1507,7 +1509,7 @@ fn handle_command<B: MotorBus>(
 }
 
 fn usage() {
-    eprintln!(
+    say_err!(
         "marengo-pi — Pi control runtime (Berthier → Davout → SocketCAN)\n\
          Usage: marengo-pi [--config-dir PATH] [--no-stdin-ctl] [--motion-owner stdin|chappe]\n\
          Motion owner: exactly one command source may enable/move the robot. Default chappe\n\
@@ -1535,7 +1537,7 @@ fn parse_args() -> CliArgs {
         match arg.as_str() {
             "--config-dir" => {
                 let Some(path) = args.next() else {
-                    eprintln!("--config-dir requires a path");
+                    say_err!("--config-dir requires a path");
                     std::process::exit(1);
                 };
                 cli.config_dir = Some(PathBuf::from(path));
@@ -1543,7 +1545,7 @@ fn parse_args() -> CliArgs {
             "--no-stdin-ctl" => cli.stdin_ctl = false,
             "--motion-owner" => {
                 let Some(owner) = args.next() else {
-                    eprintln!("--motion-owner requires stdin or chappe");
+                    say_err!("--motion-owner requires stdin or chappe");
                     std::process::exit(1);
                 };
                 cli.motion_owner = Some(owner);
@@ -1553,7 +1555,7 @@ fn parse_args() -> CliArgs {
                 std::process::exit(0);
             }
             other => {
-                eprintln!("unknown argument: {other}");
+                say_err!("unknown argument: {other}");
                 usage();
                 std::process::exit(1);
             }
@@ -1571,12 +1573,12 @@ fn main() {
     ) {
         Ok(owner) => owner,
         Err(message) => {
-            eprintln!("{message}");
+            say_err!("{message}");
             std::process::exit(1);
         }
     };
     if motion_owner == CommandSource::Stdin && !stdin_ctl {
-        eprintln!("--motion-owner stdin requires stdin control (drop --no-stdin-ctl)");
+        say_err!("--motion-owner stdin requires stdin control (drop --no-stdin-ctl)");
         std::process::exit(1);
     }
     let motion = MotionLease::new(motion_owner);
@@ -1594,26 +1596,26 @@ fn main() {
     let control = match load_control_config(&root) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("control.yaml: {e}");
+            say_err!("control.yaml: {e}");
             std::process::exit(1);
         }
     };
     let motors = match load_motors_config(&root) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("motors.yaml: {e}");
+            say_err!("motors.yaml: {e}");
             std::process::exit(1);
         }
     };
     let robot = match marengo_config::load_robot_config(&root) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("robot.yaml: {e}");
+            say_err!("robot.yaml: {e}");
             std::process::exit(1);
         }
     };
     if let Err(e) = resolve_urdf_path(&root, &robot) {
-        eprintln!("urdf: {e}");
+        say_err!("urdf: {e}");
         std::process::exit(1);
     }
 
@@ -1627,15 +1629,15 @@ fn main() {
     {
         Ok(path) => path,
         Err(e) => {
-            eprintln!("reference journal: {e}");
+            say_err!("reference journal: {e}");
             std::process::exit(1);
         }
     };
     let bus = match RuntimeBus::socketcan_from_motors(&motors) {
         Ok(bus) => bus,
         Err(e) => {
-            eprintln!("open SocketCAN from motors.yaml: {e}");
-            eprintln!("build with: cargo build -p marengo-pi --features socketcan");
+            say_err!("open SocketCAN from motors.yaml: {e}");
+            say_err!("build with: cargo build -p marengo-pi --features socketcan");
             std::process::exit(1);
         }
     };
@@ -1649,7 +1651,7 @@ fn main() {
     ) {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("control loop: {e}");
+            say_err!("control loop: {e}");
             std::process::exit(1);
         }
     };
@@ -1658,7 +1660,7 @@ fn main() {
     match loop_ctrl.admit_drive_loss() {
         Ok(admitted) => degraded::log_admission(&admitted),
         Err(e) => {
-            eprintln!("drive-loss admission: {e}");
+            say_err!("drive-loss admission: {e}");
             std::process::exit(1);
         }
     }
@@ -1695,7 +1697,7 @@ fn main() {
     })
     .is_err()
     {
-        eprintln!("failed to install ctrl-c handler");
+        say_err!("failed to install ctrl-c handler");
         std::process::exit(1);
     }
 
@@ -1708,7 +1710,7 @@ fn main() {
         (signal_hook::consts::SIGQUIT, "SIGQUIT"),
     ] {
         if signal_hook::flag::register(signal, Arc::clone(&shutdown)).is_err() {
-            eprintln!("failed to install {name} handler");
+            say_err!("failed to install {name} handler");
             std::process::exit(1);
         }
     }
@@ -1718,7 +1720,7 @@ fn main() {
         match overlay::ActuatorOverlay::from_config_dir(&config_dir, persist_queue) {
             Ok(o) => o,
             Err(e) => {
-                eprintln!("actuator overlay allowlist: {e}");
+                say_err!("actuator overlay allowlist: {e}");
                 std::process::exit(1);
             }
         };
@@ -1734,7 +1736,7 @@ fn main() {
     if stdin_ctl {
         spawn_stdin_commands(cmd_tx);
         print_usage();
-        eprintln!(
+        say_err!(
             "motion owner: {motion_owner}{}",
             if motion_owner == CommandSource::Stdin {
                 ""
@@ -1771,6 +1773,7 @@ fn main() {
         actuator_overlay: &mut actuator_overlay,
         shutdown: &shutdown,
         motion,
+        output_closed: &operator_output::OUTPUT_CLOSED,
     };
     let panicked = run_with_panic_stop(&mut loop_ctrl, |loop_ctrl| {
         run_control_loop(loop_ctrl, &mut runtime);
@@ -1959,6 +1962,20 @@ struct ControlLoopRuntime<'a> {
     shutdown: &'a Arc<AtomicBool>,
     /// Process-lifetime claim on motion; see [`motion_owner`].
     motion: MotionLease,
+    /// Set when the operator text pipe closed ([`operator_output::OUTPUT_CLOSED`]).
+    output_closed: &'a AtomicBool,
+}
+
+/// Nobody reads the operator text any more (EPIPE, e.g. the bench session's
+/// ssh dropped): quit as for `quit` or EOF, so the normal shutdown stops every
+/// drive instead of the next print panicking (TOOL-06).
+fn quit_if_output_closed(runtime: &ControlLoopRuntime<'_>) -> bool {
+    if !runtime.output_closed.load(Ordering::SeqCst) {
+        return false;
+    }
+    warn!("operator stdout/stderr closed (EPIPE); quitting");
+    runtime.shutdown.store(true, Ordering::SeqCst);
+    true
 }
 
 #[tracing::instrument(skip(loop_ctrl, runtime))]
@@ -1978,6 +1995,9 @@ fn run_control_loop<B: MotorBus>(
     runtime.actuator_overlay.set_motion_lease(runtime.motion);
 
     'control: while !runtime.shutdown.load(Ordering::SeqCst) {
+        if quit_if_output_closed(runtime) {
+            break;
+        }
         let tick_start = Instant::now();
 
         let t = tick_start;
@@ -2028,6 +2048,9 @@ fn run_control_loop<B: MotorBus>(
                 runtime.shutdown.store(true, Ordering::SeqCst);
                 break 'control;
             }
+        }
+        if quit_if_output_closed(runtime) {
+            break;
         }
         let (outer_stdin_us, t_next) = phase_elapsed_us(t);
 

@@ -538,6 +538,7 @@ fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
                 motion: crate::motion_owner::MotionLease::new(
                     crate::motion_owner::CommandSource::Stdin,
                 ),
+                output_closed: &AtomicBool::new(false),
             };
             run_control_loop(&mut controller, &mut runtime);
         } else {
@@ -1458,6 +1459,7 @@ fn run_actual_owner_flag_case(case: OwnerFlagCase) -> OwnerFlagObservation {
         actuator_overlay: &mut overlay,
         shutdown: &shutdown,
         motion: crate::motion_owner::MotionLease::new(crate::motion_owner::CommandSource::Stdin),
+        output_closed: &AtomicBool::new(false),
     };
     run_control_loop(&mut controller, &mut runtime);
     let _ = finished_tx.send(());
@@ -1586,5 +1588,105 @@ fn observed_owner_shutdown_preserves_later_stdin_and_chappe_commands() {
         stop_trace(&chappe.frames),
         literal_stop_trace(),
         "only the first admitted Chappe stop completes after shutdown is observed"
+    );
+}
+
+/// TOOL-06: once the operator pipe is closed (EPIPE), the installed loop quits
+/// before any later stdin command or tick, and the same graceful exit as
+/// `quit` stops every drive.
+#[test]
+fn closed_operator_output_quits_like_quit_and_stops_every_drive() {
+    use crate::{run_control_loop, ControlLoopRuntime, PiCommand};
+
+    let (temp, config_dir) = copied_owner_fixture();
+    let witness = Arc::new(Mutex::new(Vec::new()));
+    let mut controller = ControlLoop::from_repo(
+        temp.path(),
+        RecordingBus {
+            witness: Arc::clone(&witness),
+        },
+        200,
+        25,
+    )
+    .expect("ordinary unreferenced owner");
+    controller.set_control_mode(ControlMode::GravityComp);
+    witness.lock().expect("clear startup output").clear();
+    let chappe = Arc::new(Bus::new(16));
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let mut overlay = ActuatorOverlay::new(
+        load_command_joint_allowlist_from(&config_dir).expect("copied allowlist"),
+        ConfigPersistQueue::spawn(Arc::clone(&chappe), temp.path().to_path_buf()),
+    );
+    let mut enable_rx = chappe.subscribe("robot/enable");
+    let mut set_zero_rx = chappe.subscribe("robot/set_zero");
+    let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
+    let mut status_poll_rx = chappe.subscribe("robot/motor_status_poll");
+    let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
+    let mut actuator_rx = chappe.subscribe(crate::overlay::TOPIC_ACTUATOR_COMMAND);
+    let (cmd_tx, cmd_rx) = mpsc::channel();
+    cmd_tx
+        .send(PiCommand::ImpedanceOn)
+        .expect("a later stdin command");
+    let output_closed = AtomicBool::new(true);
+
+    // Cleanup only: a loop that ignores the closed output would never return.
+    let (finished_tx, finished_rx) = mpsc::channel::<()>();
+    let fallback = Arc::new(AtomicBool::new(false));
+    let watchdog_fallback = Arc::clone(&fallback);
+    let watchdog_shutdown = Arc::clone(&shutdown);
+    let watchdog = std::thread::spawn(move || {
+        if finished_rx.recv_timeout(CLEANUP_BOUND).is_err() {
+            watchdog_fallback.store(true, Ordering::SeqCst);
+            watchdog_shutdown.store(true, Ordering::SeqCst);
+        }
+    });
+    let mut runtime = ControlLoopRuntime {
+        config_dir: &config_dir,
+        chappe_state_hz: 25,
+        chappe: &chappe,
+        cmd_rx: &cmd_rx,
+        enable_rx: &mut enable_rx,
+        set_zero_rx: &mut set_zero_rx,
+        lease_rx: &mut lease_rx,
+        status_poll_rx: &mut status_poll_rx,
+        testing_cmd_rx: &mut testing_cmd_rx,
+        actuator_rx: &mut actuator_rx,
+        actuator_overlay: &mut overlay,
+        shutdown: &shutdown,
+        motion: crate::motion_owner::MotionLease::new(crate::motion_owner::CommandSource::Stdin),
+        output_closed: &output_closed,
+    };
+    run_control_loop(&mut controller, &mut runtime);
+    let _ = finished_tx.send(());
+    watchdog.join().expect("watchdog returned");
+
+    assert!(
+        !fallback.load(Ordering::SeqCst),
+        "the loop must quit on its own"
+    );
+    assert!(
+        shutdown.load(Ordering::SeqCst),
+        "other threads see the quit"
+    );
+    assert_eq!(
+        controller.tick_count(),
+        0,
+        "no tick after the output closed"
+    );
+    assert!(
+        matches!(cmd_rx.try_recv(), Ok(PiCommand::ImpedanceOn)),
+        "the later command is never dispatched"
+    );
+    assert_eq!(controller.control_mode(), ControlMode::GravityComp);
+
+    let outcome = finish_owner_shutdown(&mut controller, &overlay, true, CLEANUP_BOUND, None);
+    assert!(matches!(
+        outcome.stop,
+        ExitStopOutcome::Attempted { result: Ok(()), .. }
+    ));
+    assert_eq!(
+        stop_trace(&witness.lock().expect("exit frames")),
+        literal_stop_trace(),
+        "the exit stop reaches every drive"
     );
 }
