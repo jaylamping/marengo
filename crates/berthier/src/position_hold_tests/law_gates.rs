@@ -339,6 +339,7 @@ fn simulate(scenario: &Scenario) -> Metrics {
             tick,
             dq_seed: Some(dq_meas),
             downward_seed: Some(seed),
+            speed: SpeedFraction::FULL,
         });
         let retarget_tick = tick;
         let ticks = (seconds * f64::from(HZ)) as u64;

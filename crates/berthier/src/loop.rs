@@ -13,7 +13,7 @@ use davout::{
 };
 use marengo_config::{
     load_robot_config_from, motor_type_key, resolve_config_dir, resolve_urdf_path, ModeGains,
-    MotorTypeDefaults, PositionLaw,
+    MotorTypeDefaults, PositionLaw, SpeedFraction,
 };
 use thiserror::Error;
 use tracing::{debug, info, warn};
@@ -115,6 +115,9 @@ pub enum LoopError {
     },
     #[error("position hold: target for {joint} must be finite (got {value})")]
     NonFiniteTarget { joint: String, value: f64 },
+    /// A hold-at speed fraction outside `(0, 1]`: refused, never clamped (ADR 0040 amendment).
+    #[error("position hold: {0}")]
+    InvalidSpeedFraction(#[from] marengo_config::InvalidSpeedFraction),
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
     /// A Position-mode arm latches measured `q`; it waits until every Active
@@ -618,6 +621,15 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_hold.targets()
     }
 
+    /// Speed fraction of `joint`'s latched hold-at move (ADR 0040 amendment); `None` while
+    /// nothing is latched or the joint is unknown.
+    pub fn position_speed_fraction(&self, joint: &str) -> Option<SpeedFraction> {
+        let i = self.joint_names.iter().position(|name| name == joint)?;
+        self.position_hold
+            .is_armed()
+            .then(|| self.position_hold.speed_fraction(i))
+    }
+
     /// Planner trajectory reference (for status / tests), not the clamped MIT setpoint.
     pub fn position_hold_commands(&self) -> Option<Vec<f64>> {
         self.position_hold.q_traj()
@@ -628,6 +640,20 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: &str,
         position_rad: f64,
     ) -> Result<(), LoopError> {
+        self.set_joint_position_setpoint_at_speed(joint, position_rad, None)
+    }
+
+    /// [`Self::set_joint_position_setpoint`] with an optional speed fraction `f` (ADR 0040
+    /// amendment): the move's planned speeds are `f ×` the configured ones, so it can only
+    /// slow the move. `None` is the configured speed. `f` outside `(0, 1]` (NaN, ±∞ included)
+    /// is refused with [`LoopError::InvalidSpeedFraction`] before any state changes.
+    pub fn set_joint_position_setpoint_at_speed(
+        &mut self,
+        joint: &str,
+        position_rad: f64,
+        speed_fraction: Option<f64>,
+    ) -> Result<(), LoopError> {
+        let speed = SpeedFraction::from_optional(speed_fraction)?;
         self.refuse_degraded()?;
         let Some(i) = self.joint_names.iter().position(|n| n == joint) else {
             return Err(LoopError::UnknownJoint {
@@ -644,14 +670,14 @@ impl<B: MotorBus> ControlLoop<B> {
         let q_now = self.refresh_joint_positions()?;
         self.enable_completion()?;
         self.arm_from_measured(&q_now);
-        self.apply_joint_retarget(i, q_now[i], trimmed);
+        self.apply_joint_retarget(i, q_now[i], trimmed, speed);
         Ok(())
     }
 
     /// Latch joint `i`'s target `requested` (trim applied) from measured `q`:
     /// envelope clamp, downward-return seed and planner retarget, the one law
     /// every hold-at uses.
-    fn apply_joint_retarget(&mut self, i: usize, q: f64, requested: f64) {
+    fn apply_joint_retarget(&mut self, i: usize, q: f64, requested: f64, speed: SpeedFraction) {
         let joint = self.joint_names[i].clone();
         let joint = joint.as_str();
         let dq_cmd = self.estimated_retarget_dq_cmd(joint, q, requested);
@@ -703,7 +729,10 @@ impl<B: MotorBus> ControlLoop<B> {
                             threshold,
                         ),
                     );
-                    downward_return_seed_velocity(cfg.position_slew_rad_s, v_max, q, target)
+                    // The seed is a planner speed: it scales with the move's fraction, so a
+                    // slowed descent never starts faster than its own cruise.
+                    speed.get()
+                        * downward_return_seed_velocity(cfg.position_slew_rad_s, v_max, q, target)
                 })
         } else {
             None
@@ -719,6 +748,7 @@ impl<B: MotorBus> ControlLoop<B> {
             tick: self.tick_count,
             dq_seed: Some(self.joint_velocity(joint)),
             downward_seed: downward_seed_rate,
+            speed,
         });
         // Same-target hold-at must not cancel an in-loop wave (idempotent operator path).
         if target_changed {
@@ -1114,6 +1144,19 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: Option<&str>,
         position_rad: f64,
     ) -> Result<(), LoopError> {
+        self.enter_position_hold_at_speed(joint, position_rad, None)
+    }
+
+    /// [`Self::enter_position_hold_at`] with an optional speed fraction `f` (ADR 0040
+    /// amendment, see [`Self::set_joint_position_setpoint_at_speed`]). A fraction outside
+    /// `(0, 1]` is refused first: nothing is enabled, armed or retargeted.
+    pub fn enter_position_hold_at_speed(
+        &mut self,
+        joint: Option<&str>,
+        position_rad: f64,
+        speed_fraction: Option<f64>,
+    ) -> Result<(), LoopError> {
+        SpeedFraction::from_optional(speed_fraction)?;
         self.refuse_degraded()?;
         if !position_rad.is_finite() {
             return Err(LoopError::NonFiniteTarget {
@@ -1138,7 +1181,7 @@ impl<B: MotorBus> ControlLoop<B> {
             joint.to_string()
         };
         self.motion_positions()?;
-        self.set_joint_position_setpoint(&target, position_rad)?;
+        self.set_joint_position_setpoint_at_speed(&target, position_rad, speed_fraction)?;
         self.set_control_mode(ControlMode::Position);
         Ok(())
     }
@@ -1358,7 +1401,8 @@ impl<B: MotorBus> ControlLoop<B> {
         }
         for i in holding {
             let rest = self.hold_target_trim(&self.joint_names[i], 0.0);
-            self.apply_joint_retarget(i, q[i], rest);
+            // Lowering speed is the degraded cap (`lower_velocity_rad_s`), not an operator's.
+            self.apply_joint_retarget(i, q[i], rest, SpeedFraction::FULL);
         }
         if let Some(control) = self.degraded.as_mut() {
             control.phase = DegradedPhase::Lowering;
@@ -4311,3 +4355,7 @@ mod tests {
 #[cfg(test)]
 #[path = "loop_wp_d_tests.rs"]
 mod wp_d_tests;
+
+#[cfg(test)]
+#[path = "loop_speed_fraction_tests.rs"]
+mod speed_fraction_tests;

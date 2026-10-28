@@ -622,6 +622,7 @@ impl Sim<'_> {
             tick: self.tick,
             dq_seed: Some(self.dq_meas),
             downward_seed: None,
+            speed: SpeedFraction::FULL,
         });
     }
 

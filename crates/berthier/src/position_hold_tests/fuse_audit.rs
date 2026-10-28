@@ -94,6 +94,7 @@ impl Rig {
             tick: self.step,
             dq_seed: Some(0.0),
             downward_seed: None,
+            speed: SpeedFraction::FULL,
         })
     }
 
