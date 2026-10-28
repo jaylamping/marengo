@@ -332,7 +332,7 @@ install -m 644 "${ROOT}/scripts/systemd/marengo-log-maintenance.service" /etc/sy
 install -m 644 "${ROOT}/scripts/systemd/marengo-log-maintenance.timer" /etc/systemd/system/marengo-log-maintenance.timer
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-pi.service
 sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-pi.service
-sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-pi|" /etc/systemd/system/marengo-pi.service
+sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-pi --no-stdin-ctl|" /etc/systemd/system/marengo-pi.service
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-gateway.service
 sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-gateway.service
 sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen [::]:8080 --https-listen [::]:8444 --web-root ${INSTALL_ROOT}/www --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service

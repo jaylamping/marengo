@@ -11,10 +11,12 @@ SupplementaryGroups=i2c
 WorkingDirectory=/opt/marengo
 Environment=RUST_LOG=robstride=info,davout=info,berthier=info,marengo_pi=info,marengo_imu=info,chappe=info
 EnvironmentFile=-/etc/marengo/env
-ExecStart=/opt/marengo/bin/marengo-pi
+# systemd gives the service a null stdin, which reads as EOF; with stdin
+# control on, EOF means quit, and Restart=always would loop every 5 s.
+ExecStart=/opt/marengo/bin/marengo-pi --no-stdin-ctl
 # Disable every drive whenever the runtime exits: normal stop, crash, panic,
 # SIGKILL or a watchdog kill. Without it the drives keep their last MIT frame
-# (no drive-side CAN timeout is configured; audit WP-I decision D2, option C).
+# unless their drive-side CanTimeout fires (docs/safety.md; WP-I decision D2).
 # `motor-repl disable` reads only motors.yaml addresses and sends one type-4
 # Disable per drive. The "-" prefix keeps a failed disable from masking the
 # unit's own exit status in the journal.
