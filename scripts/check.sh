@@ -203,6 +203,9 @@ cargo test -p davout "${DAVOUT_TIMING_TESTS[@]/#/--test=}" -- --test-threads=1
 echo "==> virtual CAN setup contracts (no interfaces required)"
 bash "${ROOT}/scripts/vcan-up.test.sh"
 
+echo "==> marengo-pi restart helper contracts (fake systemctl)"
+bash "${ROOT}/scripts/pi-restart-marengo-pi.test.sh"
+
 echo "==> dependency gate contracts"
 bash "${ROOT}/scripts/check-dependencies.test.sh"
 bash "${ROOT}/scripts/check-dependencies.sh"
