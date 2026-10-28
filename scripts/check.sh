@@ -217,6 +217,7 @@ bash "${ROOT}/scripts/deploy-rev.test.sh"
 bash "${ROOT}/scripts/deploy-job-contract.test.sh"
 bash "${ROOT}/scripts/deploy-log-cli-enrich.test.sh"
 bash "${ROOT}/scripts/deploy-install.test.sh"
+bash "${ROOT}/scripts/pi-self-update.test.sh"
 
 echo "==> proto checksum gate contract"
 bash "${ROOT}/scripts/proto-checksum.test.sh"

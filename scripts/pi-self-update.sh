@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Canonical Pi-native self-update: pin exact SHA → build → staging install-pi.
 # Runs as the deploy user (joey), typically via systemd-run from pi-enqueue-self-update.sh.
-# MCP pi_native and marengo-gateway both invoke this script.
+# MCP pi_native and marengo-gateway both invoke this script; RUN_LOCK below
+# keeps them from building in the same checkout at once.
 set -euo pipefail
 
 TARGET_SHA="${TARGET_SHA:-${1:-}}"
@@ -9,6 +10,9 @@ JOB_FILE="${JOB_FILE:-${MARENGO_DEPLOY_JOB_FILE:-/opt/marengo/var/deploy-job.jso
 STAGING="${MARENGO_STAGING_ROOT:-${HOME}/marengo}"
 OPT_ROOT="${MARENGO_ROOT:-/opt/marengo}"
 LOG_FILE="${MARENGO_SELF_UPDATE_LOG:-${OPT_ROOT}/var/self-update.log}"
+# Advisory lock shared with marengo-deploy (job_file_lock_path) and the enqueue helper.
+JOB_LOCK="${JOB_FILE}.lock"
+RUN_LOCK="${STAGING}.self-update.lock"
 UNIT_NAME="${MARENGO_SELF_UPDATE_UNIT:-}"
 # Public HTTPS by default; override for private mirrors / deploy keys.
 REPO_URL="${MARENGO_GIT_URL:-https://github.com/jaylamping/marengo.git}"
@@ -23,6 +27,21 @@ if [[ ! "${TARGET_SHA}" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
 fi
 
 mkdir -p "$(dirname "${JOB_FILE}")" "$(dirname "${LOG_FILE}")" 2>/dev/null || true
+
+# One run per staging checkout. A second run (Consul Update during an MCP
+# pi_native deploy, or the reverse) would build in the same tree and overwrite
+# the running job's ledger entries, so it exits before touching either.
+exec 7>>"${RUN_LOCK}"
+if ! flock -n 7; then
+  echo "error: another self-update holds ${RUN_LOCK}; not starting a second build" >&2
+  exit 1
+fi
+
+# The log holds this run only (the previous one is kept as .1): the gateway
+# shows its tail when a job fails, and an appended log grew without bound.
+if [[ -s "${LOG_FILE}" ]]; then
+  mv -f "${LOG_FILE}" "${LOG_FILE}.1" 2>/dev/null || : >"${LOG_FILE}" 2>/dev/null || true
+fi
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -44,7 +63,10 @@ write_job() {
   local phase="${3:-}"
   local result_sha="${4:-}"
   local tmp msg_esc
-  # Same-directory tmp + rename so readers never see a torn JSON object.
+  # Same-directory tmp + rename so readers never see a torn JSON object. The
+  # rename runs under JOB_LOCK so a gateway reconcile (read, then write) cannot
+  # interleave with it. flock opens the lock read-only, so it works whichever
+  # user created it.
   tmp="${JOB_FILE}.tmp.$$"
   msg_esc="$(json_escape "${message}")"
   cat >"${tmp}" <<EOF
@@ -60,7 +82,7 @@ write_job() {
   "phase": "${phase}"
 }
 EOF
-  if ! mv -f "${tmp}" "${JOB_FILE}" 2>/dev/null; then
+  if ! flock -w 30 "${JOB_LOCK}" mv -f "${tmp}" "${JOB_FILE}" 2>/dev/null; then
     if ! sudo -n mv -f "${tmp}" "${JOB_FILE}" 2>/dev/null; then
       rm -f "${tmp}"
       echo "error: cannot write job file ${JOB_FILE}" >&2
@@ -108,16 +130,10 @@ fi
 write_job "running" "fetching ${TARGET_SHA}" "fetch"
 git fetch origin || fail "git fetch failed" "fetch"
 
-# Pin exact commit (accept short or full SHA from GitHub tip).
-RESOLVED="$(git rev-parse --verify "${TARGET_SHA}^{commit}" 2>/dev/null || true)"
-if [[ -z "${RESOLVED}" ]]; then
-  RESOLVED="$(git rev-parse --verify "origin/${TARGET_SHA}^{commit}" 2>/dev/null || true)"
-fi
-if [[ -z "${RESOLVED}" ]]; then
-  # Try as prefix against origin/main tip objects after fetch.
-  RESOLVED="$(git rev-list --all --max-count=5000 | grep -E "^${TARGET_SHA}" | head -1 || true)"
-fi
-[[ -n "${RESOLVED}" ]] || fail "cannot resolve TARGET_SHA ${TARGET_SHA}" "fetch"
+# Pin exactly one commit (short or full SHA). rev-parse refuses a short SHA
+# that matches several objects; never pick one of them.
+RESOLVED="$(git rev-parse --verify --quiet "${TARGET_SHA}^{commit}" 2>/dev/null || true)"
+[[ -n "${RESOLVED}" ]] || fail "cannot resolve TARGET_SHA ${TARGET_SHA} to exactly one commit" "fetch"
 
 git checkout --detach "${RESOLVED}" || fail "git checkout ${RESOLVED} failed" "fetch"
 HEAD_NOW="$(git rev-parse HEAD)"
