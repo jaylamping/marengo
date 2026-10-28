@@ -142,3 +142,49 @@ would confirm this result.
   no worse stopping, no clamps and no hold hunting; repeat spread ≤ 10 mrad and final-second
   drift ≤ 5 mrad. If tracking improves but velocity RMS does not, reject the damping rationale
   and investigate the drive's ripple transfer instead of adding stiffness.
+
+## Amendment 2026-10-28: hold-at speed fraction
+
+The reduced-speed bench trial ("reduced speed fractions first") needs moves slower than the
+configured planner speed. Until now only a single-cycle wave could run at a chosen speed; every
+`hold-at` (and so every hold, repeat, mid-move retarget and the return to 0 that ends a session)
+ran at `position_slew_rad_s` / `position_trajectory_velocity_rad_s`.
+
+- **Surface.** `hold-at` takes an optional speed fraction `f`: stdin `hold-at [joint] <rad>
+  [speed=<f>]`; a Testing POSITION batch entry's `MitJointCommand.speed_fraction` (proto field 9,
+  `optional double`); Berthier `ControlLoop::enter_position_hold_at_speed` and
+  `set_joint_position_setpoint_at_speed`. Without `f` a hold-at is exactly the old one.
+- **Range, fail-closed.** `0 < f ≤ 1` (`marengo_config::SpeedFraction`, one rule for every
+  surface). Zero, negative, above one, NaN, ±∞ or unparseable text are refused, never clamped:
+  stdin prints the error and runs nothing; the gateway answers 400 and publishes nothing;
+  marengo-pi refuses the whole Testing batch (published `motion_refused`) before any enable,
+  gravity preflight, mode or gain change; Berthier returns `LoopError::InvalidSpeedFraction`
+  before it touches the drives or the hold. A refused hold-at leaves the latched targets, the
+  planner reference and the move's fraction as they were. A `speed_fraction` on a wave entry or
+  in a non-POSITION batch also refuses the batch.
+- **Only slows.** The fraction scales the joint's planner speeds for that move: slew, trajectory
+  cruise and the velocity cap (`HoldJointParams::at_speed_fraction`), and the downward-return
+  seed. Every speed the legacy planner or the scaled-PD reference governor picks is therefore
+  `f ×` the configured one or less; the configured limits, the danger-zone descent cap and the
+  envelope approach cap stay ceilings on top. The acceleration limit `a_max` is kept, like the
+  ADR 0039 governor, which also scales speed only: the profile stays a valid trapezoid inside
+  the configured acceleration, and the planner keeps its full braking authority, so a slowed
+  retarget issued mid-move never coasts above its new cruise longer than an unslowed one. Gains,
+  leads, deadbands, fuses and Davout's limits are unchanged. The envelope target clamp keeps
+  using the configured (larger) speed, so its kinetic margin is never smaller.
+- **Latched with the target.** The fraction belongs to the move it came with. A same-target
+  hold-at stays a full no-op, fraction included; a new target without `f` is a full-speed move;
+  `hold-on`, a fresh latch, a wave on the joint and leaving Position reset it. A degraded lower
+  retargets without a fraction, under its own `lower_velocity_rad_s` cap.
+- **Motion suite.** `pi_motion_suite` passes its largest `speed_fractions` value as `speed=<f>`
+  to every hold-at it sends (holds, short moves, gravity-extreme moves, repeats, reversal
+  retargets and the stop at 0) and times each wait from the scaled speed; waves keep one per
+  fraction.
+
+Verification: `quarter_speed_fraction_quarters_the_planned_peak_velocity` (legacy and scaled PD,
+peak cruise exactly ¼, launch acceleration still `a_max`) and `a_wave_runs_at_its_own_speed_after_a_slowed_hold_at`
+(`position_hold_tests/speed_fraction.rs`); `out_of_range_speed_fraction_*`,
+`hold_at_without_a_fraction_plans_exactly_the_old_move` and `the_fraction_is_latched_with_the_target`
+(`loop_speed_fraction_tests.rs`); the stdin, Testing-batch and gateway refusals
+(`stdin_command_tests`, `motion_owner_chappe_tests`, `command_hardening_test`); the motion-suite
+plan and session tests (`tools/marengo-pi-mcp/test/motion-suite.test.ts`).
