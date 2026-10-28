@@ -30,6 +30,8 @@ The **right 5-DOF arm** on the bench is a deliberate first slice to prove the co
 
 `main` CI failed on the last commit (`07375aa`, run 921): one Davout test, `physical_reference::a_drive_that_died_while_the_host_held_its_stream_off_loses_its_grant` (expected `Unhomed`, got `Verified`). The previous commit passed, and `07375aa` only changed Berthier and config, so this looks timing-sensitive on the CI runner. It still needs a proper look because it guards grant revocation.
 
+As of 2026-10-28 CI also stops earlier, at `npm audit --audit-level=high` in `consul/`: advisories published since 2026-10-04 hit `vite` 8.0.16, `undici` 7.30.0 and `source-map-js` 1.2.1 (fixable with `npm audit fix`) and `zod` < 4.6.6, including the `zod` 3.x that `glinui` 0.1.1 pins (no fix in range; replace `glinui` or override its `zod`).
+
 ## Open issues (most important first)
 
 Detailed per-finding status: [prior-review-status.md](reviews/2026-10-03-crate-audit/prior-review-status.md) (as of `a2b55b3`) and the Phase B reports in [`reviews/2026-10-03-crate-audit/phase-b/`](reviews/2026-10-03-crate-audit/phase-b/). Several Phase B packages fixed items after that table was written (for example G16 store/deploy blocking I/O and CS16), so the table needs reconciling before it is trusted line by line.
@@ -65,7 +67,7 @@ These change the robot, so they are Joey's call; most want an ADR.
 
 ## Next steps (proposed order)
 
-1. Look at the failing `physical_reference` test on `main` and get CI green.
+1. Get CI green: clear the Consul `npm audit` advisories, then look at the failing `physical_reference` test.
 2. Cause-B physical checks (termination, ground), then an enable soak on current `main`.
 3. Bench-run the ADR 0040 pitch trial with `pi_motion_suite`; record it in the ledger; decide on 0039/0040.
 4. Gravity calibration sweep, RS03 value re-checks, then resume the limb playbook at the 50 % Position rung.
