@@ -6,7 +6,8 @@
 //! and its `tee` dies while marengo-pi keeps running (TOOL-06). Here a closed
 //! pipe is recorded in [`OUTPUT_CLOSED`] instead, and `run_control_loop` treats
 //! it like `quit`: the normal shutdown stops every drive. Any other write
-//! error drops the line.
+//! error drops the line. Log lines on stdout set the same flag
+//! (`chappe::tracing_layer::init_subscriber_watching_stdout`).
 
 use std::fmt;
 use std::io::{self, Write};

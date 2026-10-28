@@ -1618,7 +1618,11 @@ fn main() {
     // startup events (e.g. the joint-subset info line, SocketCAN open) reach
     // the journal and Chappe instead of being dropped.
     let chappe = Arc::new(Bus::default());
-    chappe::tracing_layer::init_subscriber(Some(Arc::clone(&chappe)), "marengo-pi");
+    chappe::tracing_layer::init_subscriber_watching_stdout(
+        Some(Arc::clone(&chappe)),
+        "marengo-pi",
+        &operator_output::OUTPUT_CLOSED,
+    );
 
     let control = match load_control_config(&root) {
         Ok(c) => c,

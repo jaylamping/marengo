@@ -1,6 +1,6 @@
 //! Publish `tracing` events as Chappe `LogEvent` on `logs/structured`.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -251,24 +251,94 @@ fn env_filter(rust_log: Option<&str>) -> tracing_subscriber::EnvFilter {
         .parse_lossy(rust_log.unwrap_or_default())
 }
 
+/// Stdout for the fmt layer. A failed write drops the line; a closed pipe
+/// (EPIPE) also sets `closed` when the caller watches for it.
+#[derive(Clone, Copy)]
+struct StdoutWriter {
+    closed: Option<&'static AtomicBool>,
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for StdoutWriter {
+    type Writer = PipeWriter<std::io::Stdout>;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        PipeWriter {
+            out: std::io::stdout(),
+            closed: self.closed,
+        }
+    }
+}
+
+struct PipeWriter<W> {
+    out: W,
+    closed: Option<&'static AtomicBool>,
+}
+
+impl<W> PipeWriter<W> {
+    fn note<T>(&self, result: std::io::Result<T>) -> std::io::Result<T> {
+        if let (Err(error), Some(closed)) = (&result, self.closed) {
+            if error.kind() == std::io::ErrorKind::BrokenPipe {
+                closed.store(true, Ordering::SeqCst);
+            }
+        }
+        result
+    }
+}
+
+impl<W: std::io::Write> std::io::Write for PipeWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let result = self.out.write(buf);
+        self.note(result)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let result = self.out.flush();
+        self.note(result)
+    }
+}
+
 /// Initialize fmt + env filter + optional Chappe log layer (call once from bin main).
 pub fn init_subscriber(bus: Option<Arc<Bus>>, source_node: &str) {
+    install_subscriber(bus, source_node, None);
+}
+
+/// [`init_subscriber`] that also sets `stdout_closed` when a log line hits a
+/// closed stdout (EPIPE), so the motor owner can quit and stop its drives
+/// rather than run with nobody reading its output.
+pub fn init_subscriber_watching_stdout(
+    bus: Option<Arc<Bus>>,
+    source_node: &str,
+    stdout_closed: &'static AtomicBool,
+) {
+    install_subscriber(bus, source_node, Some(stdout_closed));
+}
+
+fn install_subscriber(
+    bus: Option<Arc<Bus>>,
+    source_node: &str,
+    stdout_closed: Option<&'static AtomicBool>,
+) {
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
 
     let rust_log = std::env::var(tracing_subscriber::EnvFilter::DEFAULT_ENV).ok();
     let filter = env_filter(rust_log.as_deref());
+    // A failed write must not fall back to `eprintln!`: with stdout and
+    // stderr on the same closed pipe that panics the thread that logged,
+    // the motor owner's control thread included (TOOL-06).
+    let fmt = tracing_subscriber::fmt::layer()
+        .with_writer(StdoutWriter {
+            closed: stdout_closed,
+        })
+        .log_internal_errors(false);
     if let Some(bus) = bus {
         tracing_subscriber::registry()
             .with(filter)
-            .with(tracing_subscriber::fmt::layer())
+            .with(fmt)
             .with(ChappeLogLayer::new(bus, source_node))
             .init();
     } else {
-        tracing_subscriber::registry()
-            .with(filter)
-            .with(tracing_subscriber::fmt::layer())
-            .init();
+        tracing_subscriber::registry().with(filter).with(fmt).init();
     }
 }
 
@@ -436,6 +506,35 @@ mod tests {
         let logs = published_logs(&mut rx);
         assert_eq!(logs.len(), 1);
         assert_eq!(logs[0].session_id, "20261028T120000Z");
+    }
+
+    #[test]
+    fn a_closed_stdout_is_reported_and_the_line_dropped() {
+        use std::io::Write;
+
+        struct ClosedPipe;
+        impl Write for ClosedPipe {
+            fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::ErrorKind::BrokenPipe.into())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        static CLOSED: AtomicBool = AtomicBool::new(false);
+        let mut writer = PipeWriter {
+            out: ClosedPipe,
+            closed: Some(&CLOSED),
+        };
+        assert!(writer.write_all(b"log line\n").is_err());
+        assert!(CLOSED.load(Ordering::SeqCst));
+
+        let mut unwatched = PipeWriter {
+            out: Vec::new(),
+            closed: None,
+        };
+        unwatched.write_all(b"log line\n").expect("open writer");
+        assert_eq!(unwatched.out, b"log line\n");
     }
 
     #[test]
