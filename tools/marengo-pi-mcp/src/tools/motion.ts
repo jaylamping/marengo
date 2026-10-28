@@ -282,8 +282,14 @@ export const SOLE_CAN_OWNER_NOTE =
   "Runs as sole CAN owner: stops marengo-pi.service via the pi_restart_marengo_pi helper, " +
   "refuses if any marengo-pi/motor-repl remains, restarts the unit afterwards if it was active.";
 
+/**
+ * `motor-repl gravity-preview` reads robot.yaml and the URDF only and never opens CAN, so the
+ * gravity gate runs it beside a running marengo-pi, without taking CAN ownership (TOOL-16).
+ */
+export const GRAVITY_PREVIEW_TIMEOUT_MS = 30_000;
+
 const GRAVITY_GATE_NOTE =
-  "Before any enable, a gravity-model gate runs motor-repl gravity-preview (as sole CAN owner) and refuses " +
+  "Before any enable, a gravity-model gate runs motor-repl gravity-preview (model only, no CAN) and refuses " +
   "with `FAIL gravity_model_mismatch` when |τ_meas − τ_g| ≥ 0.20 Nm on any joint (gateway drive torque " +
   "while marengo-pi holds the arm), or else when |τ_g| ≥ 0.20 Nm at the profile's hanging rest pose.";
 
@@ -848,8 +854,8 @@ export function registerMotionTools(
           ),
           runPreview: (shell) =>
             runRemote(
-              wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir),
-              30_000 + CAN_SESSION_SLACK_MS,
+              wrapRemoteWithConfig(cfg, shell, configDir),
+              GRAVITY_PREVIEW_TIMEOUT_MS,
             ),
         });
         if (!gravity.ok) {
@@ -998,8 +1004,8 @@ export function registerMotionTools(
             ),
             runPreview: (shell) =>
               runRemote(
-                wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir),
-                30_000 + CAN_SESSION_SLACK_MS,
+                wrapRemoteWithConfig(cfg, shell, configDir),
+                GRAVITY_PREVIEW_TIMEOUT_MS,
               ),
           });
           if (!gravity.ok) {

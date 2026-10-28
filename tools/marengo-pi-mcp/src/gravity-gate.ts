@@ -2,8 +2,8 @@
  * Gravity-model gate run before any enable by pi_hold_on and pi_bench_harness
  * (limb-playbook §4a/4b: per-joint |τ_meas − τ_g| < 0.20 Nm).
  *
- * τ_g comes from `motor-repl gravity-preview` (read-only model evaluation), which still
- * opens SocketCAN, so the caller runs the preview shell only as the sole CAN owner.
+ * τ_g comes from `motor-repl gravity-preview`, a model evaluation from robot.yaml and the
+ * URDF that never opens SocketCAN, so callers run it without taking CAN ownership.
  *
  * Measured torque comes from the gateway RobotState snapshot (never CAN). It is used
  * only when the snapshot is fresh and every gated joint is drive-active and Verified,

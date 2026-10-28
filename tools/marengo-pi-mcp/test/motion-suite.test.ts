@@ -433,12 +433,12 @@ describe("pi_motion_suite tool", () => {
     assert.equal(h.bodies.length, 0);
   });
 
-  it("a real run takes CAN ownership for its τ batches", async () => {
+  it("a real run's τ batches leave marengo-pi.service alone: gravity-preview never opens CAN (TOOL-16)", async () => {
     const h = harness();
     await h.run({ sessions: ["repeatability"] });
     const tauBodies = h.bodies.filter((b) => b.includes("@@gravcal_pose"));
     assert.ok(tauBodies.length > 0);
-    for (const b of tauBodies) assert.match(b, /marengo-pi\.service restore after session/);
+    for (const b of tauBodies) assert.doesNotMatch(b, /pi-restart-marengo-pi\.sh|restore after session/);
   });
 
   it("dry_run with the repo calibrations index widens the pitch window to the soft ∩ hard limits", async () => {

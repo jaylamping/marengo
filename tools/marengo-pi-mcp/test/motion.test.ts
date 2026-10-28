@@ -296,10 +296,12 @@ describe("marengo-pi script tool", () => {
     assert.match(out, /right_shoulder_pitch: q=0\.0000 rad τ_g=-1\.5951 Nm residual=1\.5951 Nm FAIL/);
     assert.match(out, /right_shoulder_roll: .* ok/);
     assert.deepEqual(audits, [1]);
-    // Only the CAN-free snapshot read and the read-only preview (as sole CAN owner) ran.
+    // Only the CAN-free snapshot read and the CAN-free preview ran; neither touched
+    // marengo-pi.service (TOOL-16).
     assert.equal(bodies.length, 2);
     assert.doesNotMatch(bodies[0], /motor-repl|marengo-pi\.sh' stop/);
-    assert.match(bodies[1], /pi-restart-marengo-pi\.sh' stop[\s\S]*\nbin\/motor-repl gravity-preview$/);
+    assert.match(bodies[1], /\nbin\/motor-repl gravity-preview$/);
+    assert.doesNotMatch(bodies[1], /pi-restart-marengo-pi\.sh|restore after session/);
     assert.ok(
       !bodies.some((b) => /sign-tested|enable|hold-on|hold-at|PI_BIN/.test(b)),
       "no motion command may reach the Pi",

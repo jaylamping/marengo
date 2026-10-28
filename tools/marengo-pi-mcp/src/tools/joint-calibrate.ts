@@ -26,7 +26,6 @@ import type { MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, MASTER_JOINTS, profileMeta } from "../bench-profiles.js";
 import { type TauFactors, UNVERIFIED_TAU_FACTOR, resolveTauFactors } from "../tau-factor.js";
 import { wrapRemoteWithConfig } from "../env.js";
-import { soleCanOwnerShell } from "../can-owner.js";
 import { validateMotionConfirm } from "../safety.js";
 import {
   type AuditMotion,
@@ -56,7 +55,6 @@ import {
   yamlStringList,
 } from "./calibration-session.js";
 import {
-  CAN_SESSION_SLACK_MS,
   REFERENCE_OPT_IN_REQUIRED,
   SOLE_CAN_OWNER_NOTE,
   benchConfigDir,
@@ -1172,8 +1170,9 @@ export function registerJointCalibrateTools(
         const tauBatch = async (configs: Record<string, number>[]) =>
           parseGravityBatch(
             await runRemote(
-              wrapRemoteWithConfig(cfg, soleCanOwnerShell(gravityBatchShell(configs, read.robotJoints)), configDir),
-              TAU_GUARD_TIMEOUT_MS + CAN_SESSION_SLACK_MS,
+              // gravity-preview never opens CAN: no ownership needed (TOOL-16).
+              wrapRemoteWithConfig(cfg, gravityBatchShell(configs, read.robotJoints), configDir),
+              TAU_GUARD_TIMEOUT_MS,
             ),
           );
 
