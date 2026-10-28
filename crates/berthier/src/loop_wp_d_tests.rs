@@ -178,6 +178,50 @@ fn ascent_stall_trip_records_its_reason_and_discards_intent() {
 }
 
 #[test]
+fn return_stall_trip_records_its_reason_and_discards_intent() {
+    // BER-03: a move toward home jammed while the law pushes toward the target. The yaw axis
+    // carries no gravity torque at this pose, so only the return fuse can see it.
+    const YAW: &str = "right_upper_arm_yaw";
+    let mut ctrl = test_loop();
+    ready_active_at(&mut ctrl, 0.0);
+    queue_all_status(ctrl.supervisor_mut(), Some((YAW, 0.6, 0.0)));
+    ctrl.supervisor_mut()
+        .drain_feedback()
+        .expect("raw yaw observation");
+    ctrl.enter_position_hold_at(Some(YAW), 0.1)
+        .expect("hold-at toward home");
+    let mut err = None;
+    for step in 1..=700_u32 {
+        queue_all_status(ctrl.supervisor_mut(), Some((YAW, 0.6, 0.0)));
+        ctrl.supervisor_mut()
+            .drain_feedback()
+            .expect("finite raw observations");
+        if let Err(e) = ctrl.tick(None) {
+            err = Some((e, step));
+            break;
+        }
+    }
+    let (err, step) = err.expect("a jammed return toward home must trip");
+    let LoopError::ReturnStall { joint, trip, .. } = &err else {
+        panic!("expected ReturnStall, got {err:?}");
+    };
+    assert_eq!(joint, YAW);
+    assert!(step <= 410, "trip too late at step {step}");
+    assert!(
+        trip.tau_p + trip.tau_ff < 0.0,
+        "law pushes toward target: {trip:?}"
+    );
+    assert!(err
+        .to_string()
+        .contains("return stall on right_upper_arm_yaw"));
+    assert_latched_controller_fault(
+        &mut ctrl,
+        Some(YAW),
+        "position return toward home stalled without measured progress",
+    );
+}
+
+#[test]
 fn wave_stall_trip_latches_controller_fault_and_discards_intent() {
     let mut ctrl = test_loop();
     ready_active_at(&mut ctrl, 0.3);
@@ -467,4 +511,28 @@ fn position_law_kp_is_the_wire_kp_during_a_gain_ramp() {
     }
     assert_eq!(wire_kp_raw[0], 0, "ramp starts at zero on the wire");
     assert!(wire_kp_raw[1] > 0 && wire_kp_raw[2] > wire_kp_raw[1]);
+}
+
+// ---- BER-15: the Davout reshape watch does not outlive Position --------------------------
+
+#[test]
+fn leaving_position_drops_the_reshape_watch() {
+    // The watch compares Davout's sent τ_ff with the last Position command. Kept across another
+    // mode, the first tick after re-entry compared against a stale command and was flagged as
+    // reshaped, freezing the scaled-PD integral for that tick.
+    let mut ctrl = test_loop();
+    ready_active_at(&mut ctrl, 0.0);
+    ctrl.enter_position_hold().expect("hold-on");
+    replay_feedback(&mut ctrl, 0.0);
+    ctrl.tick(None).expect("position tick");
+    assert!(
+        !ctrl.hold_reshape_watch.is_empty(),
+        "Position fills the watch"
+    );
+    ctrl.try_set_control_mode(ControlMode::GravityComp)
+        .expect("leave Position");
+    assert!(
+        ctrl.hold_reshape_watch.is_empty(),
+        "a watch from the previous Position episode must not survive leaving it"
+    );
 }

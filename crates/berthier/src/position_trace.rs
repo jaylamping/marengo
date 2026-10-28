@@ -178,7 +178,6 @@ impl PositionTrace {
         self.bytes_written = self.bytes_written.saturating_add(self.line.len() as u64);
     }
 
-    #[allow(dead_code)]
     pub fn flush(&mut self) -> std::io::Result<()> {
         self.writer.flush()
     }

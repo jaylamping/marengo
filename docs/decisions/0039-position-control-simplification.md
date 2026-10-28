@@ -97,7 +97,8 @@ integral:    İ = e_target  when |e_target| < i_band, else İ = −I/τ_leak; 
   - A joint ahead of the reference gets full P and D braking back toward it (no outrun
     branch).
   - Lead is bounded by construction, `|q_r − q| ≤ e1` plus one tick, so no setpoint clamp other
-    than the limit envelope is needed.
+    than the limit envelope is needed. (As built the reference brakes past `e1`; see the
+    stuck-plant lead bound under Phase 2 results.)
 - **Friction from the reference velocity.** Direction and magnitude come from `v_c`, which is
   continuous and free of dither. A small Stribeck term (`fs > fc` for `|v| < v_b`) supplies
   breakaway while the reference starts moving, instead of a measured "stuck" detector. At rest
@@ -319,9 +320,15 @@ Deviations from the plan above, each forced by the simulation or by arithmetic:
 - **The reference rides a discrete braking curve** and reverses, overshoots a too-short
   retarget and returns, all within `a_max·dt` per tick. It snaps to `(target, 0)` only from a
   speed within one tick of rest. The legacy trapezoid snaps velocity on reversal.
-- **Stuck-plant lead bound.** From rest the lead stays below `e1 + e0`. A joint that jams at
-  speed carries the reference up to `e1 + v²/(2·a_max)`; `e1 + v_max·dt` is unreachable for any
-  continuous reference (pitch: 1.25²/9 = 0.17 rad > e1).
+- **Stuck-plant lead bound.** The governor scales the speed limit on the current lead, so the
+  reference keeps braking after `s` reaches 0 and the lead overruns `e1` by up to
+  `v²/(2·a_max)` at the speed it had there. From rest at the `a_max` 4.5 simulated here it
+  stays below `e1 + e0` (0.130 rad for e0 0.03, e1 0.12). At the 1.5 the pitch now runs it does
+  not: a stuck joint from rest sees 0.168 rad (code review 2026-10-28 BER-06, reproduced on
+  `PositionHold` with the pitch e0/e1/a_max), so `kp·lead` (6.7 Nm at kp 40) is bounded by
+  Davout's total-torque clamp, not by the law. A joint that jams at speed carries the reference
+  up to `e1 + v²/(2·a_max)`; `e1 + v_max·dt` is unreachable for any continuous reference
+  (pitch: 1.25²/9 = 0.17 rad > e1).
 - **Static dead zone is `fs/kp`, not `(fs − fc)/kp`**, because `τ_fric(0) = 0` at rest.
 - **Velocity-overshoot gate.** A PD with drive damping catches a lag `e` up at `(kp/kd)·e` above
   the reference speed, and a joint resting in its dead zone starts a move up to `fs/kp` behind.

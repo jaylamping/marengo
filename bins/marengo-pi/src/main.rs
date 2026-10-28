@@ -1081,7 +1081,7 @@ fn apply_testing_batch<B: MotorBus>(
             return;
         }
         // Consul Wave: `wave:<joint>:<min>:<max>:<cycles>:<half_period_sec>`
-        // starts Berthier in-loop triangle (continuous; no endpoint holds).
+        // starts Berthier's in-loop raised-cosine wave (continuous; no endpoint holds).
         if let Some(wave) = parse_testing_wave_command(&joint.name) {
             match loop_ctrl.start_position_wave(
                 wave.joint,

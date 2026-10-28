@@ -22,7 +22,6 @@ use crate::degraded::{
     DegradedControl, DegradedEvent, DegradedLowerCause, DegradedPhase, DriveLossAdmission,
     DEGRADED_REST_TOLERANCE_RAD,
 };
-use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::gain_runtime::{
     mode_allows_gain_override, target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime,
     GainShapeError, JointModeGains,
@@ -30,7 +29,7 @@ use crate::gain_runtime::{
 use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
     DescentCap, HoldError, HoldFuseTrip, HoldJointDiag, HoldJointParams, HoldLaw, HoldRetarget,
-    HoldWorld, PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
+    HoldWorld, PositionHold,
 };
 use crate::position_law::{ReferenceFriction, ScaledPdGains};
 use crate::position_profile::position_profile_v_max;
@@ -131,6 +130,14 @@ pub enum LoopError {
         trip: HoldFuseTrip,
     },
     #[error(
+        "position hold: return stall on {joint}: no measured progress toward target for {ms} ms ({trip})"
+    )]
+    ReturnStall {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
+    #[error(
         "position hold: hold tracking failure on {joint}: off target with net commanded torque opposing it and no measured progress for {ms} ms ({trip})"
     )]
     HoldTracking {
@@ -182,6 +189,7 @@ impl From<HoldError> for LoopError {
     fn from(err: HoldError) -> Self {
         match err {
             HoldError::AscentStall { joint, ms, trip } => Self::AscentStall { joint, ms, trip },
+            HoldError::ReturnStall { joint, ms, trip } => Self::ReturnStall { joint, ms, trip },
             HoldError::HoldTracking { joint, ms, trip } => Self::HoldTracking { joint, ms, trip },
             HoldError::MissingSetpoint { joint } => Self::MissingSetpoint { joint },
             HoldError::WaveStall { joint, ms, trip } => Self::WaveStall { joint, ms, trip },
@@ -226,7 +234,7 @@ pub struct ControlLoop<B: MotorBus> {
     gains: GainRuntime,
     /// Per-joint latched open-loop `τ_cmd` (Nm) for [`ControlMode::TorqueOnly`].
     torque_cmds: TorqueCmdLatch,
-    /// In-loop triangle wave on one joint while others hold fixed setpoints.
+    /// In-loop raised-cosine wave on one joint while others hold fixed setpoints.
     position_wave: Option<PositionWave>,
     /// Set by an operator disable: motion commands then refuse instead of
     /// re-enabling drives (see [`ControlLoop::ensure_active_for_motion`]).
@@ -826,7 +834,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_wave = None;
     }
 
-    /// Start a continuous triangle wave on one joint (Position mode).
+    /// Start a continuous raised-cosine wave on one joint (Position mode).
     ///
     /// Other joints keep their current latched setpoints. The wave runs in-loop for
     /// `cycles` full min→max→min periods without stdin pacing.
@@ -1404,6 +1412,8 @@ impl<B: MotorBus> ControlLoop<B> {
         let to = self.target_gains_for_mode(mode);
         if mode != ControlMode::Position {
             self.position_hold.clear();
+            // Its last command belongs to this Position episode; the next one starts unreshaped.
+            self.hold_reshape_watch.clear();
             self.last_position_diag = None;
             self.position_wave = None;
         }
@@ -1625,6 +1635,10 @@ impl<B: MotorBus> ControlLoop<B> {
                     "position ascent stalled without measured progress",
                     Some(joint),
                 ),
+                LoopError::ReturnStall { joint, .. } => self.supervisor.latch_control_fault(
+                    "position return toward home stalled without measured progress",
+                    Some(joint),
+                ),
                 LoopError::HoldTracking { joint, .. } => self.supervisor.latch_control_fault(
                     "position hold off target with opposing commanded torque and no progress",
                     Some(joint),
@@ -1661,6 +1675,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     | LoopError::HoldLenMismatch
                     | LoopError::MissingFeedback { .. }
                     | LoopError::AscentStall { .. }
+                    | LoopError::ReturnStall { .. }
                     | LoopError::HoldTracking { .. }
                     | LoopError::WaveStall { .. }
             ) {
@@ -1853,22 +1868,24 @@ impl<B: MotorBus> ControlLoop<B> {
                                 }
                                 _ => HoldLaw::Legacy,
                             };
+                            // One key each feeds both the advance and compose paths. The
+                            // fallbacks are unreachable: construction refuses a joint without a
+                            // control.yaml entry (tests/config_joint_coverage.rs).
+                            let max_lead =
+                                cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15);
+                            let vel_deadband = cfg
+                                .map(|c| c.position_trajectory_velocity_deadband_rad)
+                                .unwrap_or(0.02);
                             HoldJointParams {
                                 // The torque the law judges (fuses, evidence, diag) is the
                                 // torque on the wire: override > ramp > YAML.
                                 kp: r.wire_kp,
                                 kd: r.law_kd,
                                 ki: r.law_ki,
-                                max_lead: cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15),
-                                vel_deadband: cfg
-                                    .map(|c| c.position_trajectory_velocity_deadband_rad)
-                                    .unwrap_or(0.02),
-                                advance_max_lead: cfg
-                                    .map(|c| c.position_slew_max_lead_rad)
-                                    .unwrap_or(ADVANCE_MAX_LEAD_DEFAULT),
-                                advance_vel_deadband: cfg
-                                    .map(|c| c.position_trajectory_velocity_deadband_rad)
-                                    .unwrap_or(POSITION_HOLD_ERROR_DEADBAND_RAD),
+                                max_lead,
+                                vel_deadband,
+                                advance_max_lead: max_lead,
+                                advance_vel_deadband: vel_deadband,
                                 slew_rad_s: cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25),
                                 trajectory_v_max: cfg
                                     .map(|c| c.position_trajectory_velocity_rad_s)
