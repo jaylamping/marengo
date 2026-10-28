@@ -6,6 +6,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -25,6 +26,7 @@ preserve_control_soft = preserve_taught_limits.preserve_control_soft
 preserve_motors_hard = preserve_taught_limits.preserve_motors_hard
 preserve_urdf_expand_only = preserve_taught_limits.preserve_urdf_expand_only
 run_preserve = preserve_taught_limits.run_preserve
+keep_replaced_urdf = preserve_taught_limits.keep_replaced_urdf
 
 
 class PreserveTaughtLimitsTests(unittest.TestCase):
@@ -298,6 +300,135 @@ motors:
 """,
             encoding="utf-8",
         )
+
+    def test_activated_urdf_replaced_by_deploy_is_kept_and_named(self) -> None:
+        urdf = """<?xml version="1.0"?>
+<robot name="t">
+  <link name="upper_arm"><inertial><mass value="{mass}"/></inertial></link>
+  <joint name="right_shoulder_roll" type="revolute">
+    <limit lower="{lower}" upper="3.14" effort="60" velocity="2"/>
+  </joint>
+</robot>
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prev = root / "prev" / "marengo.urdf"
+            inst = root / "inst" / "marengo.urdf"
+            prev.parent.mkdir()
+            inst.parent.mkdir()
+            install_root = root / "opt"
+            # Limits differ only (Set Limits): nothing to keep, no warning.
+            prev.write_text(urdf.format(mass="1.2", lower="-0.3"), encoding="utf-8")
+            inst.write_text(
+                urdf.format(mass="1.2", lower="-0.1").replace("\n  ", "\n    "),
+                encoding="utf-8",
+            )
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                self.assertIsNone(keep_replaced_urdf(prev, inst, install_root))
+            self.assertEqual(err.getvalue(), "")
+            # An activated URDF with a new inertial: kept and named.
+            prev.write_text(urdf.format(mass="1.9", lower="-0.3"), encoding="utf-8")
+            with contextlib.redirect_stderr(err):
+                kept = keep_replaced_urdf(prev, inst, install_root)
+            self.assertIsNotNone(kept)
+            assert kept is not None
+            self.assertEqual(kept.parent, install_root / "var" / "replaced-urdf")
+            self.assertIn('mass value="1.9"', kept.read_text(encoding="utf-8"))
+            self.assertIn(str(kept), err.getvalue())
+
+    _MASS_URDF = """<?xml version="1.0"?>
+<robot name="t">
+  <link name="upper_arm"><inertial><mass value="{mass}"/></inertial></link>
+  <joint name="right_shoulder_pitch" type="revolute">
+    <limit lower="{lower}" upper="1.0" effort="60" velocity="2"/>
+  </joint>
+</robot>
+"""
+
+    def _deployed_checkout(self, root: Path, deployed_mass: str) -> tuple[Path, str]:
+        """A git checkout whose one commit (the last deploy) has the given mass."""
+        repo = root / "checkout"
+        (repo / "assets" / "urdf").mkdir(parents=True)
+        (repo / "assets" / "urdf" / "marengo.urdf").write_text(
+            self._MASS_URDF.format(mass=deployed_mass, lower="-1.0"), encoding="utf-8"
+        )
+        git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t"]
+        subprocess.run([*git, "init", "-q"], check=True)
+        subprocess.run([*git, "add", "-A"], check=True)
+        subprocess.run([*git, "commit", "-q", "-m", "deployed"], check=True)
+        sha = subprocess.run(
+            [*git, "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        return repo, sha
+
+    def _urdf_deploy(self, root: Path, pi_mass: str, git_mass: str, rev: str | None) -> None:
+        """Pi tree (taught limit, given mass, .deploy-rev) and git tree (new mass)."""
+        self._profile(root / "pi", (-1.0, 1.0), (-0.9, 0.9), (-1.2, 1.0))
+        self._profile(root / "git", (-1.0, 1.0), (-0.9, 0.9), (-1.0, 1.0))
+        (root / "pi" / "assets" / "urdf" / "marengo.urdf").write_text(
+            self._MASS_URDF.format(mass=pi_mass, lower="-1.2"), encoding="utf-8"
+        )
+        (root / "git" / "assets" / "urdf" / "marengo.urdf").write_text(
+            self._MASS_URDF.format(mass=git_mass, lower="-1.0"), encoding="utf-8"
+        )
+        if rev is not None:
+            (root / "pi" / ".deploy-rev").write_text(
+                f"{rev} 2026-10-28T00:00:00Z\n", encoding="utf-8"
+            )
+
+    def test_git_urdf_change_since_last_deploy_is_not_blamed_on_the_pi(self) -> None:
+        """A deploy that ships git's URDF change keeps nothing and says commit nothing."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, sha = self._deployed_checkout(root, deployed_mass="1.2")
+            # The Pi still runs what was deployed; git has since changed a mass.
+            self._urdf_deploy(root, pi_mass="1.2", git_mass="1.3", rev=sha)
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(run_preserve(root / "pi", root / "git", repo=repo), 0)
+            self.assertNotIn("URDF differed", err.getvalue())
+            self.assertNotIn("Commit", err.getvalue())
+            self.assertFalse((root / "git" / "var" / "replaced-urdf").exists())
+            installed = (root / "git" / "assets" / "urdf" / "marengo.urdf").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn('mass value="1.3"', installed)
+            # The taught limit still survives the deploy.
+            self.assertIn("right_shoulder_pitch", out.getvalue())
+
+    def test_urdf_activated_on_the_pi_since_last_deploy_is_kept_with_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, sha = self._deployed_checkout(root, deployed_mass="1.2")
+            # Git unchanged since the deploy; the Pi activated a new mass.
+            self._urdf_deploy(root, pi_mass="1.9", git_mass="1.2", rev=sha)
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                self.assertEqual(run_preserve(root / "pi", root / "git", repo=repo), 0)
+            kept = list((root / "git" / "var" / "replaced-urdf").iterdir())
+            self.assertEqual(len(kept), 1)
+            self.assertIn('mass value="1.9"', kept[0].read_text(encoding="utf-8"))
+            self.assertIn("WARNING", err.getvalue())
+            self.assertIn("Commit", err.getvalue())
+            self.assertIn(str(kept[0]), err.getvalue())
+
+    def test_unknown_deployed_revision_keeps_urdf_without_commit_advice(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, _ = self._deployed_checkout(root, deployed_mass="1.2")
+            for rev in (None, "0" * 40):
+                with self.subTest(rev=rev):
+                    case = root / f"case-{rev}"
+                    self._urdf_deploy(case, pi_mass="1.2", git_mass="1.3", rev=rev)
+                    err = io.StringIO()
+                    with contextlib.redirect_stdout(io.StringIO()), \
+                            contextlib.redirect_stderr(err):
+                        run_preserve(case / "pi", case / "git", repo=repo)
+                    kept = list((case / "git" / "var" / "replaced-urdf").iterdir())
+                    self.assertEqual(len(kept), 1)
+                    self.assertIn("unknown", err.getvalue())
+                    self.assertNotIn("Commit", err.getvalue())
 
     def test_git_narrowing_is_reported_not_silently_dropped(self) -> None:
         """EDGE-02: a tightened limit in git that the deploy did not apply is named."""

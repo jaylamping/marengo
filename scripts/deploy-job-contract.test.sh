@@ -35,6 +35,24 @@ run_enqueue_job_writer() {
     <"${JOB_TMP}/write_job.py"
 }
 assert_ok "enqueue job writer emits deploy-job.json" run_enqueue_job_writer
+# The writer renames under deploy-job.json.lock, the lock marengo-deploy holds
+# across a reconcile: while another holder has it, the ledger stays unchanged.
+enqueue_writer_waits_for_job_lock() {
+  local holder writer seen
+  echo '{"job_id":"held"}' >"${JOB_TMP}/deploy-job.json"
+  flock -o "${JOB_TMP}/deploy-job.json.lock" sleep 1.5 &
+  holder=$!
+  sleep 0.3
+  run_enqueue_job_writer &
+  writer=$!
+  sleep 0.6
+  seen="$(cat "${JOB_TMP}/deploy-job.json")"
+  wait "${writer}" && wait "${holder}" || return 1
+  [[ "${seen}" == '{"job_id":"held"}' ]] && grep -q '"job_id": "job-1"' "${JOB_TMP}/deploy-job.json"
+}
+if command -v flock >/dev/null; then
+  assert_ok "enqueue job writer waits for deploy-job.json.lock" enqueue_writer_waits_for_job_lock
+fi
 assert_ok "enqueue uses flock for single-flight" \
   grep -q 'flock -n' "${ENQUEUE}"
 assert_ok "enqueue refuses active unit instead of stop" \

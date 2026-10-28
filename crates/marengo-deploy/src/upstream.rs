@@ -156,8 +156,8 @@ async fn curl_github_tip() -> Result<String, String> {
     let git_ref = github_ref();
     let url = format!("https://api.github.com/repos/{repo}/commits/{git_ref}");
     // A `GITHUB_TOKEN` must never appear in argv (visible in
-    // /proc/<pid>/cmdline): pass it via a 0600 `-K` config file instead.
-    let token_config = token_config_file()?;
+    // /proc/<pid>/cmdline) or in a file: curl reads it from stdin (`-K -`).
+    let token_config = token_curl_config()?;
     let mut command = Command::new("curl");
     command.args([
         "-fsSL",
@@ -168,17 +168,30 @@ async fn curl_github_tip() -> Result<String, String> {
         "--max-time",
         "15",
     ]);
-    if let Some(path) = token_config.as_ref().and_then(|cfg| cfg.path.as_ref()) {
-        command.arg("-K").arg(path);
+    if token_config.is_some() {
+        command.args(["-K", "-"]);
     }
     command.arg(url);
-    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     command.kill_on_drop(true);
-    let output = tokio::time::timeout(Duration::from_secs(20), command.output())
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("curl spawn: {error}"))?;
+    let stdin = child.stdin.take();
+    if let (Some(mut stdin), Some(config)) = (stdin, token_config) {
+        use tokio::io::AsyncWriteExt;
+        stdin
+            .write_all(config.as_bytes())
+            .await
+            .map_err(|error| format!("curl config write: {error}"))?;
+    }
+    let output = tokio::time::timeout(Duration::from_secs(20), child.wait_with_output())
         .await
         .map_err(|_| "curl timed out".to_string())?
-        .map_err(|error| format!("curl spawn: {error}"))?;
-    drop(token_config);
+        .map_err(|error| format!("curl wait: {error}"))?;
     if !output.status.success() {
         return Err(format!(
             "curl failed: {}",
@@ -198,21 +211,10 @@ async fn curl_github_tip() -> Result<String, String> {
     Ok(sha)
 }
 
-/// Owner of a 0600 curl `-K` file carrying the GitHub bearer token.
-/// Removed on drop so the token never lingers on disk or in argv.
-struct TokenConfig {
-    path: Option<PathBuf>,
-}
-
-impl Drop for TokenConfig {
-    fn drop(&mut self) {
-        if let Some(path) = self.path.take() {
-            let _ = std::fs::remove_file(path);
-        }
-    }
-}
-
-fn token_config_file() -> Result<Option<TokenConfig>, String> {
+/// curl `-K` config carrying the GitHub bearer token, written to curl's stdin.
+/// No file: a predictable temp path could be pre-created or symlinked by
+/// another local user.
+fn token_curl_config() -> Result<Option<String>, String> {
     let token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
     let token = token.trim().to_string();
     if token.is_empty() {
@@ -221,30 +223,10 @@ fn token_config_file() -> Result<Option<TokenConfig>, String> {
     if token.contains(['\n', '\r']) {
         return Err("GITHUB_TOKEN contains a line break".to_string());
     }
-    let mut path = std::env::temp_dir();
-    path.push(format!("marengo-gh-{}.curlrc", std::process::id()));
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&path)
-        .map_err(|error| format!("token config create: {error}"))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
-            .map_err(|error| format!("token config chmod: {error}"))?;
-    }
-    {
-        use std::io::Write;
-        // Quoted inside the -K file so curl, not the shell, parses the value.
-        let header = format!("header = \"Authorization: Bearer {token}\"\n");
-        file.write_all(header.as_bytes())
-            .map_err(|error| format!("token config write: {error}"))?;
-        file.sync_all()
-            .map_err(|error| format!("token config fsync: {error}"))?;
-    }
-    Ok(Some(TokenConfig { path: Some(path) }))
+    // Quoted inside the -K config so curl, not the shell, parses the value.
+    Ok(Some(format!(
+        "header = \"Authorization: Bearer {token}\"\n"
+    )))
 }
 
 fn persist_upstream_cache(sha: &str, fetched_at: u64, ok: bool) {
@@ -363,37 +345,32 @@ mod tests {
     }
 
     #[test]
-    fn token_config_file_never_touches_argv() {
+    fn token_config_goes_to_stdin_never_to_a_file() {
         let _serial = TEST_LOCK.blocking_lock();
         let _token = EnvGuard::set("GITHUB_TOKEN", "test-token-abc123");
-        let config = token_config_file().expect("token config");
-        let path = config
-            .as_ref()
-            .and_then(|cfg| cfg.path.clone())
+        let config = token_curl_config()
+            .expect("token config")
             .expect("token present");
-        let body = std::fs::read_to_string(&path).expect("config readable");
-        assert!(body.contains("test-token-abc123"), "token in -K file");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(&path).expect("meta").permissions().mode() & 0o777;
-            assert_eq!(mode, 0o600, "token file is owner-only");
-        }
-        drop(config);
-        assert!(!path.exists(), "token file removed on drop");
+        assert_eq!(
+            config,
+            "header = \"Authorization: Bearer test-token-abc123\"\n"
+        );
+        let predictable =
+            std::env::temp_dir().join(format!("marengo-gh-{}.curlrc", std::process::id()));
+        assert!(!predictable.exists(), "no token file in the temp dir");
     }
 
     #[test]
     fn token_with_line_break_is_refused() {
         let _serial = TEST_LOCK.blocking_lock();
         let _token = EnvGuard::set("GITHUB_TOKEN", "abc\ndef");
-        assert!(token_config_file().is_err());
+        assert!(token_curl_config().is_err());
     }
 
     #[test]
     fn absent_token_needs_no_config_file() {
         let _serial = TEST_LOCK.blocking_lock();
         let _token = EnvGuard::remove("GITHUB_TOKEN");
-        assert!(token_config_file().expect("no token").is_none());
+        assert!(token_curl_config().expect("no token").is_none());
     }
 }

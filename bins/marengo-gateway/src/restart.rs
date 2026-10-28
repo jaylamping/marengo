@@ -15,7 +15,9 @@ use tracing::{info, warn};
 
 use crate::state::SharedState;
 
-/// Refuse Active restart when heartbeat is newer than this.
+/// Heartbeat age limit for management mutations (restart, deploy, URDF
+/// activate): a heartbeat older than this, or none at all, is refused, and so
+/// is Active mode at any age (`refuse_unsafe_management_state`).
 pub const HEARTBEAT_FRESH_MS: u64 = 5_000;
 const RESTART_TIMEOUT: Duration = Duration::from_secs(60);
 

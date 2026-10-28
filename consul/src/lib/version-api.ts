@@ -131,7 +131,10 @@ export async function fetchVersionStatus(options?: {
   if (!root) return null;
   const qs = options?.refresh ? '?refresh=1' : '';
   try {
+    // The gateway honors refresh (a GitHub fetch past its cache) only with a
+    // management credential; plain polls stay anonymous.
     const res = await fetch(`${root}/version/status${qs}`, {
+      headers: options?.refresh ? gatewayAuthHeaders('management') : undefined,
       signal: options?.signal,
     });
     if (!res.ok) return null;

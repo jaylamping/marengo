@@ -242,12 +242,8 @@ sync_staging_to_pi "$STAGING" "$REMOTE_ROOT"
 
 if [[ "$DO_INSTALL" == true ]]; then
   log_step "install-pi.sh on ${PI_HOST}"
-  # Narrow sudoers allow specific scripts only — not `sudo -n true`.
-  if compose_ssh "$PI_HOST" "set -euo pipefail; sudo -n ${REMOTE_ROOT}/scripts/install-pi.sh"; then
-    log_note "deploy rev staged: $(cat "${STAGING}/.deploy-rev")"
-  else
-    log_warn "passwordless sudo install failed (run once on Pi: sudo ${REMOTE_ROOT}/scripts/install-pi.sh)"
-  fi
+  remote_install_pi "$PI_HOST" "$REMOTE_ROOT" || exit 1
+  log_note "deploy rev staged: $(cat "${STAGING}/.deploy-rev")"
 else
   echo "On the Pi: sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
 fi

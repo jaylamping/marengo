@@ -92,9 +92,12 @@ write_job_atomic() {
   # All writes under runtime-writable paths run without root authority. The
   # descriptor stays open through serialization; chmod cannot follow a replaced
   # name or symlink. The deploy user is the trusted installation principal.
+  # The rename holds deploy-job.json.lock, the advisory lock marengo-deploy and
+  # pi-self-update.sh take for every ledger write.
   runuser -u "${DEPLOY_USER}" -- python3 - \
     "${JOB_FILE}" "${state}" "${JOB_ID}" "${TARGET_SHA}" "${UNIT}" "${message}" "${phase}" <<'PY'
 import datetime
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -114,7 +117,13 @@ try:
         os.fchmod(output.fileno(), 0o664)
         json.dump(payload, output)
         output.write('\n')
-    os.replace(temporary, path)
+    # Opened read-only: flock needs no write access, whoever created the lock.
+    lock = os.open(str(path) + '.lock', os.O_RDONLY | os.O_CREAT, 0o664)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        os.replace(temporary, path)
+    finally:
+        os.close(lock)
 finally:
     if os.path.lexists(temporary):
         os.unlink(temporary)

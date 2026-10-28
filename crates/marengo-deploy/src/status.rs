@@ -191,13 +191,21 @@ pub fn web_root_ready() -> bool {
         || std::env::var("MARENGO_SKIP_WWW_READY").ok().as_deref() == Some("1")
 }
 
+/// Last `max_bytes` of the self-update log, read from the end: status polls
+/// repeat while a job is Failed, so the whole file is never loaded.
 fn read_log_tail(path: &Path, max_bytes: usize) -> Option<String> {
-    let raw = std::fs::read(path).ok()?;
+    use std::io::{Read, Seek, SeekFrom};
+
+    let mut file = std::fs::File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    let start = len.saturating_sub(max_bytes as u64);
+    file.seek(SeekFrom::Start(start)).ok()?;
+    let mut raw = Vec::new();
+    file.take(max_bytes as u64).read_to_end(&mut raw).ok()?;
     if raw.is_empty() {
         return None;
     }
-    let start = raw.len().saturating_sub(max_bytes);
-    Some(String::from_utf8_lossy(&raw[start..]).into_owned())
+    Some(String::from_utf8_lossy(&raw).into_owned())
 }
 
 #[cfg(test)]
@@ -212,6 +220,19 @@ mod tests {
             state,
             ..DeployJob::default()
         }
+    }
+
+    #[test]
+    fn log_tail_reads_only_the_end_of_the_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("self-update.log");
+        assert_eq!(read_log_tail(&path, 8), None);
+        std::fs::write(&path, b"").expect("write empty");
+        assert_eq!(read_log_tail(&path, 8), None);
+        std::fs::write(&path, b"short").expect("write short");
+        assert_eq!(read_log_tail(&path, 8).as_deref(), Some("short"));
+        std::fs::write(&path, b"old run\nerror: build failed\n").expect("write log");
+        assert_eq!(read_log_tail(&path, 13).as_deref(), Some("build failed\n"));
     }
 
     #[test]

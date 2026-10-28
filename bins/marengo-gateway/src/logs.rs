@@ -547,23 +547,27 @@ pub async fn session_download(
 ) -> Result<Response, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let store = std::sync::Arc::clone(&logs.store);
-    let bytes = tokio::task::spawn_blocking(move || {
+    let path = tokio::task::spawn_blocking(move || {
         let session = store.get_session(&id).ok().flatten()?;
-        let path = match query.kind.as_str() {
+        match query.kind.as_str() {
             "candump" => session.candump_blob,
             "bench" => session.bench_blob,
             "trace" => session.trace_blob,
             _ => None,
-        }?;
-        std::fs::read(&path).ok()
+        }
     })
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .ok_or(StatusCode::NOT_FOUND)?;
+    // Stream the blob: a capture can be up to the candump cap (256 MiB), and
+    // reading it whole cost one allocation of that size per download.
+    let file = tokio::fs::File::open(&path)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok((
         StatusCode::OK,
         [(axum::http::header::CONTENT_TYPE, "application/gzip")],
-        bytes,
+        axum::body::Body::from_stream(tokio_util::io::ReaderStream::new(file)),
     )
         .into_response())
 }
@@ -583,6 +587,41 @@ pub fn decode_log_payload(payload: &[u8]) -> Option<LogEvent> {
 mod tests {
     #![allow(clippy::expect_used)]
     use super::*;
+
+    #[tokio::test]
+    async fn session_download_streams_the_blob() {
+        let tmp = tempfile::tempdir().expect("temp");
+        let blob = tmp.path().join("bench.log.gz");
+        let payload: Vec<u8> = (0..200_000u32).map(|i| (i % 251) as u8).collect();
+        std::fs::write(&blob, &payload).expect("blob");
+        let store =
+            marengo_store::Store::open(tmp.path().join("logs.db"), tmp.path()).expect("store");
+        store
+            .register_session("s1", None, 1, Some(&blob), None, None)
+            .expect("session");
+        let state = std::sync::Arc::new(
+            crate::state::AppState::new(std::sync::Arc::new(chappe::Bus::default()))
+                .with_logs(LogServices::open(store)),
+        );
+        let download = |kind: &str| {
+            session_download(
+                State(std::sync::Arc::clone(&state)),
+                Path("s1".to_string()),
+                Query(DownloadQuery {
+                    kind: kind.to_string(),
+                }),
+            )
+        };
+        let response = download("bench").await.expect("download");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        assert_eq!(body.as_ref(), payload.as_slice());
+        assert_eq!(download("trace").await.err(), Some(StatusCode::NOT_FOUND));
+        std::fs::remove_file(&blob).expect("remove blob");
+        assert_eq!(download("bench").await.err(), Some(StatusCode::NOT_FOUND));
+    }
 
     #[test]
     fn recent_limit_default() {

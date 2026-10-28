@@ -548,9 +548,16 @@ fn persist_queue_coalesces_to_latest_draft() {
             .iter()
             .map(|event| event.session_id.as_str())
             .collect::<Vec<_>>(),
-        ["coalesce-first", "coalesce-latest"],
-        "only actually retained writes publish completion"
+        ["coalesce-first", "pending-limit", "coalesce-latest"],
+        "retained writes publish completion; so does the coalesced limit patch \
+         whose bounds the latest write carries (EDGE-07)"
     );
+    let carried = actions
+        .iter()
+        .find(|event| event.session_id == "pending-limit")
+        .expect("coalesced limit patch completion");
+    assert_eq!(carried.action, "limit_patch_persist");
+    assert_eq!(carried.timestamp_ms, 2);
     // The discriminating G04 assertions: the queued hard bounds and soft
     // limits survive coalescing into the control-only draft, which keeps its
     // own newer kp.

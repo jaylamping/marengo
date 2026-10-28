@@ -194,7 +194,8 @@ pub async fn get_config_snapshot(
     State(state): State<SharedState>,
 ) -> Result<Json<ConfigSnapshotJson>, StatusCode> {
     // Read-only inventory; mutations are admitted by the shared router policy.
-    let _logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    // It never needs the log Store: a Store that failed to open must not take
+    // the config view down with it.
     let config_dir = resolve_config_dir();
     Ok(Json(with_persist_state(
         snapshot_from_dir(&resolve_repo_root(), &config_dir)?,
@@ -206,11 +207,8 @@ pub async fn post_config_patch(
     State(state): State<SharedState>,
     Json(patch): Json<ConfigPatchJson>,
 ) -> Result<Json<ConfigPatchResultJson>, StatusCode> {
-    let logs = state
-        .logs
-        .as_ref()
-        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?
-        .clone();
+    // The audit row below is best-effort: Set Limits works without the Store.
+    let logs = state.logs.clone();
     if patch.joint.trim().is_empty() {
         return Ok(Json(ConfigPatchResultJson {
             ok: false,
@@ -237,7 +235,7 @@ pub async fn post_config_patch(
     };
     let result = apply_limit_patch_async(state, &resolve_repo_root(), &config_dir, apply).await;
 
-    if result.ok {
+    if let (true, Some(logs)) = (result.ok, logs) {
         let audit_key = format!("config.patch.{}", patch.joint);
         let audit_json = serde_json::to_string(&patch).unwrap_or_default();
         let source = if patch.operator_id.is_empty() {

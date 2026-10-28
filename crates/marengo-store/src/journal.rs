@@ -25,13 +25,20 @@ const DEFAULT_LOOKBACK_MS: u64 = 24 * 60 * 60 * 1000;
 /// Events per insert transaction; bounds import memory on a busy journal.
 #[cfg(target_os = "linux")]
 const IMPORT_BATCH: usize = 500;
-#[cfg(target_os = "linux")]
-const MAX_LINE_BYTES: usize = 1024 * 1024;
 /// Single journal lines past this are skipped (their cursors are unknown, so
 /// nothing advances for the skipped line); bounds one huge line from
 /// ballooning import memory.
+#[cfg(target_os = "linux")]
+const MAX_LINE_BYTES: usize = 1024 * 1024;
 /// Units imported into structured logs (`target` prefix `systemd:`).
-pub const JOURNAL_UNITS: &[&str] = &["marengo-pi", "marengo-can", "marengo-gateway"];
+///
+/// Only units that do not already log to the Store. marengo-pi and
+/// marengo-gateway publish every tracing event to the Store over Chappe
+/// (`ChappeLogLayer`) and also print it to journald, so importing their
+/// journal duplicated every line in search and in the retention budget.
+/// Their journal-only output (panics, lines while the gateway is down)
+/// stays in `journalctl -u`.
+pub const JOURNAL_UNITS: &[&str] = &["marengo-can"];
 
 /// Pull journal lines since the stored cursor and insert as structured log rows.
 pub fn import_journal(store: &Store, units: &[&str]) -> Result<u32> {
@@ -235,6 +242,17 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::{journal_priority_level, parse_journal_line};
+
+    #[test]
+    fn units_that_log_to_the_store_are_not_imported_again() {
+        for unit in ["marengo-pi", "marengo-gateway"] {
+            assert!(
+                !super::JOURNAL_UNITS.contains(&unit),
+                "{unit} imported twice"
+            );
+        }
+        assert!(super::JOURNAL_UNITS.contains(&"marengo-can"));
+    }
 
     #[test]
     fn journal_priority_maps() {
