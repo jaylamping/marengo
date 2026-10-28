@@ -2,6 +2,7 @@
 
 [advisories]
 version = 2
+# Mirror every ignore in .cargo/audit.toml (cargo audit, daily audit).
 ignore = [
     # Transitive via nalgebra → simba; no patched release on our toolchain yet.
     { id = "RUSTSEC-2024-0436", reason = "paste unmaintained (nalgebra 0.33)" },

@@ -1,0 +1,7 @@
+# cargo-audit configuration. Keep the ignore list in sync with deny.toml,
+# which records the reason for each entry.
+[advisories]
+ignore = [
+    "RUSTSEC-2024-0436", # paste unmaintained (nalgebra 0.33)
+    "RUSTSEC-2024-0449", # unsafe-libyaml unmaintained (serde_yaml 0.9)
+]

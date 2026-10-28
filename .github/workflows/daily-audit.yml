@@ -18,6 +18,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # run.sh scans offline (--no-fetch); without the tool and a database the
+      # result is "unavailable", which the audit reports as a warn finding.
+      - name: Install cargo-audit and the RustSec advisory database
+        run: |
+          cargo install cargo-audit --locked --version 0.22.2
+          git clone --depth 1 https://github.com/rustsec/advisory-db "$HOME/.cargo/advisory-db"
+
       - name: Run daily audit
         run: |
           chmod +x scripts/daily-audit/run.sh scripts/daily-audit/issue-upsert.sh
