@@ -1755,6 +1755,26 @@ mod tests {
         assert_eq!(hip.motor_type, MotorType::Rs04);
     }
 
+    /// The template's right arm is the built bench arm: its drive facts (type, sign, gearing)
+    /// must match the live master. Bus, ids and limits are placeholders until the bus plan.
+    #[test]
+    fn humanoid_right_arm_matches_the_live_arm_drives() {
+        let root = repo_root();
+        let template: MotorsConfigFile =
+            read_yaml(&root.join("config/motors_humanoid.yaml")).expect("motors_humanoid.yaml");
+        let live: MotorsConfigFile =
+            read_yaml(&root.join("config/motors.yaml")).expect("motors.yaml");
+        for motor in &live.motors {
+            let row = motor_for_joint(&template, &motor.joint).expect("template has the joint");
+            assert_eq!(
+                (row.motor_type, row.direction, row.gear_ratio),
+                (motor.motor_type, motor.direction, motor.gear_ratio),
+                "{}",
+                motor.joint
+            );
+        }
+    }
+
     fn sample_control_section() -> ControlSection {
         let mut motor_type_defaults = FxHashMap::default();
         motor_type_defaults.insert(
