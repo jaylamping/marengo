@@ -91,7 +91,9 @@ async fn all_protected_routes_refuse_before_body_files_publication_or_subscripti
         ("GET", "/logs/sessions/fixture/candump/summary", 503),
         ("GET", "/logs/sessions/fixture/download?type=bench", 503),
         ("GET", "/logs/structured", 503),
-        ("GET", "/config/snapshot", 503),
+        // No log Store here: the config view still answers (EDGE-06); the
+        // fixture root has no config, hence 404.
+        ("GET", "/config/snapshot", 404),
         ("GET", "/hardware/completeness", 500),
         ("GET", "/hardware/commissioning-scope", 200),
         ("GET", "/settings", 503),
@@ -225,9 +227,20 @@ async fn role_matrix_and_body_limits_preserve_independent_admission() {
                 )
                 .await
                 .expect("response");
+            if path == own_path && path == "/config/snapshot" {
+                // Admitted and served without a log Store (EDGE-06): the config
+                // answers or is missing (other tests move MARENGO_CONFIG_DIR),
+                // never 503.
+                assert!(
+                    matches!(response.status().as_u16(), 200 | 404),
+                    "config snapshot without a log Store: {}",
+                    response.status()
+                );
+                continue;
+            }
             let expected = if path != own_path {
                 403
-            } else if path == "/config/snapshot" || role as u8 == SensitiveRead as u8 {
+            } else if role as u8 == SensitiveRead as u8 {
                 503
             } else {
                 400
