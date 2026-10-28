@@ -39,23 +39,35 @@ fn usage() {
          registers (incl. 0x7028 CAN timeout) one query at a time; it never enables or writes.\n\
          set-zero arms an independent exit stop on SIGTERM/SIGINT/SIGHUP and error exit.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
-         Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
+         Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual),\n\
+         MARENGO_CAN_INTERFACE (not for disable or the exit stop: those take --can-interface\n\
+         only, and add it to the motors.yaml routing)"
     );
 }
 
 #[derive(Debug, PartialEq, Eq)]
 struct BusArgs {
+    /// `--can-interface`, else `MARENGO_CAN_INTERFACE`: reroutes every drive.
     can_interface: Option<String>,
+    /// `--can-interface` only. A stop never follows the environment override:
+    /// a stray debug line in /etc/marengo/env must not send the service's
+    /// exit stop to one bus while drives on the others stay enabled.
+    stop_interface: Option<String>,
     config_dir: Option<PathBuf>,
     command_args: Vec<String>,
 }
 
 fn parse_bus_args(args: &[String]) -> Result<BusArgs, String> {
+    parse_bus_args_with(args, env::var("MARENGO_CAN_INTERFACE").ok())
+}
+
+fn parse_bus_args_with(args: &[String], env_interface: Option<String>) -> Result<BusArgs, String> {
     let Some(program) = args.first() else {
         return Err("missing program name".into());
     };
     let mut parsed = BusArgs {
-        can_interface: env::var("MARENGO_CAN_INTERFACE").ok(),
+        can_interface: env_interface,
+        stop_interface: None,
         config_dir: env::var("MARENGO_CONFIG_DIR").ok().map(PathBuf::from),
         command_args: vec![program.clone()],
     };
@@ -68,6 +80,7 @@ fn parse_bus_args(args: &[String]) -> Result<BusArgs, String> {
                     .filter(|value| !value.starts_with("--"))
                     .ok_or("--can-interface requires an interface name")?;
                 parsed.can_interface = Some(value.clone());
+                parsed.stop_interface = Some(value.clone());
                 i += 2;
             }
             "--config-dir" => {
@@ -229,6 +242,7 @@ fn main() {
     marengo_support::init_tracing();
 
     let can_interface = parsed.can_interface;
+    let stop_interface = parsed.stop_interface;
     let args = parsed.command_args;
     let root = repo_root();
     let command = args[1].clone();
@@ -238,11 +252,11 @@ fn main() {
         std::process::exit(1);
     }
     if command == "disable" {
-        std::process::exit(run_disable(&root, can_interface.as_deref()));
+        std::process::exit(run_disable(&root, stop_interface.as_deref()));
     }
 
     let exit_stop = if stop::arms_exit_stop(&command) {
-        match ExitStop::arm(&root, can_interface.as_deref()) {
+        match ExitStop::arm(&root, stop_interface.as_deref()) {
             Ok(exit_stop) => Some(exit_stop),
             Err(error) => {
                 eprintln!("{command}: refused, cannot arm the exit stop: {error}");
@@ -571,6 +585,18 @@ mod argument_tests {
         assert_eq!(parsed.config_dir, Some(PathBuf::from("cfg")));
         assert_eq!(parsed.can_interface.as_deref(), Some("can1"));
         assert_eq!(parsed.command_args[1..], ["set-zero", "a"]);
+    }
+
+    /// DRV-01: the environment override reroutes commands, never a stop.
+    #[test]
+    fn env_interface_override_does_not_reroute_stops() {
+        let args = strings(&["motor-repl", "disable"]);
+        let parsed = parse_bus_args_with(&args, Some("can0".into())).expect("valid args");
+        assert_eq!(parsed.can_interface.as_deref(), Some("can0"));
+        assert_eq!(parsed.stop_interface, None);
+        let args = strings(&["motor-repl", "--can-interface", "vcan0", "disable"]);
+        let parsed = parse_bus_args_with(&args, Some("can0".into())).expect("valid args");
+        assert_eq!(parsed.stop_interface.as_deref(), Some("vcan0"));
     }
 
     #[test]
