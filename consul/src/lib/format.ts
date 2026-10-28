@@ -64,10 +64,6 @@ export function formatEnergyWh(value: number): string {
   return `${value.toFixed(2)} Wh`;
 }
 
-export function formatBatteryPercent(value: number): string {
-  return `${value}%`;
-}
-
 export function formatRuntimeMin(value: number): string {
   if (value < 60) {
     return `${value} min`;

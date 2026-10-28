@@ -7,7 +7,6 @@
 | Panel | Role |
 |-------|------|
 | `testing/` | Enable/disable, hold-at, PID sliders, gravity-on |
-| `urdf-preview/` | 3D URDF visualization of current joint states |
 | `simulation/` | Simulation mode controls |
 | `logs/` | Structured log tail from gateway |
 | `metrics/` | Host metric charts |

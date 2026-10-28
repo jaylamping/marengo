@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 
 import type {
-  JointState,
   RobotState,
   SafetyState,
   ImuSample,
@@ -9,17 +8,12 @@ import type {
 import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
 import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/constants';
 import { isChappeLive } from '@/lib/chappe-config';
-import { robotWireFacetsLive } from '@/lib/commissioning';
 
 export type OperationalModeLabel = 'DISABLED' | 'READY' | 'ACTIVE' | null;
 
 export type JointTrackingPointByJoint = Record<string, JointTrackingPoint[]>;
 
 interface RobotStore {
-  /** Legacy demo slider (3D placeholder). */
-  jointPosition: number;
-  setJointPosition: (v: number) => void;
-
   connected: boolean;
   setConnected: (v: boolean) => void;
 
@@ -43,29 +37,11 @@ interface RobotStore {
   appendTrackingPoint: (jointName: string, point: JointTrackingPoint) => void;
 }
 
-/** Select a live JointState by name (wire truth for commissioning facets). */
-export function selectJointState(
-  state: Pick<RobotStore, 'robotState'>,
-  jointName: string,
-): JointState | undefined {
-  return state.robotState?.joints.find((j) => j.name === jointName);
-}
-
-/** True when RobotState publishes non-UNSPECIFIED homing facets. */
-export function selectWireFacetsLive(
-  state: Pick<RobotStore, 'robotState'>,
-): boolean {
-  return robotWireFacetsLive(state.robotState);
-}
-
 const initialTracking = isChappeLive()
   ? []
   : dummyShoulderPitchTracking.points;
 
 export const useRobotStore = create<RobotStore>((set) => ({
-  jointPosition: 0.4,
-  setJointPosition: (v) => set({ jointPosition: v }),
-
   connected: false,
   setConnected: (connected) => set({ connected }),
 

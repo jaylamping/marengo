@@ -196,7 +196,3 @@ export function useChappeTelemetry(): void {
     setTransportMode,
   ]);
 }
-
-export function useTrackingSeries() {
-  return useRobotStore((s) => s.trackingPoints);
-}

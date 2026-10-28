@@ -172,15 +172,3 @@ export function liveJointEnvelope(
     softUpperRad,
   };
 }
-
-export function jointLimitMax(
-  jointName: string,
-  snapshot: ActuatorLimitSnapshot | null,
-  param: 'kp' | 'kd',
-): number | null {
-  const limits = liveJointLimits(jointName, snapshot);
-  if (!limits) {
-    return null;
-  }
-  return param === 'kp' ? limits.kpMax : limits.kdMax;
-}
