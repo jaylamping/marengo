@@ -170,10 +170,9 @@ describe('SetLimitsPanel', () => {
       });
     });
     await vi.waitFor(() => {
-      expect(screen.getByTestId('set-limits-applied')).toHaveTextContent(
-        'Applied',
-      );
-      expect(screen.queryByText(/Set Zero queued/i)).toBeNull();
+      // 200 only means queued: never the green Applied chip (UI-21).
+      expect(screen.getByTestId('set-zero-queued')).toHaveTextContent('Zero queued');
+      expect(screen.queryByTestId('set-limits-applied')).toBeNull();
     });
   });
 

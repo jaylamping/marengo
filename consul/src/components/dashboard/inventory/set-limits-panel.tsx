@@ -69,7 +69,7 @@ export function SetLimitsPanel({
   const [applyOk, setApplyOk] = useState(false);
   const applyInFlightRef = useRef(false);
   const proposedRange = proposal?.display ?? null;
-  const showAppliedFlash = zeroOk || applyOk;
+  const showAppliedFlash = applyOk;
 
   const confirmTitleId = useId();
   const confirmDescId = useId();
@@ -323,6 +323,19 @@ export function SetLimitsPanel({
               data-testid="set-limits-applied"
             >
               Applied
+            </Badge>
+          ) : null}
+          {zeroOk ? (
+            // Gateway 200 only means queued: Ready follows wire Verified (UI-21).
+            <Badge
+              variant="secondary"
+              className="font-mono text-[10px] uppercase tracking-[0.14em]"
+              role="status"
+              aria-live="polite"
+              title="Set Zero is queued on the Pi. Reference Ready follows the joint's wire homing state (Verified)."
+              data-testid="set-zero-queued"
+            >
+              Zero queued
             </Badge>
           ) : null}
           {listening ? (
