@@ -1148,6 +1148,18 @@ impl<B: MotorBus> ControlLoop<B> {
         self.set_control_mode_inner(mode);
     }
 
+    /// [`Self::set_control_mode`] for operator commands: says why a change was
+    /// not applied instead of ignoring it, so a console never confirms a mode
+    /// the loop did not enter.
+    pub fn try_set_control_mode(&mut self, mode: ControlMode) -> Result<(), LoopError> {
+        self.refuse_reference_intent("control mode change")?;
+        if mode != ControlMode::Disabled {
+            self.refuse_degraded()?;
+        }
+        self.set_control_mode(mode);
+        Ok(())
+    }
+
     fn refuse_reference_intent(&self, operation: &'static str) -> Result<(), LoopError> {
         if self.supervisor.reference_busy() {
             Err(davout::DavoutError::ReferenceBusy { operation }.into())
@@ -1416,9 +1428,12 @@ impl<B: MotorBus> ControlLoop<B> {
     ///
     /// Clears any prior latch before the mode transition so a same-mode
     /// `gravity-off` after `torque-cmd` still yields true no-FF.
-    pub fn enter_torque_only_zero(&mut self) {
+    pub fn enter_torque_only_zero(&mut self) -> Result<(), LoopError> {
+        self.refuse_degraded()?;
+        self.refuse_reference_intent("torque intent")?;
         self.torque_cmds.clear_all();
         self.set_control_mode(ControlMode::TorqueOnly);
+        Ok(())
     }
 
     /// Latch a per-joint open-loop torque command for [`ControlMode::TorqueOnly`].
@@ -2788,7 +2803,7 @@ mod tests {
         let joint = "right_shoulder_pitch";
         loop_ctrl.set_torque_cmd(joint, 0.5).expect("set");
         assert!((loop_ctrl.torque_cmd(joint) - 0.5).abs() < 1e-12);
-        loop_ctrl.enter_torque_only_zero();
+        loop_ctrl.enter_torque_only_zero().expect("torque-only");
         assert_eq!(loop_ctrl.control_mode(), ControlMode::TorqueOnly);
         assert!(
             (loop_ctrl.torque_cmd(joint)).abs() < 1e-12,

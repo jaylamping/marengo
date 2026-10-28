@@ -1406,20 +1406,20 @@ fn handle_command<B: MotorBus>(
             emit(gate.cancel());
             println!("disabled");
         }
-        PiCommand::GravityOn => {
-            loop_ctrl.set_control_mode(ControlMode::GravityComp);
-            println!(
+        PiCommand::GravityOn => match loop_ctrl.try_set_control_mode(ControlMode::GravityComp) {
+            Ok(()) => println!(
                 "control mode → GravityComp (operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
-            );
-        }
-        PiCommand::GravityOff => {
-            loop_ctrl.enter_torque_only_zero();
-            println!(
+            ),
+            Err(e) => eprintln!("gravity-on refused: {e}"),
+        },
+        PiCommand::GravityOff => match loop_ctrl.enter_torque_only_zero() {
+            Ok(()) => println!(
                 "control mode → TorqueOnly (τ_cmd≡0; operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
-            );
-        }
+            ),
+            Err(e) => eprintln!("gravity-off refused: {e}"),
+        },
         PiCommand::TorqueCmd { joint, tau_nm } => match loop_ctrl.set_torque_cmd(&joint, tau_nm) {
             Ok(()) => {
                 println!(
@@ -1429,17 +1429,17 @@ fn handle_command<B: MotorBus>(
             }
             Err(e) => eprintln!("torque-cmd failed: {e}"),
         },
-        PiCommand::ImpedanceOn => {
-            loop_ctrl.set_control_mode(ControlMode::Impedance);
-            println!(
+        PiCommand::ImpedanceOn => match loop_ctrl.try_set_control_mode(ControlMode::Impedance) {
+            Ok(()) => println!(
                 "control mode → Impedance (operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
-            );
-        }
-        PiCommand::ImpedanceOff => {
-            loop_ctrl.set_control_mode(ControlMode::Disabled);
-            println!("control mode → Disabled");
-        }
+            ),
+            Err(e) => eprintln!("impedance-on refused: {e}"),
+        },
+        PiCommand::ImpedanceOff => match loop_ctrl.try_set_control_mode(ControlMode::Disabled) {
+            Ok(()) => println!("control mode → Disabled"),
+            Err(e) => eprintln!("impedance-off refused: {e}"),
+        },
         cmd @ (PiCommand::HoldOn | PiCommand::HoldAt { .. } | PiCommand::Wave { .. }) => {
             emit(gate.submit(loop_ctrl, cmd, Instant::now()));
         }
