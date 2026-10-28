@@ -13,7 +13,6 @@ import {
   expandScriptWithWaveWaits,
   holdSessionRemoteBody,
   marengoPiPipeLine,
-  marengoPiPipeTimeoutSec,
   referenceAcquireLine,
   registerMotionTools,
   scriptSleepTotalSec,
@@ -120,10 +119,23 @@ describe("removed motor-repl tools", () => {
 });
 
 describe("marengo-pi script tool", () => {
-  it("uses timeout_sec as total pipe budget", () => {
+  it("uses timeout_sec as total pipe budget", async () => {
     assert.equal(scriptSleepTotalSec(["hold-at 0", "sleep 2", "sleep 1.5"]), 3.5);
-    assert.equal(marengoPiPipeTimeoutSec(["sleep 35", "disable"], 15), 15);
-    assert.equal(marengoPiPipeTimeoutSec(["home", "disable"], 20), 20);
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        script = body;
+        return body;
+      },
+      () => {},
+    );
+    await tools.pi_marengo_pi_script.handler({
+      confirm: true,
+      script: ["sleep 35", "disable"],
+      timeout_sec: 15,
+    });
+    assert.match(script, /\} \| timeout 15 \$PI_BIN/);
   });
 
   it("expands wave lines with auto wait sleep", () => {

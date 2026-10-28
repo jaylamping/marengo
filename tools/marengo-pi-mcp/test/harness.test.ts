@@ -22,25 +22,25 @@ const cfg: MarengoPiConfig = {
 describe("bench harness config", () => {
   it("uses master config for weighted_single_arm profile", () => {
     assert.equal(
-      harnessConfigDir(cfg, "weighted_single_arm"),
+      harnessConfigDir(cfg),
       "/opt/marengo/config",
     );
   });
 
   it("keeps default master config for bare_motor profile", () => {
-    assert.equal(harnessConfigDir(cfg, "bare_motor"), cfg.configDir);
+    assert.equal(harnessConfigDir(cfg), cfg.configDir);
   });
 
   it("ignores legacy bringup slug overrides", () => {
     assert.equal(
-      harnessConfigDir(cfg, "bare_motor", "arm_3dof_right"),
+      harnessConfigDir(cfg, "arm_3dof_right"),
       "/opt/marengo/config",
     );
   });
 
   it("accepts absolute config_dir overrides", () => {
     assert.equal(
-      harnessConfigDir(cfg, "bare_motor", "/tmp/custom-config"),
+      harnessConfigDir(cfg, "/tmp/custom-config"),
       "/tmp/custom-config",
     );
   });

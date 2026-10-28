@@ -25,32 +25,8 @@ import {
   type HarnessScript,
 } from "./scripts.js";
 
-const ROLL_JOINT = "right_shoulder_roll";
-
-/** Staged descent only — use when roll is elevated (q > ~0.2 rad). Do not run from home. */
-export function rollStagedDescentLines(): string[] {
-  return [
-    `hold-at ${ROLL_JOINT} 1.0`,
-    "sleep 15",
-    `hold-at ${ROLL_JOINT} 0.7`,
-    "sleep 15",
-    `hold-at ${ROLL_JOINT} 0.4`,
-    "sleep 15",
-    `hold-at ${ROLL_JOINT} 0.15`,
-    "sleep 12",
-    `hold-at ${ROLL_JOINT} 0.05`,
-    "sleep 12",
-    `hold-at ${ROLL_JOINT} 0`,
-    "sleep 15",
-  ];
-}
-
 /** Master config dir for harness runs; optional absolute override only. */
-export function harnessConfigDir(
-  cfg: MarengoPiConfig,
-  _profile: BenchProfile,
-  configDir?: string,
-): string {
+export function harnessConfigDir(cfg: MarengoPiConfig, configDir?: string): string {
   if (configDir) {
     if (configDir.startsWith("/") || configDir.startsWith("~/")) {
       return configDir;
@@ -208,7 +184,7 @@ export async function runBenchHarness(
   args: HarnessArgs,
 ): Promise<string> {
   const profile = args.profile ?? cfg.benchProfile;
-  const configDir = harnessConfigDir(cfg, profile, args.config_dir);
+  const configDir = harnessConfigDir(cfg, args.config_dir);
   const loadedJoint = args.loaded_joint ?? cfg.loadedJoint;
   const debug = args.debug ?? false;
   const steps: HarnessStep[] = [];

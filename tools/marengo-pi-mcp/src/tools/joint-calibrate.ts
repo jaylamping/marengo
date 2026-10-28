@@ -56,11 +56,10 @@ import {
   yamlStringList,
 } from "./calibration-session.js";
 import {
-  BENCH_CONFIG_MASTER,
   CAN_SESSION_SLACK_MS,
   REFERENCE_OPT_IN_REQUIRED,
   SOLE_CAN_OWNER_NOTE,
-  benchConfigDirForJoint,
+  benchConfigDir,
   motionConfirmSchema,
   referenceAcquireLine,
   referenceOptInShape,
@@ -1120,7 +1119,7 @@ export function registerJointCalibrateTools(
           return `Refused: bench profile ${profile} does not reference ${unreferenced.join(", ")}; pick a profile whose joints include the sweep and fixed joints.`;
         }
 
-        const configDir = benchConfigDirForJoint(cfg, sweepJoint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const refused = (message: string) => {
           auditMotion(TOOL, args, message, 1);
           return message;

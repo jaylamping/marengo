@@ -169,11 +169,7 @@ function normalizeBenchConfigDir(cfg: MarengoPiConfig, configDir: string): strin
 }
 
 /** Master config when config_dir omitted (legacy bringup slugs ignored). */
-export function benchConfigDirForJoint(
-  cfg: MarengoPiConfig,
-  _joint?: string,
-  configDir?: string,
-): string | undefined {
+export function benchConfigDir(cfg: MarengoPiConfig, configDir?: string): string {
   if (configDir) {
     return normalizeBenchConfigDir(cfg, configDir);
   }
@@ -367,14 +363,6 @@ export function expandScriptWithWaveWaits(script: string[]): string[] {
     }
   }
   return out;
-}
-
-/** Total pipe timeout passed to `timeout(1) marengo-pi`. */
-export function marengoPiPipeTimeoutSec(
-  _script: string[],
-  totalTimeoutSec: number,
-): number {
-  return Math.ceil(totalTimeoutSec);
 }
 
 /** End stdin session so marengo-pi exits instead of running until timeout. */
@@ -655,7 +643,7 @@ export function registerMotionTools(
       }),
       // Never gated (TOOL-01): a stop that waits for two chat approvals is not a stop.
       handler: async (args: { config_dir?: string }) => {
-        const configDir = benchConfigDirForJoint(cfg, undefined, args.config_dir);
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
           soleCanOwnerShell("bin/motor-repl disable"),
@@ -691,11 +679,7 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const configDir = benchConfigDirForJoint(
-          cfg,
-          undefined,
-          args.config_dir ?? BENCH_CONFIG_MASTER,
-        );
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const pipeCmd = [
           motorRecoverRemoteBody(cfg),
           motorRecoverSummaryShell,
@@ -716,9 +700,7 @@ export function registerMotionTools(
         config_dir: z.string().optional(),
       }),
       handler: async (args: { config_dir?: string }) => {
-        const configDir =
-          benchConfigDirForJoint(cfg, undefined, args.config_dir) ??
-          BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const body = wrapRemoteWithConfig(cfg, homingReportShell(), configDir);
         return renderRobotStateHoming(await runRemote(body, 20_000));
       },
@@ -754,8 +736,7 @@ export function registerMotionTools(
         const check = gate(args);
         if (!check.ok) return check.message;
         const joint = args.joint ?? "right_shoulder_pitch";
-        const configDir =
-          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
           soleCanOwnerShell(zeroActuatorRemoteBody(joint)),
@@ -846,8 +827,7 @@ export function registerMotionTools(
         const profile = effectiveProfile(cfg.benchProfile, args.profile);
         const referenceJoints =
           args.joint !== undefined ? [args.joint] : profileMeta(profile).setZeroJoints;
-        const configDir =
-          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const gravity = await runGravityGate({
           profile,
           joints: [...new Set([...referenceJoints, joint])],
@@ -903,9 +883,7 @@ export function registerMotionTools(
       }),
       // Never gated (TOOL-01).
       handler: async (args: { joint?: string; config_dir?: string }) => {
-        const configDir =
-          benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
-          BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
           soleCanOwnerShell("bin/motor-repl disable"),
@@ -983,10 +961,8 @@ export function registerMotionTools(
                 Math.ceil(sleepBudget + 10),
               );
         const script = ensureScriptQuit(expanded);
-        const pipeTimeoutSec = marengoPiPipeTimeoutSec(script, controlTimeoutSec);
-        const configDir =
-          benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
-          args.config_dir;
+        const pipeTimeoutSec = controlTimeoutSec;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         let gateReport = "";
         if (script.some((line) => line.trim().split(/\s+/)[0] === "enable")) {
           const profile = effectiveProfile(cfg.benchProfile, args.profile);
@@ -1001,12 +977,12 @@ export function registerMotionTools(
             profile,
             joints,
             snapshotOutput: await runRemote(
-              wrapRemoteWithConfig(cfg, gravityGateSnapshotShell(), configDir ?? BENCH_CONFIG_MASTER),
+              wrapRemoteWithConfig(cfg, gravityGateSnapshotShell(), configDir),
               15_000,
             ),
             runPreview: (shell) =>
               runRemote(
-                wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir ?? BENCH_CONFIG_MASTER),
+                wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir),
                 30_000 + CAN_SESSION_SLACK_MS,
               ),
           });
