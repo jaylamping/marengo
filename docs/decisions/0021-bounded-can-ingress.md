@@ -44,8 +44,9 @@ belongs to the bounded engine, not a timeout per socket. Queue storage preserves
 unread suffixes without copying the complete backlog on every limited read.
 
 The pinned classic SocketCAN reader uses `read_exact`, which retries interrupted
-reads inside the dependency. Open/configure a classic socket, safely clone its
-owned descriptor and wrap it with the dependency's single-read receiver; this
+reads inside the dependency, so it is not used. Open/configure a classic socket,
+safely clone its owned descriptor and read each datagram with one nonblocking
+`recvmsg` (nix, safe wrapper; it also carries the `SO_TIMESTAMPNS` stamp); this
 preserves the same classic-mode kernel options without enabling FD reception.
 Reject unexpected FD envelopes. Subscribe to all kernel error classes, preserving
 their complete error mask and actual length. Use a single nonblocking write of
