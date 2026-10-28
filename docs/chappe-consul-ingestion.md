@@ -15,7 +15,7 @@ Consul client: [`consul/src/lib/chappe-client.ts`](../consul/src/lib/chappe-clie
 
 | Topic | Message | Rate |
 |-------|---------|------|
-| `robot/state` | `RobotState` | ~50 Hz |
+| `robot/state` | `RobotState` | control `chappe_state_hz` (25 Hz) |
 | `robot/safety` | `SafetyState` | control `chappe_state_hz` |
 | `robot/heartbeat` | `Heartbeat` | 1 Hz |
 | `sensors/imu/torso` | `ImuSample` | IMU config |
@@ -54,7 +54,7 @@ Tunnel HTTPS `:8444` for the SPA and HTTP stream fallback. **Do not** tunnel `:8
 
 ## Log volume
 
-Default `RUST_LOG` should stay at `info` on bench. The tracing layer caps **40 events/sec** on the Chappe publish path; when over cap, `trace`/`debug`/`info` are dropped but `warn`/`error` always forward. Consul further throttles UI ingest to **10 events/sec** (decode cap 12/s) with the same warn/error bypass.
+Default `RUST_LOG` should stay at `info` on bench. The tracing layer caps **40 events/sec** on the Chappe publish path for `trace`/`debug`/`info`; `warn`/`error` have their own budget of **10 events/sec**, so a warn storm still surfaces but is capped too. Without `RUST_LOG` the filter defaults to `info`. Consul further throttles UI ingest to **10 events/sec** (decode cap 12/s) with the same warn/error bypass.
 
 See [logging-taxonomy.md](logging-taxonomy.md) for the full funnel and S0–S3 tiers.
 
@@ -68,7 +68,7 @@ See [logging-taxonomy.md](logging-taxonomy.md) for the full funnel and S0–S3 t
 | `var/marengo.db` | Structured logs, session metadata, candump frame index |
 | `var/log/blobs/` | gzip bench/candump/trace archives |
 
-Optional `MARENGO_GATEWAY_LOG_TOKEN` on the Pi gates log HTTP (and config PATCH). Deploy bakes the matching `VITE_MARENGO_LOG_TOKEN` into Consul from `/etc/marengo/env` (or an explicit env override) — do not commit the token. Local Vite: set `VITE_MARENGO_LOG_TOKEN` in `consul/.env.local`.
+Log HTTP and sensitive streams need a gateway credential with the READ capability ([ADR 0033](decisions/0033-gateway-runtime-access.md)); unset credentials fail closed. `MARENGO_GATEWAY_LOG_TOKEN` in `/etc/marengo/env` is the legacy LOG credential and carries every capability. Builds no longer bake `VITE_MARENGO_LOG_TOKEN`: the operator enters the credential in Consul at runtime and it stays in tab memory.
 
 ## Deploy identity
 

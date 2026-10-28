@@ -104,6 +104,20 @@ impl Bus {
     ///
     /// Succeeds when there are no subscribers (bench / headless Pi without Consul).
     pub fn publish_bytes(&self, topic: &str, payload: Vec<u8>) -> Result<(), BusError> {
+        #[cfg(unix)]
+        if let Ok(guard) = self.inner.ipc.read() {
+            if let Some(ipc) = guard.as_ref() {
+                ipc.forward_runtime_to_gateway(topic, &payload);
+            }
+        }
+        self.publish_local_bytes(topic, payload);
+        Ok(())
+    }
+
+    /// Deliver to in-process subscribers only. A command ingested from the
+    /// gateway goes here: offering it back to the outbox counted every
+    /// operator command as `rejected` (command topics never go out).
+    pub(crate) fn publish_local_bytes(&self, topic: &str, payload: Vec<u8>) {
         self.inner.last_publish_ms.store(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -111,18 +125,11 @@ impl Bus {
                 .unwrap_or(0),
             Ordering::Relaxed,
         );
-        #[cfg(unix)]
-        if let Ok(guard) = self.inner.ipc.read() {
-            if let Some(ipc) = guard.as_ref() {
-                ipc.forward_runtime_to_gateway(topic, &payload);
-            }
-        }
         let tx = self.sender(topic);
         // `send` fails only when the last receiver is gone. That is success
         // for telemetry (and closes the receiver_count check-then-send race
         // that could surface as a tick error, L-berthier-24).
         tx.send(payload).ok();
-        Ok(())
     }
 
     /// Publish a protobuf message wrapped in [`Envelope`].

@@ -203,6 +203,7 @@ fn exercise_bound(
         actuator_overlay: &mut overlay,
         shutdown: &shutdown,
         motion: crate::motion_owner::MotionLease::new(crate::motion_owner::CommandSource::Stdin),
+        output_closed: &AtomicBool::new(false),
     };
     let observer_shutdown = Arc::clone(&shutdown);
     let observer = thread::spawn(move || {

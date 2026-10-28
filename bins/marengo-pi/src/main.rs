@@ -17,6 +17,7 @@ mod limit_persist;
 mod motion_owner;
 #[cfg(test)]
 mod motion_owner_chappe_tests;
+mod operator_output;
 mod overlay;
 #[cfg(test)]
 mod reference_busy_overlay_tests;
@@ -40,7 +41,7 @@ mod stop_path_tests;
 #[path = "../../../crates/berthier/tests/support/mod.rs"]
 mod test_support;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::env;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
@@ -72,7 +73,7 @@ use enable_gate::{emit, EnableGate, PreflightFor, PreflightRefusal};
 use gravity_preflight::{GravitySweep, SliceBudget, SweepAbort, SweepStats, SweepStep};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
-    resolve_urdf_path,
+    resolve_urdf_path, ControlConfigFile, MotorsConfigFile, RobotConfigFile,
 };
 use robstride::RuntimeBus;
 use tracing::{debug, error, info, warn};
@@ -82,6 +83,7 @@ use crate::motion_owner::{
     classify_stdin, publish_audit, report_refusal, resolve_owner, CommandClass, CommandSource,
     MotionLease, MOTION_OWNER_ENV,
 };
+use crate::operator_output::{say, say_err};
 use crate::reference_queue::{ReferenceEvent, ReferenceQueue};
 
 /// Stdin reference queue: Davout handles in flight, stdin commands deferred.
@@ -156,7 +158,7 @@ where
 {
     token.parse().map_err(|_| {
         let error = format!("{command}: invalid {field} value {token:?}");
-        eprintln!("{error}");
+        say_err!("{error}");
         error
     })
 }
@@ -225,7 +227,7 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                     })
                 }
                 _ => {
-                    eprintln!("hold-at usage: hold-at <rad>  OR  hold-at <joint> <rad>");
+                    say_err!("hold-at usage: hold-at <rad>  OR  hold-at <joint> <rad>");
                     None
                 }
             }
@@ -260,7 +262,7 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                     })
                 }
                 _ => {
-                    eprintln!(
+                    say_err!(
                         "wave usage: wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]"
                     );
                     None
@@ -275,14 +277,14 @@ fn parse_command(line: &str) -> Option<PiCommand> {
             None
         }
         _ => {
-            eprintln!("unknown command: {line} (type help)");
+            say_err!("unknown command: {line} (type help)");
             None
         }
     }
 }
 
 fn print_usage() {
-    eprintln!(
+    say_err!(
         "marengo-pi commands (stdin):\n  \
          home                                   (readiness check only)\n  \
          home <joint> [<joint>...] sign-tested  (physical reference, one joint at a time;\n  \
@@ -311,7 +313,7 @@ fn is_configured_joint<B: MotorBus>(supervisor: &davout::Supervisor<B>, joint: &
 /// Print the stdout contract lines and mirror them as structured logs.
 fn emit_reference_events(events: Vec<ReferenceEvent>) {
     for event in events {
-        println!("{event}");
+        say!("{event}");
         match &event {
             ReferenceEvent::Current {
                 joint,
@@ -351,7 +353,7 @@ fn dispatch_stdin_command<B: MotorBus>(
 ) -> bool {
     if queue.is_busy() && defers_while_referencing(&cmd) {
         if !queue.defer(cmd) {
-            eprintln!("reference in progress: deferred command limit reached; command refused");
+            say_err!("reference in progress: deferred command limit reached; command refused");
         }
         return true;
     }
@@ -360,7 +362,7 @@ fn dispatch_stdin_command<B: MotorBus>(
     // Quit overtake it; they void it.
     if gate.preflight_pending() && !matches!(cmd, PiCommand::Disable | PiCommand::Quit) {
         if !gate.defer_stdin(cmd) {
-            eprintln!(
+            say_err!(
                 "gravity preflight in progress: deferred command limit reached; command refused"
             );
         }
@@ -380,9 +382,9 @@ fn admit_stdin_command(lease: MotionLease, chappe: &Bus, cmd: &PiCommand) -> boo
             let reason = refusal.to_string();
             if name.starts_with("home") {
                 // `home failed:` is the stdout contract MCP scripts wait on.
-                println!("home failed: {reason}");
+                say!("home failed: {reason}");
             } else {
-                eprintln!("{reason}");
+                say_err!("{reason}");
             }
             report_refusal(chappe, STDIN_REFERENCE_OPERATOR, "", name, &reason);
             false
@@ -395,7 +397,7 @@ fn read_stdin_commands(reader: impl BufRead, tx: Sender<PiCommand>) {
         let line = match line {
             Ok(line) => line,
             Err(error) => {
-                eprintln!("stdin read failed: {error}");
+                say_err!("stdin read failed: {error}");
                 break;
             }
         };
@@ -454,13 +456,6 @@ fn decode_chappe_payload<M: Message + Default>(bytes: &[u8], topic: &str) -> Opt
     }
 }
 
-/// A failed control tick stops every drive and discards motion intent, and the
-/// stop result is reported, never swallowed. Berthier already discards intent
-/// for every `LoopError::Safety` (loop.rs `tick`), so there is no hold to
-/// preserve across a `CommWatchdog`; the mode is set Disabled unconditionally
-/// as a second line. Returns the fault text published in `SafetyState`; when
-/// the stop itself was not delivered it says so (Davout also latches
-/// `StopDelivery`).
 /// Run `body` (the control loop) and, if it panics, stop every drive before the
 /// process goes on to its normal shutdown (RT-04). A panic would otherwise
 /// unwind out of `main` with the drives still executing their last MIT frame;
@@ -506,6 +501,15 @@ impl TickStopPacer {
     pub(crate) const RESTOP_INTERVAL: Duration = Duration::from_secs(1);
 }
 
+/// A failed control tick stops every drive and discards motion intent, and the
+/// stop result is reported, never swallowed. Berthier already discards intent
+/// for every `LoopError::Safety` (loop.rs `tick`), so there is no hold to
+/// preserve across a `CommWatchdog`; the mode is set Disabled unconditionally
+/// as a second line. Returns the fault text published in `SafetyState`; when
+/// the stop itself was not delivered it says so (Davout also latches
+/// `StopDelivery`).
+/// While Davout is latched and the drives are already stopped, the stop is
+/// re-sent at most once per [`TickStopPacer::RESTOP_INTERVAL`].
 pub(crate) fn stop_after_tick_error<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     pacer: &mut TickStopPacer,
@@ -706,12 +710,12 @@ fn drain_chappe_commands<B: MotorBus>(
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     status_poll_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    shutdown: &AtomicBool,
+    stop: StopSignal<'_>,
 ) {
     // Set-zero before enable so its queue admission is visible to a same-tick
     // enable(true), which is then refused instead of flipping ACTIVE.
     loop {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         match poll_channel(set_zero_rx) {
@@ -720,7 +724,7 @@ fn drain_chappe_commands<B: MotorBus>(
                 else {
                     continue;
                 };
-                if shutdown.load(Ordering::SeqCst) {
+                if stop.requested() {
                     return;
                 }
                 if let Err(refusal) =
@@ -770,19 +774,18 @@ fn drain_chappe_commands<B: MotorBus>(
         }
     }
     loop {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
-        match lease_rx.try_recv() {
-            Ok(bytes) => {
-                let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
+        match poll_channel(lease_rx) {
+            Polled::Message(bytes) => {
+                let Some(request) = decode_chappe_payload::<ActiveReportingLeaseRequest>(
+                    &bytes,
+                    TOPIC_ACTIVE_REPORTING_LEASE,
+                ) else {
                     continue;
                 };
-                let Ok(request) = ActiveReportingLeaseRequest::decode(envelope.payload.as_slice())
-                else {
-                    continue;
-                };
-                if shutdown.load(Ordering::SeqCst) {
+                if stop.requested() {
                     return;
                 }
                 if let Err(e) = handle_chappe_active_reporting_lease(loop_ctrl, &request) {
@@ -794,20 +797,31 @@ fn drain_chappe_commands<B: MotorBus>(
                     );
                 }
             }
-            Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
-            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+            Polled::Lagged(n) => {
+                // A dropped Release keeps type-24 streaming until the lease TTL.
                 warn!(
                     skipped = n,
                     "Chappe active_reporting_lease lagged; dropped oldest commands"
                 );
+                publish_audit(
+                    chappe,
+                    "chappe_lagged",
+                    false,
+                    "marengo-pi",
+                    "",
+                    &format!(
+                        "{TOPIC_ACTIVE_REPORTING_LEASE} lagged; {n} lease commands dropped; \
+                         a dropped release expires with its TTL; resend"
+                    ),
+                );
             }
-            Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+            Polled::Empty => break,
         }
     }
     // Collapse bursts: only the latest solicit matters before the next control tick.
     let mut status_poll_payloads: Vec<Vec<u8>> = Vec::new();
     loop {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         match status_poll_rx.try_recv() {
@@ -824,7 +838,7 @@ fn drain_chappe_commands<B: MotorBus>(
     }
     if let Some(request) = latest_motor_status_poll(status_poll_payloads.iter().map(Vec::as_slice))
     {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         if let Err(e) = loop_ctrl.supervisor_mut().solicit_status_feedback() {
@@ -837,7 +851,7 @@ fn drain_chappe_commands<B: MotorBus>(
     }
     // Enables held behind a sweep that passed run first, in arrival order
     // (each may start a sweep of its own, which holds the rest again).
-    while !shutdown.load(Ordering::SeqCst) {
+    while !stop.requested() {
         let Some(request) = gate.take_ready_chappe_enable() else {
             break;
         };
@@ -845,7 +859,7 @@ fn drain_chappe_commands<B: MotorBus>(
             warn!(error = %e, "Chappe enable request failed");
         }
     }
-    while !shutdown.load(Ordering::SeqCst) {
+    while !stop.requested() {
         match poll_channel(enable_rx) {
             Polled::Empty => break,
             Polled::Lagged(skipped) => {
@@ -859,7 +873,7 @@ fn drain_chappe_commands<B: MotorBus>(
                 else {
                     continue;
                 };
-                if shutdown.load(Ordering::SeqCst) {
+                if stop.requested() {
                     return;
                 }
                 // Disable is a stop: admitted from any source. Enable energises.
@@ -992,10 +1006,10 @@ fn drain_testing_commands<B: MotorBus>(
     lease: MotionLease,
     chappe: &Bus,
     testing_cmd_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    shutdown: &AtomicBool,
+    stop: StopSignal<'_>,
 ) {
     const TOPIC: &str = TOPIC_TESTING_MIT_BATCH;
-    while !shutdown.load(Ordering::SeqCst) && !gate.preflight_pending() {
+    while !stop.requested() && !gate.preflight_pending() {
         let bytes = match poll_channel(testing_cmd_rx) {
             Polled::Message(bytes) => bytes,
             Polled::Lagged(n) => {
@@ -1064,7 +1078,7 @@ fn drain_testing_commands<B: MotorBus>(
             }
             continue;
         }
-        apply_testing_batch(loop_ctrl, &batch, want_position, shutdown);
+        apply_testing_batch(loop_ctrl, &batch, want_position, stop);
     }
 }
 
@@ -1074,10 +1088,10 @@ fn apply_testing_batch<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     batch: &MitCommandBatch,
     want_position: bool,
-    shutdown: &AtomicBool,
+    stop: StopSignal<'_>,
 ) {
     for joint in &batch.joints {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         // Consul Wave: `wave:<joint>:<min>:<max>:<cycles>:<half_period_sec>`
@@ -1256,7 +1270,7 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
     let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();
-    println!(
+    say!(
         "config: {}\noperational: {:?}\ncontrol: {:?}",
         config_dir.display(),
         operational,
@@ -1266,7 +1280,7 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
         let (homing_state, drive_active, out_of_limits) =
             supervisor.joint_commissioning_wire(&motor.joint);
         match supervisor.joint_feedback(&motor.joint) {
-            Some(state) => println!(
+            Some(state) => say!(
                 "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x} \
                  homing={} drive_active={} out_of_limits={}",
                 motor.joint,
@@ -1280,7 +1294,7 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
                 drive_active,
                 out_of_limits,
             ),
-            None => println!(
+            None => say!(
                 "{} ({}/id{}): no feedback yet homing={} drive_active={} out_of_limits={}",
                 motor.joint,
                 motor.can_interface,
@@ -1302,7 +1316,7 @@ fn advance_gravity_preflight<B: MotorBus>(
     gate: &mut EnableGate,
     queue: &PiReferenceQueue,
     chappe: &Bus,
-    shutdown: &AtomicBool,
+    stop: StopSignal<'_>,
     budget: SliceBudget,
 ) -> Option<SweepStats> {
     // A stdin Disable or shutdown may have ended a Chappe-side sweep.
@@ -1341,7 +1355,7 @@ fn advance_gravity_preflight<B: MotorBus>(
                     }
                 }
                 Some(PreflightFor::TestingBatch(batch)) => {
-                    apply_testing_batch(loop_ctrl, &batch, true, shutdown);
+                    apply_testing_batch(loop_ctrl, &batch, true, stop);
                 }
                 None => {}
             }
@@ -1391,9 +1405,9 @@ fn enable_after_stdin_preflight<B: MotorBus>(
                 loop_ctrl.allow_implicit_enable();
                 emit(gate.begin_enable(operator_id, targets, Instant::now()));
             }
-            Err(e) => eprintln!("enable failed: {e}"),
+            Err(e) => say_err!("enable failed: {e}"),
         },
-        Err(e) => eprintln!("enable blocked: {e}"),
+        Err(e) => say_err!("enable blocked: {e}"),
     }
 }
 
@@ -1406,8 +1420,8 @@ fn handle_command<B: MotorBus>(
 ) -> bool {
     match cmd {
         PiCommand::Home => match loop_ctrl.supervisor_mut().set_homing_complete() {
-            Ok(()) => println!("homing verified → Ready"),
-            Err(e) => eprintln!("home failed: {e}"),
+            Ok(()) => say!("homing verified → Ready"),
+            Err(e) => say_err!("home failed: {e}"),
         },
         PiCommand::HomeJoints {
             joints,
@@ -1419,7 +1433,7 @@ fn handle_command<B: MotorBus>(
                     is_configured_joint(supervisor, joint)
                 })
             {
-                println!("home failed: {message}");
+                say!("home failed: {message}");
             }
         }
         // The Enable runs once the gravity sweep passes (advance_gravity_preflight).
@@ -1429,56 +1443,56 @@ fn handle_command<B: MotorBus>(
                     .begin_preflight(sweep, PreflightFor::StdinEnable { operator_id })
                     .is_err()
                 {
-                    eprintln!("enable refused: gravity preflight already in progress");
+                    say_err!("enable refused: gravity preflight already in progress");
                 }
             }
-            Err(()) => eprintln!("enable refused: gravity saturation preflight failed closed"),
+            Err(()) => say_err!("enable refused: gravity saturation preflight failed closed"),
         },
         PiCommand::Disable => {
             // An operator disable stands until an explicit enable (L-berthier-28).
             loop_ctrl.forbid_implicit_enable();
             // Davout's disable_all also cancels a live reference transaction.
             if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
-                eprintln!("disable failed: {e}");
+                say_err!("disable failed: {e}");
             }
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             emit_reference_events(queue.cancel());
             emit(gate.cancel());
-            println!("disabled");
+            say!("disabled");
         }
         PiCommand::GravityOn => match loop_ctrl.try_set_control_mode(ControlMode::GravityComp) {
-            Ok(()) => println!(
+            Ok(()) => say!(
                 "control mode → GravityComp (operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
             ),
-            Err(e) => eprintln!("gravity-on refused: {e}"),
+            Err(e) => say_err!("gravity-on refused: {e}"),
         },
         PiCommand::GravityOff => match loop_ctrl.enter_torque_only_zero() {
-            Ok(()) => println!(
+            Ok(()) => say!(
                 "control mode → TorqueOnly (τ_cmd≡0; operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
             ),
-            Err(e) => eprintln!("gravity-off refused: {e}"),
+            Err(e) => say_err!("gravity-off refused: {e}"),
         },
         PiCommand::TorqueCmd { joint, tau_nm } => match loop_ctrl.set_torque_cmd(&joint, tau_nm) {
             Ok(()) => {
-                println!(
+                say!(
                     "τ_cmd {joint} = {tau_nm:.4} Nm (mode=TorqueOnly, operational={:?})",
                     loop_ctrl.supervisor_mut().mode()
                 );
             }
-            Err(e) => eprintln!("torque-cmd failed: {e}"),
+            Err(e) => say_err!("torque-cmd failed: {e}"),
         },
         PiCommand::ImpedanceOn => match loop_ctrl.try_set_control_mode(ControlMode::Impedance) {
-            Ok(()) => println!(
+            Ok(()) => say!(
                 "control mode → Impedance (operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
             ),
-            Err(e) => eprintln!("impedance-on refused: {e}"),
+            Err(e) => say_err!("impedance-on refused: {e}"),
         },
         PiCommand::ImpedanceOff => match loop_ctrl.try_set_control_mode(ControlMode::Disabled) {
-            Ok(()) => println!("control mode → Disabled"),
-            Err(e) => eprintln!("impedance-off refused: {e}"),
+            Ok(()) => say!("control mode → Disabled"),
+            Err(e) => say_err!("impedance-off refused: {e}"),
         },
         cmd @ (PiCommand::HoldOn | PiCommand::HoldAt { .. } | PiCommand::Wave { .. }) => {
             emit(gate.submit(loop_ctrl, cmd, Instant::now()));
@@ -1487,11 +1501,11 @@ fn handle_command<B: MotorBus>(
             loop_ctrl.clear_position_hold();
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             emit(gate.cancel_arms("cancelled by hold-off"));
-            println!("hold-off → Disabled");
+            say!("hold-off → Disabled");
         }
         PiCommand::Lower => {
             if let Err(e) = loop_ctrl.request_degraded_lower() {
-                eprintln!("{e}");
+                say_err!("{e}");
             }
         }
         PiCommand::Status => print_status(loop_ctrl, config_dir),
@@ -1505,7 +1519,7 @@ fn handle_command<B: MotorBus>(
 }
 
 fn usage() {
-    eprintln!(
+    say_err!(
         "marengo-pi — Pi control runtime (Berthier → Davout → SocketCAN)\n\
          Usage: marengo-pi [--config-dir PATH] [--no-stdin-ctl] [--motion-owner stdin|chappe]\n\
          Motion owner: exactly one command source may enable/move the robot. Default chappe\n\
@@ -1514,6 +1528,23 @@ fn usage() {
          Env:  MARENGO_ROOT, MARENGO_CONFIG_DIR (default /opt/marengo/config on Pi)\n\
          Dev:  unset MARENGO_CONFIG_DIR to use <repo>/config"
     );
+}
+
+/// The motors this process drives: `motors.yaml` narrowed to
+/// `MARENGO_JOINT_SUBSET` the same way Davout narrows its own copy, so a
+/// subset run opens only the CAN interfaces its joints use (RT-20).
+fn owned_motors(
+    robot: &RobotConfigFile,
+    motors: &MotorsConfigFile,
+    control: &ControlConfigFile,
+    subset: Option<&HashSet<String>>,
+) -> Result<MotorsConfigFile, marengo_config::ConfigError> {
+    let Some(subset) = subset else {
+        return Ok(motors.clone());
+    };
+    let (mut robot, mut motors, mut control) = (robot.clone(), motors.clone(), control.clone());
+    marengo_config::apply_joint_subset(&mut robot, &mut motors, &mut control, subset)?;
+    Ok(motors)
 }
 
 struct CliArgs {
@@ -1533,7 +1564,7 @@ fn parse_args() -> CliArgs {
         match arg.as_str() {
             "--config-dir" => {
                 let Some(path) = args.next() else {
-                    eprintln!("--config-dir requires a path");
+                    say_err!("--config-dir requires a path");
                     std::process::exit(1);
                 };
                 cli.config_dir = Some(PathBuf::from(path));
@@ -1541,7 +1572,7 @@ fn parse_args() -> CliArgs {
             "--no-stdin-ctl" => cli.stdin_ctl = false,
             "--motion-owner" => {
                 let Some(owner) = args.next() else {
-                    eprintln!("--motion-owner requires stdin or chappe");
+                    say_err!("--motion-owner requires stdin or chappe");
                     std::process::exit(1);
                 };
                 cli.motion_owner = Some(owner);
@@ -1551,7 +1582,7 @@ fn parse_args() -> CliArgs {
                 std::process::exit(0);
             }
             other => {
-                eprintln!("unknown argument: {other}");
+                say_err!("unknown argument: {other}");
                 usage();
                 std::process::exit(1);
             }
@@ -1569,12 +1600,12 @@ fn main() {
     ) {
         Ok(owner) => owner,
         Err(message) => {
-            eprintln!("{message}");
+            say_err!("{message}");
             std::process::exit(1);
         }
     };
     if motion_owner == CommandSource::Stdin && !stdin_ctl {
-        eprintln!("--motion-owner stdin requires stdin control (drop --no-stdin-ctl)");
+        say_err!("--motion-owner stdin requires stdin control (drop --no-stdin-ctl)");
         std::process::exit(1);
     }
     let motion = MotionLease::new(motion_owner);
@@ -1587,31 +1618,47 @@ fn main() {
     // startup events (e.g. the joint-subset info line, SocketCAN open) reach
     // the journal and Chappe instead of being dropped.
     let chappe = Arc::new(Bus::default());
-    chappe::tracing_layer::init_subscriber(Some(Arc::clone(&chappe)), "marengo-pi");
+    chappe::tracing_layer::init_subscriber_watching_stdout(
+        Some(Arc::clone(&chappe)),
+        "marengo-pi",
+        &operator_output::OUTPUT_CLOSED,
+    );
 
     let control = match load_control_config(&root) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("control.yaml: {e}");
+            say_err!("control.yaml: {e}");
             std::process::exit(1);
         }
     };
     let motors = match load_motors_config(&root) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("motors.yaml: {e}");
+            say_err!("motors.yaml: {e}");
             std::process::exit(1);
         }
     };
     let robot = match marengo_config::load_robot_config(&root) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("robot.yaml: {e}");
+            say_err!("robot.yaml: {e}");
+            std::process::exit(1);
+        }
+    };
+    let motors = match owned_motors(
+        &robot,
+        &motors,
+        &control,
+        marengo_config::joint_subset_from_env().as_ref(),
+    ) {
+        Ok(m) => m,
+        Err(e) => {
+            say_err!("MARENGO_JOINT_SUBSET: {e}");
             std::process::exit(1);
         }
     };
     if let Err(e) = resolve_urdf_path(&root, &robot) {
-        eprintln!("urdf: {e}");
+        say_err!("urdf: {e}");
         std::process::exit(1);
     }
 
@@ -1625,15 +1672,15 @@ fn main() {
     {
         Ok(path) => path,
         Err(e) => {
-            eprintln!("reference journal: {e}");
+            say_err!("reference journal: {e}");
             std::process::exit(1);
         }
     };
     let bus = match RuntimeBus::socketcan_from_motors(&motors) {
         Ok(bus) => bus,
         Err(e) => {
-            eprintln!("open SocketCAN from motors.yaml: {e}");
-            eprintln!("build with: cargo build -p marengo-pi --features socketcan");
+            say_err!("open SocketCAN from motors.yaml: {e}");
+            say_err!("build with: cargo build -p marengo-pi --features socketcan");
             std::process::exit(1);
         }
     };
@@ -1647,7 +1694,7 @@ fn main() {
     ) {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("control loop: {e}");
+            say_err!("control loop: {e}");
             std::process::exit(1);
         }
     };
@@ -1656,7 +1703,7 @@ fn main() {
     match loop_ctrl.admit_drive_loss() {
         Ok(admitted) => degraded::log_admission(&admitted),
         Err(e) => {
-            eprintln!("drive-loss admission: {e}");
+            say_err!("drive-loss admission: {e}");
             std::process::exit(1);
         }
     }
@@ -1693,7 +1740,7 @@ fn main() {
     })
     .is_err()
     {
-        eprintln!("failed to install ctrl-c handler");
+        say_err!("failed to install ctrl-c handler");
         std::process::exit(1);
     }
 
@@ -1706,7 +1753,7 @@ fn main() {
         (signal_hook::consts::SIGQUIT, "SIGQUIT"),
     ] {
         if signal_hook::flag::register(signal, Arc::clone(&shutdown)).is_err() {
-            eprintln!("failed to install {name} handler");
+            say_err!("failed to install {name} handler");
             std::process::exit(1);
         }
     }
@@ -1716,7 +1763,7 @@ fn main() {
         match overlay::ActuatorOverlay::from_config_dir(&config_dir, persist_queue) {
             Ok(o) => o,
             Err(e) => {
-                eprintln!("actuator overlay allowlist: {e}");
+                say_err!("actuator overlay allowlist: {e}");
                 std::process::exit(1);
             }
         };
@@ -1732,7 +1779,7 @@ fn main() {
     if stdin_ctl {
         spawn_stdin_commands(cmd_tx);
         print_usage();
-        eprintln!(
+        say_err!(
             "motion owner: {motion_owner}{}",
             if motion_owner == CommandSource::Stdin {
                 ""
@@ -1769,6 +1816,7 @@ fn main() {
         actuator_overlay: &mut actuator_overlay,
         shutdown: &shutdown,
         motion,
+        output_closed: &operator_output::OUTPUT_CLOSED,
     };
     let panicked = run_with_panic_stop(&mut loop_ctrl, |loop_ctrl| {
         run_control_loop(loop_ctrl, &mut runtime);
@@ -1957,6 +2005,51 @@ struct ControlLoopRuntime<'a> {
     shutdown: &'a Arc<AtomicBool>,
     /// Process-lifetime claim on motion; see [`motion_owner`].
     motion: MotionLease,
+    /// Set when the operator text pipe closed ([`operator_output::OUTPUT_CLOSED`]).
+    output_closed: &'a AtomicBool,
+}
+
+/// The control loop's stop condition: `quit`, EOF or a signal set `shutdown`,
+/// or the operator pipe closed (EPIPE). Checked before every stdin command,
+/// before every Chappe, testing and overlay message, and after every phase,
+/// so nothing queued behind an EPIPE is handled (TOOL-06).
+#[derive(Clone, Copy)]
+pub(crate) struct StopSignal<'a> {
+    shutdown: &'a AtomicBool,
+    output_closed: &'a AtomicBool,
+}
+
+impl<'a> StopSignal<'a> {
+    pub(crate) fn new(shutdown: &'a AtomicBool, output_closed: &'a AtomicBool) -> Self {
+        Self {
+            shutdown,
+            output_closed,
+        }
+    }
+
+    /// Whether the loop must stop now. Nobody reading the operator text any
+    /// more (EPIPE, e.g. the bench session's ssh dropped) is a quit, as for
+    /// `quit` or EOF: it sets `shutdown`, so every other thread sees it and
+    /// the normal shutdown stops every drive instead of the next print
+    /// panicking.
+    pub(crate) fn requested(self) -> bool {
+        if self.output_closed.load(Ordering::SeqCst) {
+            if !self.shutdown.swap(true, Ordering::SeqCst) {
+                warn!("operator stdout/stderr closed (EPIPE); quitting");
+            }
+            return true;
+        }
+        self.shutdown.load(Ordering::SeqCst)
+    }
+}
+
+/// Tests that only drive `shutdown`: the operator pipe never closes.
+#[cfg(test)]
+impl<'a> From<&'a AtomicBool> for StopSignal<'a> {
+    fn from(shutdown: &'a AtomicBool) -> Self {
+        static OPEN: AtomicBool = AtomicBool::new(false);
+        Self::new(shutdown, &OPEN)
+    }
 }
 
 #[tracing::instrument(skip(loop_ctrl, runtime))]
@@ -1964,6 +2057,7 @@ fn run_control_loop<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     runtime: &mut ControlLoopRuntime<'_>,
 ) {
+    let stop = StopSignal::new(runtime.shutdown, runtime.output_closed);
     let period = loop_ctrl.loop_period();
     let chappe_period = Duration::from_secs_f64(1.0 / f64::from(runtime.chappe_state_hz.max(1)));
     let mut last_chappe = Instant::now();
@@ -1975,12 +2069,12 @@ fn run_control_loop<B: MotorBus>(
     let mut enable_gate = EnableGate::default();
     runtime.actuator_overlay.set_motion_lease(runtime.motion);
 
-    'control: while !runtime.shutdown.load(Ordering::SeqCst) {
+    'control: while !stop.requested() {
         let tick_start = Instant::now();
 
         let t = tick_start;
         loop {
-            if runtime.shutdown.load(Ordering::SeqCst) {
+            if stop.requested() {
                 break 'control;
             }
             // Commands deferred behind a drained reference queue or a passed
@@ -2013,7 +2107,8 @@ fn run_control_loop<B: MotorBus>(
                     Err(_) => break,
                 },
             };
-            if runtime.shutdown.load(Ordering::SeqCst) {
+            // A refusal printed during admission may itself have hit EPIPE.
+            if stop.requested() {
                 break 'control;
             }
             if !dispatch_stdin_command(
@@ -2027,6 +2122,9 @@ fn run_control_loop<B: MotorBus>(
                 break 'control;
             }
         }
+        if stop.requested() {
+            break;
+        }
         let (outer_stdin_us, t_next) = phase_elapsed_us(t);
 
         drain_chappe_commands(
@@ -2039,9 +2137,9 @@ fn run_control_loop<B: MotorBus>(
             runtime.set_zero_rx,
             runtime.lease_rx,
             runtime.status_poll_rx,
-            runtime.shutdown,
+            stop,
         );
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             break;
         }
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
@@ -2052,9 +2150,9 @@ fn run_control_loop<B: MotorBus>(
             runtime.motion,
             runtime.chappe.as_ref(),
             runtime.testing_cmd_rx,
-            runtime.shutdown,
+            stop,
         );
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             break;
         }
         runtime.actuator_overlay.drain_commands_until_shutdown(
@@ -2062,11 +2160,11 @@ fn run_control_loop<B: MotorBus>(
             runtime.config_dir,
             runtime.chappe,
             runtime.actuator_rx,
-            runtime.shutdown,
+            stop,
         );
         let (_outer_actuator_us, _t) = phase_elapsed_us(t_after_chappe);
 
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             break;
         }
         // One bounded slice of a pending gravity sweep; this iteration's tick
@@ -2076,14 +2174,14 @@ fn run_control_loop<B: MotorBus>(
             &mut enable_gate,
             &reference_queue,
             runtime.chappe.as_ref(),
-            runtime.shutdown,
+            stop,
             SliceBudget::PER_TICK,
         );
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             break;
         }
         loop_ctrl.supervisor_mut().sync_active_reporting();
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             break;
         }
 
@@ -2110,7 +2208,7 @@ fn run_control_loop<B: MotorBus>(
         // After the tick: report a completed (or refused) Enable, then retry
         // deferred Position-mode arms.
         emit(enable_gate.poll(loop_ctrl, Instant::now()));
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             break;
         }
 
@@ -2383,6 +2481,39 @@ mod status_poll_tests {
     #[test]
     fn decode_motor_status_poll_envelope_rejects_garbage() {
         assert!(decode_motor_status_poll_envelope(b"nope").is_none());
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod owned_motor_tests {
+    use std::collections::HashSet;
+    use std::path::PathBuf;
+
+    use marengo_config::{
+        load_control_config_from, load_motors_config_from, load_robot_config_from,
+    };
+
+    use super::owned_motors;
+
+    #[test]
+    fn a_joint_subset_narrows_the_motors_the_runtime_opens() {
+        let config = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../config");
+        let robot = load_robot_config_from(&config).expect("robot.yaml");
+        let motors = load_motors_config_from(&config).expect("motors.yaml");
+        let control = load_control_config_from(&config).expect("control.yaml");
+        assert!(motors.motors.len() > 1, "fixture has more than one motor");
+
+        let all = owned_motors(&robot, &motors, &control, None).expect("no subset");
+        assert_eq!(all.motors.len(), motors.motors.len());
+
+        let subset = HashSet::from(["right_elbow_pitch".to_string()]);
+        let owned = owned_motors(&robot, &motors, &control, Some(&subset)).expect("subset");
+        let joints: Vec<_> = owned.motors.iter().map(|m| m.joint.as_str()).collect();
+        assert_eq!(joints, ["right_elbow_pitch"]);
+
+        let unknown = HashSet::from(["no_such_joint".to_string()]);
+        assert!(owned_motors(&robot, &motors, &control, Some(&unknown)).is_err());
     }
 }
 

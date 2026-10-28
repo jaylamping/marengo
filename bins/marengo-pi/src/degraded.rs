@@ -7,6 +7,7 @@ use davout::{DegradedEnd, MotorBus};
 use tracing::{info, warn};
 
 use crate::motion_owner::{publish_audit, report_refusal};
+use crate::operator_output::{say, say_err};
 
 /// Audit operator for episode transitions the runtime itself makes.
 const RUNTIME_OPERATOR: &str = "marengo-pi";
@@ -37,7 +38,7 @@ pub(crate) fn refuse_during_episode<B: MotorBus>(
         return false;
     };
     if print {
-        eprintln!("{reason}");
+        say_err!("{reason}");
     }
     report_refusal(chappe, operator, &joint, command, &reason);
     true
@@ -77,7 +78,7 @@ pub(crate) fn report_degraded_events(events: Vec<DegradedEvent>, chappe: &Bus) -
     let mut started = false;
     for event in events {
         let line = degraded_event_line(&event);
-        println!("{line}");
+        say!("{line}");
         let (action, joint) = match &event {
             DegradedEvent::DriveLost { joint, .. } => {
                 started = true;

@@ -120,7 +120,7 @@ message EnableRequest {
 }
 
 // Deprecated (B13): operator HomingComplete retired, use Hardware Set Zero.
-// Kept compiling for wire compat; Pi drains it with a warning, gateway returns 410 Gone.
+// Kept compiling for wire compat; the Pi does not subscribe to it, gateway returns 410 Gone.
 message HomingComplete {
   option deprecated = true;
   uint64 timestamp_ms = 1;
@@ -427,6 +427,7 @@ message PiPlatformMetrics {
   double core_voltage_v = 5 [deprecated = true];
   uint32 sdram_freq_mhz = 6 [deprecated = true];
   uint32 gpu_freq_mhz = 7 [deprecated = true];
+  // Never populated: no PMIC sensor is read (0 means unknown).
   double pmic_temp_celsius = 8;
   // False when vcgencmd was unavailable: throttled_now/events unknown, never clear.
   bool throttle_known = 9;

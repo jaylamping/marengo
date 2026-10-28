@@ -29,7 +29,6 @@ ctrlc = "3.4"
 davout = { path = "../../crates/davout" }
 marengo-config.workspace = true
 marengo-imu = { path = "../../crates/marengo-imu", optional = true }
-marengo-support.workspace = true
 marengo-host-metrics.workspace = true
 robstride = { path = "../../crates/robstride" }
 thiserror.workspace = true
