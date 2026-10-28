@@ -3,6 +3,7 @@ import { useMatches } from 'react-router-dom';
 import { siteHeaderPanelClassName } from '@/components/dashboard/sidebar/constants';
 import { SiteHeaderStatusBadges } from '@/components/dashboard/site-header/site-header-status-badges';
 import { GatewayAccessSession } from '@/components/dashboard/site-header/gateway-access-session';
+import { HeaderDisableButton } from '@/components/dashboard/site-header/header-disable-button';
 import { siteHeaderConfig } from '@/data/site-header';
 import { getRouteHeader } from '@/lib/route-handle';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,7 @@ export function SiteHeader() {
           ) : null}
         </div>
         <GatewayAccessSession />
+        <HeaderDisableButton />
         <SiteHeaderStatusBadges />
       </div>
     </header>

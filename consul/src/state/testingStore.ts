@@ -11,6 +11,7 @@ import {
   postEnableCommand,
 } from '@/lib/gateway-api';
 import { useCompoundStore } from '@/state/compoundStore';
+import { useRobotStore } from '@/state/robotStore';
 import { useTeachStore } from '@/state/teachStore';
 
 interface TestingStore {
@@ -40,8 +41,16 @@ interface TestingStore {
   startTest: () => Promise<void>;
   /** Motion go-to-zero for selected joints — not HomingComplete / Mark READY. */
   returnHome: () => Promise<void>;
-  stopTest: () => void;
-  /** E-stop / all-off path (not commissioning Enable). */
+  /**
+   * Stop a running hold where the joints are now: a POSITION batch at each
+   * selected joint's measured position (UI-05). Without a measurement for
+   * every joint it disables instead.
+   */
+  stopTest: () => Promise<void>;
+  /**
+   * E-stop / all-off path (not commissioning Enable). Runners are cancelled
+   * before the request, so a failed POST never leaves a run going (UI-01).
+   */
   disable: () => Promise<void>;
   dispatchGainUpdate: (jointName: string) => Promise<void>;
 }
@@ -102,7 +111,40 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       );
     }
   },
-  stopTest: () => set({ isRunning: false }),
+  stopTest: async () => {
+    const { selectedJointNames, gains, dryRun } = get();
+    set({ isRunning: false });
+    if (dryRun || selectedJointNames.length === 0) return;
+    const robot = useRobotStore.getState().robotState;
+    const joints: MitJointCommand[] = [];
+    for (const name of selectedJointNames) {
+      const measured = robot?.joints.find((joint) => joint.name === name);
+      if (!measured) {
+        await get().disable();
+        return;
+      }
+      const gain = gains[name] || { kp: 0, kd: 0, ki: 0, fc: 0 };
+      joints.push(
+        create(MitJointCommandSchema, {
+          name,
+          kp: gain.kp,
+          kd: gain.kd,
+          ki: gain.ki,
+          fc: gain.fc,
+          position: measured.position,
+          velocity: 0,
+          torqueFf: 0,
+        }),
+      );
+    }
+    await postTestingMitCommandBatch(
+      create(MitCommandBatchSchema, {
+        timestampMs: BigInt(Date.now()),
+        mode: ControlMode.POSITION,
+        joints,
+      }),
+    );
+  },
 
   returnHome: async () => {
     if (useTeachStore.getState().capture.kind === 'recording') {
@@ -138,9 +180,9 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   },
 
   disable: async () => {
-    await postEnableCommand(false);
     set({ isRunning: false });
     useCompoundStore.getState().setIsRunning(false);
+    await postEnableCommand(false);
   },
 
   dispatchGainUpdate: async (jointName: string) => {

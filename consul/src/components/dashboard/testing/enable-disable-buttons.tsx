@@ -3,8 +3,8 @@ import { Badge } from '@/components/ui/badge';
 
 /**
  * Testing chrome status strip.
- * Enable / Home / Disable commissioning controls live on Hardware;
- * Testing keeps motion, go-to-zero, and E-stop only.
+ * Enable and Set Zero live on Hardware; Disable is in the site header on
+ * every route. Testing keeps motion, go-to-zero, and E-stop.
  */
 export function EnableDisableButtons() {
   const operationalMode = useRobotStore((s) => s.operationalMode);

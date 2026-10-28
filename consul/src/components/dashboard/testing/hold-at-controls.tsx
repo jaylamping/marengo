@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useCompoundStore } from '@/state/compoundStore';
 import { useTestingStore } from '@/state/testingStore';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,8 @@ import { dashboardPanelCardClassName } from '@/components/dashboard/layout/const
 
 export function HoldAtControls() {
   const { setpointRad, setSetpoint, startTest, stopTest, returnHome, dryRun, toggleDryRun, isRunning } = useTestingStore();
+  // Dry Run is shared with the compound runner; it is frozen while either runs (UI-03).
+  const compoundRunning = useCompoundStore((state) => state.isRunning);
 
   return (
     <Card variant="panel" className={dashboardPanelCardClassName}>
@@ -28,14 +31,19 @@ export function HoldAtControls() {
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Checkbox id="dry-run-manual" checked={dryRun} onCheckedChange={toggleDryRun} />
+            <Checkbox
+              id="dry-run-manual"
+              checked={dryRun}
+              disabled={isRunning || compoundRunning}
+              onCheckedChange={toggleDryRun}
+            />
             <label htmlFor="dry-run-manual" className="text-sm font-medium cursor-pointer">Dry Run</label>
           </div>
           <div className="flex gap-2">
             {isRunning ? (
               <>
                 <Button variant="outline" onClick={returnHome}>Return Home</Button>
-                <Button variant="destructive" onClick={stopTest}>Stop</Button>
+                <Button variant="destructive" onClick={() => void stopTest()}>Stop</Button>
               </>
             ) : (
               <Button onClick={startTest}>Start Hold</Button>

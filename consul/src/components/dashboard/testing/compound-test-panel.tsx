@@ -310,6 +310,7 @@ export function CompoundTestPanel() {
                     <Checkbox
                       id="dry-run-toggle"
                       checked={dryRun}
+                      disabled={isRunning}
                       onCheckedChange={toggleDryRun}
                     />
                     <label
