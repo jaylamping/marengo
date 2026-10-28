@@ -118,9 +118,10 @@ function planGravityGate(
 }
 
 /**
- * Remote shell printing `<joint>: tau_g = <Nm> Nm` at `pose`. The caller must be the sole
- * CAN owner. gravity-preview takes a full robot.yaml-order vector (a partial one silently
- * becomes all zeros), so a non-zero pose first reads the model's joint order.
+ * Remote shell printing `<joint>: tau_g = <Nm> Nm` at `pose`. Model only: gravity-preview
+ * reads robot.yaml and the URDF and never opens CAN, so no CAN ownership is needed (TOOL-16).
+ * It takes a full robot.yaml-order vector (a partial one silently becomes all zeros), so a
+ * non-zero pose first reads the model's joint order.
  */
 function gravityPreviewShell(pose: Record<string, number>): string {
   const nonzero = Object.entries(pose).filter(
@@ -200,7 +201,8 @@ export const HANGING_REST_MISMATCH_SKIPPED =
 
 /**
  * The gate. `snapshotOutput` is remote output of {@link gravityGateSnapshotShell}, captured
- * before the caller stopped marengo-pi; `runPreview` runs a shell as the sole CAN owner.
+ * before the caller stopped marengo-pi; `runPreview` runs the model-only preview shell, which
+ * never opens CAN and needs no CAN ownership (TOOL-16).
  * `allowHangingRestMismatch` (gravity calibration only, which exists to fix the model) passes a
  * hanging-rest |τ_g| mismatch with the full residual report; `gravity_gate_unavailable` and a
  * measured-basis mismatch still refuse.

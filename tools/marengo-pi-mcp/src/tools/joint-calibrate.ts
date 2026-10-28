@@ -810,7 +810,8 @@ export function maxSweepTauAtPoses(
 }
 
 /**
- * Remote shell (sole CAN owner, like the gravity gate's preview): one `motor-repl gravity-preview`
+ * Remote shell (model only, like the gravity gate's preview: never opens CAN, so no CAN
+ * ownership is needed; TOOL-16): one `motor-repl gravity-preview`
  * per configuration, each a full robot.yaml-order vector, every block headed `@@gravcal_pose <i>`.
  */
 export function gravityBatchShell(configs: readonly Record<string, number>[], robotJoints: readonly string[]): string {

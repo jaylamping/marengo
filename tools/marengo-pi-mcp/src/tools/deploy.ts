@@ -39,6 +39,14 @@ export function localDeployCommand(
   };
 }
 
+/**
+ * Result text for a step that failed: `Error: <step> failed` heads the step log, so the MCP
+ * result carries isError (toolResultIsError) and the client never reads it as a deploy.
+ */
+function stepFailed(step: string, steps: string[], sep = "\n\n"): string {
+  return `Error: ${step} failed\n\n${steps.join(sep)}`;
+}
+
 /** Trees deploy-pi.sh copies wholesale into the bundle: untracked files there would ship. */
 const SHIPPED_TREES = ["config", "assets", "scripts"];
 
@@ -48,6 +56,7 @@ export async function runSyncMain(
   strategy: "cross" | "pi_native",
   opts: { waitForReady?: boolean; waitTimeoutSec?: number } = {},
   local: typeof execLocal = execLocal,
+  remote: typeof execRemote = execRemote,
 ): Promise<string> {
   const waitForReady = opts.waitForReady ?? true;
   const waitTimeoutSec = opts.waitTimeoutSec ?? 180;
@@ -66,13 +75,13 @@ export async function runSyncMain(
         "git rev-parse origin/main",
       ].join("\n"),
     );
-    const tipR = await execRemote(cfg, tipBody, { timeoutMs: 120_000 });
+    const tipR = await remote(cfg, tipBody, { timeoutMs: 120_000 });
     steps.push(`[resolve origin/main]\n${formatRemoteResult(tipR)}`);
-    if (tipR.exitCode !== 0) return steps.join("\n\n---\n\n");
+    if (tipR.exitCode !== 0) return stepFailed("resolve origin/main", steps, "\n\n---\n\n");
     const head = tipR.stdout.trim().split(/\s+/).pop() ?? "";
     if (!/^[0-9a-f]{7,40}$/i.test(head)) {
       steps.push(`[resolve origin/main] error: bad SHA '${head}'`);
-      return steps.join("\n\n---\n\n");
+      return stepFailed("resolve origin/main", steps, "\n\n---\n\n");
     }
     steps.push(`[deploy rev] ${head}`);
 
@@ -94,11 +103,11 @@ export async function runSyncMain(
         "fi",
       ].join("\n"),
     );
-    const r = await execRemote(cfg, body, { timeoutMs: 900_000 });
+    const r = await remote(cfg, body, { timeoutMs: 900_000 });
     steps.push(formatRemoteResult(r));
-    if (r.exitCode !== 0) return steps.join("\n\n---\n\n");
+    if (r.exitCode !== 0) return stepFailed("pi-self-update.sh", steps, "\n\n---\n\n");
 
-    await logDeployRev(cfg, runRemote, steps, head || undefined);
+    await logDeployRev(cfg, runRemote, steps, head || undefined, remote);
 
     if (waitForReady && head) {
       steps.push(
@@ -150,7 +159,7 @@ export async function runSyncMain(
     { cwd: cfg.localRoot, timeoutMs: 120_000 },
   );
   steps.push(`[local git fetch]\n${formatRemoteResult(fetch)}`);
-  if (fetch.exitCode !== 0) return steps.join("\n\n");
+  if (fetch.exitCode !== 0) return stepFailed("local git fetch", steps);
 
   const pull = await local(
     "git",
@@ -158,7 +167,7 @@ export async function runSyncMain(
     { cwd: cfg.localRoot, timeoutMs: 120_000 },
   );
   steps.push(`[local pull]\n${formatRemoteResult(pull)}`);
-  if (pull.exitCode !== 0) return steps.join("\n\n");
+  if (pull.exitCode !== 0) return stepFailed("local pull", steps);
 
   const rev = await local("git", ["rev-parse", "HEAD"], {
     cwd: cfg.localRoot,
@@ -174,12 +183,12 @@ export async function runSyncMain(
   steps.push(
     `[${path.basename(deploy.args[0])}]\n${formatRemoteResult(deployResult)}`,
   );
-  if (deployResult.exitCode !== 0) return steps.join("\n\n");
+  if (deployResult.exitCode !== 0) return stepFailed("build", steps);
 
   const installBody = wrapRemote(cfg, sudoStagingInstallCommand(cfg));
-  const installOpt = await execRemote(cfg, installBody, { timeoutMs: 120_000 });
+  const installOpt = await remote(cfg, installBody, { timeoutMs: 120_000 });
   steps.push(`[install-pi.sh staging → /opt]\n${formatRemoteResult(installOpt)}`);
-  if (installOpt.exitCode !== 0) return steps.join("\n\n");
+  if (installOpt.exitCode !== 0) return stepFailed("install-pi.sh", steps);
 
   const staging = cfg.piStagingRoot.replace(/^~/, `/home/${cfg.user}`);
   const verifyBody = [
@@ -192,17 +201,17 @@ export async function runSyncMain(
     "echo \"deploy rev: $(cat /opt/marengo/.deploy-rev 2>/dev/null || echo missing)\"",
     "echo 'install verified'",
   ].join("\n");
-  const verify = await execRemote(cfg, verifyBody, { timeoutMs: 120_000 });
+  const verify = await remote(cfg, verifyBody, { timeoutMs: 120_000 });
   steps.push(`[verify install]\n${formatRemoteResult(verify)}`);
-  if (verify.exitCode !== 0) return steps.join("\n\n");
+  if (verify.exitCode !== 0) return stepFailed("verify install", steps);
 
-  await logDeployRev(cfg, runRemote, steps, head);
+  await logDeployRev(cfg, runRemote, steps, head, remote);
 
   const healthBody = wrapRemote(
     cfg,
     "test -x bin/marengo-pi && echo 'install ok'",
   );
-  const health = await execRemote(cfg, healthBody, { timeoutMs: 30_000 });
+  const health = await remote(cfg, healthBody, { timeoutMs: 30_000 });
   steps.push(`[verify]\n${formatRemoteResult(health)}`);
 
   if (waitForReady && head) {
@@ -231,9 +240,10 @@ async function logDeployRev(
   _runRemote: (body: string, timeoutMs?: number) => Promise<string>,
   steps: string[],
   expectedHead?: string,
+  remote: typeof execRemote = execRemote,
 ): Promise<void> {
   const body = wrapRemote(cfg, deployRevLogCommand(cfg.piRoot));
-  const r = await execRemote(cfg, body, { timeoutMs: 15_000 });
+  const r = await remote(cfg, body, { timeoutMs: 15_000 });
   steps.push(`[.deploy-rev]\n${formatRemoteResult(r)}`);
   if (expectedHead && r.stdout.trim()) {
     const first = r.stdout.trim().split(/\s+/)[0] ?? "";
