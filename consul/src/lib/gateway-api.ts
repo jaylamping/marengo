@@ -130,13 +130,6 @@ export async function postTestingMitCommandBatch(batch: MitCommandBatch): Promis
   }
 }
 
-/** @deprecated Operator HomingComplete retired — gateway returns 410 Gone. */
-export async function postHomeCommand(): Promise<void> {
-  throw new Error(
-    'POST /command/home retired; use Hardware Set Zero per joint (not Testing Home)',
-  );
-}
-
 export async function fetchCommissioningScope(): Promise<CommissioningScopeResponse> {
   const { httpUrl } = requireEndpoints();
   const res = await fetch(`${httpUrl}/hardware/commissioning-scope`, {
