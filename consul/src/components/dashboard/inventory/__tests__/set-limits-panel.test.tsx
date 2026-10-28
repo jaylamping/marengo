@@ -180,6 +180,23 @@ describe('SetLimitsPanel', () => {
     expect(useTeachStore.getState().liveCalibrationEpoch).toBe(epochBefore + 1);
   });
 
+  it('warns in review when the proposal widens the current hard range (UI-12)', () => {
+    useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
+    renderPanel(
+      <SetLimitsPanel jointName="right_shoulder_pitch" currentLimit="±1.57" />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Set Limits' }));
+    const store = useLimitListenStore.getState();
+    // One spurious sample at 2.4 rad among a sweep inside ±1.57.
+    for (const pos of [-0.5, -0.4, 0.0, 2.4, 0.8, 1.2]) {
+      store.ingestPosition('right_shoulder_pitch', pos);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    expect(screen.getByTestId('set-limits-widening')).toHaveTextContent(
+      'upper by 0.830 rad',
+    );
+  });
+
   it('runs listen → review → apply with exact measured bounds', async () => {
     useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
     const onApplyRange = vi.fn();

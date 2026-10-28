@@ -134,6 +134,35 @@ export function proposedLimitsFromBounds(
   };
 }
 
+/** Range strings carry two decimals; smaller differences are display rounding. */
+const RANGE_DISPLAY_TOLERANCE_RAD = 0.005;
+
+export type RangeWidening = { lowerRad: number; upperRad: number };
+
+/**
+ * How far a proposal reaches past the current hard range on each side, or null
+ * when it does not widen it. Set Limits takes raw extremes, so one spurious
+ * sample widens the hard limit; the operator must see that before Apply (UI-12).
+ */
+export function rangeWidening(
+  current: JointRangeBounds | null,
+  proposed: JointRangeBounds,
+): RangeWidening | null {
+  if (!current) {
+    return null;
+  }
+  const lowerRad = current.lower - proposed.lower;
+  const upperRad = proposed.upper - current.upper;
+  const widens = (delta: number) => delta > RANGE_DISPLAY_TOLERANCE_RAD;
+  if (!widens(lowerRad) && !widens(upperRad)) {
+    return null;
+  }
+  return {
+    lowerRad: widens(lowerRad) ? lowerRad : 0,
+    upperRad: widens(upperRad) ? upperRad : 0,
+  };
+}
+
 export function proposedRangeFromBounds(bounds: RunningBounds): string | null {
   return proposedLimitsFromBounds(bounds)?.display ?? null;
 }

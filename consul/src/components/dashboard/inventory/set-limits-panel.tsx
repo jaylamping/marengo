@@ -17,6 +17,8 @@ import { fetchActuatorLimits, postSetZeroCommand } from '@/lib/gateway-api';
 import {
   canStartLimitListen,
   limitListenBlockReason,
+  parseJointRange,
+  rangeWidening,
 } from '@/lib/limit-listen';
 import { persistJointLimits } from '@/lib/persist-joint-limits';
 import { queryClient } from '@/lib/query-client';
@@ -70,6 +72,7 @@ export function SetLimitsPanel({
   const [applyOk, setApplyOk] = useState(false);
   const applyInFlightRef = useRef(false);
   const proposedRange = proposal?.display ?? null;
+  const widening = proposal ? rangeWidening(parseJointRange(currentLimit), proposal) : null;
   const showAppliedFlash = applyOk;
 
   const confirmTitleId = useId();
@@ -413,6 +416,14 @@ export function SetLimitsPanel({
             <span className="mx-2 text-muted-foreground">→</span>
             <span className="text-accent">{proposedRange}</span>
           </div>
+          {widening ? (
+            <p className="mt-1 text-warning" role="alert" data-testid="set-limits-widening">
+              Widens the current hard range
+              {widening.lowerRad > 0 ? ` · lower by ${widening.lowerRad.toFixed(3)} rad` : ''}
+              {widening.upperRad > 0 ? ` · upper by ${widening.upperRad.toFixed(3)} rad` : ''}
+              . One spurious sample is enough to do this: check the sweep before Apply.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
