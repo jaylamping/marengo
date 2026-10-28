@@ -1401,8 +1401,23 @@ impl<B: MotorBus> Supervisor<B> {
     /// Called on mode transitions to slew from measured torque, bounded by the
     /// current feedforward policy. Without a seed, the limiter starts from zero.
     pub fn seed_tau_ff_rate_limiter(&mut self) {
+        self.seed_tau_ff_from_measured(false);
+    }
+
+    /// [`Self::seed_tau_ff_rate_limiter`] only for joints with no τ_ff sent this session
+    /// (Disabled or freshly enabled); every other joint keeps slewing from the τ_ff Davout
+    /// last sent. For Position entry (ADR 0040): the measured torque includes the drive's PD
+    /// effort, so seeding from it would put that effort into τ_ff.
+    pub fn seed_unsent_tau_ff_rate_limiter(&mut self) {
+        self.seed_tau_ff_from_measured(true);
+    }
+
+    fn seed_tau_ff_from_measured(&mut self, only_unsent: bool) {
         for motor in &self.motors.motors {
             let joint = &motor.joint;
+            if only_unsent && self.last_tau_ff.contains_key(joint) {
+                continue;
+            }
             let measured = self.joint_torque_rad(joint).unwrap_or(0.0);
             let cap = self
                 .limits
@@ -4268,6 +4283,28 @@ mod tests {
             (seeded.expect("shoulder_pitch should still have an entry") - 0.0).abs() < 1e-9,
             "expected measured torque 0.0, got {}",
             seeded.expect("shoulder_pitch should still have an entry")
+        );
+    }
+
+    #[test]
+    fn unsent_seed_keeps_the_sent_tau_ff_and_fills_only_missing_joints() {
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        bench_active(&mut sup);
+        initial_poses(&mut sup, "right_shoulder_pitch", 1.0, 0.5);
+        sup.last_tau_ff
+            .insert("right_shoulder_pitch".to_string(), 2.0);
+        sup.last_tau_ff.remove("right_shoulder_roll");
+
+        sup.seed_unsent_tau_ff_rate_limiter();
+
+        assert_eq!(sup.last_tau_ff_nm("right_shoulder_pitch"), Some(2.0));
+        assert_eq!(
+            sup.last_tau_ff_nm("right_shoulder_roll"),
+            Some(0.0),
+            "a joint with nothing sent starts from measured torque"
         );
     }
 

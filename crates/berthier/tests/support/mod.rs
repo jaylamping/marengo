@@ -32,6 +32,25 @@ pub fn status(motor: &MotorEntry, position_rad: f64, velocity_rad_s: f64) -> Can
     }
 }
 
+/// [`status`] with the drive-reported torque field set from a joint-space torque (Nm).
+pub fn status_with_torque(
+    motor: &MotorEntry,
+    position_rad: f64,
+    velocity_rad_s: f64,
+    torque_nm: f64,
+) -> CanFrame {
+    let scale = f64::from(motor.direction) * motor.gear_ratio;
+    let torque_scale = match motor.motor_type {
+        MotorType::Rs00 | MotorType::Rs02 => 17.0,
+        MotorType::Rs03 => 60.0,
+        MotorType::Rs04 => 120.0,
+    };
+    let torque = ((torque_nm / scale / torque_scale + 1.0) * 32767.0).round() as u16;
+    let mut frame = status(motor, position_rad, velocity_rad_s);
+    frame.data[4..6].copy_from_slice(&torque.to_be_bytes());
+    frame
+}
+
 pub fn queue_joint_status(
     supervisor: &mut Supervisor<SimulationBus>,
     joint: &str,

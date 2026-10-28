@@ -1446,11 +1446,18 @@ impl<B: MotorBus> ControlLoop<B> {
         if previous != mode {
             info!(?previous, ?mode, "control mode transition");
         }
-        let arm_ramp = mode != ControlMode::Disabled && previous != ControlMode::Disabled;
+        let reseed =
+            previous != mode && mode != ControlMode::Disabled && previous != ControlMode::Disabled;
         self.gains.on_mode_enter(previous, mode, &from, &to);
-        if arm_ramp {
-            // Mode changes slew from measured torque within the current hard cap.
-            // Enable/disable resets the limiter; an unseeded output starts at zero.
+        if reseed && mode == ControlMode::Position {
+            // ADR 0040 item 3: Position τ_ff starts from the τ_ff Davout last sent. The
+            // measured torque includes the drive's PD effort, so it seeds only a joint with
+            // nothing sent this session.
+            self.supervisor.seed_unsent_tau_ff_rate_limiter();
+        } else if reseed {
+            // Other mode changes slew from measured torque within the current hard cap.
+            // Enable/disable resets the limiter; an unseeded output starts at zero. A
+            // same-mode re-entry (e.g. a `hold-at` retarget) keeps slewing from the last sent.
             self.supervisor.seed_tau_ff_rate_limiter();
         }
     }
