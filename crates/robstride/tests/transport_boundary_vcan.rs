@@ -245,3 +245,48 @@ fn socketcan_router_refuses_duplicate_addresses_before_opening_interfaces() {
         Err(robstride::BusError::DuplicateMotorAddress { .. })
     ));
 }
+
+/// DRV-05 / P2A-03: every local socket receives every other local socket's
+/// frames. An exact Enable another process wrote to a configured drive is not
+/// this socket's echo: it fails the receive (the owner latches Transport and
+/// stops) and never reaches the echo gates as wire-order evidence.
+#[test]
+#[ignore = "requires virtual vcan0; no physical robot; run tests serially"]
+fn host_command_from_another_local_socket_is_refused_not_echoed() {
+    let mut bus = RuntimeBus::socketcan("vcan0").expect("virtual owner");
+    let other = CanSocket::open("vcan0").expect("second local writer");
+    let (id, payload) = robstride::encode_default_enable(1);
+    other
+        .write_frame(&data(id, &payload))
+        .expect("foreign Enable");
+    let report = bus.recv_feedback_report(
+        &motor_types("vcan0"),
+        Duration::from_millis(50),
+        Duration::from_millis(1),
+    );
+    assert!(report.host_echoes.is_empty(), "not this socket's echo");
+    assert_eq!(report.completion, robstride::ReceiveCompletion::Failed);
+    assert!(
+        matches!(
+            &report.terminal_error,
+            Some(robstride::BusError::Driver(message)) if message.contains("another CAN writer")
+        ),
+        "{:?}",
+        report.terminal_error
+    );
+
+    // The owner's own Enable is still its echo.
+    bus.send_frame(&robstride::CanFrame {
+        id,
+        data: payload,
+        extended: true,
+    })
+    .expect("write on owner socket");
+    let report = bus.recv_feedback_report(
+        &motor_types("vcan0"),
+        Duration::from_millis(50),
+        Duration::from_millis(1),
+    );
+    assert!(report.terminal_error.is_none());
+    assert_eq!(report.host_echoes.len(), 1);
+}

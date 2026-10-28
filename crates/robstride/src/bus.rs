@@ -52,6 +52,102 @@ fn validate_can_tx(frame: &CanFrame) -> Result<(), BusError> {
     Ok(())
 }
 
+/// Whether an extended identifier is a host command: a host-only type (MIT,
+/// Enable, Disable, SetZero, set id, parameter write/save, baud, protocol), or
+/// an identity, parameter-read or active-reporting request from this host id.
+/// Drive frames (types 2 and 21, and type 0/17/24 replies and reports) carry a
+/// drive id where a request carries the host id, so they never match.
+#[cfg(any(test, all(feature = "socketcan", target_os = "linux")))]
+fn is_host_command(can_id: u32) -> bool {
+    let Some(ext) = comm::unpack_ext_id(can_id) else {
+        return false;
+    };
+    match ext.comm_type {
+        1 | 3 | 4 | 6 | 7 | 18 | 22 | 23 | 25 => true,
+        0 | 17 | 24 => ext.extra_data == u16::from(comm::DEFAULT_HOST_ID),
+        _ => false,
+    }
+}
+
+/// Transmissions still awaiting their echo. Bounded above the interface TX
+/// queue (`txqueuelen 1000`); a frame whose echo never comes (dropped at
+/// bus-off) is eventually displaced, and an echo that arrives late still
+/// matches while it is held.
+#[cfg(any(test, all(feature = "socketcan", target_os = "linux")))]
+const MAX_PENDING_ECHOES: usize = 1024;
+
+/// What one socket wrote and has not yet read back. Every local CAN socket
+/// receives every other local socket's frames (loopback), and the kernel's
+/// own-socket flag (`MSG_CONFIRM`) is dropped by the safe `recvmsg` wrapper
+/// in use, so this socket attributes a host command to itself only when it
+/// matches a frame it transmitted and has not yet seen echoed.
+#[cfg(any(test, all(feature = "socketcan", target_os = "linux")))]
+#[derive(Debug, Default)]
+pub(crate) struct EchoLedger {
+    pending: VecDeque<(u32, [u8; 8])>,
+}
+
+#[cfg(any(test, all(feature = "socketcan", target_os = "linux")))]
+impl EchoLedger {
+    /// Record a frame the kernel accepted for transmission on this socket.
+    pub(crate) fn transmitted(&mut self, frame: &CanFrame) {
+        if !frame.extended {
+            return;
+        }
+        if self.pending.len() == MAX_PENDING_ECHOES {
+            self.pending.pop_front();
+        }
+        self.pending.push_back((frame.id, frame.data));
+    }
+
+    /// Consume this socket's matching transmission, if the frame is its echo.
+    fn claim(&mut self, received: &ReceivedCanFrame) -> bool {
+        if received.kind != RxFrameKind::Data
+            || !received.frame.extended
+            || received.payload_len != 8
+        {
+            return false;
+        }
+        let key = (received.frame.id, received.frame.data);
+        match self.pending.iter().position(|pending| *pending == key) {
+            Some(index) => {
+                self.pending.remove(index);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Admit a received frame, or refuse a host command this socket did not
+    /// send: another process (motor-repl, `cansend`, a second marengo-pi) or
+    /// another host is writing to drives this socket's owner commands. The
+    /// refusal is a receive failure, so the owner latches Transport and stops
+    /// instead of taking the frame as its own wire-order evidence.
+    pub(crate) fn admit(
+        &mut self,
+        interface: &str,
+        received: &ReceivedCanFrame,
+    ) -> Result<(), BusError> {
+        if self.claim(received)
+            || received.kind == RxFrameKind::Error
+            || !received.frame.extended
+            || !is_host_command(received.frame.id)
+        {
+            return Ok(());
+        }
+        tracing::warn!(
+            interface,
+            can_id = format_args!("{:#010x}", received.frame.id),
+            "host command this socket did not send"
+        );
+        Err(BusError::Driver(format!(
+            "SocketCAN {interface}: host command {:#010x} that this socket did not send; \
+             another CAN writer is active",
+            received.frame.id
+        )))
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum BusError {
     #[error("invalid motor command: {0}")]
@@ -288,6 +384,8 @@ pub trait CanBus {
     /// ordered against drive traffic. A successful write only means the frame
     /// was queued; consumers needing wire order wait for its echo instead.
     /// Echoes are raw reads (they share the receive bound), never drive feedback.
+    /// SocketCAN attributes host commands to the socket that sent them: one this
+    /// socket did not send fails the receive instead of reading as an echo.
     fn echoes_transmissions(&self) -> bool {
         false
     }
@@ -556,8 +654,9 @@ fn ingest_feedback_frames(
         }
         let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
         if device_id == comm::DEFAULT_HOST_ID {
-            // A type-24 command from a host (this one's echo or another local
-            // socket's loopback) carries the host id where reports carry the drive.
+            // A type-24 command from a host carries the host id where reports
+            // carry the drive. SocketCAN delivers only this socket's own echo
+            // here; another writer's host command fails the receive instead.
             if comm_type == CommunicationType::ActiveReporting {
                 ingest_host_echo(
                     motor_types,
@@ -1074,6 +1173,7 @@ mod socketcan {
         /// Reused `SCM_TIMESTAMPNS` control buffer: no per-read allocation.
         control: Vec<u8>,
         rx_clock: RxClock,
+        echoes: EchoLedger,
     }
 
     impl SocketCanBus {
@@ -1109,6 +1209,7 @@ mod socketcan {
                 socket,
                 control: nix::cmsg_space!(TimeSpec),
                 rx_clock: RxClock::new(opened),
+                echoes: EchoLedger::default(),
             })
         }
 
@@ -1131,6 +1232,7 @@ mod socketcan {
 
         fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
             validate_can_tx(frame)?;
+            let sent = frame;
             tracing::trace!(
                 interface = %self.interface,
                 can_id = format_args!("{:#010x}", frame.id),
@@ -1170,6 +1272,7 @@ mod socketcan {
                     message: format!("short CAN datagram write: {written}/{} bytes", bytes.len()),
                 });
             }
+            self.echoes.transmitted(sent);
             Ok(())
         }
 
@@ -1224,6 +1327,7 @@ mod socketcan {
                             .stamp(&self.interface, kernel, wall_at_read, read_instant);
                     let interface = Some(self.interface.clone());
                     let received = ReceivedCanFrame::from_socketcan(interface, frame)?;
+                    self.echoes.admit(&self.interface, &received)?;
                     tracing::trace!(
                         interface = %self.interface,
                         can_id = format_args!("{:#010x}", received.frame.id),
@@ -1253,7 +1357,8 @@ mod socketcan {
             }
         }
 
-        /// Opening fails unless own-message echo was configured.
+        /// Opening fails unless own-message echo was configured. A host
+        /// command this socket did not send is a receive failure, never an echo.
         fn echoes_transmissions(&self) -> bool {
             true
         }
@@ -1410,3 +1515,155 @@ mod socketcan {
 
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 pub use socketcan::{SocketCanBus, SocketCanRouter};
+
+#[cfg(test)]
+mod echo_ledger_tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+
+    fn received(id: u32, data: [u8; 8]) -> ReceivedCanFrame {
+        ReceivedCanFrame::full_data(
+            Some("can0".into()),
+            CanFrame {
+                id,
+                data,
+                extended: true,
+            },
+        )
+    }
+
+    fn sent(id: u32, data: [u8; 8]) -> CanFrame {
+        CanFrame {
+            id,
+            data,
+            extended: true,
+        }
+    }
+
+    fn host_commands() -> Vec<(u32, [u8; 8])> {
+        let mit = mit::encode_mit(&MitCommand {
+            device_id: 1,
+            motor_type: MotorType::Rs03,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            kp: 0.0,
+            kd: 0.0,
+            torque_ff_nm: 0.0,
+        })
+        .expect("neutral MIT");
+        vec![
+            mit,
+            lifecycle::encode_default_enable(1),
+            lifecycle::encode_default_disable(1),
+            lifecycle::encode_default_set_zero_position(1),
+            lifecycle::encode_default_active_reporting(1, false),
+            identity::encode_default_get_device_id(1),
+            version::encode_default_get_firmware_version(1),
+            params::encode_read_parameter(comm::DEFAULT_HOST_ID, 1, ParameterId::MechPos),
+            params::encode_set_run_mode(1, RunMode::Mit),
+        ]
+    }
+
+    /// DRV-05 / P2A-03: an exact Enable, SetZero or reporting Off another
+    /// socket wrote is not this socket's echo; it fails the receive.
+    #[test]
+    fn host_commands_this_socket_did_not_send_are_refused() {
+        for (id, data) in host_commands() {
+            let mut ledger = EchoLedger::default();
+            let error = ledger
+                .admit("can0", &received(id, data))
+                .expect_err("foreign host command");
+            assert!(
+                matches!(&error, BusError::Driver(message) if message.contains("another CAN writer")),
+                "{id:#010x}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn own_echo_is_admitted_once_and_a_second_copy_is_foreign() {
+        for (id, data) in host_commands() {
+            let mut ledger = EchoLedger::default();
+            ledger.transmitted(&sent(id, data));
+            ledger.admit("can0", &received(id, data)).expect("own echo");
+            assert!(
+                ledger.admit("can0", &received(id, data)).is_err(),
+                "{id:#010x}: one write echoes once"
+            );
+        }
+    }
+
+    #[test]
+    fn echoes_match_out_of_order_and_by_payload() {
+        let mut ledger = EchoLedger::default();
+        let (enable, enable_data) = lifecycle::encode_default_enable(1);
+        let (off, off_data) = lifecycle::encode_default_active_reporting(2, false);
+        ledger.transmitted(&sent(enable, enable_data));
+        ledger.transmitted(&sent(off, off_data));
+        let (on, on_data) = lifecycle::encode_default_active_reporting(2, true);
+        assert_eq!(on, off, "same identifier, different F_CMD byte");
+        assert!(ledger.admit("can0", &received(on, on_data)).is_err());
+        ledger
+            .admit("can0", &received(off, off_data))
+            .expect("second write echoed first");
+        ledger
+            .admit("can0", &received(enable, enable_data))
+            .expect("first write echoed second");
+    }
+
+    #[test]
+    fn drive_frames_and_kernel_errors_are_never_host_commands() {
+        let mut ledger = EchoLedger::default();
+        for id in [
+            0x0280_01fd_u32, // type 2 status, Run
+            0x0200_01fd,     // type 2 status, Reset, no flags
+            0x1880_01fd,     // type 24 report
+            0x1800_01fd,     // type 24 report, Reset, no flags
+            0x1500_01fd,     // type 21 detailed fault
+            0x1100_01fd,     // type 17 reply
+            0x0000_01fe,     // type 0 reply
+        ] {
+            ledger
+                .admit("can0", &received(id, [0; 8]))
+                .expect("drive frame");
+        }
+        let mut error = received(0x2000_0004, [0; 8]);
+        error.kind = RxFrameKind::Error;
+        ledger.admit("can0", &error).expect("kernel error frame");
+        let standard = ReceivedCanFrame::new_data(Some("can0".into()), 0x123, false, &[0; 8])
+            .expect("standard frame");
+        ledger
+            .admit("can0", &standard)
+            .expect("not a Robstride frame");
+    }
+
+    #[test]
+    fn short_or_remote_host_commands_are_still_foreign() {
+        let mut ledger = EchoLedger::default();
+        let (id, data) = lifecycle::encode_default_enable(1);
+        ledger.transmitted(&sent(id, data));
+        let short = ReceivedCanFrame::new_data(Some("can0".into()), id, true, &data[..4])
+            .expect("short frame");
+        assert!(ledger.admit("can0", &short).is_err());
+        let remote =
+            ReceivedCanFrame::new_remote(Some("can0".into()), id, true, 8).expect("remote frame");
+        assert!(ledger.admit("can0", &remote).is_err());
+    }
+
+    #[test]
+    fn pending_echoes_are_bounded_and_the_oldest_is_displaced() {
+        let mut ledger = EchoLedger::default();
+        let (id, data) = lifecycle::encode_default_enable(1);
+        let first = [9; 8];
+        ledger.transmitted(&sent(id, first));
+        for _ in 0..MAX_PENDING_ECHOES {
+            ledger.transmitted(&sent(id, data));
+        }
+        assert_eq!(ledger.pending.len(), MAX_PENDING_ECHOES);
+        assert!(ledger.admit("can0", &received(id, first)).is_err());
+        ledger
+            .admit("can0", &received(id, data))
+            .expect("held transmission");
+    }
+}

@@ -281,7 +281,9 @@ disables. The fault does not clear on its own.
   never becomes session pose. After the echo, Reset/Calibration latches as before.
   A missing echo latches DriveState once `comm_watchdog_ms` has passed since
   activation (or the target's post-SetZero quiet end, below, when later).
-  Echoes are never feedback, liveness or replies.
+  Echoes are never feedback, liveness or replies. A host command this
+  socket did not write (motor-repl, `cansend`, another owner) is not an echo:
+  it fails the receive and latches Transport.
 - **Staggered enable and reporting writes:** Every host frame solicits a drive
   reply, and the bench mcp251x holds only two received frames. On 2026-10-03
   Enable + RunMode to five drives plus their replies (about 2.9 received
