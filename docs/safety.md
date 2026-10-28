@@ -23,7 +23,7 @@ Read this before enabling motors on the bench or robot.
 - **Sensor health first (deferred).** Hall/limit homing inputs are designed but not built, so there is no sensor health check yet. When they exist, startup must check sensor wiring and stuck-state before any homing search.
 - **No blind hunting.** Out-of-range or stale-zero joints may only use constrained recovery (manual reference or sensor homing), not normal gravity/hold/impedance.
 - **Calibration audit.** The reference journal (located by `homing.yaml` `calibration_record_path`) records each physical reference with its evidence. It is history only and never grants motion; the old `zero_registry.yaml` registry workflow is retired ([homing.md](homing.md), ADR 0006 amendment). Firmware `SetZero` alone is insufficient.
-- **Current reference.** Every fresh registry starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. Corrupt/unreadable history returns an error without replacing its bytes. See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
+- **Current reference.** Every fresh Supervisor starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. No history file is read at startup, so a corrupt or missing one cannot fail construction (ADR 0022 amendment). See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
 - **Permission at output.** Davout's private owner-bound reference gates Ready,
   scoped/normal Enable, Active shortcuts and output. Caller-set history flags
   cannot grant it, and initial virtual test fixtures establish no hardware
@@ -88,7 +88,7 @@ During early arm bring-up with the arm elevated (shoulder/elbow up), motion stop
 2. **Enable sequence:** Arm supported manually or in a fixture for first enable; E-stop reachable before `Enable`.
 3. **Sign test:** Per-joint small `torque_ff` pulse; verify direction matches URDF before full `tau_g`.
 4. **Caps:** Davout per-`motor_type` `tau_ff` limits (RS02/RS00 lower than RS03/RS04); rate-limit `tau_ff` steps when enabling.
-5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp or fault.
+5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp. `clamp_velocity` bounds only the MIT velocity field, so it changes no drive torque while the wire kd is 0 (GravityComp, TorqueOnly); `clamp_torque` bounds the feed-forward and total torque. There is no fault action (DAV-03, held for the bench).
 6. **Comm watchdog:** CAN receive timeout → `Disabled` and logged fault. Exception: one admitted drive loss sheds its subtree and lowers the rest first (see *Single-drive loss* below).
 7. **Measured position guard (ADR 0009):** feedback `q` beyond URDF hard limits + small slack → `Disabled` (independent of command path).
 8. **Exit:** `disable_all` on process exit / SIGTERM where the driver supports it.

@@ -6,13 +6,17 @@
 //!
 //! ## Responsibilities
 //!
-//! - [`Supervisor`]: operational state machine (Disabled → Ready → Active).
+//! - [`Supervisor`]: operational state machine (Disabled → Active; `Ready` is a marker that
+//!   `set_homing_complete` sets and Enable does not require).
 //! - Filter [`MitJointCommand`] / [`JointCommand`]: URDF ∩ bench limits, per-`motor_type`
 //!   `kp`/`kd`/`tau_ff` caps, [`tau_ff` rate limiting](Supervisor::filter_mit_core) and the
 //!   predicted total MIT torque bound (`total_torque.rs`, ADR 0039).
 //! - Own joint↔motor coordinate conversion from `config/motors.yaml` (`direction`, `gear_ratio`):
 //!   Berthier and dynamics stay in joint space; robstride stays in raw motor/CAN space.
-//! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
+//! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml`: on a rule hit,
+//!   `clamp_velocity` bounds the MIT velocity field and `clamp_torque` the feed-forward and
+//!   total torque. There is no fault action, and a velocity clamp changes no drive torque
+//!   when the wire kd is 0 (GravityComp, TorqueOnly).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - Persistent [`SafetySnapshot`]: device/runtime faults survive pose replacement, disable and replay.
 //! - Private current-reference authority: retired history, cached pose and the
