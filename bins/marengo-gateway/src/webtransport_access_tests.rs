@@ -8,6 +8,88 @@ use armee_proto::{Envelope, Heartbeat, LogEvent};
 
 const TOKEN: &str = "isolated-quic-read-fixture";
 
+/// Accepts exactly the fixture certificate, as the library's
+/// `with_server_certificates` does.
+#[derive(Debug)]
+struct PinnedCertificate {
+    cert: Vec<u8>,
+    provider: web_transport_quinn::crypto::Provider,
+}
+
+impl rustls::client::danger::ServerCertVerifier for PinnedCertificate {
+    fn verify_server_cert(
+        &self,
+        end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        if end_entity.as_ref() == self.cert.as_slice() {
+            return Ok(rustls::client::danger::ServerCertVerified::assertion());
+        }
+        Err(rustls::Error::InvalidCertificate(
+            rustls::CertificateError::UnknownIssuer,
+        ))
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls12_signature(
+            message,
+            cert,
+            dss,
+            &self.provider.signature_verification_algorithms,
+        )
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &self.provider.signature_verification_algorithms,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        self.provider
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
+}
+
+/// A WebTransport client pinned to `cert` on an IPv4 loopback endpoint. The
+/// library's `ClientBuilder` binds `[::]:0` and panics on hosts without IPv6.
+fn ipv4_pinned_client(cert: &rustls::pki_types::CertificateDer<'_>) -> web_transport_quinn::Client {
+    use web_transport_quinn::quinn;
+
+    let provider = web_transport_quinn::crypto::default_provider();
+    let mut crypto = rustls::ClientConfig::builder_with_provider(Arc::clone(&provider))
+        .with_protocol_versions(&[&rustls::version::TLS13])
+        .expect("TLS 1.3")
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(PinnedCertificate {
+            cert: cert.to_vec(),
+            provider,
+        }))
+        .with_no_client_auth();
+    crypto.alpn_protocols = vec![web_transport_quinn::ALPN.as_bytes().to_vec()];
+    let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(crypto).expect("QUIC TLS");
+    let endpoint = quinn::Endpoint::client("127.0.0.1:0".parse().expect("IPv4 loopback"))
+        .expect("IPv4 client endpoint");
+    web_transport_quinn::Client::new(endpoint, quinn::ClientConfig::new(Arc::new(crypto)))
+}
+
 struct Fixture {
     server: tokio::task::JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>>,
     client: web_transport_quinn::Client,
@@ -29,9 +111,7 @@ impl Fixture {
         let key_path = dir.path().join("key.pem");
         persist_bench_tls_pem(&cert_path, &key_path).expect("actual bench TLS generator");
         let tls = load_or_generate_tls(Some(cert_path), Some(key_path)).expect("fixture TLS");
-        let client = web_transport_quinn::ClientBuilder::new()
-            .with_server_certificates(tls.certs.clone())
-            .expect("pin owned certificate");
+        let client = ipv4_pinned_client(tls.certs.first().expect("fixture certificate"));
         let server = ServerBuilder::new()
             .with_addr("127.0.0.1:0".parse().expect("owned address"))
             .with_certificate(tls.certs, tls.key)
