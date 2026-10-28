@@ -1107,6 +1107,18 @@ impl<B: MotorBus> Supervisor<B> {
                     .ok_or_else(|| ReferenceError::InvalidRequest {
                         message: "installed target disappeared".into(),
                     })?;
+                // The ack and readback read ~0 at any pose, so the coordinate
+                // just before SetZero is the only sign of how far the joint sat
+                // from its attested home (REF-02). It is logged, never judged.
+                let before = self.motor_states.get(&reservation.address);
+                tracing::info!(
+                    joint = %motor.joint,
+                    pre_set_zero_position_rad = before.map(|state| state.position_rad),
+                    pre_set_zero_age_ms = before
+                        .and_then(|state| state.updated)
+                        .map(|at| at.elapsed().as_millis() as u64),
+                    "reference SetZero replaces the drive coordinate"
+                );
                 self.invalidate_reference_target_pose_for_zero_attempt(&motor);
                 // Even an uncertain write may reach the wire; its echo, when
                 // read, supersedes this write time.
