@@ -289,6 +289,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             Ok(listener) => {
                 http_listener_state.set_http_listener(true);
                 info!(%http_addr, "HTTP listening");
+                // Peer addresses reach handlers (the credential-free disable logs them).
+                let app = app.into_make_service_with_connect_info::<SocketAddr>();
                 if let Err(e) = axum::serve(listener, app).await {
                     tracing::error!(error = %e, "http serve failed");
                 }
@@ -344,7 +346,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             };
             https_listener_state.set_https_listener(true);
             info!(%https_addr, root = %web_root.display(), "HTTPS listening (Consul UI)");
-            if let Err(error) = server.serve(app.into_make_service()).await {
+            let app = app.into_make_service_with_connect_info::<SocketAddr>();
+            if let Err(error) = server.serve(app).await {
                 tracing::error!(%error, "https serve failed");
             }
             https_listener_state.set_https_listener(false);

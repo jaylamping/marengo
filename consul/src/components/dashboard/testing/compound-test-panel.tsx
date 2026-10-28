@@ -44,7 +44,7 @@ export function CompoundTestPanel() {
     progress,
     isRunning,
   } = useCompoundStore();
-  const { dryRun, toggleDryRun } = useTestingStore();
+  const { dryRun, toggleDryRun, isRunning: holdRunning } = useTestingStore();
   const robotState = useRobotStore((state) => state.robotState);
   const operationalMode = useRobotStore((state) => state.operationalMode);
   const connected = useRobotStore((state) => state.connected);
@@ -310,7 +310,7 @@ export function CompoundTestPanel() {
                     <Checkbox
                       id="dry-run-toggle"
                       checked={dryRun}
-                      disabled={isRunning}
+                      disabled={isRunning || holdRunning}
                       onCheckedChange={toggleDryRun}
                     />
                     <label

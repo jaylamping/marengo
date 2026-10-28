@@ -7,6 +7,7 @@ import {
   restoreCanOwnerShell,
   takeCanOwnershipShell,
 } from "../can-owner.js";
+import { piSessionTimeout } from "../cancel.js";
 import { gravityGateSnapshotShell, runGravityGate } from "../gravity-gate.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
 import {
@@ -108,7 +109,7 @@ function referencedSessionPipe(joints: string[], scripts: HarnessScript[], timeo
     entries.push(...s.lines.filter((l) => l.trim() !== "quit").map(marengoPiPipeLine));
   });
   entries.push(marengoPiPipeLine("quit"));
-  return `{\n${entries.join(";\n")};\n} | timeout ${timeoutSec} bin/marengo-pi`;
+  return `{\n${entries.join(";\n")};\n} | ${piSessionTimeout(timeoutSec)} bin/marengo-pi`;
 }
 
 /**

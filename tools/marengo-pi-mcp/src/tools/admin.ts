@@ -47,7 +47,7 @@ export function registerAdminTools(
         "cross-builds, rsyncs and runs install-pi once (writes /opt/marengo/.deploy-rev); " +
         "pi_native: builds origin/main on the Pi. Both " +
         "then poll until gateway /health OK and deploy rev matches (default wait 180s). " +
-        "Refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs.",
+        "Refused while marengo-pi is Active, its mode, heartbeat or config save state is unknown, a config save is pending or failed, or motor-repl runs.",
       inputSchema: z.object({
         strategy: z.enum(["cross", "pi_native"]).default("cross"),
         wait_for_ready: z
@@ -134,7 +134,7 @@ export function registerAdminTools(
       description:
         "Install ~/marengo staging tree into /opt/marengo via passwordless sudo (install-pi.sh). " +
         "Run after scp/manual staging or when /opt lags ~/marengo. " +
-        "Refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs.",
+        "Refused while marengo-pi is Active, its mode, heartbeat or config save state is unknown, a config save is pending or failed, or motor-repl runs.",
       inputSchema: z.object({}),
       handler: async () => {
         const refusal = await checkManagementGate(cfg, runRemote, "pi_install_staging");
@@ -160,13 +160,13 @@ export function registerAdminTools(
         "Stop or restart marengo-pi.service (and any leftover /opt/marengo/bin/marengo-pi process). " +
         "Numerical Set Limits Apply hot-reloads Davout in-memory hard bounds + write-behind YAML/URDF " +
         "(ADR 0012 / 0017) — do not restart for a successful Durable Apply. Prefer restart after binary " +
-        "deploy, structural wiring changes, or a failed persist that left disk stale vs live. " +
-        "Motors go limp during stop — support elevated arms. Requires confirm: true. " +
-        "mode=restart is refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs; " +
-        "mode=stop is a stop and is never refused. " +
+        "deploy or structural wiring changes; never while a Set Limits save is pending or failed, since restarting reverts the live limits to the stale YAML/URDF. " +
+        "Motors go limp during stop — support elevated arms. mode=restart requires confirm: true " +
+        "and is refused while marengo-pi is Active, its mode, heartbeat or config save state is unknown, a config save is pending or failed, or motor-repl runs; " +
+        "mode=stop is a stop: it needs no confirm and is never refused. " +
         "Does not restart marengo-gateway.",
       inputSchema: restartMarengoPiSchema,
-      handler: async (args: { confirm: true; mode: "restart" | "stop" }) => {
+      handler: async (args: { confirm?: true; mode: "restart" | "stop" }) => {
         return runRestartMarengoPi(cfg, runRemote, args);
       },
     },
@@ -195,7 +195,7 @@ export function registerAdminTools(
         "Native cargo build in the Pi staging checkout (~/marengo) + passwordless `sudo -n` install-pi.sh " +
         "from it (slow fallback). install-pi.sh installs bins and Consul www, writes .deploy-rev, " +
         "restarts the gateway, and stops marengo-pi then restores its prior unit state. " +
-        "Refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs.",
+        "Refused while marengo-pi is Active, its mode, heartbeat or config save state is unknown, a config save is pending or failed, or motor-repl runs.",
       inputSchema: z.object({}),
       handler: async () => {
         const refusal = await checkManagementGate(cfg, runRemote, "pi_build");

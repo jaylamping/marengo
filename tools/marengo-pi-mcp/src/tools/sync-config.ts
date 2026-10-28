@@ -71,19 +71,37 @@ export function benchUrdfStagingVerifyBody(
 /** Files whose taught Set Limits a direct /opt write must keep (as install-pi.sh does). */
 const TAUGHT_LIMIT_FILES = ["config/motors.yaml", "config/control.yaml", "assets/urdf/marengo.urdf"];
 
+/** How long a direct /opt write waits for a Set Limits save to release the profile lock. */
+export const PROFILE_LOCK_WAIT_SEC = 30;
+
 /**
  * Remote shell: run `install` (which writes into `optRoot`) between a backup of the taught
  * limit files and preserve-taught-limits.py, the same merge install-pi.sh runs (ADR 0012/0017).
  * If the merge fails the backed-up files are put back and the step exits 1 (TOOL-08).
+ *
+ * The whole sequence holds the profile lock the Rust writers hold (`ProfileWriteLock`: an
+ * exclusive flock(2) on `config/.marengo-profile.lock`; flock(1) takes the same lock), so a
+ * Set Limits save cannot land between the backup and the merge or rollback and be
+ * overwritten by older bounds. When the lock is not free within `lockWaitSec` nothing is
+ * written and the step exits 1.
  */
 export function preserveTaughtLimitsShell(
   optRoot: string,
   install: string[],
   preserveScript = `${optRoot}/scripts/preserve-taught-limits.py`,
+  lockWaitSec = PROFILE_LOCK_WAIT_SEC,
 ): string {
   const files = TAUGHT_LIMIT_FILES.join(" ");
   return [
     `OPT=${shellQuote(optRoot)}`,
+    '_profile_lock="$OPT/config/.marengo-profile.lock"',
+    // A missing lock file is created writable by all, so marengo-pi (another user) can still
+    // open it read-write as ProfileWriteLock does.
+    '[[ -e "$_profile_lock" ]] || ( umask 0; : >> "$_profile_lock" ) 2>/dev/null || true',
+    `if ! exec {_profile_lock_fd}<"$_profile_lock" || ! flock -w ${lockWaitSec} "$_profile_lock_fd"; then`,
+    `  echo "error: could not take the config profile lock $_profile_lock within ${lockWaitSec} s (a Set Limits save may hold it); nothing was written" >&2`,
+    "  exit 1",
+    "fi",
     '_taught="$(mktemp -d)"',
     `for f in ${files}; do`,
     '  if [[ -f "$OPT/$f" ]]; then mkdir -p "$_taught/$(dirname "$f")"; cp -a "$OPT/$f" "$_taught/$f"; fi',
@@ -98,6 +116,8 @@ export function preserveTaughtLimitsShell(
     "  exit 1",
     "fi",
     'rm -rf "$_taught"',
+    'flock -u "$_profile_lock_fd"',
+    'exec {_profile_lock_fd}<&-',
   ].join("\n");
 }
 
