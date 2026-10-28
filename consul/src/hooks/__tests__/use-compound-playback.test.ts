@@ -193,5 +193,25 @@ describe('compound playback', () => {
       expect(vi.mocked(postTestingMitCommandBatch).mock.calls.length).toBe(4);
     });
   });
+
+  it('a failed return-home POST is caught and shown, and the run still ends', async () => {
+    useTestingStore.setState({ dryRun: false });
+    vi.mocked(postTestingMitCommandBatch)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('testing mit command failed: 403 lease lost'));
+    const { result } = renderPlayback();
+    act(() => result.current.startRunner());
+    await runFor(0);
+    act(() => result.current.stopRunner());
+    expect(useCompoundStore.getState().isRunning).toBe(false);
+    await runFor(5_000);
+    const calls = vi.mocked(postTestingMitCommandBatch).mock.calls;
+    // Segment 0, then one return-home batch; no retry, no further command.
+    expect(calls.length).toBe(2);
+    expect(calls[1][0].joints.every((joint) => joint.position === 0)).toBe(true);
+    expect(result.current.overlayBlockReason).toMatch(/^Return home failed: .*403 lease lost/);
+    expect(useCompoundStore.getState().isRunning).toBe(false);
+    expect(useCompoundStore.getState().returnHomePending).toBe(false);
+  });
 });
 

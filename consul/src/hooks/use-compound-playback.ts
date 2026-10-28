@@ -150,6 +150,11 @@ export function useCompoundPlayback() {
         try {
           await returnHome(playable.preset.joints, dry);
           await new Promise((resolve) => window.setTimeout(resolve, 2500));
+        } catch (cause: unknown) {
+          // Report only: no retry and no other motion command. The run has
+          // already ended (isRunning cleared above).
+          const message = cause instanceof Error ? cause.message : String(cause);
+          setOverlayBlockReason(`Return home failed: ${message}`);
         } finally {
           useCompoundStore.getState().setReturnHomePending(false);
         }
