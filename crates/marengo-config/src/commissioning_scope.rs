@@ -138,15 +138,6 @@ pub fn save_commissioning_scope(
         })?;
     }
     let normalized = CommissioningScopeFile::normalized(scope.joints.iter().cloned());
-    if normalized.version != COMMISSIONING_SCOPE_VERSION {
-        return Err(ConfigError::Parse {
-            path: path.to_path_buf(),
-            message: format!(
-                "unsupported commissioning-scope version {} (expected {COMMISSIONING_SCOPE_VERSION})",
-                normalized.version
-            ),
-        });
-    }
     let text = serde_yaml::to_string(&normalized).map_err(|e| ConfigError::Parse {
         path: path.to_path_buf(),
         message: e.to_string(),
