@@ -129,7 +129,10 @@ describe("MCP cancel (TOOL-03)", () => {
   });
   // The whole cancel stop as makeRunRemote sends it, run locally: systemctl, sudo and pkill
   // are stubs that log, and bin/motor-repl under a temporary piRoot logs its config dir.
-  function cancelStopRig(opts: { pgrepFindsGoneSession?: boolean } = {}) {
+  // pgrep and ps are stubs too, so the stop sees only the processes the test declares: the
+  // real ones would see the host, where node's test runner runs other files' marengo-pi
+  // stand-ins concurrently and the sole-owner step rightly refuses to take CAN from them.
+  function cancelStopRig(opts: { pgrepFindsGoneSession?: boolean; canOwner?: { pid: number; name: string } } = {}) {
     const dir = mkdtempSync(path.join(tmpdir(), "cancel-stop-"));
     const stubs = path.join(dir, "stubs");
     const piRoot = path.join(dir, "opt");
@@ -144,11 +147,20 @@ describe("MCP cancel (TOOL-03)", () => {
     stub(path.join(stubs, "sudo"), `echo "sudo $*" >> ${log}`);
     stub(path.join(stubs, "pkill"), `echo "pkill $*" >> ${log}; exit 1`);
     stub(path.join(piRoot, "bin", "motor-repl"), `echo "motor-repl $* config=$MARENGO_CONFIG_DIR" >> ${log}`);
-    if (opts.pgrepFindsGoneSession) {
-      // The session ends between pgrep and ps: pgrep still names it, ps finds nothing.
-      const real = spawnSync("sh", ["-c", "command -v pgrep"], { encoding: "utf8" }).stdout.trim();
-      stub(path.join(stubs, "pgrep"), `if [[ "$1" == -f ]]; then echo 999999; exit 0; fi\nexec ${real} "$@"`);
-    }
+    // Only `canOwner` holds CAN and no session runs, except that with pgrepFindsGoneSession the
+    // session ends between pgrep and ps: pgrep (-f, the session lookup) names it, ps finds nothing.
+    const owner = opts.canOwner;
+    stub(
+      path.join(stubs, "pgrep"),
+      [
+        `echo "pgrep $*" >> ${log}`,
+        opts.pgrepFindsGoneSession ? 'if [[ "$1" == -f ]]; then echo 999999; exit 0; fi' : "",
+        owner ? `if [[ "$1" == -l && "$2" == -x ]]; then echo "${owner.pid} ${owner.name}"; exit 0; fi` : "",
+        owner ? `if [[ "$1" == -x ]]; then echo ${owner.pid}; exit 0; fi` : "",
+        "exit 1",
+      ].join("\n"),
+    );
+    stub(path.join(stubs, "ps"), `echo "ps $*" >> ${log}; exit 1`);
     const rigCfg: MarengoPiConfig = { ...cfg, piRoot, configDir: "/default/config" };
     const run = async (sessionBody: string, sessionStdout: string, earlierSteps: string[] = []) => {
       const calls: string[] = [];
@@ -203,6 +215,17 @@ describe("MCP cancel (TOOL-03)", () => {
     const disable = r.log.findIndex((l) => l.startsWith("motor-repl disable"));
     const restart = r.log.indexOf(`${RESTORE_HELPER} restart`);
     assert.ok(disable >= 0 && restart > disable, `drives stop first, then the unit restarts:\n${r.log.join("\n")}`);
+    assert.ok(r.log.some((l) => l.startsWith("pgrep -l -x")), `the CAN-owner check saw the rig's pgrep:\n${r.log.join("\n")}`);
+  });
+
+  it("refuses to take CAN from a live marengo-pi, so neither stops drives nor restarts the unit", async () => {
+    const { rigCfg, run } = cancelStopRig({ canOwner: { pid: 4242, name: "marengo-pi" } });
+    const session = "marengo-pi.service restore after session: true\n=== session ===\n";
+    const r = await run(wrapRemoteWithConfig(rigCfg, "true"), session);
+    assert.notEqual(r.status, 0, `${r.stdout}\n${r.stderr}`);
+    assert.match(r.stderr, /marengo-pi \(pid 4242\) still owns CAN; refusing to open a second owner/);
+    assert.ok(!r.log.some((l) => l.startsWith("motor-repl disable")), r.log.join("\n"));
+    assert.ok(!r.log.includes(`${RESTORE_HELPER} restart`), r.log.join("\n"));
   });
 
   it("restores the unit an earlier step of the same call stopped (harness)", { skip: !procps && "needs procps" }, async () => {
