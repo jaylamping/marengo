@@ -160,9 +160,9 @@ fi
   npm run typecheck
   # Committed hook JS must match TypeScript sources (Cursor loads .js with no build step).
   npm run build
-  if ! git_root diff --quiet -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js; then
+  if ! git_root diff --quiet -- '.cursor/hooks/*.js'; then
     echo "error: .cursor/hooks/*.js out of date — run \`just mcp-build\` and commit the regenerated JS" >&2
-    git_root --no-pager diff -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js || true
+    git_root --no-pager diff -- '.cursor/hooks/*.js' || true
     exit 1
   fi
 )
