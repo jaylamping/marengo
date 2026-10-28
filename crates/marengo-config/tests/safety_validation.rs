@@ -400,6 +400,11 @@ fn homing_loader_rejects_invalid_defaults_and_overrides() {
                 "-1",
             ),
             (
+                "zero zero tolerance",
+                "homing/zero_verify_tolerance_rad",
+                "0",
+            ),
+            (
                 "unbounded zero tolerance",
                 "homing/zero_verify_tolerance_rad",
                 "0.11",
