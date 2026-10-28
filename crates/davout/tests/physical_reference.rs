@@ -837,6 +837,112 @@ fn estop_during_an_armed_reference_stops_the_transaction_itself() {
     ));
 }
 
+/// Drive `request` to its outcome through non-blocking owner work, running
+/// `each` (e.g. periodic reports) between advances.
+fn reference_through_owner_work(
+    bench: &mut Bench,
+    joint: &str,
+    mut each: impl FnMut(&mut Bench, usize),
+) -> f32 {
+    let handle = bench
+        .supervisor
+        .request_reference(
+            joint,
+            true,
+            ReferenceAudit {
+                operator: OPERATOR.into(),
+                session: "physical-reference-test".into(),
+            },
+        )
+        .expect("physical request admitted");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    for step in 0.. {
+        if bench.supervisor.reference_work_pending() {
+            bench
+                .supervisor
+                .advance_reference_work()
+                .expect("owner work advances");
+        }
+        match bench
+            .supervisor
+            .reference_outcome(&handle)
+            .expect("outcome")
+        {
+            ReferenceOutcome::Current { position_rad } => return position_rad,
+            ReferenceOutcome::Failed { message } => panic!("reference failed: {message}"),
+            ReferenceOutcome::InProgress => {
+                assert!(Instant::now() < deadline, "reference did not finish");
+                each(bench, step);
+                std::thread::sleep(Duration::from_millis(2));
+            }
+        }
+    }
+    unreachable!("the loop returns or panics")
+}
+
+#[test]
+fn untrusted_coordinates_beyond_hard_limits_never_latch_a_reference() {
+    // L-davout-40 (ADR 0036, trusted coordinates): before its own SetZero the
+    // target reports in whatever frame the drive kept, and so does a peer
+    // without a grant; neither coordinate may trip the measured-limit fault.
+    let mut bench = Bench::physical("physical-untrusted-coordinates");
+    for (joint, q) in [(PITCH, -3.0), (ROLL, -1.0)] {
+        let lim = *bench.supervisor.joint_limit_policy(joint).expect("policy");
+        assert!(
+            q < lim.hard_lower() - lim.margin.measured_fault_slack_rad,
+            "{joint}"
+        );
+        let mut firmware = bench.firmware.borrow_mut();
+        let drive = firmware.drive_mut(joint);
+        drive.raw_motor_rad = q * drive.scale + drive.zero_offset_motor_rad;
+    }
+    // The peer keeps streaming (inherited) while the target is enabled.
+    bench.firmware.borrow_mut().drive_mut(ROLL).reporting = true;
+    let position = reference_through_owner_work(&mut bench, PITCH, |bench, _| {
+        bench.firmware.borrow_mut().emit_report(ROLL);
+    });
+    assert!(f64::from(position).abs() <= bench.tolerance());
+    let peer = bench
+        .supervisor
+        .joint_position_rad(ROLL)
+        .expect("peer pose read");
+    assert!((peer + 1.0).abs() < 1e-3, "peer reported {peer}");
+    assert!(
+        !bench.supervisor.has_latched_fault(),
+        "{:?}",
+        bench.supervisor.safety_snapshot().faults
+    );
+    assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+}
+
+#[test]
+fn a_peer_moved_during_owner_work_keeps_its_grant_only_within_the_at_rest_bound() {
+    // L-davout-40 (ADR 0036, coordinate continuity): a peer unobserved during
+    // another joint's reference is judged on its next sample against the
+    // at-rest zero_verify_tolerance_rad, not the vendor speed range.
+    for (moved_rad, kept) in [(0.2, false), (0.01, true)] {
+        let mut bench = Bench::physical("physical-at-rest-bound");
+        bench.acquire(ROLL);
+        bench.pump(Duration::from_millis(30));
+        assert!(moved_rad > bench.tolerance() || kept);
+        reference_through_owner_work(&mut bench, PITCH, |bench, step| {
+            if step == 1 {
+                let mut firmware = bench.firmware.borrow_mut();
+                let drive = firmware.drive_mut(ROLL);
+                drive.raw_motor_rad += moved_rad * drive.scale;
+            }
+        });
+        bench.pump(Duration::from_millis(300));
+        assert_eq!(
+            bench.state(ROLL) == JointHomingState::Verified,
+            kept,
+            "moved {moved_rad} rad"
+        );
+        assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+        assert!(!bench.supervisor.has_latched_fault());
+    }
+}
+
 #[test]
 fn control_fault_revokes_grant() {
     let mut bench = Bench::physical("physical-fault");
