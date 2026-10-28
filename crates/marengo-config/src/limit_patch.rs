@@ -19,18 +19,16 @@ pub fn soft_limits_with_inset(hard_lower: f64, hard_upper: f64, inset: f64) -> (
     (hard_lower + inset, hard_upper - inset)
 }
 
-/// Fill missing soft fields from hard ± [`DEFAULT_SOFT_INSET_RAD`].
+/// Fill missing soft fields from hard ± [`DEFAULT_SOFT_INSET_RAD`]. A supplied soft side is
+/// kept as given.
 pub fn ensure_soft_inset(patch: &mut LimitPatch) {
-    if patch.position_soft_lower_rad.is_some() && patch.position_soft_upper_rad.is_some() {
-        return;
-    }
     let (lo, hi) = soft_limits_with_inset(
         patch.position_lower_rad,
         patch.position_upper_rad,
         DEFAULT_SOFT_INSET_RAD,
     );
-    patch.position_soft_lower_rad = Some(lo);
-    patch.position_soft_upper_rad = Some(hi);
+    patch.position_soft_lower_rad.get_or_insert(lo);
+    patch.position_soft_upper_rad.get_or_insert(hi);
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -255,6 +253,21 @@ mod tests {
         assert!(patch.position_soft_upper_rad.is_some());
         assert!(patch.position_soft_lower_rad.unwrap() > patch.position_lower_rad);
         assert!(patch.position_soft_upper_rad.unwrap() < patch.position_upper_rad);
+    }
+
+    #[test]
+    fn ensure_soft_inset_keeps_a_supplied_side() {
+        let mut patch = patch();
+        patch.position_lower_rad = -1.0;
+        patch.position_upper_rad = 1.0;
+        patch.position_soft_lower_rad = Some(-0.5);
+        patch.position_soft_upper_rad = None;
+        ensure_soft_inset(&mut patch);
+        assert_eq!(patch.position_soft_lower_rad, Some(-0.5));
+        assert_eq!(
+            patch.position_soft_upper_rad,
+            Some(1.0 - DEFAULT_SOFT_INSET_RAD)
+        );
     }
 
     #[test]
