@@ -371,6 +371,13 @@ async fn activation_uses_unique_temp_and_warns_on_failed_completeness_check() {
     .expect("urdf");
     let config_dir = tmp.path().join("config");
     fs::create_dir_all(&config_dir).expect("config dir");
+    // robot.yaml names the live URDF; without motors/control/homing the
+    // post-activate completeness check fails.
+    fs::copy(
+        root.join("config/robot.yaml"),
+        config_dir.join("robot.yaml"),
+    )
+    .expect("robot");
     std::env::set_var("MARENGO_ROOT", tmp.path());
     std::env::set_var("MARENGO_CONFIG_DIR", &config_dir);
     let master_before = fs::read_to_string(assets.join("marengo.urdf")).expect("master");
@@ -654,4 +661,91 @@ async fn command_home_is_gone() {
         .await
         .expect("resp");
     assert_eq!(response.status(), StatusCode::GONE);
+}
+
+#[tokio::test]
+async fn upload_uses_robot_yaml_urdf_and_sweeps_abandoned_staging() {
+    let _env = lock_test_env();
+    std::env::set_var(TOKEN_ENV, TEST_TOKEN);
+    let root = repository_root();
+    let tmp = tempfile::tempdir().expect("tmp");
+    let assets = tmp.path().join("assets/urdf");
+    let staging_root = assets.join("staging");
+    fs::create_dir_all(&staging_root).expect("staging");
+    // robot.yaml names alt.urdf; there is no marengo.urdf (EDGE-22).
+    fs::copy(
+        root.join("assets/urdf/marengo.urdf"),
+        assets.join("alt.urdf"),
+    )
+    .expect("urdf");
+    let config_dir = tmp.path().join("config");
+    fs::create_dir_all(&config_dir).expect("config");
+    for name in ["robot.yaml", "motors.yaml", "control.yaml", "homing.yaml"] {
+        fs::copy(root.join("config").join(name), config_dir.join(name)).expect("yaml");
+    }
+    let robot = fs::read_to_string(config_dir.join("robot.yaml")).expect("robot");
+    fs::write(
+        config_dir.join("robot.yaml"),
+        robot.replace(
+            "urdf: assets/urdf/marengo.urdf",
+            "urdf: assets/urdf/alt.urdf",
+        ),
+    )
+    .expect("write robot");
+    // An upload abandoned two hours ago, and one from a moment ago (EDGE-14).
+    let abandoned = staging_root.join("upload-abandoned");
+    let recent = staging_root.join("upload-recent");
+    fs::create_dir_all(&abandoned).expect("abandoned");
+    fs::create_dir_all(&recent).expect("recent");
+    fs::File::open(&abandoned)
+        .expect("open abandoned")
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 3600))
+        .expect("age abandoned");
+    std::env::set_var("MARENGO_ROOT", tmp.path());
+    std::env::set_var("MARENGO_CONFIG_DIR", config_dir.as_os_str());
+
+    let app = test_app(std::sync::Arc::new(AppState::new(std::sync::Arc::new(
+        Bus::default(),
+    ))));
+    let upload = |body: Vec<u8>| {
+        app.clone().oneshot(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri("/hardware/urdf/upload")
+                .header("x-marengo-log-token", TEST_TOKEN)
+                .body(Body::from(body))
+                .expect("request"),
+        )
+    };
+    let contributor = fs::read(root.join("assets/urdf/marengo.urdf")).expect("urdf");
+    let accepted = upload(contributor).await.expect("response");
+    let status = accepted.status();
+    let staged: Vec<String> = fs::read_dir(&staging_root)
+        .expect("staging list")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    let refused = upload(b"not a urdf".to_vec()).await.expect("response");
+    let staged_after_refusal = fs::read_dir(&staging_root).expect("staging list").count();
+    std::env::remove_var("MARENGO_ROOT");
+    std::env::remove_var("MARENGO_CONFIG_DIR");
+
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "previewed against robot.yaml's URDF"
+    );
+    assert!(!abandoned.exists(), "abandoned staging swept");
+    assert!(recent.exists(), "recent staging kept");
+    assert_eq!(staged.len(), 2, "recent + new upload: {staged:?}");
+    assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        staged_after_refusal, 2,
+        "a failed preview leaves no staging dir"
+    );
 }

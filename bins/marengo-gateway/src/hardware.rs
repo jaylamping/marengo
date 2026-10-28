@@ -2,7 +2,7 @@
 
 use std::fs;
 use std::path::{Component, Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::{
     body::Bytes,
@@ -25,9 +25,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::restart::{now_ms, refuse_unsafe_management_state, HEARTBEAT_FRESH_MS};
 
 use crate::state::SharedState;
-const LIVE_URDF_REL: &str = "marengo.urdf";
 const CONTRIBUTOR_NAME: &str = "contributor.urdf";
 const REPLACED_ACTIVE_NAME: &str = "replaced_active.urdf";
+/// A staged upload nobody activated within this long is swept on the next
+/// upload. Activate removes its own staging directory.
+const STAGING_MAX_AGE: Duration = Duration::from_secs(60 * 60);
 
 #[derive(Serialize)]
 pub struct CompletenessJson {
@@ -91,12 +93,66 @@ pub fn urdf_assets_root(repo_root: &Path) -> PathBuf {
     repo_root.join("assets/urdf")
 }
 
-pub fn live_urdf_path(repo_root: &Path) -> PathBuf {
-    urdf_assets_root(repo_root).join(LIVE_URDF_REL)
+/// The URDF marengo-pi loads: robot.yaml `urdf:` under the repo root, the
+/// same resolution the runtime and Set Limits persistence use. A hardcoded
+/// name would activate a file the Pi never reads once robot.yaml names another.
+pub fn live_urdf_path(repo_root: &Path, config_dir: &Path) -> Result<PathBuf, StatusCode> {
+    let robot =
+        load_robot_config_from(config_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    marengo_config::resolve_urdf_path(repo_root, &robot).map_err(|_| StatusCode::NOT_FOUND)
 }
 
 pub fn staging_dir(repo_root: &Path, upload_id: &str) -> PathBuf {
     urdf_assets_root(repo_root).join("staging").join(upload_id)
+}
+
+/// Remove staged uploads older than `max_age`: abandoned wizard sessions
+/// otherwise stayed under `assets/urdf/staging` forever.
+pub fn sweep_stale_staging(repo_root: &Path, max_age: Duration) {
+    let Ok(entries) = fs::read_dir(urdf_assets_root(repo_root).join("staging")) else {
+        return;
+    };
+    let now = SystemTime::now();
+    for entry in entries.flatten() {
+        // `DirEntry::metadata` does not follow symlinks.
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
+        let stale = meta
+            .modified()
+            .ok()
+            .and_then(|modified| now.duration_since(modified).ok())
+            .is_some_and(|age| age > max_age);
+        if meta.is_dir() && stale {
+            let _ = fs::remove_dir_all(entry.path());
+        }
+    }
+}
+
+/// Stage `bytes` as a new upload and preview it against the live URDF. A
+/// preview that fails removes the staging directory it just made.
+fn stage_and_preview(root: &Path, bytes: &[u8]) -> Result<Json<UrdfUploadResultJson>, StatusCode> {
+    let master_path = live_urdf_path(root, &config_dir())?;
+    sweep_stale_staging(root, STAGING_MAX_AGE);
+    let upload_id = new_upload_id();
+    let staging = staging_dir(root, &upload_id);
+    fs::create_dir_all(&staging).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let contributor_path = staging.join(CONTRIBUTOR_NAME);
+    let preview = write_atomic(&contributor_path, bytes).and_then(|()| {
+        merge_preview_from_paths(&master_path, &contributor_path)
+            .map_err(|_| StatusCode::BAD_REQUEST)
+    });
+    match preview {
+        Ok(preview) => Ok(Json(UrdfUploadResultJson {
+            ok: true,
+            upload_id,
+            preview,
+        })),
+        Err(status) => {
+            let _ = fs::remove_dir_all(&staging);
+            Err(status)
+        }
+    }
 }
 
 pub fn archive_dir(repo_root: &Path, upload_id: &str) -> PathBuf {
@@ -174,22 +230,7 @@ pub async fn post_urdf_upload(body: Bytes) -> Result<Json<UrdfUploadResultJson>,
     if body.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
-    let root = repo_root();
-    let upload_id = new_upload_id();
-    let staging = staging_dir(&root, &upload_id);
-    fs::create_dir_all(&staging).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let contributor_path = staging.join(CONTRIBUTOR_NAME);
-    write_atomic(&contributor_path, &body)?;
-
-    let master_path = live_urdf_path(&root);
-    let preview = merge_preview_from_paths(&master_path, &contributor_path)
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    Ok(Json(UrdfUploadResultJson {
-        ok: true,
-        upload_id,
-        preview,
-    }))
+    stage_and_preview(&repo_root(), &body)
 }
 
 pub async fn post_resolve_preview(
@@ -201,7 +242,7 @@ pub async fn post_resolve_preview(
     if !contributor_path.is_file() {
         return Err(StatusCode::NOT_FOUND);
     }
-    let master_path = live_urdf_path(&root);
+    let master_path = live_urdf_path(&root, &config_dir())?;
     let preview = merge_preview_from_paths(&master_path, &contributor_path)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
     let unresolved = unresolved_critical_fields(&preview, &body.resolutions);
@@ -262,7 +303,7 @@ pub async fn post_activate(
 
     let _profile_lock = marengo_config::ProfileWriteLock::acquire(config_dir())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let master_path = live_urdf_path(&root);
+    let master_path = live_urdf_path(&root, &config_dir())?;
     let master_xml =
         fs::read_to_string(&master_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let contributor_xml =
@@ -406,21 +447,8 @@ pub async fn post_archive_restore(
     if !contributor_path.is_file() {
         return Err(StatusCode::NOT_FOUND);
     }
-    let restored_upload_id = new_upload_id();
-    let staging = staging_dir(&root, &restored_upload_id);
-    fs::create_dir_all(&staging).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let dest = staging.join(CONTRIBUTOR_NAME);
     let bytes = fs::read(&contributor_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    write_atomic(&dest, &bytes)?;
-
-    let master_path = live_urdf_path(&root);
-    let preview =
-        merge_preview_from_paths(&master_path, &dest).map_err(|_| StatusCode::BAD_REQUEST)?;
-    Ok(Json(UrdfUploadResultJson {
-        ok: true,
-        upload_id: restored_upload_id,
-        preview,
-    }))
+    stage_and_preview(&root, &bytes)
 }
 
 fn simulate_merge_from_staging(
@@ -428,7 +456,8 @@ fn simulate_merge_from_staging(
     upload_id: &str,
     resolutions: &[FieldResolution],
 ) -> Result<String, marengo_config::ConfigError> {
-    let master_path = live_urdf_path(repo_root);
+    let robot = load_robot_config_from(config_dir())?;
+    let master_path = marengo_config::resolve_urdf_path(repo_root, &robot)?;
     let contributor_path = staging_dir(repo_root, upload_id).join(CONTRIBUTOR_NAME);
     let master_xml =
         fs::read_to_string(&master_path).map_err(|error| marengo_config::ConfigError::Io {
