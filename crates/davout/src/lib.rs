@@ -408,6 +408,17 @@ struct StagedMitState {
     tau_ff_nm: f64,
     wrong_sign: Option<WrongSignState>,
     total_torque: Option<TotalTorqueClamp>,
+    envelope_clamped: bool,
+}
+
+/// One command through [`Supervisor::filter_mit_core`], before anything is committed.
+struct FilteredMit {
+    out: MitJointCommand,
+    q_meas: f64,
+    dq_meas: f64,
+    total_torque: Option<TotalTorqueClamp>,
+    /// The limit envelope moved `q_des`.
+    envelope_clamped: bool,
 }
 
 /// Reused MIT admission buffers; contents never outlive one batch.
@@ -519,6 +530,8 @@ pub struct Supervisor<B: MotorBus> {
     last_tau_ff: FxHashMap<String, f64>,
     /// MIT total-torque clamps (ADR 0039 open question 1), counted when sent.
     total_torque_clamps: TotalTorqueClampLog,
+    /// MIT commands whose `q_des` the limit envelope moved, per joint, counted when sent.
+    envelope_clamps: FxHashMap<String, u64>,
     feedback_velocity_trips: FxHashMap<String, u8>,
     last_feedback_samples: FxHashMap<String, FeedbackSample>,
     wrong_sign_state: FxHashMap<String, WrongSignState>,
@@ -704,6 +717,7 @@ impl<B: MotorBus> Supervisor<B> {
             invalid_feedback: FxHashSet::default(),
             last_tau_ff: FxHashMap::default(),
             total_torque_clamps: TotalTorqueClampLog::default(),
+            envelope_clamps: FxHashMap::default(),
             feedback_velocity_trips: FxHashMap::default(),
             last_feedback_samples: FxHashMap::default(),
             wrong_sign_state: FxHashMap::default(),
@@ -1394,6 +1408,13 @@ impl<B: MotorBus> Supervisor<B> {
     /// were moved toward feedback (see `total_torque.rs`), since process start. Telemetry only.
     pub fn total_torque_clamp_count(&self, joint: &str) -> u64 {
         self.total_torque_clamps.count(joint)
+    }
+
+    /// Sent MIT commands for `joint` whose `q_des` Davout moved into the velocity-scaled limit
+    /// envelope (judged at the larger of the commanded and measured speed), since process
+    /// start. The controller treats a new one as a reshaped output (ADR 0040).
+    pub fn envelope_clamp_count(&self, joint: &str) -> u64 {
+        self.envelope_clamps.get(joint).copied().unwrap_or(0)
     }
 
     /// Seed the tau_ff rate limiter with current measured torque for each joint.
@@ -2529,6 +2550,9 @@ impl<B: MotorBus> Supervisor<B> {
             if let Some(clamp) = stage.total_torque {
                 self.total_torque_clamps.record(joint, clamp, batch_tick);
             }
+            if stage.envelope_clamped {
+                count_by_joint(&mut self.envelope_clamps, joint);
+            }
         }
         // Each commanded target answers with a status (ADR 0036, *Solicited
         // silence while Active*). The controller commands every Active joint
@@ -2597,8 +2621,13 @@ impl<B: MotorBus> Supervisor<B> {
         let mut neutral = true;
         for (slot, (cmd, &index)) in cmds.into_iter().zip(&scratch.configured).enumerate() {
             let motor = supplied.unwrap_or(&self.motors.motors[index]);
-            let (filtered, q_meas, dq_meas, total_torque) =
-                self.filter_mit_core(cmd, motor, Some(index), self.last_tick)?;
+            let FilteredMit {
+                out: filtered,
+                q_meas,
+                dq_meas,
+                total_torque,
+                envelope_clamped,
+            } = self.filter_mit_core(cmd, motor, Some(index), self.last_tick)?;
             let wrong_sign = self
                 .wrong_sign_step(&filtered, q_meas, dq_meas)
                 .map(|(state, admitted)| admitted.map(|()| state))
@@ -2625,6 +2654,7 @@ impl<B: MotorBus> Supervisor<B> {
                 tau_ff_nm: filtered.torque_ff_nm,
                 wrong_sign,
                 total_torque,
+                envelope_clamped,
             });
         }
         scratch.wires.truncate(scratch.staged.len());
@@ -3071,12 +3101,20 @@ impl<B: MotorBus> Supervisor<B> {
             &self.homing_config,
         )?;
         let tick = Instant::now();
-        let (out, q_meas, dq_meas, total_torque) =
-            self.filter_mit_core(cmd, configured, Some(index), self.last_tick)?;
+        let FilteredMit {
+            out,
+            q_meas,
+            dq_meas,
+            total_torque,
+            envelope_clamped,
+        } = self.filter_mit_core(cmd, configured, Some(index), self.last_tick)?;
         // Unlike a batch, a single filter keeps limiter/watchdog advances on error.
         store_by_joint(&mut self.last_tau_ff, &out.joint, out.torque_ff_nm);
         if let Some(clamp) = total_torque {
             self.total_torque_clamps.record(&out.joint, clamp, tick);
+        }
+        if envelope_clamped {
+            count_by_joint(&mut self.envelope_clamps, &out.joint);
         }
         if let Some((state, admitted)) = self.wrong_sign_step(&out, q_meas, dq_meas) {
             store_by_joint(&mut self.wrong_sign_state, &out.joint, state);
@@ -3090,16 +3128,16 @@ impl<B: MotorBus> Supervisor<B> {
     /// without mutating state.
     ///
     /// `feedback` is the configured motor index for `cmd.joint` (measured pose source).
-    /// Returns the filtered command, `(q_meas, dq_meas)` and the total-torque clamp it took, if
-    /// any; the caller stores `torque_ff_nm` as the joint's new `last_tau_ff` and counts the
-    /// clamp once the command is sent.
+    /// Returns the filtered command, `(q_meas, dq_meas)`, the total-torque clamp it took, if
+    /// any, and whether the envelope moved `q_des`; the caller stores `torque_ff_nm` as the
+    /// joint's new `last_tau_ff` and counts the clamps once the command is sent.
     fn filter_mit_core(
         &self,
         cmd: MitJointCommand,
         motor: &MotorEntry,
         feedback: Option<usize>,
         previous_tick: Option<Instant>,
-    ) -> Result<(MitJointCommand, f64, f64, Option<TotalTorqueClamp>), DavoutError> {
+    ) -> Result<FilteredMit, DavoutError> {
         validate_mit_command(&cmd)?;
         let lim = self
             .limits
@@ -3145,9 +3183,11 @@ impl<B: MotorBus> Supervisor<B> {
             out.velocity_rad_s
         };
         let keepalive = out.kp == 0.0 && out.kd == 0.0 && out.torque_ff_nm == 0.0;
+        let mut envelope_clamped = false;
         if !keepalive {
             let clamped = clamp_position_in_envelope(lim, q_meas, dq_envelope, out.position_rad);
             if (clamped - out.position_rad).abs() > 1e-9 {
+                envelope_clamped = true;
                 trace!(
                     joint = %out.joint,
                     requested = out.position_rad,
@@ -3239,7 +3279,13 @@ impl<B: MotorBus> Supervisor<B> {
                 ),
             });
         }
-        Ok((out, q_meas, dq_meas, total_torque))
+        Ok(FilteredMit {
+            out,
+            q_meas,
+            dq_meas,
+            total_torque,
+            envelope_clamped,
+        })
     }
 
     /// Next wrong-sign watchdog state for `out.joint` and whether it admits `out`.
@@ -3464,6 +3510,12 @@ fn store_by_joint<V>(map: &mut FxHashMap<String, V>, joint: &str, value: V) {
     } else {
         map.insert(joint.to_owned(), value);
     }
+}
+
+/// Add one to `joint`'s count (allocates only for a new joint).
+fn count_by_joint(map: &mut FxHashMap<String, u64>, joint: &str) {
+    let count = map.get(joint).copied().unwrap_or(0).saturating_add(1);
+    store_by_joint(map, joint, count);
 }
 
 /// `*address == MotorAddress::from(motor)` without allocating.
