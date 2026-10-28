@@ -17,12 +17,30 @@ import { dashboardPanelCardClassName } from '@/components/dashboard/layout/const
  * Joints offered for Testing are the gateway's command-eligible joints (the
  * config snapshot's `joints`), never the static catalog: an unwired catalog
  * joint makes the gateway refuse the whole batch (UI-13).
+ *
+ * The snapshot needs a Configuration credential, while Testing commands need
+ * only Control. When the snapshot is refused or missing, the list falls back
+ * to the joint names seen in live RobotState: Berthier publishes only
+ * robot.yaml joints, the same list the gateway's command allowlist is built
+ * from.
  */
 export function ActuatorMultiSelect() {
   const { selectedJointNames, selectJoint, deselectJoint } = useTestingStore();
   const robotState = useRobotStore((s) => s.robotState);
   const { data: config = null } = useConfigSnapshot();
-  const joints = React.useMemo(() => config?.joints ?? [], [config]);
+  // Names seen in RobotState since mount. A joint drops out of RobotState
+  // while its feedback is stale, so keep every name once seen.
+  const [telemetryJoints, setTelemetryJoints] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    if (!robotState) return;
+    const names = robotState.joints.map((joint) => joint.name);
+    setTelemetryJoints((prev) => {
+      const added = names.filter((name) => !prev.includes(name));
+      return added.length > 0 ? [...prev, ...added] : prev;
+    });
+  }, [robotState]);
+  const snapshotJoints = config?.joints?.length ? config.joints : null;
+  const joints = snapshotJoints ?? telemetryJoints;
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({
     right_arm: true,
   });
@@ -76,7 +94,14 @@ export function ActuatorMultiSelect() {
       <CardContent className="space-y-2">
         {joints.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Joint list unavailable: the gateway config snapshot has not loaded.
+            Joint list unavailable: the gateway config snapshot has not loaded
+            (it needs a Configuration credential) and no live RobotState has
+            arrived yet.
+          </p>
+        ) : snapshotJoints === null ? (
+          <p className="text-xs text-muted-foreground" data-testid="joint-source-telemetry">
+            Joints from live telemetry: the config snapshot is unavailable to
+            this credential.
           </p>
         ) : null}
         {INVENTORY_GROUP_ORDER.map((groupKey) => {
