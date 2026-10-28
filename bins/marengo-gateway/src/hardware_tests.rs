@@ -446,7 +446,7 @@ fn configuration_accepts_legacy_header_with_the_shared_policy() {
 }
 
 #[tokio::test]
-async fn commissioning_scope_read_open_mutations_gated_widen_and_unknown() {
+async fn commissioning_scope_authenticated_read_mutations_gated_widen_and_unknown() {
     let _env = lock_test_env();
     let tmp = tempfile::tempdir().expect("temp");
     let repo = tmp.path();
