@@ -410,7 +410,8 @@ impl ActuatorOverlay {
         if loop_ctrl.supervisor().mode() == OperationalMode::Active {
             return Err(davout::DavoutError::LimitPatchActive.into());
         }
-        let current_revision = profile_content_revision(config_dir)?;
+        // Hash the URDF under the root the persist worker writes it to.
+        let current_revision = profile_content_revision(self.persist.repo_root(), config_dir)?;
         if patch_cmd.expected_revision != current_revision {
             return Err(OverlayError::Config(marengo_config::ConfigError::Parse {
                 path: config_dir.to_path_buf(),

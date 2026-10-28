@@ -80,7 +80,7 @@ fn copy_profile_to_temp() -> (tempfile::TempDir, PathBuf, String) {
         assets.join("marengo.urdf"),
     )
     .expect("copy urdf");
-    let revision = profile_content_revision(&config_dir).expect("revision");
+    let revision = profile_content_revision(tmp.path(), &config_dir).expect("revision");
     (tmp, config_dir, revision)
 }
 

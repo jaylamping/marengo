@@ -29,5 +29,6 @@ Typed loaders for master `config/*.yaml`.
 | `atomic_file.rs` | `ProfileWriteLock`, unique-temp atomic writes |
 
 `profile_content_revision` hashes the canonical robot/motors/control/homing YAML
-plus the bytes of the URDF `robot.yaml` names, with SHA-256. Profile writes use same-directory atomic replacement and a shared
+plus the bytes of the URDF `robot.yaml` names, with SHA-256. It resolves that URDF under
+the caller's repo root, the same path `resolve_urdf_path` gives the writers. Profile writes use same-directory atomic replacement and a shared
 profile lock; replacement is per-file, not a crash-atomic multi-file transaction.

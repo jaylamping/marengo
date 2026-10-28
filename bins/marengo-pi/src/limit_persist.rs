@@ -1,6 +1,6 @@
 //! Coalescing write-behind for control.yaml / motors+URDF (never on the 200 Hz tick).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Condvar, Mutex};
@@ -81,6 +81,8 @@ pub struct ConfigPersistQueue {
     changed: Arc<Condvar>,
     wake_tx: SyncSender<()>,
     worker: Mutex<Option<thread::JoinHandle<()>>>,
+    /// The root the worker writes the URDF under; CAS revisions must hash the same file.
+    repo_root: PathBuf,
 }
 
 struct PersistSlot {
@@ -283,13 +285,14 @@ impl ConfigPersistQueue {
         let changed = Arc::new(Condvar::new());
         let pending_worker = Arc::clone(&pending);
         let changed_worker = Arc::clone(&changed);
+        let worker_root = repo_root.clone();
         let worker = thread::spawn(move || {
             persist_worker(
                 pending_worker,
                 changed_worker,
                 wake_rx,
                 chappe,
-                repo_root,
+                worker_root,
                 #[cfg(test)]
                 hooks,
             )
@@ -299,7 +302,14 @@ impl ConfigPersistQueue {
             changed,
             wake_tx,
             worker: Mutex::new(Some(worker)),
+            repo_root,
         }
+    }
+
+    /// The root the worker resolves the URDF under. Revision checks pass it to
+    /// `profile_content_revision` so the CAS covers the URDF this queue writes.
+    pub(crate) fn repo_root(&self) -> &Path {
+        &self.repo_root
     }
 
     /// Queue a durable write. Replaces any not-yet-started request (coalesce).
@@ -531,8 +541,8 @@ fn persist_worker(
                         persist = true,
                         "config persist write succeeded"
                     );
-                    let config_revision =
-                        profile_content_revision(&request.config_dir).unwrap_or_default();
+                    let config_revision = profile_content_revision(&repo_root, &request.config_dir)
+                        .unwrap_or_default();
                     let event = ActionEvent {
                         timestamp_ms: request.timestamp_ms,
                         session_id: request.session_id,

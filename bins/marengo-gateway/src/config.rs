@@ -109,7 +109,11 @@ fn motor_type_label(motor_type: MotorType) -> String {
     }
 }
 
-pub fn snapshot_from_dir(config_dir: &Path) -> Result<ConfigSnapshotJson, StatusCode> {
+/// `repo_root` is the root the URDF writers use; the revision hashes the URDF under it.
+pub fn snapshot_from_dir(
+    repo_root: &Path,
+    config_dir: &Path,
+) -> Result<ConfigSnapshotJson, StatusCode> {
     let robot = load_robot_config_from(config_dir).map_err(|_| StatusCode::NOT_FOUND)?;
     let motors = load_motors_config_from(config_dir).map_err(|_| StatusCode::NOT_FOUND)?;
     let control = load_control_config_from(config_dir).map_err(|_| StatusCode::NOT_FOUND)?;
@@ -159,7 +163,7 @@ pub fn snapshot_from_dir(config_dir: &Path) -> Result<ConfigSnapshotJson, Status
         })
         .collect();
 
-    let revision = profile_content_revision(config_dir).unwrap_or_default();
+    let revision = profile_content_revision(repo_root, config_dir).unwrap_or_default();
     Ok(ConfigSnapshotJson {
         profile: profile_name(config_dir),
         config_dir: config_dir.display().to_string(),
@@ -177,7 +181,7 @@ pub async fn get_config_snapshot(
     // Read-only inventory; mutations are admitted by the shared router policy.
     let _logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let config_dir = resolve_config_dir();
-    let mut snapshot = snapshot_from_dir(&config_dir)?;
+    let mut snapshot = snapshot_from_dir(&resolve_repo_root(), &config_dir)?;
     snapshot.persist_ok = !state.persist_degraded();
     Ok(Json(snapshot))
 }
@@ -215,7 +219,7 @@ pub async fn post_config_patch(
         position_soft_upper_rad: patch.position_soft_upper_rad,
         velocity_max_rad_s: patch.velocity_max_rad_s,
     };
-    let result = apply_limit_patch_async(state, &config_dir, apply).await;
+    let result = apply_limit_patch_async(state, &resolve_repo_root(), &config_dir, apply).await;
 
     if result.ok {
         let audit_key = format!("config.patch.{}", patch.joint);
@@ -273,7 +277,7 @@ mod tests {
         if !config_dir.is_dir() {
             return;
         }
-        let snap = snapshot_from_dir(&config_dir).expect("snapshot");
+        let snap = snapshot_from_dir(&root, &config_dir).expect("snapshot");
         let pitch = snap
             .control_limits
             .iter()

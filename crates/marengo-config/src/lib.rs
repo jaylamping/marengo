@@ -1526,12 +1526,19 @@ pub fn validate_motors_against_robot(
     Ok(())
 }
 
+/// Where the URDF that `robot.yaml` names lives: `<repo_root>/<robot.urdf>`. The URDF writers
+/// (through [`resolve_urdf_path`]) and the CAS revision both resolve through this, so they
+/// write and hash the same file whatever the config dir is.
+pub(crate) fn urdf_path_under(repo_root: &Path, urdf: &str) -> PathBuf {
+    repo_root.join(urdf)
+}
+
 /// Resolve URDF path from robot config; errors if the file is missing.
 pub fn resolve_urdf_path(
     repo_root: impl AsRef<Path>,
     robot: &RobotConfigFile,
 ) -> Result<PathBuf, ConfigError> {
-    let path = repo_root.as_ref().join(&robot.robot.urdf);
+    let path = urdf_path_under(repo_root.as_ref(), &robot.robot.urdf);
     if !path.is_file() {
         return Err(ConfigError::UrdfMissing { path });
     }
