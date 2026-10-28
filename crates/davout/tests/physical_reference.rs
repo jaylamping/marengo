@@ -1861,16 +1861,18 @@ fn a_streaming_drive_that_goes_silent_beyond_the_bound_still_revokes() {
 fn a_drive_that_died_while_the_host_held_its_stream_off_loses_its_grant() {
     // PITCH dies right after its reference. The host's Offs silence its stream
     // and, with the next On due inside the blackout window, hold it back until
-    // the quiet ends; that silence is excused, but only until the quiet ends
-    // plus the liveness bound.
+    // the quiet ends; that silence is excused, but only until the later of the
+    // quiet's end and the end of owner work, plus the liveness bound. On a
+    // loaded runner homing the other four can outlast PITCH's quiet.
     let mut bench = Bench::physical("physical-dead-while-held");
     bench.home_in_sequence(&[PITCH]);
     let zeroed = set_zero_written_at(&bench, PITCH);
     bench.firmware.borrow_mut().drive_mut(PITCH).silent_until =
         Some(Instant::now() + Duration::from_secs(60));
     bench.home_in_sequence(&FIVE[1..]);
+    let owner_work_end = Instant::now();
     let window = millis(bench.supervisor.control.control.comm_watchdog_ms);
-    let revoked_by = zeroed + POST_SET_ZERO_QUIET + window + millis(50);
+    let revoked_by = (zeroed + POST_SET_ZERO_QUIET).max(owner_work_end) + window + millis(50);
     while Instant::now() < revoked_by {
         bench.runtime_tick();
         std::thread::sleep(PUMP_PERIOD);

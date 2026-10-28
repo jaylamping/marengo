@@ -1,17 +1,16 @@
-# Pi commissioning runbook — dual-shoulder bring-up through single-arm Milestone B.
-#
-# Hardware confirmed (prototype):
-#   left_shoulder_pitch  can1  device_id 12  firmware 0.3.1.42
-#   right_shoulder_pitch can0  device_id 1   firmware 0.3.1.42
-#
-# See also: docs/safety.md, hardware/electrical/wiring/can_topology.md
+# Pi commissioning runbook
+
+Pi OS, CAN HAT, IMU, install and first CAN checks for the Marengo bench. The limb motion procedure (Reference → G-comp → Position ladder → sign-off) is the separate [limb playbook](commissioning/limb-playbook.md).
+
+Current bench hardware (2026-10-28): Raspberry Pi 5, Waveshare 2-CH CAN HAT (MCP2515), BNO085 on I2C `0x4b`, and the right 5-DOF arm on `can0`, device ids 1–5 (firmware 0.3.1.42 on 1–2, 0.2.3.34 on 3–4, 0.0.3.32 on 5). `can1` is wired but unused. See also [safety.md](safety.md) and [can_topology.md](../hardware/electrical/wiring/can_topology.md).
 
 ## Phase 0 — Bench pre-flight
 
-- [ ] CAD joint names deferred; YAML uses `*_shoulder_pitch`
-- [x] Firmware IDs: left **12**, right **1**; set-zero after ID change
+- [x] Joint names follow the master URDF (`right_shoulder_pitch` … `right_lower_arm_yaw`)
+- [x] Firmware IDs: right arm **1–5** on can0 (an earlier left shoulder pitch used **12** on can1); set-zero after any ID change
 - [ ] CAN termination verified (`0x3041 can_status` in Robstride tool if bus errors)
-- [ ] E-stop ordered: NC mushroom in **motor power** path (TWTADE/Schneider); GPIO 17 sense optional initially
+- [x] Physical NC E-stop in the **motor power** path
+- [ ] E-stop sense on GPIO 17 (not wired; no software reads it yet)
 
 ## Phase 1 — Pi OS and CAN HAT
 
@@ -94,7 +93,7 @@ See [hardware/electrical/wiring/harness.md](../hardware/electrical/wiring/harnes
 ## Phase 2 — Build Marengo on the Pi
 
 ```bash
-git clone <repo-url> ~/marengo
+git clone https://github.com/jaylamping/marengo.git ~/marengo
 cd ~/marengo && git lfs pull
 # Install Rust 1.88.0 + protoc (see docs/dev-setup.md native section)
 cargo build -p motor-repl -p marengo-pi --features socketcan --release
@@ -107,27 +106,19 @@ Cross-build from laptop: `./scripts/deploy-pi.sh --install joey@marengo.local`. 
 
 ```bash
 MARENGO_ROOT=/opt/marengo
-MARENGO_CONFIG_DIR=/opt/marengo/config/bringup/shoulder_pitch_dual
+MARENGO_CONFIG_DIR=/opt/marengo/config
 RUST_LOG=robstride=info,davout=info,berthier=info,motor_repl=info
 ```
 
-## Phase 3 — Config profiles
+## Phase 3 — Config
 
-| Milestone | `MARENGO_CONFIG_DIR` | Joints |
-|-----------|----------------------|--------|
-| **A — dual shoulders** | `config/bringup/shoulder_pitch_dual` | left/right pitch on can0/can1 |
-| **A1 — right bench** | `config/bringup/arm_4dof_right` | pitch id 1, roll id 2, yaw id 3, elbow pitch id 4 on can0 |
-| **A1 — right 3-DOF regression** | `config/bringup/arm_3dof_right` | roll/pitch/yaw only (no elbow) |
-| **A1 — left bench only** | `config/bringup/shoulder_pitch_left_only` | `left_shoulder_pitch` on can1, id 12 (mirrors right tuning) |
-| **B — left 4-DOF arm** | `config/bringup/arm_4dof_left` or `config` | all on can0, IDs 11–14 |
+There is one master description: `config/{robot,motors,control,homing}.yaml` plus `assets/urdf/marengo.urdf` (installed under `/opt/marengo/`). Do not fork config per profile. To run a subset of joints, set `MARENGO_JOINT_SUBSET=a,b` for that process (unknown names fail closed) or use Consul commissioning scope. MCP bench profiles (`arm_attached`, `elbow_attached`, …) in `tools/marengo-pi-mcp/src/bench-profiles.ts` select subsets the same way.
 
-**Profile lineage (right arm):** `arm_2dof_right` (historically roll id 1 + pitch id 2) was renamed to `arm_3dof_right` when upper-arm yaw RS02 id 3 landed (`6f70c64`). Pitch/roll directions are unchanged; current right-bench IDs are pitch 1 and roll 2. Active 4-DOF default is `arm_4dof_right` (adds elbow pitch id 4). Limb motion commissioning SoT: [limb-playbook.md](commissioning/limb-playbook.md).
-
-Single-shoulder bench profiles use conservative position hold tuning while feedback velocity guards are active. The current right-only profile uses impedance **kp=8 / kd=1.25**, trapezoid **v=2.0 / a=4.8**, slew **0.15 rad/s**, max lead **0.10**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°) from URDF `safety_controller`; hard bench/URDF limits are **[-0.9, 3.17] rad**. Berthier/Davout apply a velocity-scaled command envelope (ADR 0009) so fast moves shrink the commandable band before hard limits — full-range sweeps may reach soft limits only after decel, not in one gravity-assisted leg.
+The retired `config/bringup/*` trees (dual shoulder pitch, left/right 3- and 4-DOF arms) are in git history; their URDFs are archived in `assets/urdf/archive/`. Tuning lives in `config/control.yaml`; never change gains, velocities, caps or limits without bench evidence. Limb motion commissioning SoT: [limb-playbook.md](commissioning/limb-playbook.md).
 
 ### Homing (interim — manual reference)
 
-Until Hall sensors are installed on shoulder roll (see [hardware/docs/homing-sensors.md](../hardware/docs/homing-sensors.md)):
+Hall-sensor homing is designed but not built ([hardware/docs/homing-sensors.md](../hardware/docs/homing-sensors.md)). Until then:
 
 1. Place the arm at mechanical reference (arm down for pitch).
 2. Start one long-running `marengo-pi` process.
@@ -138,18 +129,18 @@ Do not use `pi_hold_on` with `set_zero: true` unless intentionally recalibrating
 
 Full homing contract: [homing.md](homing.md).
 
-Trim `motors.yaml` joint list to only wired actuators while building the arm incrementally.
+While a limb is only partly built, list its joints in the master config and narrow at runtime (`MARENGO_JOINT_SUBSET` or commissioning scope); Offline joints do not block Limb Ready.
 
 ## Phase 4 — CAN validation (no enable)
 
 ```bash
 cd /opt/marengo
-export MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual
+export MARENGO_CONFIG_DIR=/opt/marengo/config
 
-./target/release/motor-repl status
+/opt/marengo/bin/motor-repl status
 
 # Single bus debug:
-MARENGO_CAN_INTERFACE=can0 ./target/release/motor-repl --can-interface can0 status
+MARENGO_CAN_INTERFACE=can0 /opt/marengo/bin/motor-repl --can-interface can0 status
 ```
 
 `status` opens SocketCAN but bypasses Davout Supervisor construction and type-24
@@ -163,8 +154,8 @@ Raw bus (motor power on):
 
 ```bash
 candump -ta can0 &
-cansend can0 0300FF0C#0000000000000000   # enable probe id 12
-cansend can0 0400FF0C#0000000000000000   # disable
+# Observe only. Do not hand-send Enable frames: Davout owns enable sequencing (type-24 Off + echo,
+# post-SetZero quiet, paced Enables). Use `motor-repl protocol-inspect` for read-only drive queries.
 ```
 
 ## Phase 5 — Safe motor test ([safety.md](safety.md))
@@ -177,7 +168,7 @@ Each `motor-repl` command is a **separate process**, and a current reference liv
 4. `marengo-pi` with stdin, each joint at its mechanical reference: `home <joints> sign-tested` (wait for `reference <joint> current pos=` per joint), `home` (Ready), `enable bench`, `gravity-on` — **not** `motor-repl gravity-on` alone. Full procedure: [homing.md](homing.md#pi-bench-procedure).
 
 ```bash
-MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual ./target/release/marengo-pi
+MARENGO_MOTION_OWNER=stdin /opt/marengo/bin/marengo-pi
 # stdin: home <joints> sign-tested / home / enable bench / gravity-on / status / disable / quit
 ```
 
@@ -185,16 +176,11 @@ MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual ./target/release/marengo-p
 
 After Pi bring-up and bare-motor sanity, run the limb motion SoT: [limb-playbook.md](commissioning/limb-playbook.md) (Sign → G-comp → … → Limb sign-off).
 
-## Phase 7 — Milestone B (left arm on can0)
+## Adding the next limb
 
-```bash
-export MARENGO_CONFIG_DIR=config/bringup/arm_4dof_left
-motor-repl --can-interface can0 status
-```
-
-Commission joints in order: shoulder_roll (11) → shoulder_pitch (12) → upper_arm_yaw (13) → elbow (14).
-
-Remove unmounted joints from `motors.yaml` + `robot.yaml` until each actuator is wired.
+1. Assign device ids from the block scheme below (and the full-body bus plan once decided; see [status.md](status.md#open-design-decisions)). Set ids in firmware before editing YAML.
+2. Add the joints to `hardware/docs/kinematics.md`, the master URDF and `config/*.yaml` together, and to the limb's `robot.yaml` `limbs` entry.
+3. Bring them up with `MARENGO_JOINT_SUBSET` or commissioning scope, then run the [limb playbook](commissioning/limb-playbook.md) for that limb.
 
 ## Device ID scheme (commissioned)
 
@@ -206,7 +192,7 @@ Remove unmounted joints from `motors.yaml` + `robot.yaml` until each actuator is
 | Left leg | 31–40 |
 | Waist + aux | 41+ |
 
-Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: **1–4**.
+Right arm (live): pitch **1**, roll **2**, upper-arm yaw **3**, elbow pitch **4**, lower-arm yaw **5**. Earlier left-arm slices used roll **11**, pitch **12**, yaw **13**, elbow **14**. The humanoid template `config/motors_humanoid.yaml` does not follow this scheme yet (open decision).
 
 ## Troubleshooting
 
@@ -251,7 +237,7 @@ Then open `https://127.0.0.1:8444`.
 
 ## Agent-assisted bench
 
-Cursor agents can drive the Pi over SSH via [`tools/marengo-pi-mcp/`](../tools/marengo-pi-mcp/README.md) (MCP server on your dev Mac).
+Editor agents (Cursor, Claude Code) can drive the Pi over SSH via [`tools/marengo-pi-mcp/`](../tools/marengo-pi-mcp/README.md) (MCP server on your dev Mac).
 
 - **Read-only / logs:** no confirmation — agent should call `pi_logs_*`, `pi_health`, `pi_motor_repl_status` freely.
 - **Deploy:** `pi_sync_main` (pull `main`, cross-build, `install-pi.sh`) — pre-authorized.

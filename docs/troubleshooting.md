@@ -15,7 +15,7 @@
 | Symptom | Fix |
 |---------|-----|
 | Tiny pointer files instead of ONNX | `git lfs install && git lfs pull` |
-| SolidWorks files missing after clone | Expected — CAD is not in this repo. Restore locally per [cad/README.md](cad/README.md). |
+| SolidWorks files missing after clone | Expected — CAD is not in this repo. Restore locally per [cad/README.md](../cad/README.md). |
 
 ## SocketCAN
 
@@ -28,7 +28,7 @@
 | Configured motor never appears | Check `config/motors.yaml` `can_interface` + `device_id`; runtime does not auto-register or prune devices. A silent configured motor is a safety fault. |
 | Need raw CAN/router logs | Run with `RUST_LOG=robstride=trace,davout=debug,berthier=debug,marengo_pi=info` (or `motor_repl=info`) to log SocketCAN open, TX/RX frame IDs, decoded status, unknown frames, watchdog expiry, and motor faults. **Bring-up only** — revert to `scripts/env.example` defaults for normal bench. |
 | Need position-hold motion debug | Set `MARENGO_POSITION_TRACE=/path/to/trace.csv` for high-rate CSV (side channel). Optional `berthier=debug` for onset burst logs. See [logging-taxonomy.md](logging-taxonomy.md). |
-| Need live log-level changes from Consul | **Not implemented** (roadmap M5). Edit `RUST_LOG` in `/etc/marengo/env` and restart `marengo-pi` / `marengo-gateway`, or use per-crate overrides in `scripts/env.example`. |
+| Need live log-level changes from Consul | **Not implemented** (roadmap M7). Edit `RUST_LOG` in `/etc/marengo/env` and restart `marengo-pi` / `marengo-gateway`, or use per-crate overrides in `scripts/env.example`. |
 | Need virtual CAN tests | Run `docker compose --profile vcan up -d vcan` or `just vcan` on Linux. This creates `vcan0`/`vcan1` only for tests. |
 | vcan on macOS host | Use Linux container with `privileged: true`; SocketCAN is not available on macOS natively. |
 | `modprobe vcan` fails in container | With `--network host`, the host must load vcan and create `vcan0`/`vcan1` first (`./scripts/ci-vcan-host-setup.sh` in CI, or `./scripts/vcan-up.sh` on Linux). Inside the container, `vcan-up` probes `ip link type vcan` when `/lib/modules` is missing — CAN tests still fail if vcan is unavailable. |
@@ -58,11 +58,12 @@
 | TypeScript errors in `consul/` | `cd consul && npm run gen:proto` — never hand-edit `src/gen/`. |
 | Rust build fails after `.proto` change | `cargo build -p armee-proto` regenerates via `prost-build`. |
 | Checksum mismatch in CI | Regenerate TS (`npm run gen:proto`) and update `consul/src/gen/.checksum`. |
-| Missing `.checksum` in CI | Run `npm run gen:proto` then `shasum -a 256 consul/src/gen/marengo/v1/marengo_pb.ts \| awk '{print $1}' > consul/src/gen/.checksum` and commit. |
+| Missing `.checksum` in CI | Run `npm run gen:proto` then `shasum -a 256 consul/src/gen/marengo/v1/marengo_pb.ts \| awk '{print $1}' > consul/src/gen/.checksum` and commit. `scripts/proto-checksum.sh` verifies it. |
 
 ## Simulation
 
 | Symptom | Fix |
 |---------|-----|
 | `check-sim` skipped | Run `docker compose --profile sim run --rm check-sim` (requires `Dockerfile.sim`). |
-| MuJoCo model load fails | Verify `MARENGO_SIM_MODEL` points at `sim/fixtures/minimal.xml`. |
+| MuJoCo model load fails | Verify `MARENGO_SIM_MODEL` points at `sim/fixtures/minimal.xml` or the production `assets/mjcf/marengo.xml` (both are smoke-tested by `scripts/check-sim.sh`). |
+| Sim and URDF disagree | `cargo test -p sim-harness` checks URDF↔MJCF parity; update `assets/mjcf/marengo.xml` (or regenerate with `scripts/urdf-to-mjcf.sh`) after a URDF change. |

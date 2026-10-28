@@ -62,15 +62,15 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 ### Cursor `mcp.json`
 
-Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on **Windows, macOS, and Linux/WSL**.
+Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on **Windows, macOS, and Linux** (there is no WSL checkout; ADR 0018).
 
-**WSL / Linux / macOS (software home):** mcp.json uses **`bash` + [`run-mcp.sh`](run-mcp.sh)**. Cursor's spawn PATH often lacks mise `node`, so bare `node` fails with `spawn node ENOENT`. The shell launcher finds mise (or `MARENGO_MCP_NODE`).
+**macOS / Linux:** mcp.json uses **`bash` + [`run-mcp.sh`](run-mcp.sh)**. Cursor's spawn PATH often lacks mise `node`, so bare `node` fails with `spawn node ENOENT`. The shell launcher finds mise (or `MARENGO_MCP_NODE`).
 
-**Windows CAD session:** prefer [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1) — Cursor often lacks Git `sh`/`bash`. Those wrappers exec [`dist/launch.js`](src/launch.ts) once `node` is resolved.
+**Windows (`J:\code\marengo`, software + CAD session):** prefer [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1) — Cursor often lacks Git `sh`/`bash`. Those wrappers exec [`dist/launch.js`](src/launch.ts) once `node` is resolved.
 
-Profile / SSH defaults live in [`src/launch.ts`](src/launch.ts) / `run-mcp.sh` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0016](../../docs/decisions/0016-wsl-software-home.md)).
+Profile / SSH defaults live in [`src/launch.ts`](src/launch.ts) / `run-mcp.sh` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0018](../../docs/decisions/0018-windows-macos-software-home.md)).
 
-Open the marengo repo root as the Cursor workspace (WSL software session, or Windows UNC CAD session — ADR 0016).
+Open the marengo repo root as the Cursor workspace: `J:\code\marengo` on Windows, or the macOS host checkout (ADR 0018).
 
 `MARENGO_LOCAL_ROOT` is optional. The server derives the repo root from its install path. Override only for unusual clone layouts.
 
@@ -93,8 +93,8 @@ just mcp-ensure-enabled --write
 
 | Class | Confirm | Examples |
 |-------|---------|----------|
-| Read-only | No | `pi_logs_tail`, `pi_health`, `pi_homing_status`, `pi_motor_repl_status`, `pi_protocol_inspect`, `pi_gravity_preview`, `pi_imu_probe` |
-| Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
+| Read-only | No | `pi_health`, `pi_gateway_health`, `pi_can_status`, `pi_homing_status`, `pi_motor_repl_status`, `pi_protocol_inspect`, `pi_gravity_preview`, `pi_imu_probe`, `pi_candump_once`, `pi_candump_summary`, `pi_journal`, `pi_read_file`, `pi_logs_tail`, `pi_logs_grep`, `pi_logs_list`, `pi_logs_archive_list`, `pi_logs_last_fault` |
+| Admin | No | `pi_can_up`, `pi_sync_main` (`strategy: cross` or `pi_native`), `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
 | Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
 | Motion | Yes | `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_joint_calibrate`, `pi_motion_suite`, `pi_enable_soak` |
 

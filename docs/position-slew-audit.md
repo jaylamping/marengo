@@ -1,5 +1,7 @@
 # Position slew audit (`position_slew_rad_s`)
 
+> **Historical (2026-06/07).** This audit was written against the retired `config/bringup/*` profiles, which no longer exist. The master config is root `config/control.yaml`; Position motion is now governed by ADR 0007 and, for shoulder pitch, the ADR 0039/0040 `scaled_pd` law. Kept for the reasoning; check current values before acting on it.
+
 Explore artifact for Phase 2 item 3. **No YAML changes** — documentation only.
 
 ## Summary

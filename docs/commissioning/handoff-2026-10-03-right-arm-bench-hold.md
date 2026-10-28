@@ -1,5 +1,7 @@
 # Handoff 2026-10-03: right-arm gravity check and bench hold (Pi session)
 
+> **Historical (2026-10-28).** The right-arm URDF branch it mentions landed on `main` (`903c5a26`). Current state: [docs/status.md](../status.md).
+
 Move to the macOS host. The CAD work from [handoff-2026-10-03-right-arm-urdf.md](handoff-2026-10-03-right-arm-urdf.md) is done on branch `claude/right-arm-urdf-from-cad` (not merged to `main`):
 
 ```bash

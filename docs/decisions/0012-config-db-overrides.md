@@ -9,7 +9,7 @@ Operators need to change joint hard/soft limits and gains from Consul without tr
 
 ## Decision
 
-1. **Active runtime SoT is in-memory on the Pi** (Davout / Berthier config aggregate). Durable disk SoT is root `config/{robot,motors,control,homing}.yaml` and `assets/urdf/marengo.urdf` (Pi: `/opt/marengo/config/`, `/opt/marengo/assets/urdf/marengo.urdf`). `MARENGO_CONFIG_DIR` defaults to `/opt/marengo/config`.
+1. **Active runtime SoT is in-memory on the Pi** (Davout / Berthier config aggregate). Durable disk SoT is root `config/{robot,motors,control,homing}.yaml` and `assets/urdf/marengo.urdf` (Pi: `/opt/marengo/config/`, `/opt/marengo/assets/urdf/marengo.urdf`). Config dir resolution: `MARENGO_CONFIG_DIR`, else `/opt/marengo/config` if it exists, else `<repo>/config`.
 2. **Live numerical limit changes** (hard/soft position, torque cap, `velocity_max_rad_s`) go gateway → Chappe `LimitPatchCommand` → Pi validate/apply → ACK with `persist_status` (`pending` | `durable` | `failed`). HTTP success requires apply ACK, not publish alone.
 3. **Master YAML/URDF disk edits** use atomic validate-then-commit (`marengo-config` profile txn) with CAS `expected_revision` on the master config dir. Legacy bringup profile paths are retired.
 4. **Structural / wiring / membership** changes always require restart when they affect the loaded master description. Persist-degraded is **not** NeedsRestart (restart would reload stale YAML).

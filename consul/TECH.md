@@ -78,6 +78,6 @@ This stack is chosen so that in 2026–2027 Consul can be the best-feeling robot
 
 ## UI primitive workflow
 
-- **Add components**: `npx glinui add <name>` (registry in `glinui.json` / `components.json` → `@glinui`).
+- **Add components**: `npx glinui@0.1.1 add <name>` (registry in `glinui.json` / `components.json` → `@glinui`). The CLI is not a devDependency: it pins a `zod` 3.x that fails `npm audit --audit-level=high`, and nothing imports it at build or run time.
 - **Do not** run `npx shadcn add` during migration — use GLINUI CLI only.
 - **Icons**: Hugeicons (unchanged).

@@ -30,7 +30,7 @@ Align with OpenArm `MITParam{kp, kd, q, dq, tau}` and Robstride MIT Mode 0:
 - `kp`, `kd` → stiffness / damping (model-specific maxima in `config/control.yaml`)
 - `torque_ff` → `t_ff` (Nm), includes gravity feedforward
 
-Wire encoding is defined in [hardware/docs/decisions/0002-robstride-protocol.md](../../hardware/docs/decisions/0002-robstride-protocol.md) (ADR 0006).
+Wire encoding is defined in [hardware/docs/decisions/0002-robstride-protocol.md](../../hardware/docs/decisions/0002-robstride-protocol.md) (hardware ADR 0002).
 
 ### Bench policy
 
@@ -45,7 +45,8 @@ Berthier's `Impedance` packs `position = q_measured`, `velocity = 0` every tick 
 
 - Proto adds `MitJointCommand`, `MitCommandBatch`, `ControlMode`.
 - Berthier `ControlLoop` builds MIT batches; Davout filters `torque_ff` and mode-specific fields.
-- `motor-repl` gains `gravity-on` / `gravity-off` for operator testing.
+- `motor-repl` gains `gravity-on` / `gravity-off` for operator testing. *(Current: these moved to the `marengo-pi` stdin grammar (`gravity-on|off`, `impedance-on|off`, `hold-on`, `hold-at`, `torque-cmd`). `motor-repl` is now limited to `status | disable | set-zero | protocol-inspect | gravity-preview`; see [AGENTS.md](../../AGENTS.md).)*
+- Position mode is now the bench motion primitive (`PositionHold`). Its law is set by [ADR 0007](0007-bench-position-trajectory-control.md), [ADR 0039](0039-position-control-simplification.md) and [ADR 0040](0040-scaled-pd-slow-speed-law.md).
 
 ## References
 

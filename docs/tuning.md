@@ -1,4 +1,6 @@
-# Control tuning (4-DOF arm bring-up)
+# Control tuning
+
+Applies to every joint; the examples come from the right 5-DOF bench arm. All tuning lives in the master `config/control.yaml`. Never change gains, velocities, caps or limits without bench evidence, and record the run in the [bench ledger](commissioning/bench-ledger.md).
 
 Operator workflow for OpenArm-style impedance after gravity compensation is validated. See [ADR 0004](decisions/0004-control-modes-and-mit.md).
 
@@ -16,7 +18,7 @@ OpenArm convention: arms straight down when possible. Record encoder zeros with 
 
 | Knob | File | Purpose |
 |------|------|---------|
-| `home_offset_rad` | `config/homing.yaml` | Maps Hall home reference → semantic zero |
+| `home_offset_rad` | `config/homing.yaml` | Would map a Hall home reference → semantic zero (Hall homing deferred; unused today) |
 | `position_hold_trim_rad` | `config/control.yaml` | Small hold-target fudge only; not homing |
 
 See [homing.md](homing.md).
@@ -37,7 +39,7 @@ The ADR 0039 scaled-PD law (per joint `position_law: scaled_pd`, default `legacy
 optional `friction.fs` / `friction.v_b` Stribeck terms and `position_time_scale_e0_rad`,
 `position_integral_band_rad`, `position_integral_leak_s`. Defaults, validation and the Phase 3
 entry gate are in [ADR 0039](decisions/0039-position-control-simplification.md); leave every joint
-on `legacy` until that gate is met.
+on `legacy` until that gate is met. As of 2026-10-04 only `right_shoulder_pitch` runs `scaled_pd`, as a reduced-speed bench trial, with the [ADR 0040](decisions/0040-scaled-pd-slow-speed-law.md) options (filtered host damping, leaky reference integral, whole-τ_ff step guard; all default off per joint). The friction error assist was removed. Bench results and the decision on 0039/0040 are tracked in [status.md](status.md).
 
 ## Modes
 
@@ -57,7 +59,7 @@ These are Marengo control modes, not Robstride firmware `run_mode` values. Maren
 3. **`hold-at` ramps** toward the target at each joint's `position_slew_rad_s` (default **0.25 rad/s**). `position_slew_max_lead_rad` caps how far the MIT setpoint may run ahead of measured `q` so P gain stays bounded while the planner catches up.
 4. **Planner vs setpoint:** Berthier keeps a rate-limited trajectory in joint space; each tick computes `q_des = clamp(q_traj, q, target, max_lead)`. Gravity FF uses measured `q`; friction and damping FF use **tracking error**, not error to the distant latch target. See [rust-patterns.md](rust-patterns.md) §7 and [ADR 0007](decisions/0007-bench-position-trajectory-control.md#update-2026-06-13-hold-at-plannermit-split).
 5. Small push (~±0.1 rad); verify return without oscillation or limit fault.
-6. Sweep `impedance.kp` / `kd` in bring-up `control.yaml`; back off 20% from first oscillation.
+6. Sweep `impedance.kp` / `kd` in `config/control.yaml`; back off 20% from first oscillation.
 7. `hold-off` / `disable` before leaving bench.
 
 Firmware Speed mode (`run_mode=2`, `spd_ref`) is a bench diagnostic path only and is disabled unless `control.bench.allow_firmware_speed_mode` is set explicitly.

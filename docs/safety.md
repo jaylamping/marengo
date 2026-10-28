@@ -20,9 +20,9 @@ Read this before enabling motors on the bench or robot.
 ## Homing and zero (see [homing.md](homing.md))
 
 - **Homing before motion.** After power-on or fault, every configured joint must reach **Verified** before supervisor `Ready`.
-- **Sensor health first.** When Hall/limit inputs are configured, startup checks sensor wiring and stuck-state before homing search.
+- **Sensor health first (deferred).** Hall/limit homing inputs are designed but not built, so there is no sensor health check yet. When they exist, startup must check sensor wiring and stuck-state before any homing search.
 - **No blind hunting.** Out-of-range or stale-zero joints may only use constrained recovery (manual reference or sensor homing), not normal gravity/hold/impedance.
-- **Calibration audit.** Host registry at `var/calibration/zero_registry.yaml` records who/when/how zero was established; firmware `SetZero` alone is insufficient.
+- **Calibration audit.** The reference journal (located by `homing.yaml` `calibration_record_path`) records each physical reference with its evidence. It is history only and never grants motion; the old `zero_registry.yaml` registry workflow is retired ([homing.md](homing.md), ADR 0006 amendment). Firmware `SetZero` alone is insufficient.
 - **Current reference.** Every fresh registry starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. Corrupt/unreadable history returns an error without replacing its bytes. See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
 - **Permission at output.** Davout's private owner-bound reference gates Ready,
   scoped/normal Enable, Active shortcuts and output. Caller-set history flags
@@ -68,6 +68,8 @@ sequence still refuses, because grants do not cross processes. See
 
 ## Enable / disable sequence (target behavior)
 
+Today the E-stop is hardware-only: the sense input is not wired, so step 1 is the operator's check, and step 2 has no sensor health part. The runtime enforces steps 3–5 through the physical reference grant, the enable completion gate and the gravity preflight (see [AGENTS.md](../AGENTS.md) runtime contracts).
+
 1. Verify E-stop released (hardware).
 2. Precheck CAN, faults, sensor health (if configured).
 3. Homing → all joints **Verified** → software `Disabled` → `Ready`.
@@ -76,7 +78,7 @@ sequence still refuses, because grants do not cross processes. See
 
 Document actual pin/signal mapping in [hardware/electrical/wiring/](../hardware/electrical/wiring/) as it is finalized.
 
-## Upright-pose incident (4-DOF arm)
+## Upright-pose incident (early arm bring-up)
 
 During early arm bring-up with the arm elevated (shoulder/elbow up), motion stopped while the arm was unsupported. Without gravity feedforward, the arm fell rapidly into the operator workspace.
 

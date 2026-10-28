@@ -5,11 +5,11 @@
 
 ## Context
 
-[`ChappeLogLayer`](../crates/chappe/src/tracing_layer.rs) forwarded only the tracing message string to Consul. Rich structured fields (`joint`, `error`, `operator_id`, position-hold diagnostics) were visible in journal/stdout but lost on the `logs/structured` wire path and in SQLite FTS search.
+[`ChappeLogLayer`](../../crates/chappe/src/tracing_layer.rs) forwarded only the tracing message string to Consul. Rich structured fields (`joint`, `error`, `operator_id`, position-hold diagnostics) were visible in journal/stdout but lost on the `logs/structured` wire path and in SQLite FTS search.
 
 ## Decision
 
-1. Add optional `fields_json` to `LogEvent` (field 6) and `StructuredLogEntry` (field 7) in [`proto/marengo/v1/marengo.proto`](../proto/marengo/v1/marengo.proto).
+1. Add optional `fields_json` to `LogEvent` (field 6) and `StructuredLogEntry` (field 7) in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/marengo.proto).
 2. `ChappeLogLayer` collects all non-`message` tracing fields into a JSON object; omit the proto field when empty (backward compatible).
 3. Cap serialized `fields_json` at **2048 bytes**; set `"_truncated": true` when truncated.
 4. Extend SQLite `log_events.fields_json` and FTS index (schema migration v2 in `marengo-store`).

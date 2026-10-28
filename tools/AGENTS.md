@@ -10,7 +10,7 @@ tools/
 ├── marengo-research-mcp/     # Python/uv MCP server: research tooling (+ TS launch.ts)
 ├── limit-sync-local/         # Loopback Set Limits → git sync (server.ts)
 ├── compound-auto-learn/      # Local BFF: Cursor Agent.prompt for Compound Auto Learn
-└── protoc-28.3-win64/        # Vendored protoc binary (Windows x64)
+└── protoc-28.3-win64/        # Local-only protoc binary for Windows (gitignored: `tools/protoc-*/`)
 ```
 
 ## WHERE TO LOOK
@@ -21,12 +21,12 @@ tools/
 | Research MCP setup | `just research-mcp-setup` (uv sync) |
 | Compound Auto Learn BFF | `cd tools/compound-auto-learn && npm start` (see README; loopback + `AUTO_LEARN_TOKEN`) |
 | MCP config | `.cursor/mcp.json` (which servers Cursor loads) |
-| Protoc (Windows) | `tools/protoc-28.3-win64/` (used by proto codegen) |
+| Protoc (Windows) | `tools/protoc-28.3-win64/` when present locally (gitignored; used by proto codegen) |
 
 ## CONVENTIONS
 
 - MCP servers are rebuilt with `just mcp-build` — restart MCP in Cursor after.
-- `marengo-pi-mcp` exposes tools like `pi_health`, `pi_can_status`, `pi_hold_on`, `pi_sync_main`, `pi_logs_*` — see `.cursor/rules/pi-mcp-first.mdc`.
+- `marengo-pi-mcp` exposes tools like `pi_health`, `pi_can_status`, `pi_hold_on`, `pi_motion_suite`, `pi_enable_soak`, `pi_sync_main`, `pi_logs_*` — see `tools/marengo-pi-mcp/README.md` and `.cursor/rules/pi-mcp-first.mdc`.
 - When MCP is unavailable (cloud), fall back to `scripts/pi-remote.sh`.
 - `marengo-research-mcp` uses `uv` (Python), not npm.
 
@@ -34,4 +34,4 @@ tools/
 
 - Falling back to user-run SSH when marengo-pi MCP tools exist and can do the task.
 - Letting MCP servers drift from the Pi runtime API — rebuild after proto/bin changes.
-- Editing vendored protoc binary.
+- Committing a local protoc binary.

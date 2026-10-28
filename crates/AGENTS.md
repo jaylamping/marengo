@@ -1,6 +1,6 @@
 # crates/ — Armée libraries
 
-15 Rust crates, each with a `//!` crate-root doc declaring responsibilities, does-nots, and allowed deps. **Read `src/lib.rs` before editing any crate.**
+15 Rust crates, each with a `//!` crate-root doc declaring responsibilities, does-nots, and allowed deps. **Read each crate's `src/lib.rs` before editing it.**
 
 ## Codename map
 
@@ -27,7 +27,7 @@
 | Task | Location |
 |------|----------|
 | Control loop tick | `berthier/src/loop.rs` (`ControlLoop`, `tick`) |
-| Safety supervisor | `davout/src/lib.rs:367` (`Supervisor` struct) |
+| Safety supervisor | `davout/src/lib.rs` (`Supervisor` struct) |
 | `disable_all` / `enable_targets` | `davout/src/lib.rs` |
 | MIT CAN frame encode/decode | `robstride/src/` (`encode_*`, `decode_*` helpers) |
 | Gravity compensation | `armee-dynamics/src/` (`gravity_torques`) |

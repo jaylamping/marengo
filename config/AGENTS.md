@@ -10,8 +10,8 @@ config/
 ├── motors.yaml               # Motor map: CAN ID, joint name, direction, gear_ratio, motor_type
 ├── robot.yaml                # URDF path (`assets/urdf/marengo.urdf`), torque/velocity bench caps
 ├── homing.yaml               # Homing sequence params
-├── motors_humanoid.yaml      # Full humanoid motor map (future)
-└── robot_humanoid.yaml       # Full humanoid robot config (future)
+├── motors_humanoid.yaml      # 23-joint humanoid motor map template (tests only until M6)
+└── robot_humanoid.yaml       # 23-joint humanoid robot template (tests only until M6)
 ```
 
 Pi durable layout: `/opt/marengo/config/` (same four YAML files). Historical bringup profiles live in git history and `assets/urdf/archive/`.
@@ -26,18 +26,18 @@ Pi durable layout: `/opt/marengo/config/` (same four YAML files). Historical bri
 | Motor direction/gearing | `motors.yaml` (Davout applies transforms) |
 | Torque caps | `robot.yaml` → `robot.bench` + per-joint in `motors.yaml` |
 | Homing config | `homing.yaml` |
-| Zero calibration registry | `var/calibration/zero_registry.yaml` (runtime, not here) |
+| Reference journal | Beside `homing.yaml` `calibration_record_path` (runtime, not here). History only; the old `zero_registry.yaml` registry is retired (docs/homing.md) |
 
 ## CONVENTIONS
 
 - **Velocity caps resolve only from `control.yaml`** — `motors.yaml`/`robot.yaml`/URDF velocity fields do NOT override (ADR 0010).
-- **`MARENGO_CONFIG_DIR`** defaults to `/opt/marengo/config` on Pi; dev uses `<repo>/config` when unset.
-- Edit locally → `pi_sync_bench_config` (MCP) or `scripts/pi-remote.sh` to sync to Pi (Phase 4 retargets to master paths).
+- **Config dir resolution:** `MARENGO_CONFIG_DIR`, else `/opt/marengo/config` **if it exists**, else `<repo>/config`. A stray `/opt/marengo/config` on a dev host silently wins.
+- Edit locally → `pi_sync_bench_config` (MCP, YAML only) or `pi_sync_bench_urdf` (URDF, ADR 0017), or `scripts/pi-remote.sh` from the cloud.
 - Danger zone rules evaluate **measured** `q`/`dq`, not commanded MIT fields.
 
 ## ANTI-PATTERNS
 
 - Setting velocity caps in `motors.yaml` or `robot.yaml` — ignored, use `control.yaml`.
-- Assuming `SetZero` alone establishes calibration — `zero_registry.yaml` audit required.
+- Assuming `SetZero` or a journal row establishes reference — only a process-local physical grant does (ADR 0036).
 - Editing Pi configs directly without syncing from repo — drift.
 - Using `config/bringup/*` as runtime SoT — retired; use root master tree.

@@ -4,6 +4,8 @@ Status: **Proposed implementation design**. September 29, 2026. The repair roadm
 authorizes implementation in reviewed slices; the interfaces below are targets,
 not capabilities already supplied by the current runtime.
 
+*Current state (2026-10-28):* the slices landed as ADRs 0020–0038 (feedback/fault authority, bounded CAN ingress, reference history and process-local physical grants, stop-before-persistence, motion-owner lease, gateway access). The remaining open items are listed in [`docs/status.md`](../status.md).
+
 ## Problem
 
 The repository review found safety and lifecycle rules spread across Davout,

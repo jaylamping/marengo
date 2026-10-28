@@ -1,9 +1,9 @@
-# ADR 0006 (hardware): Robstride RS00–RS04 MIT protocol
+# Hardware ADR 0002: Robstride RS00–RS04 MIT protocol
 
 **Status:** Accepted  
 **Date:** 2025-05-19
 
-> File name `0002-robstride-protocol.md` under `hardware/docs/decisions/` — companion to repo-root ADR 0004/0005.
+> Formerly titled "ADR 0006 (hardware)". Companion to software [ADR 0004](../../../docs/decisions/0004-control-modes-and-mit.md) (control modes and MIT command model).
 
 ## Primary sources
 
@@ -106,16 +106,16 @@ Vendor free-drive sensing (manual §4.1.11; [Seeed RobStride control](https://wi
 
 Unit coverage: `lifecycle.rs` §4.1.11 encode tests; `mit.rs` type-24 decode roundtrip; Davout lease/TTL/ACTIVE-exclusion tests.
 
-## Appendix: vCAN test harness (SocketCAN)
+## Appendix: own-message echo and the vCAN test harness (SocketCAN)
 
-Marengo’s ignored SocketCAN integration tests open a **`vcan*`** interface and send/receive on the **same socket** (`crates/robstride/src/bus.rs`, `configure_vcan_loopback`). On real `can0`/`can1` hardware this is not applied.
+Every SocketCAN bus, real or virtual, enables loopback and `CAN_RAW_RECV_OWN_MSGS` (`configure_own_message_echo` in `crates/robstride/src/bus.rs`). On real `can0`/`can1` the kernel echoes each own transmission on TX completion, and Davout uses those echoes to order wire events (for example, the type-24 Off echo before any Enable). `SO_TIMESTAMPNS` receive timestamps are enabled too. The ignored SocketCAN integration tests use the same echo on a **`vcan*`** interface for send→recv roundtrips.
 
 | Setting | vcan only | Purpose |
 |---------|-----------|---------|
 | `SOCK_RAW` loopback | `set_loopback(true)` | TX frames are visible to the same socket’s RX queue |
 | `CAN_RAW_RECV_OWN_MSGS` | `set_recv_own_msgs(true)` | Driver delivers self-sent frames for send→recv roundtrip tests |
 
-**Production path unchanged:** live bench CAN does not enable loopback; protocol encoding and MIT lifecycle frames are identical. See [Seeed RobStride control](https://wiki.seeedstudio.com/robstride_control/) for vendor MIT semantics.
+Protocol encoding and MIT lifecycle frames are identical on vcan and real hardware. See [Seeed RobStride control](https://wiki.seeedstudio.com/robstride_control/) for vendor MIT semantics.
 
 ## Related
 

@@ -2,6 +2,8 @@
 
 Shoulder pitch, shoulder roll, and future arm joints use **three Hall effect sensors per joint** plus **one magnet** on the rotating output.
 
+> **Status (2026-10-28): design only, not built or wired.** No GPIO adapter exists and the `hall_three_sensor` homing method is deferred ([ADR 0006](../../docs/decisions/0006-homing-zero-reference.md) amendment). The bench arm references joints with the qualified physical Set Zero workflow of [ADR 0036](../../docs/decisions/0036-physical-robstride-reference.md) at a mechanical reference pose.
+
 ## Layout
 
 ```text
