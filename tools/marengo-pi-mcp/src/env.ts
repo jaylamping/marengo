@@ -52,6 +52,18 @@ export function wrapRemoteWithConfig(
   return parts.join("\n");
 }
 
+/**
+ * The MARENGO_CONFIG_DIR a remote script runs with: the last export a {@link remotePreamble}
+ * wrote into it, or undefined when it has none.
+ */
+export function remoteConfigDir(script: string): string | undefined {
+  let dir: string | undefined;
+  for (const m of script.matchAll(/^export MARENGO_CONFIG_DIR='((?:[^']|'\\'')*)'$/gm)) {
+    dir = m[1].replace(/'\\''/g, "'");
+  }
+  return dir;
+}
+
 export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }

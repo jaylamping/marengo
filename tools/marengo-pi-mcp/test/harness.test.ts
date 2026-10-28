@@ -182,7 +182,7 @@ describe("bench harness config", () => {
     for (const name of names) assert.match(session, new RegExp(`=== harness suite ${name} ===`));
     assert.equal(session.match(/printf '%s\\n' 'quit'/g)?.length, 1);
     // The bus settles (no CAN owner, error counters still) before marengo-pi binds can0.
-    assert.match(session, /can_error_counters\(\) \{[\s\S]*can settle: ok[\s\S]*\} \| timeout \d+ bin\/marengo-pi/);
+    assert.match(session, /can_error_counters\(\) \{[\s\S]*can settle: ok[\s\S]*\} \| timeout --foreground \d+ bin\/marengo-pi/);
     assert.ok(!bodies.some((b) => b.includes("motor-repl set-zero") || b.includes("motor-repl homing-status")));
 
     assert.match(out, /\[PASS\] reference_acquire/);

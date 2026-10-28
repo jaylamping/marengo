@@ -335,7 +335,7 @@ describe("pi_gravity_calibrate session", () => {
     assert.deepEqual(lines.slice(-4), ["hold-at right_shoulder_pitch 0", "status", "disable", "quit"]);
     assert.match(session, /sleep 4;\n/);
     // 50 s reference + 12 steps × 4 s + 6 s return = 104 s.
-    assert.match(session, /\} \| timeout 114 \$PI_BIN/);
+    assert.match(session, /\} \| timeout --foreground 114 \$PI_BIN/);
     assert.equal(h.timeouts[3], 104_000 + 30_000 + 20_000);
     assert.match(session, /can errors after marengo-pi/);
     assert.match(session, /bin\/motor-repl disable/);
