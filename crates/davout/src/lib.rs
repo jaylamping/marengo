@@ -4349,12 +4349,14 @@ mod tests {
                 torque_ff_nm: 2.0,
             };
             let refused = sup.apply_danger_zone_clamps(&mut cmd, 1.0, -0.5);
-            match refused {
-                Err(DavoutError::InvalidMotorConfig { message, .. }) => {
-                    assert!(message.contains("danger zone"), "{action}: {message}");
-                }
-                other => panic!("{action}: expected a refusal, got {other:?}"),
-            }
+            assert!(
+                matches!(
+                    &refused,
+                    Err(DavoutError::InvalidMotorConfig { message, .. })
+                        if message.contains("danger zone")
+                ),
+                "{action}: expected a refusal, got {refused:?}"
+            );
             assert_eq!(
                 cmd.torque_ff_nm, 2.0,
                 "{action}: no cap taken from the velocity bound"
