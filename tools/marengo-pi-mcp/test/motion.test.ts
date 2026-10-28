@@ -188,11 +188,13 @@ describe("marengo-pi script tool", () => {
 
   it("sends disable and quit after a timed hold dwell", async () => {
     let script = "";
+    let sshMs: number | undefined;
     const tools = registerMotionTools(
       cfg,
-      async (body) => {
+      async (body, timeoutMs) => {
         if (isGravityPreviewBody(body)) return gravityPreviewReply();
         script = body;
+        sshMs = timeoutMs;
         return body;
       },
       () => {},
@@ -216,8 +218,10 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /sleep 6;/);
     assert.match(script, /printf '%s\\n' 'disable';/);
     assert.match(script, /printf '%s\\n' 'quit';/);
-    // 10 s dwell + 6 s return + 10 s acquisition budget (1 joint) + 10 s slack.
-    assert.match(script, /\} \| timeout 36 \$PI_BIN/);
+    // 10 s dwell + 6 s return + 10 s acquisition budget (1 joint) + 2 × 10 s for the awaited
+    // home and enable replies (TOOL-19) + 10 s slack; ssh outlives the pipe.
+    assert.match(script, /\} \| timeout 56 \$PI_BIN/);
+    assert.equal(sshMs, 46_000 + 20_000 + 20_000);
     assert.match(script, /bin\/motor-repl disable/);
   });
 

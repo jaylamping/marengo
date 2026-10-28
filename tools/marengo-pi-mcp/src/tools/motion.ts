@@ -348,6 +348,15 @@ export function scriptSleepTotalSec(script: string[]): number {
   return total;
 }
 
+/**
+ * Worst-case wait of the awaited `home` readiness and `enable` lines in an admitted pipe
+ * ({@link admissionGateShell}): not in {@link scriptSleepTotalSec}, so pipe timeouts add it
+ * (TOOL-19).
+ */
+export function admissionReplyBudgetSec(script: string[]): number {
+  return script.filter((line) => admissionGateShell(line) !== null).length * ADMISSION_REPLY_SEC;
+}
+
 /** After each `wave` line, insert a sleep for in-loop wave duration (+ slack). */
 export function expandScriptWithWaveWaits(script: string[]): string[] {
   const out: string[] = [];
@@ -514,7 +523,7 @@ function marengoPiTimedPipe(
     "disable",
     "quit",
   ];
-  return marengoPiAdmittedPipe(lines, scriptSleepTotalSec(lines) + 10);
+  return marengoPiAdmittedPipe(lines, scriptSleepTotalSec(lines) + admissionReplyBudgetSec(lines) + 10);
 }
 
 /**
@@ -858,7 +867,11 @@ export function registerMotionTools(
         const body = benchLogWrapper(cfg, pipeCmd, "hold-on", configDir);
         const session = `${gravity.report}\n${await runRemote(
           body,
-          (timeoutSec + returnHomeSec + referenceJoints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT) * 1000 +
+          (timeoutSec +
+            returnHomeSec +
+            referenceJoints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT +
+            2 * ADMISSION_REPLY_SEC) *
+            1000 +
             20_000 +
             CAN_SESSION_SLACK_MS,
         )}`;
@@ -961,7 +974,7 @@ export function registerMotionTools(
             ? args.timeout_sec
             : Math.max(
                 DEFAULT_MOTION_TIMEOUT_SEC,
-                Math.ceil(sleepBudget + 10),
+                Math.ceil(sleepBudget + admissionReplyBudgetSec(expanded) + 10),
               );
         const script = ensureScriptQuit(expanded);
         const pipeTimeoutSec = controlTimeoutSec;
