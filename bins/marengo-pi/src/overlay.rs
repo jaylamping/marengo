@@ -326,6 +326,10 @@ impl ActuatorOverlay {
                 ))])
             }
             Ok(TuningTier::ConfigOverlay) => {
+                // Berthier reads `supervisor.control` gains every tick, so a
+                // live config retune moves a held joint like RuntimeMit (RT-08).
+                self.motion
+                    .admit(CommandSource::Chappe, CommandClass::Motion, "config tuning")?;
                 // Clone-then-commit: never leave live config mutated if validate/enqueue fails.
                 let mut draft = loop_ctrl.supervisor().control.clone();
                 let entry = draft

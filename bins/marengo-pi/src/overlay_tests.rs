@@ -1103,3 +1103,41 @@ fn runtime_tuning_from_non_owner_chappe_is_refused() {
         .expect("owner runtime tuning");
     assert!(loop_ctrl.gain_override("right_elbow_pitch").is_some());
 }
+
+/// ConfigOverlay changes the live gains Berthier reads every tick: only the
+/// motion owner may send it, and a refusal touches neither memory nor disk.
+#[test]
+fn config_tuning_from_non_owner_chappe_is_refused() {
+    use crate::motion_owner::{CommandSource, MotionLease};
+
+    let (_tmp, config_dir, _revision) = copy_profile_to_temp();
+    let disk_before = std::fs::read(config_dir.join("control.yaml")).expect("control.yaml");
+    let mut overlay = test_overlay();
+    overlay.set_motion_lease(MotionLease::new(CommandSource::Stdin));
+    let mut loop_ctrl = test_loop();
+    let kp_before = loop_ctrl.supervisor().control.control.joints["right_elbow_pitch"]
+        .impedance
+        .kp;
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "impedance.kp",
+        kp_before + 1.0,
+        TuningTier::ConfigOverlay as i32,
+    );
+    let err = overlay
+        .apply_operator_command(&mut loop_ctrl, &config_dir, &op)
+        .expect_err("non-owner config tuning");
+    assert!(matches!(err, OverlayError::Motion(_)), "{err}");
+    assert!(err.to_string().contains("owned by stdin"), "{err}");
+    assert_eq!(
+        loop_ctrl.supervisor().control.control.joints["right_elbow_pitch"]
+            .impedance
+            .kp,
+        kp_before
+    );
+    assert!(overlay.persist.wait_idle(Duration::from_secs(2)));
+    assert_eq!(
+        std::fs::read(config_dir.join("control.yaml")).expect("control.yaml"),
+        disk_before
+    );
+}
