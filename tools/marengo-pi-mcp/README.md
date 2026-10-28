@@ -240,10 +240,15 @@ No-motion enable reliability check (`src/tools/enable-soak.ts`). Run it after fi
 
 ### `pi_sync_main`
 
-1. Local `git pull --ff-only` on `main` (fails if dirty)
-2. `./scripts/deploy-pi.sh joey@marengo.local`
-3. Remote `install-pi.sh` → `/opt/marengo`
-4. Writes `/opt/marengo/.deploy-rev`
+`strategy: "cross"` (default) builds the local checkout:
+
+1. Refuses unless the local checkout is already on `main` (it never switches your branch) and clean, including untracked files under `config/`, `assets/` and `scripts/`
+2. Local `git pull --ff-only origin main`
+3. `./scripts/deploy-pi.sh joey@marengo.local` (build and rsync only; Windows: `deploy-pi-docker.ps1 -NoInstall`)
+4. Remote `install-pi.sh` → `/opt/marengo`, once; a failed install fails the tool
+5. Writes `/opt/marengo/.deploy-rev`
+
+`strategy: "pi_native"` builds `origin/main` on the Pi with `scripts/pi-self-update.sh` and never touches the local checkout.
 
 ### `pi_restart_marengo_pi`
 
