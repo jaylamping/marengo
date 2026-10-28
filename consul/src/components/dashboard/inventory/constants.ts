@@ -63,6 +63,7 @@ export const KIND_OPTIONS = [
 
 export const STATUS_OPTIONS = [
   { label: 'Enabled', value: 'Enabled' },
+  { label: 'Disabled', value: 'Disabled' },
   { label: 'Nominal', value: 'Nominal' },
   { label: 'Tuning', value: 'Tuning' },
   { label: 'Fault', value: 'Fault' },
