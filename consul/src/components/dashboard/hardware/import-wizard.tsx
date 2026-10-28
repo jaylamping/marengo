@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -343,14 +343,19 @@ function ArchiveRestorePicker({
   onRestore: (uploadId: string) => void;
 }) {
   const [ids, setIds] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
 
-  if (!loaded) {
+  // Fetched once per mount in an effect, not as a render side effect (UI-29).
+  useEffect(() => {
+    let cancelled = false;
     void fetchUrdfArchiveList().then((list) => {
-      setIds(list?.entries.map((e) => e.upload_id) ?? []);
-      setLoaded(true);
+      if (!cancelled) {
+        setIds(list?.entries.map((e) => e.upload_id) ?? []);
+      }
     });
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (ids.length === 0) {
     return null;
