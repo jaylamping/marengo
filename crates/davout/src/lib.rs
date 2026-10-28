@@ -1299,27 +1299,32 @@ impl<B: MotorBus> Supervisor<B> {
                 (FaultClass::WrongSign, Some(joint.as_str()))
             }
             DavoutError::DangerZone { joint, .. } => (FaultClass::DangerZone, Some(joint.as_str())),
-            DavoutError::Bus(
-                BusError::Send { .. } | BusError::Driver(_) | BusError::ReceiveIncomplete { .. },
-            ) => (FaultClass::Transport, None),
-            // A batch the bus refused after admission is a controller defect;
-            // a valid prefix may already be on the wire (P2C-02).
-            DavoutError::Bus(
+            // No wildcard: a new bus error must be classified here, never left
+            // without a latch and a stop by default (P2C-04).
+            DavoutError::Bus(bus) => match bus {
+                BusError::Send { .. }
+                | BusError::Driver(_)
+                | BusError::ReceiveIncomplete { .. } => (FaultClass::Transport, None),
+                // A batch the bus refused after admission is a controller defect;
+                // a valid prefix may already be on the wire (P2C-02).
                 BusError::InvalidCommand(_)
                 | BusError::CommandAddressMismatch { .. }
                 | BusError::DuplicateMotorAddress { .. }
                 | BusError::DuplicateCommand { .. }
-                | BusError::UnknownMotorAddress { .. },
-            ) => (FaultClass::Controller, None),
-            DavoutError::Bus(BusError::MalformedFeedback { address, .. }) => {
-                let joint = self
-                    .motors
-                    .motors
-                    .iter()
-                    .find(|motor| MotorAddress::from(*motor) == *address)
-                    .map(|motor| motor.joint.as_str());
-                (FaultClass::Feedback, joint)
-            }
+                | BusError::UnknownMotorAddress { .. }
+                | BusError::UnknownJoint { .. } => (FaultClass::Controller, None),
+                BusError::MalformedFeedback { address, .. } => {
+                    let joint = self
+                        .motors
+                        .motors
+                        .iter()
+                        .find(|motor| MotorAddress::from(*motor) == *address)
+                        .map(|motor| motor.joint.as_str());
+                    (FaultClass::Feedback, joint)
+                }
+                // An empty receive poll ends a drain; it reports no failure.
+                BusError::RecvTimeout => return false,
+            },
             _ => return false,
         };
         let address = joint

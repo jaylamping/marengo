@@ -1,4 +1,5 @@
-//! A batch the bus refuses after admission latches and stops (P2C-02).
+//! A batch the bus refuses after admission latches and stops (P2C-02), and
+//! every bus error is classified explicitly (P2C-04).
 #![allow(clippy::expect_used)]
 
 use std::path::PathBuf;
@@ -38,4 +39,22 @@ fn a_bus_refusal_after_admission_latches_a_controller_fault() {
         let class = sup.fault_authority.first_fault().map(|fault| fault.class);
         assert_eq!(class, Some(FaultClass::Controller), "{error}");
     }
+}
+
+#[test]
+fn an_unknown_joint_from_the_bus_latches_a_controller_fault() {
+    let mut sup = supervisor();
+    let error = DavoutError::Bus(BusError::UnknownJoint {
+        joint: "ghost".into(),
+    });
+    sup.stop_after_runtime_error(&error);
+    let class = sup.fault_authority.first_fault().map(|fault| fault.class);
+    assert_eq!(class, Some(FaultClass::Controller), "{error}");
+}
+
+#[test]
+fn an_empty_receive_poll_does_not_latch() {
+    let mut sup = supervisor();
+    sup.stop_after_runtime_error(&DavoutError::Bus(BusError::RecvTimeout));
+    assert!(!sup.has_latched_fault());
 }
