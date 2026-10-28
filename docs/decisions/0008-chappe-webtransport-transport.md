@@ -31,6 +31,7 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 | GET | `/snapshot/host/metrics/jetson` | — | `application/x-protobuf` `HostMetrics` |
 | GET | `/stream/chappe?topics=…` | — | `application/vnd.marengo.chappe-stream` chunked Envelope stream |
 | POST | `/command/enable` | `application/x-protobuf` `EnableRequest` | JSON `{ "ok": true }` |
+| POST | `/command/disable` | empty (no credential; Origin checked) | JSON `{ "ok": true }` |
 
 ### WebTransport contract (phase 1)
 
@@ -63,6 +64,10 @@ Gateway is the **reference WebTransport transport** for Chappe. A future `--tran
 - Topic strings now live in one place, `crates/chappe/src/topics.rs`. The gateway's subscribe allowlist (`ALLOWED_TOPICS` in `bins/marengo-gateway/src/state.rs`) adds the runtime-connection, testing-telemetry, `robot/actuator/limits` and `robot/audit/*` topics to the list above. Gateway → runtime commands are limited to the `COMMAND_TOPICS` allowlist and refused when more than 1000 ms old.
 - The gateway is the Chappe IPC **listener** on `/run/marengo/chappe.sock`. `marengo-pi` connects as a client only when `MARENGO_CHAPPE_SOCKET` is set.
 - Auth is no longer bench-open: [ADR 0033](0033-gateway-runtime-access.md) defines the shared gateway access policy and runtime credentials.
+- **`POST /command/disable` is deliberately credential-free (EDGE-01).** Consul keeps credentials in tab memory, so a reloaded or second tab could not stop the robot through the Control-gated `/command/enable`. A stop must never wait for a credential.
+  - Trade-off: anything that can reach `:8080` or `:8444` can disable the drives with one unauthenticated POST. A browser on a foreign Origin is refused, but a request with no Origin header (curl, a script) passes, and the route has no rate limit (no stop is ever refused for rate). Disabling an elevated arm drops it, so on the bench this is a nuisance and a drop hazard, not a way to move the arm: the route can only publish `enable=false`, and marengo-pi then forbids implicit re-enable until an explicit enable.
+  - Accepted because the network is a bench LAN, and a stop that can be lost behind a stale credential is worse. If the gateway is ever exposed beyond that LAN, revisit this (bind to localhost, or require a stop-only credential every tab can hold).
+  - Every call is logged (`credential-free disable requested`, with `peer` and `origin`), and the published `EnableRequest.operator_id` is `consul peer=<ip:port>`, so marengo-pi's `disable via Chappe` line names the sender too. The peer is the TCP peer as the gateway sees it; it says where the request came from, not who sent it.
 
 ## Consequences
 

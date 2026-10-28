@@ -32,8 +32,12 @@ export function validateMotionConfirm(
     };
   }
 
-  const profile = effectiveProfile(envProfile, args.profile);
-  if (requiresWeightedDoubleConfirm(profile)) {
+  // An argument profile can only make the gate stricter (TOOL-04): the
+  // launcher's profile describes what is bolted to the bench.
+  const weighted =
+    requiresWeightedDoubleConfirm(envProfile) ||
+    (args.profile !== undefined && requiresWeightedDoubleConfirm(args.profile));
+  if (weighted) {
     if (args.confirm_weighted_motion !== true) {
       return {
         ok: false,

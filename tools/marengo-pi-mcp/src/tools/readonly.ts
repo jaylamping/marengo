@@ -163,8 +163,8 @@ export function registerReadonlyTools(
           return `Error: path not allowlisted: ${args.path}`;
         }
         const cmd = args.tail
-          ? `tail -n ${args.tail} ${JSON.stringify(args.path)}`
-          : `cat ${JSON.stringify(args.path)}`;
+          ? `tail -n ${args.tail} ${shellQuote(args.path)}`
+          : `cat ${shellQuote(args.path)}`;
         const body = wrapRemote(cfg, cmd);
         return runRemote(body, 30_000);
       },
@@ -233,7 +233,7 @@ export function registerReadonlyTools(
       }) => {
         const body = wrapRemote(
           cfg,
-          `test -x bin/imu-probe && bin/imu-probe --bus ${JSON.stringify(args.bus)} --address ${JSON.stringify(args.address)} --samples ${args.samples} || echo 'imu-probe missing or failed'`,
+          `test -x bin/imu-probe && bin/imu-probe --bus ${shellQuote(args.bus)} --address ${shellQuote(args.address)} --samples ${args.samples} || echo 'imu-probe missing or failed'`,
         );
         return runRemote(body, 30_000);
       },

@@ -103,7 +103,12 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
       right_shoulder_pitch: [{ targetRad: 1.8, durationSec: 3.5 }],
       right_shoulder_roll: [{ targetRad: 0.68, durationSec: 3.5 }],
       right_upper_arm_yaw: [{ targetRad: -0.11, durationSec: 3.5 }],
-      right_elbow_pitch: [{ targetRad: 0.97, durationSec: 3.5 }],
+      // wave_pose, then down to the wave's start: Berthier refuses a wave
+      // that starts more than 0.02 rad from the held elbow target.
+      right_elbow_pitch: [
+        { targetRad: 0.97, durationSec: 3.5 },
+        { targetRad: 0.55, durationSec: 2.5 },
+      ],
       right_lower_arm_yaw: [{ targetRad: 1.47, durationSec: 3.5 }],
     },
     nativeWave: {

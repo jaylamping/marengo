@@ -41,6 +41,8 @@ interface CompoundRunner {
   settledSinceMs: number | null;
   phase: 'raise' | 'wave';
   waveEndsAtMs: number | null;
+  /** Execution mode frozen at Start: the Dry Run box cannot change a run (UI-03). */
+  dry: boolean;
 }
 
 const initialRunner: CompoundRunner = {
@@ -52,7 +54,13 @@ const initialRunner: CompoundRunner = {
   settledSinceMs: null,
   phase: 'raise',
   waveEndsAtMs: null,
+  dry: true,
 };
+
+/** A run posts only while the store still says it runs (UI-04). */
+function runStillLive(): boolean {
+  return useCompoundStore.getState().isRunning;
+}
 
 export function useCompoundPlayback() {
   const selectedPresetId = useCompoundStore((state) => state.selectedPresetId);
@@ -90,7 +98,7 @@ export function useCompoundPlayback() {
   );
 
   const returnHome = React.useCallback(
-    async (jointNames: string[]) => {
+    async (jointNames: string[], dry: boolean) => {
       const joints = jointNames.map((name) =>
         create(MitJointCommandSchema, {
           name,
@@ -100,7 +108,7 @@ export function useCompoundPlayback() {
           torqueFf: 0,
         }),
       );
-      if (!useTestingStore.getState().dryRun && joints.length > 0) {
+      if (!dry && joints.length > 0) {
         await postPositionBatch(joints);
       }
     },
@@ -109,10 +117,14 @@ export function useCompoundPlayback() {
 
   const stopRunner = React.useCallback(
     (opts?: { returnHome?: boolean }) => {
+      const wasRunning = runnerRef.current.intervalId !== null;
       if (runnerRef.current.intervalId !== null) {
         window.clearInterval(runnerRef.current.intervalId);
         runnerRef.current.intervalId = null;
       }
+      const dry = wasRunning
+        ? runnerRef.current.dry
+        : useTestingStore.getState().dryRun;
       const compound = useCompoundStore.getState();
       compound.setIsRunning(false);
       compound.setProgress(0);
@@ -136,7 +148,7 @@ export function useCompoundPlayback() {
       compound.setReturnHomePending(true);
       void (async () => {
         try {
-          await returnHome(playable.preset.joints);
+          await returnHome(playable.preset.joints, dry);
           await new Promise((resolve) => window.setTimeout(resolve, 2500));
         } finally {
           useCompoundStore.getState().setReturnHomePending(false);
@@ -168,11 +180,18 @@ export function useCompoundPlayback() {
     compound.setProgress(0);
   }, [selectedPresetId]);
 
+  // A run ended from outside (E-STOP, Disable) stops its interval at once.
   React.useEffect(() => {
-    if (isRunning && !dryRun && (operationalMode !== 'ACTIVE' || !connected)) {
+    if (isRunning || runnerRef.current.intervalId === null) return;
+    window.clearInterval(runnerRef.current.intervalId);
+    runnerRef.current.intervalId = null;
+  }, [isRunning]);
+
+  React.useEffect(() => {
+    if (isRunning && !runnerRef.current.dry && (operationalMode !== 'ACTIVE' || !connected)) {
       stopRunner({ returnHome: false });
     }
-  }, [connected, dryRun, isRunning, operationalMode, stopRunner]);
+  }, [connected, isRunning, operationalMode, stopRunner]);
 
   React.useEffect(() => {
     if (!isRunning || !selectedPresetId || !usingOverlayRef.current) return;
@@ -259,6 +278,7 @@ export function useCompoundPlayback() {
       trims: Record<string, number>,
       dry: boolean,
     ) => {
+      if (!runStillLive()) return;
       const targets = segmentTargets(
         preset.joints,
         preset.keyframes,
@@ -286,7 +306,7 @@ export function useCompoundPlayback() {
 
     const postNativeWave = async (dry: boolean, speedMultiplier: number) => {
       const wave = preset.nativeWave;
-      if (!wave) return;
+      if (!wave || !runStillLive()) return;
       const halfPeriodSec = Math.max(
         0.05,
         wave.halfPeriodSec / speedMultiplier,
@@ -317,15 +337,19 @@ export function useCompoundPlayback() {
       posting: false,
       phase: 'raise',
       waveEndsAtMs: null,
+      dry: dryRunNow,
     });
     useCompoundStore.getState().setIsRunning(true);
-    void postSegment(
-      0,
-      useCompoundStore.getState().trims,
-      useTestingStore.getState().dryRun,
-    );
+    void postSegment(0, useCompoundStore.getState().trims, dryRunNow);
 
-    runnerRef.current.intervalId = window.setInterval(() => {
+    const intervalId = window.setInterval(() => {
+      if (!runStillLive()) {
+        window.clearInterval(intervalId);
+        if (runnerRef.current.intervalId === intervalId) {
+          runnerRef.current.intervalId = null;
+        }
+        return;
+      }
       if (runnerRef.current.posting) return;
       const compound = useCompoundStore.getState();
       const nowMs = Date.now();
@@ -406,10 +430,7 @@ export function useCompoundPlayback() {
       if (nextSegment >= segmentCount) {
         if (preset.nativeWave) {
           runnerRef.current.posting = true;
-          void postNativeWave(
-            useTestingStore.getState().dryRun,
-            speedMultiplier,
-          ).finally(() => {
+          void postNativeWave(dryRunNow, speedMultiplier).finally(() => {
             runnerRef.current.posting = false;
           });
           return;
@@ -421,14 +442,11 @@ export function useCompoundPlayback() {
         nextSegment = preset.loopFromSegment ?? 0;
       }
       runnerRef.current.posting = true;
-      void postSegment(
-        nextSegment,
-        compound.trims,
-        useTestingStore.getState().dryRun,
-      ).finally(() => {
+      void postSegment(nextSegment, compound.trims, dryRunNow).finally(() => {
         runnerRef.current.posting = false;
       });
     }, 100);
+    runnerRef.current.intervalId = intervalId;
   }, [
     config,
     connected,

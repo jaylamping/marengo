@@ -282,7 +282,14 @@ impl EnableGate {
                         )
                     };
                     self.enable = None;
-                    let _ = loop_ctrl.supervisor_mut().disable_all();
+                    // The explicit enable failed: motion must not re-enable implicitly.
+                    loop_ctrl.forbid_implicit_enable();
+                    let message = match loop_ctrl.supervisor_mut().disable_all() {
+                        Ok(()) => message,
+                        Err(stop) => {
+                            format!("{message}; stop NOT delivered to every drive: {stop}")
+                        }
+                    };
                     loop_ctrl.set_control_mode(ControlMode::Disabled);
                     lines.push(GateLine::Err(message));
                     lines.extend(self.refuse_deferred("enable did not complete"));

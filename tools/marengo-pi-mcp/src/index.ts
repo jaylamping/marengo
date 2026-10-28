@@ -7,7 +7,7 @@ import {
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadConfig } from "./config.js";
-import { execRemote, formatRemoteResult } from "./ssh.js";
+import { callContext, makeRunRemote } from "./cancel.js";
 import { registerReadonlyTools } from "./tools/readonly.js";
 import { registerLogTools } from "./tools/logs.js";
 import { registerAdminTools } from "./tools/admin.js";
@@ -30,10 +30,7 @@ function schemaOf(zodSchema: { _def?: unknown }): Record<string, unknown> {
 async function main() {
   const cfg = loadConfig();
 
-  async function runRemote(body: string, timeoutMs?: number): Promise<string> {
-    const r = await execRemote(cfg, body, { timeoutMs });
-    return formatRemoteResult(r);
-  }
+  const runRemote = makeRunRemote(cfg);
 
   const auditMotion = makeAuditMotion(cfg);
   const readonly = registerReadonlyTools(cfg, runRemote);
@@ -45,15 +42,18 @@ async function main() {
   const enableSoak = registerEnableSoakTools(cfg, runRemote, auditMotion);
   const motionSuite = registerMotionSuiteTools(cfg, runRemote, auditMotion);
 
-  const allTools = {
-    ...readonly,
-    ...logs,
-    ...admin,
+  const motionTools = {
     ...motion,
     ...gravityCalibrate,
     ...jointCalibrate,
     ...enableSoak,
     ...motionSuite,
+  };
+  const allTools = {
+    ...readonly,
+    ...logs,
+    ...admin,
+    ...motionTools,
   };
 
   type ToolEntry = {
@@ -78,7 +78,7 @@ async function main() {
     }),
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const name = request.params.name;
     const tool = allTools[name as keyof typeof allTools] as ToolEntry | undefined;
     if (!tool) {
@@ -92,7 +92,10 @@ async function main() {
       const parsed = (tool.inputSchema as z.ZodTypeAny).parse(
         request.params.arguments ?? {},
       );
-      const text = await tool.handler(parsed);
+      const text = await callContext.run(
+        { signal: extra.signal, motion: name in motionTools },
+        () => tool.handler(parsed),
+      );
       const isError =
         text.startsWith("Motion blocked") ||
         text.startsWith("Weighted motion blocked") ||

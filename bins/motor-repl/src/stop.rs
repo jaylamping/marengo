@@ -78,17 +78,24 @@ impl fmt::Display for StopReport {
     }
 }
 
-/// Addresses to stop. With an interface override every distinct device id is
-/// addressed on that interface (the override replaces `motors.yaml` routing,
-/// as it does for every other motor-repl command).
+/// Addresses to stop: every configured address, plus, with an explicit
+/// `--can-interface`, every distinct device id on that interface too. The
+/// override never replaces configured routing for a stop; a configured
+/// interface that is absent fails its own drives and the stop exits 1.
 pub fn stop_addresses(
     targets: &[MotorStopTarget],
     interface_override: Option<&str>,
 ) -> Vec<MotorAddress> {
     let mut addresses: Vec<MotorAddress> = Vec::with_capacity(targets.len());
-    for target in targets {
-        let interface = interface_override.unwrap_or(&target.can_interface);
-        let address = MotorAddress::new(interface, target.device_id);
+    let routed = targets
+        .iter()
+        .map(|target| MotorAddress::new(&target.can_interface, target.device_id));
+    let overridden = interface_override.into_iter().flat_map(|interface| {
+        targets
+            .iter()
+            .map(move |target| MotorAddress::new(interface, target.device_id))
+    });
+    for address in routed.chain(overridden) {
         if !addresses.contains(&address) {
             addresses.push(address);
         }
@@ -381,15 +388,23 @@ mod tests {
         );
     }
 
+    /// DRV-01: an override adds its interface; configured drives on the
+    /// other buses are still stopped.
     #[test]
-    fn interface_override_reroutes_and_deduplicates_by_device_id() {
+    fn interface_override_adds_to_configured_routing_and_deduplicates() {
         let addresses = stop_addresses(
             &[target("can0", 1), target("can1", 1), target("can1", 2)],
             Some("vcan0"),
         );
         assert_eq!(
             addresses,
-            vec![MotorAddress::new("vcan0", 1), MotorAddress::new("vcan0", 2)]
+            vec![
+                MotorAddress::new("can0", 1),
+                MotorAddress::new("can1", 1),
+                MotorAddress::new("can1", 2),
+                MotorAddress::new("vcan0", 1),
+                MotorAddress::new("vcan0", 2),
+            ]
         );
     }
 

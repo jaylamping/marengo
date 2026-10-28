@@ -31,7 +31,8 @@ fn reserved_owner_refuses_new_torque_mode_and_gain_intent() {
         })
         .expect("real reservation");
     controller.supervisor_mut().bus_mut().clear_trace();
-    controller.set_control_mode(ControlMode::GravityComp);
+    let mode_change = controller.try_set_control_mode(ControlMode::GravityComp);
+    let torque_only = controller.enter_torque_only_zero();
     let mode = controller.control_mode();
     let torque = controller.set_torque_cmd("right_elbow_pitch", 0.25);
     controller.set_control_mode(ControlMode::Impedance);
@@ -64,6 +65,15 @@ fn reserved_owner_refuses_new_torque_mode_and_gain_intent() {
         ),
         "reference reservation must reject new torque intent before latching it"
     );
+    for refused in [&mode_change, &torque_only] {
+        assert!(
+            matches!(
+                refused,
+                Err(LoopError::Safety(DavoutError::ReferenceBusy { .. }))
+            ),
+            "a refused mode change must say so, not succeed silently: {refused:?}"
+        );
+    }
     assert!(matches!(
         gain,
         Err(LoopError::Safety(DavoutError::ReferenceBusy { .. }))

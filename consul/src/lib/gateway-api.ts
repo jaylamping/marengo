@@ -89,6 +89,15 @@ export async function postEnableCommand(enable: boolean): Promise<void> {
   if (!endpoints) {
     throw new Error('Chappe endpoints not configured');
   }
+  if (!enable) {
+    // A stop needs no credential: a reloaded or second tab has none in memory.
+    const res = await fetch(`${endpoints.httpUrl}/command/disable`, { method: 'POST' });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`disable failed: ${res.status} ${text}`);
+    }
+    return;
+  }
   const request = create(EnableRequestSchema, {
     timestampMs: BigInt(Date.now()),
     operatorId: 'consul',

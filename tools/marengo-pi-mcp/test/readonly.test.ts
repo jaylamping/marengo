@@ -1,6 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { MarengoPiConfig } from "../src/config.js";
+import { spawnSync } from "node:child_process";
+import { marengoPiPipeLine } from "../src/tools/motion.js";
 import { registerReadonlyTools, renderProtocolInspection } from "../src/tools/readonly.js";
 
 const cfg: MarengoPiConfig = {
@@ -143,5 +145,31 @@ describe("readonly CAN tools", () => {
     await tools.pi_candump_once.handler();
 
     for (const script of scripts) assert.doesNotMatch(script, /motor-repl|marengo-pi /);
+  });
+});
+
+describe("remote strings cannot run commands (TOOL-11)", () => {
+  it("pi_read_file refuses shell metacharacters in an allowlisted path", async () => {
+    const sent: string[] = [];
+    const tools = registerReadonlyTools(cfg, async (body) => {
+      sent.push(body);
+      return "";
+    });
+    for (const path of [
+      "/opt/marengo/config/$(motor-repl set-zero x)",
+      "/opt/marengo/config/`id`",
+      '/opt/marengo/config/a"b',
+    ]) {
+      assert.match(await tools.pi_read_file.handler({ path }), /not allowlisted/, path);
+    }
+    assert.deepEqual(sent, []);
+    await tools.pi_read_file.handler({ path: "/opt/marengo/config/motors.yaml" });
+    assert.match(sent[0], /cat '\/opt\/marengo\/config\/motors\.yaml'/);
+  });
+
+  it("stdin lines are single-quoted, so bash never expands them", () => {
+    const line = marengoPiPipeLine("hold-at $(touch /tmp/pwned) `id`");
+    const r = spawnSync("bash", ["-c", line], { encoding: "utf8" });
+    assert.equal(r.stdout, "hold-at $(touch /tmp/pwned) `id`\n");
   });
 });

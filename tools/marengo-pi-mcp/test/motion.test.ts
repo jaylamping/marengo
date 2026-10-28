@@ -90,8 +90,8 @@ describe("reference acquisition feeder", () => {
   it("recognizes --sign-tested anywhere on the line, as marengo-pi does", () => {
     assert.equal(scriptSleepTotalSec(["home --sign-tested j_a"]), 10);
     assert.match(marengoPiPipeLine("home --sign-tested j_a"), /grep -q '\^reference j_a current '/);
-    assert.equal(marengoPiPipeLine("home"), `printf '%s\\n' "home"`);
-    assert.equal(marengoPiPipeLine("home j_a"), `printf '%s\\n' "home j_a"`);
+    assert.equal(marengoPiPipeLine("home"), `printf '%s\\n' 'home'`);
+    assert.equal(marengoPiPipeLine("home j_a"), `printf '%s\\n' 'home j_a'`);
   });
 
   it("rejects joint names that are not identifiers", () => {
@@ -193,15 +193,15 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
-      /printf '%s\\n' "home right_shoulder_pitch sign-tested"\n[\s\S]*grep -q '\^reference right_shoulder_pitch current '[\s\S]*fi;\n_ref_from=[^\n]*\nprintf '%s\\n' "home"\n[\s\S]*grep -q '\^homing verified '[\s\S]*fi;\n_ref_from=[^\n]*\nprintf '%s\\n' "enable bench"\n[\s\S]*grep -q '\^enabled \(operator='[\s\S]*fi;\nprintf '%s\\n' "hold-at right_shoulder_pitch 0";/,
+      /printf '%s\\n' 'home right_shoulder_pitch sign-tested'\n[\s\S]*grep -q '\^reference right_shoulder_pitch current '[\s\S]*fi;\n_ref_from=[^\n]*\nprintf '%s\\n' 'home'\n[\s\S]*grep -q '\^homing verified '[\s\S]*fi;\n_ref_from=[^\n]*\nprintf '%s\\n' 'enable bench'\n[\s\S]*grep -q '\^enabled \(operator='[\s\S]*fi;\nprintf '%s\\n' 'hold-at right_shoulder_pitch 0';/,
     );
     assert.doesNotMatch(script, /motor-repl set-zero/);
     assert.match(script, /sleep 10;/);
     assert.match(script, /sleep 6;/);
-    assert.match(script, /printf '%s\\n' "disable";/);
-    assert.match(script, /printf '%s\\n' "quit";/);
+    assert.match(script, /printf '%s\\n' 'disable';/);
+    assert.match(script, /printf '%s\\n' 'quit';/);
     // 10 s dwell + 6 s return + 10 s acquisition budget (1 joint) + 10 s slack.
-    assert.match(script, /\} \| timeout 36 \$PI_BIN/);
+    assert.match(script, /\} \| timeout --foreground 36 \$PI_BIN/);
     assert.match(script, /bin\/motor-repl disable/);
   });
 
@@ -245,9 +245,9 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
-      /"home right_shoulder_pitch right_shoulder_roll right_upper_arm_yaw sign-tested"/,
+      /'home right_shoulder_pitch right_shoulder_roll right_upper_arm_yaw sign-tested'/,
     );
-    assert.match(script, /printf '%s\\n' "hold-on";/);
+    assert.match(script, /printf '%s\\n' 'hold-on';/);
   });
 
   it("refuses a gravity model mismatch with zero motion calls", async () => {
@@ -309,7 +309,7 @@ describe("marengo-pi script tool", () => {
 
     assert.match(out, /PASS gravity gate: \|τ_g\| at the hanging rest < 0\.20 Nm on every modeled joint\nhold session ran$/);
     assert.equal(bodies.length, 3);
-    assert.match(bodies[2], /printf '%s\\n' "hold-on";/);
+    assert.match(bodies[2], /printf '%s\\n' 'hold-on';/);
   });
 
   it("compares live drive torque with τ_g at the published pose while marengo-pi holds the arm", async () => {
@@ -367,7 +367,7 @@ describe("marengo-pi script tool", () => {
 
     await tools.pi_motor_recover.handler({ confirm: true });
 
-    assert.match(script, /\{ sleep 1; echo status; echo disable; echo quit; \} \| timeout 10 "\$PI_BIN"/);
+    assert.match(script, /\{ sleep 1; echo status; echo disable; echo quit; \} \| timeout --foreground 10 "\$PI_BIN"/);
     assert.doesNotMatch(script, /sign-tested|echo home|enable bench|set-zero/);
     assert.match(script, /RECOVER_SUMMARY/);
   });
@@ -462,15 +462,15 @@ describe("marengo-pi script tool", () => {
     await tools.pi_marengo_pi_script.handler({
       confirm: true,
       joint: "right_shoulder_pitch",
-      script: ["home", "enable bench", "hold-at 1.570796", "sleep 35", "hold-at 0"],
+      script: ["status", "hold-at 1.570796", "sleep 35", "hold-at 0"],
       timeout_sec: 15,
     });
 
-    assert.match(script, /printf '%s\\n' "hold-at 1\.570796";/);
+    assert.match(script, /printf '%s\\n' 'hold-at 1\.570796';/);
     assert.match(script, /sleep 35;/);
-    assert.match(script, /printf '%s\\n' "hold-at 0";/);
-    assert.match(script, /printf '%s\\n' "quit";/);
-    assert.match(script, /\} \| timeout 15 \$PI_BIN/);
+    assert.match(script, /printf '%s\\n' 'hold-at 0';/);
+    assert.match(script, /printf '%s\\n' 'quit';/);
+    assert.match(script, /\} \| timeout --foreground 15 \$PI_BIN/);
   });
 
   it("pipes every script line into marengo-pi", async () => {
@@ -487,14 +487,62 @@ describe("marengo-pi script tool", () => {
     await tools.pi_marengo_pi_script.handler({
       confirm: true,
       joint: "right_shoulder_pitch",
-      script: ["home", "enable bench", "status"],
+      script: ["status", "hold-on"],
       timeout_sec: 10,
     });
 
     assert.match(
       script,
-      /\{\nprintf '%s\\n' "home";\nprintf '%s\\n' "enable bench";\nprintf '%s\\n' "status";\nprintf '%s\\n' "quit";\n\} \| timeout 10 \$PI_BIN/,
+      /\{\nprintf '%s\\n' 'status';\nprintf '%s\\n' 'hold-on';\nprintf '%s\\n' 'quit';\n\} \| timeout --foreground 10 \$PI_BIN/,
     );
+  });
+
+  it("refuses a reference line without the SetZero opt-in (TOOL-05)", async () => {
+    const calls: string[] = [];
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        calls.push(body);
+        return body;
+      },
+      () => {},
+    );
+    for (const line of ["home right_shoulder_pitch sign-tested", "home right_shoulder_pitch", "set-zero right_shoulder_pitch"]) {
+      const out = await tools.pi_marengo_pi_script.handler({
+        confirm: true,
+        script: [line, "status"],
+      });
+      assert.match(out, /^Refused: enabling needs a current reference/, line);
+    }
+    assert.deepEqual(calls, [], "nothing reaches the Pi");
+  });
+
+  it("awaits home and enable and runs the gravity gate before an enabling script (TOOL-05)", async () => {
+    const calls: string[] = [];
+    const audits: number[] = [];
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        calls.push(body);
+        return body;
+      },
+      (_tool, _args, _out, exitCode) => audits.push(exitCode),
+    );
+    const out = await tools.pi_marengo_pi_script.handler({
+      confirm: true,
+      joint: "right_shoulder_pitch",
+      script: ["enable bench", "hold-on"],
+      timeout_sec: 10,
+    });
+    assert.ok(calls.length >= 1, "the gate snapshot ran first");
+    assert.doesNotMatch(calls[0], /\$PI_BIN/, "no session before the gate");
+    if (calls.some((body) => /\$PI_BIN/.test(body))) {
+      const session = calls.find((body) => /\$PI_BIN/.test(body)) ?? "";
+      assert.match(session, /grep -q '\^enabled \(operator='/);
+    } else {
+      assert.match(out, /gravity/i, "a refused gate reports why");
+      assert.deepEqual(audits, [1]);
+    }
   });
 
   it("selects the marengo-pi binary by path without executing it", async () => {
@@ -520,7 +568,7 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /if ! test -x "\$PI_BIN" && test -x "\$PI_FALLBACK"; then\n  PI_BIN="\$PI_FALLBACK"\nfi/);
     // Running marengo-pi (even for `help`) opens SocketCAN before reading stdin.
     assert.doesNotMatch(script, /\$PI_BIN" 2>&1|PI_HELP/);
-    assert.match(script, /\} \| timeout 10 \$PI_BIN/);
+    assert.match(script, /\} \| timeout --foreground 10 \$PI_BIN/);
   });
 
   it("emits kernel counter snapshot helpers", () => {
@@ -682,7 +730,7 @@ function runHoldBody(
     "fakebin/sleep": opts.bumpOnSleep
       ? `f=${path.join(stats, "rx_over_errors")}; echo $(( $(cat "$f") + 1 )) > "$f"`
       : "exit 0",
-    "fakebin/timeout": 'shift; exec "$@"',
+    "fakebin/timeout": 'while [[ "$1" == -* ]]; do shift; done; shift; exec "$@"',
     "fakebin/ip": "exit 0",
     "fakebin/pgrep": [
       `n=$(cat ${owners} 2>/dev/null || echo 0)`,
@@ -755,7 +803,7 @@ describe("hold session CAN ownership (Transport race)", () => {
       assert.match(out, new RegExp(`  ${joint}: q=0\\.0000 rad τ_g=0\\.0000 Nm residual=0\\.0000 Nm ok`));
     }
     assert.doesNotMatch(out, /left_shoulder_pitch|not in the gravity model/);
-    assert.match(script, new RegExp(`"home ${MASTER_JOINTS.join(" ")} sign-tested"`));
+    assert.match(script, new RegExp(`'home ${MASTER_JOINTS.join(" ")} sign-tested'`));
   });
 
   it("runs exactly one motor-repl before marengo-pi, then settles CAN before launch", async () => {

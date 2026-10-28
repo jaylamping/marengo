@@ -461,13 +461,83 @@ fn decode_chappe_payload<M: Message + Default>(bytes: &[u8], topic: &str) -> Opt
 /// as a second line. Returns the fault text published in `SafetyState`; when
 /// the stop itself was not delivered it says so (Davout also latches
 /// `StopDelivery`).
-fn stop_after_tick_error<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, error: &LoopError) -> String {
-    error!(error = %error, "control tick failed");
+/// Run `body` (the control loop) and, if it panics, stop every drive before the
+/// process goes on to its normal shutdown (RT-04). A panic would otherwise
+/// unwind out of `main` with the drives still executing their last MIT frame;
+/// a print to a closed stdout pipe (EPIPE) is one such panic. Returns whether
+/// `body` panicked.
+fn run_with_panic_stop<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    body: impl FnOnce(&mut ControlLoop<B>),
+) -> bool {
+    let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| body(&mut *loop_ctrl)));
+    if run.is_ok() {
+        return false;
+    }
+    error!("control loop panicked; stopping every drive");
+    loop_ctrl.forbid_implicit_enable();
+    let stop = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let result = loop_ctrl.supervisor_mut().disable_all();
+        loop_ctrl.set_control_mode(ControlMode::Disabled);
+        result
+    }));
+    match stop {
+        Ok(Ok(())) => {}
+        Ok(Err(stop_error)) => {
+            error!(error = %stop_error, "stop after panic was NOT delivered to every drive");
+        }
+        Err(_) => error!("stop after panic panicked; drives rely on ExecStopPost and CanTimeout"),
+    }
+    true
+}
+
+/// Paces the stop after a tick error once Davout has latched a fault and the
+/// drives were stopped. A drive with a sticky fault flag answers every Disable
+/// with another hazard frame, so each drain fails again; stopping on every
+/// tick kept the bus at ~80 % load with 15-frame bursts (DAV-01).
+#[derive(Debug, Default)]
+pub(crate) struct TickStopPacer {
+    last_delivered_stop: Option<Instant>,
+    suppressed: u32,
+}
+
+impl TickStopPacer {
+    /// While latched and stopped, re-send the stop at most this often.
+    pub(crate) const RESTOP_INTERVAL: Duration = Duration::from_secs(1);
+}
+
+pub(crate) fn stop_after_tick_error<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    pacer: &mut TickStopPacer,
+    error: &LoopError,
+    now: Instant,
+) -> String {
+    let stopped_and_latched = loop_ctrl.supervisor().has_latched_fault()
+        && loop_ctrl.supervisor().mode() != davout::OperationalMode::Active
+        && loop_ctrl.control_mode() == ControlMode::Disabled;
+    if stopped_and_latched
+        && pacer
+            .last_delivered_stop
+            .is_some_and(|at| now.saturating_duration_since(at) < TickStopPacer::RESTOP_INTERVAL)
+    {
+        pacer.suppressed = pacer.suppressed.saturating_add(1);
+        return error.to_string();
+    }
+    error!(
+        error = %error,
+        repeats_since_last_stop = pacer.suppressed,
+        "control tick failed"
+    );
+    pacer.suppressed = 0;
     let stop = loop_ctrl.supervisor_mut().disable_all();
     loop_ctrl.set_control_mode(ControlMode::Disabled);
     match stop {
-        Ok(()) => error.to_string(),
+        Ok(()) => {
+            pacer.last_delivered_stop = Some(now);
+            error.to_string()
+        }
         Err(stop_error) => {
+            pacer.last_delivered_stop = None;
             error!(
                 error = %stop_error,
                 "stop after control tick failure was NOT delivered to every drive"
@@ -971,6 +1041,18 @@ fn drain_testing_commands<B: MotorBus>(
             Ok(ProtoControlMode::Position)
         );
         if want_position && loop_ctrl.supervisor().mode() != OperationalMode::Active {
+            // Only an explicit enable arms implicit re-enable (RT-01); without it
+            // the batch would run the sweep and then be refused anyway.
+            if loop_ctrl.implicit_enable_forbidden() {
+                report_refusal(
+                    chappe,
+                    "consul",
+                    "",
+                    "testing batch",
+                    "testing batch refused: enable the drives explicitly first",
+                );
+                continue;
+            }
             let started = GravitySweep::start(loop_ctrl)
                 .map_err(|()| "gravity saturation preflight refused motion");
             let begun = started.and_then(|sweep| {
@@ -1364,20 +1446,20 @@ fn handle_command<B: MotorBus>(
             emit(gate.cancel());
             println!("disabled");
         }
-        PiCommand::GravityOn => {
-            loop_ctrl.set_control_mode(ControlMode::GravityComp);
-            println!(
+        PiCommand::GravityOn => match loop_ctrl.try_set_control_mode(ControlMode::GravityComp) {
+            Ok(()) => println!(
                 "control mode → GravityComp (operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
-            );
-        }
-        PiCommand::GravityOff => {
-            loop_ctrl.enter_torque_only_zero();
-            println!(
+            ),
+            Err(e) => eprintln!("gravity-on refused: {e}"),
+        },
+        PiCommand::GravityOff => match loop_ctrl.enter_torque_only_zero() {
+            Ok(()) => println!(
                 "control mode → TorqueOnly (τ_cmd≡0; operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
-            );
-        }
+            ),
+            Err(e) => eprintln!("gravity-off refused: {e}"),
+        },
         PiCommand::TorqueCmd { joint, tau_nm } => match loop_ctrl.set_torque_cmd(&joint, tau_nm) {
             Ok(()) => {
                 println!(
@@ -1387,17 +1469,17 @@ fn handle_command<B: MotorBus>(
             }
             Err(e) => eprintln!("torque-cmd failed: {e}"),
         },
-        PiCommand::ImpedanceOn => {
-            loop_ctrl.set_control_mode(ControlMode::Impedance);
-            println!(
+        PiCommand::ImpedanceOn => match loop_ctrl.try_set_control_mode(ControlMode::Impedance) {
+            Ok(()) => println!(
                 "control mode → Impedance (operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
-            );
-        }
-        PiCommand::ImpedanceOff => {
-            loop_ctrl.set_control_mode(ControlMode::Disabled);
-            println!("control mode → Disabled");
-        }
+            ),
+            Err(e) => eprintln!("impedance-on refused: {e}"),
+        },
+        PiCommand::ImpedanceOff => match loop_ctrl.try_set_control_mode(ControlMode::Disabled) {
+            Ok(()) => println!("control mode → Disabled"),
+            Err(e) => eprintln!("impedance-off refused: {e}"),
+        },
         cmd @ (PiCommand::HoldOn | PiCommand::HoldAt { .. } | PiCommand::Wave { .. }) => {
             emit(gate.submit(loop_ctrl, cmd, Instant::now()));
         }
@@ -1615,10 +1697,18 @@ fn main() {
         std::process::exit(1);
     }
 
+    // SIGHUP (a dropped ssh session) and SIGQUIT terminate by default with no
+    // exit stop; treat them like SIGTERM (RT-11).
     #[cfg(unix)]
-    if signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutdown)).is_err() {
-        eprintln!("failed to install SIGTERM handler");
-        std::process::exit(1);
+    for (signal, name) in [
+        (signal_hook::consts::SIGTERM, "SIGTERM"),
+        (signal_hook::consts::SIGHUP, "SIGHUP"),
+        (signal_hook::consts::SIGQUIT, "SIGQUIT"),
+    ] {
+        if signal_hook::flag::register(signal, Arc::clone(&shutdown)).is_err() {
+            eprintln!("failed to install {name} handler");
+            std::process::exit(1);
+        }
     }
 
     let persist_queue = overlay::ConfigPersistQueue::spawn(Arc::clone(&chappe), root.clone());
@@ -1680,7 +1770,9 @@ fn main() {
         shutdown: &shutdown,
         motion,
     };
-    run_control_loop(&mut loop_ctrl, &mut runtime);
+    let panicked = run_with_panic_stop(&mut loop_ctrl, |loop_ctrl| {
+        run_control_loop(loop_ctrl, &mut runtime);
+    });
 
     let outcome = finish_owner_shutdown(
         &mut loop_ctrl,
@@ -1730,6 +1822,9 @@ fn main() {
         "owner shutdown outcome"
     );
     info!("marengo-pi stopped");
+    if panicked {
+        std::process::exit(1);
+    }
 }
 
 #[derive(Debug)]
@@ -1874,6 +1969,7 @@ fn run_control_loop<B: MotorBus>(
     let mut last_chappe = Instant::now();
     let mut last_heartbeat = Instant::now();
     let mut unpublished_fault = UnpublishedTickFault::default();
+    let mut tick_stop_pacer = TickStopPacer::default();
     let mut timing = LoopTimingWindow::new(loop_ctrl.tick_count());
     let mut reference_queue = PiReferenceQueue::new(format!("marengo-pi-{}", std::process::id()));
     let mut enable_gate = EnableGate::default();
@@ -1997,7 +2093,12 @@ fn run_control_loop<B: MotorBus>(
             unpublished_fault.record(e.to_string());
         }
         if let Err(e) = loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
-            unpublished_fault.record(stop_after_tick_error(loop_ctrl, &e));
+            unpublished_fault.record(stop_after_tick_error(
+                loop_ctrl,
+                &mut tick_stop_pacer,
+                &e,
+                Instant::now(),
+            ));
         }
         if degraded::report_degraded_events(
             loop_ctrl.take_degraded_events(),

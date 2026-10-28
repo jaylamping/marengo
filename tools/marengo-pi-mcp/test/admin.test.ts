@@ -18,6 +18,8 @@ const cfg: MarengoPiConfig = {
 async function scriptOf(tool: "pi_build" | "pi_can_up" | "pi_git_pull"): Promise<string> {
   let script = "";
   const tools = registerAdminTools(cfg, async (body) => {
+    // Answer the management gate as an idle Pi (nothing running).
+    if (body.includes("mgmt_marengo_pi=")) return "mgmt_marengo_pi=0\nmgmt_motor_repl=0";
     script = body;
     return body;
   });

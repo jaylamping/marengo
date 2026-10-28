@@ -698,10 +698,64 @@ impl Database {
         } else {
             0
         };
-        Ok(Self {
+        let mut database = Self {
             connection,
             session,
-        })
+        };
+        if allocate_session {
+            database.prune_oldest_sessions(EVENT_CAPACITY / 2, PAGE_CAPACITY / 2)?;
+        }
+        Ok(database)
+    }
+
+    /// Interim retention (REF-01). History never grants, but a grant needs a
+    /// durable row, and a full journal refused every `home` until the file
+    /// was deleted by hand. A writer opening a new session drops whole oldest
+    /// sessions until at most `max_rows` rows and `max_pages` used pages
+    /// remain; freed pages are reused by later inserts. The current session
+    /// is never dropped.
+    fn prune_oldest_sessions(
+        &mut self,
+        max_rows: i64,
+        max_pages: i64,
+    ) -> Result<usize, ReferenceJournalError> {
+        let current = self.session as i64;
+        let tx = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Exclusive)
+            .map_err(error)?;
+        let mut dropped = 0;
+        loop {
+            let rows: i64 = tx
+                .query_row("SELECT count(*) FROM reference_events", [], |row| {
+                    row.get(0)
+                })
+                .map_err(error)?;
+            let pages: i64 = tx
+                .pragma_query_value(None, "page_count", |row| row.get(0))
+                .map_err(error)?;
+            let free: i64 = tx
+                .pragma_query_value(None, "freelist_count", |row| row.get(0))
+                .map_err(error)?;
+            if rows <= max_rows && pages - free <= max_pages {
+                break;
+            }
+            let oldest: Option<i64> = tx
+                .query_row(
+                    "SELECT min(session) FROM reference_events WHERE session<?1",
+                    [current],
+                    |row| row.get(0),
+                )
+                .map_err(error)?;
+            let Some(oldest) = oldest else {
+                break;
+            };
+            tx.execute("DELETE FROM reference_events WHERE session=?1", [oldest])
+                .map_err(error)?;
+            dropped += 1;
+        }
+        tx.commit().map_err(error)?;
+        Ok(dropped)
     }
 
     fn schema(connection: &Connection) -> Result<(), ReferenceJournalError> {

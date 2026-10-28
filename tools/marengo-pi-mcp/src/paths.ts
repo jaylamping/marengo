@@ -3,7 +3,9 @@ import type { MarengoPiConfig } from "./config.js";
 
 /** Allowlisted remote paths for pi_read_file. */
 export function isAllowedReadPath(cfg: MarengoPiConfig, requested: string): boolean {
-  const normalized = path.posix.normalize(requested.replace(/\\/g, "/"));
+  // The path is embedded in a remote shell command: plain path characters only.
+  if (!/^[A-Za-z0-9_./-]+$/.test(requested)) return false;
+  const normalized = path.posix.normalize(requested);
   if (normalized.includes("..")) return false;
   const stagingRoot = cfg.piStagingRoot.startsWith("~/")
     ? `/home/${cfg.user}${cfg.piStagingRoot.slice(1)}`

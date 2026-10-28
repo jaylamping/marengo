@@ -15,6 +15,7 @@
  * ≤ 300 s; the gravity gate before each enable keeps its hanging-rest refusal.
  */
 
+import { callCancelled } from "../cancel.js";
 import path from "node:path";
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
@@ -647,6 +648,11 @@ export function registerMotionSuiteTools(
         const out = [...header];
         const outcomes: PartOutcome[] = [];
         for (const part of planned.parts) {
+          // TOOL-03: a cancelled suite starts no further part.
+          if (callCancelled()) {
+            out.push(`cancelled: ${part.name} and later parts not run`);
+            break;
+          }
           let outcome: PartOutcome = {
             name: part.name,
             ts: "-",

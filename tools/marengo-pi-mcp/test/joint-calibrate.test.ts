@@ -130,7 +130,7 @@ function traceFor(motionLines: readonly string[]): string {
   return `${rows.join("\n")}\n`;
 }
 
-const stdinLines = (body: string) => [...body.matchAll(/printf '%s\\n' "([^"]+)"/g)].map((m) => m[1]);
+const stdinLines = (body: string) => [...body.matchAll(/printf '%s\\n' '([^']+)'/g)].map((m) => m[1]);
 const motionLines = (body: string) => stdinLines(body).filter((l) => /^(hold-at|wave) /.test(l));
 
 // ---------------------------------------------------------------------------

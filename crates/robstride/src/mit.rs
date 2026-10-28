@@ -26,14 +26,36 @@ impl MitCommand {
     /// Finite values outside vendor ranges are rejected; joint-space ceilings
     /// and enable policy remain Davout's responsibility.
     pub fn validate(&self) -> Result<(), CommandError> {
-        finite(self.device_id, CommandField::Position, self.position_rad)?;
-        finite(self.device_id, CommandField::Velocity, self.velocity_rad_s)?;
-        nonnegative_gain(self.device_id, CommandField::ProportionalGain, self.kp)?;
-        nonnegative_gain(self.device_id, CommandField::DampingGain, self.kd)?;
-        finite(
-            self.device_id,
+        let id = self.device_id;
+        finite(id, CommandField::Position, self.position_rad)?;
+        finite(id, CommandField::Velocity, self.velocity_rad_s)?;
+        nonnegative_gain(id, CommandField::ProportionalGain, self.kp)?;
+        nonnegative_gain(id, CommandField::DampingGain, self.kd)?;
+        finite(id, CommandField::TorqueFeedforward, self.torque_ff_nm)?;
+        let ranges = MitRanges::for_motor_type(self.motor_type);
+        let signed = |field, value, scale: f32| bounded(id, field, value, -scale, scale);
+        signed(
+            CommandField::Position,
+            self.position_rad,
+            ranges.position_scale,
+        )?;
+        signed(
+            CommandField::Velocity,
+            self.velocity_rad_s,
+            ranges.velocity_scale,
+        )?;
+        bounded(
+            id,
+            CommandField::ProportionalGain,
+            self.kp,
+            0.0,
+            ranges.kp_scale,
+        )?;
+        bounded(id, CommandField::DampingGain, self.kd, 0.0, ranges.kd_scale)?;
+        signed(
             CommandField::TorqueFeedforward,
             self.torque_ff_nm,
+            ranges.torque_scale,
         )
     }
 }
@@ -89,41 +111,6 @@ fn write_be_u16(data: &mut [u8; 8], offset: usize, value: u16) {
 pub fn encode_mit(cmd: &MitCommand) -> Result<(u32, [u8; 8]), CommandError> {
     cmd.validate()?;
     let ranges = MitRanges::for_motor_type(cmd.motor_type);
-    bounded(
-        cmd.device_id,
-        CommandField::Position,
-        cmd.position_rad,
-        -ranges.position_scale,
-        ranges.position_scale,
-    )?;
-    bounded(
-        cmd.device_id,
-        CommandField::Velocity,
-        cmd.velocity_rad_s,
-        -ranges.velocity_scale,
-        ranges.velocity_scale,
-    )?;
-    bounded(
-        cmd.device_id,
-        CommandField::ProportionalGain,
-        cmd.kp,
-        0.0,
-        ranges.kp_scale,
-    )?;
-    bounded(
-        cmd.device_id,
-        CommandField::DampingGain,
-        cmd.kd,
-        0.0,
-        ranges.kd_scale,
-    )?;
-    bounded(
-        cmd.device_id,
-        CommandField::TorqueFeedforward,
-        cmd.torque_ff_nm,
-        -ranges.torque_scale,
-        ranges.torque_scale,
-    )?;
     let p_int = signed_to_vendor_u16(cmd.position_rad, ranges.position_scale);
     let v_int = signed_to_vendor_u16(cmd.velocity_rad_s, ranges.velocity_scale);
     let kp_int = unsigned_to_vendor_u16(cmd.kp, ranges.kp_scale);

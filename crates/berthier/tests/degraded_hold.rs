@@ -324,6 +324,11 @@ fn operator_lower_starts_before_the_window_and_other_motion_is_refused() {
             .start_position_wave(PITCH, 0.0, 0.2, 1, 1.0)
             .map(|_| ()),
     );
+    refused(
+        rig.controller
+            .try_set_control_mode(ControlMode::GravityComp),
+    );
+    refused(rig.controller.enter_torque_only_zero());
     rig.controller.set_control_mode(ControlMode::GravityComp);
     assert_eq!(rig.controller.control_mode(), ControlMode::Position);
     let asked = Instant::now();

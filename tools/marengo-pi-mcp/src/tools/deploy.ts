@@ -4,6 +4,7 @@ import { sudoStagingInstallCommand } from "../config.js";
 import { shellQuote, wrapRemote, wrapStagingRemote } from "../env.js";
 import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
 import { waitForDeployReady } from "./deploy-wait.js";
+import { checkManagementGate } from "../management-gate.js";
 
 function localDeployCommand(cfg: MarengoPiConfig): { cmd: string; args: string[] } {
   const host = `${cfg.user}@${cfg.host}`;
@@ -38,6 +39,9 @@ export async function runSyncMain(
   const waitForReady = opts.waitForReady ?? true;
   const waitTimeoutSec = opts.waitTimeoutSec ?? 180;
   const steps: string[] = [];
+  // Both strategies end in install-pi.sh, which stops marengo-pi (P2B-05).
+  const refusal = await checkManagementGate(cfg, runRemote, "pi_sync_main");
+  if (refusal) return refusal;
 
   if (strategy === "pi_native") {
     // Canonical path: scripts/pi-self-update.sh (shared with Consul /control/deploy).

@@ -26,7 +26,7 @@ use armee_proto::{
 };
 use berthier::{mode_allows_gain_override, ControlLoop, GainOverride};
 use chappe::Bus;
-use davout::{MotorBus, Supervisor};
+use davout::{MotorBus, OperationalMode, Supervisor};
 use marengo_config::{
     apply_joint_config_param, ensure_soft_inset, load_command_joint_allowlist_from, motor_type_key,
     profile_content_revision, resolve_command_joint, CommandJointAllowlist, LimitPatch,
@@ -403,6 +403,12 @@ impl ActuatorOverlay {
                 path: config_dir.to_path_buf(),
                 message: "expected_revision is required for limit patches".to_string(),
             }));
+        }
+        // Refuse before the revision check: it takes the profile flock and
+        // reads four YAMLs on the loop thread, which can stall an elevated
+        // arm past the drives' CAN timeout while a persist holds the lock.
+        if loop_ctrl.supervisor().mode() == OperationalMode::Active {
+            return Err(davout::DavoutError::LimitPatchActive.into());
         }
         let current_revision = profile_content_revision(config_dir)?;
         if patch_cmd.expected_revision != current_revision {

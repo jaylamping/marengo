@@ -11,6 +11,7 @@ import {
   postEnableCommand,
 } from '@/lib/gateway-api';
 import { useCompoundStore } from '@/state/compoundStore';
+import { useRobotStore } from '@/state/robotStore';
 import { useTeachStore } from '@/state/teachStore';
 
 interface TestingStore {
@@ -26,6 +27,11 @@ interface TestingStore {
   gains: Record<string, { kp: number; kd: number; ki: number; fc: number }>;
   dryRun: boolean;
   isRunning: boolean;
+  /**
+   * Dry Run as it was when the running hold started. Stop uses this, never the
+   * live toggle, so a dry run can never end in a live batch.
+   */
+  runDryRun: boolean | null;
 
   selectJoint: (name: string) => void;
   deselectJoint: (name: string) => void;
@@ -40,8 +46,20 @@ interface TestingStore {
   startTest: () => Promise<void>;
   /** Motion go-to-zero for selected joints — not HomingComplete / Mark READY. */
   returnHome: () => Promise<void>;
-  stopTest: () => void;
-  /** E-stop / all-off path (not commissioning Enable). */
+  /**
+   * Stop a running hold where the joints are now: a POSITION batch at each
+   * selected joint's measured position (UI-05). Without a measurement for
+   * every joint it disables instead. The hold batch is sent only while the
+   * drives are ACTIVE: marengo-pi treats a POSITION batch on stopped drives
+   * as a motion request and may re-enable them (implicit enable), so Stop
+   * must never be the thing that energises the arm. DISABLED/READY just
+   * clears the run; an unknown mode sends a disable.
+   */
+  stopTest: () => Promise<void>;
+  /**
+   * E-stop / all-off path (not commissioning Enable). Runners are cancelled
+   * before the request, so a failed POST never leaves a run going (UI-01).
+   */
   disable: () => Promise<void>;
   dispatchGainUpdate: (jointName: string) => Promise<void>;
 }
@@ -54,6 +72,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   gains: {},
   dryRun: true,
   isRunning: false,
+  runDryRun: null,
 
   selectJoint: (name) =>
     set((state) => ({
@@ -74,7 +93,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       return;
     }
     const { selectedJointNames, gains, setpointRad, dryRun } = get();
-    set({ isRunning: true });
+    set({ isRunning: true, runDryRun: dryRun });
 
     const joints: MitJointCommand[] = selectedJointNames.map((name) => {
       const gain = gains[name] || { kp: 0, kd: 0, ki: 0, fc: 0 };
@@ -102,14 +121,60 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       );
     }
   },
-  stopTest: () => set({ isRunning: false }),
+  stopTest: async () => {
+    const { selectedJointNames, gains, runDryRun, dryRun: dryRunNow } = get();
+    // The run's own mode, not the toggle as it is now (a dry run stays dry).
+    const dryRun = runDryRun ?? dryRunNow;
+    set({ isRunning: false, runDryRun: null });
+    if (dryRun || selectedJointNames.length === 0) return;
+    const { operationalMode, robotState: robot } = useRobotStore.getState();
+    if (operationalMode === 'DISABLED' || operationalMode === 'READY') {
+      // The drives are already off (a fault or safety stop the operator did
+      // not order). A hold batch here would re-enable them wherever the arm
+      // now is; there is nothing left to stop.
+      return;
+    }
+    if (operationalMode !== 'ACTIVE') {
+      // Mode unknown (stream gap or reconnect): a disable never energises.
+      await get().disable();
+      return;
+    }
+    const joints: MitJointCommand[] = [];
+    for (const name of selectedJointNames) {
+      const measured = robot?.joints.find((joint) => joint.name === name);
+      if (!measured) {
+        await get().disable();
+        return;
+      }
+      const gain = gains[name] || { kp: 0, kd: 0, ki: 0, fc: 0 };
+      joints.push(
+        create(MitJointCommandSchema, {
+          name,
+          kp: gain.kp,
+          kd: gain.kd,
+          ki: gain.ki,
+          fc: gain.fc,
+          position: measured.position,
+          velocity: 0,
+          torqueFf: 0,
+        }),
+      );
+    }
+    await postTestingMitCommandBatch(
+      create(MitCommandBatchSchema, {
+        timestampMs: BigInt(Date.now()),
+        mode: ControlMode.POSITION,
+        joints,
+      }),
+    );
+  },
 
   returnHome: async () => {
     if (useTeachStore.getState().capture.kind === 'recording') {
       return;
     }
     const { selectedJointNames, gains, dryRun } = get();
-    set({ isRunning: false, setpointRad: 0 });
+    set({ isRunning: false, runDryRun: null, setpointRad: 0 });
 
     const joints: MitJointCommand[] = selectedJointNames.map((name) => {
       const gain = gains[name] || { kp: 0, kd: 0, ki: 0, fc: 0 };
@@ -138,9 +203,9 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   },
 
   disable: async () => {
-    await postEnableCommand(false);
-    set({ isRunning: false });
+    set({ isRunning: false, runDryRun: null });
     useCompoundStore.getState().setIsRunning(false);
+    await postEnableCommand(false);
   },
 
   dispatchGainUpdate: async (jointName: string) => {

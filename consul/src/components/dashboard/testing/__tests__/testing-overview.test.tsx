@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { TestingOverview } from '@/components/dashboard/testing/testing-overview';
+import { postEnableCommand } from '@/lib/gateway-api';
 import { useRobotStore } from '@/state/robotStore';
 import { useTestingStore } from '@/state/testingStore';
 
@@ -90,5 +91,12 @@ describe('TestingOverview — commissioning cutover', () => {
       expect(screen.getByRole('button', { name: /Return Home/i })).toBeTruthy();
     });
     expect(screen.queryByRole('button', { name: /^Home$/i })).toBeNull();
+  });
+
+  it('E-STOP sends the stop on the first click (UI-01)', async () => {
+    renderTesting();
+    fireEvent.click(await screen.findByRole('button', { name: /E-STOP/i }));
+    await waitFor(() => expect(postEnableCommand).toHaveBeenCalledWith(false));
+    expect(await screen.findByRole('button', { name: /STOP SENT/i })).toBeTruthy();
   });
 });

@@ -181,11 +181,11 @@ const OPT_INS = { set_zero: true, at_mechanical_reference: true, skip_hanging_re
 const CAL_DIR = `/tmp/marengo/var/gravity-calibration/${TS}`;
 
 function holdAts(body: string): string[] {
-  return [...body.matchAll(/printf '%s\\n' "(hold-at \S+ \S+)"/g)].map((m) => m[1]);
+  return [...body.matchAll(/printf '%s\\n' '(hold-at \S+ \S+)'/g)].map((m) => m[1]);
 }
 
 function stdinLines(body: string): string[] {
-  return [...body.matchAll(/printf '%s\\n' "([^"]+)"/g)].map((m) => m[1]);
+  return [...body.matchAll(/printf '%s\\n' '([^']+)'/g)].map((m) => m[1]);
 }
 
 describe("pi_gravity_calibrate refusals before touching the Pi", () => {
@@ -335,7 +335,7 @@ describe("pi_gravity_calibrate session", () => {
     assert.deepEqual(lines.slice(-4), ["hold-at right_shoulder_pitch 0", "status", "disable", "quit"]);
     assert.match(session, /sleep 4;\n/);
     // 50 s reference + 12 steps × 4 s + 6 s return = 104 s.
-    assert.match(session, /\} \| timeout 114 \$PI_BIN/);
+    assert.match(session, /\} \| timeout --foreground 114 \$PI_BIN/);
     assert.equal(h.timeouts[3], 104_000 + 30_000 + 20_000);
     assert.match(session, /can errors after marengo-pi/);
     assert.match(session, /bin\/motor-repl disable/);
@@ -422,7 +422,7 @@ describe("pi_gravity_calibrate session", () => {
       "disable",
       "quit",
     ]);
-    assert.match(session, /"hold-at right_elbow_pitch 0";\nsleep 2;\nprintf '%s\\n' "hold-at right_shoulder_pitch 0";\nsleep 6;/);
+    assert.match(session, /'hold-at right_elbow_pitch 0';\nsleep 2;\nprintf '%s\\n' 'hold-at right_shoulder_pitch 0';\nsleep 6;/);
     const plan = JSON.parse(h.writes.get(`${CAL_DIR}/plan.json`) ?? "{}");
     assert.deepEqual(plan.fixed_rad, { right_shoulder_pitch: 0.3 });
     assert.deepEqual(plan.steps[0], { joint: "right_shoulder_pitch", target_rad: 0.3, measure: false });
@@ -487,7 +487,7 @@ describe("pi_gravity_calibrate session", () => {
     const session = h.bodies.find((b) => b.includes("LABEL='gravity-calibrate'")) ?? "";
     assert.match(
       session,
-      /printf '%s\\n' "home"\n[\s\S]*grep -Eq '\^home failed:'[\s\S]*grep -q '\^homing verified '[\s\S]*printf '%s\\n' disable quit[\s\S]*printf '%s\\n' "enable bench"\n[\s\S]*grep -Eq '\^enable \(failed\|blocked\|refused\):'[\s\S]*grep -q '\^enabled \(operator='[\s\S]*printf '%s\\n' disable quit\n {2}exit 1\nfi;\nprintf '%s\\n' "hold-at /,
+      /printf '%s\\n' 'home'\n[\s\S]*grep -Eq '\^home failed:'[\s\S]*grep -q '\^homing verified '[\s\S]*printf '%s\\n' disable quit[\s\S]*printf '%s\\n' 'enable bench'\n[\s\S]*grep -Eq '\^enable \(failed\|blocked\|refused\):'[\s\S]*grep -q '\^enabled \(operator='[\s\S]*printf '%s\\n' disable quit\n {2}exit 1\nfi;\nprintf '%s\\n' 'hold-at /,
     );
   });
 

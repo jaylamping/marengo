@@ -25,13 +25,13 @@ export interface RobotStateSnapshot {
   joints: JointSnapshot[];
 }
 
-type ProtoField =
+export type ProtoField =
   | { field: number; wire: 0; value: number }
   | { field: number; wire: 1; value: number }
   | { field: number; wire: 2; value: Uint8Array };
 
 /** proto3 wire walk yielding varint, double (fixed64) and length-delimited fields; fixed32 is skipped. */
-function* protoFields(buf: Uint8Array): Generator<ProtoField> {
+export function* protoFields(buf: Uint8Array): Generator<ProtoField> {
   let pos = 0;
   const varint = (): number => {
     let value = 0;

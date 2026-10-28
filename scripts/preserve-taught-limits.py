@@ -14,6 +14,7 @@ union of URDF `<limit>` hard. Opt out with MARENGO_REPLACE_LIMITS=1.
 from __future__ import annotations
 
 import argparse
+import copy
 import os
 import re
 import sys
@@ -86,13 +87,17 @@ def preserve_control_soft(
 _NUM = r"-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?"
 
 
-def _patch_keyed_float(text: str, key: str, value: float) -> str:
-    """Replace the first `key: <number>` occurrence in a YAML snippet."""
+def _patch_keyed_float(text: str, key: str, value: float) -> tuple[str, bool]:
+    """Replace the first `key: <number>` occurrence in a YAML snippet.
+
+    Returns the text and whether the key was found and replaced.
+    """
     pattern = re.compile(
         rf"^([ \t]*{re.escape(key)}:[ \t]*)({_NUM})([ \t]*(?:#.*)?)?$",
         re.MULTILINE,
     )
-    return pattern.sub(rf"\g<1>{value}\g<3>", text, count=1)
+    patched, count = pattern.subn(rf"\g<1>{value}\g<3>", text, count=1)
+    return patched, count == 1
 
 
 def _list_item_span(text: str, anchor: int) -> tuple[int, int] | None:
@@ -130,7 +135,10 @@ def _list_item_span(text: str, anchor: int) -> tuple[int, int] | None:
 def patch_motors_hard_text(
     text: str, joint: str, lower: float, upper: float
 ) -> str | None:
-    """Surgically restore bench hard limits for one joint; keep comments/layout."""
+    """Surgically restore bench hard limits for one joint; keep comments/layout.
+
+    None when the joint or either bound is missing from the installed text.
+    """
     joint_line = re.search(
         rf"^[ \t]*(?:-[ \t]+)?joint:[ \t]*{re.escape(joint)}[ \t]*(?:#.*)?$",
         text,
@@ -143,17 +151,20 @@ def patch_motors_hard_text(
         return None
     start, end = span
     block = text[start:end]
-    patched = _patch_keyed_float(block, "position_lower_rad", lower)
-    patched = _patch_keyed_float(patched, "position_upper_rad", upper)
-    if patched == block:
-        return text
+    patched, has_lower = _patch_keyed_float(block, "position_lower_rad", lower)
+    patched, has_upper = _patch_keyed_float(patched, "position_upper_rad", upper)
+    if not (has_lower and has_upper):
+        return None
     return text[:start] + patched + text[end:]
 
 
 def patch_control_soft_text(
     text: str, joint: str, soft_lower: float, soft_upper: float
 ) -> str | None:
-    """Surgically restore soft limits for one joint under control.joints."""
+    """Surgically restore soft limits for one joint under control.joints.
+
+    None when the joint or either bound is missing from the installed text.
+    """
     joint_re = re.compile(
         rf"(^[ \t]*{re.escape(joint)}:[ \t]*(?:#.*)?\n)"
         rf"(.*?)(?=^[ \t]{{4}}[A-Za-z_][A-Za-z0-9_]*:|\Z)",
@@ -163,10 +174,10 @@ def patch_control_soft_text(
     if not match:
         return None
     block = match.group(0)
-    patched = _patch_keyed_float(block, "position_soft_lower_rad", soft_lower)
-    patched = _patch_keyed_float(patched, "position_soft_upper_rad", soft_upper)
-    if patched == block:
-        return text
+    patched, has_lower = _patch_keyed_float(block, "position_soft_lower_rad", soft_lower)
+    patched, has_upper = _patch_keyed_float(patched, "position_soft_upper_rad", soft_upper)
+    if not (has_lower and has_upper):
+        return None
     return text[: match.start()] + patched + text[match.end() :]
 
 
@@ -209,6 +220,53 @@ def preserve_urdf_expand_only(previous_urdf: Path, installed_urdf: Path) -> list
     return widened
 
 
+def _narrowed(
+    kind: str, joint: str, git: tuple[float, float], pi: tuple[float, float]
+) -> str | None:
+    """Describe a git range that is tighter than the Pi's on either side."""
+    if git[0] > pi[0] or git[1] < pi[1]:
+        return (
+            f"{kind} {joint}: git [{git[0]:g}, {git[1]:g}] is tighter than the Pi's "
+            f"[{pi[0]:g}, {pi[1]:g}]; the Pi keeps its wider range"
+        )
+    return None
+
+
+def _bounds(entry: dict[str, Any], lower: str, upper: str) -> tuple[float, float] | None:
+    lo, hi = entry.get(lower), entry.get(upper)
+    if isinstance(lo, (int, float)) and isinstance(hi, (int, float)):
+        return float(lo), float(hi)
+    return None
+
+
+def _urdf_bounds(path: Path) -> dict[str, tuple[float, float]]:
+    out: dict[str, tuple[float, float]] = {}
+    for name, lim in _urdf_limits(ET.parse(path).getroot()).items():
+        try:
+            out[name] = (float(lim.get("lower", "0")), float(lim.get("upper", "0")))
+        except ValueError:
+            continue
+    return out
+
+
+def report_narrowed(narrowed: list[str]) -> None:
+    """Loudly list git limits this deploy did not apply (EDGE-02)."""
+    if not narrowed:
+        return
+    print(
+        "preserve-taught-limits: WARNING: git narrows limits that this deploy did "
+        "NOT apply:",
+        file=sys.stderr,
+    )
+    for line in narrowed:
+        print(f"  {line}", file=sys.stderr)
+    print(
+        "  To apply git's limits, redeploy with MARENGO_REPLACE_LIMITS=1 "
+        "(this also drops limits taught on the Pi).",
+        file=sys.stderr,
+    )
+
+
 def run_preserve(previous_root: Path, install_root: Path) -> int:
     motors_prev = previous_root / "config" / "motors.yaml"
     control_prev = previous_root / "config" / "control.yaml"
@@ -223,24 +281,37 @@ def run_preserve(previous_root: Path, install_root: Path) -> int:
 
     prev_motors = _load_yaml(motors_prev)
     inst_motors = _load_yaml(motors_inst)
-    hard_joints = preserve_motors_hard(prev_motors, inst_motors)
+    narrowed: list[str] = []
+    # Restored = actually written into the installed text, never just overlapping.
+    hard_joints: list[str] = []
+    prev_by_joint = _motors_by_joint(prev_motors)
+    # preserve_motors_hard overwrites inst_motors in memory: keep git's copy.
+    git_by_joint = copy.deepcopy(_motors_by_joint(inst_motors))
+    motors_text = motors_inst.read_text(encoding="utf-8")
+    for joint in preserve_motors_hard(prev_motors, inst_motors):
+        pi = _bounds(
+            prev_by_joint[joint].get("bench") or {}, "position_lower_rad", "position_upper_rad"
+        )
+        if pi is None:
+            continue
+        patched = patch_motors_hard_text(motors_text, joint, pi[0], pi[1])
+        if patched is None:
+            print(
+                f"preserve-taught-limits: warning: could not restore motors hard for {joint}; "
+                "git's values stand",
+                file=sys.stderr,
+            )
+            continue
+        motors_text = patched
+        hard_joints.append(joint)
+        git = _bounds(
+            git_by_joint[joint].get("bench") or {}, "position_lower_rad", "position_upper_rad"
+        )
+        if git is not None:
+            line = _narrowed("motors hard", joint, git, pi)
+            if line:
+                narrowed.append(line)
     if hard_joints:
-        motors_text = motors_inst.read_text(encoding="utf-8")
-        prev_by_joint = _motors_by_joint(prev_motors)
-        for joint in hard_joints:
-            bench = prev_by_joint[joint].get("bench") or {}
-            lower = bench.get("position_lower_rad")
-            upper = bench.get("position_upper_rad")
-            if not isinstance(lower, (int, float)) or not isinstance(upper, (int, float)):
-                continue
-            patched = patch_motors_hard_text(motors_text, joint, float(lower), float(upper))
-            if patched is None:
-                print(
-                    f"preserve-taught-limits: warning: could not patch motors hard for {joint}",
-                    file=sys.stderr,
-                )
-                continue
-            motors_text = patched
         motors_inst.write_text(motors_text, encoding="utf-8")
         print(
             "preserve-taught-limits: restored motors hard for "
@@ -251,28 +322,31 @@ def run_preserve(previous_root: Path, install_root: Path) -> int:
     if control_prev.is_file() and control_inst.is_file():
         prev_control = _load_yaml(control_prev)
         inst_control = _load_yaml(control_inst)
-        soft_joints = preserve_control_soft(prev_control, inst_control)
-        if soft_joints:
-            control_text = control_inst.read_text(encoding="utf-8")
-            prev_soft = ((prev_control.get("control") or {}).get("joints")) or {}
-            for joint in soft_joints:
-                entry = prev_soft[joint]
-                soft_lo = entry.get("position_soft_lower_rad")
-                soft_hi = entry.get("position_soft_upper_rad")
-                if not isinstance(soft_lo, (int, float)) or not isinstance(
-                    soft_hi, (int, float)
-                ):
-                    continue
-                patched = patch_control_soft_text(
-                    control_text, joint, float(soft_lo), float(soft_hi)
+        prev_soft = ((prev_control.get("control") or {}).get("joints")) or {}
+        git_soft = ((inst_control.get("control") or {}).get("joints")) or {}
+        git_soft = copy.deepcopy(git_soft)
+        control_text = control_inst.read_text(encoding="utf-8")
+        for joint in preserve_control_soft(prev_control, inst_control):
+            keys = ("position_soft_lower_rad", "position_soft_upper_rad")
+            pi = _bounds(prev_soft[joint], *keys)
+            if pi is None:
+                continue
+            patched = patch_control_soft_text(control_text, joint, pi[0], pi[1])
+            if patched is None:
+                print(
+                    f"preserve-taught-limits: warning: could not restore control soft for "
+                    f"{joint}; git's values stand",
+                    file=sys.stderr,
                 )
-                if patched is None:
-                    print(
-                        f"preserve-taught-limits: warning: could not patch control soft for {joint}",
-                        file=sys.stderr,
-                    )
-                    continue
-                control_text = patched
+                continue
+            control_text = patched
+            soft_joints.append(joint)
+            git = _bounds(git_soft.get(joint, {}), *keys)
+            if git is not None:
+                line = _narrowed("control soft", joint, git, pi)
+                if line:
+                    narrowed.append(line)
+        if soft_joints:
             control_inst.write_text(control_text, encoding="utf-8")
             print(
                 "preserve-taught-limits: restored control soft for "
@@ -281,13 +355,21 @@ def run_preserve(previous_root: Path, install_root: Path) -> int:
 
     urdf_joints: list[str] = []
     if urdf_prev.is_file() and urdf_inst.is_file():
+        git_urdf = _urdf_bounds(urdf_inst)
+        pi_urdf = _urdf_bounds(urdf_prev)
         urdf_joints = preserve_urdf_expand_only(urdf_prev, urdf_inst)
+        for joint in urdf_joints:
+            if joint in git_urdf and joint in pi_urdf:
+                line = _narrowed("URDF hard", joint, git_urdf[joint], pi_urdf[joint])
+                if line:
+                    narrowed.append(line)
         if urdf_joints:
             print(
                 "preserve-taught-limits: expand-merged URDF hard for "
                 + ", ".join(urdf_joints)
             )
 
+    report_narrowed(narrowed)
     if not hard_joints and not soft_joints and not urdf_joints:
         print("preserve-taught-limits: no overlapping taught limits to restore")
     return 0

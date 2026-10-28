@@ -181,7 +181,7 @@ fn ascent_stall_trip_records_its_reason_and_discards_intent() {
 fn wave_stall_trip_latches_controller_fault_and_discards_intent() {
     let mut ctrl = test_loop();
     ready_active_at(&mut ctrl, 0.3);
-    ctrl.start_position_wave(JOINT, 0.2, 0.6, 3, 2.0)
+    ctrl.start_position_wave(JOINT, 0.3, 0.6, 3, 2.0)
         .expect("valid wave");
     let mut err = None;
     for step in 1..=700_u32 {
@@ -366,12 +366,14 @@ fn wave_admission_keeps_descents_above_a_danger_zone_within_its_speed() {
     let (lo, hi) = (cap.above_rad - 0.9, cap.above_rad - 0.1);
     let half = 2.5;
     assert!(std::f64::consts::PI * 0.5 * (hi - lo) / half > cap.max_velocity_rad_s);
+    let mut ctrl = test_loop();
+    ready_active_at(&mut ctrl, lo);
     ctrl.start_position_wave(JOINT, lo, hi, 1, half)
         .expect("no descent above the threshold");
     assert!(ctrl.position_wave_active());
     // Just above the zone's minimum half period, the full window is admitted.
     let mut ctrl = test_loop();
-    ready_active_at(&mut ctrl, 0.02);
+    ready_active_at(&mut ctrl, -1.038);
     ctrl.start_position_wave(JOINT, -1.038, 1.2, 1, min_half(-1.038, 1.2) + 0.05)
         .expect("within the zone speed");
 }

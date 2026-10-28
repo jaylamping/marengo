@@ -584,6 +584,31 @@ fn limit_patch_refuses_stale_expected_revision() {
     assert!(matches!(error, OverlayError::Config(_)));
     assert!(error.to_string().contains("profile revision mismatch"));
 }
+/// RT-03: an Active patch is refused before any profile IO. The config dir
+/// here has no profile, so reaching the revision check fails differently.
+#[test]
+fn limit_patch_while_active_is_refused_before_profile_io() {
+    let empty = tempfile::tempdir().expect("tempdir");
+    let mut overlay = test_overlay_at(empty.path().to_path_buf());
+    let mut loop_ctrl = crate::enable_gate_tests::enabled_without_pose();
+
+    let error = overlay
+        .apply_operator_command(
+            &mut loop_ctrl,
+            empty.path(),
+            &limit_patch_op("any".to_string()),
+        )
+        .expect_err("Active must refuse a limit patch");
+
+    assert!(
+        matches!(
+            error,
+            OverlayError::Davout(davout::DavoutError::LimitPatchActive)
+        ),
+        "refused after touching the profile: {error}"
+    );
+}
+
 #[test]
 /// B13 (P-armee-proto-04): reads deprecated `wired` until the reserve step.
 #[allow(deprecated)]

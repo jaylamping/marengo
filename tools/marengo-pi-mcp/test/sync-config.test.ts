@@ -1,11 +1,18 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { defaultLocalRoot } from "../src/config.js";
 import type { MarengoPiConfig } from "../src/config.js";
 import { registerAdminTools } from "../src/tools/admin.js";
 import {
   benchUrdfInstallBody,
   benchUrdfStagingVerifyBody,
+  benchConfigInstallBody,
   directInstallRsyncLine,
+  preserveTaughtLimitsShell,
   remoteStepFailed,
 } from "../src/tools/sync-config.js";
 
@@ -76,5 +83,115 @@ describe("bench config sync", () => {
       assert.ok(directInstallRsyncLine.includes(flag), `missing ${flag}`);
     }
     assert.match(directInstallRsyncLine, /--exclude="\.marengo-profile\.lock"/);
+  });
+});
+
+describe("direct /opt writes keep taught limits (TOOL-08)", () => {
+  const motors = (lower: number, upper: number) =>
+    [
+      "motors:",
+      "  - joint: right_elbow_pitch",
+      "    bench:",
+      `      position_lower_rad: ${lower}`,
+      `      position_upper_rad: ${upper}`,
+      "",
+    ].join("\n");
+
+  function tree() {
+    const root = mkdtempSync(path.join(tmpdir(), "taught-"));
+    const opt = path.join(root, "opt");
+    const staged = path.join(root, "staged");
+    for (const dir of [opt, staged]) mkdirSync(path.join(dir, "config"), { recursive: true });
+    // Taught on the Pi (Set Limits Apply) vs a wider envelope from git.
+    writeFileSync(path.join(opt, "config", "motors.yaml"), motors(-0.2, 1.1));
+    writeFileSync(path.join(staged, "config", "motors.yaml"), motors(-1.5, 2.5));
+    return { opt, staged };
+  }
+
+  function run(opt: string, staged: string, preserveScript: string) {
+    const shell = preserveTaughtLimitsShell(opt, [`cp "${staged}/config/motors.yaml" "$OPT/config/motors.yaml"`], preserveScript);
+    return spawnSync("bash", ["-c", `set -euo pipefail\n${shell}`], { encoding: "utf8" });
+  }
+
+  it("a config sync restores the taught bounds after writing git's file", () => {
+    const { opt, staged } = tree();
+    const r = run(opt, staged, path.join(defaultLocalRoot(), "scripts", "preserve-taught-limits.py"));
+    assert.equal(r.status, 0, r.stderr);
+    const installed = readFileSync(path.join(opt, "config", "motors.yaml"), "utf8");
+    assert.match(installed, /position_lower_rad: -0\.2\b/);
+    assert.match(installed, /position_upper_rad: 1\.1\b/);
+  });
+
+  it("puts the previous files back and fails when the merge cannot run", () => {
+    const { opt, staged } = tree();
+    const r = run(opt, staged, "/nonexistent/preserve-taught-limits.py");
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /putting the previous limit files back/);
+    assert.equal(readFileSync(path.join(opt, "config", "motors.yaml"), "utf8"), motors(-0.2, 1.1));
+  });
+
+  // Rust profile writers (Set Limits write-behind) hold an exclusive flock(2) on this file.
+  const lockFile = (opt: string) => path.join(opt, "config", ".marengo-profile.lock");
+  const flockAvailable = spawnSync("sh", ["-c", "command -v flock"]).status === 0;
+
+  it("holds the profile lock from the backup through the merge", { skip: !flockAvailable && "needs flock" }, () => {
+    const { opt, staged } = tree();
+    const seen = path.join(opt, "lock-during-write");
+    const shell = preserveTaughtLimitsShell(
+      opt,
+      [
+        `cp "${staged}/config/motors.yaml" "$OPT/config/motors.yaml"`,
+        // A second writer (a new open file description) cannot take the lock meanwhile.
+        `if flock -n "$OPT/config/.marengo-profile.lock" true; then echo free > ${seen}; else echo held > ${seen}; fi`,
+      ],
+      path.join(defaultLocalRoot(), "scripts", "preserve-taught-limits.py"),
+    );
+    const r = spawnSync("bash", ["-c", `set -euo pipefail\n${shell}`], { encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(readFileSync(seen, "utf8").trim(), "held");
+    assert.equal(spawnSync("flock", ["-n", lockFile(opt), "true"]).status, 0, "released afterwards");
+  });
+
+  it("fails closed, writing nothing, while a profile writer holds the lock", { skip: !flockAvailable && "needs flock" }, async () => {
+    const { opt, staged } = tree();
+    writeFileSync(lockFile(opt), "");
+    const holder = spawn("flock", ["-x", lockFile(opt), "sleep", "20"], { stdio: "ignore" });
+    try {
+      for (let i = 0; i < 50 && spawnSync("flock", ["-n", lockFile(opt), "true"]).status === 0; i++) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      const shell = preserveTaughtLimitsShell(
+        opt,
+        [`cp "${staged}/config/motors.yaml" "$OPT/config/motors.yaml"`],
+        path.join(defaultLocalRoot(), "scripts", "preserve-taught-limits.py"),
+        1,
+      );
+      const r = spawnSync("bash", ["-c", `set -euo pipefail\n${shell}`], { encoding: "utf8", timeout: 15_000 });
+      assert.equal(r.status, 1, r.stdout);
+      assert.match(r.stderr, /profile lock/);
+      assert.equal(readFileSync(path.join(opt, "config", "motors.yaml"), "utf8"), motors(-0.2, 1.1));
+    } finally {
+      holder.kill("SIGKILL");
+    }
+  });
+
+  it("takes the lock before the backup and releases it after the merge or rollback", () => {
+    const shell = preserveTaughtLimitsShell("/opt/marengo", ["true"]);
+    const at = (needle: string) => shell.indexOf(needle);
+    const lock = shell.search(/flock -w \d+ /);
+    const backup = at('_taught="$(mktemp -d)"');
+    const merge = at("preserve-taught-limits.py");
+    const rollback = at('cp -a "$_taught/$f" "$OPT/$f"');
+    const unlock = shell.lastIndexOf("flock -u");
+    assert.ok(lock >= 0 && lock < backup && backup < merge && merge < rollback && rollback < unlock, shell);
+  });
+
+  it("both sync tools wrap their /opt write in the merge", () => {
+    for (const body of [benchConfigInstallBody(cfg), benchUrdfInstallBody(cfg, ["marengo.urdf"])]) {
+      const backup = body.indexOf('_taught="$(mktemp -d)"');
+      const write = body.search(/rsync -r|install -m 0644/);
+      const merge = body.indexOf("preserve-taught-limits.py");
+      assert.ok(backup > 0 && backup < write && write < merge, "backup, write, then merge");
+    }
   });
 });
