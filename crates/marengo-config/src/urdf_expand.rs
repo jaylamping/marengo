@@ -195,7 +195,7 @@ fn rewrite_joint_envelope_attrs(
     upper: f64,
     soft: Option<(f64, f64)>,
 ) -> Result<String, String> {
-    let (joint_start, joint_end) = find_joint_range(xml, joint)?;
+    let (joint_start, joint_end) = find_element_range(xml, "joint", joint)?;
     let mut block = xml[joint_start..joint_end].to_string();
 
     block = rewrite_tag_attrs(&block, "<limit", &[("lower", lower), ("upper", upper)])?;
@@ -216,12 +216,20 @@ fn rewrite_joint_envelope_attrs(
     Ok(out)
 }
 
-fn find_joint_range(xml: &str, name: &str) -> Result<(usize, usize), String> {
+/// Byte range of the `<kind name="name">` element that is a direct child of `<robot>`.
+///
+/// Element-aware: XML comments, other element kinds with the same `name` (a link, material
+/// or transmission named like a joint) and nested elements (a `<transmission>`'s own
+/// `<joint name=…>`) never match. A self-closing element ends at its own tag.
+pub(crate) fn find_element_range(
+    xml: &str,
+    kind: &str,
+    name: &str,
+) -> Result<(usize, usize), String> {
+    let mut depth = 0_usize;
+    let mut open_start = None;
     let mut search_from = 0;
-    while search_from < xml.len() {
-        let relative_start = xml[search_from..]
-            .find('<')
-            .ok_or_else(|| format!("joint {name} not found in URDF XML"))?;
+    while let Some(relative_start) = xml[search_from..].find('<') {
         let start = search_from + relative_start;
         if xml[start..].starts_with("<!--") {
             search_from = xml[start + 4..]
@@ -230,29 +238,51 @@ fn find_joint_range(xml: &str, name: &str) -> Result<(usize, usize), String> {
                 .ok_or_else(|| "unclosed XML comment".to_string())?;
             continue;
         }
-        let after_name = start + "<joint".len();
-        if xml[start..].starts_with("<joint")
-            && xml
-                .as_bytes()
-                .get(after_name)
-                .is_some_and(|byte| byte.is_ascii_whitespace() || *byte == b'>' || *byte == b'/')
-        {
-            let open_end = xml[after_name..]
-                .find('>')
-                .map(|index| after_name + index + 1)
-                .ok_or_else(|| "joint opening tag unclosed".to_string())?;
-            let opening_tag = &xml[start..open_end];
-            if attribute_value(opening_tag, "name") == Some(name) {
-                let close_end = xml[open_end..]
-                    .find("</joint>")
-                    .map(|index| open_end + index + "</joint>".len())
-                    .ok_or_else(|| format!("joint end tag missing for {name}"))?;
-                return Ok((start, close_end));
-            }
+        let end = xml[start..]
+            .find('>')
+            .map(|index| start + index + 1)
+            .ok_or_else(|| "unclosed XML tag".to_string())?;
+        search_from = end;
+        let tag = &xml[start..end];
+        if tag.starts_with("<?") || tag.starts_with("<!") {
+            continue;
         }
-        search_from = start + 1;
+        if tag.starts_with("</") {
+            depth = depth
+                .checked_sub(1)
+                .ok_or_else(|| "unbalanced XML end tag".to_string())?;
+            if let (Some(open_start), 1) = (open_start, depth) {
+                return Ok((open_start, end));
+            }
+            continue;
+        }
+        let self_closing = tag.ends_with("/>");
+        if open_start.is_none()
+            && depth == 1
+            && element_name(tag) == kind
+            && attribute_value(tag, "name") == Some(name)
+        {
+            if self_closing {
+                return Ok((start, end));
+            }
+            open_start = Some(start);
+        }
+        if !self_closing {
+            depth += 1;
+        }
     }
-    Err(format!("joint {name} not found in URDF XML"))
+    Err(match open_start {
+        Some(_) => format!("{kind} end tag missing for {name}"),
+        None => format!("{kind} {name} not found in URDF XML"),
+    })
+}
+
+fn element_name(tag: &str) -> &str {
+    let body = tag.trim_start_matches('<');
+    let end = body
+        .find(|c: char| c.is_ascii_whitespace() || c == '/' || c == '>')
+        .unwrap_or(body.len());
+    &body[..end]
 }
 
 fn attribute_value<'a>(tag: &'a str, attribute: &str) -> Option<&'a str> {
@@ -342,6 +372,24 @@ mod tests {
         assert!(rewritten.contains(r#"<joint name="wanted"><limit lower="-3" upper="3"/></joint>"#));
         assert!(rewritten
             .contains(r#"<!-- <joint name="wanted"><limit lower="-7" upper="7"/></joint> -->"#));
+    }
+
+    #[test]
+    fn rewrite_skips_a_transmission_joint_reference_with_the_same_name() {
+        let xml = r#"<robot>
+  <transmission name="t">
+    <joint name="wanted"><hardwareInterface>EffortJointInterface</hardwareInterface></joint>
+  </transmission>
+  <joint name="wanted"><limit lower="-2" upper="2"/></joint>
+</robot>"#;
+
+        let rewritten =
+            rewrite_joint_envelope_attrs(xml, "wanted", -3.0, 3.0, None).expect("rewrite");
+
+        assert!(rewritten.contains(
+            r#"<joint name="wanted"><hardwareInterface>EffortJointInterface</hardwareInterface></joint>"#
+        ));
+        assert!(rewritten.contains(r#"<joint name="wanted"><limit lower="-3" upper="3"/></joint>"#));
     }
 
     #[test]

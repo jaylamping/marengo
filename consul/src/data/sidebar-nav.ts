@@ -63,9 +63,6 @@ export function getSidebarNavMain(): SidebarNavItem[] {
   return sidebarNavMainBase;
 }
 
-/** @deprecated Use getSidebarNavMain(). */
-export const sidebarNavMain: SidebarNavItem[] = sidebarNavMainBase;
-
 /** Reserved — empty until Settings/Docs/Search are real routes. */
 export const sidebarNavSecondary: SidebarNavItem[] = [];
 

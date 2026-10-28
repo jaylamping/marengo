@@ -40,7 +40,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 | `robstride` | Wire encode/decode, CAN I/O, receive budget (64 frames / 256 reads per poll) | Policy, safety |
 | `armee-dynamics` | `gravity_torques(q)` from URDF; calibration fit | CAN, commands |
 | `armee-kinematics` | URDF limits, velocity-scaled envelope (ADR 0009) | Commands |
-| `chappe` | Pub/sub + IPC; 7 allowlisted command topics, rejected if >1000 ms old (`ipc.rs`) | Control policy |
+| `chappe` | Pub/sub + IPC; 6 allowlisted command topics (`topics.rs` `COMMAND_TOPICS`), rejected if >1000 ms old (`ipc.rs`) | Control policy |
 
 **marengo-pi loop** (`bins/marengo-pi/src/main.rs` `run_control_loop`), paced by `sleep(period − elapsed)`:
 1. Drain stdin, then the Chappe command topics, testing MIT batches and the actuator overlay.
@@ -61,7 +61,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 
 - **Reference grants are process-local (ADR 0036).** `home <joint>... sign-tested` acquires physical evidence: stop, UID, SetZero, a type-2 ack, a 0x7019 readback, and a journal commit. Enable must happen **in the same marengo-pi process**. Calibration history, the journal and caller flags never grant. A `motor-repl set-zero` grant dies when that process exits.
 - **Motion-owner lease:** `--motion-owner stdin|chappe` or `MARENGO_MOTION_OWNER` (default `chappe`), fixed for the process lifetime. Stop/observe commands are accepted from either source; motion is accepted only from the owner, and refusals publish `motion_refused` on `robot/audit/action`. Ad-hoc ssh sessions must set `MARENGO_MOTION_OWNER=stdin`; MCP tools already export it.
-- **stdin grammar** (`parse_command`): `home <joints> sign-tested`, bare `home` (marks homing complete → Ready once references are current), `enable [operator]` (a `force` token is ignored; nothing bypasses the gravity preflight), `disable`, `gravity-on|off`, `torque-cmd`, `impedance-on|off`, `hold-on`, `hold-at [joint] <rad>`, `hold-off`, `wave`, `lower` (degraded hold only), `status`, `quit`. EOF behaves like `quit`.
+- **stdin grammar** (`parse_command`): `home <joints> sign-tested`, bare `home` (marks homing complete → Ready once references are current), `enable [operator]` (a `force` token is ignored; nothing bypasses the gravity preflight), `disable`, `gravity-on|off`, `torque-cmd`, `impedance-on|off`, `hold-on`, `hold-at [joint] <rad>`, `hold-off`, `wave`, `lower` (degraded hold only), `status`, `quit`. EOF behaves like `quit`, and so does a closed stdout or stderr (EPIPE): the runtime never panics on a print.
 - **stdout lines scripts wait for:**
   - `reference <j> current pos=…`, `reference <j> failed: …`, `skipped: …`
   - `waiting for enable to complete`, then `enabled (operator=…)`
@@ -156,7 +156,7 @@ just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
 - **Velocity caps:** resolve only via `marengo_config::resolve_joint_velocity_cap` (control.yaml joint, then actuator group, then motor-type default; ADR 0010). Bench YAML velocity fields are ignored.
 - **Config resolution:** `MARENGO_CONFIG_DIR`, else `/opt/marengo/config` **if it exists**, else `<repo>/config`. A stray `/opt/marengo/config` on a dev host silently wins. `MARENGO_ROOT` defaults to the compile-time repo path.
 - **Ephemeral limb narrowing:** `MARENGO_JOINT_SUBSET=a,b` (unknown names fail closed). Never fork master config per profile.
-- **Config/URDF writes:** hold `ProfileWriteLock` and write through `write_atomic` / `write_profile_file_atomic` (unique temp + fsync + rename + dir fsync, `crates/marengo-config/src/atomic_file.rs`). Revisions are SHA-256 over the four master YAMLs (`config_revision.rs`). Clients send the revision they read, and an empty or stale revision is refused (CAS). The lock file `config/.marengo-profile.lock` is gitignored.
+- **Config/URDF writes:** hold `ProfileWriteLock` and write through `write_atomic` / `write_profile_file_atomic` (unique temp + fsync + rename + dir fsync, `crates/marengo-config/src/atomic_file.rs`). Revisions are SHA-256 over the four master YAMLs plus the URDF bytes (`config_revision.rs`); callers pass the repo root their URDF writer uses, so the hashed URDF is the written one even when the config dir is not `<root>/config`. Clients send the revision they read, and an empty or stale revision is refused (CAS). The lock file `config/.marengo-profile.lock` is gitignored.
 - **Naming:** Napoleonic codenames for the core (Berthier, Davout, Chappe, Consul) and `marengo-*` for infrastructure. Read each crate's `src/lib.rs` `//!` before editing. Keep bins thin and logic in `crates/`.
 - **Tests:** large suites live in `#[cfg(test)] #[path = "x_tests/<topic>.rs"] mod …`. Shared fixtures are reused via `#[path]` (e.g. `davout/tests/support/mod.rs` `TestDirectory`). Never mutate the parent test process env; re-exec a child with env (see `bins/marengo-gateway/src/gateway_access_conformance_test.rs`).
 

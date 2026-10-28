@@ -62,22 +62,28 @@ impl<B: MotorBus> Supervisor<B> {
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: patch.joint.clone(),
             })?;
-        if let Some(index) = self.motor_index(&patch.joint) {
-            if let Some(sample) = self.published_state(index) {
-                let measured_position = f64::from(sample.position_rad);
-                if measured_position < policy.hard_lower()
-                    || measured_position > policy.hard_upper()
-                {
-                    return Err(DavoutError::Limit {
-                        joint: patch.joint.clone(),
-                        message: format!(
-                            "measured position {measured_position} outside proposed hard [{}, {}]",
-                            policy.hard_lower(),
-                            policy.hard_upper()
-                        ),
-                    });
-                }
-            }
+        // Without a fresh pose the check above could not run: refuse rather
+        // than accept a range that may exclude the joint (DAV-09). Disabled
+        // drives report through type-24 or the status poll's Disable reply.
+        let measured_position = self
+            .motor_index(&patch.joint)
+            .and_then(|index| self.published_state(index))
+            .map(|sample| f64::from(sample.position_rad))
+            .ok_or_else(|| DavoutError::Limit {
+                joint: patch.joint.clone(),
+                message: "no fresh measured position to check against the proposed limits; \
+                          poll the drive's status and retry"
+                    .into(),
+            })?;
+        if measured_position < policy.hard_lower() || measured_position > policy.hard_upper() {
+            return Err(DavoutError::Limit {
+                joint: patch.joint.clone(),
+                message: format!(
+                    "measured position {measured_position} outside proposed hard [{}, {}]",
+                    policy.hard_lower(),
+                    policy.hard_upper()
+                ),
+            });
         }
 
         let installed_model = self.installed_model.replacement(&self.robot, &urdf_robot)?;

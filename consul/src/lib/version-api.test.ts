@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { setRuntimeCredential } from '@/lib/runtime-credentials';
 import {
   clearSelfUpdateSession,
+  fetchVersionStatus,
   readSelfUpdateSession,
   shasMatch,
   shortSha,
   writeSelfUpdateSession,
 } from '@/lib/version-api';
+
+vi.mock('@/lib/chappe-config', () => ({
+  getChappeEndpoints: () => ({ httpUrl: 'https://gateway.fixture' }),
+}));
 
 describe('version-api helpers', () => {
   afterEach(() => {
@@ -23,6 +29,21 @@ describe('version-api helpers', () => {
     ).toBe(true);
     expect(shasMatch('aaaaaaa', 'bbbbbbb')).toBe(false);
     expect(shasMatch('', 'abcdef0')).toBe(false);
+  });
+
+  it('sends the management credential only with a forced refresh', async () => {
+    setRuntimeCredential('management', 'mgmt-fixture');
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchVersionStatus({ refresh: true });
+    await fetchVersionStatus();
+    setRuntimeCredential('management', '');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://gateway.fixture/version/status?refresh=1');
+    expect(fetchMock.mock.calls[0][1].headers).toEqual({
+      Authorization: 'Bearer mgmt-fixture',
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe('https://gateway.fixture/version/status');
+    expect(fetchMock.mock.calls[1][1].headers).toBeUndefined();
   });
 
   it('shortSha truncates deploy-rev lines', () => {

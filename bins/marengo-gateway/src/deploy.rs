@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use axum::{
     extract::{Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     Json,
 };
 use marengo_deploy::{
@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
+use crate::access::{AccessPolicy, Capability};
 use crate::restart::{now_ms, refuse_unsafe_management_state, HEARTBEAT_FRESH_MS};
 use crate::state::SharedState;
 
@@ -48,13 +49,22 @@ pub struct DeployResponseJson {
     pub target_sha: Option<String>,
 }
 
-pub async fn get_version_status(
-    Query(query): Query<VersionStatusQuery>,
-) -> Result<Json<marengo_deploy::VersionStatus>, StatusCode> {
-    let refresh = matches!(
+/// `refresh` bypasses the GitHub tip cache only for a Management credential.
+/// The route is anonymous, and an anonymous forced fetch let any LAN client
+/// spend the unauthenticated GitHub quota (60/h) that Update depends on.
+fn honored_refresh(query: &VersionStatusQuery, access: &AccessPolicy, headers: &HeaderMap) -> bool {
+    matches!(
         query.refresh.as_deref(),
         Some("1") | Some("true") | Some("yes")
-    );
+    ) && access.authorize(headers, Capability::Management).is_ok()
+}
+
+pub async fn get_version_status(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Query(query): Query<VersionStatusQuery>,
+) -> Result<Json<marengo_deploy::VersionStatus>, StatusCode> {
+    let refresh = honored_refresh(&query, &state.access, &headers);
     Ok(Json(current_version_status(refresh).await))
 }
 
@@ -240,6 +250,34 @@ mod tests {
     use tower::ServiceExt;
 
     const TOKEN: &str = "deploy-gate-test-token";
+
+    #[test]
+    fn refresh_needs_a_management_credential() {
+        use crate::access::{AccessPolicy, Capability};
+        use axum::http::{header::AUTHORIZATION, HeaderMap, HeaderValue};
+
+        let policy =
+            AccessPolicy::role_fixture(TOKEN, Capability::Management).expect("management grant");
+        let refresh = super::VersionStatusQuery {
+            refresh: Some("1".to_string()),
+        };
+        assert!(!super::honored_refresh(
+            &refresh,
+            &policy,
+            &HeaderMap::new()
+        ));
+        let mut wrong = HeaderMap::new();
+        wrong.insert(AUTHORIZATION, HeaderValue::from_static("Bearer wrong"));
+        assert!(!super::honored_refresh(&refresh, &policy, &wrong));
+        let mut management = HeaderMap::new();
+        management.insert(
+            AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {TOKEN}")).expect("header"),
+        );
+        assert!(super::honored_refresh(&refresh, &policy, &management));
+        let cached = super::VersionStatusQuery { refresh: None };
+        assert!(!super::honored_refresh(&cached, &policy, &management));
+    }
 
     /// Both deploy tests take the process-wide `DEPLOY_LOCK` via `try_lock`
     /// and mutate `MARENGO_DEPLOY_JOB_FILE`: run them one at a time.

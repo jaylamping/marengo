@@ -4,14 +4,12 @@
 
 # consul
 
-Consul is the operator frontend for Marengo (Vite + React + TypeScript): robot state, a URDF preview, the Hardware page and tuning. Talks to the runtime over Chappe (binary protobuf, same schemas as [`proto/`](../proto/)).
+Consul is the operator frontend for Marengo (Vite + React + TypeScript): robot state, the Hardware page (URDF import, Set Limits, Set Zero) and tuning. Talks to the runtime over Chappe (binary protobuf, same schemas as [`proto/`](../proto/)).
 
 Vite + React 19 dashboard with optional live Chappe telemetry ([ADR 0008](../docs/decisions/0008-chappe-webtransport-transport.md)).
 
 - Robot-hosted (default on Pi): open `https://marengo.local:8444` after `install-pi.sh` / `deploy-pi.sh --install`. Endpoints come from the page origin; WebTransport uses `:8443/chappe`.
 - Local dev: copy `.env.example` → `.env.local` with `VITE_CHAPPE_*`, then `npm run dev` on `:5173`.
-
-The Overview posture panel shows a three.js URDF preview of the master model (primitive box/cylinder/sphere visuals; mesh files are not exported yet).
 
 ## Development
 

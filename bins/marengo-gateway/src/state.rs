@@ -21,7 +21,6 @@ pub use chappe::topics::{
     TOPIC_HEARTBEAT, TOPIC_HOST_METRICS_PI, TOPIC_IMU_TORSO, TOPIC_LOGS, TOPIC_SAFETY, TOPIC_STATE,
 };
 pub const TOPIC_RUNTIME_CONNECTION: &str = "gateway/runtime_connection";
-pub const TOPIC_TESTING_TELEMETRY: &str = "robot/testing/telemetry";
 
 pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_RUNTIME_CONNECTION,
@@ -31,7 +30,6 @@ pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_IMU_TORSO,
     TOPIC_LOGS,
     TOPIC_HOST_METRICS_PI,
-    TOPIC_TESTING_TELEMETRY,
     TOPIC_ACTUATOR_LIMITS,
     TOPIC_AUDIT_TUNING,
     TOPIC_AUDIT_ACTION,
@@ -268,14 +266,7 @@ impl AppState {
             }
         }
         self.update_snapshot(&topic, &payload);
-        let _ = self.envelope_tx.send((topic.clone(), payload.clone()));
-        // Fan RobotState to testing telemetry topic so the Testing page has
-        // a dedicated subscription without sharing the main dashboard's topic.
-        if topic == TOPIC_STATE {
-            let _ = self
-                .envelope_tx
-                .send((TOPIC_TESTING_TELEMETRY.to_string(), payload));
-        }
+        let _ = self.envelope_tx.send((topic, payload));
     }
 
     fn update_snapshot(&self, topic: &str, payload: &[u8]) {
@@ -553,6 +544,16 @@ mod runtime_transition_stream_tests {
             .await
             .expect_err("owned stream task cancelled")
             .is_cancelled());
+    }
+
+    #[test]
+    fn robot_state_is_broadcast_once() {
+        let state = AppState::new(Arc::new(Bus::default()));
+        let mut envelopes = state.subscribe_envelopes();
+        state.ingest_runtime_frame(TOPIC_STATE.to_string(), vec![1, 2, 3]);
+        let (topic, payload) = envelopes.try_recv().expect("state frame");
+        assert_eq!((topic.as_str(), payload), (TOPIC_STATE, vec![1, 2, 3]));
+        assert!(envelopes.try_recv().is_err(), "no second copy of the frame");
     }
 
     #[test]

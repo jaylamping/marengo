@@ -6,7 +6,7 @@ import { setRuntimeCredential } from '@/lib/runtime-credentials';
 
 vi.mock('@/lib/chappe-config', () => ({
   getChappeEndpoints: () => ({httpUrl:'http://127.0.0.1:1',webTransportUrl:'https://127.0.0.1:2/chappe'}),
-  getChappeSubscribeTopics: () => ['robot/heartbeat','logs/structured'],
+  getChappeSubscribeTopics: () => ['robot/heartbeat','logs/structured','robot/audit/action'],
 }));
 
 const sessions: FixtureTransport[]=[];

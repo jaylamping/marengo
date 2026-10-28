@@ -170,11 +170,13 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             post(command_motor_status_poll),
         )
         .route("/command/actuator", post(actuator::command_actuator))
-        .layer(cors)
         .layer(axum::middleware::from_fn_with_state(
             std::sync::Arc::clone(&state),
             authorize_api,
         ))
+        // CORS outermost, so an access refusal (401/403) still carries
+        // Access-Control-Allow-Origin and a cross-origin dev Consul can read it.
+        .layer(cors)
         .with_state(state);
 
     match web_root {
@@ -443,15 +445,27 @@ async fn command_enable(
 /// memory, so a reloaded or second tab could not stop the robot through the
 /// Control-gated `/command/enable` (EDGE-01). The Pi admits Disable from any
 /// source; browser Origin is still enforced by `authorize_api`.
+///
+/// The trade-off (ADR 0008, docs/safety.md): any client that can reach the
+/// gateway can drop the drives, and nothing rate-limits it. Each call is
+/// therefore logged with the TCP peer and the Origin it sent, and the peer
+/// rides in `operator_id` so marengo-pi's `disable via Chappe` line names it.
 async fn command_disable(
     State(state): State<SharedState>,
+    request: axum::extract::Request,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let caller = DisableCaller::of(&request);
+    tracing::info!(
+        peer = %caller.peer,
+        origin = caller.origin.as_deref().unwrap_or("-"),
+        "credential-free disable requested"
+    );
     let payload = EnableRequest {
         timestamp_ms: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64,
-        operator_id: "consul".into(),
+        operator_id: format!("consul peer={}", caller.peer),
         enable: false,
     }
     .encode_to_vec();
@@ -460,6 +474,29 @@ async fn command_disable(
         .await
         .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
     Ok(Json(OkResponse { ok: true }))
+}
+
+/// Who sent a credential-free disable, as far as the gateway can tell.
+struct DisableCaller {
+    /// TCP peer `ip:port`, or `unknown` when the listener supplied none.
+    peer: String,
+    /// The browser Origin header, if any (already allowlisted by `authorize_api`).
+    origin: Option<String>,
+}
+
+impl DisableCaller {
+    fn of(request: &axum::extract::Request) -> Self {
+        let peer = request
+            .extensions()
+            .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+            .map(|info| info.0.to_string())
+            .unwrap_or_else(|| "unknown".into());
+        let origin = request
+            .headers()
+            .get(header::ORIGIN)
+            .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
+        Self { peer, origin }
+    }
 }
 
 /// Resolve a testing-MIT entry name to its canonical wired form.

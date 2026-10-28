@@ -2,8 +2,8 @@
  * Gravity-model gate run before any enable by pi_hold_on and pi_bench_harness
  * (limb-playbook §4a/4b: per-joint |τ_meas − τ_g| < 0.20 Nm).
  *
- * τ_g comes from `motor-repl gravity-preview` (read-only model evaluation), which still
- * opens SocketCAN, so the caller runs the preview shell only as the sole CAN owner.
+ * τ_g comes from `motor-repl gravity-preview`, a model evaluation from robot.yaml and the
+ * URDF that never opens SocketCAN, so callers run it without taking CAN ownership.
  *
  * Measured torque comes from the gateway RobotState snapshot (never CAN). It is used
  * only when the snapshot is fresh and every gated joint is drive-active and Verified,
@@ -11,6 +11,11 @@
  * reports ~0 Nm whatever the load, which is not a gravity measurement; then the gate
  * evaluates τ_g at the profile's hanging rest pose instead, where the physical gravity
  * torque is ~0, and refuses when |τ_g| ≥ 0.20 Nm.
+ *
+ * Limit of the hanging-rest basis (TOOL-10): at rest every COM hangs under its axis, so
+ * τ_g ≈ 0 for any link masses. It catches COM, axis and zero-offset errors, never a
+ * wrong mass. Only the measured basis (arm held at a pose) checks masses. It is also
+ * MCP-only: Consul and stdin enables never run it.
  */
 
 import { type BenchProfile, profileMeta } from "./bench-profiles.js";
@@ -113,9 +118,10 @@ function planGravityGate(
 }
 
 /**
- * Remote shell printing `<joint>: tau_g = <Nm> Nm` at `pose`. The caller must be the sole
- * CAN owner. gravity-preview takes a full robot.yaml-order vector (a partial one silently
- * becomes all zeros), so a non-zero pose first reads the model's joint order.
+ * Remote shell printing `<joint>: tau_g = <Nm> Nm` at `pose`. Model only: gravity-preview
+ * reads robot.yaml and the URDF and never opens CAN, so no CAN ownership is needed (TOOL-16).
+ * It takes a full robot.yaml-order vector (a partial one silently becomes all zeros), so a
+ * non-zero pose first reads the model's joint order.
  */
 function gravityPreviewShell(pose: Record<string, number>): string {
   const nonzero = Object.entries(pose).filter(
@@ -195,7 +201,8 @@ export const HANGING_REST_MISMATCH_SKIPPED =
 
 /**
  * The gate. `snapshotOutput` is remote output of {@link gravityGateSnapshotShell}, captured
- * before the caller stopped marengo-pi; `runPreview` runs a shell as the sole CAN owner.
+ * before the caller stopped marengo-pi; `runPreview` runs the model-only preview shell, which
+ * never opens CAN and needs no CAN ownership (TOOL-16).
  * `allowHangingRestMismatch` (gravity calibration only, which exists to fix the model) passes a
  * hanging-rest |τ_g| mismatch with the full residual report; `gravity_gate_unavailable` and a
  * measured-basis mismatch still refuse.

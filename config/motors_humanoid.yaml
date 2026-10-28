@@ -261,6 +261,9 @@ motors:
       velocity_limit_rad_s: 0.5
       torque_limit_nm: 3.0
   # --- Right arm (device_id 19–23, can4) ---
+  # This is the built bench arm. motor_type, direction and gear_ratio match the live
+  # config/motors.yaml (a test pins that). Bus, ids and limits are placeholders: the live
+  # arm is can0 ids 1–5 and hardware ADR 0001 defers the full-body bus/ID plan.
   - joint: right_shoulder_roll
     driver: robstride
     motor_type: rs03
@@ -295,7 +298,8 @@ motors:
     motor_type: rs02
     can_interface: can4
     device_id: 21
-    direction: 1
+    # Live arm sign check (2026-08-11): +q = outwards.
+    direction: -1
     gear_ratio: 1.0
     recv_can_id: 0x254
     firmware_version: "0.0.0-humanoid"
@@ -309,7 +313,8 @@ motors:
     motor_type: rs02
     can_interface: can4
     device_id: 22
-    direction: 1
+    # Live arm sign check (2026-08-11): +q = forearm up/forward.
+    direction: -1
     gear_ratio: 1.0
     recv_can_id: 0x255
     firmware_version: "0.0.0-humanoid"
@@ -323,7 +328,8 @@ motors:
     motor_type: rs00
     can_interface: can4
     device_id: 23
-    direction: 1
+    # Live arm sign check (2026-08-11): +q = outwards.
+    direction: -1
     gear_ratio: 1.0
     recv_can_id: 0x256
     firmware_version: "0.0.0-humanoid"

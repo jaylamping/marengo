@@ -28,7 +28,8 @@
 //!    be repeatable enough to check it), every replicated pose residual within the gate, and
 //!    σ_A, σ_B within the gate (the sweep identifies both). A pose with a single bin (one
 //!    wave step of one session) has no spread to judge it by: it stays in the fit and its
-//!    residual is reported, but it never decides the verdict.
+//!    residual is reported, but it never decides the verdict; one above the gate is a
+//!    warning in the summary and the record.
 //! 4. **URDF patch.** For accepted groups, the smallest COM shift of the carried right-arm
 //!    links that reproduces every fitted (A, B), masses unchanged
 //!    ([`armee_dynamics::lumped::lumped_com_patch`]), refused above
@@ -54,16 +55,16 @@ use std::path::{Path, PathBuf};
 
 use armee_dynamics::calibration::{FitOptions, FittedLink};
 use armee_dynamics::lumped::{lumped_com_patch, lumped_terms, LumpedTarget, LumpedTerms};
-use armee_dynamics::{gravity_model_from_urdf, DynamicsModel, UrdfGravityModel};
+use armee_dynamics::{DynamicsModel, UrdfGravityModel};
 use marengo_config::{motor_for_joint, ControlConfigFile, MotorsConfigFile};
 use robstride::motor_type::MitRanges;
 use serde_json::{json, Value};
 
 use super::{
     display_relative, fmt_xyz, io, limb_links, patch_control_friction, patch_inertials,
-    record_stem, round, unified_diff, FrictionProposal, GravityFitArgs, GravityFitError, Outcome,
-    PlanStep, Session, CONTROL_PATCH_PATH, PATCH_PATH, PATCH_ROUNDTRIP_TOL_NM, PROPOSED_URDF_FILE,
-    WAVE_DQ_DEADBAND_RAD_S,
+    record_stem, round, unified_diff, write_checked_urdf, FrictionProposal, GravityFitArgs,
+    GravityFitError, Outcome, PlanStep, Session, CONTROL_PATCH_PATH, PATCH_PATH,
+    PATCH_ROUNDTRIP_TOL_NM, PROPOSED_URDF_FILE, WAVE_DQ_DEADBAND_RAD_S,
 };
 
 /// Bin width as a share of the wave amplitude: three bins (c, c ± a/2) cover the central
@@ -366,6 +367,18 @@ struct GroupFit {
 impl GroupFit {
     fn accepted(&self) -> bool {
         self.fit.is_some() && self.refusals.is_empty()
+    }
+
+    /// A single-bin pose residual above the gate. It never refuses (one bin has no spread to
+    /// judge it by), but the summary and record name it so an accepted fit cannot hide it.
+    fn ungated_warning(&self) -> Option<String> {
+        match (self.max_ungated_residual_nm, self.gate_nm) {
+            (Some(r), Some(g)) if r > g => Some(format!(
+                "single-bin pose residual {r:.4} Nm > gate {g:.4} Nm (not gated: replicate the \
+                 pose to judge it)"
+            )),
+            _ => None,
+        }
     }
 }
 
@@ -782,6 +795,14 @@ fn fit_friction(
         ),
         Some(_) => {}
     }
+    Ok(solve_friction(out, sigma_noise))
+}
+
+/// fc, fv and, when significant, fs over `out.points`, with their σ from `sigma_noise` (else
+/// the fit residual) and the residual against `out.gate_nm`; refusals append to
+/// `out.refusals`.
+fn solve_friction(mut out: FrictionFit, sigma_noise: Option<f64>) -> FrictionFit {
+    let v_b_rad_s = out.v_b_rad_s;
     let y: Vec<f64> = out.points.iter().map(|p| p.friction_nm).collect();
     let linear: Vec<Vec<f64>> = out
         .points
@@ -794,7 +815,7 @@ fn fit_friction(
     else {
         out.refusals
             .push("fc, fv not solvable (one speed or one bin)".into());
-        return Ok(out);
+        return out;
     };
     let (mut fc, mut fv) = (c[0], c[1]);
     let residual_sigma = |coef: &[f64], rows: &[Vec<f64>]| -> Option<f64> {
@@ -826,6 +847,9 @@ fn fit_friction(
                     fc = c3[0];
                     fv = c3[1];
                     out.fs_nm = Some(c3[0] + c3[2]);
+                    // σ of the three-term model whose fc and fv are proposed.
+                    out.sigma_fc_nm = s3.map(|s| s * inv3[0][0].sqrt());
+                    out.sigma_fv = s3.map(|s| s * inv3[1][1].sqrt());
                     format!(
                         "fs − fc = {:.4} ± {se:.4} Nm at v_b {v_b_rad_s} rad/s",
                         c3[2]
@@ -884,7 +908,7 @@ fn fit_friction(
         worst = worst.max((p.friction_nm - f).abs());
     }
     out.max_residual_nm = Some(worst);
-    if let Some(g) = gate_nm {
+    if let Some(g) = out.gate_nm {
         if worst > g {
             out.refusals.push(format!(
                 "residual: max |bin − fit| {worst:.4} Nm > gate {g:.4} Nm"
@@ -902,7 +926,7 @@ fn fit_friction(
     }
     out.fc_nm = Some(fc);
     out.fv = Some(fv);
-    Ok(out)
+    out
 }
 
 /// The URDF patch for the accepted groups, with its checks.
@@ -960,21 +984,23 @@ fn propose_urdf(
         .args
         .out_dir
         .join(format!("{stem}.{PROPOSED_URDF_FILE}"));
-    std::fs::write(&proposed, &patched_text).map_err(io(&proposed))?;
-    let patched = gravity_model_from_urdf(&proposed, inputs.joints)?;
-    let mut reproduced = Vec::new();
-    for t in &targets {
-        let got = lumped_terms(&patched, &t.joint, &t.q_fixed)?;
-        if (got.a_nm - t.terms.a_nm).abs() > PATCH_ROUNDTRIP_TOL_NM
-            || (got.b_nm - t.terms.b_nm).abs() > PATCH_ROUNDTRIP_TOL_NM
-        {
-            return Err(GravityFitError::Patch(format!(
-                "{}: patched URDF gives A {:.4} B {:.4} Nm, fit A {:.4} B {:.4} Nm",
-                t.joint, got.a_nm, got.b_nm, t.terms.a_nm, t.terms.b_nm
-            )));
-        }
-        reproduced.push(got);
-    }
+    let (patched, reproduced) =
+        write_checked_urdf(&proposed, &patched_text, inputs.joints, |patched| {
+            let mut reproduced = Vec::new();
+            for t in &targets {
+                let got = lumped_terms(&patched, &t.joint, &t.q_fixed)?;
+                if (got.a_nm - t.terms.a_nm).abs() > PATCH_ROUNDTRIP_TOL_NM
+                    || (got.b_nm - t.terms.b_nm).abs() > PATCH_ROUNDTRIP_TOL_NM
+                {
+                    return Err(GravityFitError::Patch(format!(
+                        "{}: patched URDF gives A {:.4} B {:.4} Nm, fit A {:.4} B {:.4} Nm",
+                        t.joint, got.a_nm, got.b_nm, t.terms.a_nm, t.terms.b_nm
+                    )));
+                }
+                reproduced.push(got);
+            }
+            Ok((patched, reproduced))
+        })?;
     let mut side = vec![0.0f64; inputs.joints.len()];
     for g in &accepted {
         let j = inputs.joints.iter().position(|n| n == &g.joint);
@@ -1174,6 +1200,7 @@ fn record_json(
             "sessions": g.sessions,
             "accepted": g.accepted(),
             "refusals": g.refusals,
+            "warnings": g.ungated_warning().into_iter().collect::<Vec<_>>(),
             "cad": {"a_nm": round(g.cad.a_nm, 5), "b_nm": round(g.cad.b_nm, 5),
                     "c_nm": round(g.cad.amplitude_nm(), 5), "phi_rad": round(g.cad.phase_rad(), 5)},
             "fit": g.fit.map_or(Value::Null, |f| json!({
@@ -1316,6 +1343,9 @@ fn summary(groups: &[GroupFit], friction: &[FrictionFit]) -> String {
                 format!("refused: {}", g.refusals.join("; "))
             }
         );
+        if let Some(w) = g.ungated_warning() {
+            let _ = write!(s, "; WARNING {w}");
+        }
     }
     for f in friction {
         let _ = write!(
@@ -1416,6 +1446,9 @@ fn record_markdown(
                 format!(": {}", g.refusals.join("; "))
             }
         );
+        if let Some(w) = g.ungated_warning() {
+            let _ = writeln!(md, "**Warning:** {w}.\n");
+        }
         let _ = writeln!(md, "| term | CAD | fit | ±σ |");
         let _ = writeln!(md, "|---|---|---|---|");
         let f = g.fit;
@@ -1597,4 +1630,84 @@ fn record_markdown(
         }
     }
     md
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
+
+    use super::*;
+
+    /// CAL-08: with the Stribeck term accepted, σ_fc and σ_fv are those of the three-term
+    /// model whose fc and fv are proposed, not of the two-term fit they replace.
+    #[test]
+    fn stribeck_terms_carry_their_own_sigma() {
+        const V_B: f64 = 0.08;
+        const NOISE: f64 = 0.002;
+        let points = [0.02, 0.04, 0.06, 0.09, 0.13, 0.2, 0.3]
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| FrictionPoint {
+                center_rad: 0.0,
+                half_period_s: 1.0,
+                speed_rad_s: v,
+                friction_nm: 0.3
+                    + 0.1 * v
+                    + 0.2 * (-v / V_B).exp()
+                    + if i % 2 == 0 { NOISE } else { -NOISE },
+                se_nm: NOISE,
+                session_means: Vec::new(),
+                fit_nm: None,
+            })
+            .collect::<Vec<_>>();
+        let y: Vec<f64> = points.iter().map(|p| p.friction_nm).collect();
+        let rows = |stribeck: bool| -> Vec<Vec<f64>> {
+            points
+                .iter()
+                .map(|p| {
+                    let mut r = vec![1.0, p.speed_rad_s];
+                    if stribeck {
+                        r.push((-p.speed_rad_s / V_B).exp());
+                    }
+                    r
+                })
+                .collect()
+        };
+        let (_, inv2) = least_squares(&rows(false), &y).unwrap();
+        let (_, inv3) = least_squares(&rows(true), &y).unwrap();
+        let fit = solve_friction(
+            FrictionFit {
+                joint: "a".into(),
+                points,
+                speeds: 7,
+                v_b_rad_s: V_B,
+                current: (0.0, 0.0, 0.0),
+                fc_nm: None,
+                fv: None,
+                fs_nm: None,
+                sigma_fc_nm: None,
+                sigma_fv: None,
+                fs_note: String::new(),
+                fv_note: String::new(),
+                sigma_cross_nm: Some(NOISE),
+                sigma_bin_nm: Some(NOISE),
+                gate_nm: Some(0.01),
+                max_residual_nm: None,
+                refusals: Vec::new(),
+            },
+            Some(NOISE),
+        );
+        assert!(fit.fs_nm.is_some(), "{}", fit.fs_note);
+        let sigma_fc = fit.sigma_fc_nm.unwrap();
+        let sigma_fv = fit.sigma_fv.unwrap();
+        assert!(
+            (sigma_fc - NOISE * inv3[0][0].sqrt()).abs() < 1e-12,
+            "{sigma_fc}"
+        );
+        assert!(
+            (sigma_fv - NOISE * inv3[1][1].sqrt()).abs() < 1e-12,
+            "{sigma_fv}"
+        );
+        assert!(sigma_fc > 1.5 * NOISE * inv2[0][0].sqrt(), "{sigma_fc}");
+    }
 }

@@ -22,7 +22,6 @@ use crate::degraded::{
     DegradedControl, DegradedEvent, DegradedLowerCause, DegradedPhase, DriveLossAdmission,
     DEGRADED_REST_TOLERANCE_RAD,
 };
-use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::gain_runtime::{
     mode_allows_gain_override, target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime,
     GainShapeError, JointModeGains,
@@ -30,7 +29,7 @@ use crate::gain_runtime::{
 use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
     DescentCap, HoldError, HoldFuseTrip, HoldJointDiag, HoldJointParams, HoldLaw, HoldRetarget,
-    HoldWorld, PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
+    HoldWorld, PositionHold,
 };
 use crate::position_law::{ReferenceFriction, ScaledPdGains};
 use crate::position_profile::position_profile_v_max;
@@ -131,6 +130,14 @@ pub enum LoopError {
         trip: HoldFuseTrip,
     },
     #[error(
+        "position hold: return stall on {joint}: no measured progress toward target for {ms} ms ({trip})"
+    )]
+    ReturnStall {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
+    #[error(
         "position hold: hold tracking failure on {joint}: off target with net commanded torque opposing it and no measured progress for {ms} ms ({trip})"
     )]
     HoldTracking {
@@ -182,6 +189,7 @@ impl From<HoldError> for LoopError {
     fn from(err: HoldError) -> Self {
         match err {
             HoldError::AscentStall { joint, ms, trip } => Self::AscentStall { joint, ms, trip },
+            HoldError::ReturnStall { joint, ms, trip } => Self::ReturnStall { joint, ms, trip },
             HoldError::HoldTracking { joint, ms, trip } => Self::HoldTracking { joint, ms, trip },
             HoldError::MissingSetpoint { joint } => Self::MissingSetpoint { joint },
             HoldError::WaveStall { joint, ms, trip } => Self::WaveStall { joint, ms, trip },
@@ -226,7 +234,7 @@ pub struct ControlLoop<B: MotorBus> {
     gains: GainRuntime,
     /// Per-joint latched open-loop `τ_cmd` (Nm) for [`ControlMode::TorqueOnly`].
     torque_cmds: TorqueCmdLatch,
-    /// In-loop triangle wave on one joint while others hold fixed setpoints.
+    /// In-loop raised-cosine wave on one joint while others hold fixed setpoints.
     position_wave: Option<PositionWave>,
     /// Set by an operator disable: motion commands then refuse instead of
     /// re-enabling drives (see [`ControlLoop::ensure_active_for_motion`]).
@@ -240,6 +248,27 @@ pub struct ControlLoop<B: MotorBus> {
     degraded: Option<DegradedControl>,
     /// Episode transitions not yet taken by the owner.
     degraded_events: Vec<DegradedEvent>,
+}
+
+/// Joints a tick lacks a current pose for, from one look
+/// ([`ControlLoop::feedback_gaps`]).
+#[derive(Debug, Default)]
+struct FeedbackGaps {
+    /// The first Active joint without one.
+    active: Option<String>,
+    /// The first other coupled joint without one, when looked at.
+    peer: Option<String>,
+}
+
+impl FeedbackGaps {
+    /// These gaps fail a tick that needs joint feedback: a missing Active
+    /// pose once the enable grace is over, or else a missing peer.
+    fn fail_tick(&self, grace_ticks: u8) -> bool {
+        match self.active {
+            Some(_) => grace_ticks == 0,
+            None => self.peer.is_some(),
+        }
+    }
 }
 
 /// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
@@ -826,7 +855,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_wave = None;
     }
 
-    /// Start a continuous triangle wave on one joint (Position mode).
+    /// Start a continuous raised-cosine wave on one joint (Position mode).
     ///
     /// Other joints keep their current latched setpoints. The wave runs in-loop for
     /// `cycles` full min→max→min periods without stdin pacing.
@@ -1404,6 +1433,8 @@ impl<B: MotorBus> ControlLoop<B> {
         let to = self.target_gains_for_mode(mode);
         if mode != ControlMode::Position {
             self.position_hold.clear();
+            // Its last command belongs to this Position episode; the next one starts unreshaped.
+            self.hold_reshape_watch.clear();
             self.last_position_diag = None;
             self.position_wave = None;
         }
@@ -1625,6 +1656,10 @@ impl<B: MotorBus> ControlLoop<B> {
                     "position ascent stalled without measured progress",
                     Some(joint),
                 ),
+                LoopError::ReturnStall { joint, .. } => self.supervisor.latch_control_fault(
+                    "position return toward home stalled without measured progress",
+                    Some(joint),
+                ),
                 LoopError::HoldTracking { joint, .. } => self.supervisor.latch_control_fault(
                     "position hold off target with opposing commanded torque and no progress",
                     Some(joint),
@@ -1661,6 +1696,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     | LoopError::HoldLenMismatch
                     | LoopError::MissingFeedback { .. }
                     | LoopError::AscentStall { .. }
+                    | LoopError::ReturnStall { .. }
                     | LoopError::HoldTracking { .. }
                     | LoopError::WaveStall { .. }
             ) {
@@ -1727,53 +1763,27 @@ impl<B: MotorBus> ControlLoop<B> {
 
         let needs_joint_feedback = operational_mode == OperationalMode::Active
             && self.control_mode != ControlMode::Disabled;
-        // No per-tick allocation: iterate the live set twice instead of
-        // collecting it (L-berthier-08).
-        let mut all_have_feedback = self
-            .supervisor
-            .active_joints()
-            .iter()
-            .all(|name| self.has_joint_feedback(name));
-        if needs_joint_feedback && !all_have_feedback && self.active_feedback_grace_ticks == 0 {
-            // A pose read stale here and a grant judged live in the drain count
+        // One look decides the tick (see `feedback_gaps`).
+        let mut gaps = self.feedback_gaps(needs_joint_feedback);
+        if needs_joint_feedback && gaps.fail_tick(self.active_feedback_grace_ticks) {
+            // A pose seen stale here and a grant judged live in the drain count
             // the same unanswered solicit a moment apart: judge the grants now,
-            // so a qualifying drive loss sheds its subtree (ADR 0038) instead of
-            // failing the tick on its missing pose.
+            // after the look, so a qualifying drive loss sheds its subtree
+            // (ADR 0038) instead of failing the tick on its missing pose.
             self.supervisor.check_active_references()?;
             self.observe_degraded_episode();
             q = self.read_positions();
-            all_have_feedback = self
-                .supervisor
-                .active_joints()
-                .iter()
-                .all(|name| self.has_joint_feedback(name));
+            gaps = self.feedback_gaps(needs_joint_feedback);
         }
+        let all_have_feedback = gaps.active.is_none();
         // First tick (or first ticks after enable) may run before CAN status arrives.
         let feedback_bootstrap =
             needs_joint_feedback && !all_have_feedback && self.active_feedback_grace_ticks > 0;
         if needs_joint_feedback && !feedback_bootstrap {
-            for name in self.supervisor.active_joints() {
-                if !self.has_joint_feedback(name) {
-                    return Err(LoopError::MissingFeedback {
-                        joint: name.clone(),
-                    });
-                }
-            }
-        }
-        if needs_joint_feedback && !feedback_bootstrap {
             // The gravity model couples every URDF joint: a silent peer is not q = 0.
             // Fail closed rather than biasing τ_g for the scoped Active joints.
-            for (index, joint) in self.joint_names.iter().enumerate() {
-                // A shed joint's angle is frozen in `q` (ADR 0038).
-                let frozen = self
-                    .degraded
-                    .as_ref()
-                    .is_some_and(|control| control.is_shed(index));
-                if !frozen && !self.has_joint_feedback(joint) {
-                    return Err(LoopError::MissingFeedback {
-                        joint: joint.clone(),
-                    });
-                }
+            if let Some(joint) = gaps.active.or(gaps.peer) {
+                return Err(LoopError::MissingFeedback { joint });
             }
         }
         if self.active_feedback_grace_ticks > 0 {
@@ -1853,22 +1863,24 @@ impl<B: MotorBus> ControlLoop<B> {
                                 }
                                 _ => HoldLaw::Legacy,
                             };
+                            // One key each feeds both the advance and compose paths. The
+                            // fallbacks are unreachable: construction refuses a joint without a
+                            // control.yaml entry (tests/config_joint_coverage.rs).
+                            let max_lead =
+                                cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15);
+                            let vel_deadband = cfg
+                                .map(|c| c.position_trajectory_velocity_deadband_rad)
+                                .unwrap_or(0.02);
                             HoldJointParams {
                                 // The torque the law judges (fuses, evidence, diag) is the
                                 // torque on the wire: override > ramp > YAML.
                                 kp: r.wire_kp,
                                 kd: r.law_kd,
                                 ki: r.law_ki,
-                                max_lead: cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15),
-                                vel_deadband: cfg
-                                    .map(|c| c.position_trajectory_velocity_deadband_rad)
-                                    .unwrap_or(0.02),
-                                advance_max_lead: cfg
-                                    .map(|c| c.position_slew_max_lead_rad)
-                                    .unwrap_or(ADVANCE_MAX_LEAD_DEFAULT),
-                                advance_vel_deadband: cfg
-                                    .map(|c| c.position_trajectory_velocity_deadband_rad)
-                                    .unwrap_or(POSITION_HOLD_ERROR_DEADBAND_RAD),
+                                max_lead,
+                                vel_deadband,
+                                advance_max_lead: max_lead,
+                                advance_vel_deadband: vel_deadband,
                                 slew_rad_s: cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25),
                                 trajectory_v_max: cfg
                                     .map(|c| c.position_trajectory_velocity_rad_s)
@@ -2158,6 +2170,37 @@ impl<B: MotorBus> ControlLoop<B> {
 
     fn has_joint_feedback(&self, joint: &str) -> bool {
         self.supervisor.joint_feedback(joint).is_some()
+    }
+
+    /// One look at the poses this tick needs: the first Active joint without a
+    /// current pose and, with `peers`, the first other joint the gravity model
+    /// couples without one (a shed joint's angle is frozen in `q`, ADR 0038).
+    /// Each pose is judged once. A second look a moment later can find a pose
+    /// gone stale that this one passed, with no grant judged after it, so
+    /// every feedback verdict of a tick comes from one look. Allocates only
+    /// for a gap (L-berthier-08).
+    fn feedback_gaps(&self, peers: bool) -> FeedbackGaps {
+        let active_joints = self.supervisor.active_joints();
+        let active = active_joints
+            .iter()
+            .find(|name| !self.has_joint_feedback(name))
+            .cloned();
+        let peer = if peers {
+            self.joint_names
+                .iter()
+                .enumerate()
+                .find(|(index, joint)| {
+                    let frozen = self
+                        .degraded
+                        .as_ref()
+                        .is_some_and(|control| control.is_shed(*index));
+                    !frozen && !active_joints.contains(*joint) && !self.has_joint_feedback(joint)
+                })
+                .map(|(_, joint)| joint.clone())
+        } else {
+            None
+        };
+        FeedbackGaps { active, peer }
     }
 
     /// Measured `q`; a shed joint reads its frozen angle during an episode.

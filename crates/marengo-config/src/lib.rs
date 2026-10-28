@@ -1,7 +1,8 @@
 //! # marengo-config — runtime YAML configuration
 //!
 //! Typed loaders for repo [`config/`](../../config/). Single place for **declarative**
-//! robot/motor/control parameters; no realtime logic.
+//! robot/motor/control parameters. No control loop, but not realtime-free either: Davout
+//! re-runs [`validate_safety_config`] in its reference binding check on the tick path.
 //!
 //! ## Files
 //!
@@ -16,6 +17,12 @@
 //!
 //! - Parse and validate (e.g. motor joints ⊆ `robot.joints`).
 //! - [`resolve_urdf_path`]: fail fast if URDF missing.
+//! - Write the profile back for bench Set Limits and tuning: limit patches, expand-only URDF
+//!   rewrites, URDF merge, locked atomic writes and the CAS revision
+//!   ([`write_motors_and_control`], [`write_control_config_from`],
+//!   [`write_motors_control_and_urdf`], [`profile_content_revision`]). These writers
+//!   re-serialise YAML through serde, which drops comments.
+//! - Commissioning scope and completeness reports.
 //!
 //! ## Does not
 //!
@@ -220,8 +227,8 @@ pub(crate) const REFERENCE_JOURNAL_FILE: &str = "reference-journal.sqlite3";
 /// [`REFERENCE_JOURNAL_FILE`] beside the calibration history
 /// (`MARENGO_CALIBRATION_RECORD`, else `homing.yaml` `calibration_record_path`
 /// under `repo_root`). Relative results are anchored at the working directory
-/// and `.`/`..` are collapsed lexically, because the journal requires an
-/// absolute normal path.
+/// and `.`/`..` are collapsed, because the journal requires an absolute normal
+/// path (see [`normal_absolute_path`]).
 pub fn resolve_reference_journal_path(
     repo_root: impl AsRef<Path>,
     config_dir: impl AsRef<Path>,
@@ -242,8 +249,16 @@ pub fn resolve_reference_journal_path(
             .unwrap_or_else(|| Path::new(""))
             .join(REFERENCE_JOURNAL_FILE)
     };
-    let absolute = std::path::absolute(&path).map_err(|e| ConfigError::Io {
-        path: path.clone(),
+    normal_absolute_path(&path)
+}
+
+/// `path` made absolute with `.` dropped and each `..` resolved as the OS
+/// would: an existing prefix is canonicalized first, so `link/..` leaves the
+/// symlink's target, not the link's parent (REF-13). A missing prefix can
+/// only be collapsed lexically.
+fn normal_absolute_path(path: &Path) -> Result<PathBuf, ConfigError> {
+    let absolute = std::path::absolute(path).map_err(|e| ConfigError::Io {
+        path: path.to_owned(),
         message: e.to_string(),
     })?;
     let mut normal = PathBuf::new();
@@ -251,6 +266,9 @@ pub fn resolve_reference_journal_path(
         match component {
             std::path::Component::CurDir => {}
             std::path::Component::ParentDir => {
+                if let Ok(resolved) = normal.canonicalize() {
+                    normal = resolved;
+                }
                 normal.pop();
             }
             other => normal.push(other),
@@ -578,7 +596,8 @@ pub struct JointControlEntry {
     /// Trajectory acceleration cap (rad/s²).
     #[serde(default = "default_position_trajectory_accel_rad_s2")]
     pub position_trajectory_accel_rad_s2: f64,
-    /// Friction follows `dq_des` when |dq_des| exceeds this (rad/s).
+    /// Friction follows `dq_des` when |dq_des| exceeds this. The unit is **rad/s** despite the
+    /// `_rad` suffix; Davout reads it as the envelope's `velocity_deadband_rad_s`.
     #[serde(default = "default_position_trajectory_velocity_deadband_rad")]
     pub position_trajectory_velocity_deadband_rad: f64,
     /// Added to every position-hold target (rad). Bench trim when mechanical zero ≠ encoder zero.
@@ -1296,14 +1315,18 @@ pub(crate) fn control_config_path(config_dir: impl AsRef<Path>) -> PathBuf {
     config_dir.as_ref().join("control.yaml")
 }
 
-/// Persist `control.yaml` under `config_dir` (validates, then atomic temp+rename).
+/// Persist `control.yaml` under `config_dir` (validates against the whole profile on disk,
+/// then atomic temp+rename), so a control.yaml the next boot would refuse is never written.
 pub fn write_control_config_from(
     config_dir: impl AsRef<Path>,
     cfg: &ControlConfigFile,
 ) -> Result<(), ConfigError> {
     let config_dir = config_dir.as_ref();
     let _lock = ProfileWriteLock::acquire(config_dir)?;
-    validate_control_config(cfg)?;
+    let robot = load_robot_config_from(config_dir)?;
+    let motors = load_motors_config_from(config_dir)?;
+    let homing = load_homing_config_from(config_dir)?;
+    validate_safety_config(&robot, &motors, cfg, &homing)?;
     let path = control_config_path(config_dir);
     let text = serde_yaml::to_string(cfg).map_err(|e| ConfigError::Parse {
         path: path.clone(),
@@ -1314,7 +1337,8 @@ pub fn write_control_config_from(
 
 /// Apply a config-tier tuning parameter; returns the previous value.
 ///
-/// Rejects `velocity_max_rad_s` — that requires rebuilding Davout limits after reload.
+/// Rejects `velocity_max_rad_s`: it changes Davout's limit policy, so it travels in a
+/// [`LimitPatch`], which rebuilds the limits.
 pub fn apply_joint_config_param(
     entry: &mut JointControlEntry,
     param: &str,
@@ -1380,7 +1404,8 @@ pub fn apply_joint_config_param(
         }
         "velocity_max_rad_s" => Err(ConfigError::Parse {
             path: PathBuf::from("control.yaml"),
-            message: "velocity_max_rad_s overlay gated until Davout limits rebuild is wired"
+            message: "velocity_max_rad_s is not a tuning overlay; send it in a limit patch \
+                      (Set Limits)"
                 .to_string(),
         }),
         other => Err(ConfigError::Parse {
@@ -1512,12 +1537,19 @@ pub fn validate_motors_against_robot(
     Ok(())
 }
 
+/// Where the URDF that `robot.yaml` names lives: `<repo_root>/<robot.urdf>`. The URDF writers
+/// (through [`resolve_urdf_path`]) and the CAS revision both resolve through this, so they
+/// write and hash the same file whatever the config dir is.
+pub(crate) fn urdf_path_under(repo_root: &Path, urdf: &str) -> PathBuf {
+    repo_root.join(urdf)
+}
+
 /// Resolve URDF path from robot config; errors if the file is missing.
 pub fn resolve_urdf_path(
     repo_root: impl AsRef<Path>,
     robot: &RobotConfigFile,
 ) -> Result<PathBuf, ConfigError> {
-    let path = repo_root.as_ref().join(&robot.robot.urdf);
+    let path = urdf_path_under(repo_root.as_ref(), &robot.robot.urdf);
     if !path.is_file() {
         return Err(ConfigError::UrdfMissing { path });
     }
@@ -1529,7 +1561,6 @@ pub fn motor_for_joint<'a>(motors: &'a MotorsConfigFile, joint: &str) -> Option<
     motors.motors.iter().find(|m| m.joint == joint)
 }
 
-/// Bench-wired joints eligible for actuator commands (4-DOF left arm bring-up).
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -1538,6 +1569,21 @@ mod tests {
 
     fn repo_root() -> PathBuf {
         resolve_repo_root()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn journal_path_parent_of_a_symlink_is_the_targets_parent() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path().canonicalize().expect("canonical tempdir");
+        std::fs::create_dir_all(root.join("real/sub")).expect("target");
+        std::os::unix::fs::symlink(root.join("real/sub"), root.join("link")).expect("link");
+        let resolved =
+            normal_absolute_path(&root.join("link/../cal/journal.sqlite3")).expect("normal");
+        assert_eq!(resolved, root.join("real/cal/journal.sqlite3"));
+        let missing = normal_absolute_path(&root.join("gone/../cal/./journal.sqlite3"))
+            .expect("lexical for a missing prefix");
+        assert_eq!(missing, root.join("cal/journal.sqlite3"));
     }
 
     #[test]
@@ -1740,6 +1786,26 @@ mod tests {
         assert_eq!(knee.motor_type, MotorType::Rs04);
         let hip = motor_for_joint(&motors, "left_hip_pitch").expect("left_hip_pitch");
         assert_eq!(hip.motor_type, MotorType::Rs04);
+    }
+
+    /// The template's right arm is the built bench arm: its drive facts (type, sign, gearing)
+    /// must match the live master. Bus, ids and limits are placeholders until the bus plan.
+    #[test]
+    fn humanoid_right_arm_matches_the_live_arm_drives() {
+        let root = repo_root();
+        let template: MotorsConfigFile =
+            read_yaml(&root.join("config/motors_humanoid.yaml")).expect("motors_humanoid.yaml");
+        let live: MotorsConfigFile =
+            read_yaml(&root.join("config/motors.yaml")).expect("motors.yaml");
+        for motor in &live.motors {
+            let row = motor_for_joint(&template, &motor.joint).expect("template has the joint");
+            assert_eq!(
+                (row.motor_type, row.direction, row.gear_ratio),
+                (motor.motor_type, motor.direction, motor.gear_ratio),
+                "{}",
+                motor.joint
+            );
+        }
     }
 
     fn sample_control_section() -> ControlSection {

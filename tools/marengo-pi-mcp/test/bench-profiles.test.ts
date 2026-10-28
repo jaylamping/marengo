@@ -60,14 +60,14 @@ describe("bench profile metadata", () => {
   it("uses master config dir for right-arm profiles", () => {
     const right3: BenchProfile[] = ["roll_attached", "arm_2dof_smoke"];
     for (const p of right3) {
-      assert.equal(harnessConfigDir(cfg, p), "/opt/marengo/config");
+      assert.equal(harnessConfigDir(cfg), "/opt/marengo/config");
       assert.equal(
         harnessJointSubset(p),
         "right_shoulder_pitch,right_shoulder_roll,right_upper_arm_yaw",
       );
     }
     for (const p of ["yaw_attached", "elbow_attached"] as BenchProfile[]) {
-      assert.equal(harnessConfigDir(cfg, p), "/opt/marengo/config");
+      assert.equal(harnessConfigDir(cfg), "/opt/marengo/config");
       assert.ok(harnessJointSubset(p)?.includes("right_elbow_pitch"));
     }
   });

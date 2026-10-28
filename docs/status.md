@@ -12,11 +12,11 @@ The **right 5-DOF arm** on the bench is a deliberate first slice to prove the co
 
 | Area | State |
 |------|-------|
-| Mechanical | 2020 upper-torso cage committed (125 × 150 × 380 mm). Right arm built; its URDF geometry and inertials come from CAD (2026-10-03). Pelvis, legs, shell, battery bays and head are draft. CAD is local-only on Joey's PC. |
+| Mechanical | 2020 upper-torso cage committed (125 × 150 × 380 mm). Right arm built; its URDF geometry, masses and inertia tensors come from CAD (2026-10-03), but the link COMs were fitted on 2026-10-04 while the shoulder rubbed (see the URDF header). Pelvis, legs, shell, battery bays and head are draft. CAD is local-only on Joey's PC. |
 | Electrical | Pi 5 + Waveshare 2-CH MCP2515 CAN HAT (`can0` in use, `can1` free) + BNO085 IMU on I2C. Right arm drives on `can0`, ids 1–5. E-stop GPIO not wired (physical E-stop in motor power is the authority). PDB KiCad project is an empty stub. |
 | Runtime | Rust workspace (15 crates, 6 bins): `marengo-pi` 200 Hz loop, Berthier control, Davout safety supervisor (sole motor path), robstride CAN driver, Chappe bus, `marengo-gateway`. Physical Set Zero with process-local grants (ADR 0036), motion-owner lease, enable completion gate, gravity preflight, single-drive-loss degraded hold (ADR 0038), Davout total-torque bound. |
 | Control | GravityComp, Impedance, TorqueOnly and Position modes. Position uses the ADR 0007 law on four joints; `right_shoulder_pitch` runs the ADR 0039/0040 `scaled_pd` law as a reduced-speed bench trial. |
-| Operator UI | Consul (Vite + React): telemetry, 3D URDF preview, Hardware page (master URDF/YAML, Set Limits, Set Zero, Ready facets, commissioning scope), testing panels. |
+| Operator UI | Consul (Vite + React): Overview, read-only Telemetry, Hardware page (master URDF/YAML import, a schematic 3D joint picker, Set Limits, Set Zero, Ready facets, commissioning scope), Testing panels and Logs. There is no URDF render in the UI. |
 | Tooling | `marengo-pi-mcp` bench tools (deploy, logs, candump, calibration, motion suite, enable soak), research MCP, daily audit, Docker CI gate (`just check`), MuJoCo smoke sim. |
 
 ## Bench checkpoint (last recorded 2026-10-04)
@@ -54,7 +54,7 @@ Detailed per-finding status: [prior-review-status.md](reviews/2026-10-03-crate-a
 - Proto types marked deprecated by prune batch B13 are still on the wire (removal needs a `buf breaking` exception).
 
 **Platform**
-- Local `just check` on Apple Silicon runs the amd64 image under Rosetta and Berthier wall-clock tests time out. Options: treat CI + native `cargo test` as the gate on the Mac, add an arm64 dev image, or make those tests clock-independent.
+- Local `just check` runs the `check` service on the native host arch since 2026-10-04 (`compose.yaml`, commit 617f02c), so Apple Silicon no longer emulates amd64 and the Berthier wall-clock tests no longer starve under Rosetta. CI runs `check.sh` in the amd64 `marengo-dev:local` image.
 - Native Windows cannot build the full workspace (Chappe IPC is Unix-only; CS22/G11).
 - `justfile` still has `setup-wsl` / `deploy-pi-wsl` recipes although ADR 0018 retired the WSL checkout.
 

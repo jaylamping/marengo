@@ -429,7 +429,8 @@ fn validate_homing_numbers(
 /// Validate homing defaults and the effective values after per-joint overrides.
 pub(crate) fn validate_homing_config(cfg: &HomingConfigFile) -> Result<(), ConfigError> {
     let homing = &cfg.homing;
-    nonnegative(
+    // Zero would accept only an exact 0.0 readback (REF-09).
+    positive(
         "homing.zero_verify_tolerance_rad",
         homing.zero_verify_tolerance_rad,
     )?;

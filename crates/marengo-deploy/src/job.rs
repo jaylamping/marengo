@@ -132,11 +132,12 @@ pub fn read_job_file(path: &Path) -> DeployJob {
     read_job_file_strict(path).job_or_sentinel()
 }
 
-/// Advisory lock shared by every `deploy-job.json` writer (Rust, shell, MCP).
+/// Advisory lock shared by every `deploy-job.json` writer.
 ///
-/// The gateway, `pi-enqueue-self-update.sh`, `pi-self-update.sh` and the MCP
-/// `pi_native` path all serialize through this sidecar so a status
-/// reconcile/demote read-modify-write cannot tear or overwrite a newer phase.
+/// The gateway holds it across each reconcile/demote read-modify-write. The
+/// enqueue helper's writer and `pi-self-update.sh` (also when the MCP
+/// `pi_native` path runs it) hold it across each tmp-file rename, so a phase
+/// write cannot land between a reconcile's read and its write.
 pub fn job_file_lock_path(path: &Path) -> PathBuf {
     PathBuf::from(format!("{}.lock", path.display()))
 }
@@ -156,12 +157,18 @@ fn lock_job_file(path: &Path) -> Result<std::fs::File> {
             })?;
         }
     }
+    // The shell writers run as the deploy user and may create the lock first;
+    // flock needs no write access, so fall back to a read-only open.
     let lock = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
         .truncate(false)
         .open(&lock_path)
+        .or_else(|error| match error.kind() {
+            std::io::ErrorKind::PermissionDenied => std::fs::File::open(&lock_path),
+            _ => Err(error),
+        })
         .map_err(|source| DeployError::Io {
             operation: "open job lock",
             source,

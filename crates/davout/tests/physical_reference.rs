@@ -14,8 +14,9 @@ use std::time::{Duration, Instant};
 use davout::simulation::SimulationBus;
 use davout::{
     DavoutError, JointHomingState, OperationalMode, ReferenceAudit, ReferenceError,
-    ReferenceOutcome, Supervisor, BURST_GROUP_SPACING, IDENTITY_ADMISSION_SPACING,
-    OWED_ON_WRITE_BOUND, POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
+    ReferenceOutcome, Supervisor, BURST_GROUP_SPACING, IDENTITY_ADMISSION_RETRY,
+    IDENTITY_ADMISSION_SPACING, IDENTITY_ADMISSION_TIMEOUT, OWED_ON_WRITE_BOUND,
+    POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
 };
 use marengo_config::{load_homing_config_from, load_motors_config_from, HomingMethod};
 use physical_firmware::{
@@ -461,7 +462,10 @@ fn missing_identity_at_acquisition_sends_no_enable_or_zero() {
     let mut bench = Bench::physical("physical-no-uid");
     bench.firmware.borrow_mut().drive_mut(PITCH).answer_identity = false;
     bench.assert_refused(PITCH, "TimedOut");
-    assert_eq!(bench.sent(CommunicationType::GetDeviceId, PITCH), 1);
+    // Re-requested only inside the admission window (REF-03).
+    let requests = bench.sent(CommunicationType::GetDeviceId, PITCH);
+    let window = IDENTITY_ADMISSION_TIMEOUT.as_millis() / IDENTITY_ADMISSION_RETRY.as_millis();
+    assert!((2..=1 + window as usize).contains(&requests), "{requests}");
     assert_eq!(bench.sent_any(CommunicationType::Enable), 0);
     assert_eq!(bench.sent_any(CommunicationType::SetZeroPosition), 0);
 }
@@ -700,6 +704,33 @@ fn identity_request_dropped_in_post_set_zero_blackout_is_asked_again() {
 }
 
 #[test]
+fn reference_identity_request_dropped_by_a_silent_drive_is_asked_again() {
+    // REF-03 (L-davout-24): acquisition sent one type-0 and waited out its
+    // 2 s phase deadline when the drive dropped it (a re-home landing in the
+    // drive's own post-SetZero blackout). Same longest measured blackout.
+    const BLACKOUT: Duration = Duration::from_millis(61);
+    let mut bench = Bench::physical("physical-reference-uid-blackout");
+    let answers_from = Instant::now() + BLACKOUT;
+    bench.firmware.borrow_mut().drive_mut(ROLL).silent_until = Some(answers_from);
+    bench.acquire(ROLL);
+    let device = bench.device(ROLL);
+    let firmware = bench.firmware.borrow();
+    let requested: Vec<Instant> = firmware
+        .tx
+        .iter()
+        .zip(&firmware.tx_at)
+        .filter(|(frame, _)| {
+            (frame.id >> 24) & 0x1f == u32::from(CommunicationType::GetDeviceId.as_u8())
+                && (frame.id & 0xff) as u8 == device
+        })
+        .map(|(_, at)| *at)
+        .collect();
+    assert!(requested.len() >= 2, "{requested:?}");
+    assert!(requested[0] < answers_from);
+    assert!(requested[requested.len() - 1] >= answers_from);
+}
+
+#[test]
 fn reboot_silence_beyond_watchdog_revokes_only_that_joint() {
     let mut bench = Bench::physical("physical-reboot-silence");
     bench.acquire(PITCH);
@@ -741,6 +772,45 @@ fn coordinate_discontinuity_after_grant_revokes() {
     bench.pump(Duration::from_millis(20));
     assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
     assert!(!bench.supervisor.has_latched_fault());
+}
+
+#[test]
+fn zero_loss_during_enable_admission_refuses_without_a_fault() {
+    let mut bench = Bench::physical("physical-enable-zero-loss");
+    // The absolute encoder's own zero lies outside the joint's URDF range, so
+    // the coordinate a lost firmware zero falls back to is out of limits.
+    {
+        let mut firmware = bench.firmware.borrow_mut();
+        let drive = firmware.drive_mut(PITCH);
+        drive.raw_motor_rad = -2.5 * drive.scale;
+    }
+    bench.acquire(PITCH);
+    bench.pump(Duration::from_millis(30));
+    assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+    // Same drive, same UID: its firmware zero is lost and the report that shows
+    // it is still queued when Enable admission drains feedback.
+    {
+        let mut firmware = bench.firmware.borrow_mut();
+        firmware.drive_mut(PITCH).zero_offset_motor_rad = 0.0;
+        assert!(firmware.drive(PITCH).position_joint_rad() < -2.0);
+        firmware.clear_trace();
+        firmware.emit_report(PITCH);
+    }
+    let error = bench
+        .supervisor
+        .enable_targets(&[PITCH.to_owned()])
+        .expect_err("a grant revoked during admission must not be enabled");
+    assert!(
+        !matches!(error, DavoutError::Limit { .. }),
+        "an unreferenced coordinate was judged against URDF limits: {error}"
+    );
+    assert!(
+        !bench.supervisor.has_latched_fault(),
+        "revocation during admission latched a fault: {error}"
+    );
+    assert_eq!(bench.sent_any(CommunicationType::Enable), 0);
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
 }
 
 #[test]
@@ -804,6 +874,112 @@ fn estop_during_an_armed_reference_stops_the_transaction_itself() {
         bench.supervisor.reference_outcome(&handle),
         Ok(ReferenceOutcome::Failed { .. })
     ));
+}
+
+/// Drive `request` to its outcome through non-blocking owner work, running
+/// `each` (e.g. periodic reports) between advances.
+fn reference_through_owner_work(
+    bench: &mut Bench,
+    joint: &str,
+    mut each: impl FnMut(&mut Bench, usize),
+) -> f32 {
+    let handle = bench
+        .supervisor
+        .request_reference(
+            joint,
+            true,
+            ReferenceAudit {
+                operator: OPERATOR.into(),
+                session: "physical-reference-test".into(),
+            },
+        )
+        .expect("physical request admitted");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    for step in 0.. {
+        if bench.supervisor.reference_work_pending() {
+            bench
+                .supervisor
+                .advance_reference_work()
+                .expect("owner work advances");
+        }
+        match bench
+            .supervisor
+            .reference_outcome(&handle)
+            .expect("outcome")
+        {
+            ReferenceOutcome::Current { position_rad } => return position_rad,
+            ReferenceOutcome::Failed { message } => panic!("reference failed: {message}"),
+            ReferenceOutcome::InProgress => {
+                assert!(Instant::now() < deadline, "reference did not finish");
+                each(bench, step);
+                std::thread::sleep(Duration::from_millis(2));
+            }
+        }
+    }
+    unreachable!("the loop returns or panics")
+}
+
+#[test]
+fn untrusted_coordinates_beyond_hard_limits_never_latch_a_reference() {
+    // L-davout-40 (ADR 0036, trusted coordinates): before its own SetZero the
+    // target reports in whatever frame the drive kept, and so does a peer
+    // without a grant; neither coordinate may trip the measured-limit fault.
+    let mut bench = Bench::physical("physical-untrusted-coordinates");
+    for (joint, q) in [(PITCH, -3.0), (ROLL, -1.0)] {
+        let lim = *bench.supervisor.joint_limit_policy(joint).expect("policy");
+        assert!(
+            q < lim.hard_lower() - lim.margin.measured_fault_slack_rad,
+            "{joint}"
+        );
+        let mut firmware = bench.firmware.borrow_mut();
+        let drive = firmware.drive_mut(joint);
+        drive.raw_motor_rad = q * drive.scale + drive.zero_offset_motor_rad;
+    }
+    // The peer keeps streaming (inherited) while the target is enabled.
+    bench.firmware.borrow_mut().drive_mut(ROLL).reporting = true;
+    let position = reference_through_owner_work(&mut bench, PITCH, |bench, _| {
+        bench.firmware.borrow_mut().emit_report(ROLL);
+    });
+    assert!(f64::from(position).abs() <= bench.tolerance());
+    let peer = bench
+        .supervisor
+        .joint_position_rad(ROLL)
+        .expect("peer pose read");
+    assert!((peer + 1.0).abs() < 1e-3, "peer reported {peer}");
+    assert!(
+        !bench.supervisor.has_latched_fault(),
+        "{:?}",
+        bench.supervisor.safety_snapshot().faults
+    );
+    assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+}
+
+#[test]
+fn a_peer_moved_during_owner_work_keeps_its_grant_only_within_the_at_rest_bound() {
+    // L-davout-40 (ADR 0036, coordinate continuity): a peer unobserved during
+    // another joint's reference is judged on its next sample against the
+    // at-rest zero_verify_tolerance_rad, not the vendor speed range.
+    for (moved_rad, kept) in [(0.2, false), (0.01, true)] {
+        let mut bench = Bench::physical("physical-at-rest-bound");
+        bench.acquire(ROLL);
+        bench.pump(Duration::from_millis(30));
+        assert!(moved_rad > bench.tolerance() || kept);
+        reference_through_owner_work(&mut bench, PITCH, |bench, step| {
+            if step == 1 {
+                let mut firmware = bench.firmware.borrow_mut();
+                let drive = firmware.drive_mut(ROLL);
+                drive.raw_motor_rad += moved_rad * drive.scale;
+            }
+        });
+        bench.pump(Duration::from_millis(300));
+        assert_eq!(
+            bench.state(ROLL) == JointHomingState::Verified,
+            kept,
+            "moved {moved_rad} rad"
+        );
+        assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+        assert!(!bench.supervisor.has_latched_fault());
+    }
 }
 
 #[test]
@@ -1589,6 +1765,24 @@ fn plain_owner_refuses_reference_without_transmitting() {
         supervisor.joint_homing_state(PITCH),
         JointHomingState::Unhomed
     );
+}
+
+#[test]
+fn physical_owner_refuses_a_transport_that_does_not_echo() {
+    // DAV-05: every firmware timing rule (post-SetZero quiet, Off before
+    // Enable, stagger) runs only on an echoing bus, so a non-echoing physical
+    // owner would write Enable straight into a drive's SetZero blackout.
+    let directory = TestDirectory::new("physical-no-echo");
+    let root = fixture_root(directory.path());
+    let journal = directory.path().join("reference-journal.sqlite3");
+    let refused =
+        Supervisor::from_repo_with_physical_reference(&root, SimulationBus::default(), &journal);
+    assert!(
+        matches!(&refused, Err(DavoutError::Homing { message }) if message.contains("echo")),
+        "{:?}",
+        refused.err()
+    );
+    assert!(!journal.exists());
 }
 
 #[test]

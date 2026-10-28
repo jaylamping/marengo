@@ -7,7 +7,9 @@ use armee_proto::{GatewaySubscribe, GatewaySubscriptionAdmission};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use rustls::pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer};
 use tracing::{debug, info, warn};
-use web_transport_quinn::{Server, ServerBuilder, Session};
+#[cfg(test)]
+use web_transport_quinn::ServerBuilder;
+use web_transport_quinn::{quinn, Server, Session};
 
 use crate::framing::{self, MAX_FRAME};
 use crate::state::{filter_topics, SharedState};
@@ -20,6 +22,10 @@ const SUBSCRIPTION_MAX_BYTES: usize = 16 * 1024;
 const SUBSCRIPTION_TIMEOUT: Duration = Duration::from_secs(5);
 const ADMISSION_WRITE_TIMEOUT: Duration = Duration::from_secs(1);
 const SESSION_CAPACITY: usize = 64;
+/// Bench certificates last 13 days (Chrome's WebTransport hash pinning takes
+/// at most 14). Renew when less than this remains.
+const TLS_RENEW_BEFORE: time::Duration = time::Duration::days(1);
+const TLS_RENEW_CHECK: Duration = Duration::from_secs(60 * 60);
 
 /// TLS material for WebTransport (QUIC) and `/tls/fingerprint` for browsers.
 pub struct TlsMaterial {
@@ -28,17 +34,171 @@ pub struct TlsMaterial {
     pub cert_sha256_base64: String,
 }
 
+/// The PEM files every TLS listener serves, and the HTTPS listener's config,
+/// so a renewed certificate reaches HTTPS and WebTransport alike.
+pub struct TlsRenewal {
+    pub cert_pem: PathBuf,
+    pub key_pem: PathBuf,
+    pub https: Option<axum_server::tls_rustls::RustlsConfig>,
+}
+
 pub async fn run_webtransport(
     state: SharedState,
     bind_addr: std::net::SocketAddr,
     tls: TlsMaterial,
+    renewal: TlsRenewal,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let (cert, key) = (tls.certs, tls.key);
-    let server = ServerBuilder::new()
-        .with_addr(bind_addr)
-        .with_certificate(cert, key)?;
+    // main loads the HTTPS listener from the same PEM files as `tls`.
+    let served = ServedTls {
+        quic: tls.cert_sha256_base64.clone(),
+        https: renewal
+            .https
+            .as_ref()
+            .map(|_| tls.cert_sha256_base64.clone()),
+    };
+    let endpoint = quinn::Endpoint::server(quic_server_config(tls.certs, tls.key)?, bind_addr)?;
+    tokio::spawn(renew_tls_before_expiry(
+        std::sync::Arc::clone(&state),
+        endpoint.clone(),
+        renewal,
+        served,
+    ));
     info!(%bind_addr, "WebTransport listening");
-    serve_webtransport(server, state).await
+    serve_webtransport(Server::new(endpoint), state).await
+}
+
+/// QUIC server config for WebTransport (TLS 1.3, ALPN h3), as
+/// `ServerBuilder::with_certificate` builds it.
+fn quic_server_config(
+    chain: Vec<CertificateDer<'static>>,
+    key: PrivateKeyDer<'static>,
+) -> Result<quinn::ServerConfig, Box<dyn std::error::Error + Send + Sync>> {
+    let mut config = rustls::ServerConfig::builder_with_provider(
+        web_transport_quinn::crypto::default_provider(),
+    )
+    .with_protocol_versions(&[&rustls::version::TLS13])?
+    .with_no_client_auth()
+    .with_single_cert(chain, key)?;
+    config.alpn_protocols = vec![web_transport_quinn::ALPN.as_bytes().to_vec()];
+    let config = quinn::crypto::rustls::QuicServerConfig::try_from(config)?;
+    Ok(quinn::ServerConfig::with_crypto(Arc::new(config)))
+}
+
+/// True when the certificate at `cert_file` expires within
+/// [`TLS_RENEW_BEFORE`] of `now`, or cannot be read.
+fn tls_needs_renewal(cert_file: &Path, now: time::OffsetDateTime) -> bool {
+    use x509_parser::prelude::FromDer;
+    let Ok(pem) = std::fs::read(cert_file) else {
+        return true;
+    };
+    let Some(Ok(first)) = CertificateDer::pem_slice_iter(&pem).next() else {
+        return true;
+    };
+    let Ok((_rest, cert)) = x509_parser::certificate::X509Certificate::from_der(first.as_ref())
+    else {
+        return true;
+    };
+    cert.validity().not_after.to_datetime() - now < TLS_RENEW_BEFORE
+}
+
+/// Fingerprint of the certificate each listener serves now. Renewal is
+/// decided from this as well as from the file, so a renewal that stopped half
+/// way (new PEM files, a listener still on the old certificate) is finished
+/// on the next check instead of waiting for a gateway restart.
+struct ServedTls {
+    quic: String,
+    /// None when the gateway has no HTTPS listener.
+    https: Option<String>,
+}
+
+/// Swap the certificate in the PEM files into every listener still serving
+/// another one: new QUIC handshakes and `/tls/fingerprint` together first,
+/// then the HTTPS listener. Open sessions keep the certificate they were made
+/// with. Returns whether any listener changed.
+async fn apply_tls_files(
+    state: &SharedState,
+    endpoint: &quinn::Endpoint,
+    renewal: &TlsRenewal,
+    served: &mut ServedTls,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    let cert_pem = std::fs::read(&renewal.cert_pem)?;
+    let key_pem = std::fs::read(&renewal.key_pem)?;
+    let tls = tls_material_from_pem(&cert_pem, &key_pem)?;
+    let mut changed = false;
+    if served.quic != tls.cert_sha256_base64 {
+        endpoint.set_server_config(Some(quic_server_config(tls.certs, tls.key)?));
+        // The fingerprint names what QUIC serves, whatever happens to HTTPS.
+        state.set_tls_cert_sha256_base64(tls.cert_sha256_base64.clone());
+        served.quic.clone_from(&tls.cert_sha256_base64);
+        changed = true;
+    }
+    if let (Some(https), Some(served_https)) = (&renewal.https, served.https.as_mut()) {
+        if *served_https != tls.cert_sha256_base64 {
+            // The bytes QUIC got, so both listeners serve the same certificate.
+            https.reload_from_pem(cert_pem, key_pem).await?;
+            *served_https = tls.cert_sha256_base64;
+            changed = true;
+        }
+    }
+    Ok(changed)
+}
+
+/// Regenerate the bench certificate and swap it into every listener.
+async fn renew_tls(
+    state: &SharedState,
+    endpoint: &quinn::Endpoint,
+    renewal: &TlsRenewal,
+    served: &mut ServedTls,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    persist_bench_tls_pem(&renewal.cert_pem, &renewal.key_pem)?;
+    apply_tls_files(state, endpoint, renewal, served).await?;
+    Ok(())
+}
+
+/// One renewal check: renew a certificate near expiry, else finish a renewal
+/// that a listener has not taken yet.
+async fn check_tls(
+    state: &SharedState,
+    endpoint: &quinn::Endpoint,
+    renewal: &TlsRenewal,
+    served: &mut ServedTls,
+    now: time::OffsetDateTime,
+) {
+    if tls_needs_renewal(&renewal.cert_pem, now) {
+        match renew_tls(state, endpoint, renewal, served).await {
+            Ok(()) => info!(
+                cert = %renewal.cert_pem.display(),
+                "renewed TLS certificate before expiry; browsers must accept the new one"
+            ),
+            Err(error) => warn!(%error, "TLS certificate renewal failed; retrying in an hour"),
+        }
+        return;
+    }
+    match apply_tls_files(state, endpoint, renewal, served).await {
+        Ok(false) => {}
+        Ok(true) => info!(
+            cert = %renewal.cert_pem.display(),
+            "finished an earlier TLS renewal; every listener serves the renewed certificate"
+        ),
+        Err(error) => warn!(%error, "TLS certificate renewal incomplete; retrying in an hour"),
+    }
+}
+
+/// The certificate was loaded once and never reloaded, so after 13 days of
+/// uptime HTTPS and WebTransport both served an expired certificate until the
+/// gateway restarted (G12). Check hourly and renew a day before expiry.
+async fn renew_tls_before_expiry(
+    state: SharedState,
+    endpoint: quinn::Endpoint,
+    renewal: TlsRenewal,
+    mut served: ServedTls,
+) {
+    let mut check = tokio::time::interval(TLS_RENEW_CHECK);
+    loop {
+        check.tick().await;
+        let now = time::OffsetDateTime::now_utc();
+        check_tls(&state, &endpoint, &renewal, &mut served, now).await;
+    }
 }
 
 async fn serve_webtransport(
@@ -260,37 +420,85 @@ fn bench_san_names() -> Result<Vec<String>, Box<dyn std::error::Error + Send + S
     Ok(names)
 }
 
-#[cfg(unix)]
-fn write_private_key(
+/// Write `contents` to a fresh temp file beside `path` and fsync it, ready to
+/// rename over `path`. A private file is created 0600 before any byte lands.
+fn write_temp_beside(
     path: &Path,
     contents: &[u8],
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    private: bool,
+) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> {
     use std::io::Write;
-    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)?;
-    file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
-    file.write_all(contents)?;
-    Ok(())
+    let name = path
+        .file_name()
+        .ok_or("TLS file path has no file name")?
+        .to_string_lossy();
+    let temp = path.with_file_name(format!(".{name}.tmp-{}", std::process::id()));
+    match std::fs::remove_file(&temp) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    if private {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    #[cfg(not(unix))]
+    let _ = private;
+    let written = options.open(&temp).and_then(|mut file| {
+        file.write_all(contents)?;
+        file.sync_all()
+    });
+    if let Err(error) = written {
+        let _ = std::fs::remove_file(&temp);
+        return Err(error.into());
+    }
+    Ok(temp)
 }
 
-#[cfg(not(unix))]
-fn write_private_key(
-    path: &Path,
-    contents: &[u8],
+/// Replace the PEM pair. The key goes first and the certificate last:
+/// renewal is decided from the certificate, so any failure leaves the old
+/// certificate in place and the next check retries.
+fn replace_tls_pem(
+    cert_file: &Path,
+    cert_pem: &[u8],
+    key_file: &Path,
+    key_pem: &[u8],
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    std::fs::write(path, contents)?;
+    let key_temp = write_temp_beside(key_file, key_pem, true)?;
+    let cert_temp = match write_temp_beside(cert_file, cert_pem, false) {
+        Ok(temp) => temp,
+        Err(error) => {
+            let _ = std::fs::remove_file(&key_temp);
+            return Err(error);
+        }
+    };
+    if let Err(error) = std::fs::rename(&key_temp, key_file) {
+        let _ = std::fs::remove_file(&key_temp);
+        let _ = std::fs::remove_file(&cert_temp);
+        return Err(error.into());
+    }
+    if let Err(error) = std::fs::rename(&cert_temp, cert_file) {
+        let _ = std::fs::remove_file(&cert_temp);
+        return Err(error.into());
+    }
     Ok(())
 }
 
 fn persist_bench_tls_pem(
     cert_file: &Path,
     key_file: &Path,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    persist_tls_pem_valid_for(cert_file, key_file, time::Duration::days(13))
+}
+
+fn persist_tls_pem_valid_for(
+    cert_file: &Path,
+    key_file: &Path,
+    validity: time::Duration,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use rcgen::{
         CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair, KeyUsagePurpose,
@@ -299,7 +507,7 @@ fn persist_bench_tls_pem(
     let mut params = CertificateParams::new(bench_san_names()?)?;
     let now = time::OffsetDateTime::now_utc();
     params.not_before = now;
-    params.not_after = now + time::Duration::days(13);
+    params.not_after = now + validity;
     params.key_usages = vec![
         KeyUsagePurpose::DigitalSignature,
         KeyUsagePurpose::KeyEncipherment,
@@ -313,11 +521,16 @@ fn persist_bench_tls_pem(
     if let Some(parent) = cert_file.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(cert_file, cert.pem())?;
-    write_private_key(key_file, key_pair.serialize_pem().as_bytes())?;
+    replace_tls_pem(
+        cert_file,
+        cert.pem().as_bytes(),
+        key_file,
+        key_pair.serialize_pem().as_bytes(),
+    )?;
     tracing::info!(
         cert = %cert_file.display(),
-        "generated bench TLS certificate (13-day validity, ECDSA P-256)"
+        days = validity.whole_days(),
+        "generated bench TLS certificate (ECDSA P-256)"
     );
     Ok(())
 }
@@ -347,10 +560,15 @@ fn tls_material_from_pem_files(
     cert_file: &Path,
     key_file: &Path,
 ) -> Result<TlsMaterial, Box<dyn std::error::Error + Send + Sync>> {
-    let cert_pem = std::fs::read(cert_file)?;
-    let key_pem = std::fs::read(key_file)?;
-    let certs = CertificateDer::pem_slice_iter(&cert_pem).collect::<Result<Vec<_>, _>>()?;
-    let key = PrivateKeyDer::from_pem_slice(&key_pem)?;
+    tls_material_from_pem(&std::fs::read(cert_file)?, &std::fs::read(key_file)?)
+}
+
+fn tls_material_from_pem(
+    cert_pem: &[u8],
+    key_pem: &[u8],
+) -> Result<TlsMaterial, Box<dyn std::error::Error + Send + Sync>> {
+    let certs = CertificateDer::pem_slice_iter(cert_pem).collect::<Result<Vec<_>, _>>()?;
+    let key = PrivateKeyDer::from_pem_slice(key_pem)?;
     let first = certs.first().ok_or("no certificate in PEM")?;
     let cert_sha256 = cert_sha256_from_der(first.as_ref());
     let cert_sha256_base64 =

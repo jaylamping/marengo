@@ -46,14 +46,42 @@ pub fn return_settle_band(target: f64) -> f64 {
 /// bound) is covered exactly like a positive-range joint. The rule uses only latched target and
 /// measured `q`: it never consults the gravity model, so a wrong `τ_g` cannot switch the fuse off.
 ///
-/// Moves from beyond the target back toward home are not watched (as before): those are the
-/// freeze / stuck-pull / `HoldTracking` domain.
+/// Moves toward home (from beyond the target, or to home itself) are not outbound; see
+/// [`travel_stall_direction`], which watches them as return moves.
 pub fn outbound_stall_direction(target: f64, to_target: f64) -> Option<f64> {
     if target.abs() <= POSITION_SETTLE_TOLERANCE_RAD {
         return None;
     }
     let direction = target.signum();
     (to_target * direction > return_settle_band(target)).then_some(direction)
+}
+
+/// Which kind of commanded move a travel stall-fuse episode watches.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum StallSide {
+    /// Away from home, toward the target's own side ([`outbound_stall_direction`]).
+    #[default]
+    Outbound,
+    /// Toward home: a same-side target closer to home, or home itself.
+    Return,
+}
+
+/// Direction (`±1.0`) and side of a travel stall-fuse episode, or `None` when none applies.
+///
+/// Outbound moves follow [`outbound_stall_direction`]. Every other move whose target is more
+/// than [`POSITION_RETURN_RESYNC_RAD`] (the hold-tracking band) from `q` is a return: its
+/// direction is the sign of `to_target`. `HoldTracking` arms only when the net command opposes
+/// the target, so a return jammed while the law keeps pushing toward the target (a pinch
+/// toward the body) is watched here. Like the outbound rule it uses only the latched target
+/// and measured `q`, never `τ_g`.
+pub fn travel_stall_direction(target: f64, to_target: f64) -> Option<(f64, StallSide)> {
+    if let Some(direction) = outbound_stall_direction(target, to_target) {
+        return Some((direction, StallSide::Outbound));
+    }
+    if !target.is_finite() || !to_target.is_finite() {
+        return None;
+    }
+    (to_target.abs() > POSITION_RETURN_RESYNC_RAD).then(|| (to_target.signum(), StallSide::Return))
 }
 
 /// Return planner-freeze only below this |q| — high-angle descent needs continuous q_ref.

@@ -1,10 +1,13 @@
 /**
- * Cross-platform sessionStart: ensure marengo-pi MCP + inject shell/host context.
+ * Cross-platform sessionStart: inject shell/host context.
+ *
+ * It never re-enables the marengo-pi MCP server: a user may disable that
+ * motor-driving server as a kill switch (TOOL-09). Re-enabling it is the
+ * explicit `just mcp-ensure-enabled --write`.
  *
  * Invoked via: node ".cursor/hooks/session-start-marengo.js"
  * (built from this .ts — run `just mcp-build` after editing).
  */
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -69,28 +72,6 @@ function stripWindowsOnlyMcpServers(): string {
   }
 }
 
-function findPython(): { bin: string; prefix: string[] } | null {
-  const candidates: Array<[string, string[]]> =
-    process.platform === "win32"
-      ? [
-          ["py", ["-3"]],
-          ["python3", []],
-          ["python", []],
-        ]
-      : [
-          ["python3", []],
-          ["python", []],
-        ];
-  for (const [bin, prefix] of candidates) {
-    const probe = spawnSync(bin, [...prefix, "-c", "print(1)"], {
-      encoding: "utf8",
-      windowsHide: true,
-    });
-    if (probe.status === 0) return { bin, prefix };
-  }
-  return null;
-}
-
 interface SessionPayload {
   workspace_roots?: unknown;
   composer_mode?: string;
@@ -115,40 +96,7 @@ const composerMode = payload.composer_mode || "unknown";
 const win = isWindowsNative();
 const shellName = win ? "Windows PowerShell" : "Unix/bash (macOS/Linux)";
 
-// Normalize .cursor/mcp.json per host before the ensure script hashes configs.
 const mcpConfigNote = stripWindowsOnlyMcpServers();
-let mcpStatus = "skipped";
-let mcpDetail = "ensure script missing";
-const ensureScript = path.join(repo, "scripts", "ensure-marengo-pi-mcp-enabled.py");
-if (fs.existsSync(ensureScript)) {
-  const py = findPython();
-  if (!py) {
-    mcpDetail = "python not on PATH";
-  } else {
-    const result = spawnSync(
-      py.bin,
-      [
-        ...py.prefix,
-        ensureScript,
-        "--write",
-        "--best-effort",
-        "--repo",
-        repo,
-      ],
-      { encoding: "utf8", windowsHide: true },
-    );
-    if (result.status === 0) {
-      mcpStatus = "ok";
-      const out = `${result.stdout || ""}${result.stderr || ""}`;
-      if (/No changes needed/.test(out)) mcpDetail = "already enabled";
-      else if (/after:/.test(out)) mcpDetail = "scrubbed/approved";
-      else mcpDetail = "ran";
-    } else {
-      mcpStatus = "failed";
-      mcpDetail = `exit ${result.status}`;
-    }
-  }
-}
 
 let softwareHint: string;
 if (win) {
@@ -164,12 +112,11 @@ const ctx = `## Marengo session environment
 - Workspace: ${repo}
 - Composer mode: ${composerMode}
 - mcp.json (host): ${mcpConfigNote}
-- marengo-pi MCP ensure: ${mcpStatus} (${mcpDetail})
 - ${softwareHint}
 
 PowerShell sequencing (mandatory on Windows): use \`; if ($LASTEXITCODE -eq 0) { ... }\` — not \`&&\` / \`||\`.
 Git commit heredocs on Windows: pipe a PowerShell here-string into \`sh\`. See \`.cursor/rules/windows-shell.mdc\`.
-If marengo-pi tools are missing: enable/restart MCP, or quit Cursor and run \`just mcp-ensure-enabled --write\`.`;
+If marengo-pi tools are missing, ask the user before re-enabling the MCP server: they may have disabled it on purpose. Re-enable in Cursor's MCP settings, or quit Cursor and run \`just mcp-ensure-enabled --write\`.`;
 
 process.stdout.write(
   JSON.stringify({

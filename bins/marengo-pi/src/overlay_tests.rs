@@ -36,6 +36,38 @@ fn test_loop() -> ControlLoop<MemoryBus> {
     ControlLoop::from_repo(repo_root(), MemoryBus::default(), 200, 50).expect("loop")
 }
 
+/// A loop whose elbow has a fresh measured pose: Davout refuses a limit patch
+/// it cannot check against the joint's position (DAV-09). 0.5 rad lies inside
+/// [`limit_patch_op`]'s range.
+fn elbow_posed_loop(root: &std::path::Path) -> ControlLoop<MemoryBus> {
+    let motors = load_motors_config_from(root.join("config")).expect("motors");
+    let elbow = motors
+        .motors
+        .iter()
+        .find(|motor| motor.joint == "right_elbow_pitch")
+        .expect("elbow");
+    let scale = f64::from(
+        robstride::motor_type::MitRanges::for_motor_type(elbow.motor_type).position_scale,
+    );
+    let q_motor = 0.5 * f64::from(elbow.direction) * elbow.gear_ratio;
+    let code = ((q_motor / scale + 1.0) * 32767.0).round() as u16;
+    let mut data = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8];
+    data[0..2].copy_from_slice(&code.to_be_bytes());
+    let mut bus = MemoryBus::default();
+    // Type-2 status in Reset mode from the elbow to the default host.
+    bus.rx_queue.push(robstride::CanFrame {
+        id: 0x0200_00fd | (u32::from(elbow.device_id) << 8),
+        data,
+        extended: true,
+    });
+    let mut loop_ctrl = ControlLoop::from_repo(root, bus, 200, 50).expect("loop");
+    loop_ctrl
+        .supervisor_mut()
+        .drain_feedback()
+        .expect("elbow pose");
+    loop_ctrl
+}
+
 fn allowlist_from_repo() -> CommandJointAllowlist {
     load_command_joint_allowlist_from(repo_root().join("config")).expect("allowlist")
 }
@@ -80,7 +112,7 @@ fn copy_profile_to_temp() -> (tempfile::TempDir, PathBuf, String) {
         assets.join("marengo.urdf"),
     )
     .expect("copy urdf");
-    let revision = profile_content_revision(&config_dir).expect("revision");
+    let revision = profile_content_revision(tmp.path(), &config_dir).expect("revision");
     (tmp, config_dir, revision)
 }
 
@@ -516,9 +548,16 @@ fn persist_queue_coalesces_to_latest_draft() {
             .iter()
             .map(|event| event.session_id.as_str())
             .collect::<Vec<_>>(),
-        ["coalesce-first", "coalesce-latest"],
-        "only actually retained writes publish completion"
+        ["coalesce-first", "pending-limit", "coalesce-latest"],
+        "retained writes publish completion; so does the coalesced limit patch \
+         whose bounds the latest write carries (EDGE-07)"
     );
+    let carried = actions
+        .iter()
+        .find(|event| event.session_id == "pending-limit")
+        .expect("coalesced limit patch completion");
+    assert_eq!(carried.action, "limit_patch_persist");
+    assert_eq!(carried.timestamp_ms, 2);
     // The discriminating G04 assertions: the queued hard bounds and soft
     // limits survive coalescing into the control-only draft, which keeps its
     // own newer kp.
@@ -635,7 +674,7 @@ fn limit_patch_applies_live_and_queues_persist() {
     let root = repo_root();
     let (tmp, config_dir, revision) = copy_profile_to_temp();
     let mut overlay = test_overlay_at(tmp.path().to_path_buf());
-    let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+    let mut loop_ctrl = elbow_posed_loop(&root);
     let op = limit_patch_op(revision);
     let outcomes = overlay
         .apply_operator_command(&mut loop_ctrl, &config_dir, &op)
@@ -695,8 +734,7 @@ fn limit_patch_after_owner_exit_rejects_closed_admission_without_live_mutation()
             load_command_joint_allowlist_from(&config_dir).expect("copied allowlist"),
             persist,
         );
-        let mut loop_ctrl =
-            ControlLoop::from_repo(tmp.path(), MemoryBus::default(), 200, 50).expect("real loop");
+        let mut loop_ctrl = elbow_posed_loop(tmp.path());
         let exit_outcome = if owner_exited {
             shutdown.store(true, Ordering::SeqCst);
             Some(crate::finish_owner_shutdown(
@@ -883,8 +921,7 @@ fn limit_patch_persist_failure_emits_distinct_failed_action() {
         load_command_joint_allowlist_from(&config_dir).expect("actual copied allowlist"),
         persist,
     );
-    let mut loop_ctrl = ControlLoop::from_repo(tmp.path(), MemoryBus::default(), 200, 50)
-        .expect("actual copied owner");
+    let mut loop_ctrl = elbow_posed_loop(tmp.path());
     let outcomes = overlay
         .apply_operator_command(&mut loop_ctrl, &config_dir, &limit_patch_op(revision))
         .expect("valid revision and live patch admitted before I/O failure");
@@ -965,8 +1002,7 @@ fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
     let (mut overlay, bus) = test_overlay_with_bus_at(tmp.path().to_path_buf());
     let mut limits_rx = bus.subscribe(TOPIC_ACTUATOR_LIMITS);
     let mut cmd_rx = bus.subscribe(TOPIC_ACTUATOR_COMMAND);
-    let mut loop_ctrl =
-        ControlLoop::from_repo(tmp.path(), MemoryBus::default(), 200, 50).expect("loop");
+    let mut loop_ctrl = elbow_posed_loop(tmp.path());
 
     let op = limit_patch_op(revision);
     bus.publish(
@@ -982,7 +1018,7 @@ fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
         &config_dir,
         &bus,
         &mut cmd_rx,
-        &AtomicBool::new(false),
+        (&AtomicBool::new(false)).into(),
     );
     // Capture immediately, before any control/telemetry tick or storage wait.
     // A delayed publish cannot satisfy this observation after the fact.
@@ -1102,4 +1138,42 @@ fn runtime_tuning_from_non_owner_chappe_is_refused() {
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect("owner runtime tuning");
     assert!(loop_ctrl.gain_override("right_elbow_pitch").is_some());
+}
+
+/// ConfigOverlay changes the live gains Berthier reads every tick: only the
+/// motion owner may send it, and a refusal touches neither memory nor disk.
+#[test]
+fn config_tuning_from_non_owner_chappe_is_refused() {
+    use crate::motion_owner::{CommandSource, MotionLease};
+
+    let (_tmp, config_dir, _revision) = copy_profile_to_temp();
+    let disk_before = std::fs::read(config_dir.join("control.yaml")).expect("control.yaml");
+    let mut overlay = test_overlay();
+    overlay.set_motion_lease(MotionLease::new(CommandSource::Stdin));
+    let mut loop_ctrl = test_loop();
+    let kp_before = loop_ctrl.supervisor().control.control.joints["right_elbow_pitch"]
+        .impedance
+        .kp;
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "impedance.kp",
+        kp_before + 1.0,
+        TuningTier::ConfigOverlay as i32,
+    );
+    let err = overlay
+        .apply_operator_command(&mut loop_ctrl, &config_dir, &op)
+        .expect_err("non-owner config tuning");
+    assert!(matches!(err, OverlayError::Motion(_)), "{err}");
+    assert!(err.to_string().contains("owned by stdin"), "{err}");
+    assert_eq!(
+        loop_ctrl.supervisor().control.control.joints["right_elbow_pitch"]
+            .impedance
+            .kp,
+        kp_before
+    );
+    assert!(overlay.persist.wait_idle(Duration::from_secs(2)));
+    assert_eq!(
+        std::fs::read(config_dir.join("control.yaml")).expect("control.yaml"),
+        disk_before
+    );
 }

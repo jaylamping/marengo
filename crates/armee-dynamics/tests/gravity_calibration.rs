@@ -179,7 +179,7 @@ fn pitch_sweep_recovers_upper_arm_and_forearm_mass() {
     let truth = scaled(&scaled(&model, UPPER_ARM, 1.2, 0.0), FOREARM, 1.25, 0.0);
     let poses = sweep(&model, &[], PITCH, &PITCH_POSES);
     let opts = FitOptions::default();
-    let params = default_params(&model, PITCH, &poses, &[], &opts).expect("default params");
+    let params = default_params(&model, &[PITCH], &poses, &[], &opts).expect("default params");
     let mut names: Vec<String> = params.iter().map(ToString::to_string).collect();
     names.sort();
     assert_eq!(
@@ -249,8 +249,16 @@ fn pitch_and_elbow_sweeps_recover_forearm_com_offset() {
     ));
     poses.extend(elbow_poses);
 
-    let params = [InertialParam::mass(FOREARM), InertialParam::com(FOREARM)];
     let opts = FitOptions::default();
+    // Fused sweeps: one candidate set whatever the session order or repeats.
+    let defaults = default_params(&model, &[PITCH, ELBOW], &poses, &[], &opts).expect("params");
+    assert_eq!(
+        default_params(&model, &[ELBOW, PITCH, ELBOW], &poses, &[], &opts).expect("params"),
+        defaults
+    );
+    assert!(defaults.iter().any(|p| p.link == FOREARM), "{defaults:?}");
+
+    let params = [InertialParam::mass(FOREARM), InertialParam::com(FOREARM)];
     let fit = fit_gravity_params(&model, &params, &samples, &windows, &[], &opts).expect("fit");
     assert_eq!(
         fit.verdict,
@@ -326,7 +334,7 @@ fn refuses_when_the_fit_cannot_explain_the_torques() {
         &mut Noise(11),
     );
     let opts = FitOptions::default();
-    let params = default_params(&model, PITCH, &poses, &[], &opts).expect("params");
+    let params = default_params(&model, &[PITCH], &poses, &[], &opts).expect("params");
     let fit = fit_gravity_params(&model, &params, &samples, &windows, &[], &opts).expect("fit");
     match fit.verdict {
         FitVerdict::ResidualTooHigh {
@@ -598,7 +606,7 @@ fn accepted_fit_reports_a_finite_positive_sigma() {
     let poses = sweep(&model, &[], PITCH, &PITCH_POSES);
     let samples = measure(&truth, &poses, index(&model, PITCH), &[], &mut Noise(9));
     let opts = FitOptions::default();
-    let params = default_params(&model, PITCH, &poses, &[], &opts).expect("params");
+    let params = default_params(&model, &[PITCH], &poses, &[], &opts).expect("params");
     let fit = fit_gravity_params(&model, &params, &samples, &windows, &[], &opts).expect("fit");
     assert!(fit.accepted(), "{:?}", fit.verdict);
     assert!(fit

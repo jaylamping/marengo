@@ -30,10 +30,9 @@ import {
   validatePoses,
 } from "./calibration-session.js";
 import {
-  BENCH_CONFIG_MASTER,
   REFERENCE_OPT_IN_REQUIRED,
   SOLE_CAN_OWNER_NOTE,
-  benchConfigDirForJoint,
+  benchConfigDir,
   motionConfirmSchema,
   referenceAcquireLine,
   referenceOptInShape,
@@ -270,7 +269,7 @@ export function registerGravityCalibrateTools(
           );
         }
 
-        const configDir = benchConfigDirForJoint(cfg, sweepJoint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const preflight = parsePreflight(
           await runRemote(wrapRemoteWithConfig(cfg, preflightReadShell(), configDir), PREFLIGHT_TIMEOUT_MS),
           cfg.piRoot,

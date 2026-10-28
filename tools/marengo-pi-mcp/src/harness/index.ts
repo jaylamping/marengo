@@ -7,6 +7,7 @@ import {
   restoreCanOwnerShell,
   takeCanOwnershipShell,
 } from "../can-owner.js";
+import { piSessionTimeout } from "../cancel.js";
 import { gravityGateSnapshotShell, runGravityGate } from "../gravity-gate.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
 import {
@@ -25,32 +26,8 @@ import {
   type HarnessScript,
 } from "./scripts.js";
 
-const ROLL_JOINT = "right_shoulder_roll";
-
-/** Staged descent only — use when roll is elevated (q > ~0.2 rad). Do not run from home. */
-export function rollStagedDescentLines(): string[] {
-  return [
-    `hold-at ${ROLL_JOINT} 1.0`,
-    "sleep 15",
-    `hold-at ${ROLL_JOINT} 0.7`,
-    "sleep 15",
-    `hold-at ${ROLL_JOINT} 0.4`,
-    "sleep 15",
-    `hold-at ${ROLL_JOINT} 0.15`,
-    "sleep 12",
-    `hold-at ${ROLL_JOINT} 0.05`,
-    "sleep 12",
-    `hold-at ${ROLL_JOINT} 0`,
-    "sleep 15",
-  ];
-}
-
 /** Master config dir for harness runs; optional absolute override only. */
-export function harnessConfigDir(
-  cfg: MarengoPiConfig,
-  _profile: BenchProfile,
-  configDir?: string,
-): string {
+export function harnessConfigDir(cfg: MarengoPiConfig, configDir?: string): string {
   if (configDir) {
     if (configDir.startsWith("/") || configDir.startsWith("~/")) {
       return configDir;
@@ -132,7 +109,25 @@ function referencedSessionPipe(joints: string[], scripts: HarnessScript[], timeo
     entries.push(...s.lines.filter((l) => l.trim() !== "quit").map(marengoPiPipeLine));
   });
   entries.push(marengoPiPipeLine("quit"));
-  return `{\n${entries.join(";\n")};\n} | timeout ${timeoutSec} bin/marengo-pi`;
+  return `{\n${entries.join(";\n")};\n} | ${piSessionTimeout(timeoutSec)} bin/marengo-pi`;
+}
+
+/**
+ * First reason a harness step's remote output counts as failed, or null when it passed. Any
+ * nonzero exit fails: marengo-pi exits 0 or 1, and 2 is a clap argv error (TOOL-24).
+ */
+export function harnessStepFailure(out: string): string | null {
+  const exitMatch = out.match(/\[exit (-?\d+)\]/);
+  if (exitMatch && Number(exitMatch[1]) !== 0) return `exit ${exitMatch[1]}`;
+  if (out.toLowerCase().includes("control tick failed")) return "control tick failed";
+  if (/fault=0x[0-9a-fA-F]*[1-9a-fA-F]/.test(out)) return "non-zero drive fault";
+  if (/watchdog|outside \[/i.test(out)) return "watchdog or limit";
+  if (/home failed:|enable blocked:|enable failed:/.test(out)) return "home or enable refused";
+  return null;
+}
+
+function defaultStepOk(out: string): boolean {
+  return harnessStepFailure(out) === null;
 }
 
 /** Sleep sum + motion/startup slack for marengo-pi pipe timeout. */
@@ -190,7 +185,7 @@ export async function runBenchHarness(
   args: HarnessArgs,
 ): Promise<string> {
   const profile = args.profile ?? cfg.benchProfile;
-  const configDir = harnessConfigDir(cfg, profile, args.config_dir);
+  const configDir = harnessConfigDir(cfg, args.config_dir);
   const loadedJoint = args.loaded_joint ?? cfg.loadedJoint;
   const debug = args.debug ?? false;
   const steps: HarnessStep[] = [];
@@ -267,30 +262,6 @@ export async function runBenchHarness(
   ): Promise<boolean> {
     const out = await runRemote(body, timeoutMs);
     return record(name, out, isOk(out));
-  }
-
-  function defaultStepOk(out: string): boolean {
-    const exitMatch = out.match(/\[exit (\d+)\]/);
-    if (exitMatch) {
-      const code = Number(exitMatch[1]);
-      // marengo-pi often exits 2 after disable/quit despite a clean session
-      if (code !== 0 && code !== 2) {
-        return false;
-      }
-    }
-    if (out.toLowerCase().includes("control tick failed")) {
-      return false;
-    }
-    if (/fault=0x[0-9a-fA-F]*[1-9a-fA-F]/.test(out)) {
-      return false;
-    }
-    if (/watchdog|outside \[/i.test(out)) {
-      return false;
-    }
-    if (/home failed:|enable blocked:|enable failed:/.test(out)) {
-      return false;
-    }
-    return true;
   }
 
   if (sessions.length > 0 && (args.set_zero !== true || args.at_mechanical_reference !== true)) {

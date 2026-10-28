@@ -98,7 +98,11 @@ if systemctl is-active --quiet marengo-pi.service 2>/dev/null; then
   MARENGO_PI_WAS_ACTIVE=true
 fi
 systemctl stop marengo-pi.service 2>/dev/null || true
-pkill -f "${INSTALL_ROOT}/bin/marengo-pi" 2>/dev/null || true
+# A marengo-pi that systemd does not own is a bench session: refuse, never signal it.
+if ! require_no_marengo_pi; then
+  echo "error: not replacing marengo-pi beside a live CAN owner" >&2
+  exit 1
+fi
 
 seal_installed_tree() {
   chown root:root "${INSTALL_ROOT}"
@@ -196,6 +200,10 @@ if [[ "${MARENGO_REPLACE_LIMITS:-0}" != "1" ]] && [[ -f "${INSTALL_ROOT}/config/
   if [[ -f "${INSTALL_ROOT}/assets/urdf/marengo.urdf" ]]; then
     cp -a "${INSTALL_ROOT}/assets/urdf/marengo.urdf" "${TAUGHT_BACKUP}/assets/urdf/" || true
   fi
+  # The previously deployed revision tells a git URDF change from one activated on the Pi.
+  if [[ -f "${INSTALL_ROOT}/.deploy-rev" ]]; then
+    cp "${INSTALL_ROOT}/.deploy-rev" "${TAUGHT_BACKUP}/.deploy-rev" || true
+  fi
   echo "install-pi: backed up taught limits for preserve merge"
 fi
 
@@ -213,6 +221,7 @@ if [[ -n "${TAUGHT_BACKUP}" ]]; then
     python3 "${ROOT}/scripts/preserve-taught-limits.py" \
       --previous "${TAUGHT_BACKUP}" \
       --install-root "${INSTALL_ROOT}" \
+      --repo "${ROOT}" \
       || echo "warning: preserve-taught-limits failed; Pi may have lost taught Set Limits" >&2
   else
     echo "warning: preserve-taught-limits.py missing from deploy bundle" >&2

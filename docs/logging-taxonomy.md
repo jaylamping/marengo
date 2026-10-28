@@ -10,7 +10,7 @@ Operator and agent reference for Marengo telemetry tiers, rate limits, and side 
 | **Hot** | SQLite `log_events` | Backfill on connect; FTS search |
 | **Filesystem** | `var/log/bench-*.log`, `candump-*.log`, `position-trace-*.csv` | High-volume bench artifacts |
 | **Archived** | `var/log/blobs/*.gz` + `log_sessions` | Cross-session browse |
-| **Journal** | systemd → `journal-import` → `log_events` (`target` prefix `systemd:`) | Unit logs |
+| **Journal** | systemd → `journal-import` → `log_events` (`target` prefix `systemd:`) | Units that do not log to the Store (marengo-can); marengo-pi and marengo-gateway already reach the Store over Chappe |
 
 See [chappe-consul-ingestion.md](chappe-consul-ingestion.md) and [ADR 0011](decisions/0011-log-retention-and-archive.md).
 
@@ -60,7 +60,7 @@ S0 events are never dropped by design. S2/S3 are intentionally throttled before 
 | `robstride=trace` | CAN bring-up only |
 | `MARENGO_POSITION_TRACE` | Position-hold bench CSV (`MARENGO_POSITION_TRACE_HZ` decimates; joints in `MARENGO_POSITION_TRACE_FULL_RATE_JOINTS` keep every tick, which the bench scorer needs for the τ_ff step) |
 | candump files | Wire truth vs code trace |
-| `journal-import` | Nightly systemd history |
+| `journal-import` | Nightly marengo-can journal history |
 
 ## Structured fields
 

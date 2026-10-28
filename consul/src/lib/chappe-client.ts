@@ -10,7 +10,6 @@ export {
   fetchGatewayHealth,
   postEnableCommand,
   postTestingMitCommandBatch,
-  postHomeCommand,
 } from './gateway-api';
 
 import {
@@ -103,6 +102,3 @@ export async function connectChappeStream(
     cleanup?.();
   };
 }
-
-/** @deprecated Use connectChappeStream */
-export const connectChappeTelemetry = connectChappeStream;

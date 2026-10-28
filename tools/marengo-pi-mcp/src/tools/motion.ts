@@ -2,7 +2,9 @@ import { z } from "zod";
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, profileMeta } from "../bench-profiles.js";
 import { appendAudit } from "../audit.js";
+import { callContext } from "../cancel.js";
 import { exitCodeOfRemoteOutput } from "../ssh.js";
+import { piSessionTimeout } from "../cancel.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { effectiveProfile, validateMotionConfirm } from "../safety.js";
 import { homingReportShell } from "../homing.js";
@@ -169,11 +171,7 @@ function normalizeBenchConfigDir(cfg: MarengoPiConfig, configDir: string): strin
 }
 
 /** Master config when config_dir omitted (legacy bringup slugs ignored). */
-export function benchConfigDirForJoint(
-  cfg: MarengoPiConfig,
-  _joint?: string,
-  configDir?: string,
-): string | undefined {
+export function benchConfigDir(cfg: MarengoPiConfig, configDir?: string): string {
   if (configDir) {
     return normalizeBenchConfigDir(cfg, configDir);
   }
@@ -285,8 +283,14 @@ export const SOLE_CAN_OWNER_NOTE =
   "Runs as sole CAN owner: stops marengo-pi.service via the pi_restart_marengo_pi helper, " +
   "refuses if any marengo-pi/motor-repl remains, restarts the unit afterwards if it was active.";
 
+/**
+ * `motor-repl gravity-preview` reads robot.yaml and the URDF only and never opens CAN, so the
+ * gravity gate runs it beside a running marengo-pi, without taking CAN ownership (TOOL-16).
+ */
+export const GRAVITY_PREVIEW_TIMEOUT_MS = 30_000;
+
 const GRAVITY_GATE_NOTE =
-  "Before any enable, a gravity-model gate runs motor-repl gravity-preview (as sole CAN owner) and refuses " +
+  "Before any enable, a gravity-model gate runs motor-repl gravity-preview (model only, no CAN) and refuses " +
   "with `FAIL gravity_model_mismatch` when |τ_meas − τ_g| ≥ 0.20 Nm on any joint (gateway drive torque " +
   "while marengo-pi holds the arm), or else when |τ_g| ≥ 0.20 Nm at the profile's hanging rest pose.";
 
@@ -351,6 +355,15 @@ export function scriptSleepTotalSec(script: string[]): number {
   return total;
 }
 
+/**
+ * Worst-case wait of the awaited `home` readiness and `enable` lines in an admitted pipe
+ * ({@link admissionGateShell}): not in {@link scriptSleepTotalSec}, so pipe timeouts add it
+ * (TOOL-19).
+ */
+export function admissionReplyBudgetSec(script: string[]): number {
+  return script.filter((line) => admissionGateShell(line) !== null).length * ADMISSION_REPLY_SEC;
+}
+
 /** After each `wave` line, insert a sleep for in-loop wave duration (+ slack). */
 export function expandScriptWithWaveWaits(script: string[]): string[] {
   const out: string[] = [];
@@ -367,14 +380,6 @@ export function expandScriptWithWaveWaits(script: string[]): string[] {
     }
   }
   return out;
-}
-
-/** Total pipe timeout passed to `timeout(1) marengo-pi`. */
-export function marengoPiPipeTimeoutSec(
-  _script: string[],
-  totalTimeoutSec: number,
-): number {
-  return Math.ceil(totalTimeoutSec);
 }
 
 /** End stdin session so marengo-pi exits instead of running until timeout. */
@@ -494,7 +499,7 @@ export function marengoPiPipeLine(line: string): string {
 
 export function marengoPiPipe(script: string[], pipeTimeoutSec: number, binary = "$PI_BIN"): string {
   const pipeLines = script.map(marengoPiPipeLine).join(";\n");
-  return `{\n${pipeLines};\n} | timeout ${pipeTimeoutSec} ${binary}`;
+  return `{\n${pipeLines};\n} | ${piSessionTimeout(pipeTimeoutSec)} ${binary}`;
 }
 
 /**
@@ -505,7 +510,7 @@ export function marengoPiAdmittedPipe(script: string[], pipeTimeoutSec: number):
   const pipeLines = script
     .map((line) => admissionGateShell(line) ?? marengoPiPipeLine(line))
     .join(";\n");
-  return `{\n${pipeLines};\n} | timeout ${pipeTimeoutSec} $PI_BIN`;
+  return `{\n${pipeLines};\n} | ${piSessionTimeout(pipeTimeoutSec)} $PI_BIN`;
 }
 
 function marengoPiTimedPipe(
@@ -525,7 +530,7 @@ function marengoPiTimedPipe(
     "disable",
     "quit",
   ];
-  return marengoPiAdmittedPipe(lines, scriptSleepTotalSec(lines) + 10);
+  return marengoPiAdmittedPipe(lines, scriptSleepTotalSec(lines) + admissionReplyBudgetSec(lines) + 10);
 }
 
 /**
@@ -591,7 +596,7 @@ function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
   return [
     'if ! bin/motor-repl disable; then echo "RECOVER_DISABLE_INCOMPLETE: motor-repl did not reach every drive"; fi',
     marengoPiLaunchShell(cfg),
-    '{ sleep 1; echo status; echo disable; echo quit; } | timeout 10 "$PI_BIN"',
+    `{ sleep 1; echo status; echo disable; echo quit; } | ${piSessionTimeout(10)} "$PI_BIN"`,
   ].join("\n");
 }
 
@@ -655,7 +660,7 @@ export function registerMotionTools(
       }),
       // Never gated (TOOL-01): a stop that waits for two chat approvals is not a stop.
       handler: async (args: { config_dir?: string }) => {
-        const configDir = benchConfigDirForJoint(cfg, undefined, args.config_dir);
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
           soleCanOwnerShell("bin/motor-repl disable"),
@@ -691,18 +696,15 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const configDir = benchConfigDirForJoint(
-          cfg,
-          undefined,
-          args.config_dir ?? BENCH_CONFIG_MASTER,
-        );
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const pipeCmd = [
           motorRecoverRemoteBody(cfg),
           motorRecoverSummaryShell,
         ].join("\n");
         const body = benchLogWrapper(cfg, pipeCmd, "motor-recover", configDir);
         const out = await runRemote(body, 45_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_motor_recover", args, out, 0);
+        const exitCode = exitCodeOfRemoteOutput(out);
+        auditMotion("pi_motor_recover", args, out, exitCode !== 0 ? exitCode : out.includes("RECOVER_OK") ? 0 : 1);
         return out;
       },
     },
@@ -716,9 +718,7 @@ export function registerMotionTools(
         config_dir: z.string().optional(),
       }),
       handler: async (args: { config_dir?: string }) => {
-        const configDir =
-          benchConfigDirForJoint(cfg, undefined, args.config_dir) ??
-          BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const body = wrapRemoteWithConfig(cfg, homingReportShell(), configDir);
         return renderRobotStateHoming(await runRemote(body, 20_000));
       },
@@ -754,15 +754,14 @@ export function registerMotionTools(
         const check = gate(args);
         if (!check.ok) return check.message;
         const joint = args.joint ?? "right_shoulder_pitch";
-        const configDir =
-          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
           soleCanOwnerShell(zeroActuatorRemoteBody(joint)),
           configDir,
         );
         const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_set_zero", { ...args, joint }, out, 0);
+        auditMotion("pi_set_zero", { ...args, joint }, out, exitCodeOfRemoteOutput(out));
         // Consul soft-invalidate is browser-local until a Chappe/gateway signal exists.
         return (
           `${out}\n\n` +
@@ -846,8 +845,7 @@ export function registerMotionTools(
         const profile = effectiveProfile(cfg.benchProfile, args.profile);
         const referenceJoints =
           args.joint !== undefined ? [args.joint] : profileMeta(profile).setZeroJoints;
-        const configDir =
-          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const gravity = await runGravityGate({
           profile,
           joints: [...new Set([...referenceJoints, joint])],
@@ -857,8 +855,8 @@ export function registerMotionTools(
           ),
           runPreview: (shell) =>
             runRemote(
-              wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir),
-              30_000 + CAN_SESSION_SLACK_MS,
+              wrapRemoteWithConfig(cfg, shell, configDir),
+              GRAVITY_PREVIEW_TIMEOUT_MS,
             ),
         });
         if (!gravity.ok) {
@@ -876,7 +874,11 @@ export function registerMotionTools(
         const body = benchLogWrapper(cfg, pipeCmd, "hold-on", configDir);
         const session = `${gravity.report}\n${await runRemote(
           body,
-          (timeoutSec + returnHomeSec + referenceJoints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT) * 1000 +
+          (timeoutSec +
+            returnHomeSec +
+            referenceJoints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT +
+            2 * ADMISSION_REPLY_SEC) *
+            1000 +
             20_000 +
             CAN_SESSION_SLACK_MS,
         )}`;
@@ -886,7 +888,8 @@ export function registerMotionTools(
             ? session
             : `${session}\n\n--- hold ---\nmarengo-pi refused the session before the hold: ${refusal}\n` +
               "The feeder sent disable/quit instead of the hold: no pose was held.";
-        auditMotion("pi_hold_on", args, out, refusal === undefined ? 0 : 1);
+        const exitCode = exitCodeOfRemoteOutput(session);
+        auditMotion("pi_hold_on", args, out, exitCode !== 0 ? exitCode : refusal === undefined ? 0 : 1);
         return out;
       },
     },
@@ -903,9 +906,7 @@ export function registerMotionTools(
       }),
       // Never gated (TOOL-01).
       handler: async (args: { joint?: string; config_dir?: string }) => {
-        const configDir =
-          benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
-          BENCH_CONFIG_MASTER;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
           soleCanOwnerShell("bin/motor-repl disable"),
@@ -980,13 +981,11 @@ export function registerMotionTools(
             ? args.timeout_sec
             : Math.max(
                 DEFAULT_MOTION_TIMEOUT_SEC,
-                Math.ceil(sleepBudget + 10),
+                Math.ceil(sleepBudget + admissionReplyBudgetSec(expanded) + 10),
               );
         const script = ensureScriptQuit(expanded);
-        const pipeTimeoutSec = marengoPiPipeTimeoutSec(script, controlTimeoutSec);
-        const configDir =
-          benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
-          args.config_dir;
+        const pipeTimeoutSec = controlTimeoutSec;
+        const configDir = benchConfigDir(cfg, args.config_dir);
         let gateReport = "";
         if (script.some((line) => line.trim().split(/\s+/)[0] === "enable")) {
           const profile = effectiveProfile(cfg.benchProfile, args.profile);
@@ -1001,13 +1000,13 @@ export function registerMotionTools(
             profile,
             joints,
             snapshotOutput: await runRemote(
-              wrapRemoteWithConfig(cfg, gravityGateSnapshotShell(), configDir ?? BENCH_CONFIG_MASTER),
+              wrapRemoteWithConfig(cfg, gravityGateSnapshotShell(), configDir),
               15_000,
             ),
             runPreview: (shell) =>
               runRemote(
-                wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir ?? BENCH_CONFIG_MASTER),
-                30_000 + CAN_SESSION_SLACK_MS,
+                wrapRemoteWithConfig(cfg, shell, configDir),
+                GRAVITY_PREVIEW_TIMEOUT_MS,
               ),
           });
           if (!gravity.ok) {
@@ -1076,7 +1075,7 @@ export function registerMotionTools(
 
         const { runBenchHarness } = await import("../harness/index.js");
         const out = await runBenchHarness(cfg, runRemote, args);
-        auditMotion("pi_bench_harness", args, out, 0);
+        auditMotion("pi_bench_harness", args, out, /^ {2}"pass": true,$/m.test(out) ? 0 : 1);
         return out;
       },
     },
@@ -1085,14 +1084,14 @@ export function registerMotionTools(
 
 export type MotionTools = ReturnType<typeof registerMotionTools>;
 
-export function makeAuditMotion(cfg: MarengoPiConfig) {
+export function makeAuditMotion(cfg: MarengoPiConfig, append = appendAudit) {
   return (
     tool: string,
     args: Record<string, unknown>,
     stdout: string,
     exitCode: number,
   ) => {
-    appendAudit({
+    append({
       tool,
       args,
       bench_profile: cfg.benchProfile,
@@ -1100,5 +1099,8 @@ export function makeAuditMotion(cfg: MarengoPiConfig) {
       stdout: stdout.slice(0, 8000),
       exitCode,
     });
+    // The MCP result's isError follows the audited status (toolResultIsError).
+    const call = callContext.getStore();
+    if (call && exitCode !== 0) call.auditedExitCode = exitCode;
   };
 }

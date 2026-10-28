@@ -1,6 +1,6 @@
 //! Coalescing write-behind for control.yaml / motors+URDF (never on the 200 Hz tick).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Condvar, Mutex};
@@ -81,10 +81,16 @@ pub struct ConfigPersistQueue {
     changed: Arc<Condvar>,
     wake_tx: SyncSender<()>,
     worker: Mutex<Option<thread::JoinHandle<()>>>,
+    /// The root the worker writes the URDF under; CAS revisions must hash the same file.
+    repo_root: PathBuf,
 }
 
 struct PersistSlot {
     request: Option<PersistRequest>,
+    /// Coalesced limit patches replaced by `request`; each still gets its own
+    /// completion event when `request` is written: Durable only when the
+    /// written snapshot holds its bounds, otherwise superseded (Failed).
+    carried: Vec<CarriedCompletion>,
     writing: bool,
     accepting: bool,
     worker_done: bool,
@@ -108,7 +114,9 @@ pub(crate) enum PersistDrainStatus {
 /// Counters finalize after the local publication attempt returns. In-flight
 /// includes writes already on disk whose matching completion has not returned;
 /// it does not imply that the disk is unchanged. Coalesced requests are counted
-/// separately and receive no invented completion event.
+/// separately. A coalesced limit patch gets the later write's completion when
+/// that write holds its bounds, and a superseded (Failed) completion when a
+/// newer limit patch replaced them; nothing else gets an invented one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PersistDrainReport {
     pub status: PersistDrainStatus,
@@ -188,10 +196,69 @@ pub(crate) struct PersistRequest {
     pub joint: String,
     pub param: String,
 }
+/// Identity and bounds of a coalesced limit patch, for its completion event.
+struct CarriedCompletion {
+    timestamp_ms: u64,
+    session_id: String,
+    operator_id: String,
+    joint: String,
+    bounds: CarriedBounds,
+}
+
+/// A limit patch's joint entries as its own snapshot held them.
+#[derive(Debug, Clone, PartialEq)]
+struct CarriedBounds {
+    position_lower_rad: f64,
+    position_upper_rad: f64,
+    torque_limit_nm: f64,
+    position_soft_lower_rad: Option<f64>,
+    position_soft_upper_rad: Option<f64>,
+    velocity_max_rad_s: Option<f64>,
+}
+
+impl CarriedBounds {
+    /// True when `request` would write these bounds for `joint`. An unset
+    /// optional field in the patch's own snapshot constrains nothing.
+    fn written_by(&self, request: &PersistRequest, joint: &str) -> bool {
+        let Some(motor) = request
+            .motors
+            .as_ref()
+            .and_then(|motors| motors.motors.iter().find(|motor| motor.joint == joint))
+        else {
+            return false;
+        };
+        let Some(control) = request.control.control.joints.get(joint) else {
+            return false;
+        };
+        let held = |patch: Option<f64>, written: Option<f64>| patch.is_none() || patch == written;
+        motor.bench.position_lower_rad == self.position_lower_rad
+            && motor.bench.position_upper_rad == self.position_upper_rad
+            && motor.bench.torque_limit_nm == self.torque_limit_nm
+            && held(
+                self.position_soft_lower_rad,
+                control.position_soft_lower_rad,
+            )
+            && held(
+                self.position_soft_upper_rad,
+                control.position_soft_upper_rad,
+            )
+            && held(self.velocity_max_rad_s, control.velocity_max_rad_s)
+    }
+}
+
+/// Coalesce the pending limit patch `pending` into the later request `latest`.
+///
+/// Every limit patch request carries the full live motors and control
+/// snapshot taken after its apply, so a later limit patch already holds every
+/// earlier patch on other joints, and newer bounds on the same joint; it is
+/// left untouched (newer wins). Only a control-only save, which writes no
+/// motors, gets the pending snapshot and bounds. Either way the pending patch
+/// keeps its completion, which the worker reports Durable only when the
+/// written snapshot holds its bounds.
 fn carry_pending_limit_patch(
     pending: &PersistRequest,
     latest: &mut PersistRequest,
-) -> Result<(), PersistError> {
+) -> Result<CarriedCompletion, PersistError> {
     if pending.config_dir != latest.config_dir {
         return Err(PersistError::Queue(
             "cannot coalesce limit patches across config directories".into(),
@@ -213,6 +280,23 @@ fn carry_pending_limit_patch(
         .joints
         .get(&pending.joint)
         .ok_or_else(|| PersistError::Queue("pending limit patch control is missing".into()))?;
+    let carried = CarriedCompletion {
+        timestamp_ms: pending.timestamp_ms,
+        session_id: pending.session_id.clone(),
+        operator_id: pending.operator_id.clone(),
+        joint: pending.joint.clone(),
+        bounds: CarriedBounds {
+            position_lower_rad: previous_motor.bench.position_lower_rad,
+            position_upper_rad: previous_motor.bench.position_upper_rad,
+            torque_limit_nm: previous_motor.bench.torque_limit_nm,
+            position_soft_lower_rad: previous_control.position_soft_lower_rad,
+            position_soft_upper_rad: previous_control.position_soft_upper_rad,
+            velocity_max_rad_s: previous_control.velocity_max_rad_s,
+        },
+    };
+    if latest.motors.is_some() {
+        return Ok(carried);
+    }
     let patch = marengo_config::LimitPatch {
         joint: pending.joint.clone(),
         position_lower_rad: previous_motor.bench.position_lower_rad,
@@ -222,22 +306,18 @@ fn carry_pending_limit_patch(
         position_soft_upper_rad: previous_control.position_soft_upper_rad,
         velocity_max_rad_s: previous_control.velocity_max_rad_s,
     };
-    let motors = latest.motors.get_or_insert_with(|| previous_motors.clone());
-    let motor = motors
-        .motors
-        .iter_mut()
-        .find(|motor| motor.joint == pending.joint)
-        .ok_or_else(|| PersistError::Queue("latest motors snapshot lacks patched joint".into()))?;
-    marengo_config::apply_limit_patch_to_motor(motor, &patch)
-        .map_err(|error| PersistError::Queue(error.to_string()))?;
     let control = latest
         .control
         .control
         .joints
         .get_mut(&pending.joint)
         .ok_or_else(|| PersistError::Queue("latest control snapshot lacks patched joint".into()))?;
-    marengo_config::apply_limit_patch_to_control(control, &patch)
-        .map_err(|error| PersistError::Queue(error.to_string()))
+    let mut patched_control = control.clone();
+    marengo_config::apply_limit_patch_to_control(&mut patched_control, &patch)
+        .map_err(|error| PersistError::Queue(error.to_string()))?;
+    *control = patched_control;
+    latest.motors = Some(previous_motors.clone());
+    Ok(carried)
 }
 
 impl ConfigPersistQueue {
@@ -271,6 +351,7 @@ impl ConfigPersistQueue {
         let (wake_tx, wake_rx) = sync_channel::<()>(1);
         let pending = Arc::new(Mutex::new(PersistSlot {
             request: None,
+            carried: Vec::new(),
             writing: false,
             accepting: true,
             worker_done: false,
@@ -283,13 +364,14 @@ impl ConfigPersistQueue {
         let changed = Arc::new(Condvar::new());
         let pending_worker = Arc::clone(&pending);
         let changed_worker = Arc::clone(&changed);
+        let worker_root = repo_root.clone();
         let worker = thread::spawn(move || {
             persist_worker(
                 pending_worker,
                 changed_worker,
                 wake_rx,
                 chappe,
-                repo_root,
+                worker_root,
                 #[cfg(test)]
                 hooks,
             )
@@ -299,7 +381,14 @@ impl ConfigPersistQueue {
             changed,
             wake_tx,
             worker: Mutex::new(Some(worker)),
+            repo_root,
         }
+    }
+
+    /// The root the worker resolves the URDF under. Revision checks pass it to
+    /// `profile_content_revision` so the CAS covers the URDF this queue writes.
+    pub(crate) fn repo_root(&self) -> &Path {
+        &self.repo_root
     }
 
     /// Queue a durable write. Replaces any not-yet-started request (coalesce).
@@ -314,12 +403,21 @@ impl ConfigPersistQueue {
         match self.wake_tx.try_send(()) {
             Ok(()) | Err(TrySendError::Full(())) => {
                 let mut latest = request;
-                if let Some(pending) = slot.request.take() {
+                if let Some(mut pending) = slot.request.take() {
                     if pending.param == "limit_patch" {
-                        if let Err(error) = carry_pending_limit_patch(&pending, &mut latest) {
-                            slot.request = Some(pending);
-                            return Err(error);
+                        match carry_pending_limit_patch(&pending, &mut latest) {
+                            // The caller's completion rides on `latest` (its
+                            // gateway waits on this session id).
+                            Ok(carried) => slot.carried.push(carried),
+                            Err(error) => {
+                                slot.request = Some(pending);
+                                return Err(error);
+                            }
                         }
+                    } else if latest.motors.is_none() {
+                        // A pending control save may itself carry earlier limit
+                        // bounds; a later control-only save must not drop them.
+                        latest.motors = pending.motors.take();
                     }
                     slot.coalesced_requests = slot.coalesced_requests.saturating_add(1);
                 }
@@ -491,7 +589,7 @@ fn persist_worker(
         while wake_rx.try_recv().is_ok() {}
 
         loop {
-            let request = {
+            let (request, carried) = {
                 let Ok(mut slot) = pending.lock() else {
                     return;
                 };
@@ -499,7 +597,7 @@ fn persist_worker(
                     break;
                 };
                 slot.writing = true;
-                req
+                (req, std::mem::take(&mut slot.carried))
             };
 
             #[cfg(test)]
@@ -522,6 +620,38 @@ fn persist_worker(
             }
 
             let write_succeeded = write_result.is_ok();
+            // A coalesced patch shares the write's outcome only when the write
+            // holds its bounds; a newer patch on its joint supersedes it, and
+            // its caller must not be told (or sync) bounds that are not on disk.
+            let carried: Vec<(CarriedCompletion, bool)> = carried
+                .into_iter()
+                .map(|carried| {
+                    let written = carried.bounds.written_by(&request, &carried.joint);
+                    (carried, written)
+                })
+                .collect();
+            let carried_event = |(carried, written): (CarriedCompletion, bool),
+                                 template: &ActionEvent| {
+                let mut event = ActionEvent {
+                    timestamp_ms: carried.timestamp_ms,
+                    session_id: carried.session_id,
+                    operator_id: carried.operator_id,
+                    joint: carried.joint,
+                    action: persist_audit_action("limit_patch").to_string(),
+                    revision: next_audit_revision(),
+                    ..template.clone()
+                };
+                if !written && template.accepted {
+                    event.accepted = false;
+                    event.reject_reason = format!(
+                        "superseded: a later limit patch for {} was written instead of these bounds",
+                        event.joint
+                    );
+                    event.persist_status = PersistStatus::Failed as i32;
+                    event.config_revision = String::new();
+                }
+                event
+            };
             let publication_result = match write_result {
                 Ok(()) => {
                     info!(
@@ -531,8 +661,8 @@ fn persist_worker(
                         persist = true,
                         "config persist write succeeded"
                     );
-                    let config_revision =
-                        profile_content_revision(&request.config_dir).unwrap_or_default();
+                    let config_revision = profile_content_revision(&repo_root, &request.config_dir)
+                        .unwrap_or_default();
                     let event = ActionEvent {
                         timestamp_ms: request.timestamp_ms,
                         session_id: request.session_id,
@@ -547,7 +677,12 @@ fn persist_worker(
                         persist_status: PersistStatus::Durable as i32,
                         config_revision,
                     };
-                    publish_action_event(&chappe, &event)
+                    let mut published = Ok(());
+                    for carried in carried {
+                        let carried = carried_event(carried, &event);
+                        published = published.and(publish_action_event(&chappe, &carried));
+                    }
+                    published.and(publish_action_event(&chappe, &event))
                 }
                 Err(e) => {
                     warn!(
@@ -570,7 +705,12 @@ fn persist_worker(
                         persist_status: PersistStatus::Failed as i32,
                         config_revision: String::new(),
                     };
-                    publish_action_event(&chappe, &event)
+                    let mut published = Ok(());
+                    for carried in carried {
+                        let carried = carried_event(carried, &event);
+                        published = published.and(publish_action_event(&chappe, &carried));
+                    }
+                    published.and(publish_action_event(&chappe, &event))
                 }
             };
             if let Err(error) = &publication_result {

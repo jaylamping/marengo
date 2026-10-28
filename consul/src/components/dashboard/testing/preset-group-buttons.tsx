@@ -1,25 +1,29 @@
 import * as React from 'react';
 import { useTestingStore } from '@/state/testingStore';
-import { robotInventory, InventoryGroup } from '@/data/robot-inventory';
+import { inventoryGroupForJoint } from '@/data/robot-inventory';
+import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { Button } from '@/components/ui/button';
 
+/** Quick selections over the command-eligible joints only (UI-13). */
 export function PresetGroupButtons() {
-  const { selectJoint, deselectJoint } = useTestingStore();
+  const { selectedJointNames, selectJoint, deselectJoint } = useTestingStore();
+  const { data: config = null } = useConfigSnapshot();
+  const joints = config?.joints ?? [];
 
-  const groups: { label: string; filter: (item: any) => boolean }[] = [
-    { label: 'Right Arm', filter: (item) => item.group === 'right_arm' },
-    { label: 'Left Arm', filter: (item) => item.group === 'left_arm' },
-    { label: 'Both Arms', filter: (item) => item.group === 'right_arm' || item.group === 'left_arm' },
-    { label: 'Both Elbows', filter: (item) => item.name.includes('elbow') },
+  const groups: { label: string; filter: (name: string) => boolean }[] = [
+    { label: 'Right Arm', filter: (name) => inventoryGroupForJoint(name) === 'right_arm' },
+    { label: 'Left Arm', filter: (name) => inventoryGroupForJoint(name) === 'left_arm' },
+    {
+      label: 'Both Arms',
+      filter: (name) => ['right_arm', 'left_arm'].includes(inventoryGroupForJoint(name)),
+    },
+    { label: 'Both Elbows', filter: (name) => name.includes('elbow') },
     { label: 'Clear All', filter: () => false },
   ];
 
-  const handlePreset = (filter: (item: any) => boolean) => {
-    const jointsToSelect = robotInventory.filter(filter).map(i => i.name);
-    const allJoints = robotInventory.filter(i => i.kind === 'actuator').map(i => i.name);
-    
-    allJoints.forEach(name => deselectJoint(name));
-    jointsToSelect.forEach(name => selectJoint(name));
+  const handlePreset = (filter: (name: string) => boolean) => {
+    [...selectedJointNames].forEach(name => deselectJoint(name));
+    joints.filter(filter).forEach(name => selectJoint(name));
   };
 
   return (

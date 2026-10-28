@@ -1,9 +1,14 @@
 <?xml version="1.0"?>
 <!-- Master live URDF — right 5-DOF bench (roll/pitch/yaw/elbow/lower-arm yaw).
      Matches config/robot.yaml. Pi path: /opt/marengo/assets/urdf/marengo.urdf.
-     Joint origins and inertials from CAD (cad/assemblies/marengo_arm_right_asm, 2026-10-03):
-     axes located from the actuator mates; actuators at RobStride datasheet mass; printed PLA
-     parts estimated at 20 % infill. Base frame: origin at the pitch actuator output face, arm
+     Joint origins, masses and inertia tensors from CAD (cad/assemblies/marengo_arm_right_asm,
+     2026-10-03): axes located from the actuator mates; actuators at RobStride datasheet mass;
+     printed PLA parts estimated at 20 % infill.
+     Link COMs are NOT CAD: commit dc6926d (2026-10-04) moved every carried link's COM (pitch
+     link +10.4 mm in z, the others 4-5 mm) to fit the phase-1 pitch wave, captured while the
+     printed shoulder parts rubbed. A position-dependent rub looks like an A sin q + B cos q
+     gravity term, so these COMs may encode friction. CAD COMs: git show dc6926d^. Re-fit or
+     restore them after the shoulder is fixed (review CFG-05). Base frame: origin at the pitch actuator output face, arm
      front = -X, outboard = +Y, up = +Z (the sign-tested joint directions). Derivation and
      assumptions: docs/commissioning/right-arm-urdf-from-cad-2026-10-03.md.
      Hard limits are the Pi's taught limits (ADR 0017). Axes per hardware/docs/kinematics.md (right arm table). -->
@@ -125,9 +130,12 @@
     <limit lower="-1.63191" upper="1.60728" effort="17" velocity="2.0"/>
     <safety_controller soft_lower_limit="-0.50" soft_upper_limit="1.15" k_position="10" k_velocity="1"/>
   </joint>
-  <!-- Axis Y per hardware/docs/kinematics.md right-arm table (forearm → hand). In CAD the RS00
-       axis runs along the forearm (Z at q = 0); origin is its output face, so the axis choice
-       does not move the hand at q = 0. -->
+  <!-- KNOWN WRONG AXIS (review CFG-06, open until bench-checked): the built RS00 rotates about
+       the forearm (Z at q = 0, CAD), but this joint is modelled about Y like a wrist pitch.
+       τ_g, joint_inertia, the ADR 0038 drive-loss estimate and the Consul 3D preview therefore
+       model a hand swing (about 0.03 Nm) that does not exist. Fix: axis 0 0 1 with a bench
+       sign test, then regenerate the MJCF and rerun drive-loss admission. The origin is the
+       RS00 output face, so the axis choice does not move the hand at q = 0. -->
   <joint name="right_lower_arm_yaw" type="revolute">
     <parent link="right_forearm_link"/>
     <child link="right_hand_link"/>

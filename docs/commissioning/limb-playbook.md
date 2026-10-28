@@ -173,7 +173,7 @@ Every step target (including the ±δ overshoots and the fixed pitch) must lie i
 
 ### 2. Measurement
 
-Per measured step, `marengo-log-cli gravity-fit` takes the trailing settled run of the step (every |dq| ≤ 0.05 rad/s, stepped joint within 0.05 rad of target), averages the last `measure_sec` of it, and records q for every joint plus the drive torque `tau_meas` (joint space). At rest the drive torque is gravity plus static friction; the P term `kp·(q_des − q)` is part of that drive torque, so it is **not** subtracted (that would bias the estimate back toward the model). The commanded `tau_p + tau_ff_cmd` is kept as a cross-check column. The below/above pair of each pose is averaged, which cancels Coulomb friction; half their difference is reported as the friction estimate.
+Per measured step, `marengo-log-cli gravity-fit` takes the trailing settled run of the step (every |dq| ≤ 0.1 rad/s, above one drive velocity count, which dithers at ≈0.08 rad/s at rest; stepped joint within 0.05 rad of target), averages the last `measure_sec` of it, and records q for every joint plus the drive torque `tau_meas` (joint space). At rest the drive torque is gravity plus static friction; the P term `kp·(q_des − q)` is part of that drive torque, so it is **not** subtracted (that would bias the estimate back toward the model). The commanded `tau_p + tau_ff_cmd` is kept as a cross-check column. The below/above pair of each pose is averaged, which cancels Coulomb friction; half their difference is reported as the friction estimate.
 
 ### 3. Fit
 

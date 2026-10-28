@@ -14,6 +14,7 @@ Read this before enabling motors on the bench or robot.
 - **Command velocity caps:** set in `config/control.yaml` only — per-joint override, `actuator_groups`, or `motor_type_defaults` (see [ADR 0010](decisions/0010-actuator-velocity-cap-resolution.md)). Davout and Berthier enforce the resolved cap at runtime; do not rely on `motors.yaml` `bench.velocity_limit_rad_s` or URDF joint velocity for command limiting.
 - **Torque caps:** keep below production limits via `config/robot.yaml` (`robot.bench`) and per-joint overrides in `config/motors.yaml`; Davout also applies per-`motor_type` `tau_ff` limits and rate limiting from `control.yaml`.
 - **Total MIT torque (ADR 0039 open question 1):** the drive computes `kp·(q_des − q) + kd·(dq_des − dq) + τ_ff` with no documented drive-side clamp, and Marengo never reads or writes `limit_torque` (0x700B). Davout therefore predicts that total for every MIT command, from the latest published `q`/`dq` plus `kp·max(|dq|, |dq_des|)·2/loop_hz` and `kd·0.1 rad/s` margins. It bounds the prediction by the same per-joint cap as `τ_ff`. Over the cap, `q_des` and `dq_des` move toward `q` and `dq` by one common factor. Gains and `τ_ff` are untouched and torque never steps. A command under the cap is sent unchanged. Clamps are counted per joint and logged at most once per second (`MIT total torque clamped`). Non-finite inputs are refused. This is a host-side prediction: a drive stall, a stale pose or a velocity estimate beyond the margin can still exceed the cap between ticks.
+  - **Clipped velocity (P2C-01), owner decision open:** the prediction uses the measured `dq` clipped to the joint's velocity cap, so a one-sample derived-velocity spike cannot make the clamp carry `dq_des` past that cap. The cost: while the real `|dq|` lies between the velocity cap and the feedback velocity-fault threshold (cap + 0.5 rad/s), the command is admitted but the prediction understates the drive's damping term. The actual total can then exceed the torque cap by up to `kd·(|dq| − cap)`, and that excess always opposes the motion (braking). Example: pitch at a 2.5 rad/s velocity cap, measured 2.8 rad/s, `kp = 0`, `kd = 3`: about −5.6 Nm against a 5 Nm cap. The alternative is to predict with the real `dq` and refuse the command when the clamp would carry `dq_des` past the velocity cap (the pre-P2C-01 behaviour, which refused on a single-sample spike). This choice is not decided. Until the owner decides, the clipped behaviour stays, pinned by `crates/davout/tests/command_admission.rs::p2c01_option_a_in_band_velocity_admits_with_damping_over_torque_cap`.
 - Use `motor-repl` only with operators at the robot and clear workspace.
 - Prefer the virtual CAN test harness (`just vcan`) or simulation (`just sim-check`) before live CAN when developing control logic.
 
@@ -23,7 +24,7 @@ Read this before enabling motors on the bench or robot.
 - **Sensor health first (deferred).** Hall/limit homing inputs are designed but not built, so there is no sensor health check yet. When they exist, startup must check sensor wiring and stuck-state before any homing search.
 - **No blind hunting.** Out-of-range or stale-zero joints may only use constrained recovery (manual reference or sensor homing), not normal gravity/hold/impedance.
 - **Calibration audit.** The reference journal (located by `homing.yaml` `calibration_record_path`) records each physical reference with its evidence. It is history only and never grants motion; the old `zero_registry.yaml` registry workflow is retired ([homing.md](homing.md), ADR 0006 amendment). Firmware `SetZero` alone is insufficient.
-- **Current reference.** Every fresh registry starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. Corrupt/unreadable history returns an error without replacing its bytes. See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
+- **Current reference.** Every fresh Supervisor starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. No history file is read at startup, so a corrupt or missing one cannot fail construction (ADR 0022 amendment). See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
 - **Permission at output.** Davout's private owner-bound reference gates Ready,
   scoped/normal Enable, Active shortcuts and output. Caller-set history flags
   cannot grant it, and initial virtual test fixtures establish no hardware
@@ -88,7 +89,7 @@ During early arm bring-up with the arm elevated (shoulder/elbow up), motion stop
 2. **Enable sequence:** Arm supported manually or in a fixture for first enable; E-stop reachable before `Enable`.
 3. **Sign test:** Per-joint small `torque_ff` pulse; verify direction matches URDF before full `tau_g`.
 4. **Caps:** Davout per-`motor_type` `tau_ff` limits (RS02/RS00 lower than RS03/RS04); rate-limit `tau_ff` steps when enabling.
-5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp or fault.
+5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp. `clamp_velocity` bounds only the MIT velocity field, so it changes no drive torque while the wire kd is 0 (GravityComp, TorqueOnly); `clamp_torque` bounds the feed-forward and total torque. There is no fault action (DAV-03, held for the bench).
 6. **Comm watchdog:** CAN receive timeout → `Disabled` and logged fault. Exception: one admitted drive loss sheds its subtree and lowers the rest first (see *Single-drive loss* below).
 7. **Measured position guard (ADR 0009):** feedback `q` beyond URDF hard limits + small slack → `Disabled` (independent of command path).
 8. **Exit:** `disable_all` on process exit / SIGTERM where the driver supports it.
@@ -147,9 +148,10 @@ fresh CLI `home` cannot create that reference from history.
 - **Surface:** numerical hard/soft position bounds, torque cap, and `velocity_max_rad_s` only. `device_id`, CAN interface, `direction`, motor type, gearing, and membership/DOF changes require YAML + restart (+ re-home when wiring/zero changes).
 - **Active refusal:** Davout refuses `apply_limit_patch` / `rebuild_limits` while operational mode is `ACTIVE`.
 - **ACK honesty:** Gateway waits for live `limit_patch` Pending, then `limit_patch_persist` Durable/Failed, before HTTP success. Do not treat Pending alone as repo truth.
+- **Measured pose at Set Limits and Enable:** a limit patch needs a pose fresher than `FREE_DRIVE_FEEDBACK_TTL` (5 s; type-24 or the status poll's Disable reply) inside the proposed hard range, and is refused without one. Enable latches the same Feedback fault the first Active pose would when a target's Disabled pose, fresher than `comm_watchdog_ms`, is beyond hard + slack, before any Enable is written (DAV-09). The check judges referenced poses only: a target whose grant the admission drain revoked (a lost firmware zero) is refused as unreferenced first, with no fault latched.
 - **URDF expand-only:** Bench Set Limits widens in-memory + on-disk URDF hard when taught hard exceeds URDF (Davout hard = URDF ∩ bench). Soft uses ADR 0009 inset in `control.yaml` (not soft≡hard). See [ADR 0017](decisions/0017-bench-set-limits-urdf-expand.md).
 - **Persist-degraded ≠ NeedsRestart:** write-behind failure uses a distinct banner/retry. Restart, deploy, and URDF activation require fresh Disabled/Ready runtime evidence and refuse while persistence is pending or degraded; a disconnect alone never clears persistence evidence. Restarting while YAML/URDF is stale would revert live limits.
-- **Dual-writer:** Pi owns live apply and YAML/URDF write-behind. Gateway master-tree transactions use CAS `expected_revision` for durable YAML/URDF edits on the single master SoT; there are no inactive bringup profiles. Local git sync is Durable-gated via `marengo-limit-sync` only.
+- **Dual-writer:** Pi owns live apply and YAML/URDF write-behind. Gateway master-tree transactions use CAS `expected_revision` (SHA-256 over the four YAMLs and the URDF bytes) for durable YAML/URDF edits on the single master SoT; there are no inactive bringup profiles. Local git sync is Durable-gated via `marengo-limit-sync` only.
 - **Deploy must not clobber Set Limits:** `install-pi.sh` preserves previous Pi motors hard + control soft + expand-only URDF union for overlapping joints after config rsync (Set Limits Apply remains SoT). Opt out with `MARENGO_REPLACE_LIMITS=1` when intentionally shipping git limit changes over taught envelopes. The deploy log names every joint where git is tighter than the Pi and the Pi's wider range was kept, so a tightening in git never disappears silently.
 - Soft bounds clamp into the new hard envelope in the same txn (Inventory Range must show post-clamp values).
 
@@ -186,6 +188,13 @@ Further rules enforced in `marengo-pi`/Berthier:
 * `robot/enable` is a stop channel. If its broadcast receiver reports `Lagged`, a Disable may have been dropped and cannot be recovered, so the drain **stops every drive, cancels the reference queue, forbids implicit re-enable and discards the queued survivors**, then publishes `ActionEvent{action: "stop_on_lag"}`. Lag is never treated as an empty channel.
 * A Testing gain override is refused (`GainOverrideNotApplicable`) outside Impedance/Position instead of returning Ok; a Testing POSITION batch applies its gains after the mode is entered.
 * Configuration-plane Chappe commands (Set Limits, config overlay tuning) are not motion and are not gated by the lease; they remain refused while a reference is busy.
+* Because a safety (non-operator) stop leaves implicit enable allowed, any Testing POSITION batch after one re-enables the drives. Consul's Hold **Stop** therefore sends its hold-where-you-are batch only while the mode is `ACTIVE`; when the drives are already off it sends nothing (and with an unknown mode it sends a disable).
+
+## Credential-free stop route (EDGE-01)
+
+`POST /command/disable` on the gateway needs **no credential**, so a reloaded or second Consul tab can always stop the robot. Browser Origin is still checked, but a client that sends no Origin header (curl, a script) is admitted, and the route has no rate limit. Anything that can reach the gateway on the bench LAN can therefore drop the drives. It cannot move them: the route publishes only `enable=false`, which is a Stop for marengo-pi and forbids implicit re-enable until an explicit enable. Dropping an elevated arm is still a hazard, so the gateway must not be exposed beyond the bench LAN while this holds ([ADR 0008](decisions/0008-chappe-webtransport-transport.md)).
+
+Each call is logged by the gateway (`credential-free disable requested`, with `peer` and `origin`), and the published `operator_id` is `consul peer=<ip:port>`, so marengo-pi's `disable via Chappe` log line names where the stop came from. The peer is a network address, not an identity.
 
 ## Graceful owner shutdown
 
@@ -206,7 +215,7 @@ not establish client delivery or physical stop/support acceptance. See
 
 ## Position-hold fuses (Berthier)
 
-In `ControlMode::Position`, Berthier trips two fuses on a 2000 ms no-progress budget. Progress
+In `ControlMode::Position`, Berthier trips these fuses on a 2000 ms no-progress budget. Progress
 counts only when the encoder reaches a new best level by more than Davout's feedback-grid threshold
 ([ADR 0025](decisions/0025-measured-ascent-progress.md)). A trip latches a controller fault and
 disables. The fault does not clear on its own.
@@ -216,6 +225,16 @@ disables. The fault does not clear on its own.
   for a negative one) and the encoder makes no new best level in that direction. The direction
   comes from the latched target and measured `q`, never from `τ_g`, so a wrong gravity model
   cannot switch the fuse off, and a joint whose range lies below home is covered.
+- **Return stall** (`ReturnStall`): every other move whose target is more than 0.03 rad from `q`
+  (a same-side target closer to home, or home itself) is a return, watched in the direction of
+  `target − q` with the same measure and budget. `HoldTracking` arms only when the net command
+  opposes the target, so before 2026-10-28 a return jammed while the law kept pushing toward the
+  target (a pinch toward the body) ran unfused. When the return budget runs out on a tick where
+  `HoldTracking` is armed (more than 0.03 rad off target with the net command opposing it), the
+  trip is reported as `HoldTracking`, not `ReturnStall`. A sag at home can spend the return budget
+  first, because the hold-tracking budget restarts on any tick where the net command stops
+  opposing (an integral sign flip, for example). A `ReturnStall` therefore always means the net
+  command was pushing toward the target when the budget ran out.
 - **Hold tracking failure** (`HoldTracking`): this fuse covers any target, home included. It trips
   when `|q − target|` is more than 0.03 rad, the net commanded torque `tau_p + tau_ff` (which
   includes model `τ_g`) points away from the target, and `q` makes no new closest approach. This
@@ -227,16 +246,17 @@ disables. The fault does not clear on its own.
   leave its credited level by 0.02 rad (or the grid threshold) within 2000 ms. A wave is refused at
   start if an argument is non-finite, its range leaves the soft limit envelope, or its peak speed
   or acceleration exceeds the joint's velocity cap, `position_trajectory_velocity_rad_s` or
-  `position_trajectory_accel_rad_s2`. The initial step to the wave's first target is not shaped;
-  it is bounded by the lead clamp and Davout.
+  `position_trajectory_accel_rad_s2`. A wave's first sample is its minimum and bypasses the
+  planner, so a wave is also refused unless the joint's reference is within
+  `WAVE_START_TOLERANCE_RAD` (0.02 rad) of `min_rad`: move there with `hold-at` first.
 - **Retargets never renew a budget.** Only measured progress, or the commanded condition ending,
-  does (a target flipping the outbound direction starts a new episode). A stream of small
+  does (a target flipping the travel direction starts a new episode). A stream of small
   retargets cannot keep a stalled or sagging joint unfused. Residual: alternating up/down
   retargets that each end the commanded condition still restart it.
 - **Controller invariants:** a Position tick without a latched setpoint, mismatched joint
   vectors, a gravity-model error or non-parallel gain inputs latch a controller fault and discard
   intent, instead of erroring every tick until a watchdog acts.
-- Both errors report `q`, `target`, `tau_p`, `tau_ff` and `tau_g` at the trip.
+- Every fuse error reports `q`, `target`, `tau_p`, `tau_ff` and `tau_g` at the trip.
 - A latched target within two feedback counts of zero counts as home and is commanded as exactly
   `0.0`. Home/outbound classification therefore never depends on a single encoder count.
 - A tracking trip at home points to a gravity or model fault. Do not raise kp or ki to get past
@@ -245,7 +265,7 @@ disables. The fault does not clear on its own.
 ## Known software gaps (see also [position-hold-control-review.md](position-hold-control-review.md))
 
 - **Hardware E-stop wiring:** `Supervisor::set_hardware_estop` exists but Pi GPIO/input is not yet connected at runtime. Treat physical E-stop as authoritative; do not assume software `Disabled` reflects the hardware line until wired.
-- **SafetyState semantics:** `software_estop_latched` mirrors Davout's retained fault authority only. A control-tick error that Davout does not latch is still listed in `active_faults`, and it is held until the next successful 25 Hz publication, so a one-tick error is never missed between publishes. Consul shows `E-STOP` / `FAULT LATCHED` in the header ahead of the operational mode.
+- **SafetyState semantics:** `software_estop_latched` mirrors Davout's retained fault authority only. A control-tick error that Davout does not latch is still listed in `active_faults`, and it is held until the next successful 25 Hz publication, so a one-tick error is never missed between publishes. Consul shows `E-STOP` / `FAULT LATCHED` in the header ahead of the operational mode. It also shows an `N FAULTS` badge listing each `active_faults` entry, toasts every refusal published on `robot/audit/action`. When no `RobotState` arrives for 1.5 s while the gateway link is up, it drops `connected`, the operational mode and the RobotState-fed values, keeps the last `SafetyState`, and shows `RUNTIME SILENT` (not `CONNECTING`); a `SafetyState` E-STOP or latched fault still shows ahead of `RUNTIME SILENT` and `CONNECTING`. These are display only; the Pi gates are unchanged.
 - **Danger zones:** Rules evaluate **measured** joint `q`/`dq` (not commanded MIT fields). Prefer `clamp_torque` when Berthier sends `kd_mit = 0` and velocity clamps alone cannot slow gravity-driven descent.
 - **RS03 MIT velocity scale (fixed 2026-10-03):** RS03 velocity is ±20 rad/s
   on the wire, not ±50 (manual §4.1.2, bench capture
@@ -261,7 +281,7 @@ disables. The fault does not clear on its own.
 - **Limit envelope:** Davout uses `max(|dq_cmd|, |dq_meas|)` for velocity-scaled margins so gravity-driven motion cannot shrink the envelope unexpectedly.
 - **Command policy validation (2026-10-03 audit, WP-H):** configuration structs reject unknown YAML keys; MIT command filtering revalidates the public command and configured motor policy, applies gains in motor coordinates using the squared gear ratio, and clamps positions to the live envelope. Since 2026-10-04 it also bounds the predicted total MIT torque (*Total MIT torque* above). These checks do not make `clamp_velocity` effective when the active damping gain is zero; see the WP-H decision items.
 - **Limit envelope fails closed (2026-10-03 audit, WP-E):** URDF joint limits that are non-finite or not `lower < upper`, and non-finite soft bounds, are a load error (`UrdfError::InvalidLimits`), never a panic or a clamped guess; a joint with no `control.joints` entry has no policy (no built-in margin defaults). When the kinetic margin swallows the whole soft range the envelope collapses to the soft-range point nearest the measured `q` (hold), not the midpoint. Non-finite targets hold `q`; `measured_position_fault(NaN)` is a fault. A hold-at target is exempt from the kinetic margin only at the soft bottom (+5 mrad) or zero-home, not for every target ≤ 0.005 rad. Expand-only Set Limits refuses inconsistent URDF soft bounds instead of resetting them to the full hard range.
-- **Gravity model fails closed (2026-10-03 audit, WP-E):** `UrdfGravityModel` refuses to load when an actuated URDF joint is not in `robot.yaml` (it used to be evaluated at q = 0), when a joint name is duplicated or fixed, for prismatic/mimic/floating joints, a zero axis, non-finite inertials or a cyclic chain. Bench slices that model only some joints must state the locked angles (`from_urdf_with_held`). `gravity_torques` and the pre-enable saturation preflight (`check_gravity_range`, shared by `marengo-pi` and `motor-repl`) refuse on a non-finite torque or a model error instead of reading it as 0 Nm. A gravity-calibration fit that does not converge, or whose posterior covariance is not finite and positive, is refused (`FitVerdict::NotConverged` / `IllConditioned`); an unknown σ is `NaN`, never 0.
+- **Gravity model fails closed (2026-10-03 audit, WP-E):** `UrdfGravityModel` refuses to load when an actuated URDF joint is not in `robot.yaml` (it used to be evaluated at q = 0), when a joint name is duplicated or fixed, for prismatic/mimic/floating joints, a zero axis, non-finite inertials, a zero-mass link that a revolute/continuous joint moves (urdf-rs reads a missing `<inertial>` as mass 0; added 2026-10-28) or a cyclic chain. Bench slices that model only some joints must state the locked angles (`from_urdf_with_held`). `gravity_torques` and the pre-enable saturation preflight (`check_gravity_range`, shared by `marengo-pi` and `motor-repl`) refuse on a non-finite torque or a model error instead of reading it as 0 Nm. A gravity-calibration fit that does not converge, or whose posterior covariance is not finite and positive, is refused (`FitVerdict::NotConverged` / `IllConditioned`); an unknown σ is `NaN`, never 0.
 - **Gravity preflight and feedback (2026-10-03 audit, WP-G):** stdin Enable, Chappe
   `robot/enable`, and Testing Position auto-enable share one fail-closed preflight.
   It requires each modeled joint's motor, live limit policy and measured position,

@@ -11,8 +11,6 @@ import {
 
 import {
   INVENTORY_GROUP_ORDER,
-  countByStatus,
-  countUnconfigured,
   type InventoryGroup,
   type InventoryItem,
 } from '@/data/robot-inventory';
@@ -70,13 +68,14 @@ export function useInventoryTable(data: InventoryItem[]) {
     [rowModel.rows],
   );
 
+  // Counted from the rows shown (live overlay), not the static catalog (UI-08).
   const viewCounts = React.useMemo(
     () => ({
-      faults: countByStatus('Fault'),
-      offline: countByStatus('Offline'),
-      unconfigured: countUnconfigured(),
+      faults: filterInventoryByView(data, 'faults').length,
+      offline: filterInventoryByView(data, 'offline').length,
+      unconfigured: filterInventoryByView(data, 'unconfigured').length,
     }),
-    [],
+    [data],
   );
 
   const expandedGroupCount = countExpandedGroups(

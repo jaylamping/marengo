@@ -175,6 +175,23 @@ export class BenchArmScene {
     this.onSelect(joint ?? null);
   };
 
+  /** Recolour markers from fresh rows (same joint set) without rebuilding the scene. */
+  updateRows(rows: HardwareJointRow[]) {
+    for (const row of rows) {
+      const visual = this.visuals.get(row.joint);
+      if (!visual) {
+        continue;
+      }
+      const color = statusColor(row);
+      visual.row = row;
+      visual.baseColor.set(color);
+      const mat = visual.marker.material as THREE.MeshStandardMaterial;
+      mat.color.set(color);
+      mat.emissive.set(color);
+    }
+    this.dirty = true;
+  }
+
   setSelected(joint: string | null) {
     this.selectedJoint = joint;
     for (const [id, visual] of this.visuals) {

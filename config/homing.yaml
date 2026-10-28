@@ -1,5 +1,7 @@
 homing:
   zero_verify_tolerance_rad: 0.05
+  # Only locates the reference journal (reference-journal.sqlite3 in this directory).
+  # The zero_registry.yaml file itself is retired and never read (docs/homing.md).
   calibration_record_path: /opt/marengo/var/calibration/zero_registry.yaml
   defaults:
     home_offset_rad: 0.0

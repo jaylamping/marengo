@@ -30,6 +30,7 @@ use davout::{ControlMode, MotorBus};
 use tracing::warn;
 
 use crate::gravity_preflight::{GravitySweep, SweepAbort};
+use crate::operator_output::{say, say_err};
 use crate::reference_queue::MAX_DEFERRED_COMMANDS;
 use crate::PiCommand;
 
@@ -65,8 +66,8 @@ pub(crate) enum GateLine {
 pub(crate) fn emit(lines: Vec<GateLine>) {
     for line in lines {
         match line {
-            GateLine::Out(text) => println!("{text}"),
-            GateLine::Err(text) => eprintln!("{text}"),
+            GateLine::Out(text) => say!("{text}"),
+            GateLine::Err(text) => say_err!("{text}"),
         }
     }
 }

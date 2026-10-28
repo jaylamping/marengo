@@ -27,7 +27,8 @@ const MIN_AXIS_NORM: f64 = 1e-9;
 /// Construction validates the model and fails closed, so [`gravity_torques`] never has to
 /// guess: every actuated joint is either modelled (an angle in `q`) or explicitly held at a
 /// stated angle, no joint kind the model cannot represent (prismatic, mimic, floating) is
-/// present, the link tree is acyclic, and axes, origins and inertials are finite.
+/// present, the link tree is acyclic, axes, origins and inertials are finite, and every link
+/// a revolute/continuous joint moves has a non-zero mass.
 ///
 /// [`gravity_torques`]: crate::DynamicsModel::gravity_torques
 #[derive(Clone)]
@@ -86,6 +87,26 @@ impl UrdfGravityModel {
                 current = robot.joints[idx].parent.link.clone();
             }
             chain.reverse(); // root→leaf order
+
+            // urdf-rs reads a missing <inertial> as mass 0. On a link a joint moves, that
+            // would silently drop the link from τ_g, so a massless frame there must state a
+            // nominal mass instead.
+            if link.inertial.mass.value == 0.0 {
+                if let Some(&carrier) = chain.iter().find(|&&idx| {
+                    matches!(
+                        robot.joints[idx].joint_type,
+                        JointType::Revolute | JointType::Continuous
+                    )
+                }) {
+                    return Err(DynamicsError::InvalidModel {
+                        what: format!(
+                            "link {} moved by joint {} has zero mass (missing <inertial>?); \
+                             give a massless frame a nominal mass",
+                            link.name, robot.joints[carrier].name
+                        ),
+                    });
+                }
+            }
             link_chains.insert(link.name.clone(), chain);
         }
 

@@ -412,6 +412,39 @@ compose_ssh_preflight() {
   return 1
 }
 
+# --- Pi install ---
+
+# Run install-pi.sh on the Pi. Returns nonzero when the remote install fails, so
+# a deploy never reports success while the Pi keeps its previous binaries.
+remote_install_pi() {
+  local host="$1"
+  local remote_root="$2"
+  # Narrow sudoers allow specific scripts only — not `sudo -n true`.
+  if compose_ssh "$host" "set -euo pipefail; sudo -n ${remote_root}/scripts/install-pi.sh"; then
+    return 0
+  fi
+  echo "error: install-pi.sh failed on ${host}; the Pi keeps its previous install" >&2
+  echo "  Without passwordless sudo, run once on the Pi: sudo ${remote_root}/scripts/install-pi.sh" >&2
+  return 1
+}
+
+# Called after `systemctl stop marengo-pi.service`: wait up to 5 s for a
+# marengo-pi that is already exiting, then return 1 while any survives (it
+# still owns CAN). Never signals: a survivor is a manual/MCP bench session
+# (started as the relative `bin/marengo-pi`, which systemd does not own), and
+# its exit stop disables every drive, so an arm held in GravityComp would fall.
+# Match by process name, not argv, so a relative-path session is still seen.
+require_no_marengo_pi() {
+  local _attempt
+  for _attempt in $(seq 1 25); do
+    pgrep -x marengo-pi >/dev/null 2>&1 || return 0
+    sleep 0.2
+  done
+  pgrep -ax marengo-pi >&2 || return 0
+  echo "error: a marengo-pi bench session is running; stop it first (it owns CAN; install sends it no signal)" >&2
+  return 1
+}
+
 # --- deploy revision (single writer: install-pi.sh → /opt/marengo/.deploy-rev) ---
 
 # Root install-pi runs git as root; without safe.directory git refuses /opt/marengo (owned by marengo).

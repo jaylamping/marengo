@@ -64,11 +64,9 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on **Windows, macOS, and Linux** (there is no WSL checkout; ADR 0018).
 
-**macOS / Linux:** mcp.json uses **`bash` + [`run-mcp.sh`](run-mcp.sh)**. Cursor's spawn PATH often lacks mise `node`, so bare `node` fails with `spawn node ENOENT`. The shell launcher finds mise (or `MARENGO_MCP_NODE`).
+mcp.json runs **`node ${workspaceFolder}/tools/marengo-pi-mcp/dist/launch.js`** on every host. If Cursor's spawn PATH lacks `node` (`spawn node ENOENT`, e.g. mise without shims), point the entry at [`run-mcp.sh`](run-mcp.sh) (macOS / Linux) or [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1) (Windows) in your local mcp.json: they resolve `node` (mise or `MARENGO_MCP_NODE`) and exec `dist/launch.js`.
 
-**Windows (`J:\code\marengo`, software + CAD session):** prefer [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1) — Cursor often lacks Git `sh`/`bash`. Those wrappers exec [`dist/launch.js`](src/launch.ts) once `node` is resolved.
-
-Profile / SSH defaults live in [`src/launch.ts`](src/launch.ts) / `run-mcp.sh` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0018](../../docs/decisions/0018-windows-macos-software-home.md)).
+Host, user, root, config dir and bench profile defaults live in one place, `MCP_DEFAULTS` in [`src/config.ts`](src/config.ts) (host `joey-robot.tail0b414.ts.net`, profile `elbow_attached`); [`src/launch.ts`](src/launch.ts) exports them to the environment. They are **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0018](../../docs/decisions/0018-windows-macos-software-home.md)).
 
 Open the marengo repo root as the Cursor workspace: `J:\code\marengo` on Windows, or the macOS host checkout (ADR 0018).
 
@@ -82,7 +80,7 @@ just mcp-build
 
 Then restart the marengo-pi MCP server in Cursor.
 
-**Stay enabled:** `.cursor/hooks.json` runs `session-start-marengo.js` on `sessionStart` (`--write --best-effort`) so disabled/unapproved state is scrubbed when a chat opens. If the server still shows as disabled after a config thrash:
+**Disabled server:** nothing re-enables `marengo-pi` automatically, because disabling it is a kill switch for the motion tools. To clear disabled/unapproved state after a config thrash:
 
 ```bash
 # Quit Cursor first for a hard write, then:
@@ -165,7 +163,7 @@ Profiles without a joint subset (`bare_motor`, `weighted_single_arm`, `arm_attac
 `pi_hold_on` and `pi_bench_harness` run one shared gate (`src/gravity-gate.ts`) before anything can enable, for every bench profile. It applies the limb-playbook §4a/4b bar: a joint fails when its residual is **≥ 0.20 Nm**. On a failure the tool stops with `FAIL gravity_model_mismatch` and sends no reference, enable or hold line. `pi_hold_on` returns the report. The harness records `[FAIL] gravity_gate` and restores `marengo-pi.service`.
 
 1. Before taking CAN, the gate reads the Pi clock and the gateway's `/snapshot/robot/state`. This read never touches CAN.
-2. As sole CAN owner, it runs `motor-repl gravity-preview`. `pi_hold_on` runs it in its own `soleCanOwnerShell` session. The harness runs it as the `gravity_gate` step, after `can_up` and `motor_repl_status`. Non-zero poses use a full `robot.yaml`-order vector. Standalone `pi_gravity_preview` accepts no angles for the all-zero pose or exactly one angle per master joint in order; the harness's weighted previews also pass all five values.
+2. It runs `motor-repl gravity-preview`, which reads robot.yaml and the URDF and never opens CAN, so it takes no CAN ownership and leaves `marengo-pi.service` running. The harness runs it as the `gravity_gate` step, after `can_up` and `motor_repl_status`. Non-zero poses use a full `robot.yaml`-order vector. Standalone `pi_gravity_preview` accepts no angles for the all-zero pose or exactly one angle per master joint in order; the harness's weighted previews also pass all five values.
 3. It compares results per gated joint. Gated joints are the referenced joints, plus the hold joint for `pi_hold_on`.
 
 | Basis | When | Residual |
@@ -203,7 +201,7 @@ One session of the [right-arm calibration suite](../../docs/commissioning/right-
   - Every hold target, overshoot, fixed pose and wave extreme lies in `[max(soft, hard) lower + 0.05, min(soft, hard) upper − 0.05]`; the return pose 0 lies in the window.
   - Peak wave speed `π·(max − min)/(2·half_period)` ≤ 0.8 × the joint's velocity cap (control.yaml joint > actuator group > motor type). It must also stay within the joint's `position_trajectory_velocity_rad_s` and `position_trajectory_accel_rad_s2`, and its descent above any `clamp_velocity` danger zone threshold (`peak·√(1 − u²)`, `u = (max(above, centre) − centre)/amplitude`) within the zone speed, all of which marengo-pi's wave admission enforces. Planned waves (motion suite, velocity passes, local waves at each pose) are sized to fit.
   - Total sleep + reference budget ≤ 300 s, else it refuses and suggests splitting the session.
-  - τ guard: `|τ_g| × factor ≤ 0.8 ×` τ_ff cap on every profile joint, at configurations ≤ 0.05 rad apart along every commanded path. The paths are each fixed joint moving out in chain order (the distal-first return retraces them) and the sweep across all of its targets, poses and 0 (wave method: planned with the 0.1 rad maximum amplitude, a superset of the final waves). The cap is `min(URDF effort, motors.yaml torque_limit_nm, robot.yaml max_joint_torque_nm, motor-type tau_ff_max_nm)`. τ_g comes from one batched remote call, run as sole CAN owner like the gravity gate, that runs `motor-repl gravity-preview` once per distinct configuration with a full `robot.yaml`-order vector. A missing τ_g refuses. The wave method checks limits, speeds and the budget after this batch, once the amplitude is known.
+  - τ guard: `|τ_g| × factor ≤ 0.8 ×` τ_ff cap on every profile joint, at configurations ≤ 0.05 rad apart along every commanded path. The paths are each fixed joint moving out in chain order (the distal-first return retraces them) and the sweep across all of its targets, poses and 0 (wave method: planned with the 0.1 rad maximum amplitude, a superset of the final waves). The cap is `min(URDF effort, motors.yaml torque_limit_nm, robot.yaml max_joint_torque_nm, motor-type tau_ff_max_nm)`. τ_g comes from one batched remote call (no CAN ownership: the preview never opens CAN) that runs `motor-repl gravity-preview` once per distinct configuration with a full `robot.yaml`-order vector. A missing τ_g refuses. The wave method checks limits, speeds and the budget after this batch, once the amplitude is known.
   - τ guard factor (`src/tau-factor.ts`): 1.6 per joint, or `1 + max(3σ_A/A, 0.15)` for a joint listed in [`docs/commissioning/calibrations/applied-gravity.json`](../../docs/commissioning/calibrations/applied-gravity.json) when its accepted record is in the repo, the Pi URDF's gravity-model fingerprint (link masses and COMs, joint origins and axes; not limits) equals the entry's `urdf_gravity_sha256`, the Pi URDF carries the record's fitted COMs, and every other joint sits at the fit's fixed pose. A missing, unreadable or stale index or record keeps 1.6 (fails closed); the output lists each joint's factor and why. `npm run gravity-fingerprint [urdf]` (after `npm run build`) prints the fingerprint for a new entry. Details: [right-arm calibration suite](../../docs/commissioning/right-arm-calibration-suite.md#calibrated-joints-τ-guard-factor).
 - **Outputs.** The `pi_gravity_calibrate` directory with `plan.json` version 2 plus `method`. Wave plans add `wave_amplitude_rad` and omit `approach_offset_rad`/`measure_sec`; static plans keep them. Steps carry `kind`: `hold` (`joint`, `target_rad`, `measure`, `pose_index`, `approach`), `fixed` (`joint`, `target_rad`) or `wave` (`joint`, `min_rad`, `max_rad`, `cycles`, `half_period_s`, and `pose_index` for wave-method local waves). `session_complete` is true only when marengo-pi exited 0 and the trace shows every step, in order. A hold or fixed step counts when `target_raw` changes to its target. A wave counts when it reaches its top `cycles` times and returns to its bottom. With `run_fit` the fit runs even on an incomplete session; the fitter uses completed steps only, and follows plan.json `method`.
 
@@ -240,10 +238,15 @@ No-motion enable reliability check (`src/tools/enable-soak.ts`). Run it after fi
 
 ### `pi_sync_main`
 
-1. Local `git pull --ff-only` on `main` (fails if dirty)
-2. `./scripts/deploy-pi.sh joey@marengo.local`
-3. Remote `install-pi.sh` → `/opt/marengo`
-4. Writes `/opt/marengo/.deploy-rev`
+`strategy: "cross"` (default) builds the local checkout:
+
+1. Refuses unless the local checkout is already on `main` (it never switches your branch) and clean, including untracked files under `config/`, `assets/` and `scripts/`
+2. Local `git pull --ff-only origin main`
+3. `./scripts/deploy-pi.sh joey@marengo.local` (build and rsync only; Windows: `deploy-pi-docker.ps1 -NoInstall`)
+4. Remote `install-pi.sh` → `/opt/marengo`, once; a failed install fails the tool
+5. Writes `/opt/marengo/.deploy-rev`
+
+`strategy: "pi_native"` builds `origin/main` on the Pi with `scripts/pi-self-update.sh` and never touches the local checkout.
 
 ### `pi_restart_marengo_pi`
 

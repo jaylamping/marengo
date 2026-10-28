@@ -319,11 +319,17 @@ impl FaultAuthority {
             let incoming = bounded_message(message);
             if !incoming.is_empty()
                 && !existing.message.contains(incoming.as_str())
-                && existing.message.len() < MAX_FAULT_MESSAGE_LEN
+                && existing.message.chars().count() < MAX_FAULT_MESSAGE_LEN
             {
                 existing.message.push_str("; ");
                 existing.message.push_str(&incoming);
-                existing.message = bounded_message(&existing.message);
+                // Bound the record, not each cause: cutting the sum back to
+                // one cause's 512 chars dropped every later cause (DAV-10).
+                existing.message = existing
+                    .message
+                    .chars()
+                    .take(MAX_FAULT_MESSAGE_LEN)
+                    .collect();
             }
             return false;
         }
@@ -448,5 +454,23 @@ mod record_tests {
         let snapshot = authority.snapshot(false);
         assert_eq!(snapshot.faults.len(), 1);
         assert_eq!(snapshot.faults[0].message, "missing Enable echo");
+    }
+
+    #[test]
+    fn a_later_cause_survives_a_first_cause_at_the_per_cause_bound() {
+        let mut authority = FaultAuthority::default();
+        let long = "x".repeat(600);
+        for cause in [long.as_str(), "missing Off echo"] {
+            authority.record(
+                FaultClass::DriveState,
+                Some("joint".to_string()),
+                Some(address()),
+                cause,
+                DeviceFaultEvidence::default(),
+            );
+        }
+        let message = &authority.snapshot(false).faults[0].message;
+        assert!(message.contains("missing Off echo"), "{message}");
+        assert!(message.chars().count() <= MAX_FAULT_MESSAGE_LEN);
     }
 }

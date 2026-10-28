@@ -179,7 +179,14 @@ fn ipc_client_loop(socket_path: PathBuf, outbound: Arc<Outbox>, bus: crate::Bus)
         };
         let mut reader = match stream.try_clone() {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(error) => {
+                // Typically fd exhaustion: back off like a failed connect
+                // rather than reconnect and fail again in a hot loop.
+                warn!(%error, "ipc stream clone failed; retrying in 1 s");
+                drop(stream);
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                continue;
+            }
         };
         let read_bus = bus.clone();
         outbound.set_connected(true);
@@ -280,7 +287,7 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
             };
             if let Ok((DIRECTION_GATEWAY_TO_RUNTIME, topic, payload)) = decode_frame(&frame) {
                 if command_is_current(&topic, &payload) {
-                    let _ = bus.publish_bytes(&topic, payload);
+                    bus.publish_local_bytes(&topic, payload);
                 } else {
                     warn!(topic, "ipc command topic or timestamp refused");
                 }

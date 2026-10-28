@@ -76,6 +76,56 @@ async fn stale_future_and_unknown_commands_never_reach_runtime_bus() {
     fixture.close().expect("remove joined fixture");
 }
 
+/// RT-19: a command ingested from the gateway reaches the runtime's
+/// subscribers without being offered back to the outbox, whose `rejected`
+/// counter (HostMetrics) counts only refused runtime publications.
+#[tokio::test]
+async fn ingested_commands_are_not_counted_as_outbox_rejections() {
+    let fixture = tempfile::tempdir().expect("fixture");
+    let socket = fixture.path().join("commands.sock");
+    let bus = chappe::Bus::default();
+    let mut commands = bus.subscribe("robot/enable");
+    let fanout = chappe::ipc::IpcFanout::spawn_client(socket.clone(), bus.clone()).expect("fanout");
+    bus.set_ipc_fanout(Arc::clone(&fanout));
+    let mut connected = fanout.subscribe_connection();
+    let listener = std::os::unix::net::UnixListener::bind(socket).expect("peer");
+    let mut peer = tokio::task::spawn_blocking(move || listener.accept().expect("accept").0)
+        .await
+        .expect("accept task");
+    assert!(
+        tokio::time::timeout(Duration::from_secs(5), connected.recv())
+            .await
+            .expect("connect deadline")
+            .expect("connected")
+    );
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_millis() as u64;
+    let envelope = armee_proto::Envelope {
+        timestamp_ms: now,
+        source_node: "gateway-test".into(),
+        message_type: "marengo.v1.EnableRequest".into(),
+        payload: vec![1],
+    }
+    .encode_to_vec();
+    let frame = encode_frame(
+        chappe::ipc::DIRECTION_GATEWAY_TO_RUNTIME,
+        "robot/enable",
+        &envelope,
+    );
+    peer.write_all(&frame).expect("command bytes");
+    tokio::time::timeout(Duration::from_secs(5), commands.recv())
+        .await
+        .expect("command deadline")
+        .expect("bus command");
+    let stats = bus.ipc_queue_stats().expect("configured fanout");
+    assert_eq!(stats.rejected, 0, "an operator command is not a rejection");
+    fanout.shutdown().expect("join runtime transport");
+    drop(peer);
+    fixture.close().expect("remove joined fixture");
+}
+
 #[test]
 fn replacement_retires_partial_old_frame_and_disconnect_closes_command_peer() {
     let fixture = tempfile::tempdir().expect("fixture");

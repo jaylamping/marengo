@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 
 import type {
-  JointState,
   RobotState,
   SafetyState,
   ImuSample,
@@ -9,19 +8,27 @@ import type {
 import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
 import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/constants';
 import { isChappeLive } from '@/lib/chappe-config';
-import { robotWireFacetsLive } from '@/lib/commissioning';
 
 export type OperationalModeLabel = 'DISABLED' | 'READY' | 'ACTIVE' | null;
+
+export type ActionRefusal = {
+  receivedAtMs: number;
+  action: string;
+  reason: string;
+};
 
 export type JointTrackingPointByJoint = Record<string, JointTrackingPoint[]>;
 
 interface RobotStore {
-  /** Legacy demo slider (3D placeholder). */
-  jointPosition: number;
-  setJointPosition: (v: number) => void;
-
   connected: boolean;
   setConnected: (v: boolean) => void;
+
+  /**
+   * True while the gateway link is up but `RobotState` has been silent past
+   * `ROBOT_STATE_STALE_MS` (a stalled runtime, not a first connection).
+   */
+  robotStateStale: boolean;
+  setRobotStateStale: (stale: boolean) => void;
 
   operationalMode: OperationalModeLabel;
   setOperationalMode: (mode: OperationalModeLabel) => void;
@@ -38,24 +45,13 @@ interface RobotStore {
   gatewayError: string | null;
   setGatewayError: (message: string | null) => void;
 
+  /** Latest Pi refusal on `robot/audit/action`, stamped with local receive time. */
+  lastActionRefusal: ActionRefusal | null;
+  setLastActionRefusal: (refusal: ActionRefusal | null) => void;
+
   trackingPoints: JointTrackingPoint[]; // legacy alias or empty
   trackingPointsByJoint: JointTrackingPointByJoint;
   appendTrackingPoint: (jointName: string, point: JointTrackingPoint) => void;
-}
-
-/** Select a live JointState by name (wire truth for commissioning facets). */
-export function selectJointState(
-  state: Pick<RobotStore, 'robotState'>,
-  jointName: string,
-): JointState | undefined {
-  return state.robotState?.joints.find((j) => j.name === jointName);
-}
-
-/** True when RobotState publishes non-UNSPECIFIED homing facets. */
-export function selectWireFacetsLive(
-  state: Pick<RobotStore, 'robotState'>,
-): boolean {
-  return robotWireFacetsLive(state.robotState);
 }
 
 const initialTracking = isChappeLive()
@@ -63,11 +59,11 @@ const initialTracking = isChappeLive()
   : dummyShoulderPitchTracking.points;
 
 export const useRobotStore = create<RobotStore>((set) => ({
-  jointPosition: 0.4,
-  setJointPosition: (v) => set({ jointPosition: v }),
-
   connected: false,
   setConnected: (connected) => set({ connected }),
+
+  robotStateStale: false,
+  setRobotStateStale: (robotStateStale) => set({ robotStateStale }),
 
   operationalMode: null,
   setOperationalMode: (operationalMode) => set({ operationalMode }),
@@ -83,6 +79,9 @@ export const useRobotStore = create<RobotStore>((set) => ({
 
   gatewayError: null,
   setGatewayError: (gatewayError) => set({ gatewayError }),
+
+  lastActionRefusal: null,
+  setLastActionRefusal: (lastActionRefusal) => set({ lastActionRefusal }),
 
   trackingPoints: isChappeLive() ? [] : dummyShoulderPitchTracking.points, // keep legacy shape for backwards compat if needed
   trackingPointsByJoint: {},

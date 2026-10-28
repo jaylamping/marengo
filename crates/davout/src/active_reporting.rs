@@ -222,6 +222,7 @@ impl ActiveReportingState {
             .is_some_and(|m| m.values().any(|e| e.expires > now))
     }
 
+    #[cfg(test)]
     pub fn lease_count(&self, joint: &str, now: Instant) -> usize {
         self.leases
             .get(joint)
@@ -341,6 +342,7 @@ impl ActiveReportingState {
     /// At most one write per interface per [`ACTIVE_REPORTING_WRITE_SPACING`];
     /// Offs, initial Ons and stale retries take that slot before a healthy
     /// refresh, and anything deferred is written by a later call.
+    #[cfg(test)]
     pub fn sync<B: MotorBus, S: std::hash::BuildHasher>(
         &mut self,
         bus: &mut B,
@@ -361,7 +363,7 @@ impl ActiveReportingState {
         );
     }
 
-    /// [`Self::sync`] that writes nothing to the joints in `held` (drives in
+    /// `sync` that writes nothing to the joints in `held` (drives in
     /// their possible post-SetZero blackout, where every frame is dropped).
     /// Returns the held joints that had a write due: the caller owns their
     /// silence until the hold ends, and a later call writes it.

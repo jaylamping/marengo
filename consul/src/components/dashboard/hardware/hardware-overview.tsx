@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/toggle-group';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { useMotorStatusPoll } from '@/hooks/use-motor-status-poll';
+import { usePostEnableWatch } from '@/hooks/use-post-enable-watch';
 import { robotWireFacetsLive } from '@/lib/commissioning';
 import { postEnableCommand } from '@/lib/gateway-api';
 import { fetchCompleteness } from '@/lib/hardware-api';
@@ -40,7 +41,6 @@ export function HardwareOverview() {
   const [selectedJoint, setSelectedJoint] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [rangeOverrides, setRangeOverrides] = useState<Record<string, string>>({});
   const [enableBusy, setEnableBusy] = useState(false);
   const [enableError, setEnableError] = useState<string | null>(null);
 
@@ -51,6 +51,7 @@ export function HardwareOverview() {
   const wireLive = robotWireFacetsLive(robotState);
   const canEnable =
     wireLive && !enableBusy && operationalMode !== 'ACTIVE';
+  const enableWatch = usePostEnableWatch(snapshot ?? null, limitSnapshot);
 
   const onEnableReadyInScope = async () => {
     if (!canEnable) {
@@ -58,8 +59,10 @@ export function HardwareOverview() {
     }
     setEnableBusy(true);
     setEnableError(null);
+    enableWatch.clear();
     try {
       await postEnableCommand(true);
+      enableWatch.start();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setEnableError(message);
@@ -93,18 +96,9 @@ export function HardwareOverview() {
     [snapshot, robotState],
   );
 
-  const rowsWithRange = useMemo(
-    () =>
-      rows.map((row) => ({
-        ...row,
-        liveRange: rangeOverrides[row.joint] ?? row.liveRange,
-      })),
-    [rows, rangeOverrides],
-  );
-
   const selectedRow = useMemo(
-    () => rowsWithRange.find((r) => r.joint === selectedJoint) ?? null,
-    [rowsWithRange, selectedJoint],
+    () => rows.find((r) => r.joint === selectedJoint) ?? null,
+    [rows, selectedJoint],
   );
 
   const warnCount = countCompletenessWarnings(warnings);
@@ -161,6 +155,18 @@ export function HardwareOverview() {
             >
               {enableError}
             </span>
+          ) : enableWatch.outcome ? (
+            <span
+              className={
+                enableWatch.outcome.kind === 'error'
+                  ? 'micro-label text-destructive'
+                  : 'micro-label text-muted-foreground'
+              }
+              role="status"
+              data-testid="hardware-enable-outcome"
+            >
+              {enableWatch.outcome.message}
+            </span>
           ) : null}
           <Button
             type="button"
@@ -208,13 +214,13 @@ export function HardwareOverview() {
 
       {view === 'table' ? (
         <HardwareTable
-          rows={rowsWithRange}
+          rows={rows}
           selectedJoint={selectedJoint}
           onSelect={selectJoint}
         />
       ) : (
         <Hardware3dView
-          rows={rowsWithRange}
+          rows={rows}
           selectedJoint={selectedJoint}
           onSelect={selectJoint}
         />
@@ -224,11 +230,6 @@ export function HardwareOverview() {
         row={selectedRow}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        onApplyRange={(range) => {
-          if (selectedJoint) {
-            setRangeOverrides((prev) => ({ ...prev, [selectedJoint]: range }));
-          }
-        }}
       />
 
       <ImportWizard

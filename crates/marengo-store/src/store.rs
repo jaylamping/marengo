@@ -972,14 +972,17 @@ fn open_text_lines(path: &str) -> Result<Box<dyn BufRead>> {
     }
 }
 
+/// Most lines one bench/trace page returns, whatever `limit` asks for.
+const MAX_TEXT_PAGE_LINES: u32 = 1_000;
+
 /// Read one page of a (possibly compressed) line file without materializing
 /// the whole file: stream once to count, then stream again for the window.
-/// Two passes over gzip input decompress twice; page requests stay bounded
-/// in memory either way. Totals saturate (never wrap) at `u32::MAX`.
+/// Two passes over gzip input decompress twice; a page holds at most
+/// [`MAX_TEXT_PAGE_LINES`] lines. Totals saturate (never wrap) at `u32::MAX`.
 fn read_text_page(path: &str, offset: u32, limit: u32) -> Result<(Vec<String>, u32)> {
     let total = count_text_lines(path)?;
     let start = u64::from(offset.min(total));
-    let want = u64::from(limit);
+    let want = u64::from(limit.min(MAX_TEXT_PAGE_LINES));
     if want == 0 || start >= u64::from(total) {
         return Ok((Vec::new(), total));
     }
@@ -1210,6 +1213,24 @@ mod tests {
         let (empty, total) = read_text_page(&name, 9, 10)?;
         assert_eq!(total, 5);
         assert!(empty.is_empty(), "offset past end returns no rows");
+        Ok(())
+    }
+
+    #[test]
+    fn read_text_page_clamps_the_page_size() -> Result<()> {
+        use std::io::Write;
+        let dir = tempdir()?;
+        let path = dir.path().join("trace.csv");
+        let lines = MAX_TEXT_PAGE_LINES + 5;
+        {
+            let mut file = std::fs::File::create(&path)?;
+            for index in 0..lines {
+                writeln!(file, "row-{index}")?;
+            }
+        }
+        let (page, total) = read_text_page(&path.display().to_string(), 0, u32::MAX)?;
+        assert_eq!(total, lines);
+        assert_eq!(page.len(), MAX_TEXT_PAGE_LINES as usize);
         Ok(())
     }
 

@@ -1,7 +1,7 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { isBenchProfile } from "../src/bench-profiles.js";
-import { loadConfig } from "../src/config.js";
+import { MCP_DEFAULTS, loadConfig } from "../src/config.js";
 
 describe("loadConfig / isBenchProfile", () => {
   const prev = { ...process.env };
@@ -22,10 +22,14 @@ describe("loadConfig / isBenchProfile", () => {
     assert.equal(isBenchProfile("not_a_profile"), false);
   });
 
-  it("defaults benchProfile to bare_motor", () => {
-    delete process.env.MARENGO_BENCH_PROFILE;
+  it("falls back to the same defaults launch.ts exports (TOOL-26)", () => {
+    for (const key of Object.keys(MCP_DEFAULTS)) delete process.env[key];
     const cfg = loadConfig();
-    assert.equal(cfg.benchProfile, "bare_motor");
+    assert.equal(cfg.benchProfile, "elbow_attached");
+    assert.equal(cfg.host, "joey-robot.tail0b414.ts.net");
+    assert.equal(cfg.user, MCP_DEFAULTS.MARENGO_PI_USER);
+    assert.equal(cfg.piRoot, MCP_DEFAULTS.MARENGO_PI_ROOT);
+    assert.equal(cfg.configDir, MCP_DEFAULTS.MARENGO_CONFIG_DIR);
   });
 
   it("throws on invalid MARENGO_BENCH_PROFILE", () => {

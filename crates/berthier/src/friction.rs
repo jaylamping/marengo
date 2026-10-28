@@ -4,6 +4,10 @@ use marengo_config::FrictionGains;
 
 use crate::position_trajectory::TrapezoidPhase;
 
+/// Legacy-law threshold of 1e-4 in whatever unit it is compared in. Despite the `_RAD` name it
+/// bounds position errors (rad), velocities such as `dq_traj` (rad/s) and the "approaching
+/// target" product `dq_traj · settle_error` (rad²/s), which is false for a slow move near its
+/// target (0.005 rad/s × 0.01 rad). Goes with the legacy law (ADR 0039 Phase 4).
 pub const POSITION_HOLD_ERROR_DEADBAND_RAD: f64 = 1e-4;
 pub const POSITION_HOLD_FRICTION_FADE_RAD: f64 = 0.02;
 /// Post-retarget window for onset MIT velocity and full-Coulomb breakaway pulse.

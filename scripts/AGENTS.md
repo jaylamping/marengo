@@ -33,14 +33,13 @@ scripts/
 ├── pi-native-build.sh        # Native cargo build on Pi
 ├── pi-bno085-shtp-init.py    # BNO085 SHTP init verification
 ├── pi-i2c-plain-read.py      # Plain I2C read test (not smbus)
-├── pi-i2c-raw-read.py        # Raw I2C read test
 ├── pi-bno085-smoke.py        # One-shot BNO085 smoke test (CircuitPython)
 ├── setup-cloud.sh            # Cloud VM: protoc + pinned cargo-deny/cargo-audit tools
 ├── setup-cloud-pi.sh         # Cloud VM: Tailscale + SSH to Pi
 ├── setup-mac-pi-cross.sh     # macOS aarch64 cross-compile setup
 ├── setup-wsl-dev.sh          # Legacy WSL bootstrap (ADR 0018 retired the WSL checkout)
 ├── setup-wsl-pi-cross.sh     # Legacy WSL2 cross-compile setup (ADR 0018)
-├── ensure-marengo-pi-mcp-enabled.py # Keep marengo-pi MCP enabled in Cursor workspace storage
+├── ensure-marengo-pi-mcp-enabled.py # Re-enable marengo-pi MCP in Cursor workspace storage (manual only)
 ├── reference-journal-tail.py # Read-only latest reference journal rows (history, never a grant)
 ├── log-inventory.sh          # Bench log inventory
 ├── bench-log-archive.sh      # Archive bench sessions

@@ -141,4 +141,29 @@ describe('deriveSidebarUpdateMode', () => {
       ),
     ).toBe('success');
   });
+
+  it('resolveWatchOutcome ignores a succeeded ledger with no job id (UI-20)', () => {
+    expect(
+      resolveWatchOutcome(
+        status({
+          ready_for_target: true,
+          deploy: { state: 'succeeded', job_id: '' },
+        }),
+        { jobId: 'mine', startedAtMs: 1 },
+      ),
+    ).toBeNull();
+  });
+
+  it("resolveWatchOutcome ignores another job's target matching deploy-rev (UI-20)", () => {
+    const other = 'cccccccccccccccccccccccccccccccccccccccc';
+    expect(
+      resolveWatchOutcome(
+        status({
+          deploy_sha: other,
+          deploy: { state: 'running', job_id: 'other', target_sha: other },
+        }),
+        { jobId: 'mine', startedAtMs: 1 },
+      ),
+    ).toBeNull();
+  });
 });

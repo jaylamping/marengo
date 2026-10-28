@@ -1,6 +1,6 @@
 /**
  * Wire-gated Reference facet for Telemetry.
- * Never consults localStorage / actuatorZeroStore — Ready only from wire.
+ * Never consults localStorage — Ready only from wire.
  */
 
 import { JointHomingState } from '@/gen/marengo/v1/marengo_pb';

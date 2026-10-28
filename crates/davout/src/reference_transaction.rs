@@ -15,7 +15,10 @@ use crate::feedback_consumer::{
     AdvanceReceiveBudget, ReceiveContext, ReferenceReceiveContext, ReferenceReceivePhase,
 };
 use crate::reference_model::InstalledModelStamp;
-use crate::reference_physical::{Lapse, PhysicalBackend, PhysicalDevices, SilenceFrom};
+use crate::reference_physical::{
+    Lapse, PhysicalBackend, PhysicalDevices, SilenceFrom, IDENTITY_ADMISSION_RETRY,
+    IDENTITY_ADMISSION_TIMEOUT,
+};
 use crate::{
     ControlMode, OperationalMode, Supervisor, POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
 };
@@ -321,6 +324,8 @@ struct Reservation {
     receive: Option<ReferenceReceiveSummary>,
     /// Physical: only replies popped after this watermark answer the last request.
     request_watermark: u64,
+    /// Physical: when the first and the last type-0 identity request were written.
+    identity_requested_at: Option<(Instant, Instant)>,
     uid: Option<DeviceUid>,
     ack: Option<PhysicalAck>,
 }
@@ -882,6 +887,7 @@ impl<B: MotorBus> Supervisor<B> {
             reporting: Vec::new(),
             receive: None,
             request_watermark: 0,
+            identity_requested_at: None,
             uid: None,
             ack: None,
         });
@@ -1038,10 +1044,15 @@ impl<B: MotorBus> Supervisor<B> {
             }
             ReferencePhase::RequestIdentity | ReferencePhase::RequestReadback => {
                 let watermark = self.reference_owner.physical.watermark();
+                let identity = reservation.phase == ReferencePhase::RequestIdentity;
                 if let Some(live) = &mut self.reference_owner.reservation {
                     live.request_watermark = watermark;
+                    live.identity_requested_at = identity.then(|| {
+                        let now = Instant::now();
+                        (now, now)
+                    });
                 }
-                let (result, next) = if reservation.phase == ReferencePhase::RequestIdentity {
+                let (result, next) = if identity {
                     (
                         self.bus.get_device_id_at(&reservation.address),
                         ReferencePhase::AwaitIdentity,
@@ -1096,6 +1107,18 @@ impl<B: MotorBus> Supervisor<B> {
                     .ok_or_else(|| ReferenceError::InvalidRequest {
                         message: "installed target disappeared".into(),
                     })?;
+                // The ack and readback read ~0 at any pose, so the coordinate
+                // just before SetZero is the only sign of how far the joint sat
+                // from its attested home (REF-02). It is logged, never judged.
+                let before = self.motor_states.get(&reservation.address);
+                tracing::info!(
+                    joint = %motor.joint,
+                    pre_set_zero_position_rad = before.map(|state| state.position_rad),
+                    pre_set_zero_age_ms = before
+                        .and_then(|state| state.updated)
+                        .map(|at| at.elapsed().as_millis() as u64),
+                    "reference SetZero replaces the drive coordinate"
+                );
                 self.invalidate_reference_target_pose_for_zero_attempt(&motor);
                 // Even an uncertain write may reach the wire; its echo, when
                 // read, supersedes this write time.
@@ -1247,7 +1270,39 @@ impl<B: MotorBus> Supervisor<B> {
                         match physical
                             .identity_after(&reservation.address, reservation.request_watermark)
                         {
-                            None => ReferencePhase::AwaitIdentity,
+                            // A request that reached the drive in a blackout
+                            // (after its own SetZero, or a reboot) is never
+                            // answered: ask again within the admission window,
+                            // as Enable admission does (REF-03). Any reply after
+                            // the first request counts; the unrenewed phase
+                            // deadline still fails a drive that never answers.
+                            None => {
+                                let now = Instant::now();
+                                let due = reservation.identity_requested_at.is_some_and(
+                                    |(first, last)| {
+                                        now.saturating_duration_since(last)
+                                            >= IDENTITY_ADMISSION_RETRY
+                                            && now.saturating_duration_since(first)
+                                                < IDENTITY_ADMISSION_TIMEOUT
+                                    },
+                                );
+                                if due {
+                                    if let Some(live) = &mut self.reference_owner.reservation {
+                                        if let Some((_, last)) = &mut live.identity_requested_at {
+                                            *last = now;
+                                        }
+                                    }
+                                    if let Err(error) =
+                                        self.bus.get_device_id_at(&reservation.address)
+                                    {
+                                        return self.fail_reference(
+                                            ReferenceFailureKind::Delivery,
+                                            &error.to_string(),
+                                        );
+                                    }
+                                }
+                                ReferencePhase::AwaitIdentity
+                            }
                             Some(uid)
                                 if physical.uid_claimed_elsewhere(&reservation.address, uid) =>
                             {

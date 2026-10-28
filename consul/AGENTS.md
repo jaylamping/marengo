@@ -13,15 +13,13 @@ consul/
 ├── TECH.md               # tech stack notes
 └── src/
     ├── gen/              # GENERATED proto types — never hand-edit
-    ├── components/       # React components (shadcn/ui based)
+    ├── components/       # React components (GLINUI/Radix primitives in components/ui)
     ├── pages/            # Route-level pages
     ├── routes/           # Route definitions
     ├── hooks/            # React hooks
     ├── state/            # State management
     ├── lib/              # Utilities
-    ├── data/             # Static data / constants
-    ├── urdf/             # URDF viewer logic
-    └── assets/
+    └── data/             # Static data / constants
 ```
 
 ## WHERE TO LOOK
@@ -31,7 +29,7 @@ consul/
 | Regenerate proto types | `npm run gen:proto` (reads `buf.gen.yaml`, writes `src/gen/`) |
 | Type-check | `npm run build` |
 | Design system | `DESIGN.md` (Launch Day identity), `src/index.css` (tokens), `components.json` (glinui config) |
-| URDF viewer | `src/urdf/` |
+| Hardware 3D joint picker (schematic, not a URDF render) | `src/components/dashboard/hardware/bench-arm-scene.ts` |
 | API / Chappe connection | `src/lib/`, `src/hooks/` |
 | Compound Auto Learn | `src/components/dashboard/testing/auto-learn-panel.tsx`, BFF `tools/compound-auto-learn/` — set `VITE_AUTO_LEARN_URL`; enter its credential in the panel at runtime |
 

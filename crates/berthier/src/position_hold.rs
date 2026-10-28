@@ -25,12 +25,12 @@ use crate::position_setpoint::{
     apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
     descent_stuck_mit_pull, downward_return_seed_velocity, home_final_approach_stuck_pull_rad,
     home_target_tolerance, lead_follow_stuck_residual, low_angle_breakaway_active,
-    outbound_stall_direction, planner_drifted_from_measurement, planner_should_freeze_on_descent,
+    planner_drifted_from_measurement, planner_should_freeze_on_descent,
     planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
     planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
     planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
-    position_hold_mit_velocity, reopen_planner_from_premature_hold,
-    POSITION_HOME_FINAL_PULL_THROUGH_RAD, POSITION_RETURN_DESCENT_SEED_RAD,
+    position_hold_mit_velocity, reopen_planner_from_premature_hold, travel_stall_direction,
+    StallSide, POSITION_HOME_FINAL_PULL_THROUGH_RAD, POSITION_RETURN_DESCENT_SEED_RAD,
     POSITION_RETURN_RESYNC_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
 use crate::position_trajectory::{
@@ -38,12 +38,13 @@ use crate::position_trajectory::{
 };
 use crate::position_wave::PositionWave;
 
-/// Historical advance-path default when a joint has no `control.yaml` entry.
-/// Compose used `unwrap_or(0.15)`; keep that split.
+/// Advance-path lead for law-level test fixtures, below their 0.15 rad compose lead so the
+/// split stays exercised. `ControlLoop` feeds both from `position_slew_max_lead_rad`.
+#[cfg(test)]
 pub const ADVANCE_MAX_LEAD_DEFAULT: f64 = 0.10;
 
-/// Outstanding ascent without measured progress before tick faults (disable path).
-/// The hold-tracking fuse shares this budget.
+/// Outstanding outbound or return move without measured progress before tick faults (disable
+/// path). The hold-tracking and wave fuses share this budget.
 pub const POSITION_ASCENT_STALL_FAULT_MS: u64 = 2000;
 
 /// Hold-tracking fuse arms only while `|q − target|` exceeds this band (both directions).
@@ -104,10 +105,12 @@ impl ProgressBudget {
 struct AscentRecovery {
     /// Planner recovery retains its existing velocity/lead policy.
     planner_active: bool,
-    /// Outbound direction (`±1.0`) the credited level is measured in; `0.0` when no episode.
+    /// Travel direction (`±1.0`) the credited level is measured in; `0.0` when no episode.
     direction: f64,
+    /// Outbound or return move, for the trip report (`AscentStall` / `ReturnStall`).
+    side: StallSide,
     /// The safety budget has a geometric lifetime independent of that policy.
-    /// Progress measure: `direction * q` (a new encoder level further outbound).
+    /// Progress measure: `direction * q` (a new encoder level further toward the target).
     progress: Option<ProgressBudget>,
 }
 
@@ -120,23 +123,24 @@ impl AscentRecovery {
         ProgressBudget::stalled_ms(self.progress)
     }
 
-    /// `outbound` is the direction of the commanded outbound move, or `None` when the joint is
-    /// not in a watched episode. A changed direction starts a new episode: the credited level of
-    /// the old direction is meaningless in the new one.
+    /// `travel` is the direction and side of the commanded move ([`travel_stall_direction`]),
+    /// or `None` when the joint is not in a watched episode. A changed direction starts a new
+    /// episode: the credited level of the old direction is meaningless in the new one.
     fn update(
         &mut self,
         planner_active: bool,
-        outbound: Option<f64>,
+        travel: Option<(f64, StallSide)>,
         q: f64,
         progress_threshold: f64,
         period: Duration,
     ) -> u64 {
         self.planner_active = planner_active;
-        let Some(direction) = outbound else {
+        let Some((direction, side)) = travel else {
             self.direction = 0.0;
             self.progress = None;
             return 0;
         };
+        self.side = side;
         if self.direction != direction {
             self.direction = direction;
             self.progress = None;
@@ -261,6 +265,14 @@ pub enum HoldError {
         trip: HoldFuseTrip,
     },
     #[error(
+        "position hold: return stall on {joint}: no measured progress toward target for {ms} ms ({trip})"
+    )]
+    ReturnStall {
+        joint: String,
+        ms: u64,
+        trip: HoldFuseTrip,
+    },
+    #[error(
         "position hold: hold tracking failure on {joint}: off target with net commanded torque opposing it and no measured progress for {ms} ms ({trip})"
     )]
     HoldTracking {
@@ -365,13 +377,13 @@ pub struct HoldJointParams {
     pub kp: f64,
     pub kd: f64,
     pub ki: f64,
-    /// MIT / compose max lead (legacy default 0.15 when cfg missing).
+    /// MIT / compose max lead (rad, `position_slew_max_lead_rad`).
     pub max_lead: f64,
-    /// MIT / compose velocity deadband (legacy default 0.02 when cfg missing).
+    /// MIT / compose velocity deadband (rad/s, `position_trajectory_velocity_deadband_rad`).
     pub vel_deadband: f64,
-    /// Advance freeze/resync max lead (legacy default 0.10 when cfg missing).
+    /// Advance freeze/resync max lead (rad); `ControlLoop` passes `max_lead`.
     pub advance_max_lead: f64,
-    /// Advance freeze/resync deadband (legacy default [`POSITION_HOLD_ERROR_DEADBAND_RAD`]).
+    /// Advance freeze/resync velocity deadband (rad/s); `ControlLoop` passes `vel_deadband`.
     pub advance_vel_deadband: f64,
     pub slew_rad_s: f64,
     pub trajectory_v_max: f64,
@@ -455,7 +467,8 @@ pub struct HoldJointDiag {
     pub q_env_lo: f64,
     pub q_env_hi: f64,
     pub retarget_tick: Option<u64>,
-    /// Nominal time without a qualifying new encoder high level (ms); 0 when exempt.
+    /// Nominal time without a qualifying new encoder level toward the target (ms), outbound or
+    /// return; 0 when exempt.
     pub ascent_stall_ms: u64,
     /// Nominal time off target with opposing net commanded torque and no progress (ms).
     pub hold_tracking_ms: u64,
@@ -791,6 +804,7 @@ impl PositionHold {
                 recovery[joint_idx] = AscentRecovery {
                     planner_active: true,
                     direction: 1.0,
+                    side: StallSide::Outbound,
                     progress: Some(ProgressBudget {
                         credited: self
                             .planners
@@ -812,6 +826,7 @@ impl PositionHold {
                 *state = AscentRecovery {
                     planner_active: active,
                     direction: 0.0,
+                    side: StallSide::Outbound,
                     progress: None,
                 };
             }
@@ -1187,8 +1202,8 @@ impl PositionHold {
             if let HoldLaw::ScaledPd(gains) = &jp.law {
                 self.wave_motion[i] = WaveMotionWatch::default();
                 Self::set_bool_at(&mut self.planner_frozen, i, false);
-                let outbound = if self.commanded_joints[i] {
-                    outbound_stall_direction(targets[i], targets[i] - world.q[i])
+                let travel = if self.commanded_joints[i] {
+                    travel_stall_direction(targets[i], targets[i] - world.q[i])
                 } else {
                     None
                 };
@@ -1200,7 +1215,7 @@ impl PositionHold {
                 {
                     recovery.update(
                         false,
-                        outbound,
+                        travel,
                         world.q[i],
                         self.progress_thresholds[i],
                         period,
@@ -1367,8 +1382,8 @@ impl PositionHold {
             Self::set_bool_at(&mut self.planner_frozen, i, freeze);
             // Home targets are latched as exactly 0.0 (`home_classified`), so this outbound
             // classification does not hinge on a single feedback count near zero.
-            let outbound = if self.commanded_joints[i] {
-                outbound_stall_direction(targets[i], to_target)
+            let travel = if self.commanded_joints[i] {
+                travel_stall_direction(targets[i], to_target)
             } else {
                 None
             };
@@ -1380,7 +1395,7 @@ impl PositionHold {
             {
                 recovery.update(
                     ascent_recovering,
-                    outbound,
+                    travel,
                     world.q[i],
                     self.progress_thresholds[i],
                     period,
@@ -1438,6 +1453,37 @@ impl PositionHold {
             }
         }
         Ok(())
+    }
+
+    /// Stalled time (ms) of the travel stall budget, or its trip once spent on a `side` move:
+    /// `AscentStall` for outbound, `ReturnStall` toward home. A return budget spent on a tick
+    /// where `tracking_armed` holds (hold tracking's own arming: off band, net command opposing
+    /// the target) is reported as `HoldTracking`, the model fault it points to. The hold-tracking
+    /// budget resets on any tick the net command does not oppose, so on such a sag the return
+    /// budget can run out first.
+    fn check_travel_stall(
+        &self,
+        i: usize,
+        side: StallSide,
+        name: &str,
+        trip: HoldFuseTrip,
+        tracking_armed: bool,
+    ) -> Result<u64, HoldError> {
+        let recovery = self
+            .ascent_recovery
+            .as_ref()
+            .and_then(|v| v.get(i).copied())
+            .unwrap_or_default();
+        let ms = recovery.stalled_ms();
+        if ms < POSITION_ASCENT_STALL_FAULT_MS || recovery.side != side {
+            return Ok(ms);
+        }
+        let joint = name.to_string();
+        Err(match side {
+            StallSide::Outbound => HoldError::AscentStall { joint, ms, trip },
+            StallSide::Return if tracking_armed => HoldError::HoldTracking { joint, ms, trip },
+            StallSide::Return => HoldError::ReturnStall { joint, ms, trip },
+        })
     }
 
     fn compose(
@@ -1594,19 +1640,8 @@ impl PositionHold {
                 tau_ff: tau_ff_cmd,
                 tau_g: world.tau_g[i],
             };
-            let ascent_stall_ms = self
-                .ascent_recovery
-                .as_ref()
-                .and_then(|v| v.get(i).copied())
-                .unwrap_or_default()
-                .stalled_ms();
-            if ascent_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
-                return Err(HoldError::AscentStall {
-                    joint: name.clone(),
-                    ms: ascent_stall_ms,
-                    trip,
-                });
-            }
+            let ascent_stall_ms =
+                self.check_travel_stall(i, StallSide::Outbound, name, trip, false)?;
             let wave_stall_ms = self.wave_motion[i].stalled_ms();
             if wave_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
                 return Err(HoldError::WaveStall {
@@ -1634,6 +1669,7 @@ impl PositionHold {
                     trip,
                 });
             }
+            self.check_travel_stall(i, StallSide::Return, name, trip, tracking_armed)?;
             let mit_velocity = position_hold_mit_velocity(
                 dq,
                 dq_traj,
@@ -1771,19 +1807,7 @@ impl PositionHold {
             tau_ff: ff.tau_ff,
             tau_g: world.tau_g[i],
         };
-        let ascent_stall_ms = self
-            .ascent_recovery
-            .as_ref()
-            .and_then(|v| v.get(i).copied())
-            .unwrap_or_default()
-            .stalled_ms();
-        if ascent_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
-            return Err(HoldError::AscentStall {
-                joint: name.clone(),
-                ms: ascent_stall_ms,
-                trip,
-            });
-        }
+        let ascent_stall_ms = self.check_travel_stall(i, StallSide::Outbound, name, trip, false)?;
         let wave_stall_ms = self.wave_motion[i].stalled_ms();
         if wave_stall_ms >= POSITION_ASCENT_STALL_FAULT_MS {
             return Err(HoldError::WaveStall {
@@ -1811,6 +1835,7 @@ impl PositionHold {
                 trip,
             });
         }
+        self.check_travel_stall(i, StallSide::Return, name, trip, tracking_armed)?;
         let (q_env_lo, q_env_hi) = limit_policy
             .map(|p| effective_command_bounds(p, q, v_c))
             .unwrap_or((f64::NAN, f64::NAN));

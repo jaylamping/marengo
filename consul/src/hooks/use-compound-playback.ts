@@ -43,6 +43,8 @@ interface CompoundRunner {
   waveEndsAtMs: number | null;
   /** Execution mode frozen at Start: the Dry Run box cannot change a run (UI-03). */
   dry: boolean;
+  /** Bumped by every Start, so a late POST failure only stops its own run. */
+  runId: number;
 }
 
 const initialRunner: CompoundRunner = {
@@ -55,6 +57,7 @@ const initialRunner: CompoundRunner = {
   phase: 'raise',
   waveEndsAtMs: null,
   dry: true,
+  runId: 0,
 };
 
 /** A run posts only while the store still says it runs (UI-04). */
@@ -88,7 +91,6 @@ export function useCompoundPlayback() {
       useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(
         create(MitCommandBatchSchema, {
-          timestampMs: BigInt(Date.now()),
           mode: ControlMode.POSITION,
           joints,
         }),
@@ -104,8 +106,6 @@ export function useCompoundPlayback() {
           name,
           ...CONFIG_GAINS,
           position: 0,
-          velocity: 0,
-          torqueFf: 0,
         }),
       );
       if (!dry && joints.length > 0) {
@@ -150,6 +150,11 @@ export function useCompoundPlayback() {
         try {
           await returnHome(playable.preset.joints, dry);
           await new Promise((resolve) => window.setTimeout(resolve, 2500));
+        } catch (cause: unknown) {
+          // Report only: no retry and no other motion command. The run has
+          // already ended (isRunning cleared above).
+          const message = cause instanceof Error ? cause.message : String(cause);
+          setOverlayBlockReason(`Return home failed: ${message}`);
         } finally {
           useCompoundStore.getState().setReturnHomePending(false);
         }
@@ -297,8 +302,6 @@ export function useCompoundPlayback() {
           name,
           ...CONFIG_GAINS,
           position,
-          velocity: 0,
-          torqueFf: 0,
         }),
       );
       if (!dry && commands.length > 0) await postPositionBatch(commands);
@@ -325,12 +328,16 @@ export function useCompoundPlayback() {
         name: encodeNativeWaveCommandName(wave, speedMultiplier),
         ...CONFIG_GAINS,
         position: wave.minRad,
-        velocity: 0,
-        torqueFf: 0,
       });
       if (!dry) await postPositionBatch([command]);
     };
 
+    // A second Start replaces the run: two intervals would both post (P2B-01).
+    if (runnerRef.current.intervalId !== null) {
+      window.clearInterval(runnerRef.current.intervalId);
+      runnerRef.current.intervalId = null;
+    }
+    const runId = runnerRef.current.runId + 1;
     Object.assign(runnerRef.current, {
       segmentIndex: 0,
       activeTargets: {},
@@ -338,9 +345,21 @@ export function useCompoundPlayback() {
       phase: 'raise',
       waveEndsAtMs: null,
       dry: dryRunNow,
+      runId,
     });
+
+    // A refused or failed POST leaves the arm where it is, so the run must
+    // not keep saying "running" (UI-14). Stop without return-home: the error
+    // path sends no further motion command.
+    const failRun = (cause: unknown) => {
+      if (runnerRef.current.runId !== runId || !runStillLive()) return;
+      stopRunner({ returnHome: false });
+      const message = cause instanceof Error ? cause.message : String(cause);
+      setOverlayBlockReason(`Run stopped: the motion command failed (${message}).`);
+    };
+
     useCompoundStore.getState().setIsRunning(true);
-    void postSegment(0, useCompoundStore.getState().trims, dryRunNow);
+    void postSegment(0, useCompoundStore.getState().trims, dryRunNow).catch(failRun);
 
     const intervalId = window.setInterval(() => {
       if (!runStillLive()) {
@@ -377,16 +396,14 @@ export function useCompoundPlayback() {
         compound.setProgress(Math.min(progress, 1));
         if (nowMs < runnerRef.current.waveEndsAtMs) return;
         if (compound.loop && preset.nativeWave) {
-          const halfPeriodSec = Math.max(
-            0.05,
-            preset.nativeWave.halfPeriodSec / speedMultiplier,
-          );
-          const durationSec = nativeWaveDurationSec({
-            ...preset.nativeWave,
-            halfPeriodSec,
-          });
-          runnerRef.current.segmentStartedAtMs = nowMs;
-          runnerRef.current.waveEndsAtMs = nowMs + durationSec * 1000;
+          // Loop posts the next wave; restarting only the countdown left the
+          // arm still while the UI said running (UI-14).
+          runnerRef.current.posting = true;
+          void postNativeWave(dryRunNow, speedMultiplier)
+            .catch(failRun)
+            .finally(() => {
+              runnerRef.current.posting = false;
+            });
           return;
         }
         stopRunner({ returnHome: true });
@@ -410,8 +427,9 @@ export function useCompoundPlayback() {
         runnerRef.current.settledSinceMs === null
           ? 0
           : (nowMs - runnerRef.current.settledSinceMs) / 1000;
+      // A Dry Run moves nothing, so measured q never settles: it previews on time (UI-15).
       const mayAdvance =
-        (preset.advance ?? 'settle') === 'timed'
+        (preset.advance ?? 'settle') === 'timed' || runnerRef.current.dry
           ? elapsedSec >= dwellSec
           : elapsedSec >= dwellSec &&
             positionVelocityOk &&
@@ -430,9 +448,11 @@ export function useCompoundPlayback() {
       if (nextSegment >= segmentCount) {
         if (preset.nativeWave) {
           runnerRef.current.posting = true;
-          void postNativeWave(dryRunNow, speedMultiplier).finally(() => {
-            runnerRef.current.posting = false;
-          });
+          void postNativeWave(dryRunNow, speedMultiplier)
+            .catch(failRun)
+            .finally(() => {
+              runnerRef.current.posting = false;
+            });
           return;
         }
         if (!compound.loop || !preset.loop) {
@@ -442,9 +462,11 @@ export function useCompoundPlayback() {
         nextSegment = preset.loopFromSegment ?? 0;
       }
       runnerRef.current.posting = true;
-      void postSegment(nextSegment, compound.trims, dryRunNow).finally(() => {
-        runnerRef.current.posting = false;
-      });
+      void postSegment(nextSegment, compound.trims, dryRunNow)
+        .catch(failRun)
+        .finally(() => {
+          runnerRef.current.posting = false;
+        });
     }, 100);
     runnerRef.current.intervalId = intervalId;
   }, [

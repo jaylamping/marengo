@@ -2,7 +2,6 @@ import * as React from 'react';
 import { useRobotStore } from '@/state/robotStore';
 import { useTestingStore } from '@/state/testingStore';
 import { useCompoundStore } from '@/state/compoundStore';
-import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -57,7 +56,6 @@ export function resolveGaugeLimits(input: {
 export function TelemetryGaugeGrid() {
   const robotState = useRobotStore((s) => s.robotState);
   const operationalMode = useRobotStore((s) => s.operationalMode);
-  const zeroed = useActuatorZeroStore((s) => s.zeroed);
   const { selectedJointNames } = useTestingStore();
   const { selectedPresetId } = useCompoundStore();
   const { data: config = null } = useConfigSnapshot();
@@ -118,7 +116,8 @@ export function TelemetryGaugeGrid() {
 
         const badges = resolveActuatorCardBadges({
           operationalMode,
-          zeroed: Boolean(zeroed[joint.name]),
+          driveActive: joint.driveActive,
+          homingState: joint.homingState,
           fault: joint.fault,
         });
 

@@ -15,7 +15,6 @@
 //! escalation within that same trust — not a separate auth gate.
 
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -123,10 +122,10 @@ impl ActuatorOverlay {
         config_dir: &Path,
         chappe: &Arc<Bus>,
         rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-        shutdown: &AtomicBool,
+        stop: crate::StopSignal<'_>,
     ) {
         loop {
-            if shutdown.load(Ordering::SeqCst) {
+            if stop.requested() {
                 return;
             }
             match rx.try_recv() {
@@ -139,7 +138,7 @@ impl ActuatorOverlay {
                         warn!("actuator overlay: undecodable OperatorCommand dropped");
                         continue;
                     };
-                    if shutdown.load(Ordering::SeqCst) {
+                    if stop.requested() {
                         return;
                     }
                     match self.apply_operator_command(loop_ctrl, config_dir, &operator) {
@@ -326,6 +325,10 @@ impl ActuatorOverlay {
                 ))])
             }
             Ok(TuningTier::ConfigOverlay) => {
+                // Berthier reads `supervisor.control` gains every tick, so a
+                // live config retune moves a held joint like RuntimeMit (RT-08).
+                self.motion
+                    .admit(CommandSource::Chappe, CommandClass::Motion, "config tuning")?;
                 // Clone-then-commit: never leave live config mutated if validate/enqueue fails.
                 let mut draft = loop_ctrl.supervisor().control.clone();
                 let entry = draft
@@ -410,7 +413,8 @@ impl ActuatorOverlay {
         if loop_ctrl.supervisor().mode() == OperationalMode::Active {
             return Err(davout::DavoutError::LimitPatchActive.into());
         }
-        let current_revision = profile_content_revision(config_dir)?;
+        // Hash the URDF under the root the persist worker writes it to.
+        let current_revision = profile_content_revision(self.persist.repo_root(), config_dir)?;
         if patch_cmd.expected_revision != current_revision {
             return Err(OverlayError::Config(marengo_config::ConfigError::Parse {
                 path: config_dir.to_path_buf(),

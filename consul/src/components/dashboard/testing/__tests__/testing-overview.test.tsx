@@ -15,7 +15,6 @@ vi.mock('@/hooks/use-config-snapshot', () => ({
 
 vi.mock('@/lib/gateway-api', () => ({
   postEnableCommand: vi.fn(),
-  postHomeCommand: vi.fn(),
   postTestingMitCommandBatch: vi.fn(),
 }));
 

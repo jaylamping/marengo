@@ -9,12 +9,13 @@ Enforces: joint position envelope (URDF hard/soft limits + velocity-scaled kinet
 
 ### Operational state machine (`OperationalMode`)
 ```
-Disabled ──[set_homing_complete]──► Ready ──[enable_targets]──► Active
-   ▲                                    │                              │
-   └────────────────────[disable_all / E-stop]────────────────────────┘
+Disabled ──────────────[enable_targets]──────────────► Active
+ │   ▲                                                 │
+ │   └──────────────[disable_all / E-stop]─────────────┘
+ └─[set_homing_complete]─► Ready ─[enable_targets]─► Active
 ```
 - `Disabled`: no motion possible, firmware may be idle.
-- `Ready`: every loaded joint has private current-reference authority, motors not yet enabled.
+- `Ready`: every loaded joint has private current-reference authority, motors not yet enabled. `enable_targets` admits from Disabled as well: each target's own grant is the gate, not this mode.
 - `Active`: motors enabled; servo/FF motion requires current-session pose from every active motor address.
 
 ### Core types

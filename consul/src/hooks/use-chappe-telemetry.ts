@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 import { OperationalMode, type HostMetrics, type RobotState } from '@/gen/marengo/v1/marengo_pb';
+import { formatActionRefusal } from '@/lib/action-refusal';
 import { connectChappeStream } from '@/lib/chappe-client';
 import { isChappeLive } from '@/lib/chappe-config';
 import { appendLiveLog, enableChappeLiveLogs } from '@/lib/log-buffer';
@@ -12,6 +14,13 @@ import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const TELEMETRY_UI_MS = 100;
+/**
+ * RobotState arrives at `chappe_state_hz` (25 Hz on the bench). After this much
+ * silence the RobotState-derived facts are retired as stale (UI-11): a stalled
+ * loop must not keep showing ACTIVE and frozen joint values. SafetyState is
+ * kept, so a latched fault or E-STOP stays visible while the runtime is silent.
+ */
+export const ROBOT_STATE_STALE_MS = 1500;
 
 function applyRobotState(
   state: RobotState,
@@ -57,12 +66,14 @@ function mapLogLevel(level: string): LogLevel {
 
 export function useChappeTelemetry(): void {
   const setConnected = useRobotStore((s) => s.setConnected);
+  const setRobotStateStale = useRobotStore((s) => s.setRobotStateStale);
   const setOperationalMode = useRobotStore((s) => s.setOperationalMode);
   const setRobotState = useRobotStore((s) => s.setRobotState);
   const setSafetyState = useRobotStore((s) => s.setSafetyState);
   const setImuSample = useRobotStore((s) => s.setImuSample);
   const appendTrackingPoint = useRobotStore((s) => s.appendTrackingPoint);
   const setGatewayError = useRobotStore((s) => s.setGatewayError);
+  const setLastActionRefusal = useRobotStore((s) => s.setLastActionRefusal);
   const setTransportMode = useHostMetricsStore((s) => s.setTransportMode);
   const setPiMetrics = useHostMetricsStore((s) => s.setPiMetrics);
 
@@ -75,6 +86,7 @@ export function useChappeTelemetry(): void {
     enableChappeLiveLogs();
     let disposed = false;
     let dispose: (() => void) | undefined;
+    let staleTimer: ReturnType<typeof setTimeout> | undefined;
 
     const publishRobotState = throttleTrailing((state: RobotState) => {
       applyRobotState(state, setRobotState, appendTrackingPoint);
@@ -85,6 +97,7 @@ export function useChappeTelemetry(): void {
     }, TELEMETRY_UI_MS);
 
     const retireRuntimeFacts = () => {
+      clearTimeout(staleTimer);
       publishRobotState.cancel();
       publishPiMetrics.cancel();
       setRobotState(null);
@@ -93,6 +106,22 @@ export function useChappeTelemetry(): void {
       setOperationalMode(null);
       setPiMetrics(null);
       setConnected(false);
+      setRobotStateStale(false);
+    };
+
+    // RobotState silence with the link still up: retire what RobotState feeds,
+    // but keep SafetyState (it has its own stream) and flag the silence so the
+    // header can say RUNTIME SILENT instead of CONNECTING.
+    const retireSilentRobotState = () => {
+      clearTimeout(staleTimer);
+      publishRobotState.cancel();
+      publishPiMetrics.cancel();
+      setRobotState(null);
+      setImuSample(null);
+      setOperationalMode(null);
+      setPiMetrics(null);
+      setConnected(false);
+      setRobotStateStale(true);
     };
 
     void connectChappeStream({
@@ -113,6 +142,11 @@ export function useChappeTelemetry(): void {
       onRobotState: (state) => {
         if (disposed) return;
         setConnected(true);
+        setRobotStateStale(false);
+        clearTimeout(staleTimer);
+        staleTimer = setTimeout(() => {
+          if (!disposed) retireSilentRobotState();
+        }, ROBOT_STATE_STALE_MS);
         // Teach-record listens before UI throttle (~10 Hz store).
         publishTeachSampleFromRobotState(state);
         publishRobotState(state);
@@ -148,6 +182,19 @@ export function useChappeTelemetry(): void {
         if (disposed) return;
         publishPiMetrics(metrics);
       },
+      onActionEvent: (event) => {
+        if (disposed) return;
+        // Every Pi refusal is shown on any page (UI-07).
+        const refusal = formatActionRefusal(event);
+        if (refusal) {
+          toast.error(refusal);
+          setLastActionRefusal({
+            receivedAtMs: Date.now(),
+            action: event.action,
+            reason: event.rejectReason,
+          });
+        }
+      },
     }).then((fn) => {
       if (!disposed) {
         dispose = fn;
@@ -167,7 +214,9 @@ export function useChappeTelemetry(): void {
     readCredential,
     appendTrackingPoint,
     setConnected,
+    setRobotStateStale,
     setGatewayError,
+    setLastActionRefusal,
     setOperationalMode,
     setPiMetrics,
     setRobotState,
@@ -175,8 +224,4 @@ export function useChappeTelemetry(): void {
     setImuSample,
     setTransportMode,
   ]);
-}
-
-export function useTrackingSeries() {
-  return useRobotStore((s) => s.trackingPoints);
 }
