@@ -45,7 +45,8 @@ BaselineStop   all-address stop, one address group per 2 ms on a real bus; appli
                whatever this process applied
 DrainOld       complete bounded drain of queued feedback
 RequestIdentity type-0 to the target (host 0xFD)
-AwaitIdentity  type-0 reply popped after the request; UID not claimed by another address
+AwaitIdentity  type-0 reply popped after the first request; UID not claimed by another address;
+               an unanswered target is asked again every 10 ms for 100 ms (blackout)
 AwaitReportingOff echoing bus: the target's type-24 Off echo read at least one control period ago, and POST_SET_ZERO_QUIET (800 ms; measured blackout end <= 667 ms) since the target's last SetZero
 ArmTarget      Enable to the target only
 DrainPostArm   complete drain

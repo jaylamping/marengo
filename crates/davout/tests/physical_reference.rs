@@ -14,8 +14,9 @@ use std::time::{Duration, Instant};
 use davout::simulation::SimulationBus;
 use davout::{
     DavoutError, JointHomingState, OperationalMode, ReferenceAudit, ReferenceError,
-    ReferenceOutcome, Supervisor, BURST_GROUP_SPACING, IDENTITY_ADMISSION_SPACING,
-    OWED_ON_WRITE_BOUND, POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
+    ReferenceOutcome, Supervisor, BURST_GROUP_SPACING, IDENTITY_ADMISSION_RETRY,
+    IDENTITY_ADMISSION_SPACING, IDENTITY_ADMISSION_TIMEOUT, OWED_ON_WRITE_BOUND,
+    POST_SET_ZERO_BLACKOUT_FROM, POST_SET_ZERO_QUIET,
 };
 use marengo_config::{load_homing_config_from, load_motors_config_from, HomingMethod};
 use physical_firmware::{
@@ -461,7 +462,10 @@ fn missing_identity_at_acquisition_sends_no_enable_or_zero() {
     let mut bench = Bench::physical("physical-no-uid");
     bench.firmware.borrow_mut().drive_mut(PITCH).answer_identity = false;
     bench.assert_refused(PITCH, "TimedOut");
-    assert_eq!(bench.sent(CommunicationType::GetDeviceId, PITCH), 1);
+    // Re-requested only inside the admission window (REF-03).
+    let requests = bench.sent(CommunicationType::GetDeviceId, PITCH);
+    let window = IDENTITY_ADMISSION_TIMEOUT.as_millis() / IDENTITY_ADMISSION_RETRY.as_millis();
+    assert!((2..=1 + window as usize).contains(&requests), "{requests}");
     assert_eq!(bench.sent_any(CommunicationType::Enable), 0);
     assert_eq!(bench.sent_any(CommunicationType::SetZeroPosition), 0);
 }
@@ -697,6 +701,33 @@ fn identity_request_dropped_in_post_set_zero_blackout_is_asked_again() {
     assert_eq!(bench.sent(CommunicationType::Enable, PITCH), 1);
     assert_eq!(bench.state(PITCH), JointHomingState::Verified);
     bench.supervisor.disable_all().expect("stop");
+}
+
+#[test]
+fn reference_identity_request_dropped_by_a_silent_drive_is_asked_again() {
+    // REF-03 (L-davout-24): acquisition sent one type-0 and waited out its
+    // 2 s phase deadline when the drive dropped it (a re-home landing in the
+    // drive's own post-SetZero blackout). Same longest measured blackout.
+    const BLACKOUT: Duration = Duration::from_millis(61);
+    let mut bench = Bench::physical("physical-reference-uid-blackout");
+    let answers_from = Instant::now() + BLACKOUT;
+    bench.firmware.borrow_mut().drive_mut(ROLL).silent_until = Some(answers_from);
+    bench.acquire(ROLL);
+    let device = bench.device(ROLL);
+    let firmware = bench.firmware.borrow();
+    let requested: Vec<Instant> = firmware
+        .tx
+        .iter()
+        .zip(&firmware.tx_at)
+        .filter(|(frame, _)| {
+            (frame.id >> 24) & 0x1f == u32::from(CommunicationType::GetDeviceId.as_u8())
+                && (frame.id & 0xff) as u8 == device
+        })
+        .map(|(_, at)| *at)
+        .collect();
+    assert!(requested.len() >= 2, "{requested:?}");
+    assert!(requested[0] < answers_from);
+    assert!(requested[requested.len() - 1] >= answers_from);
 }
 
 #[test]
