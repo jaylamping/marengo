@@ -428,17 +428,20 @@ remote_install_pi() {
   return 1
 }
 
-# Stop every marengo-pi process. Match by process name, not argv: MCP sessions
-# start it as the relative `bin/marengo-pi`, which an install-path pattern
-# misses. Returns 1 while any marengo-pi survives (it still owns CAN).
-stop_marengo_pi_processes() {
+# Called after `systemctl stop marengo-pi.service`: wait up to 5 s for a
+# marengo-pi that is already exiting, then return 1 while any survives (it
+# still owns CAN). Never signals: a survivor is a manual/MCP bench session
+# (started as the relative `bin/marengo-pi`, which systemd does not own), and
+# its exit stop disables every drive, so an arm held in GravityComp would fall.
+# Match by process name, not argv, so a relative-path session is still seen.
+require_no_marengo_pi() {
   local _attempt
-  pkill -x marengo-pi 2>/dev/null || true
   for _attempt in $(seq 1 25); do
     pgrep -x marengo-pi >/dev/null 2>&1 || return 0
     sleep 0.2
   done
   pgrep -ax marengo-pi >&2 || return 0
+  echo "error: a marengo-pi bench session is running; stop it first (it owns CAN; install sends it no signal)" >&2
   return 1
 }
 

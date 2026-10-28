@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Contracts for the Pi install step shared by deploy-pi.sh and install-pi.sh:
 # - a failed remote install-pi.sh fails the deploy (TOOL-13);
-# - install-pi.sh stops a marengo-pi started by a relative path, as MCP
-#   sessions start it, and refuses to go on while one survives.
+# - install-pi.sh never signals a marengo-pi that systemd does not own (a
+#   manual/MCP bench session started as the relative `bin/marengo-pi`): it
+#   waits for one already exiting and refuses while one survives.
 # pgrep/pkill only see this test's children; nothing else is signalled.
 # Run: ./scripts/deploy-install.test.sh
 set -euo pipefail
@@ -54,59 +55,69 @@ if grep -q 'remote_install_pi "$PI_HOST" "$REMOTE_ROOT" || exit 1' "${ROOT}/scri
 else
   bad "deploy-pi.sh does not exit on a failed install"
 fi
-if grep -q '^if ! stop_marengo_pi_processes; then' "${ROOT}/scripts/install-pi.sh" &&
-  ! grep -q 'pkill -f' "${ROOT}/scripts/install-pi.sh"; then
-  ok "install-pi.sh stops marengo-pi by process name and checks survivors"
+if grep -q '^if ! require_no_marengo_pi; then' "${ROOT}/scripts/install-pi.sh" &&
+  ! grep -Eq 'pkill|killall|kill -' "${ROOT}/scripts/install-pi.sh"; then
+  ok "install-pi.sh refuses beside a surviving marengo-pi and signals none"
 else
-  bad "install-pi.sh still matches marengo-pi by argv or ignores survivors"
+  bad "install-pi.sh signals marengo-pi or ignores survivors"
 fi
 
-# --- stop_marengo_pi_processes against a real process named marengo-pi ---
+# --- require_no_marengo_pi against a real process named marengo-pi ---
 if [[ "$(uname -s)" != Linux ]] || ! command -v pgrep >/dev/null || ! command -v pkill >/dev/null; then
-  echo "skip: process-stop cases need Linux procps (install-pi.sh runs on the Pi)"
+  echo "skip: process cases need Linux procps (install-pi.sh runs on the Pi)"
 else
   REAL_PGREP="$(command -v pgrep)"
   REAL_PKILL="$(command -v pkill)"
   mkdir -p "${TMP}/bin" "${TMP}/session/bin"
   cp "$(command -v sleep)" "${TMP}/session/bin/marengo-pi"
+  # Scoped to this test's children. Any pkill/killall call is recorded; the
+  # check must never make one.
   cat >"${TMP}/bin/pgrep" <<CLI
 #!/usr/bin/env bash
 exec "${REAL_PGREP}" -P "\${STOP_TEST_PARENT}" "\$@"
 CLI
   cat >"${TMP}/bin/pkill" <<CLI
 #!/usr/bin/env bash
-if [[ "\${STOP_TEST_CASE}" == unkillable ]]; then exit 0; fi
+echo "pkill \$*" >>"${TMP}/signals"
 exec "${REAL_PKILL}" -P "\${STOP_TEST_PARENT}" "\$@"
+CLI
+  cat >"${TMP}/bin/killall" <<CLI
+#!/usr/bin/env bash
+echo "killall \$*" >>"${TMP}/signals"
+exit 1
 CLI
   chmod +x "${TMP}"/bin/*
   alive() {
     kill -0 "${FAKE_PID}" 2>/dev/null && [[ "$(ps -o stat= -p "${FAKE_PID}" 2>/dev/null)" != Z* ]]
   }
-  run_stop() {
-    (cd "${TMP}/session" && exec bin/marengo-pi 300) &
+  # $1: how long the fake bench session runs (s).
+  run_check() {
+    : >"${TMP}/signals"
+    (cd "${TMP}/session" && exec bin/marengo-pi "$1") &
     FAKE_PID=$!
     status=0
     (
-      export STOP_TEST_PARENT=$$ STOP_TEST_CASE="$1" PATH="${TMP}/bin:${PATH}"
-      stop_marengo_pi_processes
-    ) 2>/dev/null || status=$?
+      export STOP_TEST_PARENT=$$ PATH="${TMP}/bin:${PATH}"
+      require_no_marengo_pi
+    ) 2>"${TMP}/check-err" || status=$?
   }
 
-  run_stop normal
-  if [[ "${status}" -eq 0 ]] && ! alive; then
-    ok "relative-path marengo-pi is stopped"
+  run_check 300
+  if [[ "${status}" -ne 0 ]] && alive && [[ ! -s "${TMP}/signals" ]] &&
+    grep -q 'bench session is running; stop it first' "${TMP}/check-err"; then
+    ok "a live bench session refuses the install and is not signalled"
   else
-    bad "relative-path marengo-pi survived (status ${status})"
+    bad "live bench session: status ${status}, alive=$(alive && echo yes || echo no), signals: $(cat "${TMP}/signals")"
   fi
   kill "${FAKE_PID}" 2>/dev/null || true
   wait "${FAKE_PID}" 2>/dev/null || true
   FAKE_PID=""
 
-  run_stop unkillable
-  if [[ "${status}" -ne 0 ]]; then
-    ok "a surviving marengo-pi fails the stop"
+  run_check 1
+  if [[ "${status}" -eq 0 ]] && ! alive && [[ ! -s "${TMP}/signals" ]]; then
+    ok "a marengo-pi that is already exiting is waited for"
   else
-    bad "stop reported success beside a surviving marengo-pi"
+    bad "exiting marengo-pi: status ${status}, signals: $(cat "${TMP}/signals")"
   fi
   kill "${FAKE_PID}" 2>/dev/null || true
   wait "${FAKE_PID}" 2>/dev/null || true
