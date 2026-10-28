@@ -3,6 +3,7 @@ import path from "node:path";
 import { z } from "zod";
 import { type MarengoPiConfig } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
+import { checkManagementGate } from "../management-gate.js";
 
 export const restartMarengoPiSchema = z.object({
   confirm: z
@@ -60,6 +61,11 @@ export async function runRestartMarengoPi(
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
   args: RestartMarengoPiArgs,
 ): Promise<string> {
+  // A stop is never gated; a restart is a management change like the gateway's (P2B-05).
+  if (args.mode === "restart") {
+    const refusal = await checkManagementGate(cfg, runRemote, "pi_restart_marengo_pi restart");
+    if (refusal) return refusal;
+  }
   const script = loadRestartMarengoPiScript(cfg.localRoot);
   return runRemote(
     wrapRemote(cfg, restartMarengoPiShell(args.mode, script)),

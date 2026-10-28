@@ -33,6 +33,8 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 `pi_can_up`, **`pi_sync_main`**, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` — see [marengo-pi-sync](../marengo-pi-sync/SKILL.md)
 
+`pi_sync_main`, `pi_install_staging`, `pi_build` and `pi_restart_marengo_pi` (restart) refuse, like the gateway, while marengo-pi runs Active or with an unknown mode or stale heartbeat, or while motor-repl runs. Do not work around a refusal: stop control with `pi_hold_off` (arm supported) and retry.
+
 **Config sync:** edit the master `config/{robot,motors,control,homing}.yaml` files, then run **`pi_sync_bench_config`** with only `install_to_opt: true`; the tool has no profile argument. After editing the live bench URDF, run **`pi_sync_bench_urdf`** with `install_to_opt: true`; its default asset is `marengo.urdf`. Historical seed assets use `archive/seed-*/contributor.urdf` and must be named explicitly in `assets`. If `/opt` install fails, run **`pi_install_staging`** (or passwordless `install-pi.sh`) and retry — do not trust stale `/opt` inertials. After URDF sync, verify gravity (`pi_gravity_preview` / hold) before treating COM edits as live.
 
 ## Admin (confirm required)

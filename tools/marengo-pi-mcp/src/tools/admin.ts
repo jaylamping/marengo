@@ -13,6 +13,7 @@ import {
   syncBenchUrdfSchema,
 } from "./sync-config.js";
 import { syncTreeSchema, runSyncTree } from "./sync-tree.js";
+import { checkManagementGate } from "../management-gate.js";
 import {
   restartMarengoPiSchema,
   runRestartMarengoPi,
@@ -43,7 +44,8 @@ export function registerAdminTools(
     pi_sync_main: {
       description:
         "Sync local main, cross-build, deploy to Pi, install-pi (writes /opt/marengo/.deploy-rev), " +
-        "then poll until gateway /health OK and deploy rev matches (default wait 180s)",
+        "then poll until gateway /health OK and deploy rev matches (default wait 180s). " +
+        "Refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs.",
       inputSchema: z.object({
         strategy: z.enum(["cross", "pi_native"]).default("cross"),
         wait_for_ready: z
@@ -127,9 +129,12 @@ export function registerAdminTools(
     pi_install_staging: {
       description:
         "Install ~/marengo staging tree into /opt/marengo via passwordless sudo (install-pi.sh). " +
-        "Run after scp/manual staging or when /opt lags ~/marengo.",
+        "Run after scp/manual staging or when /opt lags ~/marengo. " +
+        "Refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs.",
       inputSchema: z.object({}),
       handler: async () => {
+        const refusal = await checkManagementGate(cfg, runRemote, "pi_install_staging");
+        if (refusal) return refusal;
         const body = wrapRemote(cfg, sudoStagingInstallCommand(cfg));
         return runRemote(body, 120_000);
       },
@@ -153,6 +158,8 @@ export function registerAdminTools(
         "(ADR 0012 / 0017) — do not restart for a successful Durable Apply. Prefer restart after binary " +
         "deploy, structural wiring changes, or a failed persist that left disk stale vs live. " +
         "Motors go limp during stop — support elevated arms. Requires confirm: true. " +
+        "mode=restart is refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs; " +
+        "mode=stop is a stop and is never refused. " +
         "Does not restart marengo-gateway.",
       inputSchema: restartMarengoPiSchema,
       handler: async (args: { confirm: true; mode: "restart" | "stop" }) => {
@@ -183,9 +190,12 @@ export function registerAdminTools(
       description:
         "Native cargo build in the Pi staging checkout (~/marengo) + passwordless `sudo -n` install-pi.sh " +
         "from it (slow fallback). install-pi.sh installs bins and Consul www, writes .deploy-rev, " +
-        "restarts the gateway, and stops marengo-pi then restores its prior unit state.",
+        "restarts the gateway, and stops marengo-pi then restores its prior unit state. " +
+        "Refused while marengo-pi is Active, its mode or heartbeat is unknown, or motor-repl runs.",
       inputSchema: z.object({}),
       handler: async () => {
+        const refusal = await checkManagementGate(cfg, runRemote, "pi_build");
+        if (refusal) return refusal;
         // Only install-pi.sh is sudo-allowed (deploy-user sudoers); it owns every root step.
         const body = wrapStagingRemote(
           cfg,
