@@ -17,7 +17,6 @@
 //!   Berthier inhibits intent without a competing drain or motion keepalive.
 //! - Optional friction feedforward (`friction` module) in impedance and position modes.
 //! - Publish [`RobotState`](armee_proto::RobotState) on Chappe (lower rate than the motor loop).
-//! - Legacy [`Controller`]: single-joint position commands through Davout (REPL / bring-up).
 //! - Concrete closed simulation construction through [`ControlLoop::from_simulation`]
 //!   uses the same controller implementation with an explicit virtual initial
 //!   reference condition. It provides software output coverage, not reference

@@ -235,7 +235,7 @@ pub struct ControlLoop<B: MotorBus> {
     gains: GainRuntime,
     /// Per-joint latched open-loop `τ_cmd` (Nm) for [`ControlMode::TorqueOnly`].
     torque_cmds: TorqueCmdLatch,
-    /// In-loop triangle wave on one joint while others hold fixed setpoints.
+    /// In-loop raised-cosine wave on one joint while others hold fixed setpoints.
     position_wave: Option<PositionWave>,
     /// Set by an operator disable: motion commands then refuse instead of
     /// re-enabling drives (see [`ControlLoop::ensure_active_for_motion`]).
@@ -835,7 +835,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_wave = None;
     }
 
-    /// Start a continuous triangle wave on one joint (Position mode).
+    /// Start a continuous raised-cosine wave on one joint (Position mode).
     ///
     /// Other joints keep their current latched setpoints. The wave runs in-loop for
     /// `cycles` full min→max→min periods without stdin pacing.

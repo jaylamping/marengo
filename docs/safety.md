@@ -232,8 +232,9 @@ disables. The fault does not clear on its own.
   leave its credited level by 0.02 rad (or the grid threshold) within 2000 ms. A wave is refused at
   start if an argument is non-finite, its range leaves the soft limit envelope, or its peak speed
   or acceleration exceeds the joint's velocity cap, `position_trajectory_velocity_rad_s` or
-  `position_trajectory_accel_rad_s2`. The initial step to the wave's first target is not shaped;
-  it is bounded by the lead clamp and Davout.
+  `position_trajectory_accel_rad_s2`. A wave's first sample is its minimum and bypasses the
+  planner, so a wave is also refused unless the joint's reference is within
+  `WAVE_START_TOLERANCE_RAD` (0.02 rad) of `min_rad`: move there with `hold-at` first.
 - **Retargets never renew a budget.** Only measured progress, or the commanded condition ending,
   does (a target flipping the travel direction starts a new episode). A stream of small
   retargets cannot keep a stalled or sagging joint unfused. Residual: alternating up/down
