@@ -1475,8 +1475,19 @@ fn regress_friction(samples: &[(f64, f64)]) -> Option<(f64, f64, f64)> {
     Some((fc, fv, r2))
 }
 
+/// ½·(below − above) of `joint` (model index `j`) at every pose of the sessions that swept
+/// it. A held joint is not approached from both sides, so its ½Δ is no friction estimate.
+fn static_friction(sessions: &[Session], joint: &str, j: usize) -> Vec<f64> {
+    sessions
+        .iter()
+        .filter(|s| s.plan.sweep_joint == joint)
+        .flat_map(|s| &s.poses)
+        .map(|p| p.friction[j])
+        .collect()
+}
+
 /// Per-joint friction table. The static estimate is the mean ½·(below − above) holding
-/// torque over matched poses; the wave estimate regresses (τ_meas − τ_g fitted) against
+/// torque over the swept joint's matched poses; the wave estimate regresses (τ_meas − τ_g fitted) against
 /// dq. A patch is proposed only when both exist, both Coulomb estimates and fv are
 /// non-negative, and they agree within [`FRICTION_AGREE_ABS_NM`] / [`FRICTION_AGREE_REL`];
 /// the proposed fc is their mean, fv comes from the wave. With no accepted gravity fit
@@ -1507,11 +1518,7 @@ fn fit_friction(
         .iter()
         .enumerate()
         .map(|(j, joint)| {
-            let statics: Vec<f64> = sessions
-                .iter()
-                .flat_map(|s| &s.poses)
-                .map(|p| p.friction[j])
-                .collect();
+            let statics = static_friction(sessions, joint, j);
             let static_fc = if statics.is_empty() {
                 None
             } else {
@@ -2586,6 +2593,47 @@ mod tests {
         assert!(skipped.is_empty(), "{skipped:?}");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].samples, 201);
+    }
+
+    /// CAL-05: a held joint's ½·(below − above) is ≈ 0 (it is never approached from both
+    /// sides), so a fused session that held `a` must not pull `a`'s static fc toward zero.
+    #[test]
+    fn static_friction_counts_only_sessions_that_swept_the_joint() {
+        let session = |sweep: &str, friction: [f64; 2]| {
+            let m = Measurement {
+                plan_index: 0,
+                pose_index: 0,
+                approach: Approach::Below,
+                q: vec![0.0; 2],
+                tau: vec![0.0; 2],
+                tau_cmd: vec![0.0; 2],
+                samples: 1,
+                window_s: 1.0,
+            };
+            Session {
+                dir: PathBuf::new(),
+                plan: Plan {
+                    sweep_joint: sweep.into(),
+                    ..plan(Vec::new())
+                },
+                poses: vec![PoseData {
+                    sample: GravitySample {
+                        label: String::new(),
+                        q: vec![0.0; 2],
+                        tau_meas: vec![0.0; 2],
+                    },
+                    friction: friction.to_vec(),
+                    tau_cmd: vec![0.0; 2],
+                    below: m.clone(),
+                    above: m,
+                }],
+                waves: Vec::new(),
+                skipped: Vec::new(),
+            }
+        };
+        let sessions = [session("a", [0.3, 0.001]), session("b", [-0.002, 0.08])];
+        assert_eq!(static_friction(&sessions, "a", 0), vec![0.3]);
+        assert_eq!(static_friction(&sessions, "b", 1), vec![0.08]);
     }
 
     #[test]
