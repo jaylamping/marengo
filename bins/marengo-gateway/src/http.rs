@@ -170,11 +170,13 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             post(command_motor_status_poll),
         )
         .route("/command/actuator", post(actuator::command_actuator))
-        .layer(cors)
         .layer(axum::middleware::from_fn_with_state(
             std::sync::Arc::clone(&state),
             authorize_api,
         ))
+        // CORS outermost, so an access refusal (401/403) still carries
+        // Access-Control-Allow-Origin and a cross-origin dev Consul can read it.
+        .layer(cors)
         .with_state(state);
 
     match web_root {
