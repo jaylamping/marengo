@@ -51,18 +51,23 @@ pub fn default_commissioning_scope_path() -> PathBuf {
     root.join("var/commissioning-scope.yaml")
 }
 
-/// Load scope from disk. Missing file → `Ok(None)`. Corrupt / bad version → error.
+/// Load scope from disk. Missing file → `Ok(None)`. Unreadable / corrupt / bad version →
+/// error: a scope that exists but cannot be read must not read as "no scope", which would
+/// widen the enable set to every loaded joint.
 pub fn load_commissioning_scope(
     path: impl AsRef<Path>,
 ) -> Result<Option<CommissioningScopeFile>, ConfigError> {
     let path = path.as_ref();
-    if !path.exists() {
-        return Ok(None);
-    }
-    let text = fs::read_to_string(path).map_err(|e| ConfigError::Io {
-        path: path.to_path_buf(),
-        message: e.to_string(),
-    })?;
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => {
+            return Err(ConfigError::Io {
+                path: path.to_path_buf(),
+                message: e.to_string(),
+            })
+        }
+    };
     let parsed: CommissioningScopeFile =
         serde_yaml::from_str(&text).map_err(|e| ConfigError::Parse {
             path: path.to_path_buf(),
@@ -250,6 +255,19 @@ mod tests {
         let dir = tempdir().expect("temp");
         let path = dir.path().join("commissioning-scope.yaml");
         assert!(load_commissioning_scope(&path).expect("load").is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn load_unreadable_is_an_error_not_absent() {
+        // A symlink loop exists on disk but cannot be read; Path::exists() reports false.
+        let dir = tempdir().expect("temp");
+        let path = dir.path().join("commissioning-scope.yaml");
+        std::os::unix::fs::symlink(&path, &path).expect("symlink loop");
+        assert!(matches!(
+            load_commissioning_scope(&path),
+            Err(ConfigError::Io { .. })
+        ));
     }
 
     #[test]
