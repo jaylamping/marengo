@@ -94,7 +94,7 @@ impl Runtime {
             &mut self.gate,
             &self.queue,
             &self.chappe,
-            &AtomicBool::new(false),
+            (&AtomicBool::new(false)).into(),
             TEST_BUDGET,
         );
         if let Err(error) = loop_ctrl.tick(Some(&self.chappe)) {
@@ -225,7 +225,7 @@ fn the_per_tick_time_budget_splits_the_sweep() {
             &mut runtime.gate,
             &runtime.queue,
             &runtime.chappe,
-            &AtomicBool::new(false),
+            (&AtomicBool::new(false)).into(),
             budget,
         ) {
             break stats;
@@ -407,7 +407,7 @@ fn testing_batch_on_a_new_process_is_refused_without_a_sweep() {
         MotionLease::new(CommandSource::Chappe),
         &runtime.chappe,
         &mut testing,
-        &AtomicBool::new(false),
+        (&AtomicBool::new(false)).into(),
     );
     assert!(!runtime.gate.preflight_pending());
     assert_eq!(loop_ctrl.supervisor().mode(), OperationalMode::Disabled);
@@ -438,7 +438,7 @@ fn reference_work_mid_sweep_refuses_the_waiting_testing_batch() {
         MotionLease::new(CommandSource::Chappe),
         &runtime.chappe,
         &mut testing,
-        &AtomicBool::new(false),
+        (&AtomicBool::new(false)).into(),
     );
     assert!(runtime.gate.preflight_pending());
     assert!(runtime.iterate(&mut loop_ctrl).is_none());

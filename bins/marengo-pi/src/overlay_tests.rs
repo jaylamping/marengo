@@ -982,7 +982,7 @@ fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
         &config_dir,
         &bus,
         &mut cmd_rx,
-        &AtomicBool::new(false),
+        (&AtomicBool::new(false)).into(),
     );
     // Capture immediately, before any control/telemetry tick or storage wait.
     // A delayed publish cannot satisfy this observation after the fact.

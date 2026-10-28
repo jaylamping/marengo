@@ -74,7 +74,7 @@ fn drain_chappe(
         &mut rx.set_zero,
         &mut rx.lease,
         &mut rx.status_poll,
-        &AtomicBool::new(false),
+        (&AtomicBool::new(false)).into(),
     );
 }
 
@@ -92,7 +92,7 @@ fn drain_testing(
         lease,
         bus,
         &mut rx.testing,
-        &AtomicBool::new(false),
+        (&AtomicBool::new(false)).into(),
     );
 }
 

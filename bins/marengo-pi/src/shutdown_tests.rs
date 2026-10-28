@@ -547,7 +547,7 @@ fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
                 &config_dir,
                 &chappe,
                 &mut actuator_rx,
-                &AtomicBool::new(false),
+                (&AtomicBool::new(false)).into(),
             );
             controller
                 .tick(Some(chappe.as_ref()))
@@ -1814,6 +1814,162 @@ fn output_closed_mid_batch_dispatches_nothing_further() {
     );
     assert_ne!(controller.supervisor().mode(), OperationalMode::Active);
 
+    let outcome = finish_owner_shutdown(&mut controller, &overlay, true, CLEANUP_BOUND, None);
+    assert!(matches!(
+        outcome.stop,
+        ExitStopOutcome::Attempted { result: Ok(()), .. }
+    ));
+    assert_eq!(
+        stop_trace(&witness.lock().expect("exit frames")),
+        literal_stop_trace(),
+        "the exit stop reaches every drive"
+    );
+}
+
+/// This thread's log lines go to the operator pipe, which is closed: the first
+/// event hits EPIPE, as chappe's stdout writer records it in production.
+struct ClosedPipeLogs;
+
+impl tracing::Subscriber for ClosedPipeLogs {
+    fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+        true
+    }
+
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+
+    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+
+    fn event(&self, event: &tracing::Event<'_>) {
+        crate::operator_output::stdout_line(format_args!("{}", event.metadata().name()));
+    }
+
+    fn enter(&self, _: &tracing::span::Id) {}
+
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
+/// TOOL-06: the operator pipe closes (EPIPE) on a log line while the first
+/// Chappe message of a drain is handled. The Chappe enable queued behind it in
+/// the same drain is never handled, no tick runs, and the exit stop still
+/// reaches every drive.
+#[test]
+fn output_closed_mid_chappe_drain_handles_no_further_message() {
+    use crate::{run_control_loop, ControlLoopRuntime};
+    use armee_proto::EnableRequest;
+
+    static PIPE_CLOSED: AtomicBool = AtomicBool::new(false);
+
+    let (temp, config_dir) = copied_owner_fixture();
+    let witness = Arc::new(Mutex::new(Vec::new()));
+    let mut controller = ControlLoop::from_repo(
+        temp.path(),
+        RecordingBus {
+            witness: Arc::clone(&witness),
+        },
+        200,
+        25,
+    )
+    .expect("ordinary unreferenced owner");
+    witness.lock().expect("clear startup output").clear();
+    let chappe = Arc::new(Bus::new(16));
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let mut overlay = ActuatorOverlay::new(
+        load_command_joint_allowlist_from(&config_dir).expect("copied allowlist"),
+        ConfigPersistQueue::spawn(Arc::clone(&chappe), temp.path().to_path_buf()),
+    );
+    let mut enable_rx = chappe.subscribe("robot/enable");
+    let mut set_zero_rx = chappe.subscribe("robot/set_zero");
+    let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
+    let mut status_poll_rx = chappe.subscribe("robot/motor_status_poll");
+    let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
+    let mut actuator_rx = chappe.subscribe(crate::overlay::TOPIC_ACTUATOR_COMMAND);
+    // The first message (a Consul disable) logs a line, which hits EPIPE; the
+    // enable behind it is in the same drain.
+    for (timestamp_ms, operator_id, enable) in [
+        (8101, "epipe-first-disable", false),
+        (8102, "epipe-queued-enable", true),
+    ] {
+        chappe
+            .publish(
+                "robot/enable",
+                "epipe-chappe-drain",
+                "marengo.v1.EnableRequest",
+                &EnableRequest {
+                    timestamp_ms,
+                    operator_id: operator_id.into(),
+                    enable,
+                },
+            )
+            .expect("Chappe enable request");
+    }
+    let (_cmd_tx, cmd_rx) = mpsc::channel();
+    crate::operator_output::close_pipe_on_this_thread(Some(&PIPE_CLOSED));
+    let _open_pipe = OpenPipeOnDrop;
+
+    // Cleanup only: a loop that ignores the closed output would never return.
+    let (finished_tx, finished_rx) = mpsc::channel::<()>();
+    let fallback = Arc::new(AtomicBool::new(false));
+    let watchdog_fallback = Arc::clone(&fallback);
+    let watchdog_shutdown = Arc::clone(&shutdown);
+    let watchdog = std::thread::spawn(move || {
+        if finished_rx.recv_timeout(CLEANUP_BOUND).is_err() {
+            watchdog_fallback.store(true, Ordering::SeqCst);
+            watchdog_shutdown.store(true, Ordering::SeqCst);
+        }
+    });
+    let mut runtime = ControlLoopRuntime {
+        config_dir: &config_dir,
+        chappe_state_hz: 25,
+        chappe: &chappe,
+        cmd_rx: &cmd_rx,
+        enable_rx: &mut enable_rx,
+        set_zero_rx: &mut set_zero_rx,
+        lease_rx: &mut lease_rx,
+        status_poll_rx: &mut status_poll_rx,
+        testing_cmd_rx: &mut testing_cmd_rx,
+        actuator_rx: &mut actuator_rx,
+        actuator_overlay: &mut overlay,
+        shutdown: &shutdown,
+        motion: crate::motion_owner::MotionLease::new(crate::motion_owner::CommandSource::Chappe),
+        output_closed: &PIPE_CLOSED,
+    };
+    tracing::subscriber::with_default(ClosedPipeLogs, || {
+        run_control_loop(&mut controller, &mut runtime);
+    });
+    let _ = finished_tx.send(());
+    watchdog.join().expect("watchdog returned");
+
+    assert!(
+        !fallback.load(Ordering::SeqCst),
+        "the loop must quit on its own"
+    );
+    assert!(
+        PIPE_CLOSED.load(Ordering::SeqCst),
+        "the first Chappe message's log line hit EPIPE"
+    );
+    assert!(
+        shutdown.load(Ordering::SeqCst),
+        "other threads see the quit"
+    );
+    let queued = enable_rx
+        .try_recv()
+        .expect("the enable behind the EPIPE is still queued, never handled");
+    let envelope = Envelope::decode(queued.as_slice()).expect("envelope");
+    let request = EnableRequest::decode(envelope.payload.as_slice()).expect("enable request");
+    assert!(request.enable);
+    assert_eq!(request.operator_id, "epipe-queued-enable");
+    assert_eq!(
+        controller.tick_count(),
+        0,
+        "no tick after the output closed"
+    );
+    assert_ne!(controller.supervisor().mode(), OperationalMode::Active);
+
+    witness.lock().expect("clear the disable's frames").clear();
     let outcome = finish_owner_shutdown(&mut controller, &overlay, true, CLEANUP_BOUND, None);
     assert!(matches!(
         outcome.stop,

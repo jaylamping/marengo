@@ -15,7 +15,6 @@
 //! escalation within that same trust — not a separate auth gate.
 
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -123,10 +122,10 @@ impl ActuatorOverlay {
         config_dir: &Path,
         chappe: &Arc<Bus>,
         rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-        shutdown: &AtomicBool,
+        stop: crate::StopSignal<'_>,
     ) {
         loop {
-            if shutdown.load(Ordering::SeqCst) {
+            if stop.requested() {
                 return;
             }
             match rx.try_recv() {
@@ -139,7 +138,7 @@ impl ActuatorOverlay {
                         warn!("actuator overlay: undecodable OperatorCommand dropped");
                         continue;
                     };
-                    if shutdown.load(Ordering::SeqCst) {
+                    if stop.requested() {
                         return;
                     }
                     match self.apply_operator_command(loop_ctrl, config_dir, &operator) {

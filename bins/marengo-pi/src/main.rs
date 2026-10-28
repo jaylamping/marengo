@@ -710,12 +710,12 @@ fn drain_chappe_commands<B: MotorBus>(
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     status_poll_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    shutdown: &AtomicBool,
+    stop: StopSignal<'_>,
 ) {
     // Set-zero before enable so its queue admission is visible to a same-tick
     // enable(true), which is then refused instead of flipping ACTIVE.
     loop {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         match poll_channel(set_zero_rx) {
@@ -724,7 +724,7 @@ fn drain_chappe_commands<B: MotorBus>(
                 else {
                     continue;
                 };
-                if shutdown.load(Ordering::SeqCst) {
+                if stop.requested() {
                     return;
                 }
                 if let Err(refusal) =
@@ -774,7 +774,7 @@ fn drain_chappe_commands<B: MotorBus>(
         }
     }
     loop {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         match poll_channel(lease_rx) {
@@ -785,7 +785,7 @@ fn drain_chappe_commands<B: MotorBus>(
                 ) else {
                     continue;
                 };
-                if shutdown.load(Ordering::SeqCst) {
+                if stop.requested() {
                     return;
                 }
                 if let Err(e) = handle_chappe_active_reporting_lease(loop_ctrl, &request) {
@@ -821,7 +821,7 @@ fn drain_chappe_commands<B: MotorBus>(
     // Collapse bursts: only the latest solicit matters before the next control tick.
     let mut status_poll_payloads: Vec<Vec<u8>> = Vec::new();
     loop {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         match status_poll_rx.try_recv() {
@@ -838,7 +838,7 @@ fn drain_chappe_commands<B: MotorBus>(
     }
     if let Some(request) = latest_motor_status_poll(status_poll_payloads.iter().map(Vec::as_slice))
     {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         if let Err(e) = loop_ctrl.supervisor_mut().solicit_status_feedback() {
@@ -851,7 +851,7 @@ fn drain_chappe_commands<B: MotorBus>(
     }
     // Enables held behind a sweep that passed run first, in arrival order
     // (each may start a sweep of its own, which holds the rest again).
-    while !shutdown.load(Ordering::SeqCst) {
+    while !stop.requested() {
         let Some(request) = gate.take_ready_chappe_enable() else {
             break;
         };
@@ -859,7 +859,7 @@ fn drain_chappe_commands<B: MotorBus>(
             warn!(error = %e, "Chappe enable request failed");
         }
     }
-    while !shutdown.load(Ordering::SeqCst) {
+    while !stop.requested() {
         match poll_channel(enable_rx) {
             Polled::Empty => break,
             Polled::Lagged(skipped) => {
@@ -873,7 +873,7 @@ fn drain_chappe_commands<B: MotorBus>(
                 else {
                     continue;
                 };
-                if shutdown.load(Ordering::SeqCst) {
+                if stop.requested() {
                     return;
                 }
                 // Disable is a stop: admitted from any source. Enable energises.
@@ -1006,10 +1006,10 @@ fn drain_testing_commands<B: MotorBus>(
     lease: MotionLease,
     chappe: &Bus,
     testing_cmd_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    shutdown: &AtomicBool,
+    stop: StopSignal<'_>,
 ) {
     const TOPIC: &str = TOPIC_TESTING_MIT_BATCH;
-    while !shutdown.load(Ordering::SeqCst) && !gate.preflight_pending() {
+    while !stop.requested() && !gate.preflight_pending() {
         let bytes = match poll_channel(testing_cmd_rx) {
             Polled::Message(bytes) => bytes,
             Polled::Lagged(n) => {
@@ -1078,7 +1078,7 @@ fn drain_testing_commands<B: MotorBus>(
             }
             continue;
         }
-        apply_testing_batch(loop_ctrl, &batch, want_position, shutdown);
+        apply_testing_batch(loop_ctrl, &batch, want_position, stop);
     }
 }
 
@@ -1088,10 +1088,10 @@ fn apply_testing_batch<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     batch: &MitCommandBatch,
     want_position: bool,
-    shutdown: &AtomicBool,
+    stop: StopSignal<'_>,
 ) {
     for joint in &batch.joints {
-        if shutdown.load(Ordering::SeqCst) {
+        if stop.requested() {
             return;
         }
         // Consul Wave: `wave:<joint>:<min>:<max>:<cycles>:<half_period_sec>`
@@ -1316,7 +1316,7 @@ fn advance_gravity_preflight<B: MotorBus>(
     gate: &mut EnableGate,
     queue: &PiReferenceQueue,
     chappe: &Bus,
-    shutdown: &AtomicBool,
+    stop: StopSignal<'_>,
     budget: SliceBudget,
 ) -> Option<SweepStats> {
     // A stdin Disable or shutdown may have ended a Chappe-side sweep.
@@ -1355,7 +1355,7 @@ fn advance_gravity_preflight<B: MotorBus>(
                     }
                 }
                 Some(PreflightFor::TestingBatch(batch)) => {
-                    apply_testing_batch(loop_ctrl, &batch, true, shutdown);
+                    apply_testing_batch(loop_ctrl, &batch, true, stop);
                 }
                 None => {}
             }
@@ -2009,23 +2009,47 @@ struct ControlLoopRuntime<'a> {
     output_closed: &'a AtomicBool,
 }
 
-/// Nobody reads the operator text any more (EPIPE, e.g. the bench session's
-/// ssh dropped): quit as for `quit` or EOF, so the normal shutdown stops every
-/// drive instead of the next print panicking (TOOL-06).
-fn quit_if_output_closed(runtime: &ControlLoopRuntime<'_>) -> bool {
-    if !runtime.output_closed.load(Ordering::SeqCst) {
-        return false;
-    }
-    warn!("operator stdout/stderr closed (EPIPE); quitting");
-    runtime.shutdown.store(true, Ordering::SeqCst);
-    true
+/// The control loop's stop condition: `quit`, EOF or a signal set `shutdown`,
+/// or the operator pipe closed (EPIPE). Checked before every stdin command,
+/// before every Chappe, testing and overlay message, and after every phase,
+/// so nothing queued behind an EPIPE is handled (TOOL-06).
+#[derive(Clone, Copy)]
+pub(crate) struct StopSignal<'a> {
+    shutdown: &'a AtomicBool,
+    output_closed: &'a AtomicBool,
 }
 
-/// The loop must stop now: `quit`, EOF or a signal set `shutdown`, or the
-/// operator pipe closed. Checked before every stdin dispatch and after every
-/// phase, so nothing queued behind an EPIPE runs (TOOL-06).
-fn stop_requested(runtime: &ControlLoopRuntime<'_>) -> bool {
-    quit_if_output_closed(runtime) || runtime.shutdown.load(Ordering::SeqCst)
+impl<'a> StopSignal<'a> {
+    pub(crate) fn new(shutdown: &'a AtomicBool, output_closed: &'a AtomicBool) -> Self {
+        Self {
+            shutdown,
+            output_closed,
+        }
+    }
+
+    /// Whether the loop must stop now. Nobody reading the operator text any
+    /// more (EPIPE, e.g. the bench session's ssh dropped) is a quit, as for
+    /// `quit` or EOF: it sets `shutdown`, so every other thread sees it and
+    /// the normal shutdown stops every drive instead of the next print
+    /// panicking.
+    pub(crate) fn requested(self) -> bool {
+        if self.output_closed.load(Ordering::SeqCst) {
+            if !self.shutdown.swap(true, Ordering::SeqCst) {
+                warn!("operator stdout/stderr closed (EPIPE); quitting");
+            }
+            return true;
+        }
+        self.shutdown.load(Ordering::SeqCst)
+    }
+}
+
+/// Tests that only drive `shutdown`: the operator pipe never closes.
+#[cfg(test)]
+impl<'a> From<&'a AtomicBool> for StopSignal<'a> {
+    fn from(shutdown: &'a AtomicBool) -> Self {
+        static OPEN: AtomicBool = AtomicBool::new(false);
+        Self::new(shutdown, &OPEN)
+    }
 }
 
 #[tracing::instrument(skip(loop_ctrl, runtime))]
@@ -2033,6 +2057,7 @@ fn run_control_loop<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     runtime: &mut ControlLoopRuntime<'_>,
 ) {
+    let stop = StopSignal::new(runtime.shutdown, runtime.output_closed);
     let period = loop_ctrl.loop_period();
     let chappe_period = Duration::from_secs_f64(1.0 / f64::from(runtime.chappe_state_hz.max(1)));
     let mut last_chappe = Instant::now();
@@ -2044,12 +2069,12 @@ fn run_control_loop<B: MotorBus>(
     let mut enable_gate = EnableGate::default();
     runtime.actuator_overlay.set_motion_lease(runtime.motion);
 
-    'control: while !stop_requested(runtime) {
+    'control: while !stop.requested() {
         let tick_start = Instant::now();
 
         let t = tick_start;
         loop {
-            if stop_requested(runtime) {
+            if stop.requested() {
                 break 'control;
             }
             // Commands deferred behind a drained reference queue or a passed
@@ -2083,7 +2108,7 @@ fn run_control_loop<B: MotorBus>(
                 },
             };
             // A refusal printed during admission may itself have hit EPIPE.
-            if stop_requested(runtime) {
+            if stop.requested() {
                 break 'control;
             }
             if !dispatch_stdin_command(
@@ -2097,7 +2122,7 @@ fn run_control_loop<B: MotorBus>(
                 break 'control;
             }
         }
-        if stop_requested(runtime) {
+        if stop.requested() {
             break;
         }
         let (outer_stdin_us, t_next) = phase_elapsed_us(t);
@@ -2112,9 +2137,9 @@ fn run_control_loop<B: MotorBus>(
             runtime.set_zero_rx,
             runtime.lease_rx,
             runtime.status_poll_rx,
-            runtime.shutdown,
+            stop,
         );
-        if stop_requested(runtime) {
+        if stop.requested() {
             break;
         }
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
@@ -2125,9 +2150,9 @@ fn run_control_loop<B: MotorBus>(
             runtime.motion,
             runtime.chappe.as_ref(),
             runtime.testing_cmd_rx,
-            runtime.shutdown,
+            stop,
         );
-        if stop_requested(runtime) {
+        if stop.requested() {
             break;
         }
         runtime.actuator_overlay.drain_commands_until_shutdown(
@@ -2135,11 +2160,11 @@ fn run_control_loop<B: MotorBus>(
             runtime.config_dir,
             runtime.chappe,
             runtime.actuator_rx,
-            runtime.shutdown,
+            stop,
         );
         let (_outer_actuator_us, _t) = phase_elapsed_us(t_after_chappe);
 
-        if stop_requested(runtime) {
+        if stop.requested() {
             break;
         }
         // One bounded slice of a pending gravity sweep; this iteration's tick
@@ -2149,14 +2174,14 @@ fn run_control_loop<B: MotorBus>(
             &mut enable_gate,
             &reference_queue,
             runtime.chappe.as_ref(),
-            runtime.shutdown,
+            stop,
             SliceBudget::PER_TICK,
         );
-        if stop_requested(runtime) {
+        if stop.requested() {
             break;
         }
         loop_ctrl.supervisor_mut().sync_active_reporting();
-        if stop_requested(runtime) {
+        if stop.requested() {
             break;
         }
 
@@ -2183,7 +2208,7 @@ fn run_control_loop<B: MotorBus>(
         // After the tick: report a completed (or refused) Enable, then retry
         // deferred Position-mode arms.
         emit(enable_gate.poll(loop_ctrl, Instant::now()));
-        if stop_requested(runtime) {
+        if stop.requested() {
             break;
         }
 
