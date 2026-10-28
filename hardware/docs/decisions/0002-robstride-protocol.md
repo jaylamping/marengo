@@ -52,8 +52,10 @@ RS03 "Max speed" is the MIT velocity field range: Seeed listed 50, but the RS03 
 MIT encoders return typed errors for nonfinite and finite out-of-range fields;
 addressed batches validate every command and route before any transmit. Firmware
 writes validate register kind and reject nonfinite floats, negative gains,
-negative speed/torque caps, and writes to `ZeroSta` or `AddOffset`. Raw type-22
-save frames are refused at the CAN bus boundary. A type-4 fault-clear encoder
+negative speed/torque caps, and writes to `ZeroSta` or `AddOffset`. The CAN bus
+boundary allows raw extended frames of host command types only (0, 1, 3, 4, 6,
+17, 18, 24); type-22 saves, set-CAN-id (7), baud (23), protocol switch (25) and
+drive-direction types are refused before the wire. A type-4 fault-clear encoder
 uses `Byte[0]=1`, but no `MotorBus` fault-clear operation is wired; ordinary
 Disable remains a stop request, not a fault clear.
 
@@ -110,10 +112,12 @@ Unit coverage: `lifecycle.rs` §4.1.11 encode tests; `mit.rs` type-24 decode rou
 
 Every SocketCAN bus, real or virtual, enables loopback and `CAN_RAW_RECV_OWN_MSGS` (`configure_own_message_echo` in `crates/robstride/src/bus.rs`). On real `can0`/`can1` the kernel echoes each own transmission on TX completion, and Davout uses those echoes to order wire events (for example, the type-24 Off echo before any Enable). `SO_TIMESTAMPNS` receive timestamps are enabled too. The ignored SocketCAN integration tests use the same echo on a **`vcan*`** interface for send→recv roundtrips.
 
-| Setting | vcan only | Purpose |
-|---------|-----------|---------|
-| `SOCK_RAW` loopback | `set_loopback(true)` | TX frames are visible to the same socket’s RX queue |
-| `CAN_RAW_RECV_OWN_MSGS` | `set_recv_own_msgs(true)` | Driver delivers self-sent frames for send→recv roundtrip tests |
+Loopback also delivers every other local socket's transmissions. Each socket keeps a bounded ledger of the frames it wrote and attributes a received host command (MIT, Enable, Disable, SetZero, parameter write, or a type-0/17/24 request with the host id) to itself only when it matches one still awaiting its echo. Any other host command (`motor-repl`, `cansend`, a second owner, another host) fails the receive, so Davout latches Transport and stops instead of reading it as its own wire-order evidence. The kernel's own-socket flag (`MSG_CONFIRM`) would say the same, but the safe `recvmsg` wrapper in use drops that bit.
+
+| Setting | Real CAN and vcan | Purpose |
+|---------|-------------------|---------|
+| `SOCK_RAW` loopback | `set_loopback(true)` | TX frames are visible to local sockets' RX queues |
+| `CAN_RAW_RECV_OWN_MSGS` | `set_recv_own_msgs(true)` | The sending socket reads its own frames back in wire order |
 
 Protocol encoding and MIT lifecycle frames are identical on vcan and real hardware. See [Seeed RobStride control](https://wiki.seeedstudio.com/robstride_control/) for vendor MIT semantics.
 

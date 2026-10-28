@@ -1317,8 +1317,12 @@ impl<B: MotorBus> Supervisor<B> {
             // No wildcard: a new bus error must be classified here, never left
             // without a latch and a stop by default (P2C-04).
             DavoutError::Bus(bus) => match bus {
+                // Another process owns the interface (single CAN owner): the bus is
+                // not ours, so it is a transport fault, as it was while the refusal
+                // was a Driver string.
                 BusError::Send { .. }
                 | BusError::Driver(_)
+                | BusError::InterfaceOwned { .. }
                 | BusError::ReceiveIncomplete { .. } => (FaultClass::Transport, None),
                 // A batch the bus refused after admission is a controller defect;
                 // a valid prefix may already be on the wire (P2C-02).

@@ -591,6 +591,7 @@ impl Firmware {
             self.failed_tx.push(frame.clone());
             return Err(BusError::Send {
                 message: format!("injected write failure to device {device_id}"),
+                transient: false,
             });
         }
         self.tx.push(frame.clone());

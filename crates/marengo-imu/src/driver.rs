@@ -86,11 +86,7 @@ impl<B: I2cBus> Bno085<B> {
         self.enable_feature(REPORT_ROTATION_VECTOR, report_interval_us)
     }
 
-    pub fn enable_feature(
-        &mut self,
-        feature_id: u8,
-        report_interval_us: u32,
-    ) -> Result<(), ImuError> {
+    fn enable_feature(&mut self, feature_id: u8, report_interval_us: u32) -> Result<(), ImuError> {
         let payload = build_set_feature_report(feature_id, report_interval_us);
         self.send_packet(CHANNEL_CONTROL, &payload)?;
 
@@ -125,7 +121,8 @@ impl<B: I2cBus> Bno085<B> {
         self.sample_seq
     }
 
-    pub fn last_rotation(&self) -> Option<RotationVectorSample> {
+    #[cfg(test)]
+    fn last_rotation(&self) -> Option<RotationVectorSample> {
         self.last_rotation
     }
 

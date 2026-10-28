@@ -45,6 +45,7 @@ impl CanBus for FlakyBus {
         if refusing && (frame.id >> 24) & 0x1f == 4 {
             return Err(BusError::Send {
                 message: "injected disable refusal".into(),
+                transient: false,
             });
         }
         self.inner.send_frame(frame)

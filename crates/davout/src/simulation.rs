@@ -409,6 +409,7 @@ impl SimulationBus {
         if self.transmissions.len() >= MAX_TRACE_ITEMS {
             return Err(BusError::Send {
                 message: SimulationError::Capacity.to_string(),
+                transient: false,
             });
         }
         // An actual target SetZero attempt changes the virtual coordinate even
@@ -482,7 +483,10 @@ impl SimulationBus {
             delivered: failure.is_none(),
         });
         if let Some(message) = failure {
-            Err(BusError::Send { message })
+            Err(BusError::Send {
+                message,
+                transient: false,
+            })
         } else {
             Ok(())
         }

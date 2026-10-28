@@ -58,3 +58,15 @@ fn an_empty_receive_poll_does_not_latch() {
     sup.stop_after_runtime_error(&DavoutError::Bus(BusError::RecvTimeout));
     assert!(!sup.has_latched_fault());
 }
+
+#[test]
+fn an_interface_owned_by_another_process_latches_a_transport_fault() {
+    let mut sup = supervisor();
+    let error = DavoutError::Bus(BusError::InterfaceOwned {
+        interface: "can0".into(),
+    });
+    sup.stop_after_runtime_error(&error);
+    assert!(sup.has_latched_fault(), "{error} left Davout unlatched");
+    let class = sup.fault_authority.first_fault().map(|fault| fault.class);
+    assert_eq!(class, Some(FaultClass::Transport), "{error}");
+}

@@ -1,10 +1,11 @@
 # bins/motor-repl/
 
 ## Responsibility
-**One-shot bench motor CLI** — status, disable, set-zero, and gravity-preview. All drive commands use Davout; independent `disable` uses the minimal stop path.
+**One-shot bench motor CLI** — status, disable, set-zero, protocol-inspect, and gravity-preview. All drive commands use Davout; independent `disable` uses the minimal stop path.
 
 ## Design
-- Subcommands: `status`, `disable`, `set-zero`, `gravity-preview`
+- Subcommands: `status`, `disable`, `set-zero`, `protocol-inspect [joint...]`, `gravity-preview`
+- `protocol-inspect` (ADR 0037) builds Davout's transmit-free inspection owner, stops every drive, reads firmware version, MCU id and registers (incl. CanTimeout 0x7028) one query at a time, and never enables or writes
 - `status` opens SocketCAN without constructing a Supervisor or sending type-24 startup reports; `gravity-preview` loads the robot model without CAN
 - `set-zero` uses `ControlLoop<RuntimeBus>` with the physical-reference owner
 - `--config-dir` and `MARENGO_CONFIG_DIR` select the bring-up profile
@@ -26,6 +27,6 @@ via `calibrate_joint_zero` (ADR 0036). The resulting grant ends with the process
 `disable` is not a qualified emergency stop; use the physical E-stop.
 
 ## Integration
-- **MCP consumers**: `pi_set_zero`, `pi_motor_disable`, `pi_motor_recover`
+- **MCP consumers**: `pi_set_zero`, `pi_motor_disable`, `pi_motor_recover`, `pi_protocol_inspect`
 
 **Detailed map**: [src/codemap.md](src/codemap.md)

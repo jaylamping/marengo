@@ -126,10 +126,11 @@ pub fn split_batch_reports(data: &[u8]) -> Vec<&[u8]> {
     slices
 }
 
-/// Parse a rotation vector report. The standard BNO085 rotation vector report is
-/// 14 bytes (id + status + 4×i16 quaternion + accuracy + u16 timestamp), but some
-/// firmware variants omit the 2-byte timestamp, producing 12 bytes. Parse a 12-byte
-/// minimum; the timestamp field is optional.
+/// Parse a rotation vector report. SH-2 lays it out as id, seq, status, delay,
+/// four Q14 i16 (i, j, k, real) and a 2-byte Q12 heading accuracy estimate:
+/// 14 bytes. The batch stride still uses 12 (CS18, unresolved until packet
+/// lengths are captured on the bench). The quaternion is in the first 12
+/// bytes either way, so parse a 12-byte minimum.
 pub fn parse_rotation_vector(report: &[u8]) -> Option<(f64, f64, f64, f64, u8)> {
     if report.first().copied()? != REPORT_ROTATION_VECTOR || report.len() < 12 {
         return None;
@@ -141,7 +142,7 @@ pub fn parse_rotation_vector(report: &[u8]) -> Option<(f64, f64, f64, f64, u8)> 
     let j = i16::from_le_bytes([report[6], report[7]]) as f64 * Q_POINT_14_SCALAR;
     let k = i16::from_le_bytes([report[8], report[9]]) as f64 * Q_POINT_14_SCALAR;
     let real = i16::from_le_bytes([report[10], report[11]]) as f64 * Q_POINT_14_SCALAR;
-    // bytes 12-13 are the optional u16 timestamp — ignored here
+    // bytes 12-13 (when present) are the accuracy estimate, not a timestamp; ignored
     Some((i, j, k, real, accuracy))
 }
 
