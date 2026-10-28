@@ -421,8 +421,12 @@ async fn renewed_certificate_reaches_https_new_quic_handshakes_and_fingerprint()
         key_pem: key_pem.clone(),
         https: Some(https),
     };
+    let mut served = ServedTls {
+        quic: old.cert_sha256_base64.clone(),
+        https: Some(old.cert_sha256_base64.clone()),
+    };
 
-    renew_tls(&state, &endpoint, &renewal)
+    renew_tls(&state, &endpoint, &renewal, &mut served)
         .await
         .expect("renewal");
 
@@ -451,5 +455,167 @@ async fn renewed_certificate_reaches_https_new_quic_handshakes_and_fingerprint()
         connect(old.certs[0].clone()).await.is_err(),
         "the expiring certificate is no longer served"
     );
+    let https = renewal.https.as_ref().expect("HTTPS config");
+    assert!(https_presents(https, &new.certs[0]).await);
+    assert!(!https_presents(https, &old.certs[0]).await);
     server.abort();
+}
+
+/// True when a TLS handshake against the HTTPS listener's current config
+/// presents `cert`.
+async fn https_presents(
+    config: &axum_server::tls_rustls::RustlsConfig,
+    cert: &CertificateDer<'static>,
+) -> bool {
+    let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+    let acceptor = tokio_rustls::TlsAcceptor::from(config.get_inner());
+    let server = tokio::spawn(async move { acceptor.accept(server_io).await.is_ok() });
+    let provider = web_transport_quinn::crypto::default_provider();
+    let client = rustls::ClientConfig::builder_with_provider(Arc::clone(&provider))
+        .with_safe_default_protocol_versions()
+        .expect("TLS versions")
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(PinnedCertificate {
+            cert: cert.to_vec(),
+            provider,
+        }))
+        .with_no_client_auth();
+    let connector = tokio_rustls::TlsConnector::from(Arc::new(client));
+    let name = rustls::pki_types::ServerName::try_from("localhost").expect("server name");
+    let presented =
+        tokio::time::timeout(Duration::from_secs(3), connector.connect(name, client_io))
+            .await
+            .expect("bounded TLS handshake")
+            .is_ok();
+    server.abort();
+    presented
+}
+
+/// A renewal that wrote fresh PEM files but stopped before every listener took
+/// them (a failed QUIC config build or HTTPS reload) is finished by the next
+/// check, although the file alone no longer asks for renewal.
+#[tokio::test]
+async fn half_applied_renewal_is_finished_on_the_next_check() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let dir = tempfile::tempdir().expect("owned TLS directory");
+    let cert_pem = dir.path().join("cert.pem");
+    let key_pem = dir.path().join("key.pem");
+    persist_bench_tls_pem(&cert_pem, &key_pem).expect("served certificate");
+    let old = tls_material_from_pem_files(&cert_pem, &key_pem).expect("old TLS");
+    let endpoint = quinn::Endpoint::server(
+        quic_server_config(old.certs.clone(), old.key.clone_key()).expect("QUIC config"),
+        "127.0.0.1:0".parse().expect("owned address"),
+    )
+    .expect("QUIC endpoint");
+    let addr = endpoint.local_addr().expect("owned QUIC address");
+    let state = Arc::new(AppState::new(Arc::new(chappe::Bus::default())));
+    state.set_tls_cert_sha256_base64(old.cert_sha256_base64.clone());
+    let server = tokio::spawn(serve_webtransport(
+        Server::new(endpoint.clone()),
+        Arc::clone(&state),
+    ));
+    let https = axum_server::tls_rustls::RustlsConfig::from_pem_file(&cert_pem, &key_pem)
+        .await
+        .expect("HTTPS config");
+    let renewal = TlsRenewal {
+        cert_pem: cert_pem.clone(),
+        key_pem: key_pem.clone(),
+        https: Some(https.clone()),
+    };
+    let mut served = ServedTls {
+        quic: old.cert_sha256_base64.clone(),
+        https: Some(old.cert_sha256_base64.clone()),
+    };
+    // The renewal wrote new files, then failed before any listener took them.
+    persist_bench_tls_pem(&cert_pem, &key_pem).expect("renewed certificate");
+    let new = tls_material_from_pem_files(&cert_pem, &key_pem).expect("new TLS");
+    let now = time::OffsetDateTime::now_utc();
+    assert!(!tls_needs_renewal(&cert_pem, now), "the file is fresh");
+
+    check_tls(&state, &endpoint, &renewal, &mut served, now).await;
+
+    assert_eq!(
+        state.tls_cert_sha256_base64(),
+        Some(new.cert_sha256_base64.clone())
+    );
+    assert!(
+        https_presents(&https, &new.certs[0]).await,
+        "HTTPS took the renewal"
+    );
+    let url = url::Url::parse(&format!("https://{addr}/chappe")).expect("owned URL");
+    let client = ipv4_pinned_client(&new.certs[0]);
+    let request = web_transport_quinn::proto::ConnectRequest::new(url);
+    assert!(
+        tokio::time::timeout(Duration::from_secs(3), client.connect(request))
+            .await
+            .expect("bounded QUIC connect")
+            .is_ok(),
+        "QUIC took the renewal"
+    );
+
+    // QUIC and the fingerprint took a renewal, HTTPS did not: HTTPS catches up.
+    persist_bench_tls_pem(&cert_pem, &key_pem).expect("second renewal");
+    let newer = tls_material_from_pem_files(&cert_pem, &key_pem).expect("newer TLS");
+    endpoint.set_server_config(Some(
+        quic_server_config(newer.certs.clone(), newer.key.clone_key()).expect("QUIC config"),
+    ));
+    state.set_tls_cert_sha256_base64(newer.cert_sha256_base64.clone());
+    served.quic.clone_from(&newer.cert_sha256_base64);
+    check_tls(&state, &endpoint, &renewal, &mut served, now).await;
+    assert!(
+        https_presents(&https, &newer.certs[0]).await,
+        "HTTPS caught up"
+    );
+    assert_eq!(served.https, Some(newer.cert_sha256_base64));
+    server.abort();
+}
+
+/// A renewal whose key write fails leaves the expiring certificate on disk,
+/// so the next check renews again instead of reading a fresh certificate
+/// that no listener serves.
+#[tokio::test]
+async fn failed_key_write_keeps_the_expiring_certificate_for_a_retry() {
+    let dir = tempfile::tempdir().expect("owned TLS directory");
+    let cert_pem = dir.path().join("cert.pem");
+    let key_pem = dir.path().join("key.pem");
+    persist_tls_pem_valid_for(&cert_pem, &key_pem, time::Duration::hours(12))
+        .expect("expiring certificate");
+    let old = tls_material_from_pem_files(&cert_pem, &key_pem).expect("old TLS");
+    let before = std::fs::read(&cert_pem).expect("certificate bytes");
+    // The key path cannot be replaced by a file.
+    std::fs::remove_file(&key_pem).expect("remove key");
+    std::fs::create_dir(&key_pem).expect("key path blocked");
+    let endpoint = quinn::Endpoint::server(
+        quic_server_config(old.certs.clone(), old.key.clone_key()).expect("QUIC config"),
+        "127.0.0.1:0".parse().expect("owned address"),
+    )
+    .expect("QUIC endpoint");
+    let state = Arc::new(AppState::new(Arc::new(chappe::Bus::default())));
+    state.set_tls_cert_sha256_base64(old.cert_sha256_base64.clone());
+    let renewal = TlsRenewal {
+        cert_pem: cert_pem.clone(),
+        key_pem: key_pem.clone(),
+        https: None,
+    };
+    let mut served = ServedTls {
+        quic: old.cert_sha256_base64.clone(),
+        https: None,
+    };
+
+    assert!(renew_tls(&state, &endpoint, &renewal, &mut served)
+        .await
+        .is_err());
+
+    assert_eq!(std::fs::read(&cert_pem).expect("certificate bytes"), before);
+    assert!(tls_needs_renewal(
+        &cert_pem,
+        time::OffsetDateTime::now_utc()
+    ));
+    assert_eq!(state.tls_cert_sha256_base64(), Some(old.cert_sha256_base64));
+    let leftovers: Vec<_> = std::fs::read_dir(dir.path())
+        .expect("TLS directory")
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp-"))
+        .collect();
+    assert!(leftovers.is_empty(), "no temp files left behind");
 }
