@@ -128,12 +128,23 @@ REMOTE
     remote_script "journalctl -u '${unit}' -n 80 --no-pager 2>/dev/null || journalctl -n 80 --no-pager"
     ;;
   restart-marengo-pi | stop-marengo-pi)
-    # Same canonical body as MCP pi_restart_marengo_pi (scripts/pi-restart-marengo-pi.sh).
+    # Same path as MCP pi_restart_marengo_pi: the root-owned installed helper via
+    # sudo -n (the service runs as marengo, so the ssh user cannot stop it alone),
+    # then the checkout copy of scripts/pi-restart-marengo-pi.sh as a fallback.
     mode="restart"
     if [[ "${cmd}" == "stop-marengo-pi" ]]; then
       mode="stop"
     fi
-    cloud_pi_ssh bash -s -- "${mode}" <"${ROOT}/scripts/pi-restart-marengo-pi.sh"
+    {
+      cat <<'REMOTE'
+INSTALLED=/usr/local/libexec/marengo/pi-restart-marengo-pi.sh
+if [[ -x "$INSTALLED" ]] && sudo -n "$INSTALLED" "$1"; then
+  exit 0
+fi
+echo "warning: passwordless sudo $INSTALLED failed; falling back to the checkout copy" >&2
+REMOTE
+      sed '1{/^#!/d;}' "${ROOT}/scripts/pi-restart-marengo-pi.sh"
+    } | cloud_pi_ssh bash -s -- "${mode}"
     ;;
   ssh)
     if [[ "${1:-}" == "--" ]]; then
