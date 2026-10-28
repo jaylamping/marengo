@@ -1580,6 +1580,11 @@ impl<B: MotorBus> Supervisor<B> {
         // Status has no command-generation field. Drain already queued traffic
         // before activation; only later received poses may authorize this session.
         self.poll_feedback(Duration::ZERO)?;
+        // The identity re-read and that drain can revoke a target's grant (a
+        // lost firmware zero is a coordinate discontinuity). Refuse cleanly
+        // then: an unreferenced coordinate is not a pose to judge against
+        // URDF limits, and judging it would latch a Limit fault.
+        self.ensure_reference_for(joints)?;
         if let Err(error) = self.check_disabled_poses_at_enable(joints) {
             self.stop_after_runtime_error(&error);
             return Err(error);

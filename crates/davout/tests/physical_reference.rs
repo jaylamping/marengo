@@ -775,6 +775,45 @@ fn coordinate_discontinuity_after_grant_revokes() {
 }
 
 #[test]
+fn zero_loss_during_enable_admission_refuses_without_a_fault() {
+    let mut bench = Bench::physical("physical-enable-zero-loss");
+    // The absolute encoder's own zero lies outside the joint's URDF range, so
+    // the coordinate a lost firmware zero falls back to is out of limits.
+    {
+        let mut firmware = bench.firmware.borrow_mut();
+        let drive = firmware.drive_mut(PITCH);
+        drive.raw_motor_rad = -2.5 * drive.scale;
+    }
+    bench.acquire(PITCH);
+    bench.pump(Duration::from_millis(30));
+    assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+    // Same drive, same UID: its firmware zero is lost and the report that shows
+    // it is still queued when Enable admission drains feedback.
+    {
+        let mut firmware = bench.firmware.borrow_mut();
+        firmware.drive_mut(PITCH).zero_offset_motor_rad = 0.0;
+        assert!(firmware.drive(PITCH).position_joint_rad() < -2.0);
+        firmware.clear_trace();
+        firmware.emit_report(PITCH);
+    }
+    let error = bench
+        .supervisor
+        .enable_targets(&[PITCH.to_owned()])
+        .expect_err("a grant revoked during admission must not be enabled");
+    assert!(
+        !matches!(error, DavoutError::Limit { .. }),
+        "an unreferenced coordinate was judged against URDF limits: {error}"
+    );
+    assert!(
+        !bench.supervisor.has_latched_fault(),
+        "revocation during admission latched a fault: {error}"
+    );
+    assert_eq!(bench.sent_any(CommunicationType::Enable), 0);
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
+}
+
+#[test]
 fn estop_revokes_every_grant() {
     let mut bench = Bench::physical("physical-estop");
     bench.acquire(PITCH);
