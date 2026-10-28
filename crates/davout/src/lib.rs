@@ -3102,7 +3102,7 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         let vel_cap = lim.velocity;
-        let danger_zone_torque_cap = self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas);
+        let danger_zone_torque_cap = self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas)?;
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
@@ -3226,7 +3226,7 @@ impl<B: MotorBus> Supervisor<B> {
         cmd: &mut MitJointCommand,
         q_meas: f64,
         dq_meas: f64,
-    ) -> f64 {
+    ) -> Result<f64, DavoutError> {
         let mut torque_cap = f64::INFINITY;
         for rule in &self.control.control.danger_zones {
             if rule.joint != cmd.joint {
@@ -3243,18 +3243,28 @@ impl<B: MotorBus> Supervisor<B> {
                         cmd.velocity_rad_s = cmd.velocity_rad_s.min(rule.max_velocity_rad_s);
                     }
                 }
+                // Validation refuses both cases below; never fall back to a
+                // velocity as a torque cap or ignore a rule (P2A-08).
                 "clamp_torque" => {
                     let cap = rule
                         .max_torque_nm
-                        .unwrap_or(rule.max_velocity_rad_s)
+                        .ok_or_else(|| DavoutError::InvalidMotorConfig {
+                            joint: cmd.joint.clone(),
+                            message: format!("danger zone {} has no max_torque_nm", rule.name),
+                        })?
                         .max(0.0);
                     cmd.torque_ff_nm = cmd.torque_ff_nm.clamp(-cap, cap);
                     torque_cap = torque_cap.min(cap);
                 }
-                _ => {}
+                action => {
+                    return Err(DavoutError::InvalidMotorConfig {
+                        joint: cmd.joint.clone(),
+                        message: format!("danger zone {} has unknown action {action}", rule.name),
+                    });
+                }
             }
         }
-        torque_cap
+        Ok(torque_cap)
     }
 }
 
