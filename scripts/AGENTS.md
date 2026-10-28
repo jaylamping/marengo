@@ -40,7 +40,7 @@ scripts/
 ├── setup-mac-pi-cross.sh     # macOS aarch64 cross-compile setup
 ├── setup-wsl-dev.sh          # Legacy WSL bootstrap (ADR 0018 retired the WSL checkout)
 ├── setup-wsl-pi-cross.sh     # Legacy WSL2 cross-compile setup (ADR 0018)
-├── ensure-marengo-pi-mcp-enabled.py # Keep marengo-pi MCP enabled in Cursor workspace storage
+├── ensure-marengo-pi-mcp-enabled.py # Re-enable marengo-pi MCP in Cursor workspace storage (manual only)
 ├── reference-journal-tail.py # Read-only latest reference journal rows (history, never a grant)
 ├── log-inventory.sh          # Bench log inventory
 ├── bench-log-archive.sh      # Archive bench sessions

@@ -166,6 +166,7 @@ fi
     exit 1
   fi
 )
+bash "${ROOT}/scripts/cursor-session-start.test.sh"
 
 # Kinematics, sim-harness and config fixture tests run in cargo test --workspace
 # below. The standalone validate-urdf.sh intentionally offers a focused check;

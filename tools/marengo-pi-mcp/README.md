@@ -82,7 +82,7 @@ just mcp-build
 
 Then restart the marengo-pi MCP server in Cursor.
 
-**Stay enabled:** `.cursor/hooks.json` runs `session-start-marengo.js` on `sessionStart` (`--write --best-effort`) so disabled/unapproved state is scrubbed when a chat opens. If the server still shows as disabled after a config thrash:
+**Disabled server:** nothing re-enables `marengo-pi` automatically, because disabling it is a kill switch for the motion tools. To clear disabled/unapproved state after a config thrash:
 
 ```bash
 # Quit Cursor first for a hard write, then:
