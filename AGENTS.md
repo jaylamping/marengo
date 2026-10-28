@@ -40,7 +40,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 | `robstride` | Wire encode/decode, CAN I/O, receive budget (64 frames / 256 reads per poll) | Policy, safety |
 | `armee-dynamics` | `gravity_torques(q)` from URDF; calibration fit | CAN, commands |
 | `armee-kinematics` | URDF limits, velocity-scaled envelope (ADR 0009) | Commands |
-| `chappe` | Pub/sub + IPC; 7 allowlisted command topics, rejected if >1000 ms old (`ipc.rs`) | Control policy |
+| `chappe` | Pub/sub + IPC; 6 allowlisted command topics (`topics.rs` `COMMAND_TOPICS`), rejected if >1000 ms old (`ipc.rs`) | Control policy |
 
 **marengo-pi loop** (`bins/marengo-pi/src/main.rs` `run_control_loop`), paced by `sleep(period − elapsed)`:
 1. Drain stdin, then the Chappe command topics, testing MIT batches and the actuator overlay.
