@@ -132,6 +132,8 @@ pub fn sweep_stale_staging(repo_root: &Path, max_age: Duration) {
 /// Stage `bytes` as a new upload and preview it against the live URDF. A
 /// preview that fails removes the staging directory it just made.
 fn stage_and_preview(root: &Path, bytes: &[u8]) -> Result<Json<UrdfUploadResultJson>, StatusCode> {
+    #[cfg(test)]
+    tests::record_stage_thread();
     let master_path = live_urdf_path(root, &config_dir())?;
     sweep_stale_staging(root, STAGING_MAX_AGE);
     let upload_id = new_upload_id();
@@ -153,6 +155,16 @@ fn stage_and_preview(root: &Path, bytes: &[u8]) -> Result<Json<UrdfUploadResultJ
             Err(status)
         }
     }
+}
+
+/// Run `work` (staging writes, the stale-staging sweep, the preview merge) on
+/// the blocking pool, never on an async worker thread.
+async fn run_blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, StatusCode> + Send + 'static,
+) -> Result<T, StatusCode> {
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
 }
 
 pub fn archive_dir(repo_root: &Path, upload_id: &str) -> PathBuf {
@@ -230,7 +242,7 @@ pub async fn post_urdf_upload(body: Bytes) -> Result<Json<UrdfUploadResultJson>,
     if body.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
-    stage_and_preview(&repo_root(), &body)
+    run_blocking(move || stage_and_preview(&repo_root(), &body)).await
 }
 
 pub async fn post_resolve_preview(
@@ -440,15 +452,17 @@ pub async fn get_archive_list() -> Result<Json<ArchiveListJson>, StatusCode> {
 pub async fn post_archive_restore(
     AxumPath(upload_id): AxumPath<String>,
 ) -> Result<Json<UrdfUploadResultJson>, StatusCode> {
-    let upload_id = validate_upload_id(&upload_id)?;
-    let root = repo_root();
-    let archive = archive_dir(&root, upload_id);
-    let contributor_path = archive.join(CONTRIBUTOR_NAME);
-    if !contributor_path.is_file() {
-        return Err(StatusCode::NOT_FOUND);
-    }
-    let bytes = fs::read(&contributor_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    stage_and_preview(&root, &bytes)
+    let upload_id = validate_upload_id(&upload_id)?.to_string();
+    run_blocking(move || {
+        let root = repo_root();
+        let contributor_path = archive_dir(&root, &upload_id).join(CONTRIBUTOR_NAME);
+        if !contributor_path.is_file() {
+            return Err(StatusCode::NOT_FOUND);
+        }
+        let bytes = fs::read(&contributor_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        stage_and_preview(&root, &bytes)
+    })
+    .await
 }
 
 fn simulate_merge_from_staging(

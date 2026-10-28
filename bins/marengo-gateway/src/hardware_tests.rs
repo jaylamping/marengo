@@ -16,6 +16,16 @@ use crate::state::{AppState, SharedState, TOPIC_HEARTBEAT, TOPIC_SAFETY};
 const TEST_TOKEN: &str = "hardware-test-token";
 const TOKEN_ENV: &str = "MARENGO_GATEWAY_LOG_TOKEN";
 
+/// Threads `stage_and_preview` ran on (uploads run under `lock_test_env`).
+static STAGE_THREADS: std::sync::Mutex<Vec<std::thread::ThreadId>> =
+    std::sync::Mutex::new(Vec::new());
+
+pub(super) fn record_stage_thread() {
+    if let Ok(mut threads) = STAGE_THREADS.lock() {
+        threads.push(std::thread::current().id());
+    }
+}
+
 fn test_app(state: crate::state::SharedState) -> axum::Router {
     http::router(state, None)
 }
@@ -718,7 +728,9 @@ async fn upload_uses_robot_yaml_urdf_and_sweeps_abandoned_staging() {
         )
     };
     let contributor = fs::read(root.join("assets/urdf/marengo.urdf")).expect("urdf");
+    STAGE_THREADS.lock().expect("stage threads").clear();
     let accepted = upload(contributor).await.expect("response");
+    let stage_threads = std::mem::take(&mut *STAGE_THREADS.lock().expect("stage threads"));
     let status = accepted.status();
     let staged: Vec<String> = fs::read_dir(&staging_root)
         .expect("staging list")
@@ -739,6 +751,14 @@ async fn upload_uses_robot_yaml_urdf_and_sweeps_abandoned_staging() {
         status,
         StatusCode::OK,
         "previewed against robot.yaml's URDF"
+    );
+    // This test's single-threaded runtime polls the handler on this thread;
+    // the staging writes, sweep and merge must run on the blocking pool.
+    assert_eq!(stage_threads.len(), 1, "one staging run");
+    assert_ne!(
+        stage_threads[0],
+        std::thread::current().id(),
+        "stage_and_preview ran on the async handler's thread"
     );
     assert!(!abandoned.exists(), "abandoned staging swept");
     assert!(recent.exists(), "recent staging kept");
