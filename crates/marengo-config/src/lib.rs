@@ -1296,14 +1296,18 @@ pub(crate) fn control_config_path(config_dir: impl AsRef<Path>) -> PathBuf {
     config_dir.as_ref().join("control.yaml")
 }
 
-/// Persist `control.yaml` under `config_dir` (validates, then atomic temp+rename).
+/// Persist `control.yaml` under `config_dir` (validates against the whole profile on disk,
+/// then atomic temp+rename), so a control.yaml the next boot would refuse is never written.
 pub fn write_control_config_from(
     config_dir: impl AsRef<Path>,
     cfg: &ControlConfigFile,
 ) -> Result<(), ConfigError> {
     let config_dir = config_dir.as_ref();
     let _lock = ProfileWriteLock::acquire(config_dir)?;
-    validate_control_config(cfg)?;
+    let robot = load_robot_config_from(config_dir)?;
+    let motors = load_motors_config_from(config_dir)?;
+    let homing = load_homing_config_from(config_dir)?;
+    validate_safety_config(&robot, &motors, cfg, &homing)?;
     let path = control_config_path(config_dir);
     let text = serde_yaml::to_string(cfg).map_err(|e| ConfigError::Parse {
         path: path.clone(),

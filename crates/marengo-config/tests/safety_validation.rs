@@ -10,7 +10,7 @@ use marengo_config::{
     load_control_config_from, load_homing_config_from, load_motors_config_from,
     load_robot_config_from, validate_control_against_limits, validate_safety_config,
     write_control_config_from, write_motors_and_control, write_motors_control_and_urdf,
-    ConfigError, HomingMethod, HomingSensors, PositionLaw, SensorInput,
+    ConfigError, HomingMethod, HomingSensors, MotorType, PositionLaw, SensorInput,
 };
 use serde_yaml::Value;
 
@@ -533,6 +533,23 @@ fn config_writers_reject_invalid_candidate_without_touching_any_artifact() {
         }
         assert!(!dir.join("control.yaml.tmp").exists());
     }
+}
+
+#[test]
+fn control_writer_refuses_a_control_yaml_that_contradicts_motors_yaml() {
+    let temp = fixture();
+    let dir = temp.path().join("config");
+    let mut control = load_control_config_from(&dir).expect("control");
+    // motors.yaml says rs00; control.yaml alone is still self-consistent with rs02.
+    control
+        .control
+        .joints
+        .get_mut("right_lower_arm_yaw")
+        .expect("lower-arm yaw")
+        .motor_type = MotorType::Rs02;
+    let before = fs::read(dir.join("control.yaml")).expect("before");
+    assert!(write_control_config_from(&dir, &control).is_err());
+    assert_eq!(fs::read(dir.join("control.yaml")).expect("after"), before);
 }
 
 #[test]
