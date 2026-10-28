@@ -1,17 +1,20 @@
 # Marengo roadmap
 
-Target: a 23-DOF biped humanoid (~1524 mm, ~38–42 kg, no dexterous hands in v1). One repo for CAD, runtime, and operator tooling on the full machine.
+Target: a 23-DOF biped humanoid in the Unitree G1 class (~1524 mm, ~38–42 kg, no dexterous hands in v1). One repo for CAD, runtime, and operator tooling on the full machine. The targets are open to better ideas; change them through an ADR.
 
-Furthest along today: the left/right arm chain (4-DOF bring-up slice) and the upper torso 2020 frame. That slice is not a separate robot. It is the first subsystem we can bench, audit, and harden while the rest of the body is designed and commissioned.
+Furthest along today: the **right 5-DOF arm** on the bench and the upper-torso 2020 frame. The arm is not a separate robot. It is the first subsystem we can bench, audit and harden while the rest of the body is designed. Everything built for it (control, safety, config, tooling) must carry over to the full body with more joints, not a second code path.
+
+Current state, bench results and open decisions: [status.md](status.md).
 
 | Doc | Role |
 |-----|------|
+| [status.md](status.md) | Where things stand now: bench checkpoint, open issues, open decisions |
 | [hardware/docs/kinematics.md](../hardware/docs/kinematics.md) | Joint names, limits, actuator map (humanoid SSOT) |
 | [hardware/docs/torso-design-handoff.md](../hardware/docs/torso-design-handoff.md) | Torso CAD context and committed frame dims |
 | [docs/architecture.md](architecture.md) | Software crate boundaries |
 | [docs/safety.md](safety.md) | Bench and enable rules (read before motors) |
-| [config/robot_humanoid.yaml](../config/robot_humanoid.yaml) | Full-body config template (not active runtime yet) |
-| [config/robot.yaml](../config/robot.yaml) | Active bring-up config (4-DOF arm subset) |
+| [config/robot.yaml](../config/robot.yaml) | Master config: the live right 5-DOF arm |
+| [config/robot_humanoid.yaml](../config/robot_humanoid.yaml) | 23-joint full-body template (tests only until M6) |
 
 ---
 
@@ -21,18 +24,20 @@ Furthest along today: the left/right arm chain (4-DOF bring-up slice) and the up
 |------|--------|
 | Form | Biped, no wheels |
 | Height | 1524 mm standing |
-| DOF | 23 actuated (no hands); head skipped in v1 CAD |
-| Actuators | RS04 hips/knees; RS03 waist/hips/shoulders; RS02 ankles + arm yaw/elbow; RS00 wrists |
+| DOF | 23 actuated: legs 6 + 6, arms 5 + 5, waist 1. No hands; head skipped in v1 CAD |
+| Actuators | Robstride RS04 hip pitch + knees; RS03 hip roll/yaw, waist, shoulders; RS02 ankles, upper-arm yaw, elbows; RS00 fifth arm joint |
 | Proportions | G1 upper body, R1-class slim legs |
-| Structure | 2020 aluminum torso cage (committed); pelvis/legs/shell largely draft |
-| Comms / runtime | Pi (control + CAN), Jetson (planner + perception), Chappe protobuf bus |
+| Structure | 2020 aluminum torso cage (committed); pelvis/legs/shell draft; printed PETG/PLA brackets and panels |
+| Power | 48 V main pack in the pelvis (draft); M18 aux bay (18 V, not the motor bus) |
+| Compute | Pi 5 (control, CAN, IMU); Jetson Orin Nano (perception + intent, never motors; ADR 0014) |
+| Bus | Chappe protobuf bus; SocketCAN 1 Mbit/s to the drives |
 | Software path | Berthier → Davout → robstride (fixed; see [safety.md](safety.md)) |
 
 ---
 
 ## How to read this roadmap
 
-Three **parallel tracks** advance the same humanoid. They do not finish in lockstep—only the **gates** at the bottom block unsafe or wasteful work.
+Three **parallel tracks** advance the same humanoid. They do not finish in lockstep; only the **gates** at the bottom block unsafe or wasteful work.
 
 ```mermaid
 flowchart LR
@@ -45,7 +50,7 @@ flowchart LR
     BUS[Chappe + bins]
   end
   subgraph OPS [Operator track]
-    MCP[MCP audits]
+    MCP[MCP audits + bench tools]
     CON[Consul]
   end
   CAD --> URDF
@@ -56,22 +61,11 @@ flowchart LR
   MCP --> URDF
 ```
 
-**Execution slice (today):** 4-DOF arm bench + torso frame rev A. Software defaults (`config/robot.yaml`, `arm_4dof.urdf`) exist so we can prove gravity compensation, Davout limits, and CAN on **real joints** without waiting for legs or pelvis.
+**Execution slice (today):** the right 5-DOF arm (`right_shoulder_pitch`, `right_shoulder_roll`, `right_upper_arm_yaw`, `right_elbow_pitch`, `right_lower_arm_yaw`) on `can0`, with the master config and the CAD-derived URDF. It proves gravity compensation, Davout limits, reference/enable sequencing and CAN behaviour on real joints without waiting for legs or pelvis.
 
-**Humanoid templates already in repo:** `robot_humanoid.yaml`, `motors_humanoid.yaml`, placeholder `marengo.urdf`, proto types, and config validation tests. Use them for **naming and CI alignment**, not for bench enable until URDF/CAD for those joints exist.
+**Humanoid templates already in repo:** `robot_humanoid.yaml`, `motors_humanoid.yaml`, proto types and config validation tests. Use them for naming and CI alignment, not for bench enable until URDF/CAD for those joints exist. The template's CAN layout and left-arm joint names are open decisions ([status.md](status.md#open-design-decisions)).
 
-### Arm slice → humanoid arm mapping
-
-Bring-up joint names are a **subset** of the left-arm humanoid names (same axes/limits intent):
-
-| Bring-up (`robot.yaml`) | Humanoid (`robot_humanoid.yaml`) |
-|-------------------------|----------------------------------|
-| `shoulder_pitch` | `left_shoulder_pitch` (mirror for right) |
-| `shoulder_roll` | `left_shoulder_roll` |
-| `upper_arm_yaw` | `left_upper_arm_yaw` |
-| `elbow` | `left_elbow` |
-
-Wrists and the right arm are commissioned when CAD and CAN topology include them.
+Older 3-DOF and 4-DOF slices (left arm, dual shoulder pitch) are history; their URDFs are in `assets/urdf/archive/`.
 
 ---
 
@@ -94,83 +88,89 @@ Statuses: **done** · **active** · **next** · **later**
 
 **Goal:** committed upper torso cage, layout skeleton, RS03 bracket direction, vendor STEP in tree.
 
-| Deliverable | Reference |
-|-------------|-----------|
-| 2020 frame assembly frozen | `marengo_torso_frame_asm`, [torso-2020-extrusion.md](../hardware/docs/torso-2020-extrusion.md) |
-| Layout part with named URDF refs | `marengo_torso_layout`, [cad/README.md](../cad/README.md) |
-| Shoulder/waist RS03 brackets | [torso-actuator-brackets.md](../hardware/docs/torso-actuator-brackets.md) |
-| MCP design review clean | `marengo_design_review`, `marengo_urdf_readiness` |
-| Root assembly tree | `cad/assemblies/marengo.SLDASM` |
+| Deliverable | State |
+|-------------|-------|
+| 2020 frame assembly frozen | Done: `marengo_torso_frame_asm`, [torso-2020-extrusion.md](../hardware/docs/torso-2020-extrusion.md) |
+| Shoulder/waist RS03 brackets | Rev A designed: [torso-actuator-brackets.md](../hardware/docs/torso-actuator-brackets.md) (shoulder pitch inside the cage) |
+| Layout part with named URDF refs | Open: `marengo_torso_layout` mostly empty ([cad/README.md](../cad/README.md)) |
+| MCP design review clean | Open: `marengo_design_review`, `marengo_urdf_readiness` |
+| Root assembly tree | `cad/assemblies/marengo.SLDASM` (local) |
 
-**Parallel (draft, safe to iterate):** pelvis ring, shell, battery bays, hip splay, leg segments—see [torso-design-handoff.md](../hardware/docs/torso-design-handoff.md).
+**Parallel (draft, safe to iterate):** pelvis ring, shell, battery bays, hip splay, leg segments ([torso-design-handoff.md](../hardware/docs/torso-design-handoff.md)).
 
 ### M3 — Mechanical: limbs and full URDF export
 
-**Status:** next (after M2 torso stable)
+**Status:** active for the right arm; next for everything else
 
-**Goal:** `assets/urdf/marengo.urdf` and meshes replace placeholders; Brawner export + [export-urdf.sh](../scripts/export-urdf.sh) + MCP `marengo_urdf_export_postcheck`.
+**Goal:** `assets/urdf/marengo.urdf` and meshes cover the whole body; Brawner export + [export-urdf.sh](../scripts/export-urdf.sh) + MCP `marengo_urdf_export_postcheck`.
 
-| Subsystem | DOF | Notes |
+| Subsystem | DOF | State |
 |-----------|-----|-------|
-| Legs (×2) | 12 | RS04 pitch/knee first for sign tests under load |
-| Arms (×2) | 10 | Extend 4-DOF bring-up; add wrists last on arm chain |
-| Waist | 1 | RS03 in committed waist bay |
+| Right arm | 5 | Built; URDF geometry and inertials from CAD (2026-10-03). Meshes not exported yet |
+| Left arm | 5 | Next; mirror the right arm once the naming decision is made |
+| Waist | 1 | RS03 in the committed waist bay; adapter plate designed |
+| Legs (×2) | 12 | Next; RS04 hip pitch / knee first for sign tests under load |
 | Head | — | v1 CAD skipped; stub links OK in URDF |
 
-### M4 — Runtime: prove control stack on hardware (arm slice)
+### M4 — Runtime: prove the control stack on hardware (arm slice)
 
-**Status:** active (software); blocked on real CAN + arm CAD masses
+**Status:** active
 
-**Goal:** same stack that will run the humanoid, exercised on the **4-DOF slice** first.
+**Goal:** the same stack that will run the humanoid, exercised on the right arm first.
 
-| Step | Done when |
-|------|-----------|
-| SocketCAN wired in `marengo-pi` / `motor-repl` (`MemoryBus` test-only) | Test harness on `vcan0`/`vcan1`, then robot CAN on `can0`/`can1`/`can2` |
-| GravityComp on arm | [safety.md](safety.md) upright-pose procedure passes |
-| Davout limits + danger zones | No runaway on shoulder_pitch / elbow |
-| `arm_4dof.urdf` masses from CAD export | Dynamics tests match hardware feel |
+| Step | State |
+|------|-------|
+| SocketCAN in `marengo-pi` / `motor-repl` (`MemoryBus`, `SimulationBus`, `FirmwareBus` are test-only) | Done |
+| Qualified physical reference and enable sequencing (ADR 0036) | Done in software; enable soak 20/20 once, cause-B RX overruns still open |
+| Single-drive loss handling (ADR 0038), total-torque bound | Done in software |
+| URDF masses from CAD | Done (right arm, 2026-10-03); printed-part masses still estimates |
+| GravityComp on the arm (limb playbook §4) | Arm-down passed with notes; elevated/wave pose not green |
+| Position speed ladder (§5) | 25 % passed; 50 % not scored; pitch running the ADR 0039/0040 law trial |
+| Limb sign-off (§9) | Not reached |
 
-**Do not** treat non-SocketCAN motor runtime as “shipped”—`MemoryBus` is for tests only.
+**Do not** treat a non-SocketCAN motor runtime as shipped.
 
 ### M5 — Electrical and CAN topology
 
 **Status:** next
 
-**Goal:** documented harness, Pi/Jetson roles, motor IDs in [motors_humanoid.yaml](../config/motors_humanoid.yaml), bring-up order per subsystem.
+**Goal:** documented harness, power, Pi/Jetson roles, the full-body bus plan, and bring-up order per subsystem.
 
-- CAN1 Robstride (see [hardware ADR 0001](../hardware/docs/decisions/0001-can-and-motors.md))
-- E-stop and enable semantics reflected in Davout + proto `SafetyState`
-- Commission joints in **dependency order:** waist → one leg (pitch/knee) → ankles → second leg → arms
+- Decide the full-body CAN plan (channel count, interface hardware, ID scheme) and record it in a hardware ADR ([status.md](status.md#open-design-decisions)).
+- Wire the E-stop sense input and reflect it in Davout + proto `SafetyState`; own the drive-side CAN timeout policy.
+- PDB design (48 V pack, fusing, pre-charge, E-stop breaking motor power).
+- Commission joints in **dependency order:** waist → one leg (pitch/knee) → ankles → second leg → arms.
 
 ### M6 — Full-body config switch
 
 **Status:** later
 
-**Goal:** runtime uses humanoid URDF and joint list end-to-end (still with bench caps).
+**Goal:** the runtime uses the humanoid URDF and joint list end to end (still with bench caps).
 
-1. Replace `config/robot.yaml` pointer (or deploy overlay) to `robot_humanoid.yaml` / `motors_humanoid.yaml`
-2. Per-joint enable in Davout; no “humanoid code path” fork—same Berthier loop, more joints
-3. Sim: regenerate MJCF from production URDF; extend `sim-harness` beyond minimal fixture
+1. Point the master `config/` at the full joint list (no per-profile config forks; limb narrowing stays `MARENGO_JOINT_SUBSET` / commissioning scope).
+2. Same Berthier loop and Davout supervisor with more joints; no "humanoid code path" fork.
+3. Sim: regenerate MJCF from the production URDF; extend `sim-harness` beyond the arm.
 
 ### M7 — Multi-process runtime and operator UI
 
 **Status:** active (gateway slice landed)
 
-| Piece | Gate |
-|-------|------|
-| Chappe WebTransport gateway ([ADR 0008](decisions/0008-chappe-webtransport-transport.md)) | **Done** — `marengo-gateway`, Unix IPC, Consul client |
-| NATS / multi-host transport | Later — same `Envelope` bytes; the unused `chappe::transport` seam was removed (2026-10-03 crate audit) |
-| Consul minimal UI (state, enable, faults, URDF viz) | **In progress** — live joints/safety via WebTransport; URDF viz later |
-| Live log-level control from Consul | Use `tracing_subscriber::reload`; validate requested filters, log operator/source, support TTL rollback for noisy CAN traces |
-| `marengo-jetson`, Talleyrand, Fouché (`models/`) | Crates removed (2026-10-03 crate audit); recreate from [ADR 0014](decisions/0014-jetson-perception-semantic-motion.md) when the Jetson role and ONNX scope are defined |
+| Piece | State |
+|-------|-------|
+| Chappe gateway: HTTP + WebTransport, Unix IPC ([ADR 0008](decisions/0008-chappe-webtransport-transport.md)), access policy ([ADR 0033](decisions/0033-gateway-runtime-access.md)) | Done |
+| Consul: live state, enable, faults, Hardware page (URDF/YAML, Set Limits, Set Zero, Ready, commissioning scope) | In progress; Overview has a primitive-shape 3D URDF preview |
+| Pi ↔ Jetson network transport | Not started; `chappe::transport` was removed (2026-10-03 crate audit). ADR 0014 proposes a TCP bridge |
+| Jetson runtime, planner (Talleyrand), perception/intent (Fouché), `models/` | Crates removed in the crate audit; recreate from [ADR 0014](decisions/0014-jetson-perception-semantic-motion.md) when the Jetson role and model scope are defined |
+| Live log-level control from Consul | Later: `tracing_subscriber::reload`, validated filters, operator/source logged, TTL rollback |
 
-### M8 — Locomotion and whole-body behaviors
+### M8 — Locomotion and whole-body behaviours
 
 **Status:** later
 
-- Standing / balance (ankle RS02 tuning, CoM from real masses)
-- Gait or stepping (Talleyrand + sim D2; Isaac out of band per [ADR 0003](decisions/0003-simulation-testing.md))
-- Teleop (`bins/teleop` scaffold removed in the 2026-10-03 crate audit) — explicitly **after** unilateral arm G-comp on hardware
+- Whole-body dynamics model (beyond gravity-only ADR 0005) and floating base.
+- Standing / balance (ankle RS02 tuning, CoM from real masses, IMU).
+- Gait or stepping: model-based control and/or learned policies in simulation (ADR 0003 D2), deployed through the same Berthier → Davout path.
+- Teleop (the `bins/teleop` scaffold was removed in the crate audit), explicitly **after** arm G-comp is signed off on hardware.
 
 ---
 
@@ -178,10 +178,10 @@ Statuses: **done** · **active** · **next** · **later**
 
 - Dexterous hands (stub links only)
 - Hourglass / non-athletic shell aesthetic as a design driver
-- JSON on Chappe wire ([ADR 0001](decisions/0001-protobuf-wire-types.md))
+- JSON on the Chappe wire ([ADR 0001](decisions/0001-protobuf-wire-types.md))
 - Direct `robstride` calls from Berthier or bins
 - MCP destructive CAD without explicit user `confirm`
-- Control policies tuned against the **2-DOF** `marengo.urdf` placeholder
+- Control policies tuned against placeholder or archived URDFs
 
 ---
 
@@ -189,11 +189,11 @@ Statuses: **done** · **active** · **next** · **later**
 
 Use these to avoid throwaway work:
 
-1. **New joint in runtime?** Named in `kinematics.md`, present in exported URDF, motor row in `motors_humanoid.yaml`, Davout limits derivable.
-2. **New crate feature?** Fits [architecture.md](architecture.md) boundary; if it touches motors, read [safety.md](safety.md).
-3. **New proto field?** Change `proto/` first; regen Rust + Consul; buf breaking on PR.
-4. **New CAD automation?** Audit tools first; write tools only with confirm and handoff doc update.
-5. **Humanoid-only behavior?** Prefer data-driven joint list from config over a second control loop.
+1. **New joint in runtime?** Named in `kinematics.md`, present in the exported URDF, motor row in the master `motors.yaml`, Davout limits derivable.
+2. **New crate feature?** Fits the [architecture.md](architecture.md) boundary; if it touches motors, read [safety.md](safety.md).
+3. **New proto field?** Change `proto/` first; regenerate Rust + Consul; `buf breaking` on PR.
+4. **New CAD automation?** Audit tools first; write tools only with confirm and a handoff doc update.
+5. **Humanoid-only behaviour?** Prefer a data-driven joint list from config over a second control loop.
 
 ---
 
@@ -201,30 +201,12 @@ Use these to avoid throwaway work:
 
 - One canonical assembly per rev; avoid committing `*-OLD` / `*-BROKEN-*` long term (use git history).
 - Assembly path in manifests matches on-disk casing: `marengo.SLDASM`.
-- Placeholder assets (`marengo.urdf`, missing `assets/meshes/`) must not drive tuning—track against M3 export.
-
----
-
-## Suggested focus (next 4–8 weeks)
-
-| Priority | Track | Action |
-|----------|-------|--------|
-| 1 | Mechanical | Close torso frame + layout refs; MCP design review |
-| 2 | Runtime | Wire SocketCAN; bench 4-DOF G-comp per safety doc |
-| 3 | Mechanical | Export arm URDF/masses; refresh `arm_4dof.urdf` |
-| 4 | Mechanical | Pelvis + one leg CAD slice for M3 |
-| 5 | Docs | Update this file when a milestone status changes |
+- Do not overwrite the five-joint master model with an older local export (ADR 0018).
 
 ---
 
 ## Related ADRs
 
-| ADR | Topic |
-|-----|-------|
-| [0001](decisions/0001-protobuf-wire-types.md) | Protobuf wire format |
-| [0002](decisions/0002-containerized-dev.md) | Docker / `just check` |
-| [0003](decisions/0003-simulation-testing.md) | Sim tiers D0–D2 |
-| [0004](decisions/0004-control-modes-and-mit.md) | MIT / gravity comp |
-| [0005](decisions/0005-dynamics-library.md) | URDF gravity model |
+The full list with statuses is in [decisions/README.md](decisions/README.md). Most relevant to the milestones: [0003](decisions/0003-simulation-testing.md) sim tiers, [0004](decisions/0004-control-modes-and-mit.md) MIT and modes, [0005](decisions/0005-dynamics-library.md) dynamics, [0014](decisions/0014-jetson-perception-semantic-motion.md) Jetson, [0036](decisions/0036-physical-robstride-reference.md) physical reference, [0039](decisions/0039-position-control-simplification.md)/[0040](decisions/0040-scaled-pd-slow-speed-law.md) position law.
 
-When a milestone completes, update **Status** here and add a one-line note in the PR or commit message—not a separate plan file.
+When a milestone changes, update **Status** here and in [status.md](status.md).

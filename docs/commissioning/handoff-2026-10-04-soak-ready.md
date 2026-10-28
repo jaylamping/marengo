@@ -1,5 +1,7 @@
 # Handoff 2026-10-04: deployed and CI-green, enable soak is next
 
+> **Superseded (2026-10-28)** by [docs/status.md](../status.md). After this handoff the same day, work moved to the shoulder-pitch position law (ADR 0039/0040 and the [bench ledger](bench-ledger.md) rows); no later enable soak is recorded. Its next steps and cause-B diagnostics are carried into the status page.
+
 Supersedes `handoff-2026-10-04-liveness-hardening.md`; that doc's history (soak table, RX-overrun causes A/B, open decisions, environment) still applies. Read this first.
 
 ## State

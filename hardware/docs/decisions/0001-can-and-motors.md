@@ -1,11 +1,12 @@
 # Hardware ADR 0001: CAN and motors
 
-**Status:** Accepted (prototype values — update when hardware is commissioned)  
+**Status:** Accepted (prototype values; bus plan for the full body still open, see Device IDs)  
+**Updated:** 2026-10-28  
 **Date:** 2025-05-19
 
 ## Context
 
-Marengo uses Robstride RS-series actuators on SocketCAN. Software reads joint→bus mapping from [`config/motors.yaml`](../../../config/motors.yaml) (4-DOF arm bring-up — active config) or [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml) (23-DOF humanoid template). Joint names and motor types are defined in [`kinematics.md`](../kinematics.md).
+Marengo uses Robstride RS-series actuators on SocketCAN. Software reads joint→bus mapping from [`config/motors.yaml`](../../../config/motors.yaml) (live right 5-DOF arm — the master config) or [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml) (23-DOF humanoid template). Joint names and motor types are defined in [`kinematics.md`](../kinematics.md).
 
 ## Decision
 
@@ -13,7 +14,7 @@ Marengo uses Robstride RS-series actuators on SocketCAN. Software reads joint→
 
 | Parameter | Value |
 |-----------|-------|
-| Interface | `can0`, `can1`, `can2`, etc. on Raspberry Pi (Pi 5 + CAN HATs) |
+| Interface | `can0`, `can1` on a Raspberry Pi 5 with a Waveshare 2-CH CAN HAT (MCP2515, SPI). More channels needed for the full body |
 | Bitrate | **1 Mbit/s** |
 | Termination | 120 Ω at each end of the daisy chain (max two terminators powered) |
 | Frame format | Extended 29-bit CAN |
@@ -33,33 +34,25 @@ Each configured motor is addressed by (`can_interface`, `device_id`). Device IDs
 | Left leg | 31–40 |
 | Waist + aux | 41+ |
 
-**Dual shoulder pitch bring-up** — [`config/bringup/shoulder_pitch_dual/`](../../../config/bringup/shoulder_pitch_dual/):
+**Live right arm** (master [`config/motors.yaml`](../../../config/motors.yaml), all on `can0`):
 
-| Joint | `can_interface` | `device_id` | Motor |
-|-------|-----------------|-------------|-------|
-| `left_shoulder_pitch` | can1 | 12 | RS03 |
-| `right_shoulder_pitch` | can0 | 1 | RS03 |
+| Joint | `device_id` | Motor | Firmware |
+|-------|-------------|-------|----------|
+| `right_shoulder_pitch` | 1 | RS03 | 0.3.1.42 |
+| `right_shoulder_roll` | 2 | RS03 | 0.3.1.42 |
+| `right_upper_arm_yaw` | 3 | RS02 | 0.2.3.34 |
+| `right_elbow_pitch` | 4 | RS02 | 0.2.3.34 |
+| `right_lower_arm_yaw` | 5 | RS00 | 0.0.3.32 |
 
-**Left 4-DOF arm (Milestone B)** — [`config/bringup/arm_4dof_left/`](../../../config/bringup/arm_4dof_left/) / [`config/motors.yaml`](../../../config/motors.yaml):
+**History:** earlier bring-ups used a dual shoulder-pitch slice (`left_shoulder_pitch` on can1 id 12, `right_shoulder_pitch` on can0 id 1) and a left 4-DOF arm (ids 11–14 on can0). Their `config/bringup/` trees were retired; the matching URDFs are archived under [`assets/urdf/archive/`](../../../assets/urdf/archive/). A legacy 4-DOF template used ids 1–4 on one bus; do not reuse it.
 
-| Joint | `device_id` | Motor | Notes |
-|-------|-------------|-------|-------|
-| `shoulder_pitch` | 12 | RS03 | Torso-mounted (rev-a) |
-| `shoulder_roll` | 11 | RS03 | Arm sub-asm |
-| `upper_arm_yaw` | 13 | RS02 | |
-| `elbow` | 14 | RS02 | |
-
-All on `can0`. Right arm bench (master `config/motors.yaml`, `can0`): pitch **1**, roll **2**, upper-arm yaw **3**, elbow pitch **4**, lower-arm yaw **5** (`right_lower_arm_yaw`, RS00). Regression slice `arm_3dof_right` omits elbow and lower-arm yaw.
-
-**Legacy 4-DOF template (superseded):** IDs 1–4 on single bus — do not use on commissioned hardware.
-
-**Humanoid (template)** — [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml): IDs 1–23 for full body layout.
+**Humanoid template** ([`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml)) currently numbers the 23 joints 1–23 across five buses (`can0` left leg, `can1` right leg, `can2` waist, `can3` left arm, `can4` right arm). **This conflicts with the ID blocks above and with the live right arm** (template: right arm on `can4`, ids 19–23; hardware: `can0`, ids 1–5). Five buses also need more CAN channels than the current 2-channel HAT. Settle the full-body bus plan (channel count, interface hardware, ID scheme) in a follow-on hardware ADR before roadmap M5/M6, then make the template match.
 
 Reassign IDs in firmware before changing motor YAML.
 
 ### CAN2 — Moteus (future)
 
-Reserved for auxiliary axes (gripper, head). Not wired in v0 prototype. Do not mix Robstride and Moteus on the same bus segment.
+Reserved for auxiliary axes (gripper, head). Not wired, and no Moteus driver exists in the workspace. Do not mix Robstride and Moteus on the same bus segment.
 
 ### E-stop
 
@@ -70,6 +63,12 @@ Reserved for auxiliary axes (gripper, head). Not wired in v0 prototype. Do not m
 | Software reset | Requires hardware E-stop released **and** operator homing sequence before `READY` |
 
 Pin mapping: see [connectors.md](../../electrical/wiring/connectors.md) (prototype bench harness).
+
+**Current state (2026-10-28):** the E-stop GPIO input is **not wired**, so software cannot read it. The physical NC E-stop in the motor power path is the authority. `marengo-pi.service` runs `motor-repl disable` on every exit. The drives on the right arm carry a drive-side CAN timeout of 600 (~30 ms) written during PR #254, so a host stall longer than that stops them drive-side ([docs/safety.md](../../../docs/safety.md)).
+
+### MCP2515 receive limit
+
+The bench MCP2515 holds only 2 RX frames. Davout paces TX bursts 2 ms apart and staggers Enables (one target per interface per period); fault, E-stop and shutdown stops are never paced. Any CAN error frame, including an RX overflow, latches a transport fault ([docs/safety.md](../../../docs/safety.md)).
 
 ### Firmware
 

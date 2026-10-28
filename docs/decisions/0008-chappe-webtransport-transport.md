@@ -57,6 +57,13 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 
 Gateway is the **reference WebTransport transport** for Chappe. A future `--transport nats` mode in the same binary (or sidecar) will publish identical `Envelope` bytes so Consul and Jetson do not fork schemas.
 
+## Current state (2026-10-28)
+
+- `/snapshot/host/metrics/jetson` and the `host/metrics/jetson` topic were removed with the Jetson scaffolds in the 2026-10-03 crate audit ([ADR 0014](0014-jetson-perception-semantic-motion.md)). `chappe::transport` was removed too; NATS or a Pi↔Jetson bridge would be new work.
+- Topic strings now live in one place, `crates/chappe/src/topics.rs`. The gateway's subscribe allowlist (`ALLOWED_TOPICS` in `bins/marengo-gateway/src/state.rs`) adds the runtime-connection, testing-telemetry, `robot/actuator/limits` and `robot/audit/*` topics to the list above. Gateway → runtime commands are limited to the `COMMAND_TOPICS` allowlist and refused when more than 1000 ms old.
+- The gateway is the Chappe IPC **listener** on `/run/marengo/chappe.sock`. `marengo-pi` connects as a client only when `MARENGO_CHAPPE_SOCKET` is set.
+- Auth is no longer bench-open: [ADR 0033](0033-gateway-runtime-access.md) defines the shared gateway access policy and runtime credentials.
+
 ## Consequences
 
 - New workspace member `bins/marengo-gateway`; `chappe` gains `transport` + `ipc` modules.

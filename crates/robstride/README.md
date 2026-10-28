@@ -1,6 +1,8 @@
 # robstride
 
-Driver for Robstride actuators (RS00, RS02, RS03, RS04) on CAN1. Vendor CAD: [`cad/vendor/robstride/`](../../cad/vendor/robstride/). [Berthier](../berthier/) calls it after [Davout](../davout/) approves commands.
+Driver for Robstride actuators (RS00, RS02, RS03, RS04) over SocketCAN at 1 Mbit/s (`can0` on the bench today). Only [Davout](../davout/) calls it; Berthier and the bins never do. Protocol notes: [hardware ADR 0002](../../hardware/docs/decisions/0002-robstride-protocol.md). Vendor STEP files are in `cad/vendor/robstride/` on the CAD machine (not in git).
+
+Every receive poll is bounded (64 frames, 256 read attempts) and keeps raw delivery order, kernel receive timestamps and fault payloads, so Davout can judge feedback freshness. Production SocketCAN buses enable own-message echo.
 
 Supported firmware frames:
 

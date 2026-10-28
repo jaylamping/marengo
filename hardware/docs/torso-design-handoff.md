@@ -79,6 +79,8 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 ## CAD files & tools
 
+SolidWorks files are local to `J:\code\marengo\cad\` (gitignored), so this table records the last status written down, not a live check. The right-arm assembly `cad/assemblies/marengo_arm_right_asm` was the source of the 2026-10-03 URDF.
+
 | Path | Status |
 |------|--------|
 | `cad/parts/marengo_torso_layout.SLDPRT` | Layout skeleton — mostly empty |
@@ -97,7 +99,7 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 ## Concept images (non-CAD)
 
-Under repo `assets/` (paths may vary by machine):
+Local-only on Joey's PC (not tracked in git; paths may vary by machine):
 
 - `marengo-torso-final-dimensions.png` — orthographic draft dims
 - `marengo-torso-final-dimensions-iso.png` — isometric cutaway
@@ -119,4 +121,4 @@ Under repo `assets/` (paths may vary by machine):
 
 ## Active bench (unchanged)
 
-4-DOF arm bring-up: `config/robot.yaml`, `assets/urdf/arm_4dof.urdf`. Full humanoid templates: `config/robot_humanoid.yaml`, `config/motors_humanoid.yaml`.
+Live right 5-DOF arm: `config/robot.yaml`, `assets/urdf/marengo.urdf`. Full humanoid templates: `config/robot_humanoid.yaml`, `config/motors_humanoid.yaml`.

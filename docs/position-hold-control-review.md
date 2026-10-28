@@ -1,5 +1,7 @@
 # Position-hold control review (2026-06)
 
+> **Historical (2026-06).** Bench evidence and reasoning from the weighted shoulder-pitch hold work. The position law has since moved on: see [ADR 0039](decisions/0039-position-control-simplification.md), [ADR 0040](decisions/0040-scaled-pd-slow-speed-law.md), the [2026-10-04 control audit](reviews/2026-10-04-control-audit-pitch-slow-speed.md) and [status.md](status.md).
+
 Holistic review of Marengo joint position hold (`ControlMode::Position`) against standard
 robotics control layering. Records bench evidence, intended architecture, and safety
 invariants for the weighted right-shoulder-pitch Layer 2 gate (`0 → 0.1 → 0` rad).

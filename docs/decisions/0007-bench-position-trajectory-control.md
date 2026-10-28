@@ -1,6 +1,6 @@
 # ADR 0007: Bench position trajectory control
 
-**Status:** Accepted (2026-06-13 one-pass: always-trapezoid joint executor, two-rule friction, MIT `dq_ref`)  
+**Status:** Accepted (2026-06-13 one-pass: always-trapezoid joint executor, two-rule friction, MIT `dq_ref`). Parts are being superseded: [ADR 0039](0039-position-control-simplification.md) (Proposed) replaces the host damping and firmware-`kd = 0` policy, and [ADR 0040](0040-scaled-pd-slow-speed-law.md) amends it further. Only `right_shoulder_pitch` runs the new `scaled_pd` law (bench trial); the other joints still run this ADR's law. The trajectory generator, limits and safety boundaries here still stand.  
 **Date:** 2026-05-26
 
 ## Update 2026-07-21: sign-test ownership (R6)
@@ -54,7 +54,7 @@ Berthier **Position** mode is now a single joint-space motion primitive executor
 - Always trapezoidal `q_ref` / `dq_ref` (no slew/threshold split).
 - `tau_p = Kp * lead`; `tau_d = Kd * (dq_ref − dq)` while moving; MIT `velocity_rad_s = dq_ref`, `kd_mit = 0`.
 - Friction: **`traj_vel`** or **`settle`** only (see 2026-06-15 update for onset/stuck/overspeed rules within `traj_vel`).
-- **Talleyrand** (future) owns Cartesian → joint timing; Berthier executes whatever joint refs it receives. Operator `hold-at` is a bench/debug surface to the same API.
+- **Talleyrand** (future; its scaffold crate was removed in the 2026-10-03 crate audit, so nothing owns this yet) owns Cartesian → joint timing; Berthier executes whatever joint refs it receives. Operator `hold-at` is a bench/debug surface to the same API.
 
 See [rust-patterns.md](../rust-patterns.md) §7.
 

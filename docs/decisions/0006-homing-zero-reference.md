@@ -1,6 +1,6 @@
 # ADR 0006: Homing, zero, and joint reference strategy
 
-**Status:** Accepted  
+**Status:** Accepted; amended 2026-10-03 (the verifier/registry workflow is retired, see the Amendment below and [ADR 0036](0036-physical-robstride-reference.md))  
 **Date:** 2026-05-25
 
 ## Context

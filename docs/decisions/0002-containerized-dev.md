@@ -21,6 +21,10 @@ Contributors use macOS, Windows (WSL2), and Linux. Host-installed `protoc`, `buf
 - macOS CAN development runs inside Linux containers (`vcan` profile).
 - Sim tests use a separate [`docker/Dockerfile.sim`](../../docker/Dockerfile.sim) with MuJoCo Python.
 
+## Current state (2026-10-28)
+
+The image, Compose services and CI parity still hold. The host side changed: there is no WSL checkout any more. Windows (`J:\code\marengo`) and macOS host checkouts run the Linux gate through Docker Desktop (`just check`), per [ADR 0018](0018-windows-macos-software-home.md). CI also runs `sim`, `vcan` and `build-image` jobs ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)).
+
 ## Alternatives considered
 
 - Host-only mise/asdf: lighter, insufficient cross-OS parity.

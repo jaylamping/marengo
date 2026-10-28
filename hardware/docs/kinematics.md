@@ -15,7 +15,7 @@ Full-body target: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yam
 
 Design follows **Unitree G1** upper-body proportions and **Unitree R1** lower-body slimness, scaled to **1524 mm (5 ft)**. No wheels — biped only.
 
-Design status: only the [upper torso 2020 frame](#torso-frame-committed) is committed for rev-a CAD. Pelvis, shell, battery bays, shoulder poke, and leg lengths below are draft and may change during layout. Joint names, axes, and actuator map stay authoritative.
+Design status: only the [upper torso 2020 frame](#torso-frame-committed) is committed for rev-a CAD, and the right arm is built. Pelvis, shell, battery bays and leg lengths below are draft and may change during layout. Joint names, axes, and actuator map stay authoritative (but see the open arm-naming note under the arm tables). Like everything in this project, the targets are open to better ideas: change them through an ADR or a dated note here.
 
 | Parameter | Unitree G1 | Marengo (draft unless noted) |
 |-----------|------------|------------------------------|
@@ -41,7 +41,7 @@ Upper body structure is a single **2020 aluminum cage** (`marengo_upper_torso_fr
 | **Waist bay** (bottom of frame) | **≥ 40** | Reserved for `waist_yaw` RS03 + adapter; no shelves |
 | **Chest zone** (above waist bay) | **~340** outer | Pi, PDB, harness; M18 bay *draft* |
 | **Bottom interface** | — | Bottom rail → waist adapter → pelvis ring (*pelvis draft*) |
-| **Top interface** | Z = **495** from pelvis bottom | Shoulder RS03 mounts on outer Y faces (*poke draft*) |
+| **Top interface** | Z = **495** from pelvis bottom | Shoulder pitch RS03 mounts **inside** the cage at the shoulder plane (rev-a; see [torso-actuator-brackets.md](torso-actuator-brackets.md)) |
 
 Vertical: **380 mm** = waist joint plane → shoulder plane when pelvis height remains **115 mm** (draft).
 
@@ -65,7 +65,7 @@ Floor → crown must sum to **1524 mm**. Values marked *draft* are CAD targets u
 | Pelvis ring | ~215 × 260 × 115 outer *draft* | draft | Wider than torso; main pack bay TBD |
 | Main battery envelope | ~185 × 165 × 90 *draft* | draft | Pelvis; max Wh TBD |
 | M18 HD12 aux bay | ~168 × 98 × 112 *draft* | draft | Upper back cantilever |
-| Shoulder outer width | ~230 *draft* | draft | 150 frame + RS03 poke (~40 mm/side); verify STEP |
+| Shoulder outer width | ~150 at the frame *draft* | draft | Rev-a puts shoulder pitch inside the cage, so no ~40 mm/side poke; arms exit through shell cutouts |
 | Hip span (joint centers) | ~250 *draft* | draft | R1-class; splayed mounts |
 | Foot (each) | 250 × 115 × 80 *draft* | draft | Toe-heavy for CoM |
 | Head | 175 × 160 × 224 *draft* | draft | Skipped in v1 CAD |
@@ -141,6 +141,8 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `left_upper_arm_yaw` | RS02 | pitch → left_upper_arm | Z | -1.57 | 1.57 | 17 | |
 | `left_elbow` | RS02 | upper_arm → left_forearm | Y | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
 | `left_wrist` | RS00 | forearm → left_hand | Y | -1.6 | 1.6 | 17 | G1 wrist pitch band ~±92.5° |
+
+> **Open (2026-10-28): left/right arm naming and the fifth joint.** The left arm table still uses the older `left_elbow` / `left_wrist` (wrist pitch, axis Y) names, while the built right arm uses `right_elbow_pitch` / `right_lower_arm_yaw`, and its RS00 joint rotates about the forearm (a yaw/roll joint, ±3.24 rad hard), not a ±1.6 rad wrist pitch. Decide whether the left arm mirrors the built right arm, then rename the left joints here, in `config/robot.yaml` limbs, `config/*_humanoid.yaml` and the BOM together.
 
 ### Right arm (5 DOF)
 

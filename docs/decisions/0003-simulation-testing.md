@@ -20,6 +20,12 @@ Three tiers:
 - CI fixtures live under [`sim/fixtures/`](../../sim/fixtures/) until production URDF exists.
 - Production URDF changes require regen/compare of MJCF (`scripts/urdf-to-mjcf.sh` when added).
 
+## Current state (2026-10-28)
+
+- The CAD-derived right 5-DOF arm URDF is the master at [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf), and the production MJCF [`assets/mjcf/marengo.xml`](../../assets/mjcf/marengo.xml) mirrors it (CAD inertials included). `scripts/check-sim.sh` smoke-tests both the minimal fixture and the production MJCF, and `sim-harness` holds URDF↔MJCF parity tests.
+- `scripts/urdf-to-mjcf.sh` exists. A URDF change still needs the MJCF regenerated or updated, and the parity test catches drift.
+- D2 (Isaac Lab or another RL/sim stack for locomotion) is still out of band and unstarted; it becomes relevant at roadmap M8.
+
 ## Consequences
 
 - PRs are not blocked on GPU sim or Isaac.

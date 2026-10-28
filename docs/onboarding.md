@@ -2,10 +2,12 @@
 
 Steps to a working Marengo dev environment.
 
+Read first: [status.md](status.md) (where things stand), [roadmap.md](roadmap.md), [AGENTS.md](../AGENTS.md) (contracts and conventions), and [safety.md](safety.md) before touching motors.
+
 ## 1. Clone
 
 ```bash
-git clone <repo-url> marengo && cd marengo
+git clone https://github.com/jaylamping/marengo.git marengo && cd marengo
 ```
 
 SolidWorks CAD is **not in this repo** — restore your local `cad/` tree separately ([cad/README.md](../cad/README.md)). ONNX policies (when added) use Git LFS: `git lfs install && git lfs pull`.
@@ -45,7 +47,7 @@ just vcan
 docker compose --profile vcan run --rm check-vcan
 ```
 
-This creates virtual `vcan0`/`vcan1` interfaces for tests only. Robot runtime uses production interfaces such as `can0`, `can1`, and `can2` from `config/motors.yaml`.
+This creates virtual `vcan0`/`vcan1` interfaces for tests only. Robot runtime uses the production interfaces named in `config/motors.yaml` (the bench arm is on `can0`).
 
 ## 6. Simulation (optional)
 
@@ -59,7 +61,7 @@ just sim-check
 just check
 ```
 
-[rust-patterns.md](rust-patterns.md), [safety.md](safety.md), [dev-setup.md](dev-setup.md).
+[rust-patterns.md](rust-patterns.md), [safety.md](safety.md), [dev-setup.md](dev-setup.md). On Apple Silicon, `just check` runs the amd64 image under Rosetta and some Berthier wall-clock tests can time out; CI and native `cargo test` are the reference there ([status.md](status.md#open-issues-most-important-first)).
 
 ## 8. CAD and SolidWorks MCP (Windows)
 

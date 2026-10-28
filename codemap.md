@@ -1,25 +1,27 @@
 # Repository Atlas: Marengo
 
 ## Project Responsibility
-One repository for a personal humanoid robot: CAD, wiring, URDF, and the Rust runtime (Armée workspace). SolidWorks and harness docs define joints, frames, and limits; control, safety, planning, and the operator UI read that same definition. When the robot changes in CAD, software changes with it.
+One repository for a personal 23-DOF biped humanoid (Unitree G1 class): CAD manifests, wiring, URDF, the Rust runtime (Armée workspace), and the operator UI. SolidWorks and harness docs define joints, frames, and limits; control, safety, and the operator UI read that same definition. When the robot changes in CAD, software changes with it. The live hardware today is the right 5-DOF bench arm, the first slice of the full body.
 
 ## System Entry Points
 | Entry | Role |
 |-------|------|
-| `Cargo.toml` | Armée workspace root — 16 crates + 6 bins, `#![forbid(unsafe_code)]` |
+| `Cargo.toml` | Armée workspace root — 15 crates + 6 bins; workspace lint `unsafe_code = "forbid"` |
 | `bins/marengo-pi/src/main.rs` | Pi control loop, CAN, Chappe telemetry, operator REPL |
 | `bins/marengo-gateway/src/main.rs` | HTTP/WebTransport gateway for Consul |
-| `bins/motor-repl/src/main.rs` | Bench motor CLI (bring-up, set-zero, jog) |
+| `bins/motor-repl/src/main.rs` | Bench motor CLI (`status`, `disable`, `set-zero`, `protocol-inspect`, `gravity-preview`) |
 | `consul/` | Vite+React operator dashboard (npm workspace) |
 | `config/` | robot.yaml, motors.yaml, control.yaml, homing.yaml — master hardware SoT |
 | `proto/marengo/v1/marengo.proto` | Wire schemas for Chappe (proto-first, ADR 0001) |
-| `assets/urdf/` | URDF exported from CAD — kinematic source of truth |
+| `assets/urdf/` | Master URDF (`marengo.urdf`) plus staging/archive — kinematic + inertial source of truth |
+| `tools/` | Pi bench MCP, research MCP, local limit sync, compound-auto-learn |
+| `AGENTS.md` | Detailed agent guide: runtime contracts, commands, safety rules |
 | `justfile` | Developer task runner (check, deploy, sim) |
 
 ## Architecture Overview
 
 ```
-Consul (React) ←HTTP/WT→ marengo-gateway ←IPC→ Chappe ← marengo-pi
+Consul (React) ←HTTP/WT→ marengo-gateway ←Unix IPC (Chappe)→ marengo-pi (200 Hz)
                                                       ↓
                                               Berthier (control loop)
                                                       ↓
@@ -42,6 +44,9 @@ Consul (React) ←HTTP/WT→ marengo-gateway ←IPC→ Chappe ← marengo-pi
 | `proto/` | Protobuf wire types for Chappe (Rust + TS codegen) | [View Map](proto/codemap.md) |
 | `consul/` | Operator web UI — telemetry, enable, testing panels, URDF preview | [View Map](consul/codemap.md) |
 | `scripts/` | Cross-build, deploy-pi, check.sh, Pi install, vcan setup | [View Map](scripts/codemap.md) |
+| `tools/` | MCP servers and dev tools (`marengo-pi-mcp`, `marengo-research-mcp`, `limit-sync-local`) | [tools/AGENTS.md](tools/AGENTS.md) |
+| `hardware/`, `cad/` | Hardware docs, BOM, wiring, CAD manifests (SolidWorks binaries are local-only) | [hardware/README.md](hardware/README.md), [cad/README.md](cad/README.md) |
+| `docs/` | Architecture, safety, ADRs, commissioning records, reviews | [docs/architecture.md](docs/architecture.md) |
 
 ### Key Crates (quick reference)
 
@@ -67,10 +72,11 @@ Consul (React) ←HTTP/WT→ marengo-gateway ←IPC→ Chappe ← marengo-pi
 1. Davout drains CAN feedback → joint positions in joint space
 2. Berthier computes τ_g via armee-dynamics, adds friction/impedance terms
 3. MIT command batch → Davout filters (limits, caps, danger zones) → robstride CAN encode
-4. marengo-pi publishes RobotState on Chappe → gateway → Consul dashboard
+4. Berthier publishes `RobotState` on Chappe; marengo-pi publishes `SafetyState` at 25 Hz → gateway → Consul dashboard
 
 ## Related Documentation
 - Human overview: [README.md](README.md)
 - Agent index: [AGENTS.md](AGENTS.md)
+- Roadmap: [docs/roadmap.md](docs/roadmap.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Safety: [docs/safety.md](docs/safety.md)

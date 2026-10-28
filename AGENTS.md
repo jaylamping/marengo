@@ -1,8 +1,8 @@
 # Repository Guidelines
 
-Marengo is a personal humanoid robot in one repo: CAD manifests, wiring docs, URDF, the Rust runtime (**Armée**), and the operator UI (**Consul**). The current execution slice is a **5-DOF right bench arm** on a Raspberry Pi 5. The full humanoid is the roadmap target (`docs/roadmap.md`).
+Marengo is a personal, full-size walking humanoid (Unitree G1 class, 23 DOF) in one repo: CAD manifests, wiring docs, URDF, the Rust runtime (**Armée**), and the operator UI (**Consul**). The current execution slice is a **5-DOF right bench arm** on a Raspberry Pi 5: a deliberate first step, not the goal. Build everything so it carries over to the full body (`docs/roadmap.md`). Current state, open issues and open decisions: `docs/status.md`.
 
-**Before editing:** read `docs/rust-patterns.md`. For control, CAN, enable or reference code, also read `docs/safety.md`. Navigation starts at `codemap.md`. Per-folder guides: `crates/AGENTS.md`, `bins/AGENTS.md`, `consul/AGENTS.md`, `config/AGENTS.md`, `scripts/AGENTS.md`. Vocabulary (Set Zero vs Home, Joint/Limb/Robot Ready): `CONTEXT.md`.
+**Before editing:** read `docs/rust-patterns.md`. For control, CAN, enable or reference code, also read `docs/safety.md`. Navigation starts at `codemap.md`; ADR index at `docs/decisions/README.md`. Per-folder guides: `crates/AGENTS.md`, `bins/AGENTS.md`, `consul/AGENTS.md`, `config/AGENTS.md`, `scripts/AGENTS.md`. Vocabulary (Set Zero vs Home, Joint/Limb/Robot Ready): `CONTEXT.md`.
 
 ---
 
@@ -61,7 +61,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 
 - **Reference grants are process-local (ADR 0036).** `home <joint>... sign-tested` acquires physical evidence: stop, UID, SetZero, a type-2 ack, a 0x7019 readback, and a journal commit. Enable must happen **in the same marengo-pi process**. Calibration history, the journal and caller flags never grant. A `motor-repl set-zero` grant dies when that process exits.
 - **Motion-owner lease:** `--motion-owner stdin|chappe` or `MARENGO_MOTION_OWNER` (default `chappe`), fixed for the process lifetime. Stop/observe commands are accepted from either source; motion is accepted only from the owner, and refusals publish `motion_refused` on `robot/audit/action`. Ad-hoc ssh sessions must set `MARENGO_MOTION_OWNER=stdin`; MCP tools already export it.
-- **stdin grammar** (`parse_command`): `home <joints> sign-tested`, `enable [operator]` (a `force` token is ignored; nothing bypasses the gravity preflight), `disable`, `gravity-on|off`, `torque-cmd`, `impedance-on|off`, `hold-on`, `hold-at [joint] <rad>`, `hold-off`, `wave`, `lower` (degraded hold only), `status`, `quit`. EOF behaves like `quit`.
+- **stdin grammar** (`parse_command`): `home <joints> sign-tested`, bare `home` (marks homing complete → Ready once references are current), `enable [operator]` (a `force` token is ignored; nothing bypasses the gravity preflight), `disable`, `gravity-on|off`, `torque-cmd`, `impedance-on|off`, `hold-on`, `hold-at [joint] <rad>`, `hold-off`, `wave`, `lower` (degraded hold only), `status`, `quit`. EOF behaves like `quit`.
 - **stdout lines scripts wait for:**
   - `reference <j> current pos=…`, `reference <j> failed: …`, `skipped: …`
   - `waiting for enable to complete`, then `enabled (operator=…)`
@@ -86,7 +86,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 | `assets/urdf/marengo.urdf` | Kinematic + inertial source of truth (no meshes); `assets/mjcf/` holds the sim models |
 | `tools/` | `marengo-pi-mcp` (Pi bench tools), `marengo-research-mcp` (Python/uv), `limit-sync-local`, `compound-auto-learn` |
 | `scripts/` | `check.sh`, deploy/install, `pi-remote.sh`, vcan, systemd units (`scripts/systemd/`) |
-| `docs/` | `safety.md`, `rust-patterns.md`, ADRs `decisions/0001–0040`, `commissioning/`, `reviews/` |
+| `docs/` | `status.md`, `roadmap.md`, `safety.md`, `rust-patterns.md`, ADRs `decisions/` (index in its README), `commissioning/`, `reviews/` |
 | `sim/` | MuJoCo smoke (`sim/scripts/smoke_test.py`, `sim/fixtures/minimal.xml`) |
 | `cad/`, `hardware/` | Manifests and docs only; SolidWorks binaries are local to the Windows host |
 | `var/` | Runtime output; `var/log`, `var/enable-soak`, `var/gravity-calibration` and `var/firmware-captures` are gitignored |
@@ -191,6 +191,7 @@ just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
 | `scripts/check.sh`, `justfile`, `compose.yaml` | Gate, tasks, containers |
 | `scripts/install-pi.sh`, `scripts/systemd/*.service` | Pi install and units |
 | `tools/marengo-pi-mcp/src/tools/*.ts` | MCP bench tools (`launch.ts` holds defaults) |
+| `docs/status.md` | Current bench checkpoint, open issues, open design decisions, next steps |
 | `docs/reviews/2026-10-03-crate-audit/` | Intent cards, leads, prune register, `phase-b/WP-*.md` open decisions |
 
 ---
@@ -259,5 +260,6 @@ just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
 
 - **Issues:** GitHub Issues on `jaylamping/marengo` via `gh`. Labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix` (`docs/agents/`).
 - **Commits:** conventional commits, with no AI attribution.
+- **Docs:** when a change alters behaviour, a contract, a milestone or a bench result, update the matching doc in the same PR (`docs/status.md`, ADR "Current state" notes, `AGENTS.md` contracts, `bench-ledger.md`).
 - **Search:** `Grep` with an empty pattern fails; list files with `Glob`.
 - **Parallel agents:** git worktrees (e.g. `../marengo-wt/<name>`) must use absolute worktree paths. Tools default to the main checkout.
