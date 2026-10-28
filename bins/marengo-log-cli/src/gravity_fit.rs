@@ -40,8 +40,8 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use armee_dynamics::calibration::{
-    assess_identifiability, cancel_friction, fit_gravity_params, CalibrationError, FitOptions,
-    FittedLink, GravityFit, GravitySample, InertialParam, JointWindow,
+    cancel_friction, default_params, fit_gravity_params, CalibrationError, FitOptions, FittedLink,
+    GravityFit, GravitySample, InertialParam, JointWindow,
 };
 use armee_dynamics::{gravity_model_from_urdf, DynamicsError, DynamicsModel, UrdfGravityModel};
 use marengo_config::{
@@ -80,10 +80,6 @@ const WAVE_CENTRE_TOL_RAD: f64 = 1e-6;
 const DDQ_HALF_WINDOW_MS: u64 = 40;
 /// Patched-URDF τ must match the fit within this (rounding of printed mass/COM).
 const PATCH_ROUNDTRIP_TOL_NM: f64 = 0.005;
-/// Links lighter than this are fixtures, not fit candidates (mirrors the fitter's floor).
-const MIN_FIT_MASS_KG: f64 = 0.01;
-/// A COM closer than this to its link origin defines no principal axis (fitter's floor).
-const MIN_PRINCIPAL_AXIS_M: f64 = 1e-6;
 /// Limb whose links the patch may touch.
 const PATCH_LIMB: &str = "right_arm";
 
@@ -540,7 +536,11 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
     let opts = FitOptions::default();
     let params = if args.fit.is_empty() {
         let sweep_poses: Vec<Vec<f64>> = samples.iter().map(|s| s.q.clone()).collect();
-        default_params_union(&model, &sessions, &sweep_poses, &args.fit_joints, &opts)?
+        let sweeps: Vec<&str> = sessions
+            .iter()
+            .map(|s| s.plan.sweep_joint.as_str())
+            .collect();
+        default_params(&model, &sweeps, &sweep_poses, &args.fit_joints, &opts)?
     } else {
         args.fit
             .iter()
@@ -1701,90 +1701,6 @@ fn patch_control_friction(captured: &str, proposals: &[FrictionProposal]) -> Opt
     });
     (complete && text != captured).then_some(text)
 }
-/// Default parameters covering every link excited by any fused session's sweep.
-///
-/// Candidates are the mass scales of every massive link downstream of *each* distinct
-/// sweep joint (then their COM offsets), each group ordered by how strongly one plausible
-/// change moves the torques over *all* poses. A candidate is kept only if the set stays
-/// identifiable. Same greedy rule as the fitter's single-sweep default, but the union
-/// keeps links (e.g. a forearm loaded only by an elbow sweep) that one sweep's
-/// downstream set would drop.
-fn default_params_union(
-    model: &UrdfGravityModel,
-    sessions: &[Session],
-    poses: &[Vec<f64>],
-    fit_joints: &[String],
-    opts: &FitOptions,
-) -> Result<Vec<InertialParam>, GravityFitError> {
-    let mut sweeps: Vec<&str> = Vec::new();
-    for s in sessions {
-        if !sweeps.contains(&s.plan.sweep_joint.as_str()) {
-            sweeps.push(&s.plan.sweep_joint);
-        }
-    }
-    // Most-upstream sweep first, so shared links rank under the sweep that loads them
-    // most; ties keep session order.
-    sweeps.sort_by_key(|s| {
-        std::cmp::Reverse(model.links_downstream_of(s).map(|l| l.len()).unwrap_or(0))
-    });
-    if sweeps.is_empty() {
-        return Err(GravityFitError::Plan("no sessions".into()));
-    }
-    let mut masses = Vec::new();
-    let mut coms = Vec::new();
-    for sweep in &sweeps {
-        for link in model.links_downstream_of(sweep)? {
-            let inertial = model.link_inertial(&link)?;
-            if inertial.mass_kg <= MIN_FIT_MASS_KG {
-                continue;
-            }
-            let mass = InertialParam::mass(&link);
-            if !masses.contains(&mass) {
-                masses.push(mass);
-            }
-            let com_norm = inertial.com_m.iter().map(|v| v * v).sum::<f64>().sqrt();
-            if com_norm > MIN_PRINCIPAL_AXIS_M {
-                let com = InertialParam::com(&link);
-                if !coms.contains(&com) {
-                    coms.push(com);
-                }
-            }
-        }
-    }
-    let mut chosen: Vec<InertialParam> = Vec::new();
-    for group in [masses, coms] {
-        let mut ranked = group
-            .into_iter()
-            .map(|p| {
-                let single = assess_identifiability(
-                    model,
-                    std::slice::from_ref(&p),
-                    poses,
-                    fit_joints,
-                    opts,
-                )?;
-                Ok((single.max_singular_nm, p))
-            })
-            .collect::<Result<Vec<_>, GravityFitError>>()?;
-        ranked.sort_by(|a, b| b.0.total_cmp(&a.0).then_with(|| a.1.link.cmp(&b.1.link)));
-        for (_, p) in ranked {
-            chosen.push(p);
-            let ident = assess_identifiability(model, &chosen, poses, fit_joints, opts)?;
-            if ident.min_singular_nm.is_nan()
-                || ident.min_singular_nm < opts.min_identifiable_nm
-                || ident.condition.is_nan()
-                || ident.condition > opts.max_condition
-            {
-                chosen.pop();
-            }
-        }
-    }
-    if chosen.is_empty() {
-        return Err(CalibrationError::NoParams.into());
-    }
-    Ok(chosen)
-}
-
 /// Links downstream of the first modelled joint of [`PATCH_LIMB`].
 fn limb_links(
     model: &UrdfGravityModel,

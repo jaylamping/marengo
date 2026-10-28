@@ -355,31 +355,48 @@ pub fn assess_identifiability(
     ))
 }
 
-/// Default parameters for a sweep of `sweep_joint` measured at `poses`.
+/// Default parameters for sweeps of `sweep_joints` measured at `poses`.
 ///
-/// Candidates are the mass scales of every massive link downstream of the swept joint, then
-/// their COM offsets, each group ordered by how strongly one plausible change moves the torques.
+/// Candidates are the mass scales of every massive link downstream of *any* swept joint, then
+/// their COM offsets, each group ordered by how strongly one plausible change moves the torques
+/// over all poses. Sweeps are taken most-upstream first (ties keep the given order), so a link
+/// that only a distal sweep loads (a forearm under an elbow sweep) is still a candidate.
 /// A candidate is kept only if the set stays identifiable
 /// ([`FitOptions::min_identifiable_nm`], [`FitOptions::max_condition`]); the selection uses
 /// kinematics only, never the measured torques. Errors with [`CalibrationError::NoParams`]
-/// when the sweep identifies nothing.
+/// when the sweeps identify nothing.
 pub fn default_params(
     model: &UrdfGravityModel,
-    sweep_joint: &str,
+    sweep_joints: &[&str],
     poses: &[Vec<f64>],
     fit_joints: &[String],
     opts: &FitOptions,
 ) -> Result<Vec<InertialParam>, CalibrationError> {
+    let mut sweeps: Vec<(usize, &str)> = Vec::with_capacity(sweep_joints.len());
+    for &sweep in sweep_joints {
+        if !sweeps.iter().any(|&(_, s)| s == sweep) {
+            sweeps.push((model.links_downstream_of(sweep)?.len(), sweep));
+        }
+    }
+    sweeps.sort_by_key(|&(downstream, _)| std::cmp::Reverse(downstream));
     let mut masses = Vec::new();
     let mut coms = Vec::new();
-    for link in model.links_downstream_of(sweep_joint)? {
-        let inertial = model.link_inertial(&link)?;
-        if inertial.mass_kg <= MIN_FIT_MASS_KG {
-            continue;
-        }
-        masses.push(InertialParam::mass(&link));
-        if inertial.com_m.iter().map(|v| v * v).sum::<f64>().sqrt() > MIN_PRINCIPAL_AXIS_M {
-            coms.push(InertialParam::com(&link));
+    for (_, sweep) in sweeps {
+        for link in model.links_downstream_of(sweep)? {
+            let inertial = model.link_inertial(&link)?;
+            if inertial.mass_kg <= MIN_FIT_MASS_KG {
+                continue;
+            }
+            let mass = InertialParam::mass(&link);
+            if !masses.contains(&mass) {
+                masses.push(mass);
+            }
+            if inertial.com_m.iter().map(|v| v * v).sum::<f64>().sqrt() > MIN_PRINCIPAL_AXIS_M {
+                let com = InertialParam::com(&link);
+                if !coms.contains(&com) {
+                    coms.push(com);
+                }
+            }
         }
     }
     let mut chosen: Vec<InertialParam> = Vec::new();
