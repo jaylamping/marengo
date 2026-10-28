@@ -54,6 +54,10 @@ pub struct ConfigSnapshotJson {
     pub revision: String,
     /// False when write-behind failed after a live apply (not NeedsRestart).
     pub persist_ok: bool,
+    /// True while a live apply's write-behind has not reported Durable or Failed. Restart and
+    /// deploy refuse while this is set or `persist_ok` is false; the MCP management gate reads
+    /// both here.
+    pub persist_pending: bool,
 }
 
 /// Limit fields only. Address and direction changes (ADR 0012 §4) are refused by
@@ -168,7 +172,18 @@ pub fn snapshot_from_dir(config_dir: &Path) -> Result<ConfigSnapshotJson, Status
         control_limits,
         revision,
         persist_ok: true,
+        persist_pending: false,
     })
+}
+
+/// The gateway's write-behind evidence, as restart and deploy read it.
+fn with_persist_state(
+    mut snapshot: ConfigSnapshotJson,
+    state: &crate::state::AppState,
+) -> ConfigSnapshotJson {
+    snapshot.persist_ok = !state.persist_degraded();
+    snapshot.persist_pending = state.persist_pending();
+    snapshot
 }
 
 pub async fn get_config_snapshot(
@@ -177,9 +192,10 @@ pub async fn get_config_snapshot(
     // Read-only inventory; mutations are admitted by the shared router policy.
     let _logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let config_dir = resolve_config_dir();
-    let mut snapshot = snapshot_from_dir(&config_dir)?;
-    snapshot.persist_ok = !state.persist_degraded();
-    Ok(Json(snapshot))
+    Ok(Json(with_persist_state(
+        snapshot_from_dir(&config_dir)?,
+        &state,
+    )))
 }
 
 pub async fn post_config_patch(
@@ -280,5 +296,65 @@ mod tests {
             .find(|c| c.joint == "right_shoulder_pitch")
             .expect("pitch limits");
         assert_eq!(pitch.velocity_max_rad_s, Some(2.5));
+    }
+
+    #[test]
+    fn snapshot_reports_pending_and_failed_write_behind() {
+        use std::sync::Arc;
+
+        use armee_proto::prost::Message;
+        use armee_proto::{ActionEvent, Envelope, PersistStatus};
+
+        use crate::state::{AppState, TOPIC_AUDIT_ACTION};
+
+        fn persist_frame(status: PersistStatus) -> Vec<u8> {
+            Envelope {
+                timestamp_ms: 1,
+                source_node: "pi".into(),
+                message_type: "marengo.v1.ActionEvent".into(),
+                payload: ActionEvent {
+                    action: "limit_patch_persist".into(),
+                    accepted: true,
+                    persist_status: status as i32,
+                    ..Default::default()
+                }
+                .encode_to_vec(),
+            }
+            .encode_to_vec()
+        }
+
+        let root = marengo_config::resolve_repo_root();
+        let config_dir = root.join("config");
+        if !config_dir.is_dir() {
+            return;
+        }
+        let state = AppState::new(Arc::new(chappe::Bus::default()));
+        let json = |state: &AppState| {
+            let snap = with_persist_state(snapshot_from_dir(&config_dir).expect("snapshot"), state);
+            let value = serde_json::to_value(&snap).expect("json");
+            (
+                value["persist_ok"].clone(),
+                value["persist_pending"].clone(),
+            )
+        };
+        assert_eq!(json(&state), (true.into(), false.into()));
+
+        state.ingest_runtime_frame(
+            TOPIC_AUDIT_ACTION.into(),
+            persist_frame(PersistStatus::Pending),
+        );
+        assert_eq!(json(&state), (true.into(), true.into()));
+
+        state.ingest_runtime_frame(
+            TOPIC_AUDIT_ACTION.into(),
+            persist_frame(PersistStatus::Failed),
+        );
+        assert_eq!(json(&state), (false.into(), false.into()));
+
+        state.ingest_runtime_frame(
+            TOPIC_AUDIT_ACTION.into(),
+            persist_frame(PersistStatus::Durable),
+        );
+        assert_eq!(json(&state), (true.into(), false.into()));
     }
 }

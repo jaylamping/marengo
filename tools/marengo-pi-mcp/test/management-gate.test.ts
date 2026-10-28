@@ -36,22 +36,110 @@ const b64 = (bytes: number[]) => Buffer.from(bytes).toString("base64");
 const safety = (mode: number) => b64([0x08, ...varint(NOW - 100), ...(mode ? [0x10, mode] : [])]);
 const heartbeat = (ts: number) => b64([0x08, ...varint(ts)]);
 
+/** The gateway's `GET /config/snapshot` body, reduced to its config save state. */
+const SAVED = { persist_ok: true, persist_pending: false };
+
 function piOutput(opts: {
   marengoPi?: number;
   motorRepl?: number;
   mode?: number | null;
   heartbeatMs?: number | null;
+  config?: Record<string, unknown> | null;
 }): string {
   const mode = opts.mode === undefined ? 1 : opts.mode;
   const hb = opts.heartbeatMs === undefined ? NOW - 200 : opts.heartbeatMs;
+  const config = opts.config === undefined ? SAVED : opts.config;
   return [
     `mgmt_marengo_pi=${opts.marengoPi ?? 1}`,
     `mgmt_motor_repl=${opts.motorRepl ?? 0}`,
     `mgmt_safety_b64=${mode === null ? "" : safety(mode)}`,
     `mgmt_heartbeat_b64=${hb === null ? "" : heartbeat(hb)}`,
+    `mgmt_config_b64=${config === null ? "" : Buffer.from(JSON.stringify({ profile: "master", ...config })).toString("base64")}`,
     `mgmt_now_ms=${NOW}`,
   ].join("\n");
 }
+
+describe("management gate refuses while a config save is pending or failed (gateway persist gate)", () => {
+  it("refuses a pending or failed save while marengo-pi runs Disabled", () => {
+    assert.match(
+      managementRefusal(piOutput({ config: { persist_ok: true, persist_pending: true } }), "pi_build") ?? "",
+      /pi_build refused: .*save is still pending/,
+    );
+    assert.match(
+      managementRefusal(piOutput({ config: { persist_ok: false, persist_pending: false } }), "pi_build") ?? "",
+      /pi_build refused: .*save failed/,
+    );
+  });
+
+  it("refuses a known pending or failed save when marengo-pi is not running", () => {
+    const stopped = { marengoPi: 0, mode: null, heartbeatMs: null };
+    assert.match(
+      managementRefusal(piOutput({ ...stopped, config: { persist_ok: false, persist_pending: false } }), "x") ?? "",
+      /save failed/,
+    );
+    assert.match(
+      managementRefusal(piOutput({ ...stopped, config: { persist_ok: true, persist_pending: true } }), "x") ?? "",
+      /pending/,
+    );
+  });
+
+  it("fails closed on an unknown save state while marengo-pi runs", () => {
+    assert.match(managementRefusal(piOutput({ config: null }), "x") ?? "", /save state is unknown/);
+    // A gateway without the pending field (older build) is unknown too.
+    assert.match(managementRefusal(piOutput({ config: { persist_ok: true } }), "x") ?? "", /save state is unknown/);
+    assert.match(managementRefusal(piOutput({ config: { persist_ok: "yes", persist_pending: false } }), "x") ?? "", /unknown/);
+  });
+
+  it("allows an unknown save state when marengo-pi is not running (nothing live to revert)", () => {
+    assert.equal(managementRefusal(piOutput({ marengoPi: 0, mode: null, heartbeatMs: null, config: null }), "x"), undefined);
+  });
+
+  it("the remote shell reads the save state with the Pi's gateway credential", () => {
+    const answer = Buffer.from(JSON.stringify({ persist_ok: true, persist_pending: true })).toString("base64");
+    // curl stub: the config snapshot answers only to the bearer credential from /etc/marengo/env.
+    const curl = [
+      "curl() {",
+      '  local url="${*: -1}" hdr="" prev=""',
+      '  for a in "$@"; do [[ "$prev" == -H && "$a" == @* ]] && hdr="$(cat "${a#@}")"; prev="$a"; done',
+      `  [[ "$url" == */config/snapshot && "$hdr" == "Authorization: Bearer cfg-secret" ]] && { echo ${answer} | base64 -d; return 0; }`,
+      "  return 22",
+      "}",
+    ].join("\n");
+    const r = spawnSync(
+      "bash",
+      ["-c", `set -euo pipefail\npgrep() { echo 0; return 1; }\n${curl}\nMARENGO_GATEWAY_CONFIG_TOKEN=cfg-secret\n${managementGateShell()}`],
+      { encoding: "utf8" },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(managementRefusal(r.stdout, "x") ?? "", /pending/);
+  });
+
+  it("pi_build never reaches install-pi.sh while a save is pending", async () => {
+    const bodies: string[] = [];
+    const run = async (body: string) => {
+      bodies.push(body);
+      return body.includes("mgmt_marengo_pi=") ? piOutput({ config: { persist_ok: true, persist_pending: true } }) : "[exit 0]";
+    };
+    const out = await registerAdminTools(cfg, run).pi_build.handler();
+    assert.match(out, /refused/);
+    assert.equal(bodies.length, 1, "only the gate read ran");
+  });
+});
+
+describe("a management refusal is an MCP error (isError)", () => {
+  it("every refusal carries the Error: prefix the server flags", () => {
+    const refusals = [
+      piOutput({ mode: 3 }),
+      piOutput({ mode: null }),
+      piOutput({ heartbeatMs: null }),
+      piOutput({ motorRepl: 1 }),
+      piOutput({ config: null }),
+      piOutput({ config: { persist_ok: false, persist_pending: false } }),
+      "ssh: connect timed out",
+    ].map((out) => managementRefusal(out, "pi_sync_main"));
+    for (const text of refusals) assert.match(text ?? "", /^Error: pi_sync_main refused: /);
+  });
+});
 
 describe("management gate mirrors the gateway (P2B-05)", () => {
   it("allows when marengo-pi is not running", () => {

@@ -201,7 +201,7 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /printf '%s\\n' 'disable';/);
     assert.match(script, /printf '%s\\n' 'quit';/);
     // 10 s dwell + 6 s return + 10 s acquisition budget (1 joint) + 10 s slack.
-    assert.match(script, /\} \| timeout 36 \$PI_BIN/);
+    assert.match(script, /\} \| timeout --foreground 36 \$PI_BIN/);
     assert.match(script, /bin\/motor-repl disable/);
   });
 
@@ -367,7 +367,7 @@ describe("marengo-pi script tool", () => {
 
     await tools.pi_motor_recover.handler({ confirm: true });
 
-    assert.match(script, /\{ sleep 1; echo status; echo disable; echo quit; \} \| timeout 10 "\$PI_BIN"/);
+    assert.match(script, /\{ sleep 1; echo status; echo disable; echo quit; \} \| timeout --foreground 10 "\$PI_BIN"/);
     assert.doesNotMatch(script, /sign-tested|echo home|enable bench|set-zero/);
     assert.match(script, /RECOVER_SUMMARY/);
   });
@@ -470,7 +470,7 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /sleep 35;/);
     assert.match(script, /printf '%s\\n' 'hold-at 0';/);
     assert.match(script, /printf '%s\\n' 'quit';/);
-    assert.match(script, /\} \| timeout 15 \$PI_BIN/);
+    assert.match(script, /\} \| timeout --foreground 15 \$PI_BIN/);
   });
 
   it("pipes every script line into marengo-pi", async () => {
@@ -493,7 +493,7 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
-      /\{\nprintf '%s\\n' 'status';\nprintf '%s\\n' 'hold-on';\nprintf '%s\\n' 'quit';\n\} \| timeout 10 \$PI_BIN/,
+      /\{\nprintf '%s\\n' 'status';\nprintf '%s\\n' 'hold-on';\nprintf '%s\\n' 'quit';\n\} \| timeout --foreground 10 \$PI_BIN/,
     );
   });
 
@@ -568,7 +568,7 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /if ! test -x "\$PI_BIN" && test -x "\$PI_FALLBACK"; then\n  PI_BIN="\$PI_FALLBACK"\nfi/);
     // Running marengo-pi (even for `help`) opens SocketCAN before reading stdin.
     assert.doesNotMatch(script, /\$PI_BIN" 2>&1|PI_HELP/);
-    assert.match(script, /\} \| timeout 10 \$PI_BIN/);
+    assert.match(script, /\} \| timeout --foreground 10 \$PI_BIN/);
   });
 
   it("emits kernel counter snapshot helpers", () => {
@@ -730,7 +730,7 @@ function runHoldBody(
     "fakebin/sleep": opts.bumpOnSleep
       ? `f=${path.join(stats, "rx_over_errors")}; echo $(( $(cat "$f") + 1 )) > "$f"`
       : "exit 0",
-    "fakebin/timeout": 'shift; exec "$@"',
+    "fakebin/timeout": 'while [[ "$1" == -* ]]; do shift; done; shift; exec "$@"',
     "fakebin/ip": "exit 0",
     "fakebin/pgrep": [
       `n=$(cat ${owners} 2>/dev/null || echo 0)`,

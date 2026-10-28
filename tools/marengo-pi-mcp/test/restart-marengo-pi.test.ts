@@ -30,6 +30,13 @@ describe("pi_restart_marengo_pi", () => {
     assert.equal(parsed.mode, "stop");
   });
 
+  it("a stop needs no confirm; restart and the default still do", () => {
+    assert.equal(restartMarengoPiSchema.parse({ mode: "stop" }).mode, "stop");
+    assert.throws(() => restartMarengoPiSchema.parse({ mode: "restart" }));
+    assert.throws(() => restartMarengoPiSchema.parse({ mode: "restart", confirm: false }));
+    assert.throws(() => restartMarengoPiSchema.parse({}));
+  });
+
   it("loads the canonical scripts/pi-restart-marengo-pi.sh", () => {
     assert.match(scriptPath, /pi-restart-marengo-pi\.sh$/);
     assert.match(script, /systemctl stop marengo-pi\.service/);

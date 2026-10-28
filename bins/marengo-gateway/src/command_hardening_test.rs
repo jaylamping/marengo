@@ -260,6 +260,32 @@ async fn disable_needs_no_credential_but_checks_origin() {
     }
 }
 
+/// The credential-free disable names its TCP peer: it rides in the published
+/// `operator_id`, which marengo-pi logs with `disable via Chappe`.
+#[tokio::test]
+async fn disable_names_the_peer_that_sent_it() {
+    let (app, mut rx) = fixture(ENABLE_TOPIC);
+    let peer: std::net::SocketAddr = "203.0.113.7:4242".parse().expect("peer");
+    let mut request = Request::builder()
+        .method("POST")
+        .uri("/command/disable")
+        .body(Body::empty())
+        .expect("request");
+    request
+        .extensions_mut()
+        .insert(axum::extract::ConnectInfo(peer));
+    let response = app.clone().oneshot(request).await.expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let envelope = Envelope::decode(rx.try_recv().expect("published").as_slice()).expect("env");
+    let request = EnableRequest::decode(envelope.payload.as_slice()).expect("request");
+    assert!(!request.enable);
+    assert!(
+        request.operator_id.contains("203.0.113.7:4242"),
+        "operator_id {:?} does not name the peer",
+        request.operator_id
+    );
+}
+
 #[tokio::test]
 async fn malformed_bodies_stay_bad_request() {
     let (app, _rx) = fixture(MIT_TOPIC);

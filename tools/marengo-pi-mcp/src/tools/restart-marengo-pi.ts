@@ -5,20 +5,33 @@ import { type MarengoPiConfig } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 import { checkManagementGate } from "../management-gate.js";
 
-export const restartMarengoPiSchema = z.object({
-  confirm: z
-    .literal(true)
-    .describe(
-      "Must be true — stops the control loop (motors go limp). Support the arm if elevated.",
-    ),
-  mode: z
-    .enum(["restart", "stop"])
-    .default("restart")
-    .describe(
-      "restart = systemctl stop/pkill then start marengo-pi.service (boot-reload YAML/URDF; not needed after Durable Set Limits Apply); " +
-        "stop = stop/pkill only (do not start systemd unit)",
-    ),
-});
+// A stop is always allowed and never waits for a confirm (TOOL-01); starting the unit does.
+export const restartMarengoPiSchema = z
+  .object({
+    confirm: z
+      .literal(true)
+      .optional()
+      .describe(
+        "Must be true for mode=restart: the control loop stops (motors go limp) and restarts. " +
+          "Support the arm if elevated. mode=stop needs no confirm.",
+      ),
+    mode: z
+      .enum(["restart", "stop"])
+      .default("restart")
+      .describe(
+        "restart = systemctl stop/pkill then start marengo-pi.service (boot-reload YAML/URDF; not needed after Durable Set Limits Apply); " +
+          "stop = stop/pkill only (do not start systemd unit)",
+      ),
+  })
+  .superRefine((args, ctx) => {
+    if (args.mode !== "stop" && args.confirm !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirm"],
+        message: "confirm: true is required for mode=restart",
+      });
+    }
+  });
 
 export type RestartMarengoPiArgs = z.infer<typeof restartMarengoPiSchema>;
 

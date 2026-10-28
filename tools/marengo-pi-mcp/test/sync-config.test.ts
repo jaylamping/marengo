@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -128,6 +128,62 @@ describe("direct /opt writes keep taught limits (TOOL-08)", () => {
     assert.equal(r.status, 1);
     assert.match(r.stderr, /putting the previous limit files back/);
     assert.equal(readFileSync(path.join(opt, "config", "motors.yaml"), "utf8"), motors(-0.2, 1.1));
+  });
+
+  // Rust profile writers (Set Limits write-behind) hold an exclusive flock(2) on this file.
+  const lockFile = (opt: string) => path.join(opt, "config", ".marengo-profile.lock");
+  const flockAvailable = spawnSync("sh", ["-c", "command -v flock"]).status === 0;
+
+  it("holds the profile lock from the backup through the merge", { skip: !flockAvailable && "needs flock" }, () => {
+    const { opt, staged } = tree();
+    const seen = path.join(opt, "lock-during-write");
+    const shell = preserveTaughtLimitsShell(
+      opt,
+      [
+        `cp "${staged}/config/motors.yaml" "$OPT/config/motors.yaml"`,
+        // A second writer (a new open file description) cannot take the lock meanwhile.
+        `if flock -n "$OPT/config/.marengo-profile.lock" true; then echo free > ${seen}; else echo held > ${seen}; fi`,
+      ],
+      path.join(defaultLocalRoot(), "scripts", "preserve-taught-limits.py"),
+    );
+    const r = spawnSync("bash", ["-c", `set -euo pipefail\n${shell}`], { encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(readFileSync(seen, "utf8").trim(), "held");
+    assert.equal(spawnSync("flock", ["-n", lockFile(opt), "true"]).status, 0, "released afterwards");
+  });
+
+  it("fails closed, writing nothing, while a profile writer holds the lock", { skip: !flockAvailable && "needs flock" }, async () => {
+    const { opt, staged } = tree();
+    writeFileSync(lockFile(opt), "");
+    const holder = spawn("flock", ["-x", lockFile(opt), "sleep", "20"], { stdio: "ignore" });
+    try {
+      for (let i = 0; i < 50 && spawnSync("flock", ["-n", lockFile(opt), "true"]).status === 0; i++) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      const shell = preserveTaughtLimitsShell(
+        opt,
+        [`cp "${staged}/config/motors.yaml" "$OPT/config/motors.yaml"`],
+        path.join(defaultLocalRoot(), "scripts", "preserve-taught-limits.py"),
+        1,
+      );
+      const r = spawnSync("bash", ["-c", `set -euo pipefail\n${shell}`], { encoding: "utf8", timeout: 15_000 });
+      assert.equal(r.status, 1, r.stdout);
+      assert.match(r.stderr, /profile lock/);
+      assert.equal(readFileSync(path.join(opt, "config", "motors.yaml"), "utf8"), motors(-0.2, 1.1));
+    } finally {
+      holder.kill("SIGKILL");
+    }
+  });
+
+  it("takes the lock before the backup and releases it after the merge or rollback", () => {
+    const shell = preserveTaughtLimitsShell("/opt/marengo", ["true"]);
+    const at = (needle: string) => shell.indexOf(needle);
+    const lock = shell.search(/flock -w \d+ /);
+    const backup = at('_taught="$(mktemp -d)"');
+    const merge = at("preserve-taught-limits.py");
+    const rollback = at('cp -a "$_taught/$f" "$OPT/$f"');
+    const unlock = shell.lastIndexOf("flock -u");
+    assert.ok(lock >= 0 && lock < backup && backup < merge && merge < rollback && rollback < unlock, shell);
   });
 
   it("both sync tools wrap their /opt write in the merge", () => {
