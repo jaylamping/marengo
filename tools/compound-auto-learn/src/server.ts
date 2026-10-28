@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { resolve as pathResolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -71,11 +72,18 @@ function sendJson(
   res.end(status === 204 ? '' : JSON.stringify(body));
 }
 
+/** Constant-time token comparison, as limit-sync-local does (P2B-13). */
+export function tokenMatches(supplied: string, token: string): boolean {
+  const a = Buffer.from(supplied);
+  const b = Buffer.from(token);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 function authorize(req: IncomingMessage, token: string): boolean {
   const header = req.headers.authorization ?? '';
-  if (header === `Bearer ${token}`) return true;
+  if (header.startsWith('Bearer ') && tokenMatches(header.slice(7), token)) return true;
   const alt = req.headers['x-auto-learn-token'];
-  return typeof alt === 'string' && alt === token;
+  return typeof alt === 'string' && tokenMatches(alt, token);
 }
 
 export function createAutoLearnServer(opts: ServerOptions = {}) {

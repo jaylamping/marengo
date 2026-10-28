@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AutoLearnRequest } from '../shared/types';
-import { createAutoLearnServer } from './server';
+import { createAutoLearnServer, tokenMatches } from './server';
 
 const token = 'test-token-xyz';
 
@@ -104,6 +104,13 @@ describe('auto-learn server', () => {
     expect(res.headers.get('access-control-allow-origin')).toBe(
       'http://localhost:5174',
     );
+  });
+
+  it('compares tokens exactly, in constant time (P2B-13)', () => {
+    expect(tokenMatches(token, token)).toBe(true);
+    expect(tokenMatches('test-token-xy', token)).toBe(false);
+    expect(tokenMatches('test-token-xyZ', token)).toBe(false);
+    expect(tokenMatches('', token)).toBe(false);
   });
 
   it('rejects missing auth', async () => {
