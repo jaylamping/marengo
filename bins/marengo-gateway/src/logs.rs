@@ -595,7 +595,7 @@ mod tests {
         let payload: Vec<u8> = (0..200_000u32).map(|i| (i % 251) as u8).collect();
         std::fs::write(&blob, &payload).expect("blob");
         let store =
-            marengo_store::Store::open(&tmp.path().join("logs.db"), tmp.path()).expect("store");
+            marengo_store::Store::open(tmp.path().join("logs.db"), tmp.path()).expect("store");
         store
             .register_session("s1", None, 1, Some(&blob), None, None)
             .expect("session");
