@@ -375,16 +375,12 @@ export function useCompoundPlayback() {
         compound.setProgress(Math.min(progress, 1));
         if (nowMs < runnerRef.current.waveEndsAtMs) return;
         if (compound.loop && preset.nativeWave) {
-          const halfPeriodSec = Math.max(
-            0.05,
-            preset.nativeWave.halfPeriodSec / speedMultiplier,
-          );
-          const durationSec = nativeWaveDurationSec({
-            ...preset.nativeWave,
-            halfPeriodSec,
+          // Loop posts the next wave; restarting only the countdown left the
+          // arm still while the UI said running (UI-14).
+          runnerRef.current.posting = true;
+          void postNativeWave(dryRunNow, speedMultiplier).finally(() => {
+            runnerRef.current.posting = false;
           });
-          runnerRef.current.segmentStartedAtMs = nowMs;
-          runnerRef.current.waveEndsAtMs = nowMs + durationSec * 1000;
           return;
         }
         stopRunner({ returnHome: true });

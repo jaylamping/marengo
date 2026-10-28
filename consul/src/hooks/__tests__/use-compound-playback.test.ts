@@ -80,6 +80,21 @@ describe('compound playback', () => {
     expect(vi.mocked(postTestingMitCommandBatch).mock.calls.length).toBe(before);
   });
 
+  it('Wave Loop posts the next wave when one ends (UI-14)', async () => {
+    useTestingStore.setState({ dryRun: false });
+    expect(useCompoundStore.getState().loop).toBe(true);
+    const { result } = renderPlayback();
+    act(() => result.current.startRunner());
+    const wavePosts = () =>
+      vi.mocked(postTestingMitCommandBatch).mock.calls.filter(([batch]) =>
+        batch.joints[0]?.name.startsWith('wave:'),
+      ).length;
+    // Raise plus two 140 s waves.
+    await runFor(320_000);
+    expect(wavePosts()).toBeGreaterThanOrEqual(2);
+    expect(useCompoundStore.getState().isRunning).toBe(true);
+  });
+
   it('a Dry Run of a settle-advance preset finishes on time (UI-15)', async () => {
     useTestingStore.setState({ dryRun: true });
     act(() => useCompoundStore.getState().setSelectedPresetId('arm_out_forward'));
