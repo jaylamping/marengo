@@ -40,12 +40,29 @@ describe("stop tools report a failed stop", () => {
       async () => "disable can0:3 FAILED: open: No such device\n\n[exit 1]",
       (tool, _args, _result, exitCode) => audits.push([tool, exitCode]),
     );
-    await tools.pi_motor_disable.handler({ confirm: true });
-    await tools.pi_hold_off.handler({ confirm: true });
+    await tools.pi_motor_disable.handler({});
+    await tools.pi_hold_off.handler({});
     assert.deepEqual(audits, [
       ["pi_motor_disable", 1],
       ["pi_hold_off", 1],
     ]);
+  });
+
+  it("stops without any confirm, even on a weighted bench (TOOL-01)", async () => {
+    const weighted: MarengoPiConfig = { ...cfg, benchProfile: "elbow_attached" };
+    const sent: string[] = [];
+    const tools = registerMotionTools(
+      weighted,
+      async (body) => {
+        sent.push(body);
+        return "disabled\n\n[exit 0]";
+      },
+      () => {},
+    );
+    assert.doesNotMatch(await tools.pi_motor_disable.handler({}), /blocked/i);
+    assert.doesNotMatch(await tools.pi_hold_off.handler({}), /blocked/i);
+    assert.equal(sent.length, 2);
+    assert.ok(sent.every((body) => /bin\/motor-repl disable/.test(body)));
   });
 
   it("does not call Disable a fault clear", () => {

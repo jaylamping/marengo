@@ -139,7 +139,7 @@ describe("pi_enable_soak script", () => {
       assert.ok(!(MOTION_VERBS as readonly string[]).includes(verb), line);
     }
     const body = soakSessionBody(cfg, p);
-    const sent = [...body.matchAll(/printf '%s\\n' "([^"]*)"/g)].map((m) => m[1]);
+    const sent = [...body.matchAll(/printf '%s\\n' '([^']*)'/g)].map((m) => m[1]);
     assert.ok(sent.length > 0);
     for (const line of sent) {
       assert.ok((SOAK_VERBS as readonly string[]).includes(line.split(/\s+/)[0]), line);

@@ -34,7 +34,7 @@ export function registerLogTools(
         const body = wrapRemote(
           cfg,
           [
-            `LOGDIR=${JSON.stringify(logDir)}`,
+            `LOGDIR=${shellQuote(logDir)}`,
             `if [[ ${args.last_files} -eq 1 ]]; then`,
             `  grep -E '${pat}' "$LOGDIR/bench-latest.log" 2>/dev/null || echo '(no matches or no log)'`,
             "else",
@@ -66,7 +66,7 @@ export function registerLogTools(
             '  cat /tmp/m-sessions.json',
             '  echo ""',
             "fi",
-            `LOGDIR=${JSON.stringify(logDir)}`,
+            `LOGDIR=${shellQuote(logDir)}`,
             'du -sh "$LOGDIR" 2>/dev/null || true',
             'echo "=== hot files ==="',
             'ls -lt "$LOGDIR"/bench-*.log "$LOGDIR"/bench-*.json "$LOGDIR"/position-trace-*.csv "$LOGDIR"/candump-*.log 2>/dev/null',
@@ -122,7 +122,7 @@ export function registerLogTools(
         const body = wrapRemote(
           cfg,
           [
-            `F=${JSON.stringify(file)}`,
+            `F=${shellQuote(file)}`,
             'if ! test -f "$F"; then',
             '  echo "(no candump-latest.log — run pi_hold_on or pi_bench_harness first)"',
             "  exit 0",

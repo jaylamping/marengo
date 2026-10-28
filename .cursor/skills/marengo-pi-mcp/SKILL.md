@@ -49,7 +49,7 @@ Ask the user only for physical actions or required safety confirmations: support
 1. **`pi_motor_recover`** with `{ "confirm": true }` — full recover script (disable → status → `RECOVER_OK` / `RECOVER_FAIL`); logs to `var/log/bench-latest.log`.
 2. Read result via **`pi_logs_last_fault`** / tail — do not ask user to paste terminal output.
 3. `RECOVER_FAIL` or arm still limp → user **power-cycles drive**, then run **`pi_motor_recover`** again.
-4. Optional first step: **`pi_hold_off`** (confirm) if `marengo-pi` was running.
+4. Optional first step: **`pi_hold_off`** (no confirm; stops are never gated) if `marengo-pi` was running.
 
 Omitted **`config_dir`** always means the master `/opt/marengo/config`. Narrow a scripted harness to a limb with **`MARENGO_JOINT_SUBSET`**, normally supplied by harness profile metadata; do not select alternate bringup folders. Set `MARENGO_PI_HOST` to the Pi IP if `.local` fails.
 

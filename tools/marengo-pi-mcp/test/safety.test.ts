@@ -41,6 +41,16 @@ describe("validateMotionConfirm", () => {
   });
 });
 
+describe("an argument profile only tightens the gate (TOOL-04)", () => {
+  it("bare_motor on a weighted bench still needs the weighted confirm", () => {
+    const r = validateMotionConfirm(
+      { confirm: true, profile: "bare_motor" },
+      "elbow_attached",
+    );
+    assert.equal(r.ok, false);
+  });
+});
+
 describe("requiresWeightedDoubleConfirm", () => {
   it("flags weighted profiles", () => {
     assert.equal(requiresWeightedDoubleConfirm("weighted_single_arm"), true);

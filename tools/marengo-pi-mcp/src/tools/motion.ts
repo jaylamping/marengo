@@ -303,6 +303,18 @@ export const ADMISSION_REPLY_SEC = 10;
  * Joints of a marengo-pi `home <joints> sign-tested` line (`sign-tested` / `--sign-tested`
  * anywhere, as marengo-pi accepts), or null when the line is not a reference acquisition.
  */
+/**
+ * Joints a stdin line would reference. Broader than {@link referenceAcquireJoints}: any
+ * `home <args>` or `set-zero` line counts, even one marengo-pi would parse differently.
+ */
+export function scriptReferenceJoints(line: string): string[] {
+  const [command, ...tokens] = line.trim().split(/\s+/);
+  if (command === "set-zero" || command === "set_zero") return tokens.length > 0 ? tokens : ["?"];
+  if (command !== "home" || tokens.length === 0) return [];
+  const joints = tokens.filter((t) => t !== "sign-tested" && t !== "--sign-tested");
+  return joints.length > 0 ? joints : ["?"];
+}
+
 function referenceAcquireJoints(line: string): string[] | null {
   const [command, ...tokens] = line.trim().split(/\s+/);
   const isAttestation = (t: string) => t === "sign-tested" || t === "--sign-tested";
@@ -394,7 +406,7 @@ function awaitReplyShell(opts: {
   const pollSec = opts.pollSec ?? 0.2;
   return [
     '_ref_from=$(wc -l < "$LOG")',
-    `printf '%s\\n' ${JSON.stringify(opts.line)}`,
+    `printf '%s\\n' ${shellQuote(opts.line)}`,
     "_ref_state=timeout",
     `for _ in $(seq ${Math.round(opts.waitSec / pollSec)}); do`,
     '  _ref_out=$(tail -n "+$((_ref_from + 1))" "$LOG")',
@@ -477,7 +489,7 @@ export function marengoPiPipeLine(line: string): string {
   if (joints) {
     return referenceAcquireShell(line.trim(), joints);
   }
-  return `printf '%s\\n' ${JSON.stringify(line)}`;
+  return `printf '%s\\n' ${shellQuote(line)}`;
 }
 
 export function marengoPiPipe(script: string[], pipeTimeoutSec: number, binary = "$PI_BIN"): string {
@@ -631,8 +643,9 @@ export function registerMotionTools(
         "motor-repl disable all joints: one Robstride type-4 Disable (Byte[0]=0), then one type-24 Off, per configured drive, read from motors.yaml only. " +
         "It stops torque and active reporting; it does NOT clear a latched drive fault (no Byte[0]=1 fault-clear frame is sent, ADR 0020). " +
         "Per-drive outcomes are printed per frame; exit 1 if any Disable or Off was not sent. " +
+        "A stop needs no confirm. " +
         SOLE_CAN_OWNER_NOTE,
-      inputSchema: motionConfirmSchema.extend({
+      inputSchema: z.object({
         config_dir: z
           .string()
           .optional()
@@ -640,14 +653,8 @@ export function registerMotionTools(
             "MARENGO_CONFIG_DIR override (default: master /opt/marengo/config)",
           ),
       }),
-      handler: async (args: {
-        confirm: true;
-        confirm_weighted_motion?: true;
-        profile?: BenchProfile;
-        config_dir?: string;
-      }) => {
-        const check = gate(args);
-        if (!check.ok) return check.message;
+      // Never gated (TOOL-01): a stop that waits for two chat approvals is not a stop.
+      handler: async (args: { config_dir?: string }) => {
         const configDir = benchConfigDirForJoint(cfg, undefined, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
@@ -889,20 +896,13 @@ export function registerMotionTools(
         "Stop hold: stop marengo-pi (service via the pi_restart_marengo_pi helper) and motor-repl disable. " +
         "Omitted config_dir uses master /opt/marengo/config. " +
         "A marengo-pi.service that was active is restarted afterwards and comes up Disabled; " +
-        "use pi_restart_marengo_pi mode=stop to keep control off.",
-      inputSchema: motionConfirmSchema.extend({
+        "use pi_restart_marengo_pi mode=stop to keep control off. A stop needs no confirm.",
+      inputSchema: z.object({
         joint: z.string().optional(),
         config_dir: z.string().optional(),
       }),
-      handler: async (args: {
-        confirm: true;
-        confirm_weighted_motion?: true;
-        profile?: BenchProfile;
-        joint?: string;
-        config_dir?: string;
-      }) => {
-        const check = gate(args);
-        if (!check.ok) return check.message;
+      // Never gated (TOOL-01).
+      handler: async (args: { joint?: string; config_dir?: string }) => {
         const configDir =
           benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
           BENCH_CONFIG_MASTER;
@@ -920,8 +920,14 @@ export function registerMotionTools(
     pi_marengo_pi_script: {
       description:
         "Pipe stdin script to marengo-pi (enable/gravity-on/hold-on/status/disable/quit); logs to var/log. " +
+        "`home` and `enable` lines are awaited: a refusal ends the session before later lines. " +
+        "A reference line (`home <joints> sign-tested`) runs SetZero at the current pose and needs " +
+        "set_zero: true plus at_mechanical_reference: true. A script that enables runs the gravity gate first. " +
+        GRAVITY_GATE_NOTE +
+        " " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
+        ...referenceOptInShape,
         joint: z
           .string()
           .optional()
@@ -954,9 +960,19 @@ export function registerMotionTools(
         config_dir?: string;
         script: string[];
         timeout_sec?: number;
+        set_zero?: boolean;
+        at_mechanical_reference?: boolean;
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
+        // TOOL-05: the script path gets the same admission as pi_hold_on.
+        const referenced = args.script.flatMap(scriptReferenceJoints);
+        if (
+          referenced.length > 0 &&
+          (args.set_zero !== true || args.at_mechanical_reference !== true)
+        ) {
+          return REFERENCE_OPT_IN_REQUIRED;
+        }
         const expanded = expandScriptWithWaveWaits(args.script);
         const sleepBudget = scriptSleepTotalSec(expanded);
         const controlTimeoutSec =
@@ -968,19 +984,57 @@ export function registerMotionTools(
               );
         const script = ensureScriptQuit(expanded);
         const pipeTimeoutSec = marengoPiPipeTimeoutSec(script, controlTimeoutSec);
-        const pipeCmd = [
-          marengoPiLaunchShell(cfg),
-          marengoPiPipe(script, pipeTimeoutSec),
-        ].join("\n");
         const configDir =
           benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
           args.config_dir;
-        const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script", configDir);
-        const out = await runRemote(
-          body,
-          pipeTimeoutSec * 1000 + REMOTE_SSH_SLACK_MS + CAN_SESSION_SLACK_MS,
+        let gateReport = "";
+        if (script.some((line) => line.trim().split(/\s+/)[0] === "enable")) {
+          const profile = effectiveProfile(cfg.benchProfile, args.profile);
+          const named = referenced.filter((j) => /^[A-Za-z0-9_]+$/.test(j));
+          const joints = [
+            ...new Set([
+              ...(named.length > 0 ? named : profileMeta(profile).setZeroJoints),
+              ...(args.joint !== undefined ? [args.joint] : []),
+            ]),
+          ];
+          const gravity = await runGravityGate({
+            profile,
+            joints,
+            snapshotOutput: await runRemote(
+              wrapRemoteWithConfig(cfg, gravityGateSnapshotShell(), configDir ?? BENCH_CONFIG_MASTER),
+              15_000,
+            ),
+            runPreview: (shell) =>
+              runRemote(
+                wrapRemoteWithConfig(cfg, soleCanOwnerShell(shell), configDir ?? BENCH_CONFIG_MASTER),
+                30_000 + CAN_SESSION_SLACK_MS,
+              ),
+          });
+          if (!gravity.ok) {
+            auditMotion("pi_marengo_pi_script", args, gravity.report, 1);
+            return gravity.report;
+          }
+          gateReport = `${gravity.report}\n`;
+        }
+        const pipeCmd = marengoPiSessionBody(
+          cfg,
+          marengoPiAdmittedPipe(script, pipeTimeoutSec),
         );
-        auditMotion("pi_marengo_pi_script", args, out, 0);
+        const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script", configDir);
+        const out = `${gateReport}${await runRemote(
+          body,
+          (pipeTimeoutSec + referenced.length * REFERENCE_ACQUIRE_SEC_PER_JOINT) * 1000 +
+            REMOTE_SSH_SLACK_MS +
+            CAN_SESSION_SLACK_MS,
+        )}`;
+        const refusal = sessionRefusal(out);
+        const exitCode = exitCodeOfRemoteOutput(out);
+        auditMotion(
+          "pi_marengo_pi_script",
+          args,
+          out,
+          exitCode !== 0 ? exitCode : refusal === undefined ? 0 : 1,
+        );
         return out;
       },
     },
