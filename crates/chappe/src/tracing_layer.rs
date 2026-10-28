@@ -323,7 +323,7 @@ fn install_subscriber(
 
     let rust_log = std::env::var(tracing_subscriber::EnvFilter::DEFAULT_ENV).ok();
     let filter = env_filter(rust_log.as_deref());
-    // A failed write must not fall back to `eprintln!`: with stdout and
+    // A failed write must not fall back to printing on stderr: with stdout and
     // stderr on the same closed pipe that panics the thread that logged,
     // the motor owner's control thread included (TOOL-06).
     let fmt = tracing_subscriber::fmt::layer()
