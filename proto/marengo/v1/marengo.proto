@@ -427,6 +427,7 @@ message PiPlatformMetrics {
   double core_voltage_v = 5 [deprecated = true];
   uint32 sdram_freq_mhz = 6 [deprecated = true];
   uint32 gpu_freq_mhz = 7 [deprecated = true];
+  // Never populated: no PMIC sensor is read (0 means unknown).
   double pmic_temp_celsius = 8;
   // False when vcgencmd was unavailable: throttled_now/events unknown, never clear.
   bool throttle_known = 9;

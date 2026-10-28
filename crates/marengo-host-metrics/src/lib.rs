@@ -190,9 +190,7 @@ mod linux {
         let clock = sample_clock();
         let (log_disk_bytes, log_disk_budget_bytes) = sample_log_disk();
         let platform = match role {
-            HostNodeRole::Pi => Some(armee_proto::host_metrics::Platform::Pi(sample_pi_platform(
-                &thermal,
-            ))),
+            HostNodeRole::Pi => Some(armee_proto::host_metrics::Platform::Pi(sample_pi_platform())),
             HostNodeRole::Jetson | HostNodeRole::Unspecified => None,
         };
 
@@ -494,12 +492,12 @@ mod linux {
         ClockMetrics::default()
     }
 
-    fn sample_pi_platform(thermal: &ThermalMetrics) -> PiPlatformMetrics {
+    fn sample_pi_platform() -> PiPlatformMetrics {
         let throttled = read_vcgencmd_throttled();
         PiPlatformMetrics {
             throttled_now: throttled.map(|(_, now)| now).unwrap_or(false),
             throttle_events: throttled.map(|(events, _)| events).unwrap_or(0),
-            pmic_temp_celsius: thermal.cpu_celsius,
+            // No PMIC sensor is read: leave it unset, never the CPU temperature.
             // vcgencmd unavailable: throttle state is unknown, never clear.
             throttle_known: throttled.is_some(),
             ..Default::default()
@@ -554,6 +552,12 @@ mod linux {
             }
             assert!(parse_throttled("throttled=0xZZZ\n").is_none());
             assert!(parse_throttled("").is_none());
+        }
+
+        #[test]
+        fn pmic_temperature_is_never_reported_from_the_cpu_sensor() {
+            // RT-13: it used to copy ThermalMetrics.cpu_celsius.
+            assert_eq!(sample_pi_platform().pmic_temp_celsius, 0.0);
         }
 
         #[test]
