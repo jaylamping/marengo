@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, profileMeta } from "../bench-profiles.js";
 import { appendAudit } from "../audit.js";
+import { callContext } from "../cancel.js";
 import { exitCodeOfRemoteOutput } from "../ssh.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { effectiveProfile, validateMotionConfirm } from "../safety.js";
@@ -686,7 +687,8 @@ export function registerMotionTools(
         ].join("\n");
         const body = benchLogWrapper(cfg, pipeCmd, "motor-recover", configDir);
         const out = await runRemote(body, 45_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_motor_recover", args, out, 0);
+        const exitCode = exitCodeOfRemoteOutput(out);
+        auditMotion("pi_motor_recover", args, out, exitCode !== 0 ? exitCode : out.includes("RECOVER_OK") ? 0 : 1);
         return out;
       },
     },
@@ -743,7 +745,7 @@ export function registerMotionTools(
           configDir,
         );
         const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_set_zero", { ...args, joint }, out, 0);
+        auditMotion("pi_set_zero", { ...args, joint }, out, exitCodeOfRemoteOutput(out));
         // Consul soft-invalidate is browser-local until a Chappe/gateway signal exists.
         return (
           `${out}\n\n` +
@@ -866,7 +868,8 @@ export function registerMotionTools(
             ? session
             : `${session}\n\n--- hold ---\nmarengo-pi refused the session before the hold: ${refusal}\n` +
               "The feeder sent disable/quit instead of the hold: no pose was held.";
-        auditMotion("pi_hold_on", args, out, refusal === undefined ? 0 : 1);
+        const exitCode = exitCodeOfRemoteOutput(session);
+        auditMotion("pi_hold_on", args, out, exitCode !== 0 ? exitCode : refusal === undefined ? 0 : 1);
         return out;
       },
     },
@@ -1052,7 +1055,7 @@ export function registerMotionTools(
 
         const { runBenchHarness } = await import("../harness/index.js");
         const out = await runBenchHarness(cfg, runRemote, args);
-        auditMotion("pi_bench_harness", args, out, 0);
+        auditMotion("pi_bench_harness", args, out, /^ {2}"pass": true,$/m.test(out) ? 0 : 1);
         return out;
       },
     },
@@ -1061,14 +1064,14 @@ export function registerMotionTools(
 
 export type MotionTools = ReturnType<typeof registerMotionTools>;
 
-export function makeAuditMotion(cfg: MarengoPiConfig) {
+export function makeAuditMotion(cfg: MarengoPiConfig, append = appendAudit) {
   return (
     tool: string,
     args: Record<string, unknown>,
     stdout: string,
     exitCode: number,
   ) => {
-    appendAudit({
+    append({
       tool,
       args,
       bench_profile: cfg.benchProfile,
@@ -1076,5 +1079,8 @@ export function makeAuditMotion(cfg: MarengoPiConfig) {
       stdout: stdout.slice(0, 8000),
       exitCode,
     });
+    // The MCP result's isError follows the audited status (toolResultIsError).
+    const call = callContext.getStore();
+    if (call && exitCode !== 0) call.auditedExitCode = exitCode;
   };
 }

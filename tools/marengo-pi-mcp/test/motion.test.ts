@@ -10,14 +10,18 @@ import {
   benchCandumpStartShell,
   benchCanKernelSnapshotShell,
   benchLogArchiveShell,
+  REFERENCE_OPT_IN_REQUIRED,
   expandScriptWithWaveWaits,
   holdSessionRemoteBody,
+  makeAuditMotion,
   marengoPiPipeLine,
   referenceAcquireLine,
   registerMotionTools,
   scriptSleepTotalSec,
 } from "../src/tools/motion.js";
 import { MASTER_JOINTS } from "../src/bench-profiles.js";
+import { type CallContext, callContext, toolResultIsError } from "../src/cancel.js";
+import { managementRefusal } from "../src/management-gate.js";
 import { encodeRobotState } from "./robot-state-fixture.js";
 import { gravityPreviewReply, isGravityPreviewBody } from "./gravity-fixture.js";
 
@@ -935,5 +939,66 @@ describe("hold session CAN ownership (Transport race)", () => {
     assert.equal(r.trace[r.trace.length - 1], "marengo-pi exit");
     assert.ok(!r.trace.some((l) => l.startsWith("motor-repl")));
     assert.match(r.stdout, /post-session bin\/motor-repl disable skipped: marengo-pi \(pid 4242\) owns CAN/);
+  });
+});
+
+describe("motion audit status (TOOL-20)", () => {
+  function auditing(reply: (body: string) => string) {
+    const audits: Array<[string, number]> = [];
+    // The real audit function with the file append replaced: it still reports to the call context.
+    const audit = makeAuditMotion(cfg, (entry) => audits.push([entry.tool, entry.exitCode ?? 0]));
+    const tools = registerMotionTools(cfg, async (body) => reply(body), audit);
+    return { tools, audits };
+  }
+
+  it("pi_motor_recover audits RECOVER_FAIL and RECOVER_UNKNOWN as failures", async () => {
+    for (const [line, code] of [
+      ["RECOVER_OK: fault=0x0000", 0],
+      ["RECOVER_FAIL: non-zero motor fault", 1],
+      ["RECOVER_UNKNOWN: no fault= feedback", 1],
+    ] as const) {
+      const { tools, audits } = auditing(() => line);
+      await tools.pi_motor_recover.handler({ confirm: true });
+      assert.deepEqual(audits, [["pi_motor_recover", code]], line);
+    }
+  });
+
+  it("pi_set_zero audits the remote exit", async () => {
+    const { tools, audits } = auditing(() => "set-zero right_shoulder_pitch failed\n\n[exit 3]");
+    await tools.pi_set_zero.handler({ confirm: true });
+    assert.deepEqual(audits, [["pi_set_zero", 3]]);
+  });
+
+  it("pi_hold_on audits a failed session even without a refusal line", async () => {
+    const { tools, audits } = auditing((body) =>
+      isGravityPreviewBody(body) ? gravityPreviewReply() : "PRE-SESSION DISABLE INCOMPLETE\n\n[exit 1]",
+    );
+    await tools.pi_hold_on.handler({ confirm: true, set_zero: true, at_mechanical_reference: true });
+    assert.deepEqual(audits, [["pi_hold_on", 1]]);
+  });
+
+  it("pi_bench_harness audits a failed matrix", async () => {
+    const { tools, audits } = auditing(() => "ok");
+    await tools.pi_bench_harness.handler({ confirm: true, confirm_weighted_motion: true, profile: "arm_2dof_smoke" });
+    assert.deepEqual(audits, [["pi_bench_harness", 1]]);
+  });
+
+  it("a gravity-gate refusal reaches the client as isError", async () => {
+    const { tools } = auditing((body) =>
+      isGravityPreviewBody(body) ? gravityPreviewReply({ right_shoulder_pitch: -1.5951 }) : "",
+    );
+    const call: CallContext = { motion: true };
+    const text = await callContext.run(call, () =>
+      tools.pi_hold_on.handler({ confirm: true, set_zero: true, at_mechanical_reference: true }),
+    );
+    assert.match(text, /^FAIL gravity_model_mismatch/m);
+    assert.equal(toolResultIsError(text, call), true);
+    assert.equal(toolResultIsError("pi_health ok", { motion: false }), false);
+    for (const refusal of [
+      REFERENCE_OPT_IN_REQUIRED,
+      managementRefusal("", "pi_restart_marengo_pi restart") ?? "",
+    ]) {
+      assert.equal(toolResultIsError(refusal, { motion: false }), true, refusal);
+    }
   });
 });
