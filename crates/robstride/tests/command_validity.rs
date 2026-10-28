@@ -454,6 +454,40 @@ fn finite_mit_values_outside_wire_range_are_rejected() {
     cmd.torque_ff_nm = 60.01;
     assert!(robstride::encode_mit(&cmd).is_err());
 }
+/// DRV-13: the raw guard is an allowlist. Persistent or destructive types
+/// (set CAN id, parameter save, baud, protocol switch) and drive-direction
+/// types never leave this host, whatever helper builds them.
+#[test]
+fn raw_frames_outside_the_host_command_types_are_refused_before_transmission() {
+    let mut bus = MemoryBus::default();
+    for comm_type in [2_u32, 5, 7, 21, 22, 23, 25, 31] {
+        let result = bus.send_frame(&CanFrame {
+            id: (comm_type << 24) | 0x00_fd01,
+            data: [0; 8],
+            extended: true,
+        });
+        assert!(
+            matches!(
+                result,
+                Err(BusError::InvalidCommand(
+                    CommandError::ForbiddenCommunicationType { comm_type: refused }
+                )) if u32::from(refused) == comm_type
+            ),
+            "type {comm_type}: {result:?}"
+        );
+    }
+    assert!(bus.tx.is_empty());
+    for comm_type in [0_u32, 1, 3, 4, 6, 17, 18, 24] {
+        bus.send_frame(&CanFrame {
+            id: (comm_type << 24) | 0x00_fd01,
+            data: [0; 8],
+            extended: true,
+        })
+        .expect("host command type");
+    }
+    assert_eq!(bus.tx.len(), 8);
+}
+
 #[test]
 fn raw_type_22_parameter_save_is_refused_before_transmission() {
     let mut bus = MemoryBus::default();

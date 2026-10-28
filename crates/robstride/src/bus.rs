@@ -37,9 +37,17 @@ fn trace_skipped_frame(
         "ignoring CAN frame"
     );
 }
+/// Extended communication types this host may transmit: identity (0), MIT (1),
+/// Enable (3), Disable (4), SetZero (6), parameter read/write (17/18) and
+/// active reporting (24). Everything else is refused before the wire, including
+/// the persistent or destructive set-CAN-id (7), parameter save (22), baud
+/// (23) and protocol switch (25), and drive-direction types (2, 21).
+const TX_COMMUNICATION_TYPES: [u8; 8] = [0, 1, 3, 4, 6, 17, 18, 24];
+
 fn validate_can_tx(frame: &CanFrame) -> Result<(), BusError> {
-    if frame.extended && (frame.id >> 24) & 0x1f == 22 {
-        return Err(CommandError::ForbiddenCommunicationType { comm_type: 22 }.into());
+    let comm_type = ((frame.id >> 24) & 0x1f) as u8;
+    if frame.extended && !TX_COMMUNICATION_TYPES.contains(&comm_type) {
+        return Err(CommandError::ForbiddenCommunicationType { comm_type }.into());
     }
     Ok(())
 }

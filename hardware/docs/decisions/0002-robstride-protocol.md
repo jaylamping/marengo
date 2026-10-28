@@ -52,8 +52,10 @@ RS03 "Max speed" is the MIT velocity field range: Seeed listed 50, but the RS03 
 MIT encoders return typed errors for nonfinite and finite out-of-range fields;
 addressed batches validate every command and route before any transmit. Firmware
 writes validate register kind and reject nonfinite floats, negative gains,
-negative speed/torque caps, and writes to `ZeroSta` or `AddOffset`. Raw type-22
-save frames are refused at the CAN bus boundary. A type-4 fault-clear encoder
+negative speed/torque caps, and writes to `ZeroSta` or `AddOffset`. The CAN bus
+boundary allows raw extended frames of host command types only (0, 1, 3, 4, 6,
+17, 18, 24); type-22 saves, set-CAN-id (7), baud (23), protocol switch (25) and
+drive-direction types are refused before the wire. A type-4 fault-clear encoder
 uses `Byte[0]=1`, but no `MotorBus` fault-clear operation is wired; ordinary
 Disable remains a stop request, not a fault clear.
 

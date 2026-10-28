@@ -331,6 +331,7 @@ fn ordinary_disable_never_clears_firmware_faults() {
 #[ignore = "requires virtual vcan0; no physical robot"]
 fn socketcan_runtime_report_preserves_order_raw_evidence_and_receive_times() {
     use robstride::RuntimeBus;
+    use socketcan::{EmbeddedFrame, ExtendedId, Socket};
 
     for budget in [Duration::ZERO, Duration::from_millis(100)] {
         let mut bus = RuntimeBus::socketcan("vcan0").expect("open virtual SocketCAN");
@@ -340,9 +341,18 @@ fn socketcan_runtime_report_preserves_order_raw_evidence_and_receive_times() {
             frame(0x0280_01fd, POSE),
             frame(0x1500_01fd, [0, 0, 0, 0, 1, 2, 4, 0x80]),
         ];
+        // Drive frames come from another socket, as a drive's would: this
+        // host never transmits drive-direction types (DRV-13).
+        let drive = socketcan::CanSocket::open("vcan0").expect("virtual drive");
         let started = Instant::now();
         for raw in &sequence {
-            bus.send_frame(raw)
+            let literal = socketcan::CanFrame::new(
+                ExtendedId::new(raw.id).expect("literal extended id"),
+                &raw.data,
+            )
+            .expect("classic payload");
+            drive
+                .write_frame(&literal)
                 .expect("inject literal virtual CAN frame");
         }
         let deadline = started + Duration::from_millis(100);
