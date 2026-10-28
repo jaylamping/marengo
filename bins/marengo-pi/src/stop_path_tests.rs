@@ -13,7 +13,7 @@ use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceiveAttempt}
 use crate::enable_gate::EnableGate;
 use crate::{
     handle_chappe_enable, handle_chappe_set_zero, handle_command, parse_command,
-    stop_after_tick_error, PiReferenceQueue,
+    run_with_panic_stop, stop_after_tick_error, PiReferenceQueue,
 };
 
 const JOINT: &str = "right_elbow_pitch";
@@ -279,4 +279,31 @@ fn both_enable_owners_refuse_gravity_preflight_without_feedback() {
             .all(|frame| (frame.id >> 24) & 0x1f != 3),
         "no Enable frame may be sent without the gravity preflight evidence"
     );
+}
+
+/// RT-04: a panic in the control loop stops every drive before unwinding on.
+#[test]
+fn panic_in_the_control_loop_stops_every_drive() {
+    let mut loop_ctrl = loop_with(FlakyBus::default());
+    loop_ctrl.allow_implicit_enable();
+    loop_ctrl.set_control_mode(ControlMode::GravityComp);
+    let panicked = run_with_panic_stop(&mut loop_ctrl, |_| panic!("injected control-loop panic"));
+    assert!(panicked);
+    assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
+    assert!(loop_ctrl.implicit_enable_forbidden());
+    for motor in loop_ctrl.supervisor().motors.motors.clone() {
+        assert!(
+            disables_to(&loop_ctrl, motor.device_id) >= 1,
+            "{} not disabled after a panic",
+            motor.joint
+        );
+    }
+}
+
+#[test]
+fn a_loop_that_returns_normally_is_not_stopped_by_the_guard() {
+    let mut loop_ctrl = loop_with(FlakyBus::default());
+    let panicked = run_with_panic_stop(&mut loop_ctrl, |_| {});
+    assert!(!panicked);
+    assert_eq!(disables_to(&loop_ctrl, 4), 0);
 }

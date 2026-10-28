@@ -461,6 +461,36 @@ fn decode_chappe_payload<M: Message + Default>(bytes: &[u8], topic: &str) -> Opt
 /// as a second line. Returns the fault text published in `SafetyState`; when
 /// the stop itself was not delivered it says so (Davout also latches
 /// `StopDelivery`).
+/// Run `body` (the control loop) and, if it panics, stop every drive before the
+/// process goes on to its normal shutdown (RT-04). A panic would otherwise
+/// unwind out of `main` with the drives still executing their last MIT frame;
+/// a print to a closed stdout pipe (EPIPE) is one such panic. Returns whether
+/// `body` panicked.
+fn run_with_panic_stop<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    body: impl FnOnce(&mut ControlLoop<B>),
+) -> bool {
+    let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| body(&mut *loop_ctrl)));
+    if run.is_ok() {
+        return false;
+    }
+    error!("control loop panicked; stopping every drive");
+    loop_ctrl.forbid_implicit_enable();
+    let stop = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let result = loop_ctrl.supervisor_mut().disable_all();
+        loop_ctrl.set_control_mode(ControlMode::Disabled);
+        result
+    }));
+    match stop {
+        Ok(Ok(())) => {}
+        Ok(Err(stop_error)) => {
+            error!(error = %stop_error, "stop after panic was NOT delivered to every drive");
+        }
+        Err(_) => error!("stop after panic panicked; drives rely on ExecStopPost and CanTimeout"),
+    }
+    true
+}
+
 fn stop_after_tick_error<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, error: &LoopError) -> String {
     error!(error = %error, "control tick failed");
     let stop = loop_ctrl.supervisor_mut().disable_all();
@@ -1627,10 +1657,18 @@ fn main() {
         std::process::exit(1);
     }
 
+    // SIGHUP (a dropped ssh session) and SIGQUIT terminate by default with no
+    // exit stop; treat them like SIGTERM (RT-11).
     #[cfg(unix)]
-    if signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutdown)).is_err() {
-        eprintln!("failed to install SIGTERM handler");
-        std::process::exit(1);
+    for (signal, name) in [
+        (signal_hook::consts::SIGTERM, "SIGTERM"),
+        (signal_hook::consts::SIGHUP, "SIGHUP"),
+        (signal_hook::consts::SIGQUIT, "SIGQUIT"),
+    ] {
+        if signal_hook::flag::register(signal, Arc::clone(&shutdown)).is_err() {
+            eprintln!("failed to install {name} handler");
+            std::process::exit(1);
+        }
     }
 
     let persist_queue = overlay::ConfigPersistQueue::spawn(Arc::clone(&chappe), root.clone());
@@ -1692,7 +1730,9 @@ fn main() {
         shutdown: &shutdown,
         motion,
     };
-    run_control_loop(&mut loop_ctrl, &mut runtime);
+    let panicked = run_with_panic_stop(&mut loop_ctrl, |loop_ctrl| {
+        run_control_loop(loop_ctrl, &mut runtime);
+    });
 
     let outcome = finish_owner_shutdown(
         &mut loop_ctrl,
@@ -1742,6 +1782,9 @@ fn main() {
         "owner shutdown outcome"
     );
     info!("marengo-pi stopped");
+    if panicked {
+        std::process::exit(1);
+    }
 }
 
 #[derive(Debug)]
