@@ -41,6 +41,7 @@ vi.mock('@/lib/query-client', () => ({
   },
 }));
 import { postSetZeroCommand } from '@/lib/gateway-api';
+import { useTeachStore } from '@/state/teachStore';
 import { persistJointLimits } from '@/lib/persist-joint-limits';
 import { queryClient } from '@/lib/query-client';
 
@@ -132,6 +133,7 @@ describe('SetLimitsPanel', () => {
 
   it('shows Set Zero as destructive and requires dialog confirm before posting', async () => {
     useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
+    const epochBefore = useTeachStore.getState().liveCalibrationEpoch;
 
     renderPanel(
       <SetLimitsPanel
@@ -174,6 +176,8 @@ describe('SetLimitsPanel', () => {
       expect(screen.getByTestId('set-zero-queued')).toHaveTextContent('Zero queued');
       expect(screen.queryByTestId('set-limits-applied')).toBeNull();
     });
+    // A real Set Zero invalidates taught overlays (UI-22).
+    expect(useTeachStore.getState().liveCalibrationEpoch).toBe(epochBefore + 1);
   });
 
   it('runs listen → review → apply with exact measured bounds', async () => {

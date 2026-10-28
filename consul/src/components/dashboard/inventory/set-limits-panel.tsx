@@ -25,6 +25,7 @@ import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
 import { useActuatorStore } from '@/state/actuatorStore';
 import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
+import { useTeachStore } from '@/state/teachStore';
 
 const SET_LIMITS_HELP =
   'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position (Hardware holds an Active Reporting lease for free-drive sensing). Stop to propose min/max, then Apply Limits becomes the new durable SoT: hot-reloads Davout hard to the taught min/max (soft = ADR 0009 inset), expand-only URDF, and YAML write-behind (no restart). Encoder jitter at the stop is covered by Davout measured-fault slack (~30 mrad), not by rewriting the stored hard. Later deploys preserve those taught envelopes unless MARENGO_REPLACE_LIMITS=1. Hardware Range reads the live Davout snapshot. Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
@@ -197,6 +198,8 @@ export function SetLimitsPanel({
     setZeroOk(false);
     try {
       await postSetZeroCommand(jointName, { signTestPassed: true });
+      // A new zero shifts taught coordinates: overlays need Acknowledge or Reset (UI-22).
+      useTeachStore.getState().markCalibrationChanged();
       // Gateway 200 only means queued on Chappe — Reference Ready follows wire Verified.
       setZeroOk(true);
       setZeroConfirmOpen(false);
