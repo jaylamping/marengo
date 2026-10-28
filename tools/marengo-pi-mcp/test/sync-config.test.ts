@@ -14,6 +14,7 @@ import {
   directInstallRsyncLine,
   preserveTaughtLimitsShell,
   remoteStepFailed,
+  runSyncBenchUrdfAssets,
 } from "../src/tools/sync-config.js";
 
 const cfg: MarengoPiConfig = {
@@ -56,6 +57,47 @@ describe("bench URDF sync", () => {
     assert.ok(elseIdx > 0);
     const afterElse = script.slice(elseIdx);
     assert.doesNotMatch(afterElse, /grep -A3 "<inertial>"/);
+  });
+
+  it("keeps nested archive URDF paths when staging them (TOOL-21)", async () => {
+    const asset = "archive/seed-shoulder_pitch_left_bare/contributor.urdf" as const;
+    const localDir = path.join(cfg.localRoot, "assets", "urdf");
+    for (const rsyncExit of [0, 1]) {
+      const calls: Array<{ cmd: string; args: string[]; cwd?: string }> = [];
+      const remote: string[] = [];
+      await runSyncBenchUrdfAssets(
+        cfg,
+        async (body) => {
+          remote.push(body);
+          return "ok";
+        },
+        { assets: ["marengo.urdf", asset], install_to_opt: false },
+        async (cmd, args, opts = {}) => {
+          calls.push({ cmd, args, cwd: opts.cwd });
+          return { stdout: "", stderr: "", exitCode: cmd === "rsync" ? rsyncExit : 0 };
+        },
+      );
+      const [rsync, ...scps] = calls;
+      // rsync -R from assets/urdf recreates archive/<seed>/ under the staging assets/urdf.
+      assert.deepEqual(rsync, {
+        cmd: "rsync",
+        args: ["-avR", "marengo.urdf", asset, "joey@marengo.local:~/marengo/assets/urdf/"],
+        cwd: localDir,
+      });
+      if (rsyncExit === 0) {
+        assert.equal(scps.length, 0);
+        continue;
+      }
+      // scp fallback: the nested directory exists first, then each file goes to its own path.
+      assert.match(remote[0], /mkdir -p "\$HOME\/marengo\/assets\/urdf\/archive\/seed-shoulder_pitch_left_bare"/);
+      assert.deepEqual(
+        scps.map((c) => c.args),
+        [
+          [path.join(localDir, "marengo.urdf"), "joey@marengo.local:~/marengo/assets/urdf/marengo.urdf"],
+          [path.join(localDir, asset), `joey@marengo.local:~/marengo/assets/urdf/${asset}`],
+        ],
+      );
+    }
   });
 
   it("verifies a single staged archive URDF", () => {
