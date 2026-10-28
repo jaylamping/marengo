@@ -12,7 +12,7 @@ ADR 0009 rejected raising hard limits alone because CAD/URDF was treated as immu
 
 ## Decision
 
-1. **Bench Set Limits Apply** (active live path and inactive `upsert_joint_limits`) **expand-only** widens the profile URDF `<limit>` hard envelope when taught hard exceeds current URDF hard. Soft operator bounds go to `control.yaml` with ADR 0009 inset (~27 mrad), not soft≡hard.
+1. **Bench Set Limits Apply** (active live path, and the offline `apply_local_limit_patch` path that replaced the removed `upsert_joint_limits`) **expand-only** widens the profile URDF `<limit>` hard envelope when taught hard exceeds current URDF hard. Soft operator bounds go to `control.yaml` with ADR 0009 inset (~27 mrad), not soft≡hard.
 2. **Live path:** mutate in-memory `urdf_robot` in Davout `apply_limit_patch`, then async write-behind motors + control + URDF. Persist is URDF-first then YAML; Durable only when all succeed. Overlay enqueue rollback restores URDF + motors + control.
 3. **Coalesce-safe disk URDF:** derive expands from the full motors snapshot vs on-disk URDF (not a per-joint payload that latest-wins can drop).
 4. **Local git checkout:** optional Durable-gated sync via `marengo-limit-sync` + loopback `tools/limit-sync-local` — same Rust helpers, never on Pending alone.

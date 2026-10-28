@@ -4,6 +4,8 @@
 # Bench envelopes from Set Limits (2026-07-22) for DOF 1–4. Davout hard = URDF ∩ bench.
 # Lower-arm yaw: provisional kinematics envelope until first Set Limits pass.
 # Roll lower kept at URDF -0.05 (not flush to measured min) so home pose ~-0.01 enables.
+# bench.velocity_limit_rad_s is NOT enforced (ADR 0010): command velocity caps resolve from
+# control.yaml only (joint, then actuator_groups, then motor_type_defaults).
 motors:
   - joint: right_shoulder_pitch
     driver: robstride

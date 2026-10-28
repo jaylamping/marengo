@@ -52,6 +52,7 @@ pub struct LimitPatchRequest {
 #[allow(deprecated)]
 pub async fn apply_limit_patch_async(
     state: SharedState,
+    repo_root: &Path,
     config_dir: &Path,
     request: LimitPatchRequest,
 ) -> LimitPatchResult {
@@ -69,7 +70,7 @@ pub async fn apply_limit_patch_async(
         }
     };
     let after = merge_request_limits(&before, &request);
-    let current_revision = match profile_content_revision(config_dir) {
+    let current_revision = match profile_content_revision(repo_root, config_dir) {
         Ok(revision) => revision,
         Err(error) => {
             return limit_patch_error(error.to_string(), PersistStatus::Failed);

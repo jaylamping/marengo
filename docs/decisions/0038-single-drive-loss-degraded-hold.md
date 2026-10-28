@@ -93,8 +93,15 @@ On the 2026-10-04 URDF with `tau_margin_nm: 0.5` (caps: RS03 5 Nm, RS02/RS00 3 N
 | right_lower_arm_yaw | every holding joint Δ ≤ 0.07 | admitted |
 
 The master `config/control.yaml` sets `shed_subtree` on the three admitted
-joints. The bound is static: the swing of a freed forearm adds dynamic load the
-grid does not capture. If bench evidence shows the healthy joints cannot ride
+joints. The "bound" is a grid sample, not a mathematical bound: `|τ_g|` can
+peak between grid points (review CFG-02 measured 15 % low on a pendulum over
+[−3, 3] rad), so `tau_margin_nm` also absorbs sampling error;
+`crates/armee-dynamics/tests/drive_loss_dense.rs` (ignored by default, slow;
+`cargo test -p armee-dynamics --release --test drive_loss_dense -- --ignored`)
+checks the master's admitted joints on a denser grid. On 2026-10-28 the worst
+gap was shoulder roll, 2.98 → 3.20 Nm, still 1.3 Nm under its 5 Nm cap with
+the 0.5 Nm margin. It is also static: the swing of a freed forearm adds
+dynamic load the grid does not capture. If bench evidence shows the healthy joints cannot ride
 that out, set the intermediate joints back to `disable_all`.
 
 ### What qualifies (Davout, at the moment of the lapse)

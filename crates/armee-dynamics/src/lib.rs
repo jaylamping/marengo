@@ -12,13 +12,17 @@
 //!
 //! - Forward/inverse kinematics for arbitrary frames (see [`armee_kinematics`] for limits/FK growth).
 //! - Coriolis, the full mass matrix, or contact dynamics (future extensions need a new ADR).
-//!   [`UrdfGravityModel::joint_inertia`] gives one joint's own inertia for calibration
-//!   analysis only (I·q̈ on bench waves); the control loop never uses it.
+//!   [`UrdfGravityModel::joint_inertia`] gives one joint's own inertia: calibration analysis
+//!   uses it for I·q̈ on bench waves, and Berthier evaluates it once at load (zero pose) as
+//!   the scaled-PD law's `J·a` constant (ADR 0039), never per tick.
 //! - Send commands or read encoders (Berthier / robstride).
 //!
 //! ## Accuracy
 //!
-//! Estimates depend on URDF inertials (CAD export). Cross-check in sim per
+//! Estimates depend on URDF inertials. On the live right arm the masses and tensors are
+//! CAD estimates, but every carried link's COM was patched on 2026-10-04 by the phase-1
+//! pitch wave fit (`dc6926d`), taken while the shoulder rubbed, so the COMs may carry
+//! friction; see the `assets/urdf/marengo.urdf` header. Cross-check in sim per
 //! [ADR 0005](../../docs/decisions/0005-dynamics-library.md). Wrong `tau_g` sign is a safety
 //! issue — validate with `motor-repl gravity-preview` before bench enable.
 //!
@@ -60,7 +64,9 @@
 //!
 //! Wrong τ_g sign is a **safety issue** — the motor accelerates the arm in the direction
 //! of gravity instead of holding it. Validate with `motor-repl gravity-preview` before
-//! bench enable, and rely on the Davout wrong-sign watchdog for runtime detection.
+//! bench enable. Do not count on the Davout wrong-sign watchdog for runtime detection: it
+//! is disabled in the master `control.yaml` (`wrong_sign_watchdog.enabled: false`) because
+//! one profile-global sign cannot cover the arm's mixed motor directions.
 
 pub mod calibration;
 pub mod drive_loss;

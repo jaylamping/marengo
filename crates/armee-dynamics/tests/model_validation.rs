@@ -151,6 +151,28 @@ fn non_finite_inertial_is_refused() {
 }
 
 #[test]
+fn a_moved_link_without_mass_is_refused_not_dropped() {
+    // urdf-rs reads a link with no <inertial> as mass 0.
+    let path = write_urdf(&format!(
+        r#"{}<link name="upper"/>{}"#,
+        link("base", "0"),
+        joint("shoulder", "revolute", "base", "upper", AXIS_Y),
+    ));
+    let err = refusal(&path, &names(&["shoulder"]));
+    assert!(
+        matches!(&err, DynamicsError::InvalidModel { what } if what.contains("upper")),
+        "{err}"
+    );
+    // A massless root (no joint moves it) is fine.
+    let rooted = write_urdf(&format!(
+        r#"<link name="base"/>{}{}"#,
+        link("upper", "1"),
+        joint("shoulder", "revolute", "base", "upper", AXIS_Y),
+    ));
+    gravity_model_from_urdf(&rooted, &names(&["shoulder"])).expect("massless root loads");
+}
+
+#[test]
 fn cyclic_chain_is_refused_not_hung() {
     // a -> b and b -> a: every link has a parent joint, so a root-ward walk never ends.
     let path = write_urdf(&format!(

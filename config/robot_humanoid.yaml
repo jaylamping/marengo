@@ -1,5 +1,7 @@
 # Marengo humanoid (23 DOF, G1-class proportions, 1524 mm).
-# Switch robot.yaml to this file when full-body CAN is commissioned.
+# Template only: it does not boot. `urdf` still points at the 5-DOF arm URDF (no 23-joint
+# URDF exists yet) and there is no control or homing template. Before M6 it needs a full
+# URDF, control.yaml and homing.yaml rows and the bus/ID plan (hardware ADR 0001).
 # See hardware/docs/kinematics.md for link dimensions and limits.
 robot:
   urdf: assets/urdf/marengo.urdf
