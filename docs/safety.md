@@ -281,7 +281,9 @@ disables. The fault does not clear on its own.
   never becomes session pose. After the echo, Reset/Calibration latches as before.
   A missing echo latches DriveState once `comm_watchdog_ms` has passed since
   activation (or the target's post-SetZero quiet end, below, when later).
-  Echoes are never feedback, liveness or replies. A host command this
+  Echoes are never feedback, liveness or replies. Frames the kernel drops
+  from a full socket receive queue (`SO_RXQ_OVFL`) fail the next receive
+  that reports them and latch Transport. A host command this
   socket did not write (motor-repl, `cansend`, another owner) is not an echo:
   it fails the receive and latches Transport.
 - **Staggered enable and reporting writes:** Every host frame solicits a drive

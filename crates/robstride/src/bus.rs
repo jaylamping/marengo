@@ -148,6 +148,20 @@ impl EchoLedger {
     }
 }
 
+/// Frames the kernel dropped since the last report, from the cumulative
+/// `SO_RXQ_OVFL` count attached to a received frame (absent until the first
+/// drop). Every new drop is reported once.
+#[cfg(any(test, all(feature = "socketcan", target_os = "linux")))]
+pub(crate) fn new_kernel_drops(reported: &mut u32, cumulative: Option<u32>) -> Option<u32> {
+    let cumulative = cumulative?;
+    let new = cumulative.wrapping_sub(*reported);
+    if new == 0 {
+        return None;
+    }
+    *reported = cumulative;
+    Some(new)
+}
+
 #[derive(Debug, Error)]
 pub enum BusError {
     #[error("invalid motor command: {0}")]
@@ -1166,6 +1180,21 @@ mod socketcan {
             .map_err(|e| BusError::Driver(format!("configure SocketCAN receive timestamps: {e}")))
     }
 
+    /// Count the kernel's own receive-queue drops (`SO_RXQ_OVFL`): without it,
+    /// a stalled reader loses status frames without a trace.
+    fn configure_drop_counter(socket: &CanFdSocket) -> Result<(), BusError> {
+        setsockopt(socket.as_raw_socket(), sockopt::RxqOvfl, &1)
+            .map_err(|e| BusError::Driver(format!("configure SocketCAN drop counter: {e}")))
+    }
+
+    /// The cumulative `SO_RXQ_OVFL` count, attached once any frame was dropped.
+    fn kernel_drop_count(message: &RecvMsg<'_, '_, ()>) -> Option<u32> {
+        message.cmsgs().ok()?.find_map(|control| match control {
+            ControlMessageOwned::RxqOvfl(count) => Some(count),
+            _ => None,
+        })
+    }
+
     /// The `SCM_TIMESTAMPNS` realtime stamp, if delivered intact.
     fn kernel_rx_time(message: &RecvMsg<'_, '_, ()>) -> Option<SystemTime> {
         message.cmsgs().ok()?.find_map(|control| match control {
@@ -1243,6 +1272,8 @@ mod socketcan {
         /// False for a transmit-only stop socket: nothing receive-side was
         /// configured and it must never be read.
         receives: bool,
+        /// Kernel receive-queue drops already reported.
+        drops_reported: u32,
     }
 
     impl SocketCanBus {
@@ -1288,6 +1319,7 @@ mod socketcan {
             if receives {
                 configure_own_message_echo(&socket)?;
                 configure_receive_timestamps(&socket)?;
+                configure_drop_counter(&socket)?;
                 // Error subscriptions default to drop-all in socketcan. Preserve
                 // every kernel error class as transport evidence; failures to
                 // configure the subscription prevent this socket from being used.
@@ -1302,11 +1334,12 @@ mod socketcan {
             Ok(Self {
                 interface: interface.to_string(),
                 socket,
-                control: nix::cmsg_space!(TimeSpec),
+                control: nix::cmsg_space!(TimeSpec, u32),
                 rx_clock: RxClock::new(opened),
                 echoes: EchoLedger::default(),
                 _claim: None,
                 receives,
+                drops_reported: 0,
             })
         }
 
@@ -1399,11 +1432,24 @@ mod socketcan {
                     Some(&mut self.control),
                     MsgFlags::empty(),
                 )
-                .map(|message| (message.bytes, kernel_rx_time(&message)))
+                .map(|message| {
+                    (
+                        message.bytes,
+                        kernel_rx_time(&message),
+                        kernel_drop_count(&message),
+                    )
+                })
                 .map_err(std::io::Error::from)
             };
             match read {
-                Ok((bytes, kernel)) => {
+                Ok((bytes, kernel, drops)) => {
+                    if let Some(dropped) = new_kernel_drops(&mut self.drops_reported, drops) {
+                        tracing::warn!(interface = %self.interface, dropped, "SocketCAN receive queue overflowed");
+                        return Err(BusError::Driver(format!(
+                            "SocketCAN {}: kernel dropped {dropped} received frame(s) from a full receive queue",
+                            self.interface
+                        )));
+                    }
                     // Wall clock before the monotonic read instant: the gap can
                     // only move the mapped time toward the read.
                     let wall_at_read = SystemTime::now();
@@ -1662,6 +1708,27 @@ mod socketcan {
 
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 pub use socketcan::{SocketCanBus, SocketCanRouter};
+
+#[cfg(test)]
+mod kernel_drop_tests {
+    use super::new_kernel_drops;
+
+    /// DRV-06: a receive-queue overflow is reported once per new drop.
+    #[test]
+    fn each_new_kernel_drop_is_reported_once() {
+        let mut reported = 0;
+        assert_eq!(new_kernel_drops(&mut reported, None), None);
+        assert_eq!(new_kernel_drops(&mut reported, Some(3)), Some(3));
+        assert_eq!(new_kernel_drops(&mut reported, Some(3)), None);
+        assert_eq!(new_kernel_drops(&mut reported, Some(5)), Some(2));
+        let mut reported = u32::MAX;
+        assert_eq!(
+            new_kernel_drops(&mut reported, Some(1)),
+            Some(2),
+            "counter wraps"
+        );
+    }
+}
 
 #[cfg(test)]
 mod echo_ledger_tests {

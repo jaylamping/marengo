@@ -279,6 +279,49 @@ fn second_motor_owner_of_an_interface_is_refused_but_a_stop_is_not() {
     RuntimeBus::socketcan_from_motors(&motors).expect("claim released with the owner");
 }
 
+/// DRV-06: frames the kernel dropped from a full receive queue are no longer
+/// invisible. The drop count rides on the next frame queued after the drop,
+/// and that read fails the receive.
+#[test]
+#[ignore = "requires virtual vcan0; no physical robot; run tests serially"]
+fn kernel_receive_queue_drops_fail_the_next_receive() {
+    let mut bus = RuntimeBus::socketcan("vcan0").expect("virtual owner");
+    let drive = CanSocket::open("vcan0").expect("virtual drive");
+    for _ in 0..20_000 {
+        // A refused write only ends the flood early; the queue is long full.
+        let _ = drive.write_frame(&data(0x0280_01fd, &POSE));
+    }
+    let types = motor_types("vcan0");
+    let mut failure = None;
+    // Frames still in the kernel backlog may queue (carrying the count) while
+    // the backlog drains; otherwise one more frame after it carries it.
+    for _ in 0..1_000 {
+        let report = bus.recv_feedback_report(&types, Duration::ZERO, Duration::ZERO);
+        if report.terminal_error.is_some() {
+            failure = Some(report);
+            break;
+        }
+        if report.completion == robstride::ReceiveCompletion::Idle {
+            break;
+        }
+    }
+    let report = failure.unwrap_or_else(|| {
+        drive
+            .write_frame(&data(0x0280_01fd, &POSE))
+            .expect("frame after the overflow");
+        bus.recv_feedback_report(&types, Duration::ZERO, Duration::ZERO)
+    });
+    assert_eq!(report.completion, robstride::ReceiveCompletion::Failed);
+    assert!(
+        matches!(
+            &report.terminal_error,
+            Some(robstride::BusError::Driver(message)) if message.contains("kernel dropped")
+        ),
+        "{:?}",
+        report.terminal_error
+    );
+}
+
 /// DRV-07: a stop socket configures nothing receive-side, keeps the kernel's
 /// default loopback (a running owner sees the stop) and is never read.
 #[test]
