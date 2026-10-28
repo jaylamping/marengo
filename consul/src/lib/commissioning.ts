@@ -1,6 +1,6 @@
 /**
  * Hardware commissioning facets + badge priority from wire truth.
- * Never consults localStorage / actuatorZeroStore — Ready = Verified on wire only.
+ * Never consults localStorage — Ready = Verified on wire only.
  */
 
 import { JointHomingState } from '@/gen/marengo/v1/marengo_pb';

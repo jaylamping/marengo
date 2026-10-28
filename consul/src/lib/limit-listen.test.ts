@@ -9,6 +9,7 @@ import {
   parseJointRange,
   proposedLimitsFromBounds,
   proposedRangeFromBounds,
+  rangeWidening,
 } from '@/lib/limit-listen';
 
 describe('limit-listen', () => {
@@ -124,5 +125,17 @@ describe('limit-listen', () => {
         operationalMode: null,
       }),
     ).toMatch(/Connect Chappe/);
+  });
+
+  it('names how far a proposal widens the current range (UI-12)', () => {
+    const current = parseJointRange('−0.90–3.17');
+    expect(rangeWidening(current, { lower: -0.9, upper: 3.5 })?.upperRad).toBeCloseTo(0.33);
+    expect(rangeWidening(current, { lower: -1.2, upper: 3.0 })).toEqual({
+      lowerRad: expect.closeTo(0.3),
+      upperRad: 0,
+    });
+    // Inside the range, or within display rounding, is not a widening.
+    expect(rangeWidening(current, { lower: -0.5, upper: 3.172 })).toBeNull();
+    expect(rangeWidening(null, { lower: -5, upper: 5 })).toBeNull();
   });
 });

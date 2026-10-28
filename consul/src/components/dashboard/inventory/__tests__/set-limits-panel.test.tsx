@@ -41,6 +41,7 @@ vi.mock('@/lib/query-client', () => ({
   },
 }));
 import { postSetZeroCommand } from '@/lib/gateway-api';
+import { useTeachStore } from '@/state/teachStore';
 import { persistJointLimits } from '@/lib/persist-joint-limits';
 import { queryClient } from '@/lib/query-client';
 
@@ -132,6 +133,7 @@ describe('SetLimitsPanel', () => {
 
   it('shows Set Zero as destructive and requires dialog confirm before posting', async () => {
     useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
+    const epochBefore = useTeachStore.getState().liveCalibrationEpoch;
 
     renderPanel(
       <SetLimitsPanel
@@ -170,11 +172,29 @@ describe('SetLimitsPanel', () => {
       });
     });
     await vi.waitFor(() => {
-      expect(screen.getByTestId('set-limits-applied')).toHaveTextContent(
-        'Applied',
-      );
-      expect(screen.queryByText(/Set Zero queued/i)).toBeNull();
+      // 200 only means queued: never the green Applied chip (UI-21).
+      expect(screen.getByTestId('set-zero-queued')).toHaveTextContent('Zero queued');
+      expect(screen.queryByTestId('set-limits-applied')).toBeNull();
     });
+    // A real Set Zero invalidates taught overlays (UI-22).
+    expect(useTeachStore.getState().liveCalibrationEpoch).toBe(epochBefore + 1);
+  });
+
+  it('warns in review when the proposal widens the current hard range (UI-12)', () => {
+    useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
+    renderPanel(
+      <SetLimitsPanel jointName="right_shoulder_pitch" currentLimit="±1.57" />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Set Limits' }));
+    const store = useLimitListenStore.getState();
+    // One spurious sample at 2.4 rad among a sweep inside ±1.57.
+    for (const pos of [-0.5, -0.4, 0.0, 2.4, 0.8, 1.2]) {
+      store.ingestPosition('right_shoulder_pitch', pos);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    expect(screen.getByTestId('set-limits-widening')).toHaveTextContent(
+      'upper by 0.830 rad',
+    );
   });
 
   it('runs listen → review → apply with exact measured bounds', async () => {

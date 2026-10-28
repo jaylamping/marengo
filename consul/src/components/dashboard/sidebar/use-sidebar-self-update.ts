@@ -53,12 +53,15 @@ export type WatchOutcome = 'success' | 'failed' | null;
  * Decide whether a watched self-update can leave the Updating chrome.
  * Success includes “deploy-rev already on target” so a stale Queued/running
  * ledger after install cannot pin the sidebar forever.
+ *
+ * Only this tab's job decides: a ledger with no job id, or another job's
+ * target SHA, never reports this tab's update as done (UI-20).
  */
 export function resolveWatchOutcome(
   status: VersionStatusDto,
   session: SelfUpdateSession,
 ): WatchOutcome {
-  const sameJob = !status.deploy.job_id || status.deploy.job_id === session.jobId;
+  const sameJob = Boolean(status.deploy.job_id) && status.deploy.job_id === session.jobId;
   if (sameJob && (status.deploy.state === 'failed' || status.ui_state === 'failed')) {
     return 'failed';
   }
@@ -69,7 +72,8 @@ export function resolveWatchOutcome(
   ) {
     return 'success';
   }
-  if (installedOnWatchTarget(status, session)) {
+  const target = session.targetSha?.trim() || (sameJob ? status.deploy.target_sha : '');
+  if (target && shasMatch(status.deploy_sha, target)) {
     return 'success';
   }
   return null;

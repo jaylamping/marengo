@@ -1,3 +1,5 @@
+import { JointHomingState } from '@/gen/marengo/v1/marengo_pb';
+
 export type ActuatorCardBadge = {
   id: string;
   label: string;
@@ -7,11 +9,14 @@ export type ActuatorCardBadge = {
 
 /**
  * Compact status chips for Testing telemetry cards.
- * Drive mode is robot-wide (Davout); zero/fault are per-joint.
+ * Drive and reference come from the joint's own wire fields (`drive_active`,
+ * `homing_state`), never from the robot-wide mode: with a commissioning-scope
+ * subset enabled, an undriven or unverified joint must not read ENABLED/ZEROED.
  */
 export function resolveActuatorCardBadges(args: {
   operationalMode: string | null;
-  zeroed: boolean;
+  driveActive: boolean;
+  homingState: JointHomingState;
   fault: number;
 }): ActuatorCardBadge[] {
   const badges: ActuatorCardBadge[] = [];
@@ -24,25 +29,31 @@ export function resolveActuatorCardBadges(args: {
     });
   }
 
-  switch (args.operationalMode) {
-    case 'ACTIVE':
-      badges.push({ id: 'drive', label: 'ENABLED', tone: 'accent' });
-      break;
-    case 'READY':
-      badges.push({ id: 'drive', label: 'READY', tone: 'ok' });
-      break;
-    case 'DISABLED':
-      badges.push({ id: 'drive', label: 'DISABLED', tone: 'muted' });
-      break;
-    default:
-      badges.push({ id: 'drive', label: 'UNKNOWN', tone: 'muted' });
-      break;
+  if (args.operationalMode === null) {
+    badges.push({ id: 'drive', label: 'UNKNOWN', tone: 'muted' });
+  } else if (args.driveActive) {
+    badges.push({ id: 'drive', label: 'ENABLED', tone: 'accent' });
+  } else {
+    badges.push({ id: 'drive', label: 'DISABLED', tone: 'muted' });
   }
 
-  if (args.zeroed || args.operationalMode === 'READY' || args.operationalMode === 'ACTIVE') {
-    badges.push({ id: 'zero', label: 'ZEROED', tone: 'ok' });
-  } else {
-    badges.push({ id: 'zero', label: 'UNHOMED', tone: 'warning' });
+  switch (args.homingState) {
+    case JointHomingState.VERIFIED:
+      badges.push({ id: 'zero', label: 'ZEROED', tone: 'ok' });
+      break;
+    case JointHomingState.HOMING:
+      badges.push({ id: 'zero', label: 'HOMING', tone: 'warning' });
+      break;
+    case JointHomingState.FAULTED:
+      badges.push({ id: 'zero', label: 'REF FAULT', tone: 'fault' });
+      break;
+    case JointHomingState.UNHOMED:
+      badges.push({ id: 'zero', label: 'UNHOMED', tone: 'warning' });
+      break;
+    default:
+      // UNSPECIFIED: the publisher did not populate the field.
+      badges.push({ id: 'zero', label: 'REF ?', tone: 'muted' });
+      break;
   }
 
   return badges;

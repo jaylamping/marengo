@@ -2,22 +2,23 @@
 
 ## Responsibility
 
-Thin page components that serve as react-router `lazy()` entry points. Each page composes the shared `DashboardLayout` shell with its feature-specific overview component. Pages are the only modules loaded lazily — all code splitting boundaries align with page boundaries.
+Thin page shells, imported statically by `routes/config.tsx` so the URL updates at once. Each shell lazy-loads its heavy overview body with `React.lazy` inside `DeferredLazyBody`. The shared chrome (`AppSidebar`, `SiteHeader`, `SceneBackground`) comes from `DashboardLayout` under `RootLayout`.
 
 ## Design
 
-- **Pattern**: Every page follows `export function XxxPage() { return <DashboardLayout><XxxOverview /></DashboardLayout>; }`.
-- `DashboardLayout` provides the persistent chrome: `AppSidebar`, `SiteHeader`, `SceneBackground`, scroll container.
-- Feature overview components are imported statically (they live in the same chunk as the page).
-- `SubsystemsPage` is the only page that prepares data before rendering: it calls `useLiveInventory(robotInventory)` to overlay live Chappe joint positions onto the static inventory, then passes the enriched array to `SubsystemsOverview`.
+- **Pattern**: `export function XxxPage() { return <DeferredLazyBody><XxxOverview /></DeferredLazyBody>; }` with `XxxOverview` from `React.lazy`.
+- `DashboardPage` renders `DashboardOverview` directly and takes an `active` flag so the cached Overview can pause off-route.
+- `SubsystemsPage` is a legacy URL: it redirects to `/telemetry`.
 
 ## Pages
 
 | Route | File | Component | Feature Overview |
 |---|---|---|---|
-| `/` | `dashboard.tsx` | `DashboardPage` | `DashboardOverview` — host cards, charts, URDF preview |
+| `/` | `dashboard.tsx` | `DashboardPage` | `DashboardOverview` — section cards and the CAN bus spectrum |
 | `/simulation` | `simulation.tsx` | `SimulationPage` | `SimulationOverview` — simulation control and scenario browser |
-| `/subsystems` | `subsystems.tsx` | `SubsystemsPage` | `SubsystemsOverview` — inventory table with live joint data |
+| `/telemetry` | `telemetry.tsx` | `TelemetryPage` | `TelemetryOverview` — read-only live joint table |
+| `/subsystems` | `subsystems.tsx` | `SubsystemsPage` | Redirects to `/telemetry` |
+| `/hardware` | `hardware.tsx` | `HardwarePage` | `HardwareOverview` — master config, URDF import, Set Limits, Set Zero |
 | `/logs` | `logs.tsx` | `LogsPage` | `LogsOverview` — structured log viewer with live stream |
 | `/testing` | `testing.tsx` | `TestingPage` | `TestingOverview` — MIT command testing interface |
 
@@ -26,7 +27,8 @@ Thin page components that serve as react-router `lazy()` entry points. Each page
 ```
 DashboardPage:     [AppProviders booted Chappe bridge] → robotStore / hostMetricsStore → DashboardOverview
 SimulationPage:    Static scenario data from data/simulation.ts → SimulationOverview
-SubsystemsPage:    robotInventory (static) + useLiveInventory (live overlay) → SubsystemsOverview
+TelemetryPage:     robotStore RobotState via useLiveInventory → TelemetryOverview (wire state only)
+HardwarePage:      config snapshot + ActuatorLimitSnapshot + RobotState → HardwareOverview → gateway HTTP
 LogsPage:          logBuffer singleton (ring buffer) + log-api.ts HTTP → LogsOverview
 TestingPage:       testingStore (Zustand) → TestingOverview actions → chappe-client.ts HTTP POST
 ```
@@ -37,6 +39,7 @@ TestingPage:       testingStore (Zustand) → TestingOverview actions → chappe
 |---|---|---|
 | Dashboard | `robotStore`, `hostMetricsStore` | Full Chappe stream |
 | Simulation | Static mock data | None |
-| Subsystems | `data/robot-inventory.ts` + `useLiveInventory` | RobotState from Chappe (optional enrichment) |
+| Telemetry | `useLiveInventory` over `robotStore` | RobotState, SafetyState and IMU from Chappe |
+| Hardware | `/config/snapshot`, `actuatorStore`, `robotStore` | ActuatorLimitSnapshot and RobotState from Chappe |
 | Logs | `logBuffer` + `log-api.ts` HTTP | Chappe LogEvent stream |
 | Testing | `testingStore` → `chappe-client.ts` POST | Chappe command and state feedback |

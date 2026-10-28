@@ -102,6 +102,3 @@ export async function connectChappeStream(
     cleanup?.();
   };
 }
-
-/** @deprecated Use connectChappeStream */
-export const connectChappeTelemetry = connectChappeStream;

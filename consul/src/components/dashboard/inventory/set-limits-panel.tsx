@@ -17,6 +17,8 @@ import { fetchActuatorLimits, postSetZeroCommand } from '@/lib/gateway-api';
 import {
   canStartLimitListen,
   limitListenBlockReason,
+  parseJointRange,
+  rangeWidening,
 } from '@/lib/limit-listen';
 import { persistJointLimits } from '@/lib/persist-joint-limits';
 import { queryClient } from '@/lib/query-client';
@@ -25,6 +27,7 @@ import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
 import { useActuatorStore } from '@/state/actuatorStore';
 import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
+import { useTeachStore } from '@/state/teachStore';
 
 const SET_LIMITS_HELP =
   'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position (Hardware holds an Active Reporting lease for free-drive sensing). Stop to propose min/max, then Apply Limits becomes the new durable SoT: hot-reloads Davout hard to the taught min/max (soft = ADR 0009 inset), expand-only URDF, and YAML write-behind (no restart). Encoder jitter at the stop is covered by Davout measured-fault slack (~30 mrad), not by rewriting the stored hard. Later deploys preserve those taught envelopes unless MARENGO_REPLACE_LIMITS=1. Hardware Range reads the live Davout snapshot. Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
@@ -32,7 +35,8 @@ const SET_LIMITS_HELP =
 type SetLimitsPanelProps = {
   jointName: string;
   currentLimit: string;
-  onApplyRange: (range: string) => void;
+  /** Telemetry's draft field only; Hardware reads the live snapshot instead. */
+  onApplyRange?: (range: string) => void;
 };
 
 /**
@@ -68,7 +72,8 @@ export function SetLimitsPanel({
   const [applyOk, setApplyOk] = useState(false);
   const applyInFlightRef = useRef(false);
   const proposedRange = proposal?.display ?? null;
-  const showAppliedFlash = zeroOk || applyOk;
+  const widening = proposal ? rangeWidening(parseJointRange(currentLimit), proposal) : null;
+  const showAppliedFlash = applyOk;
 
   const confirmTitleId = useId();
   const confirmDescId = useId();
@@ -196,6 +201,8 @@ export function SetLimitsPanel({
     setZeroOk(false);
     try {
       await postSetZeroCommand(jointName, { signTestPassed: true });
+      // A new zero shifts taught coordinates: overlays need Acknowledge or Reset (UI-22).
+      useTeachStore.getState().markCalibrationChanged();
       // Gateway 200 only means queued on Chappe — Reference Ready follows wire Verified.
       setZeroOk(true);
       setZeroConfirmOpen(false);
@@ -237,7 +244,7 @@ export function SetLimitsPanel({
         return;
       }
       // Draft only — do not write inventoryOverridesStore; config snapshot is SoT.
-      onApplyRange(proposal.display);
+      onApplyRange?.(proposal.display);
       discard();
       setApplyOk(true);
       if (result.localSync === 'failed') {
@@ -324,6 +331,19 @@ export function SetLimitsPanel({
               Applied
             </Badge>
           ) : null}
+          {zeroOk ? (
+            // Gateway 200 only means queued: Ready follows wire Verified (UI-21).
+            <Badge
+              variant="secondary"
+              className="font-mono text-[10px] uppercase tracking-[0.14em]"
+              role="status"
+              aria-live="polite"
+              title="Set Zero is queued on the Pi. Reference Ready follows the joint's wire homing state (Verified)."
+              data-testid="set-zero-queued"
+            >
+              Zero queued
+            </Badge>
+          ) : null}
           {listening ? (
             <Badge className="border-accent/40 bg-accent/15 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
               Listening
@@ -396,6 +416,14 @@ export function SetLimitsPanel({
             <span className="mx-2 text-muted-foreground">→</span>
             <span className="text-accent">{proposedRange}</span>
           </div>
+          {widening ? (
+            <p className="mt-1 text-warning" role="alert" data-testid="set-limits-widening">
+              Widens the current hard range
+              {widening.lowerRad > 0 ? ` · lower by ${widening.lowerRad.toFixed(3)} rad` : ''}
+              {widening.upperRad > 0 ? ` · upper by ${widening.upperRad.toFixed(3)} rad` : ''}
+              . One spurious sample is enough to do this: check the sweep before Apply.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

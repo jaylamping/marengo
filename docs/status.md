@@ -16,7 +16,7 @@ The **right 5-DOF arm** on the bench is a deliberate first slice to prove the co
 | Electrical | Pi 5 + Waveshare 2-CH MCP2515 CAN HAT (`can0` in use, `can1` free) + BNO085 IMU on I2C. Right arm drives on `can0`, ids 1–5. E-stop GPIO not wired (physical E-stop in motor power is the authority). PDB KiCad project is an empty stub. |
 | Runtime | Rust workspace (15 crates, 6 bins): `marengo-pi` 200 Hz loop, Berthier control, Davout safety supervisor (sole motor path), robstride CAN driver, Chappe bus, `marengo-gateway`. Physical Set Zero with process-local grants (ADR 0036), motion-owner lease, enable completion gate, gravity preflight, single-drive-loss degraded hold (ADR 0038), Davout total-torque bound. |
 | Control | GravityComp, Impedance, TorqueOnly and Position modes. Position uses the ADR 0007 law on four joints; `right_shoulder_pitch` runs the ADR 0039/0040 `scaled_pd` law as a reduced-speed bench trial. |
-| Operator UI | Consul (Vite + React): telemetry, 3D URDF preview, Hardware page (master URDF/YAML, Set Limits, Set Zero, Ready facets, commissioning scope), testing panels. |
+| Operator UI | Consul (Vite + React): Overview, read-only Telemetry, Hardware page (master URDF/YAML import, a schematic 3D joint picker, Set Limits, Set Zero, Ready facets, commissioning scope), Testing panels and Logs. There is no URDF render in the UI. |
 | Tooling | `marengo-pi-mcp` bench tools (deploy, logs, candump, calibration, motion suite, enable soak), research MCP, daily audit, Docker CI gate (`just check`), MuJoCo smoke sim. |
 
 ## Bench checkpoint (last recorded 2026-10-04)

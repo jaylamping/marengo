@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -435,5 +435,40 @@ describe('HardwareOverview', () => {
     await waitFor(() => {
       expect(postEnableCommand).toHaveBeenCalledWith(true);
     });
+  });
+
+  it('shows when an accepted Enable falls back to DISABLED (UI-07)', async () => {
+    useRobotStore.setState({
+      connected: true,
+      operationalMode: 'DISABLED',
+      robotState: {
+        $typeName: 'marengo.v1.RobotState',
+        timestamp: { $typeName: 'google.protobuf.Timestamp', seconds: 0n, nanos: 0 },
+        joints: [
+          wireJoint('right_shoulder_roll'),
+          wireJoint('right_shoulder_pitch'),
+        ],
+      } as never,
+    });
+
+    renderHardware();
+    fireEvent.click(await screen.findByTestId('hardware-enable-ready-in-scope'));
+    // DISABLED alone is the normal pre-enable state; the trip is ACTIVE then DISABLED.
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-enable-outcome')).toHaveTextContent(/waiting for ACTIVE/i);
+    });
+    act(() => useRobotStore.setState({ operationalMode: 'ACTIVE' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-enable-outcome')).toHaveTextContent(/holding ACTIVE/i);
+    });
+    act(() => useRobotStore.setState({ operationalMode: 'DISABLED' }));
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('hardware-enable-outcome')).toHaveTextContent(
+          /returned to DISABLED/i,
+        );
+      },
+      { timeout: 3000 },
+    );
   });
 });

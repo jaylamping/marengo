@@ -64,7 +64,6 @@ describe('HardwareSettingsSheet', () => {
             row={row}
             open
             onOpenChange={() => undefined}
-            onApplyRange={() => undefined}
           />
         </TooltipProvider>
       </MemoryRouter>,
@@ -95,7 +94,6 @@ describe('HardwareSettingsSheet', () => {
             row={row}
             open={false}
             onOpenChange={() => undefined}
-            onApplyRange={() => undefined}
           />
         </TooltipProvider>
       </MemoryRouter>,

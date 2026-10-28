@@ -43,6 +43,7 @@ interface TestingStore {
   ) => void;
   toggleDryRun: () => void;
   setDryRun: (dryRun: boolean) => void;
+  /** Rejects with the gateway error when the POST fails; isRunning is then false. */
   startTest: () => Promise<void>;
   /** Motion go-to-zero for selected joints — not HomingComplete / Mark READY. */
   returnHome: () => Promise<void>;
@@ -104,21 +105,24 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
         ki: gain.ki,
         fc: gain.fc,
         position: setpointRad,
-        velocity: 0,
-        torqueFf: 0,
       });
     });
 
     if (!dryRun) {
       // POSITION ends GravityComp — clear teach preflight checkbox.
       useTeachStore.getState().setGravityArmed(false);
-      await postTestingMitCommandBatch(
-        create(MitCommandBatchSchema, {
-          timestampMs: BigInt(Date.now()),
-          mode: ControlMode.POSITION,
-          joints,
-        }),
-      );
+      try {
+        await postTestingMitCommandBatch(
+          create(MitCommandBatchSchema, {
+            mode: ControlMode.POSITION,
+            joints,
+          }),
+        );
+      } catch (error) {
+        // Nothing was accepted: the hold is not running (UI-13).
+        set({ isRunning: false });
+        throw error;
+      }
     }
   },
   stopTest: async () => {
@@ -155,14 +159,11 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
           ki: gain.ki,
           fc: gain.fc,
           position: measured.position,
-          velocity: 0,
-          torqueFf: 0,
         }),
       );
     }
     await postTestingMitCommandBatch(
       create(MitCommandBatchSchema, {
-        timestampMs: BigInt(Date.now()),
         mode: ControlMode.POSITION,
         joints,
       }),
@@ -185,8 +186,6 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
         ki: gain.ki,
         fc: gain.fc,
         position: 0,
-        velocity: 0,
-        torqueFf: 0,
       });
     });
 
@@ -194,7 +193,6 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(
         create(MitCommandBatchSchema, {
-          timestampMs: BigInt(Date.now()),
           mode: ControlMode.POSITION,
           joints,
         }),
@@ -225,14 +223,11 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       ki: gain.ki,
       fc: gain.fc,
       position: setpointRad,
-      velocity: 0,
-      torqueFf: 0,
     });
     if (!dryRun) {
       useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(
         create(MitCommandBatchSchema, {
-          timestampMs: BigInt(Date.now()),
           mode: ControlMode.IMPEDANCE,
           joints: [joint],
         }),

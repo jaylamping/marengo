@@ -8,7 +8,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TelemetryOverview } from '@/components/dashboard/telemetry/telemetry-overview';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useRobotStore } from '@/state/robotStore';
-import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
@@ -79,7 +78,6 @@ afterEach(() => {
     robotState: null,
     operationalMode: null,
   });
-  useActuatorZeroStore.setState({ zeroed: {} });
   vi.clearAllMocks();
 });
 
@@ -99,7 +97,6 @@ describe('TelemetryOverview', () => {
   });
 
   it('shows unknown Reference facet when wire homing_state is absent', async () => {
-    useActuatorZeroStore.getState().markZeroed('right_shoulder_pitch');
     useRobotStore.setState({
       connected: true,
       robotState: {

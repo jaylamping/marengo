@@ -11,6 +11,15 @@ export function HoldAtControls() {
   const { setpointRad, setSetpoint, startTest, stopTest, returnHome, dryRun, toggleDryRun, isRunning } = useTestingStore();
   // Dry Run is shared with the compound runner; it is frozen while either runs (UI-03).
   const compoundRunning = useCompoundStore((state) => state.isRunning);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // A refused POST is shown, never swallowed (UI-13).
+  const run = (action: () => Promise<void>) => {
+    setError(null);
+    action().catch((cause: unknown) => {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    });
+  };
 
   return (
     <Card variant="panel" className={dashboardPanelCardClassName}>
@@ -42,14 +51,19 @@ export function HoldAtControls() {
           <div className="flex gap-2">
             {isRunning ? (
               <>
-                <Button variant="outline" onClick={returnHome}>Return Home</Button>
-                <Button variant="destructive" onClick={() => void stopTest()}>Stop</Button>
+                <Button variant="outline" onClick={() => run(returnHome)}>Return Home</Button>
+                <Button variant="destructive" onClick={() => run(stopTest)}>Stop</Button>
               </>
             ) : (
-              <Button onClick={startTest}>Start Hold</Button>
+              <Button onClick={() => run(startTest)}>Start Hold</Button>
             )}
           </div>
         </div>
+        {error ? (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

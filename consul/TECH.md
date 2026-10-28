@@ -12,15 +12,15 @@ It is deliberately opinionated and will be updated as the real sharp edges move.
 | Language             | TypeScript (strictest config)   | Non-negotiable for a codebase you will live in daily. |
 | Styling              | **Tailwind CSS 4** + **GLINUI CLI** (Radix primitives) | Primitives seeded via `glinui` CLI into `src/components/ui/*`; “Launch Day” opaque panel tokens in `index.css` (glass tokens retired 2026-07). shadcn `base-mira` retired in PR-8. |
 | Typography           | **IBM Plex Sans** + **IBM Plex Mono** (`@fontsource`) | Plex Mono carries every number and tracked-uppercase micro-label; avionics-legend discipline. Inter retired 2026-07. |
-| Resizable Layout     | `react-resizable-panels` + shadcn `Resizable` wrapper | Exactly the Foxglove-style draggable panes we need. |
-| Command Palette      | `cmdk` (or kbar if we need more) | ⌘K to reach *anything* is table stakes for a functional tool. |
+| Resizable Layout     | Not adopted | No draggable panes today; `react-resizable-panels` is not a dependency. |
+| Command Palette      | Not adopted | No ⌘K palette today; `cmdk` is not a dependency. |
 
 ## 3D Visualizer (First-Class Surface)
 
 | Concern                  | Choice                                      | Notes |
 |--------------------------|---------------------------------------------|-------|
 | 3D Engine                | **@react-three/fiber** + **@react-three/drei** + `three` (latest) | The modern React way. Fiber gives us declarative React components over Three. |
-| URDF / Robot Loading     | Custom loader on top of `three` + `urdf-loader` or our own parser | We will own the loading + joint-driven scene graph so we can do exactly what we want (ghosting, exploded views, contact viz, etc.). |
+| URDF / Robot Loading     | None in the browser today | Consul does not parse or render URDF. Hardware imports and activates the master URDF through the gateway and shows a schematic Three.js joint picker (`components/dashboard/hardware/bench-arm-scene.ts`). |
 | Performance & Polish     | `three` r128+, instanced meshes, proper frustum culling, LOD for complex meshes | Smooth 120 Hz+ camera + selection is non-negotiable. |
 | Interaction              | Pointer events + raycasting + custom orbit controls | Selection must feel instant and precise. |
 
@@ -30,7 +30,7 @@ It is deliberately opinionated and will be updated as the real sharp edges move.
 
 | Concern                    | Choice                              | Why |
 |----------------------------|-------------------------------------|-----|
-| Global Robot State         | **Zustand** (with Immer middleware) | Tiny, excellent TS, great for time-travel / snapshotting later. |
+| Global Robot State         | **Zustand** (plain stores, no Immer) | Tiny, excellent TS, great for time-travel / snapshotting later. |
 | Time-synced Surfaces       | Single source-of-truth time cursor + derived stores | Every plot, the 3D model, the event list, and the joint inspector must be perfectly locked. |
 | Live Plots / Telemetry     | Recharts (or uPlot / @visx for higher perf) | Recharts is good enough for 90% of use cases and has great React 19 ergonomics. We can swap the hot path later. |
 | Session Recording / Replay | Event log + protobuf snapshots + time cursor | Built from day one so scrubbing is perfect. |
@@ -74,7 +74,7 @@ This stack is chosen so that in 2026–2027 Consul can be the best-feeling robot
 
 ---
 
-**Current status (July 2026)**: Dashboard shell + live Chappe telemetry path (gateway + WebTransport client). “Launch Day” visual system landed: opaque `--surface-*` panel ramp + hairlines replacing all glass, amber-phosphor accent with armed/caution semantics, IBM Plex Sans/Mono typography, semantic LEDs and corner brackets, NASA SVS star-map backdrop drifting behind the fullscreen URDF canvas. Radix-backed primitives via GLINUI CLI; URDF-first 3D and session replay are next.
+**Current status (July 2026)**: Dashboard shell + live Chappe telemetry path (gateway + WebTransport client). “Launch Day” visual system landed: opaque `--surface-*` panel ramp + hairlines replacing all glass, amber-phosphor accent with armed/caution semantics, IBM Plex Sans/Mono typography, semantic LEDs and corner brackets, an ambient dust backdrop (`layout/scene-background.tsx`, R3F) behind the panels. Radix-backed primitives via GLINUI CLI. There is no URDF render or session replay yet.
 
 ## UI primitive workflow
 

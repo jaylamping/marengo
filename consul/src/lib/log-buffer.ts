@@ -8,9 +8,8 @@ export const MAX_LOG_COUNT = 5_000;
 export const INITIAL_LOG_SEED_COUNT = 500;
 export const SNAPSHOT_HYDRATE_LIMIT = 300;
 const UI_NOTIFY_MS = 400;
+/** INFO/DEBUG sampling cap; WARN and above are always kept (see allowIngest). */
 const MAX_INGEST_PER_SEC = 10;
-/** Cap protobuf decodes when live — ingest filter drops more after decode. */
-const MAX_DECODE_PER_SEC = 12;
 
 export type LevelCounts = Record<LogLevel, number>;
 
@@ -224,8 +223,6 @@ let paused = true;
 let logsPageActive = false;
 let ingestWindowStart = 0;
 let ingestWindowCount = 0;
-let decodeWindowStart = 0;
-let decodeWindowCount = 0;
 let liveTimer: number | undefined;
 const liveListeners = new Set<() => void>();
 
@@ -307,20 +304,13 @@ export function shouldIngestLogEvents(): boolean {
   return logsPageActive && !paused;
 }
 
+/**
+ * Every event is decoded while ingesting: the level is only known after decode,
+ * so a decode cap dropped WARN/ERROR bursts. Sampling happens in allowIngest,
+ * which keeps every WARN and above (UI-18).
+ */
 export function shouldDecodeLogEvents(): boolean {
-  if (!shouldIngestLogEvents()) {
-    return false;
-  }
-  const now = Date.now();
-  if (now - decodeWindowStart >= 1000) {
-    decodeWindowStart = now;
-    decodeWindowCount = 0;
-  }
-  if (decodeWindowCount >= MAX_DECODE_PER_SEC) {
-    return false;
-  }
-  decodeWindowCount += 1;
-  return true;
+  return shouldIngestLogEvents();
 }
 
 export function subscribeLogLive(listener: () => void): () => void {

@@ -48,6 +48,8 @@ describe('testing store stop paths', () => {
     const sent = fromBinary(MitCommandBatchSchema, toBinary(MitCommandBatchSchema, batch!));
     expect(sent.mode).toBe(ControlMode.POSITION);
     expect(sent.joints.map((j) => [j.name, j.position])).toEqual([[JOINT, 0.42]]);
+    // Deprecated fields (P-armee-proto-04) are not written, so they can be reserved (UI-29).
+    expect(sent.timestampMs).toBe(0n);
   });
 
   it.each(['DISABLED', 'READY'] as const)(
@@ -95,5 +97,16 @@ describe('testing store stop paths', () => {
     await useTestingStore.getState().stopTest();
     expect(postTestingMitCommandBatch).not.toHaveBeenCalled();
     expect(postEnableCommand).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('testing store start path', () => {
+  it('a refused Start Hold leaves the hold not running and rejects (UI-13)', async () => {
+    useTestingStore.setState({ isRunning: false });
+    vi.mocked(postTestingMitCommandBatch).mockRejectedValue(
+      new Error('joint not command-eligible: left_elbow'),
+    );
+    await expect(useTestingStore.getState().startTest()).rejects.toThrow('command-eligible');
+    expect(useTestingStore.getState().isRunning).toBe(false);
   });
 });

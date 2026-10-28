@@ -34,14 +34,12 @@ type HardwareSettingsSheetProps = {
   row: HardwareJointRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplyRange: (range: string) => void;
 };
 
 export function HardwareSettingsSheet({
   row,
   open,
   onOpenChange,
-  onApplyRange,
 }: HardwareSettingsSheetProps) {
   const operationalMode = useRobotStore((s) => s.operationalMode);
   const leaseEnabled = open && row != null && row.onCan;
@@ -102,7 +100,6 @@ export function HardwareSettingsSheet({
                 <SetLimitsPanel
                   jointName={row.joint}
                   currentLimit={row.liveRange}
-                  onApplyRange={onApplyRange}
                 />
                 <LocalLimitSyncSession />
               </section>

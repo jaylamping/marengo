@@ -1,14 +1,14 @@
 # consul/
 
 ## Responsibility
-**Operator web UI** (Consul) — Vite + React + TypeScript dashboard for robot telemetry, enable/disable, testing panels, URDF preview, logs, and host metrics. Separate npm workspace from Rust Armée.
+**Operator web UI** (Consul) — Vite + React + TypeScript dashboard for robot telemetry, enable/disable, the Hardware page, testing panels, logs, and host metrics. Separate npm workspace from Rust Armée.
 
 ## Design
 - **SPA** with React Router (`createBrowserRouter`)
 - **State management**: Zustand stores in `src/state/`
 - **Telemetry client**: `chappe-client.ts` — WebTransport primary, HTTP stream fallback
 - **Component library**: GLINUI/Radix primitives under `components/ui/`, “Launch Day” panel skins (see `DESIGN.md`)
-- **Dashboard panels**: testing (hold-at, PID sliders), simulation, URDF preview, inventory, logs, metrics
+- **Dashboard panels**: overview, telemetry, hardware (Set Limits, Set Zero, schematic 3D joint picker), testing (hold-at, PID sliders, compound playback), simulation, logs, metrics
 - Buf-generated protobuf types in `src/gen/`
 
 ## Flow

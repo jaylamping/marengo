@@ -123,13 +123,6 @@ export async function patchConfig(
   }
 }
 
-export function motorForJoint(
-  snapshot: ConfigSnapshotDto | null | undefined,
-  joint: string,
-): MotorConfigEntryDto | undefined {
-  return snapshot?.motors.find((m) => m.joint === joint);
-}
-
 /** Restart marengo-pi so Davout reloads hard limits from motors.yaml. */
 export async function restartMarengoPi(init?: {
   signal?: AbortSignal;

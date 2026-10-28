@@ -6,7 +6,6 @@ import {
   type InventoryGroup,
   type InventoryItem,
   type InventoryKind,
-  type InventoryStatus,
 } from '@/data/robot-inventory';
 
 export const INVENTORY_OVERRIDES_STORAGE_KEY = 'marengo.inventory.overrides.v1';
@@ -20,13 +19,6 @@ export type InventoryOverridesPersisted = {
 
 const INVENTORY_GROUPS = new Set<string>(INVENTORY_GROUP_ORDER);
 const INVENTORY_KINDS = new Set<string>(['actuator', 'sensor', 'device']);
-const INVENTORY_STATUSES = new Set<string>([
-  'Enabled',
-  'Tuning',
-  'Fault',
-  'Offline',
-  'Nominal',
-]);
 
 const emptyPersisted = (): InventoryOverridesPersisted => ({ version: 1, overrides: {} });
 
@@ -47,9 +39,7 @@ function parsePatch(value: unknown): Partial<InventoryIdentityPatch> | null {
   if (typeof value.kind === 'string' && INVENTORY_KINDS.has(value.kind)) {
     patch.kind = value.kind as InventoryKind;
   }
-  if (typeof value.status === 'string' && INVENTORY_STATUSES.has(value.status)) {
-    patch.status = value.status as InventoryStatus;
-  }
+  // `status` is never restored from storage: it comes from the wire only (UI-08).
   if (typeof value.preset === 'string') patch.preset = value.preset;
   if (typeof value.limit === 'string') patch.limit = value.limit;
   return Object.keys(patch).length > 0 ? patch : null;
@@ -109,7 +99,8 @@ export function applyOverrides(
   overrides: InventoryIdentityOverrides,
 ): InventoryRow {
   const patch = overrides[item.id];
-  return patch === undefined ? item : { ...item, ...patch };
+  // An identity patch never overrides the live status.
+  return patch === undefined ? item : { ...item, ...patch, status: item.status };
 }
 
 type InventoryOverridesStore = {

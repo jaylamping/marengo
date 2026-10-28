@@ -10,9 +10,8 @@ React application source — routing, state, Chappe client, dashboard components
 | Pages | `pages/` | Top-level page components |
 | State | `state/` | Zustand stores (testing, host metrics, telemetry) |
 | Client | `lib/chappe-client.ts` | WebTransport/HTTP stream, enable POST, health check |
-| Components | `components/dashboard/` | Operator panels (testing, URDF, logs, metrics) |
+| Components | `components/dashboard/` | Operator panels (overview, telemetry, hardware, testing, logs, metrics) |
 | Data | `data/` | Static robot inventory metadata |
-| Assets | `assets/urdf/` | Client-side URDF helpers for preview |
 | Generated | `gen/` | Buf protobuf TypeScript output |
 
 ## Flow
