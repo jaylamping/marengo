@@ -6,7 +6,9 @@ Usage:
   python scripts/analyze-position-trace.py /path/to/position-trace.csv --json
 
 Emits per-target-move segments with jerk/lead/rate-limit indicators so tuning
-changes can be compared without eyeballing thousands of rows.
+changes can be compared without eyeballing thousands of rows. Segments, the Layer 2
+gate and the onset report cover one joint: the trace's only joint, or `--joint` on a
+multi-joint trace (rows of other joints would each start a segment).
 
 Trace columns (2026-06-13+): `target_raw`, `q_env_lo`, `q_env_hi` document ADR 0009
 limit envelope clamping; older CSVs without these columns still analyze.
@@ -257,6 +259,20 @@ def _i(row: dict[str, str], key: str) -> int:
 def _rows(path: Path) -> list[dict[str, str]]:
     with path.open(newline="") as f:
         return list(csv.DictReader(f))
+
+
+def _segment_rows(
+    rows: list[dict[str, str]], joint: str | None
+) -> tuple[str | None, list[dict[str, str]]]:
+    """The joint whose rows are segmented and those rows.
+
+    A trace with one joint (or no joint column) is used whole. A multi-joint trace interleaves
+    every joint's row each tick, so only `joint`'s rows are kept.
+    """
+    joints = {r["joint"] for r in rows if r.get("joint")}
+    if len(joints) <= 1:
+        return next(iter(joints), None), rows
+    return joint, [r for r in rows if r.get("joint") == joint]
 
 
 def _split_segments(rows: list[dict[str, str]]) -> list[list[dict[str, str]]]:
@@ -824,13 +840,17 @@ def analyze(
     require_home_start: bool = False,
     bench_joint: str | None = None,
     bench_log: Path | None = None,
+    joint: str | None = None,
 ) -> dict:
     rows = _rows(path)
-    segments = _split_segments(rows)
+    segment_joint, segment_rows = _segment_rows(rows, joint)
+    segments = _split_segments(segment_rows)
     segment_reports = [_analyze_segment(s) for s in segments]
     result: dict = {
         "path": str(path),
         "samples": len(rows),
+        "segment_joint": segment_joint,
+        "segment_samples": len(segment_rows),
         "segments": [asdict(s) for s in segment_reports],
     }
     if bench_joint is not None:
@@ -850,6 +870,10 @@ def analyze(
 
 def _print_human(report: dict, segment_detail: bool = True) -> None:
     print(f"trace: {report['path']} ({report['samples']} samples)")
+    print(
+        f"segments of {report['segment_joint'] or 'the trace'} "
+        f"({report['segment_samples']} samples)"
+    )
     if not segment_detail:
         # Every-tick waves retarget each tick, so the per-target segment dump grows to one block
         # per row (51,369 segments, 16 MiB on a 2026-10-04 pitch sweep) and buries the verdict.
@@ -1033,7 +1057,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument(
         "--joint",
         default="right_shoulder_pitch",
-        help="joint scored by --score-bench (default right_shoulder_pitch)",
+        help="joint scored by --score-bench, and segmented on a multi-joint trace "
+        "(default right_shoulder_pitch)",
     )
     parser.add_argument(
         "--bench-log",
@@ -1059,6 +1084,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         require_home_start=args.require_home_start,
         bench_joint=args.joint if args.score_bench else None,
         bench_log=args.bench_log,
+        joint=args.joint,
     )
     if args.json:
         json.dump(report, sys.stdout, indent=2)
