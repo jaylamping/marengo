@@ -2021,6 +2021,13 @@ fn quit_if_output_closed(runtime: &ControlLoopRuntime<'_>) -> bool {
     true
 }
 
+/// The loop must stop now: `quit`, EOF or a signal set `shutdown`, or the
+/// operator pipe closed. Checked before every stdin dispatch and after every
+/// phase, so nothing queued behind an EPIPE runs (TOOL-06).
+fn stop_requested(runtime: &ControlLoopRuntime<'_>) -> bool {
+    quit_if_output_closed(runtime) || runtime.shutdown.load(Ordering::SeqCst)
+}
+
 #[tracing::instrument(skip(loop_ctrl, runtime))]
 fn run_control_loop<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
@@ -2037,15 +2044,12 @@ fn run_control_loop<B: MotorBus>(
     let mut enable_gate = EnableGate::default();
     runtime.actuator_overlay.set_motion_lease(runtime.motion);
 
-    'control: while !runtime.shutdown.load(Ordering::SeqCst) {
-        if quit_if_output_closed(runtime) {
-            break;
-        }
+    'control: while !stop_requested(runtime) {
         let tick_start = Instant::now();
 
         let t = tick_start;
         loop {
-            if runtime.shutdown.load(Ordering::SeqCst) {
+            if stop_requested(runtime) {
                 break 'control;
             }
             // Commands deferred behind a drained reference queue or a passed
@@ -2078,7 +2082,8 @@ fn run_control_loop<B: MotorBus>(
                     Err(_) => break,
                 },
             };
-            if runtime.shutdown.load(Ordering::SeqCst) {
+            // A refusal printed during admission may itself have hit EPIPE.
+            if stop_requested(runtime) {
                 break 'control;
             }
             if !dispatch_stdin_command(
@@ -2092,7 +2097,7 @@ fn run_control_loop<B: MotorBus>(
                 break 'control;
             }
         }
-        if quit_if_output_closed(runtime) {
+        if stop_requested(runtime) {
             break;
         }
         let (outer_stdin_us, t_next) = phase_elapsed_us(t);
@@ -2109,7 +2114,7 @@ fn run_control_loop<B: MotorBus>(
             runtime.status_poll_rx,
             runtime.shutdown,
         );
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop_requested(runtime) {
             break;
         }
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
@@ -2122,7 +2127,7 @@ fn run_control_loop<B: MotorBus>(
             runtime.testing_cmd_rx,
             runtime.shutdown,
         );
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop_requested(runtime) {
             break;
         }
         runtime.actuator_overlay.drain_commands_until_shutdown(
@@ -2134,7 +2139,7 @@ fn run_control_loop<B: MotorBus>(
         );
         let (_outer_actuator_us, _t) = phase_elapsed_us(t_after_chappe);
 
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop_requested(runtime) {
             break;
         }
         // One bounded slice of a pending gravity sweep; this iteration's tick
@@ -2147,11 +2152,11 @@ fn run_control_loop<B: MotorBus>(
             runtime.shutdown,
             SliceBudget::PER_TICK,
         );
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop_requested(runtime) {
             break;
         }
         loop_ctrl.supervisor_mut().sync_active_reporting();
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop_requested(runtime) {
             break;
         }
 
@@ -2178,7 +2183,7 @@ fn run_control_loop<B: MotorBus>(
         // After the tick: report a completed (or refused) Enable, then retry
         // deferred Position-mode arms.
         emit(enable_gate.poll(loop_ctrl, Instant::now()));
-        if runtime.shutdown.load(Ordering::SeqCst) {
+        if stop_requested(runtime) {
             break;
         }
 

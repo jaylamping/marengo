@@ -48,12 +48,55 @@ pub(crate) fn stderr_line(args: fmt::Arguments<'_>) {
 // Tests keep the harness's output capture, which only the print macros reach.
 #[cfg(test)]
 pub(crate) fn stdout_line(args: fmt::Arguments<'_>) {
-    println!("{args}");
+    if !closed_pipe_line(args) {
+        println!("{args}");
+    }
 }
 
 #[cfg(test)]
 pub(crate) fn stderr_line(args: fmt::Arguments<'_>) {
-    eprintln!("{args}");
+    if !closed_pipe_line(args) {
+        eprintln!("{args}");
+    }
+}
+
+/// A pipe whose reader is gone: every write fails with EPIPE.
+#[cfg(test)]
+struct ClosedPipe;
+
+#[cfg(test)]
+impl Write for ClosedPipe {
+    fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+        Err(io::Error::from(io::ErrorKind::BrokenPipe))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Err(io::Error::from(io::ErrorKind::BrokenPipe))
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Test seam: while set, this thread's operator lines go to a closed pipe
+    /// that records the EPIPE in the given flag, as the real stdout would.
+    static CLOSED_PIPE: std::cell::Cell<Option<&'static AtomicBool>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// Send this thread's operator lines to a closed pipe recording into
+/// `closed` (`None` restores the harness capture).
+#[cfg(test)]
+pub(crate) fn close_pipe_on_this_thread(closed: Option<&'static AtomicBool>) {
+    CLOSED_PIPE.with(|pipe| pipe.set(closed));
+}
+
+#[cfg(test)]
+fn closed_pipe_line(args: fmt::Arguments<'_>) -> bool {
+    let Some(closed) = CLOSED_PIPE.with(std::cell::Cell::get) else {
+        return false;
+    };
+    write_line(&mut ClosedPipe, args, closed);
+    true
 }
 
 /// `println!` that never panics; see the module doc.
@@ -75,18 +118,6 @@ pub(crate) use {say, say_err};
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    struct ClosedPipe;
-
-    impl Write for ClosedPipe {
-        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
-            Err(io::Error::from(io::ErrorKind::BrokenPipe))
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Err(io::Error::from(io::ErrorKind::BrokenPipe))
-        }
-    }
 
     struct Full;
 
