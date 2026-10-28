@@ -31,6 +31,7 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 | GET | `/snapshot/host/metrics/jetson` | — | `application/x-protobuf` `HostMetrics` |
 | GET | `/stream/chappe?topics=…` | — | `application/vnd.marengo.chappe-stream` chunked Envelope stream |
 | POST | `/command/enable` | `application/x-protobuf` `EnableRequest` | JSON `{ "ok": true }` |
+| POST | `/command/disable` | empty (no credential; Origin checked) | JSON `{ "ok": true }` |
 
 ### WebTransport contract (phase 1)
 

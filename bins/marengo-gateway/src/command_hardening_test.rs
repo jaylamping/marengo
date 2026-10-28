@@ -229,6 +229,37 @@ async fn enable_true_flood_is_limited_but_disable_never_is() {
     }
 }
 
+/// EDGE-01: a stop needs no credential, only an acceptable Origin.
+#[tokio::test]
+async fn disable_needs_no_credential_but_checks_origin() {
+    let (app, mut rx) = fixture(ENABLE_TOPIC);
+    for (origin, expected) in [
+        (None, StatusCode::OK),
+        (Some("http://localhost:5173"), StatusCode::OK),
+        (Some("https://foreign.fixture"), StatusCode::FORBIDDEN),
+    ] {
+        let mut request = Request::builder().method("POST").uri("/command/disable");
+        if let Some(origin) = origin {
+            request = request.header("origin", origin);
+        }
+        let response = app
+            .clone()
+            .oneshot(request.body(Body::empty()).expect("request"))
+            .await
+            .expect("response");
+        assert_eq!(response.status(), expected, "origin {origin:?}");
+        let published = rx.try_recv();
+        if expected == StatusCode::OK {
+            let envelope =
+                Envelope::decode(published.expect("published").as_slice()).expect("envelope");
+            let request = EnableRequest::decode(envelope.payload.as_slice()).expect("request");
+            assert!(!request.enable, "disable route published an enable");
+        } else {
+            assert!(published.is_err(), "refused disable must not publish");
+        }
+    }
+}
+
 #[tokio::test]
 async fn malformed_bodies_stay_bad_request() {
     let (app, _rx) = fixture(MIT_TOPIC);

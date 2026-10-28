@@ -153,6 +153,7 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             "/command/enable",
             post(command_enable).layer(DefaultBodyLimit::max(COMMAND_BODY_LIMIT)),
         )
+        .route("/command/disable", post(command_disable))
         .route(
             "/command/testing_mit",
             post(command_testing_mit).layer(DefaultBodyLimit::max(COMMAND_BODY_LIMIT)),
@@ -239,6 +240,9 @@ async fn authorize_api(
     ) {
         if path == "/command/set_zero" {
             Some(Capability::Calibration)
+        } else if path == "/command/disable" {
+            // A stop never waits for a credential (EDGE-01); Origin is checked above.
+            None
         } else if path.starts_with("/command/") && path != "/command/home" {
             Some(Capability::Control)
         } else if path.starts_with("/config/") || path.starts_with("/hardware/") {
@@ -432,6 +436,29 @@ async fn command_enable(
         }
         return Err((StatusCode::BAD_GATEWAY, e));
     }
+    Ok(Json(OkResponse { ok: true }))
+}
+
+/// Software Disable with no credential. Consul keeps credentials in tab
+/// memory, so a reloaded or second tab could not stop the robot through the
+/// Control-gated `/command/enable` (EDGE-01). The Pi admits Disable from any
+/// source; browser Origin is still enforced by `authorize_api`.
+async fn command_disable(
+    State(state): State<SharedState>,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let payload = EnableRequest {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        operator_id: "consul".into(),
+        enable: false,
+    }
+    .encode_to_vec();
+    state
+        .publish_command_envelope(TOPIC_ENABLE, "consul", "marengo.v1.EnableRequest", payload)
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
     Ok(Json(OkResponse { ok: true }))
 }
 

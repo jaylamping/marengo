@@ -36,7 +36,7 @@ it('retired build credentials do not provide runtime authorization', () => {
 it('actual command/configuration/log/management clients select the runtime capability credential', async () => {
   for (const purpose of purposes) setRuntimeCredential(purpose,`isolated-${purpose}-fixture`);
   const cases: Array<[() => Promise<unknown>,string]> = [
-    [() => postEnableCommand(false),'control'],
+    [() => postEnableCommand(true),'control'],
     [() => postTestingMitCommandBatch(create(MitCommandBatchSchema)),'control'],
     [() => postActuatorCommand(create(OperatorCommandSchema)),'control'],
     [() => postSetZeroCommand('right_shoulder_pitch',{signTestPassed:true}),'calibration'],
@@ -55,6 +55,13 @@ it('actual command/configuration/log/management clients select the runtime capab
     expect(url).not.toContain('fixture');
     expect(new Headers(init.headers).has('x-marengo-log-token')).toBe(false);
   }
+});
+
+it('software disable reaches the gateway with no credential at all', async () => {
+  await postEnableCommand(false);
+  const [url,init]=fetchMock.mock.calls.at(-1)!;
+  expect(url).toBe('http://127.0.0.1:1/command/disable');
+  expect(new Headers(init.headers).has('authorization')).toBe(false);
 });
 
 it('runtime entry updates the shared client state and clearing it removes authorization without storage', () => {
