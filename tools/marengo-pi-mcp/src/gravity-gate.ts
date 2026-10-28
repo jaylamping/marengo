@@ -11,6 +11,11 @@
  * reports ~0 Nm whatever the load, which is not a gravity measurement; then the gate
  * evaluates τ_g at the profile's hanging rest pose instead, where the physical gravity
  * torque is ~0, and refuses when |τ_g| ≥ 0.20 Nm.
+ *
+ * Limit of the hanging-rest basis (TOOL-10): at rest every COM hangs under its axis, so
+ * τ_g ≈ 0 for any link masses. It catches COM, axis and zero-offset errors, never a
+ * wrong mass. Only the measured basis (arm held at a pose) checks masses. It is also
+ * MCP-only: Consul and stdin enables never run it.
  */
 
 import { type BenchProfile, profileMeta } from "./bench-profiles.js";
