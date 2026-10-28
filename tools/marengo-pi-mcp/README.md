@@ -64,11 +64,9 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on **Windows, macOS, and Linux** (there is no WSL checkout; ADR 0018).
 
-**macOS / Linux:** mcp.json uses **`bash` + [`run-mcp.sh`](run-mcp.sh)**. Cursor's spawn PATH often lacks mise `node`, so bare `node` fails with `spawn node ENOENT`. The shell launcher finds mise (or `MARENGO_MCP_NODE`).
+mcp.json runs **`node ${workspaceFolder}/tools/marengo-pi-mcp/dist/launch.js`** on every host. If Cursor's spawn PATH lacks `node` (`spawn node ENOENT`, e.g. mise without shims), point the entry at [`run-mcp.sh`](run-mcp.sh) (macOS / Linux) or [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1) (Windows) in your local mcp.json: they resolve `node` (mise or `MARENGO_MCP_NODE`) and exec `dist/launch.js`.
 
-**Windows (`J:\code\marengo`, software + CAD session):** prefer [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1) — Cursor often lacks Git `sh`/`bash`. Those wrappers exec [`dist/launch.js`](src/launch.ts) once `node` is resolved.
-
-Profile / SSH defaults live in [`src/launch.ts`](src/launch.ts) / `run-mcp.sh` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0018](../../docs/decisions/0018-windows-macos-software-home.md)).
+Host, user, root, config dir and bench profile defaults live in one place, `MCP_DEFAULTS` in [`src/config.ts`](src/config.ts) (host `joey-robot.tail0b414.ts.net`, profile `elbow_attached`); [`src/launch.ts`](src/launch.ts) exports them to the environment. They are **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0018](../../docs/decisions/0018-windows-macos-software-home.md)).
 
 Open the marengo repo root as the Cursor workspace: `J:\code\marengo` on Windows, or the macOS host checkout (ADR 0018).
 

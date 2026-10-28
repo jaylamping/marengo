@@ -13,8 +13,8 @@ This script:
   1. Removes `project-0-*-marengo-pi` from every marengo workspace disabled list
   2. Re-approves the current mcp.json hash for known marengo workspaces
 
-Prefer keeping profile/SSH defaults in `tools/marengo-pi-mcp/run-mcp.sh` (not
-mcp.json) so the approval hash stays stable.
+Keep profile/SSH defaults in `MCP_DEFAULTS` (tools/marengo-pi-mcp/src/config.ts),
+not mcp.json, so the approval hash stays stable.
 
 Close Cursor (or at least fully quit) before running with --write when possible,
 otherwise the live state DB may race the WAL. Dry-run is the default.
