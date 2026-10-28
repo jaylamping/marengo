@@ -4316,6 +4316,53 @@ mod tests {
     }
 
     #[test]
+    fn danger_zone_rule_the_filter_cannot_apply_is_refused() {
+        // P2A-08: validation refuses these rules at load. If one reaches the
+        // filter anyway, a missing torque cap must not fall back to the
+        // velocity bound and an unknown action must not be skipped.
+        for (action, max_torque_nm) in [("clamp_torque", None), ("brake_hard", Some(1.0))] {
+            let bus = SimulationBus::default();
+            let mut sup = Supervisor::from_simulation(
+                repo_root(),
+                bus,
+                InitialVirtualReference::AllConfigured,
+            )
+            .expect("supervisor");
+            receive_pose(&mut sup, "right_shoulder_pitch", 1.0, -0.5);
+            sup.control.control.danger_zones = vec![marengo_config::DangerZoneRule {
+                name: "unapplicable".into(),
+                joint: "right_shoulder_pitch".into(),
+                position_above_rad: 0.5,
+                velocity_below_rad_s: 0.0,
+                action: action.into(),
+                max_velocity_rad_s: 0.45,
+                max_torque_nm,
+            }];
+            // Per-call validation refuses first on the filter path, so call
+            // the clamp step itself to pin its own refusal.
+            let mut cmd = MitJointCommand {
+                joint: "right_shoulder_pitch".to_string(),
+                kp: 10.0,
+                kd: 0.0,
+                position_rad: 1.0,
+                velocity_rad_s: -0.5,
+                torque_ff_nm: 2.0,
+            };
+            let refused = sup.apply_danger_zone_clamps(&mut cmd, 1.0, -0.5);
+            match refused {
+                Err(DavoutError::InvalidMotorConfig { message, .. }) => {
+                    assert!(message.contains("danger zone"), "{action}: {message}");
+                }
+                other => panic!("{action}: expected a refusal, got {other:?}"),
+            }
+            assert_eq!(
+                cmd.torque_ff_nm, 2.0,
+                "{action}: no cap taken from the velocity bound"
+            );
+        }
+    }
+
+    #[test]
     fn send_mit_records_extended_frame_when_active() {
         let bus = SimulationBus::default();
         let mut sup =
