@@ -409,3 +409,124 @@ fn later_control_save_preserves_pending_limit_patch() {
     assert_eq!(control.position_soft_upper_rad, Some(2.2));
     assert_eq!(control.impedance.kp, 47.0);
 }
+
+/// A limit patch on right_elbow_pitch setting the bench lower bound.
+fn limit_request(
+    config_dir: &std::path::Path,
+    lower: f64,
+    timestamp_ms: u64,
+    session: &str,
+) -> PersistRequest {
+    let mut request = request(config_dir, 41.0, timestamp_ms, session);
+    let mut motors = load_motors_config_from(config_dir).expect("motors fixture");
+    motors
+        .motors
+        .iter_mut()
+        .find(|motor| motor.joint == request.joint)
+        .expect("fixture joint")
+        .bench
+        .position_lower_rad = lower;
+    request.motors = Some(motors);
+    request.param = "limit_patch".into();
+    request
+}
+
+#[test]
+fn coalesced_limit_patch_gets_its_completion_and_keeps_its_bounds() {
+    let (temp, config_dir) = copied_config();
+    let urdf_dir = temp.path().join("assets/urdf");
+    std::fs::create_dir_all(&urdf_dir).expect("urdf dir");
+    std::fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/urdf/marengo.urdf"),
+        urdf_dir.join("marengo.urdf"),
+    )
+    .expect("urdf fixture");
+    let lower = load_motors_config_from(&config_dir)
+        .expect("motors fixture")
+        .motors
+        .iter()
+        .find(|motor| motor.joint == "right_elbow_pitch")
+        .expect("fixture joint")
+        .bench
+        .position_lower_rad
+        - 0.05;
+    let chappe = Arc::new(Bus::new(16));
+    let mut actions_rx = chappe.subscribe(TOPIC_AUDIT_ACTION);
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel::<()>();
+    let _release_on_failure = ReleaseOnDrop(release_tx.clone());
+    let gate_rx = Mutex::new(release_rx);
+    let queue = ConfigPersistQueue::spawn_with_test_hooks(
+        Arc::clone(&chappe),
+        temp.path().to_path_buf(),
+        PersistTestHooks {
+            before_write: Some(Arc::new(move |request| {
+                if request.session_id == "in-flight" {
+                    let _ = entered_tx.send(());
+                    let _ = gate_rx
+                        .lock()
+                        .expect("single gate")
+                        .recv_timeout(CLEANUP_BOUND);
+                }
+            })),
+            ..PersistTestHooks::default()
+        },
+    );
+    queue
+        .enqueue(request(&config_dir, 40.0, 9000, "in-flight"))
+        .expect("first write");
+    entered_rx
+        .recv_timeout(CLEANUP_BOUND)
+        .expect("first write in flight");
+    // While the worker is busy: a limit patch, then two control saves. The
+    // patch coalesces into the first save, which coalesces into the second.
+    queue
+        .enqueue(limit_request(&config_dir, lower, 9001, "limit-first"))
+        .expect("limit patch");
+    queue
+        .enqueue(request(&config_dir, 42.0, 9002, "save-second"))
+        .expect("control save");
+    queue
+        .enqueue(request(&config_dir, 43.0, 9003, "save-third"))
+        .expect("control save");
+    let _ = release_tx.send(());
+    assert!(queue.wait_idle(CLEANUP_BOUND), "queue drains");
+
+    let mut actions = Vec::new();
+    while let Ok(bytes) = actions_rx.try_recv() {
+        let envelope = Envelope::decode(bytes.as_slice()).expect("worker envelope");
+        actions.push(ActionEvent::decode(envelope.payload.as_slice()).expect("worker action"));
+    }
+    let limit = actions
+        .iter()
+        .find(|event| event.session_id == "limit-first")
+        .expect("coalesced limit patch completion");
+    assert_eq!(limit.action, "limit_patch_persist");
+    assert_eq!(limit.timestamp_ms, 9001);
+    assert_eq!(limit.joint, "right_elbow_pitch");
+    assert!(limit.accepted, "{}", limit.reject_reason);
+    assert_eq!(limit.persist_status, PersistStatus::Durable as i32);
+    assert!(!actions
+        .iter()
+        .any(|event| event.session_id == "save-second"));
+    assert!(actions.iter().any(|event| event.session_id == "save-third"));
+    let written = load_motors_config_from(&config_dir)
+        .expect("written motors")
+        .motors
+        .into_iter()
+        .find(|motor| motor.joint == "right_elbow_pitch")
+        .expect("written joint");
+    assert_eq!(
+        written.bench.position_lower_rad, lower,
+        "the limit bounds survive two later control saves"
+    );
+    assert_eq!(
+        load_control_config_from(&config_dir)
+            .expect("written control")
+            .control
+            .joints["right_elbow_pitch"]
+            .impedance
+            .kp,
+        43.0
+    );
+}

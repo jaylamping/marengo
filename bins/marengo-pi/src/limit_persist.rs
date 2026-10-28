@@ -85,6 +85,9 @@ pub struct ConfigPersistQueue {
 
 struct PersistSlot {
     request: Option<PersistRequest>,
+    /// Coalesced limit patches whose bounds `request` carries; each still gets
+    /// its own completion event when `request` is written.
+    carried: Vec<CarriedCompletion>,
     writing: bool,
     accepting: bool,
     worker_done: bool,
@@ -108,7 +111,8 @@ pub(crate) enum PersistDrainStatus {
 /// Counters finalize after the local publication attempt returns. In-flight
 /// includes writes already on disk whose matching completion has not returned;
 /// it does not imply that the disk is unchanged. Coalesced requests are counted
-/// separately and receive no invented completion event.
+/// separately. A coalesced limit patch whose bounds the later write carries
+/// gets that write's completion; nothing else gets an invented one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PersistDrainReport {
     pub status: PersistDrainStatus,
@@ -188,6 +192,14 @@ pub(crate) struct PersistRequest {
     pub joint: String,
     pub param: String,
 }
+/// Identity of a coalesced limit patch, for its completion event.
+struct CarriedCompletion {
+    timestamp_ms: u64,
+    session_id: String,
+    operator_id: String,
+    joint: String,
+}
+
 fn carry_pending_limit_patch(
     pending: &PersistRequest,
     latest: &mut PersistRequest,
@@ -271,6 +283,7 @@ impl ConfigPersistQueue {
         let (wake_tx, wake_rx) = sync_channel::<()>(1);
         let pending = Arc::new(Mutex::new(PersistSlot {
             request: None,
+            carried: Vec::new(),
             writing: false,
             accepting: true,
             worker_done: false,
@@ -314,12 +327,24 @@ impl ConfigPersistQueue {
         match self.wake_tx.try_send(()) {
             Ok(()) | Err(TrySendError::Full(())) => {
                 let mut latest = request;
-                if let Some(pending) = slot.request.take() {
+                if let Some(mut pending) = slot.request.take() {
                     if pending.param == "limit_patch" {
                         if let Err(error) = carry_pending_limit_patch(&pending, &mut latest) {
                             slot.request = Some(pending);
                             return Err(error);
                         }
+                        // The bounds now ride on `latest`; so does the caller's
+                        // completion (its gateway waits on this session id).
+                        slot.carried.push(CarriedCompletion {
+                            timestamp_ms: pending.timestamp_ms,
+                            session_id: pending.session_id,
+                            operator_id: pending.operator_id,
+                            joint: pending.joint,
+                        });
+                    } else if latest.motors.is_none() {
+                        // A pending control save may itself carry earlier limit
+                        // bounds; a later control-only save must not drop them.
+                        latest.motors = pending.motors.take();
                     }
                     slot.coalesced_requests = slot.coalesced_requests.saturating_add(1);
                 }
@@ -491,7 +516,7 @@ fn persist_worker(
         while wake_rx.try_recv().is_ok() {}
 
         loop {
-            let request = {
+            let (request, carried) = {
                 let Ok(mut slot) = pending.lock() else {
                     return;
                 };
@@ -499,7 +524,7 @@ fn persist_worker(
                     break;
                 };
                 slot.writing = true;
-                req
+                (req, std::mem::take(&mut slot.carried))
             };
 
             #[cfg(test)]
@@ -522,6 +547,15 @@ fn persist_worker(
             }
 
             let write_succeeded = write_result.is_ok();
+            let carried_event = |carried: CarriedCompletion, template: &ActionEvent| ActionEvent {
+                timestamp_ms: carried.timestamp_ms,
+                session_id: carried.session_id,
+                operator_id: carried.operator_id,
+                joint: carried.joint,
+                action: persist_audit_action("limit_patch").to_string(),
+                revision: next_audit_revision(),
+                ..template.clone()
+            };
             let publication_result = match write_result {
                 Ok(()) => {
                     info!(
@@ -547,7 +581,12 @@ fn persist_worker(
                         persist_status: PersistStatus::Durable as i32,
                         config_revision,
                     };
-                    publish_action_event(&chappe, &event)
+                    let mut published = Ok(());
+                    for carried in carried {
+                        let carried = carried_event(carried, &event);
+                        published = published.and(publish_action_event(&chappe, &carried));
+                    }
+                    published.and(publish_action_event(&chappe, &event))
                 }
                 Err(e) => {
                     warn!(
@@ -570,7 +609,12 @@ fn persist_worker(
                         persist_status: PersistStatus::Failed as i32,
                         config_revision: String::new(),
                     };
-                    publish_action_event(&chappe, &event)
+                    let mut published = Ok(());
+                    for carried in carried {
+                        let carried = carried_event(carried, &event);
+                        published = published.and(publish_action_event(&chappe, &carried));
+                    }
+                    published.and(publish_action_event(&chappe, &event))
                 }
             };
             if let Err(error) = &publication_result {
