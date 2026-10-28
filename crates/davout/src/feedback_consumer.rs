@@ -374,8 +374,9 @@ impl<B: MotorBus> Supervisor<B> {
                         EchoedCommand::ReportingOff => {
                             self.observe_reporting_off_echo(&echo.address, echo.received_at);
                         }
-                        // Any SetZero to this address on the wire (this owner's
-                        // or another local socket's) starts its blackout clock.
+                        // A SetZero echo to this address starts its blackout clock.
+                        // On SocketCAN only this socket's own writes echo; another
+                        // socket's SetZero fails the receive (DRV-05).
                         EchoedCommand::SetZero => {
                             self.note_set_zero(&echo.address, echo.received_at);
                         }
