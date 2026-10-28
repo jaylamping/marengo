@@ -15,20 +15,27 @@ export interface RemoteExecResult {
   stdout: string;
   stderr: string;
   exitCode: number;
+  /** The signal fired while ssh ran and the local ssh was killed. */
+  cancelled?: boolean;
 }
 
 export interface RemoteExecOptions {
   timeoutMs?: number;
   cwd?: string;
   env?: NodeJS.ProcessEnv;
+  /** Abort: refuse to start, or kill the local ssh (remote cleanup is the caller's). */
+  signal?: AbortSignal;
+  /** Passed as `bash -s <tag>` so the remote process can be found by argv. */
+  sessionTag?: string;
 }
 
-function sshArgs(cfg: MarengoPiConfig): string[] {
+function sshArgs(cfg: MarengoPiConfig, sessionTag?: string): string[] {
   const args = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15"];
   if (cfg.sshIdentityFile) {
     args.push("-i", cfg.sshIdentityFile);
   }
   args.push(sshTarget(cfg), "bash", "-s");
+  if (sessionTag) args.push(sessionTag);
   return args;
 }
 
@@ -39,17 +46,26 @@ export function execRemote(
   opts: RemoteExecOptions = {},
 ): Promise<RemoteExecResult> {
   const timeoutMs = opts.timeoutMs ?? 120_000;
+  if (opts.signal?.aborted) {
+    return Promise.resolve({ stdout: "", stderr: "cancelled before start", exitCode: 130 });
+  }
 
   return new Promise((resolve) => {
-    const child = spawn("ssh", sshArgs(cfg), { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn("ssh", sshArgs(cfg, opts.sessionTag), { stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let cancelled = false;
 
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
     }, timeoutMs);
+    const onAbort = () => {
+      cancelled = true;
+      child.kill("SIGTERM");
+    };
+    opts.signal?.addEventListener("abort", onAbort, { once: true });
 
     child.stdout.on("data", (chunk: Buffer) => {
       stdout += chunk.toString();
@@ -60,6 +76,7 @@ export function execRemote(
 
     child.on("error", (err) => {
       clearTimeout(timer);
+      opts.signal?.removeEventListener("abort", onAbort);
       resolve({
         stdout,
         stderr: stderr || err.message,
@@ -69,6 +86,11 @@ export function execRemote(
 
     child.on("close", (code) => {
       clearTimeout(timer);
+      opts.signal?.removeEventListener("abort", onAbort);
+      if (cancelled) {
+        resolve({ stdout, stderr: `${stderr}cancelled`, exitCode: 130, cancelled: true });
+        return;
+      }
       if (timedOut) {
         resolve({
           stdout,
