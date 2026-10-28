@@ -191,6 +191,35 @@ def _urdf_limits(root: ET.Element) -> dict[str, ET.Element]:
     return out
 
 
+_XML_TAG = re.compile(r"<(/?)([A-Za-z_][\w:.-]*)\b[^>]*?(/?)>")
+
+
+def _top_level_joint_body(masked: str, joint: str) -> tuple[int, int] | None:
+    """(body start, body end) of the `<joint name=joint>` that is a direct child of `<robot>`.
+
+    Same joints `_urdf_limits` reads (`root.findall("joint")`): a `<joint>` nested in a
+    `<transmission>` or `<gazebo>` block is skipped. `<?...?>` and `<!...>` never match the tag
+    pattern, so they do not change the depth.
+    """
+    name = re.compile(rf"\bname\s*=\s*([\"']){re.escape(joint)}\1")
+    depth = 0
+    body_start: int | None = None
+    for tag in _XML_TAG.finditer(masked):
+        closing, kind, self_closing = tag.groups()
+        if closing:
+            depth -= 1
+            if body_start is not None and depth == 1 and kind == "joint":
+                return body_start, tag.start()
+            continue
+        if body_start is None and depth == 1 and kind == "joint" and name.search(tag.group(0)):
+            if self_closing:
+                return None
+            body_start = tag.end()
+        if not self_closing:
+            depth += 1
+    return None
+
+
 def patch_urdf_limit_text(text: str, joint: str, lower: float, upper: float) -> str | None:
     """Surgically set one joint's URDF `<limit lower upper>`; keep comments/layout.
 
@@ -198,19 +227,15 @@ def patch_urdf_limit_text(text: str, joint: str, lower: float, upper: float) -> 
     """
     # Search with comments blanked (same offsets) so a commented-out tag never matches.
     masked = re.sub(r"<!--.*?-->", lambda m: " " * len(m.group(0)), text, flags=re.DOTALL)
-    joint_open = re.search(
-        rf"<joint\b[^>]*\bname\s*=\s*([\"']){re.escape(joint)}\1[^>]*>", masked
-    )
-    if not joint_open:
+    body = _top_level_joint_body(masked, joint)
+    if body is None:
         return None
-    close = masked.find("</joint>", joint_open.end())
-    if close == -1:
-        return None
-    limit = re.search(r"<limit\b[^>]*>", masked[joint_open.end() : close])
+    body_start, body_end = body
+    limit = re.search(r"<limit\b[^>]*>", masked[body_start:body_end])
     if not limit:
         return None
-    start = joint_open.end() + limit.start()
-    end = joint_open.end() + limit.end()
+    start = body_start + limit.start()
+    end = body_start + limit.end()
     tag = text[start:end]
     for key, value in (("lower", lower), ("upper", upper)):
         tag, count = re.subn(
