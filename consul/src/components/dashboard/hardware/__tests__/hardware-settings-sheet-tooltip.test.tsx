@@ -74,7 +74,6 @@ function renderOpenSheet() {
           row={row}
           open
           onOpenChange={() => undefined}
-          onApplyRange={() => undefined}
         />
       </TooltipProvider>
     </MemoryRouter>,

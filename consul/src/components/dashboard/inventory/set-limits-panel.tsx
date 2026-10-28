@@ -32,7 +32,8 @@ const SET_LIMITS_HELP =
 type SetLimitsPanelProps = {
   jointName: string;
   currentLimit: string;
-  onApplyRange: (range: string) => void;
+  /** Telemetry's draft field only; Hardware reads the live snapshot instead. */
+  onApplyRange?: (range: string) => void;
 };
 
 /**
@@ -237,7 +238,7 @@ export function SetLimitsPanel({
         return;
       }
       // Draft only — do not write inventoryOverridesStore; config snapshot is SoT.
-      onApplyRange(proposal.display);
+      onApplyRange?.(proposal.display);
       discard();
       setApplyOk(true);
       if (result.localSync === 'failed') {
