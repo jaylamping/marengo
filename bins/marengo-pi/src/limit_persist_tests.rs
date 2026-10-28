@@ -530,3 +530,152 @@ fn coalesced_limit_patch_gets_its_completion_and_keeps_its_bounds() {
         43.0
     );
 }
+
+/// Hold a first write in flight, enqueue `requests` behind it (they coalesce),
+/// release, and return the written config directory and every completion.
+fn run_coalesced(
+    build: impl FnOnce(&std::path::Path) -> Vec<PersistRequest>,
+) -> (tempfile::TempDir, PathBuf, Vec<ActionEvent>) {
+    let (temp, config_dir) = copied_config();
+    let urdf_dir = temp.path().join("assets/urdf");
+    std::fs::create_dir_all(&urdf_dir).expect("urdf dir");
+    std::fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/urdf/marengo.urdf"),
+        urdf_dir.join("marengo.urdf"),
+    )
+    .expect("urdf fixture");
+    let requests = build(&config_dir);
+    let chappe = Arc::new(Bus::new(32));
+    let mut actions_rx = chappe.subscribe(TOPIC_AUDIT_ACTION);
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel::<()>();
+    let _release_on_failure = ReleaseOnDrop(release_tx.clone());
+    let gate_rx = Mutex::new(release_rx);
+    let queue = ConfigPersistQueue::spawn_with_test_hooks(
+        Arc::clone(&chappe),
+        temp.path().to_path_buf(),
+        PersistTestHooks {
+            before_write: Some(Arc::new(move |request| {
+                if request.session_id == "in-flight" {
+                    let _ = entered_tx.send(());
+                    let _ = gate_rx
+                        .lock()
+                        .expect("single gate")
+                        .recv_timeout(CLEANUP_BOUND);
+                }
+            })),
+            ..PersistTestHooks::default()
+        },
+    );
+    queue
+        .enqueue(request(&config_dir, 40.0, 9100, "in-flight"))
+        .expect("first write");
+    entered_rx
+        .recv_timeout(CLEANUP_BOUND)
+        .expect("first write in flight");
+    for request in requests {
+        queue.enqueue(request).expect("coalescing enqueue");
+    }
+    let _ = release_tx.send(());
+    assert!(queue.wait_idle(CLEANUP_BOUND), "queue drains");
+    let mut actions = Vec::new();
+    while let Ok(bytes) = actions_rx.try_recv() {
+        let envelope = Envelope::decode(bytes.as_slice()).expect("worker envelope");
+        actions.push(ActionEvent::decode(envelope.payload.as_slice()).expect("worker action"));
+    }
+    (temp, config_dir, actions)
+}
+
+fn fixture_lower(config_dir: &std::path::Path, joint: &str) -> f64 {
+    load_motors_config_from(config_dir)
+        .expect("motors fixture")
+        .motors
+        .iter()
+        .find(|motor| motor.joint == joint)
+        .expect("fixture joint")
+        .bench
+        .position_lower_rad
+}
+
+fn completion<'a>(actions: &'a [ActionEvent], session: &str) -> &'a ActionEvent {
+    actions
+        .iter()
+        .find(|event| event.session_id == session)
+        .expect("completion for every coalesced limit patch")
+}
+
+/// Disk holds `lower` for the elbow, and no completion claims Durable for
+/// elbow bounds that are not on disk.
+fn assert_disk_and_durable_agree(
+    config_dir: &std::path::Path,
+    actions: &[ActionEvent],
+    lower: f64,
+) {
+    assert_eq!(fixture_lower(config_dir, "right_elbow_pitch"), lower);
+    let durable = completion(actions, "limit-b");
+    assert!(durable.accepted, "{}", durable.reject_reason);
+    assert_eq!(durable.persist_status, PersistStatus::Durable as i32);
+    let superseded = completion(actions, "limit-a");
+    assert_eq!(superseded.action, "limit_patch_persist");
+    assert!(!superseded.accepted, "limit-a's bounds never reached disk");
+    assert_eq!(superseded.persist_status, PersistStatus::Failed as i32);
+    assert!(superseded.reject_reason.contains("superseded"));
+}
+
+#[test]
+fn same_joint_later_limit_patch_wins_on_disk_and_supersedes_the_earlier() {
+    let mut lowers = (0.0, 0.0);
+    let (_temp, config_dir, actions) = run_coalesced(|config_dir| {
+        let fixture = fixture_lower(config_dir, "right_elbow_pitch");
+        lowers = (fixture - 0.05, fixture - 0.02);
+        vec![
+            limit_request(config_dir, lowers.0, 9101, "limit-a"),
+            limit_request(config_dir, lowers.1, 9102, "limit-b"),
+        ]
+    });
+    assert_disk_and_durable_agree(&config_dir, &actions, lowers.1);
+}
+
+#[test]
+fn limit_patch_control_save_limit_patch_chain_reports_only_what_is_on_disk() {
+    let mut lowers = (0.0, 0.0);
+    let (_temp, config_dir, actions) = run_coalesced(|config_dir| {
+        let fixture = fixture_lower(config_dir, "right_elbow_pitch");
+        lowers = (fixture - 0.05, fixture - 0.02);
+        vec![
+            limit_request(config_dir, lowers.0, 9201, "limit-a"),
+            request(config_dir, 42.0, 9202, "save-c"),
+            limit_request(config_dir, lowers.1, 9203, "limit-b"),
+        ]
+    });
+    assert_disk_and_durable_agree(&config_dir, &actions, lowers.1);
+}
+
+#[test]
+fn later_limit_patch_on_another_joint_keeps_the_earlier_bounds_durable() {
+    let mut expected = (0.0, 0.0, String::new());
+    let (_temp, config_dir, actions) = run_coalesced(|config_dir| {
+        let elbow = fixture_lower(config_dir, "right_elbow_pitch") - 0.05;
+        let a = limit_request(config_dir, elbow, 9301, "limit-a");
+        // B's snapshot is the live state after A, as overlay takes it.
+        let mut motors = a.motors.clone().expect("A snapshot");
+        let other = motors
+            .motors
+            .iter_mut()
+            .find(|motor| motor.joint != "right_elbow_pitch")
+            .expect("another fixture joint");
+        other.bench.position_lower_rad -= 0.05;
+        expected = (elbow, other.bench.position_lower_rad, other.joint.clone());
+        let mut b = limit_request(config_dir, elbow, 9302, "limit-b");
+        b.joint = other.joint.clone();
+        b.motors = Some(motors);
+        vec![a, b]
+    });
+    assert_eq!(fixture_lower(&config_dir, "right_elbow_pitch"), expected.0);
+    assert_eq!(fixture_lower(&config_dir, &expected.2), expected.1);
+    for session in ["limit-a", "limit-b"] {
+        let event = completion(&actions, session);
+        assert!(event.accepted, "{session}: {}", event.reject_reason);
+        assert_eq!(event.persist_status, PersistStatus::Durable as i32);
+    }
+}
