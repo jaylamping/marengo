@@ -6,13 +6,17 @@
 //!
 //! ## Responsibilities
 //!
-//! - [`Supervisor`]: operational state machine (Disabled → Ready → Active).
+//! - [`Supervisor`]: operational state machine (Disabled → Active; `Ready` is a marker that
+//!   `set_homing_complete` sets and Enable does not require).
 //! - Filter [`MitJointCommand`] / [`JointCommand`]: URDF ∩ bench limits, per-`motor_type`
 //!   `kp`/`kd`/`tau_ff` caps, [`tau_ff` rate limiting](Supervisor::filter_mit_core) and the
 //!   predicted total MIT torque bound (`total_torque.rs`, ADR 0039).
 //! - Own joint↔motor coordinate conversion from `config/motors.yaml` (`direction`, `gear_ratio`):
 //!   Berthier and dynamics stay in joint space; robstride stays in raw motor/CAN space.
-//! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
+//! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml`: on a rule hit,
+//!   `clamp_velocity` bounds the MIT velocity field and `clamp_torque` the feed-forward and
+//!   total torque. There is no fault action, and a velocity clamp changes no drive torque
+//!   when the wire kd is 0 (GravityComp, TorqueOnly).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - Persistent [`SafetySnapshot`]: device/runtime faults survive pose replacement, disable and replay.
 //! - Private current-reference authority: retired history, cached pose and the
@@ -140,9 +144,9 @@ pub use reference_transaction::{
     ReferenceStamp, ReferenceTerminal,
 };
 
+use active_reporting::ActiveReportingState;
 pub use active_reporting::{
-    ActiveReportingLeaseError, ActiveReportingState, ExitReportingOff, ExitReportingReport,
-    DEFAULT_LEASE_TTL,
+    ActiveReportingLeaseError, ExitReportingOff, ExitReportingReport, DEFAULT_LEASE_TTL,
 };
 use burst::BurstPacer;
 pub use burst::BURST_GROUP_SPACING;
@@ -574,6 +578,17 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn from_repo_physical_inner(root: &Path, bus: B, journal: &Path) -> Result<Self, DavoutError> {
+        // The post-SetZero quiet, Enable stagger and Off-before-Enable rules
+        // run only on an echoing bus; a transport that does not echo would
+        // skip them silently, so it cannot own physical references (DAV-05).
+        if !bus.echoes_transmissions() {
+            return Err(DavoutError::Homing {
+                message: "physical reference owner needs a transport that echoes its own \
+                          transmissions (post-SetZero quiet and Off-before-Enable are ordered \
+                          by those echoes)"
+                    .into(),
+            });
+        }
         let (mut owner, record) = Self::build_unsynced(root, &resolve_config_dir(root), bus)?;
         reference_journal::distinct_history_path(&record, journal).map_err(|error| {
             DavoutError::Homing {
@@ -1299,27 +1314,32 @@ impl<B: MotorBus> Supervisor<B> {
                 (FaultClass::WrongSign, Some(joint.as_str()))
             }
             DavoutError::DangerZone { joint, .. } => (FaultClass::DangerZone, Some(joint.as_str())),
-            DavoutError::Bus(
-                BusError::Send { .. } | BusError::Driver(_) | BusError::ReceiveIncomplete { .. },
-            ) => (FaultClass::Transport, None),
-            // A batch the bus refused after admission is a controller defect;
-            // a valid prefix may already be on the wire (P2C-02).
-            DavoutError::Bus(
+            // No wildcard: a new bus error must be classified here, never left
+            // without a latch and a stop by default (P2C-04).
+            DavoutError::Bus(bus) => match bus {
+                BusError::Send { .. }
+                | BusError::Driver(_)
+                | BusError::ReceiveIncomplete { .. } => (FaultClass::Transport, None),
+                // A batch the bus refused after admission is a controller defect;
+                // a valid prefix may already be on the wire (P2C-02).
                 BusError::InvalidCommand(_)
                 | BusError::CommandAddressMismatch { .. }
                 | BusError::DuplicateMotorAddress { .. }
                 | BusError::DuplicateCommand { .. }
-                | BusError::UnknownMotorAddress { .. },
-            ) => (FaultClass::Controller, None),
-            DavoutError::Bus(BusError::MalformedFeedback { address, .. }) => {
-                let joint = self
-                    .motors
-                    .motors
-                    .iter()
-                    .find(|motor| MotorAddress::from(*motor) == *address)
-                    .map(|motor| motor.joint.as_str());
-                (FaultClass::Feedback, joint)
-            }
+                | BusError::UnknownMotorAddress { .. }
+                | BusError::UnknownJoint { .. } => (FaultClass::Controller, None),
+                BusError::MalformedFeedback { address, .. } => {
+                    let joint = self
+                        .motors
+                        .motors
+                        .iter()
+                        .find(|motor| MotorAddress::from(*motor) == *address)
+                        .map(|motor| motor.joint.as_str());
+                    (FaultClass::Feedback, joint)
+                }
+                // An empty receive poll ends a drain; it reports no failure.
+                BusError::RecvTimeout => return false,
+            },
             _ => return false,
         };
         let address = joint
@@ -1433,9 +1453,19 @@ impl<B: MotorBus> Supervisor<B> {
     /// Every requested joint needs private current-reference authority. Empty targets
     /// are rejected. While Active, a different joint set is refused
     /// ([`DavoutError::ActiveSetChangeRefused`]); operators must Disable then Enable.
+    /// Refused while any reference work is pending, including a cancelled commit
+    /// still waiting for its journal write ([`Self::reference_work_pending`]).
     pub fn enable_targets(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         self.require_fault_clear()?;
         self.refuse_during_episode("enable refused")?;
+        // The controller sends no MIT while reference work is pending, so an
+        // Enable admitted now would leave the drives enabled and uncommanded
+        // until the journal worker returns (REF-06).
+        if self.reference_work_pending() {
+            return Err(DavoutError::ReferenceBusy {
+                operation: "enable",
+            });
+        }
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
@@ -1550,6 +1580,15 @@ impl<B: MotorBus> Supervisor<B> {
         // Status has no command-generation field. Drain already queued traffic
         // before activation; only later received poses may authorize this session.
         self.poll_feedback(Duration::ZERO)?;
+        // The identity re-read and that drain can revoke a target's grant (a
+        // lost firmware zero is a coordinate discontinuity). Refuse cleanly
+        // then: an unreferenced coordinate is not a pose to judge against
+        // URDF limits, and judging it would latch a Limit fault.
+        self.ensure_reference_for(joints)?;
+        if let Err(error) = self.check_disabled_poses_at_enable(joints) {
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
         let result = (|| {
             let mut addresses = Vec::with_capacity(joints.len());
             for joint in joints {
@@ -1633,6 +1672,42 @@ impl<B: MotorBus> Supervisor<B> {
             }
         }
         result
+    }
+
+    /// A target moved by hand past its hard limit while Disabled would latch
+    /// Feedback on its first Active pose, after its Enable was written. A pose
+    /// fresh within `comm_watchdog_ms` latches the same fault before any Enable
+    /// (DAV-09). Without such a pose the Active check still applies.
+    fn check_disabled_poses_at_enable(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        let fresh = Duration::from_millis(self.control.control.comm_watchdog_ms);
+        for joint in joints {
+            let Some(index) = self.motor_index(joint) else {
+                continue;
+            };
+            let Some(position) = self
+                .published_state(index)
+                .filter(|state| !state.is_stale(fresh))
+                .map(|state| f64::from(state.position_rad))
+            else {
+                continue;
+            };
+            let Some(lim) = self.limits.get(joint) else {
+                continue;
+            };
+            if armee_kinematics::measured_position_fault(position, lim) {
+                self.out_of_limits.mark(joint, true);
+                return Err(DavoutError::Limit {
+                    joint: joint.clone(),
+                    message: format!(
+                        "measured position {position} outside [{}, {}] (+ slack {}) at Enable",
+                        lim.hard_lower(),
+                        lim.hard_upper(),
+                        lim.margin.measured_fault_slack_rad
+                    ),
+                });
+            }
+        }
+        Ok(())
     }
 
     fn loop_period(&self) -> Duration {
@@ -3087,7 +3162,7 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         let vel_cap = lim.velocity;
-        let danger_zone_torque_cap = self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas);
+        let danger_zone_torque_cap = self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas)?;
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
@@ -3218,7 +3293,7 @@ impl<B: MotorBus> Supervisor<B> {
         cmd: &mut MitJointCommand,
         q_meas: f64,
         dq_meas: f64,
-    ) -> f64 {
+    ) -> Result<f64, DavoutError> {
         let mut torque_cap = f64::INFINITY;
         for rule in &self.control.control.danger_zones {
             if rule.joint != cmd.joint {
@@ -3235,18 +3310,28 @@ impl<B: MotorBus> Supervisor<B> {
                         cmd.velocity_rad_s = cmd.velocity_rad_s.min(rule.max_velocity_rad_s);
                     }
                 }
+                // Validation refuses both cases below; never fall back to a
+                // velocity as a torque cap or ignore a rule (P2A-08).
                 "clamp_torque" => {
                     let cap = rule
                         .max_torque_nm
-                        .unwrap_or(rule.max_velocity_rad_s)
+                        .ok_or_else(|| DavoutError::InvalidMotorConfig {
+                            joint: cmd.joint.clone(),
+                            message: format!("danger zone {} has no max_torque_nm", rule.name),
+                        })?
                         .max(0.0);
                     cmd.torque_ff_nm = cmd.torque_ff_nm.clamp(-cap, cap);
                     torque_cap = torque_cap.min(cap);
                 }
-                _ => {}
+                action => {
+                    return Err(DavoutError::InvalidMotorConfig {
+                        joint: cmd.joint.clone(),
+                        message: format!("danger zone {} has unknown action {action}", rule.name),
+                    });
+                }
             }
         }
-        torque_cap
+        Ok(torque_cap)
     }
 }
 
@@ -3868,6 +3953,37 @@ mod tests {
     }
 
     #[test]
+    fn disabled_pose_past_hard_limit_latches_before_any_enable_write() {
+        // DAV-09: a joint moved by hand past its limit while Disabled used to
+        // be enabled and latch only on its first Active pose.
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        let joint = "right_elbow_pitch";
+        let lim = *sup.joint_limit_policy(joint).expect("policy");
+        let outside = (lim.hard_upper() + lim.margin.measured_fault_slack_rad + 0.5) as f32;
+        initial_poses(&mut sup, joint, outside, 0.0);
+        assert!(!sup.has_latched_fault(), "Disabled poses are not judged");
+        let before = sup.bus.frames().len();
+        let joints = sup.robot.robot.joints.clone();
+        let error = sup.enable_targets(&joints).expect_err("out of limits");
+        assert!(matches!(error, DavoutError::Limit { .. }), "{error}");
+        assert!(sup.has_latched_fault());
+        assert!(sup.joint_out_of_limits(joint));
+        assert_eq!(sup.mode(), OperationalMode::Disabled);
+        let enable = u32::from(robstride::CommunicationType::Enable.as_u8());
+        assert!(
+            sup.bus.frames()[before..]
+                .iter()
+                .all(|frame| (frame.id >> 24) & 0x1f != enable),
+            "no Enable written"
+        );
+    }
+
+    #[test]
     fn scoped_watchdog_ignores_cached_motor_fault_on_inactive_peer() {
         let mut sup = Supervisor::from_simulation(
             repo_root(),
@@ -3976,6 +4092,7 @@ mod tests {
             InitialVirtualReference::AllConfigured,
         )
         .expect("supervisor");
+        receive_pose(&mut sup, "right_elbow_pitch", 0.5, 0.0);
 
         sup.apply_limit_patch(&elbow_limit_patch(0.1, 1.5))
             .expect("apply patch");
@@ -4028,6 +4145,7 @@ mod tests {
         )
         .expect("supervisor");
         let urdf_before = joint_limits(sup.urdf_robot(), "right_elbow_pitch").expect("urdf");
+        receive_pose(&mut sup, "right_elbow_pitch", 0.5, 0.0);
 
         sup.apply_limit_patch(&elbow_limit_patch(-0.5, 3.0))
             .expect("expand past URDF hard");
@@ -4079,6 +4197,29 @@ mod tests {
             .expect_err("measured q must remain inside hard bounds");
 
         assert!(matches!(err, DavoutError::Limit { .. }));
+    }
+
+    #[test]
+    fn limit_patch_without_a_fresh_measured_position_refuses() {
+        // DAV-09: the measured-position check was skipped, so a patch that
+        // might exclude the joint was accepted unchecked.
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        let before = *sup.joint_limit_policy("right_elbow_pitch").expect("policy");
+
+        let err = sup
+            .apply_limit_patch(&elbow_limit_patch(0.1, 0.9))
+            .expect_err("no pose to check");
+
+        assert!(matches!(err, DavoutError::Limit { .. }), "{err}");
+        assert_eq!(
+            *sup.joint_limit_policy("right_elbow_pitch").expect("policy"),
+            before
+        );
     }
 
     #[test]
@@ -4184,6 +4325,55 @@ mod tests {
             "rule requires measured q > 0.5, got velocity {}",
             filtered.velocity_rad_s
         );
+    }
+
+    #[test]
+    fn danger_zone_rule_the_filter_cannot_apply_is_refused() {
+        // P2A-08: validation refuses these rules at load. If one reaches the
+        // filter anyway, a missing torque cap must not fall back to the
+        // velocity bound and an unknown action must not be skipped.
+        for (action, max_torque_nm) in [("clamp_torque", None), ("brake_hard", Some(1.0))] {
+            let bus = SimulationBus::default();
+            let mut sup = Supervisor::from_simulation(
+                repo_root(),
+                bus,
+                InitialVirtualReference::AllConfigured,
+            )
+            .expect("supervisor");
+            receive_pose(&mut sup, "right_shoulder_pitch", 1.0, -0.5);
+            sup.control.control.danger_zones = vec![marengo_config::DangerZoneRule {
+                name: "unapplicable".into(),
+                joint: "right_shoulder_pitch".into(),
+                position_above_rad: 0.5,
+                velocity_below_rad_s: 0.0,
+                action: action.into(),
+                max_velocity_rad_s: 0.45,
+                max_torque_nm,
+            }];
+            // Per-call validation refuses first on the filter path, so call
+            // the clamp step itself to pin its own refusal.
+            let mut cmd = MitJointCommand {
+                joint: "right_shoulder_pitch".to_string(),
+                kp: 10.0,
+                kd: 0.0,
+                position_rad: 1.0,
+                velocity_rad_s: -0.5,
+                torque_ff_nm: 2.0,
+            };
+            let refused = sup.apply_danger_zone_clamps(&mut cmd, 1.0, -0.5);
+            assert!(
+                matches!(
+                    &refused,
+                    Err(DavoutError::InvalidMotorConfig { message, .. })
+                        if message.contains("danger zone")
+                ),
+                "{action}: expected a refusal, got {refused:?}"
+            );
+            assert_eq!(
+                cmd.torque_ff_nm, 2.0,
+                "{action}: no cap taken from the velocity bound"
+            );
+        }
     }
 
     #[test]

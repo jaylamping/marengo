@@ -45,7 +45,8 @@ BaselineStop   all-address stop, one address group per 2 ms on a real bus; appli
                whatever this process applied
 DrainOld       complete bounded drain of queued feedback
 RequestIdentity type-0 to the target (host 0xFD)
-AwaitIdentity  type-0 reply popped after the request; UID not claimed by another address
+AwaitIdentity  type-0 reply popped after the first request; UID not claimed by another address;
+               an unanswered target is asked again every 10 ms for 100 ms (blackout)
 AwaitReportingOff echoing bus: the target's type-24 Off echo read at least one control period ago, and POST_SET_ZERO_QUIET (800 ms; measured blackout end <= 667 ms) since the target's last SetZero
 ArmTarget      Enable to the target only
 DrainPostArm   complete drain
@@ -99,8 +100,10 @@ device coordinate epoch. Revocation is per joint for:
 
 - a UID change in any type-0 reply;
 - Enable admission. Before any Enable frame, the owner sends type-0 to every
-  target and waits up to 50 ms. A mismatched or missing UID revokes that joint
-  and returns `HomingVerify`;
+  target, asks a silent target again every 10 ms (`IDENTITY_ADMISSION_RETRY`)
+  and waits up to 100 ms (`IDENTITY_ADMISSION_TIMEOUT`, plus two 2 ms spacings
+  per further target). A mismatched or missing UID revokes that joint and
+  returns `HomingVerify`;
 - coordinate discontinuity. A jump larger than the vendor MIT velocity range ×
   dt plus two quantization steps (joint space) breaks continuity. Across an
   owner reference-work gap the bound is the at-rest

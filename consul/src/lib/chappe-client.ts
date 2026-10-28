@@ -10,7 +10,6 @@ export {
   fetchGatewayHealth,
   postEnableCommand,
   postTestingMitCommandBatch,
-  postHomeCommand,
 } from './gateway-api';
 
 import {

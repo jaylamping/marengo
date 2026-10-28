@@ -24,7 +24,7 @@ Read this before enabling motors on the bench or robot.
 - **Sensor health first (deferred).** Hall/limit homing inputs are designed but not built, so there is no sensor health check yet. When they exist, startup must check sensor wiring and stuck-state before any homing search.
 - **No blind hunting.** Out-of-range or stale-zero joints may only use constrained recovery (manual reference or sensor homing), not normal gravity/hold/impedance.
 - **Calibration audit.** The reference journal (located by `homing.yaml` `calibration_record_path`) records each physical reference with its evidence. It is history only and never grants motion; the old `zero_registry.yaml` registry workflow is retired ([homing.md](homing.md), ADR 0006 amendment). Firmware `SetZero` alone is insufficient.
-- **Current reference.** Every fresh registry starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. Corrupt/unreadable history returns an error without replacing its bytes. See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
+- **Current reference.** Every fresh Supervisor starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. No history file is read at startup, so a corrupt or missing one cannot fail construction (ADR 0022 amendment). See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
 - **Permission at output.** Davout's private owner-bound reference gates Ready,
   scoped/normal Enable, Active shortcuts and output. Caller-set history flags
   cannot grant it, and initial virtual test fixtures establish no hardware
@@ -89,7 +89,7 @@ During early arm bring-up with the arm elevated (shoulder/elbow up), motion stop
 2. **Enable sequence:** Arm supported manually or in a fixture for first enable; E-stop reachable before `Enable`.
 3. **Sign test:** Per-joint small `torque_ff` pulse; verify direction matches URDF before full `tau_g`.
 4. **Caps:** Davout per-`motor_type` `tau_ff` limits (RS02/RS00 lower than RS03/RS04); rate-limit `tau_ff` steps when enabling.
-5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp or fault.
+5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp. `clamp_velocity` bounds only the MIT velocity field, so it changes no drive torque while the wire kd is 0 (GravityComp, TorqueOnly); `clamp_torque` bounds the feed-forward and total torque. There is no fault action (DAV-03, held for the bench).
 6. **Comm watchdog:** CAN receive timeout → `Disabled` and logged fault. Exception: one admitted drive loss sheds its subtree and lowers the rest first (see *Single-drive loss* below).
 7. **Measured position guard (ADR 0009):** feedback `q` beyond URDF hard limits + small slack → `Disabled` (independent of command path).
 8. **Exit:** `disable_all` on process exit / SIGTERM where the driver supports it.
@@ -148,6 +148,7 @@ fresh CLI `home` cannot create that reference from history.
 - **Surface:** numerical hard/soft position bounds, torque cap, and `velocity_max_rad_s` only. `device_id`, CAN interface, `direction`, motor type, gearing, and membership/DOF changes require YAML + restart (+ re-home when wiring/zero changes).
 - **Active refusal:** Davout refuses `apply_limit_patch` / `rebuild_limits` while operational mode is `ACTIVE`.
 - **ACK honesty:** Gateway waits for live `limit_patch` Pending, then `limit_patch_persist` Durable/Failed, before HTTP success. Do not treat Pending alone as repo truth.
+- **Measured pose at Set Limits and Enable:** a limit patch needs a pose fresher than `FREE_DRIVE_FEEDBACK_TTL` (5 s; type-24 or the status poll's Disable reply) inside the proposed hard range, and is refused without one. Enable latches the same Feedback fault the first Active pose would when a target's Disabled pose, fresher than `comm_watchdog_ms`, is beyond hard + slack, before any Enable is written (DAV-09). The check judges referenced poses only: a target whose grant the admission drain revoked (a lost firmware zero) is refused as unreferenced first, with no fault latched.
 - **URDF expand-only:** Bench Set Limits widens in-memory + on-disk URDF hard when taught hard exceeds URDF (Davout hard = URDF ∩ bench). Soft uses ADR 0009 inset in `control.yaml` (not soft≡hard). See [ADR 0017](decisions/0017-bench-set-limits-urdf-expand.md).
 - **Persist-degraded ≠ NeedsRestart:** write-behind failure uses a distinct banner/retry. Restart, deploy, and URDF activation require fresh Disabled/Ready runtime evidence and refuse while persistence is pending or degraded; a disconnect alone never clears persistence evidence. Restarting while YAML/URDF is stale would revert live limits.
 - **Dual-writer:** Pi owns live apply and YAML/URDF write-behind. Gateway master-tree transactions use CAS `expected_revision` for durable YAML/URDF edits on the single master SoT; there are no inactive bringup profiles. Local git sync is Durable-gated via `marengo-limit-sync` only.
