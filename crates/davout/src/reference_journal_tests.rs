@@ -312,6 +312,39 @@ fn late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops() 
 }
 
 #[test]
+fn enable_is_refused_while_a_cancelled_commit_awaits_its_journal_write() {
+    // REF-06: the controller skips every tick while reference work is
+    // pending, so Enable must not admit drives it would leave uncommanded.
+    let tree = tree();
+    let pause =
+        JournalTestPause::new(JournalPausePoint::BeforePublication, 1).expect("declarative pause");
+    let mut owner = journal_owner(&tree, Some(&pause));
+    let acquisition = acquire(&mut owner);
+    let handle = owner
+        .begin_reference_commit(&acquisition, audit())
+        .expect("accepted job");
+    assert!(pause.wait_paused(WAIT));
+    owner
+        .cancel_reference_commit(&handle, ReferenceCancelReason::Disable)
+        .expect("cancel eligibility only");
+    assert!(!owner.reference_busy());
+    assert!(owner.reference_work_pending());
+    let writes = owner.bus().transmissions().len();
+    let refused = owner
+        .enable_targets(&[TARGET.into()])
+        .expect_err("pending work refuses Enable");
+    assert!(
+        matches!(refused, crate::DavoutError::ReferenceBusy { .. }),
+        "{refused}"
+    );
+    assert_eq!(owner.bus().transmissions().len(), writes);
+    pause.release();
+    finish(&mut owner, &handle);
+    assert!(!owner.reference_work_pending());
+    close(&mut owner);
+}
+
+#[test]
 fn queued_real_completion_loses_eligibility_at_deadline_equality() {
     let tree = tree();
     let pause = JournalTestPause::new(JournalPausePoint::BeforePublication, 1).expect("pause");

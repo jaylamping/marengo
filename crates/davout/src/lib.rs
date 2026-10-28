@@ -1438,9 +1438,19 @@ impl<B: MotorBus> Supervisor<B> {
     /// Every requested joint needs private current-reference authority. Empty targets
     /// are rejected. While Active, a different joint set is refused
     /// ([`DavoutError::ActiveSetChangeRefused`]); operators must Disable then Enable.
+    /// Refused while any reference work is pending, including a cancelled commit
+    /// still waiting for its journal write ([`Self::reference_work_pending`]).
     pub fn enable_targets(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         self.require_fault_clear()?;
         self.refuse_during_episode("enable refused")?;
+        // The controller sends no MIT while reference work is pending, so an
+        // Enable admitted now would leave the drives enabled and uncommanded
+        // until the journal worker returns (REF-06).
+        if self.reference_work_pending() {
+            return Err(DavoutError::ReferenceBusy {
+                operation: "enable",
+            });
+        }
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
