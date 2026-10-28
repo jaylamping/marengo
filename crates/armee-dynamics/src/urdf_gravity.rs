@@ -87,6 +87,7 @@ impl UrdfGravityModel {
                 current = robot.joints[idx].parent.link.clone();
             }
             chain.reverse(); // root→leaf order
+
             // urdf-rs reads a missing <inertial> as mass 0. On a link a joint moves, that
             // would silently drop the link from τ_g, so a massless frame there must state a
             // nominal mass instead.

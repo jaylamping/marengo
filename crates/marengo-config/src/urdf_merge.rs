@@ -807,8 +807,16 @@ mod tests {
                 .0
         };
         assert_eq!(axis("a"), [0.0, 1.0, 0.0], "joint a must keep its axis");
-        assert_eq!(axis("b"), [0.0, 0.0, 1.0], "joint b takes the contributor axis");
-        assert_eq!(robot.links.len(), 3, "link b is neither duplicated nor dropped");
+        assert_eq!(
+            axis("b"),
+            [0.0, 0.0, 1.0],
+            "joint b takes the contributor axis"
+        );
+        assert_eq!(
+            robot.links.len(),
+            3,
+            "link b is neither duplicated nor dropped"
+        );
     }
 
     #[test]
