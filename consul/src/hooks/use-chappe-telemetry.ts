@@ -16,8 +16,9 @@ import { useRobotStore } from '@/state/robotStore';
 const TELEMETRY_UI_MS = 100;
 /**
  * RobotState arrives at `chappe_state_hz` (25 Hz on the bench). After this much
- * silence the runtime facts are retired as stale, as on an IPC gap (UI-11):
- * a stalled loop must not keep showing ACTIVE and frozen joint values.
+ * silence the RobotState-derived facts are retired as stale (UI-11): a stalled
+ * loop must not keep showing ACTIVE and frozen joint values. SafetyState is
+ * kept, so a latched fault or E-STOP stays visible while the runtime is silent.
  */
 export const ROBOT_STATE_STALE_MS = 1500;
 
@@ -65,6 +66,7 @@ function mapLogLevel(level: string): LogLevel {
 
 export function useChappeTelemetry(): void {
   const setConnected = useRobotStore((s) => s.setConnected);
+  const setRobotStateStale = useRobotStore((s) => s.setRobotStateStale);
   const setOperationalMode = useRobotStore((s) => s.setOperationalMode);
   const setRobotState = useRobotStore((s) => s.setRobotState);
   const setSafetyState = useRobotStore((s) => s.setSafetyState);
@@ -103,6 +105,22 @@ export function useChappeTelemetry(): void {
       setOperationalMode(null);
       setPiMetrics(null);
       setConnected(false);
+      setRobotStateStale(false);
+    };
+
+    // RobotState silence with the link still up: retire what RobotState feeds,
+    // but keep SafetyState (it has its own stream) and flag the silence so the
+    // header can say RUNTIME SILENT instead of CONNECTING.
+    const retireSilentRobotState = () => {
+      clearTimeout(staleTimer);
+      publishRobotState.cancel();
+      publishPiMetrics.cancel();
+      setRobotState(null);
+      setImuSample(null);
+      setOperationalMode(null);
+      setPiMetrics(null);
+      setConnected(false);
+      setRobotStateStale(true);
     };
 
     void connectChappeStream({
@@ -123,9 +141,10 @@ export function useChappeTelemetry(): void {
       onRobotState: (state) => {
         if (disposed) return;
         setConnected(true);
+        setRobotStateStale(false);
         clearTimeout(staleTimer);
         staleTimer = setTimeout(() => {
-          if (!disposed) retireRuntimeFacts();
+          if (!disposed) retireSilentRobotState();
         }, ROBOT_STATE_STALE_MS);
         // Teach-record listens before UI throttle (~10 Hz store).
         publishTeachSampleFromRobotState(state);
@@ -187,6 +206,7 @@ export function useChappeTelemetry(): void {
     readCredential,
     appendTrackingPoint,
     setConnected,
+    setRobotStateStale,
     setGatewayError,
     setOperationalMode,
     setPiMetrics,

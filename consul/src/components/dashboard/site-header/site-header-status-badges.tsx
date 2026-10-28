@@ -38,6 +38,7 @@ export function resolveMachineState(
   operationalMode: string | null,
   gatewayError: string | null,
   safety: MachineSafety | null = null,
+  robotStateStale = false,
 ): MachineState {
   if (!live) {
     return {
@@ -47,21 +48,16 @@ export function resolveMachineState(
       summary: 'No Chappe endpoints configured — UI is offline / local only.',
     };
   }
-  if (!connected) {
-    return gatewayError
-      ? {
-          label: 'CHAPPE ERR',
-          ledClassName: 'led led-fault',
-          textClassName: 'text-fault',
-          summary: 'Gateway / Chappe connection failed.',
-        }
-      : {
-          label: 'CONNECTING',
-          ledClassName: 'led led-accent',
-          textClassName: 'text-muted-foreground',
-          summary: 'Endpoints configured; waiting for gateway telemetry.',
-        };
+  if (!connected && gatewayError) {
+    return {
+      label: 'CHAPPE ERR',
+      ledClassName: 'led led-fault',
+      textClassName: 'text-fault',
+      summary: 'Gateway / Chappe connection failed.',
+    };
   }
+  // SafetyState has its own stream: an E-STOP or latched fault outranks a
+  // silent RobotState and a connection that has not delivered RobotState yet.
   if (safety?.hardwareEstopAsserted) {
     return {
       label: 'E-STOP',
@@ -77,6 +73,23 @@ export function resolveMachineState(
       textClassName: 'text-fault',
       summary:
         'Davout fault authority is latched — motion is refused until marengo-pi restarts.',
+    };
+  }
+  if (robotStateStale) {
+    return {
+      label: 'RUNTIME SILENT',
+      ledClassName: 'led led-fault',
+      textClassName: 'text-fault',
+      summary:
+        'Gateway linked, but no RobotState for 1.5 s — the marengo-pi control loop is stalled or gone.',
+    };
+  }
+  if (!connected) {
+    return {
+      label: 'CONNECTING',
+      ledClassName: 'led led-accent',
+      textClassName: 'text-muted-foreground',
+      summary: 'Endpoints configured; waiting for gateway telemetry.',
     };
   }
   const mode = operationalMode ?? 'LIVE';
@@ -171,6 +184,10 @@ function machineTooltipBody(machine: MachineState, errDetail: string | null) {
           connection failed
         </li>
         <li>
+          <span className="font-mono text-foreground/90">RUNTIME SILENT</span> —
+          gateway up, no RobotState from the Pi
+        </li>
+        <li>
           <span className="font-mono text-foreground/90">DISABLED</span> — motors
           off
         </li>
@@ -231,6 +248,7 @@ export function SiteHeaderStatusBadges() {
   const operationalMode = useRobotStore((s) => s.operationalMode);
   const gatewayError = useRobotStore((s) => s.gatewayError);
   const safetyState = useRobotStore((s) => s.safetyState);
+  const robotStateStale = useRobotStore((s) => s.robotStateStale);
   const transportMode = useHostMetricsStore((s) => s.transportMode);
   const resolution = resolveChappeEndpoints();
   const live = resolution.endpoints !== null;
@@ -250,6 +268,7 @@ export function SiteHeaderStatusBadges() {
           faultLatched: safetyState.softwareEstopLatched,
         }
       : null,
+    robotStateStale,
   );
 
   return (

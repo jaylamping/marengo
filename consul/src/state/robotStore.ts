@@ -17,6 +17,13 @@ interface RobotStore {
   connected: boolean;
   setConnected: (v: boolean) => void;
 
+  /**
+   * True while the gateway link is up but `RobotState` has been silent past
+   * `ROBOT_STATE_STALE_MS` (a stalled runtime, not a first connection).
+   */
+  robotStateStale: boolean;
+  setRobotStateStale: (stale: boolean) => void;
+
   operationalMode: OperationalModeLabel;
   setOperationalMode: (mode: OperationalModeLabel) => void;
 
@@ -44,6 +51,9 @@ const initialTracking = isChappeLive()
 export const useRobotStore = create<RobotStore>((set) => ({
   connected: false,
   setConnected: (connected) => set({ connected }),
+
+  robotStateStale: false,
+  setRobotStateStale: (robotStateStale) => set({ robotStateStale }),
 
   operationalMode: null,
   setOperationalMode: (operationalMode) => set({ operationalMode }),
