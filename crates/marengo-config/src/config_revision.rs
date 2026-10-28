@@ -207,6 +207,39 @@ mod tests {
         );
     }
 
+    /// A bring-up profile (`--config-dir config/bringup/shoulder_pitch_dual`) sits two levels
+    /// under the repo root, so `config_dir.parent()` holds no URDF at all. The revision must
+    /// still cover the URDF runtime loads from the repo root, not hash it as absent.
+    #[test]
+    fn revision_covers_the_repo_urdf_for_a_bringup_profile_config_dir() {
+        let root = master_profile();
+        let bringup = root.path().join("config/bringup/shoulder_pitch_dual");
+        std::fs::create_dir_all(&bringup).unwrap();
+        for name in ["robot.yaml", "motors.yaml", "control.yaml", "homing.yaml"] {
+            std::fs::copy(root.path().join("config").join(name), bringup.join(name)).unwrap();
+        }
+        let robot = crate::load_robot_config_from(&bringup).unwrap();
+        let loaded = crate::resolve_urdf_path(root.path(), &robot).unwrap();
+        assert!(!bringup.parent().unwrap().join(&robot.robot.urdf).exists());
+
+        let before = profile_content_revision(root.path(), &bringup).unwrap();
+        let text = std::fs::read_to_string(&loaded).unwrap();
+        std::fs::write(&loaded, text.replacen("upper=\"3.25\"", "upper=\"3.3\"", 1)).unwrap();
+        assert_ne!(
+            profile_content_revision(root.path(), &bringup).unwrap(),
+            before
+        );
+        std::fs::remove_file(&loaded).unwrap();
+        assert!(matches!(
+            crate::resolve_urdf_path(root.path(), &robot),
+            Err(ConfigError::UrdfMissing { .. })
+        ));
+        assert_ne!(
+            profile_content_revision(root.path(), &bringup).unwrap(),
+            before
+        );
+    }
+
     #[test]
     fn revision_is_stable_across_serde_mapping_reorder() {
         let temp = tempfile::tempdir().unwrap();
