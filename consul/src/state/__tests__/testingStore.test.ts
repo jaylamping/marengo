@@ -43,6 +43,8 @@ describe('testing store stop paths', () => {
     const sent = fromBinary(MitCommandBatchSchema, toBinary(MitCommandBatchSchema, batch!));
     expect(sent.mode).toBe(ControlMode.POSITION);
     expect(sent.joints.map((j) => [j.name, j.position])).toEqual([[JOINT, 0.42]]);
+    // Deprecated fields (P-armee-proto-04) are not written, so they can be reserved (UI-29).
+    expect(sent.timestampMs).toBe(0n);
   });
 
   it('Stop without a measured pose disables instead of doing nothing (UI-05)', async () => {

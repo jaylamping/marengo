@@ -88,7 +88,6 @@ export function useCompoundPlayback() {
       useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(
         create(MitCommandBatchSchema, {
-          timestampMs: BigInt(Date.now()),
           mode: ControlMode.POSITION,
           joints,
         }),
@@ -104,8 +103,6 @@ export function useCompoundPlayback() {
           name,
           ...CONFIG_GAINS,
           position: 0,
-          velocity: 0,
-          torqueFf: 0,
         }),
       );
       if (!dry && joints.length > 0) {
@@ -297,8 +294,6 @@ export function useCompoundPlayback() {
           name,
           ...CONFIG_GAINS,
           position,
-          velocity: 0,
-          torqueFf: 0,
         }),
       );
       if (!dry && commands.length > 0) await postPositionBatch(commands);
@@ -325,8 +320,6 @@ export function useCompoundPlayback() {
         name: encodeNativeWaveCommandName(wave, speedMultiplier),
         ...CONFIG_GAINS,
         position: wave.minRad,
-        velocity: 0,
-        torqueFf: 0,
       });
       if (!dry) await postPositionBatch([command]);
     };

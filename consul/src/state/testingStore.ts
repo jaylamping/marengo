@@ -95,8 +95,6 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
         ki: gain.ki,
         fc: gain.fc,
         position: setpointRad,
-        velocity: 0,
-        torqueFf: 0,
       });
     });
 
@@ -106,7 +104,6 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       try {
         await postTestingMitCommandBatch(
           create(MitCommandBatchSchema, {
-            timestampMs: BigInt(Date.now()),
             mode: ControlMode.POSITION,
             joints,
           }),
@@ -139,14 +136,11 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
           ki: gain.ki,
           fc: gain.fc,
           position: measured.position,
-          velocity: 0,
-          torqueFf: 0,
         }),
       );
     }
     await postTestingMitCommandBatch(
       create(MitCommandBatchSchema, {
-        timestampMs: BigInt(Date.now()),
         mode: ControlMode.POSITION,
         joints,
       }),
@@ -169,8 +163,6 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
         ki: gain.ki,
         fc: gain.fc,
         position: 0,
-        velocity: 0,
-        torqueFf: 0,
       });
     });
 
@@ -178,7 +170,6 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(
         create(MitCommandBatchSchema, {
-          timestampMs: BigInt(Date.now()),
           mode: ControlMode.POSITION,
           joints,
         }),
@@ -209,14 +200,11 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       ki: gain.ki,
       fc: gain.fc,
       position: setpointRad,
-      velocity: 0,
-      torqueFf: 0,
     });
     if (!dryRun) {
       useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(
         create(MitCommandBatchSchema, {
-          timestampMs: BigInt(Date.now()),
           mode: ControlMode.IMPEDANCE,
           joints: [joint],
         }),
