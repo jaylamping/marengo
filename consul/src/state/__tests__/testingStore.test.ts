@@ -19,7 +19,7 @@ beforeEach(() => {
   vi.mocked(postTestingMitCommandBatch).mockReset();
   useTestingStore.setState({ selectedJointNames: [JOINT], isRunning: true, dryRun: false });
   useCompoundStore.getState().setIsRunning(true);
-  useRobotStore.setState({ robotState: null });
+  useRobotStore.setState({ robotState: null, operationalMode: 'ACTIVE' });
 });
 
 describe('testing store stop paths', () => {
@@ -43,6 +43,32 @@ describe('testing store stop paths', () => {
     const sent = fromBinary(MitCommandBatchSchema, toBinary(MitCommandBatchSchema, batch!));
     expect(sent.mode).toBe(ControlMode.POSITION);
     expect(sent.joints.map((j) => [j.name, j.position])).toEqual([[JOINT, 0.42]]);
+  });
+
+  it.each(['DISABLED', 'READY'] as const)(
+    'Stop while %s sends nothing, so it cannot re-enable the drives',
+    async (mode) => {
+      // A safety or tick-error stop the operator did not order leaves the
+      // run flagged; a hold batch now would make marengo-pi re-enable.
+      useRobotStore.setState({
+        operationalMode: mode,
+        robotState: { joints: [{ name: JOINT, position: 0.42 }] } as never,
+      });
+      await useTestingStore.getState().stopTest();
+      expect(useTestingStore.getState().isRunning).toBe(false);
+      expect(postTestingMitCommandBatch).not.toHaveBeenCalled();
+      expect(postEnableCommand).not.toHaveBeenCalled();
+    },
+  );
+
+  it('Stop with an unknown mode disables rather than holding', async () => {
+    useRobotStore.setState({
+      operationalMode: null,
+      robotState: { joints: [{ name: JOINT, position: 0.42 }] } as never,
+    });
+    await useTestingStore.getState().stopTest();
+    expect(postTestingMitCommandBatch).not.toHaveBeenCalled();
+    expect(postEnableCommand).toHaveBeenCalledWith(false);
   });
 
   it('Stop without a measured pose disables instead of doing nothing (UI-05)', async () => {

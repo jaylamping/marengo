@@ -44,7 +44,11 @@ interface TestingStore {
   /**
    * Stop a running hold where the joints are now: a POSITION batch at each
    * selected joint's measured position (UI-05). Without a measurement for
-   * every joint it disables instead.
+   * every joint it disables instead. The hold batch is sent only while the
+   * drives are ACTIVE: marengo-pi treats a POSITION batch on stopped drives
+   * as a motion request and may re-enable them (implicit enable), so Stop
+   * must never be the thing that energises the arm. DISABLED/READY just
+   * clears the run; an unknown mode sends a disable.
    */
   stopTest: () => Promise<void>;
   /**
@@ -115,7 +119,18 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
     const { selectedJointNames, gains, dryRun } = get();
     set({ isRunning: false });
     if (dryRun || selectedJointNames.length === 0) return;
-    const robot = useRobotStore.getState().robotState;
+    const { operationalMode, robotState: robot } = useRobotStore.getState();
+    if (operationalMode === 'DISABLED' || operationalMode === 'READY') {
+      // The drives are already off (a fault or safety stop the operator did
+      // not order). A hold batch here would re-enable them wherever the arm
+      // now is; there is nothing left to stop.
+      return;
+    }
+    if (operationalMode !== 'ACTIVE') {
+      // Mode unknown (stream gap or reconnect): a disable never energises.
+      await get().disable();
+      return;
+    }
     const joints: MitJointCommand[] = [];
     for (const name of selectedJointNames) {
       const measured = robot?.joints.find((joint) => joint.name === name);
