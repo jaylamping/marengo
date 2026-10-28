@@ -9,14 +9,17 @@ React Router v6 route configuration, lazy-loaded page entry points, root layout 
 ### Route tree (`config.tsx`)
 ```
 RootLayout (Suspense<Outlet />)
-├── / → DashboardPage (lazy)             — robot overview, host cards, charts, URDF preview
-├── /simulation → SimulationPage (lazy)  — simulation sessions and scenarios
-├── /subsystems → SubsystemsPage (lazy)  — inventory table with live enrichment
-├── /logs → LogsPage (lazy)              — structured log viewer with live streaming
-└── /testing → TestingPage (lazy)        — MIT motor testing interface
+├── / → DashboardPage                   — overview cards, CAN bus spectrum
+├── /simulation → SimulationPage        — simulation sessions and scenarios
+├── /telemetry → TelemetryPage          — read-only live joint table
+├── /subsystems → SubsystemsPage        — legacy URL, redirects to /telemetry
+├── /hardware → HardwarePage            — master config, URDF import, Set Limits, Set Zero
+├── /logs → LogsPage                    — structured log viewer with live streaming
+└── /testing → TestingPage              — hold-at, PID retune, compound playback
+(dev only) /dev/sidebar-update-preview → SidebarUpdatePreviewPage
 ```
 
-- Every child route uses `lazy: () => import(...)` for code splitting. Each page chunk includes its feature overview component, sub-components, and any local hooks/constants.
+- Page shells are static imports, because a route-level `lazy()` blocked the pathname update until the chunk loaded. Each shell lazy-loads its overview body with `React.lazy` inside `DeferredLazyBody`.
 - No nested route levels — flat under the root layout.
 
 ### Root layout (`root-layout.tsx`)
@@ -24,7 +27,7 @@ RootLayout (Suspense<Outlet />)
 - All pages share the `DashboardLayout` chrome (sidebar + header + scroll area) which is imported inside each page component, not in the route definition.
 
 ### Route Handle pattern
-- Not currently applied in `config.tsx` (the `handle` metadata slot on route objects is not populated), but `lib/route-handle.ts` is wired in `SiteHeader` to walk react-router `useMatches()` and extract `header.title`/`header.subtitle`. This is available for future per-route header customization.
+- Every route in `config.tsx` sets `handle.header` (title and subtitle). `SiteHeader` walks react-router `useMatches()` through `lib/route-handle.ts` to show them.
 
 ### Index (`index.tsx`)
 - Minimal: calls `createBrowserRouter(appRoutes)` and exports `appRouter` for consumption in `main.tsx`.
@@ -34,9 +37,8 @@ RootLayout (Suspense<Outlet />)
 ```
 main.tsx → <RouterProvider router={appRouter} />
   → react-router resolves URL to route config
-  → lazy() fires dynamic import
-  → Suspense shows PageLoadingFallback while chunk loads
-  → Page component renders DashboardLayout + feature overview
+  → the static page shell renders at once
+  → React.lazy loads the overview body; the shell shows a skeleton meanwhile
   → SiteHeader calls useMatches() + getRouteHeader() for title
 ```
 

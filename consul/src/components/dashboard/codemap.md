@@ -7,6 +7,8 @@
 | Panel | Role |
 |-------|------|
 | `testing/` | Enable/disable, hold-at, PID sliders, gravity-on |
+| `telemetry/` | Read-only live joint table from RobotState |
+| `hardware/` | Master config, URDF import, Set Limits, Set Zero, schematic 3D joint picker |
 | `simulation/` | Simulation mode controls |
 | `logs/` | Structured log tail from gateway |
 | `metrics/` | Host metric charts |
