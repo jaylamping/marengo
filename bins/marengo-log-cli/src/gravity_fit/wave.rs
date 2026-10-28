@@ -782,6 +782,14 @@ fn fit_friction(
         ),
         Some(_) => {}
     }
+    Ok(solve_friction(out, sigma_noise))
+}
+
+/// fc, fv and, when significant, fs over `out.points`, with their σ from `sigma_noise` (else
+/// the fit residual) and the residual against `out.gate_nm`; refusals append to
+/// `out.refusals`.
+fn solve_friction(mut out: FrictionFit, sigma_noise: Option<f64>) -> FrictionFit {
+    let v_b_rad_s = out.v_b_rad_s;
     let y: Vec<f64> = out.points.iter().map(|p| p.friction_nm).collect();
     let linear: Vec<Vec<f64>> = out
         .points
@@ -794,7 +802,7 @@ fn fit_friction(
     else {
         out.refusals
             .push("fc, fv not solvable (one speed or one bin)".into());
-        return Ok(out);
+        return out;
     };
     let (mut fc, mut fv) = (c[0], c[1]);
     let residual_sigma = |coef: &[f64], rows: &[Vec<f64>]| -> Option<f64> {
@@ -826,6 +834,9 @@ fn fit_friction(
                     fc = c3[0];
                     fv = c3[1];
                     out.fs_nm = Some(c3[0] + c3[2]);
+                    // σ of the three-term model whose fc and fv are proposed.
+                    out.sigma_fc_nm = s3.map(|s| s * inv3[0][0].sqrt());
+                    out.sigma_fv = s3.map(|s| s * inv3[1][1].sqrt());
                     format!(
                         "fs − fc = {:.4} ± {se:.4} Nm at v_b {v_b_rad_s} rad/s",
                         c3[2]
@@ -884,7 +895,7 @@ fn fit_friction(
         worst = worst.max((p.friction_nm - f).abs());
     }
     out.max_residual_nm = Some(worst);
-    if let Some(g) = gate_nm {
+    if let Some(g) = out.gate_nm {
         if worst > g {
             out.refusals.push(format!(
                 "residual: max |bin − fit| {worst:.4} Nm > gate {g:.4} Nm"
@@ -902,7 +913,7 @@ fn fit_friction(
     }
     out.fc_nm = Some(fc);
     out.fv = Some(fv);
-    Ok(out)
+    out
 }
 
 /// The URDF patch for the accepted groups, with its checks.
@@ -1599,4 +1610,84 @@ fn record_markdown(
         }
     }
     md
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
+
+    use super::*;
+
+    /// CAL-08: with the Stribeck term accepted, σ_fc and σ_fv are those of the three-term
+    /// model whose fc and fv are proposed, not of the two-term fit they replace.
+    #[test]
+    fn stribeck_terms_carry_their_own_sigma() {
+        const V_B: f64 = 0.08;
+        const NOISE: f64 = 0.002;
+        let points = [0.02, 0.04, 0.06, 0.09, 0.13, 0.2, 0.3]
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| FrictionPoint {
+                center_rad: 0.0,
+                half_period_s: 1.0,
+                speed_rad_s: v,
+                friction_nm: 0.3
+                    + 0.1 * v
+                    + 0.2 * (-v / V_B).exp()
+                    + if i % 2 == 0 { NOISE } else { -NOISE },
+                se_nm: NOISE,
+                session_means: Vec::new(),
+                fit_nm: None,
+            })
+            .collect::<Vec<_>>();
+        let y: Vec<f64> = points.iter().map(|p| p.friction_nm).collect();
+        let rows = |stribeck: bool| -> Vec<Vec<f64>> {
+            points
+                .iter()
+                .map(|p| {
+                    let mut r = vec![1.0, p.speed_rad_s];
+                    if stribeck {
+                        r.push((-p.speed_rad_s / V_B).exp());
+                    }
+                    r
+                })
+                .collect()
+        };
+        let (_, inv2) = least_squares(&rows(false), &y).unwrap();
+        let (_, inv3) = least_squares(&rows(true), &y).unwrap();
+        let fit = solve_friction(
+            FrictionFit {
+                joint: "a".into(),
+                points,
+                speeds: 7,
+                v_b_rad_s: V_B,
+                current: (0.0, 0.0, 0.0),
+                fc_nm: None,
+                fv: None,
+                fs_nm: None,
+                sigma_fc_nm: None,
+                sigma_fv: None,
+                fs_note: String::new(),
+                fv_note: String::new(),
+                sigma_cross_nm: Some(NOISE),
+                sigma_bin_nm: Some(NOISE),
+                gate_nm: Some(0.01),
+                max_residual_nm: None,
+                refusals: Vec::new(),
+            },
+            Some(NOISE),
+        );
+        assert!(fit.fs_nm.is_some(), "{}", fit.fs_note);
+        let sigma_fc = fit.sigma_fc_nm.unwrap();
+        let sigma_fv = fit.sigma_fv.unwrap();
+        assert!(
+            (sigma_fc - NOISE * inv3[0][0].sqrt()).abs() < 1e-12,
+            "{sigma_fc}"
+        );
+        assert!(
+            (sigma_fv - NOISE * inv3[1][1].sqrt()).abs() < 1e-12,
+            "{sigma_fv}"
+        );
+        assert!(sigma_fc > 1.5 * NOISE * inv2[0][0].sqrt(), "{sigma_fc}");
+    }
 }
