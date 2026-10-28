@@ -454,13 +454,6 @@ fn decode_chappe_payload<M: Message + Default>(bytes: &[u8], topic: &str) -> Opt
     }
 }
 
-/// A failed control tick stops every drive and discards motion intent, and the
-/// stop result is reported, never swallowed. Berthier already discards intent
-/// for every `LoopError::Safety` (loop.rs `tick`), so there is no hold to
-/// preserve across a `CommWatchdog`; the mode is set Disabled unconditionally
-/// as a second line. Returns the fault text published in `SafetyState`; when
-/// the stop itself was not delivered it says so (Davout also latches
-/// `StopDelivery`).
 /// Run `body` (the control loop) and, if it panics, stop every drive before the
 /// process goes on to its normal shutdown (RT-04). A panic would otherwise
 /// unwind out of `main` with the drives still executing their last MIT frame;
@@ -506,6 +499,15 @@ impl TickStopPacer {
     pub(crate) const RESTOP_INTERVAL: Duration = Duration::from_secs(1);
 }
 
+/// A failed control tick stops every drive and discards motion intent, and the
+/// stop result is reported, never swallowed. Berthier already discards intent
+/// for every `LoopError::Safety` (loop.rs `tick`), so there is no hold to
+/// preserve across a `CommWatchdog`; the mode is set Disabled unconditionally
+/// as a second line. Returns the fault text published in `SafetyState`; when
+/// the stop itself was not delivered it says so (Davout also latches
+/// `StopDelivery`).
+/// While Davout is latched and the drives are already stopped, the stop is
+/// re-sent at most once per [`TickStopPacer::RESTOP_INTERVAL`].
 pub(crate) fn stop_after_tick_error<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     pacer: &mut TickStopPacer,
