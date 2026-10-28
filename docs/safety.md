@@ -535,7 +535,10 @@ disables. The fault does not clear on its own.
   `motors.yaml` and sends one type-4 Disable (Byte[0]=0), then one type-24 Off,
   per drive (see *Reporting Off at exit*), so a missing
   `control.yaml`/URDF, corrupt calibration history or a down CAN interface
-  cannot stop it from reaching the drives it can reach. It prints a per-drive
+  cannot stop it from reaching the drives it can reach. Each interface is
+  opened transmit-only (no receive-side socket option can fail the stop), and
+  a write the interface refuses (`ENOBUFS`/`EAGAIN`) is retried up to three
+  times, 5 ms apart. It prints a per-drive
   outcome per frame and exits 1 if any Disable or Off was not sent. A sent frame is queued on the
   bus, not drive-confirmed, and it is **not** a fault clear: no type-4
   Byte[0]=1 frame is ever sent (ADR 0020), so a latched drive fault persists.

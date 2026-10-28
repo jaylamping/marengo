@@ -14,10 +14,13 @@
 //!
 //! The outcome is honest about what it proves: `sent` means the kernel accepted
 //! the frame for transmission, not that the drive left Run mode or stopped
-//! reporting.
+//! reporting. A refused write (`ENOBUFS`/`EAGAIN` while the TX queue is full on
+//! a congested or error-passive bus) is retried a bounded number of times
+//! before that frame is reported failed.
 
 use std::collections::HashMap;
 use std::fmt;
+use std::time::Duration;
 
 use marengo_config::MotorStopTarget;
 use robstride::{BusError, MotorAddress, MotorBus};
@@ -103,6 +106,33 @@ pub fn stop_addresses(
     addresses
 }
 
+/// Write attempts per stop frame. Repeating a Disable or Off is harmless.
+pub const STOP_WRITE_ATTEMPTS: usize = 3;
+
+/// Pause before retrying a refused write, so a full TX queue can drain
+/// (about 0.14 ms per frame at 1 Mbit/s).
+const STOP_WRITE_RETRY_PAUSE: Duration = Duration::from_millis(5);
+
+/// One stop frame: retry a write the interface refused, up to
+/// [`STOP_WRITE_ATTEMPTS`]. Other errors are not transient and are not retried.
+fn send_stop_frame(
+    mut write: impl FnMut() -> Result<(), BusError>,
+    pause: Duration,
+) -> Result<(), String> {
+    let mut attempt = 1;
+    loop {
+        match write() {
+            Ok(()) => return Ok(()),
+            Err(error @ BusError::Send { .. }) if attempt < STOP_WRITE_ATTEMPTS => {
+                eprintln!("stop write refused ({error}); retrying");
+                attempt += 1;
+                std::thread::sleep(pause);
+            }
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+}
+
 /// Send one Disable, then one type-24 Off, to every address, back to back.
 /// `open` is called once per distinct interface; an interface that cannot be
 /// opened fails only its own drives.
@@ -118,10 +148,11 @@ pub fn disable_drives<B: MotorBus>(
             .or_insert_with(|| open(&address.interface).map_err(|error| format!("open: {error}")));
         let (disable, reporting_off) = match bus {
             Ok(bus) => (
-                bus.disable_drive_at(address)
-                    .map_err(|error| error.to_string()),
-                bus.disable_active_reporting_at(address)
-                    .map_err(|error| error.to_string()),
+                send_stop_frame(|| bus.disable_drive_at(address), STOP_WRITE_RETRY_PAUSE),
+                send_stop_frame(
+                    || bus.disable_active_reporting_at(address),
+                    STOP_WRITE_RETRY_PAUSE,
+                ),
             ),
             Err(error) => (Err(error.clone()), Err(error.clone())),
         };
@@ -134,9 +165,11 @@ pub fn disable_drives<B: MotorBus>(
     StopReport { drives }
 }
 
-/// [`disable_drives`] over the real SocketCAN interfaces.
+/// [`disable_drives`] over the real SocketCAN interfaces, each opened
+/// transmit-only and unowned: no receive-side option can fail a stop, and a
+/// running owner cannot block it.
 pub fn disable_drives_socketcan(addresses: &[MotorAddress]) -> StopReport {
-    disable_drives(addresses, robstride::RuntimeBus::socketcan)
+    disable_drives(addresses, robstride::RuntimeBus::socketcan_transmit_only)
 }
 
 /// `set-zero` can touch a drive and therefore arms an independent exit stop
@@ -251,6 +284,68 @@ mod tests {
         }
     }
     impl MotorBus for NoReportingBus {}
+
+    /// Refuses its first `refusals` writes as a full TX queue would.
+    struct CongestedBus {
+        refusals: usize,
+        inner: MemoryBus,
+    }
+
+    impl CanBus for CongestedBus {
+        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
+            if self.refusals > 0 {
+                self.refusals -= 1;
+                return Err(BusError::Send {
+                    message: "No buffer space available (os error 105)".into(),
+                });
+            }
+            self.inner.send_frame(frame)
+        }
+        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+            Ok(ReceiveAttempt::Idle)
+        }
+    }
+    impl MotorBus for CongestedBus {}
+
+    /// DRV-07: one transient ENOBUFS no longer fails a drive's stop.
+    #[test]
+    fn a_refused_stop_write_is_retried() {
+        let addresses = stop_addresses(&[target("can0", 1)], None);
+        let report = disable_drives(&addresses, |_| {
+            Ok(CongestedBus {
+                refusals: STOP_WRITE_ATTEMPTS - 1,
+                inner: MemoryBus::default(),
+            })
+        });
+        assert!(report.all_sent(), "{report}");
+    }
+
+    #[test]
+    fn stop_write_retries_are_bounded_and_skip_permanent_errors() {
+        let mut calls = 0;
+        let error = send_stop_frame(
+            || {
+                calls += 1;
+                Err(BusError::Send {
+                    message: "No buffer space available".into(),
+                })
+            },
+            Duration::ZERO,
+        )
+        .expect_err("queue never drains");
+        assert_eq!(calls, STOP_WRITE_ATTEMPTS);
+        assert!(error.contains("No buffer space"), "{error}");
+        let mut calls = 0;
+        send_stop_frame(
+            || {
+                calls += 1;
+                Err(BusError::Driver("no such device".into()))
+            },
+            Duration::ZERO,
+        )
+        .expect_err("not transient");
+        assert_eq!(calls, 1);
+    }
 
     fn assert_is_disable_to(frame: &CanFrame, device_id: u8) {
         let id = unpack_ext_id(frame.id).expect("extended id");

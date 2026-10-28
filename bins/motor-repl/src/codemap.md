@@ -22,8 +22,8 @@ stop open unowned sockets.
 
 `stop.rs` is the independent stop: `stop_addresses` (from `motors.yaml` via
 `marengo_config::load_motor_stop_targets`), `disable_drives` (one Disable then
-one type-24 Off per drive, one bus open per interface, per-drive outcome per
-frame), and `install_signal_stop`
+one type-24 Off per drive, one transmit-only bus open per interface, up to
+three attempts for a refused write, per-drive outcome per frame), and `install_signal_stop`
 (SIGTERM/SIGINT/SIGHUP thread with its own sockets). The retired commands
 `home`, `enable`, `jog`, `speed`, `speed-stop`, `gravity-on`, `gravity-off`, and
 `torque-cmd` are rejected before owner construction.

@@ -279,6 +279,27 @@ fn second_motor_owner_of_an_interface_is_refused_but_a_stop_is_not() {
     RuntimeBus::socketcan_from_motors(&motors).expect("claim released with the owner");
 }
 
+/// DRV-07: a stop socket configures nothing receive-side, keeps the kernel's
+/// default loopback (a running owner sees the stop) and is never read.
+#[test]
+#[ignore = "requires virtual vcan0; no physical robot; run tests serially"]
+fn transmit_only_stop_socket_reaches_other_local_readers() {
+    let observer = CanSocket::open("vcan0").expect("observer");
+    observer
+        .set_read_timeout(Duration::from_millis(100))
+        .expect("observer timeout");
+    let mut stop = RuntimeBus::socketcan_transmit_only("vcan0").expect("stop socket");
+    assert!(!stop.echoes_transmissions());
+    stop.disable_drive_at(&MotorAddress::new("vcan0", 1))
+        .expect("Disable");
+    let seen = observer.read_frame().expect("loopback to the owner");
+    assert_eq!(
+        socketcan::Frame::raw_id(&seen),
+        robstride::encode_default_disable(1).0
+    );
+    assert!(stop.recv_one_nonblocking().is_err(), "never read");
+}
+
 /// DRV-05 / P2A-03: every local socket receives every other local socket's
 /// frames. An exact Enable another process wrote to a configured drive is not
 /// this socket's echo: it fails the receive (the owner latches Transport and

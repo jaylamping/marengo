@@ -992,6 +992,20 @@ impl RuntimeBus {
         }
     }
 
+    /// One unowned transmit-only interface socket for a stop (see
+    /// [`SocketCanBus::open_transmit_only`]).
+    pub fn socketcan_transmit_only(interface: &str) -> Result<Self, BusError> {
+        #[cfg(all(feature = "socketcan", target_os = "linux"))]
+        {
+            SocketCanBus::open_transmit_only(interface).map(Self::Socket)
+        }
+        #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+        {
+            let _ = interface;
+            Err(socketcan_unavailable())
+        }
+    }
+
     /// One interface for a motor owner (see [`SocketCanBus::open_owner`]).
     pub fn socketcan_owner(interface: &str) -> Result<Self, BusError> {
         #[cfg(all(feature = "socketcan", target_os = "linux"))]
@@ -1226,6 +1240,9 @@ mod socketcan {
         /// Held for the socket's lifetime by a motor owner; `None` for stops
         /// and observers.
         _claim: Option<InterfaceClaim>,
+        /// False for a transmit-only stop socket: nothing receive-side was
+        /// configured and it must never be read.
+        receives: bool,
     }
 
     impl SocketCanBus {
@@ -1239,10 +1256,22 @@ mod socketcan {
             Ok(bus)
         }
 
-        /// Open without ownership. Stops (`motor-repl disable`, the exit
-        /// stop) use this so an owner can never block them.
+        /// Open without ownership, for observers. An owner can never block it.
         pub fn open(interface: &str) -> Result<Self, BusError> {
-            tracing::debug!(interface, "opening SocketCAN interface");
+            Self::open_socket(interface, true)
+        }
+
+        /// Open for a stop: bind and set nonblocking, nothing else. No
+        /// receive-side option (own-message echo, timestamps, error filter)
+        /// is configured, so none of them can fail the stop. Loopback stays
+        /// at its kernel default (on), so a running owner still sees the stop.
+        /// Unowned: an owner can never block a stop.
+        pub fn open_transmit_only(interface: &str) -> Result<Self, BusError> {
+            Self::open_socket(interface, false)
+        }
+
+        fn open_socket(interface: &str, receives: bool) -> Result<Self, BusError> {
+            tracing::debug!(interface, receives, "opening SocketCAN interface");
             // Before bind: no frame can be queued on this socket earlier.
             let opened = Instant::now();
             let classic = CanSocket::open(interface)
@@ -1256,14 +1285,16 @@ mod socketcan {
                 .map_err(|e| BusError::Driver(format!("clone classic CAN descriptor: {e}")))?;
             let socket = CanFdSocket::from(descriptor);
             drop(classic);
-            configure_own_message_echo(&socket)?;
-            configure_receive_timestamps(&socket)?;
-            // Error subscriptions default to drop-all in socketcan. Preserve
-            // every kernel error class as transport evidence; failures to
-            // configure the subscription prevent this socket from being used.
-            socket
-                .set_error_filter_accept_all()
-                .map_err(|e| BusError::Driver(format!("configure SocketCAN error filter: {e}")))?;
+            if receives {
+                configure_own_message_echo(&socket)?;
+                configure_receive_timestamps(&socket)?;
+                // Error subscriptions default to drop-all in socketcan. Preserve
+                // every kernel error class as transport evidence; failures to
+                // configure the subscription prevent this socket from being used.
+                socket.set_error_filter_accept_all().map_err(|e| {
+                    BusError::Driver(format!("configure SocketCAN error filter: {e}"))
+                })?;
+            }
             socket
                 .set_nonblocking(true)
                 .map_err(|e| BusError::Driver(e.to_string()))?;
@@ -1275,6 +1306,7 @@ mod socketcan {
                 rx_clock: RxClock::new(opened),
                 echoes: EchoLedger::default(),
                 _claim: None,
+                receives,
             })
         }
 
@@ -1351,6 +1383,12 @@ mod socketcan {
         }
 
         fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+            if !self.receives {
+                return Err(BusError::Driver(format!(
+                    "SocketCAN {} is transmit-only",
+                    self.interface
+                )));
+            }
             let before_read = Instant::now();
             let mut datagram = [0_u8; CANFD_MTU];
             let read = {
@@ -1422,10 +1460,11 @@ mod socketcan {
             }
         }
 
-        /// Opening fails unless own-message echo was configured. A host
-        /// command this socket did not send is a receive failure, never an echo.
+        /// Opening a receiving socket fails unless own-message echo was
+        /// configured. A host command this socket did not send is a receive
+        /// failure, never an echo.
         fn echoes_transmissions(&self) -> bool {
-            true
+            self.receives
         }
     }
 
