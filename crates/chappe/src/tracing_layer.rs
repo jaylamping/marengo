@@ -36,6 +36,9 @@ pub struct ChappeLogLayer {
     /// Suppressed WARN/ERROR events (warn-storm evidence).
     dropped_urgent: AtomicU64,
     elapsed: Arc<dyn Fn() -> Duration + Send + Sync>,
+    /// `MARENGO_LOG_SESSION_ID`, read once at construction rather than on
+    /// every event (the motor owner logs on its control thread).
+    session_id: String,
 }
 
 impl ChappeLogLayer {
@@ -57,6 +60,7 @@ impl ChappeLogLayer {
             dropped_normal: AtomicU64::new(0),
             dropped_urgent: AtomicU64::new(0),
             elapsed: Arc::new(elapsed),
+            session_id: std::env::var("MARENGO_LOG_SESSION_ID").unwrap_or_default(),
         }
     }
 
@@ -228,7 +232,7 @@ where
             level: level_name(level).to_string(),
             target: event.metadata().target().to_string(),
             message: visitor.message,
-            session_id: std::env::var("MARENGO_LOG_SESSION_ID").unwrap_or_default(),
+            session_id: self.session_id.clone(),
             fields_json,
         };
         let _ = self
@@ -237,13 +241,23 @@ where
     }
 }
 
+/// `RUST_LOG` directives when set, else INFO, the same default as
+/// `marengo_support::init_tracing`. `EnvFilter::from_default_env` falls back
+/// to ERROR, so a manual run without `RUST_LOG` logged and published nothing
+/// but errors (RT-14).
+fn env_filter(rust_log: Option<&str>) -> tracing_subscriber::EnvFilter {
+    tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
+        .parse_lossy(rust_log.unwrap_or_default())
+}
+
 /// Initialize fmt + env filter + optional Chappe log layer (call once from bin main).
 pub fn init_subscriber(bus: Option<Arc<Bus>>, source_node: &str) {
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
-    use tracing_subscriber::EnvFilter;
 
-    let filter = EnvFilter::from_default_env();
+    let rust_log = std::env::var(tracing_subscriber::EnvFilter::DEFAULT_ENV).ok();
+    let filter = env_filter(rust_log.as_deref());
     if let Some(bus) = bus {
         tracing_subscriber::registry()
             .with(filter)
@@ -390,6 +404,38 @@ mod tests {
             );
             assert!(logs.iter().all(|event| event.level == "warn"));
         });
+    }
+
+    #[test]
+    fn filter_defaults_to_info_and_honours_rust_log() {
+        use tracing_subscriber::filter::LevelFilter;
+
+        assert_eq!(env_filter(None).max_level_hint(), Some(LevelFilter::INFO));
+        assert_eq!(
+            env_filter(Some("")).max_level_hint(),
+            Some(LevelFilter::INFO)
+        );
+        assert_eq!(
+            env_filter(Some("warn")).max_level_hint(),
+            Some(LevelFilter::WARN)
+        );
+        assert_eq!(
+            env_filter(Some("marengo_pi=debug")).max_level_hint(),
+            Some(LevelFilter::DEBUG)
+        );
+    }
+
+    #[test]
+    fn events_carry_the_session_id_read_at_construction() {
+        let bus = Arc::new(Bus::new(16));
+        let mut rx = bus.subscribe(TOPIC_LOGS);
+        let mut layer = ChappeLogLayer::with_clock(bus, "test", || Duration::ZERO);
+        layer.session_id = "20261028T120000Z".into();
+        let subscriber = tracing_subscriber::registry().with(layer);
+        tracing::subscriber::with_default(subscriber, || tracing::info!("tagged"));
+        let logs = published_logs(&mut rx);
+        assert_eq!(logs.len(), 1);
+        assert_eq!(logs[0].session_id, "20261028T120000Z");
     }
 
     #[test]
