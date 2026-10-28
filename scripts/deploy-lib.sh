@@ -412,6 +412,36 @@ compose_ssh_preflight() {
   return 1
 }
 
+# --- Pi install ---
+
+# Run install-pi.sh on the Pi. Returns nonzero when the remote install fails, so
+# a deploy never reports success while the Pi keeps its previous binaries.
+remote_install_pi() {
+  local host="$1"
+  local remote_root="$2"
+  # Narrow sudoers allow specific scripts only — not `sudo -n true`.
+  if compose_ssh "$host" "set -euo pipefail; sudo -n ${remote_root}/scripts/install-pi.sh"; then
+    return 0
+  fi
+  echo "error: install-pi.sh failed on ${host}; the Pi keeps its previous install" >&2
+  echo "  Without passwordless sudo, run once on the Pi: sudo ${remote_root}/scripts/install-pi.sh" >&2
+  return 1
+}
+
+# Stop every marengo-pi process. Match by process name, not argv: MCP sessions
+# start it as the relative `bin/marengo-pi`, which an install-path pattern
+# misses. Returns 1 while any marengo-pi survives (it still owns CAN).
+stop_marengo_pi_processes() {
+  local _attempt
+  pkill -x marengo-pi 2>/dev/null || true
+  for _attempt in $(seq 1 25); do
+    pgrep -x marengo-pi >/dev/null 2>&1 || return 0
+    sleep 0.2
+  done
+  pgrep -ax marengo-pi >&2 || return 0
+  return 1
+}
+
 # --- deploy revision (single writer: install-pi.sh → /opt/marengo/.deploy-rev) ---
 
 # Root install-pi runs git as root; without safe.directory git refuses /opt/marengo (owned by marengo).

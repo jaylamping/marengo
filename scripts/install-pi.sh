@@ -98,7 +98,10 @@ if systemctl is-active --quiet marengo-pi.service 2>/dev/null; then
   MARENGO_PI_WAS_ACTIVE=true
 fi
 systemctl stop marengo-pi.service 2>/dev/null || true
-pkill -f "${INSTALL_ROOT}/bin/marengo-pi" 2>/dev/null || true
+if ! stop_marengo_pi_processes; then
+  echo "error: marengo-pi still running after stop; not replacing it beside a live CAN owner" >&2
+  exit 1
+fi
 
 seal_installed_tree() {
   chown root:root "${INSTALL_ROOT}"
