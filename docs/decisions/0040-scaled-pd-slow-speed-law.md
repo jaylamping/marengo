@@ -61,14 +61,62 @@ Per joint, in `control.yaml`, all off by default:
 
 Pitch trial values: kp 40, drive kd 6, H 2 Nm·s/rad, filter 10 ms, ki 5, leaky integral with 2 s
 leak, band 0.02 rad, cap 0.25 Nm, guard 0.048 Nm. The audit recommended kd 5. In the in-tree
-fitted-plant gate (`pitch_bench_trial_meets_bench_criteria`), kd 5 overshot the 20 % 50 ms speed
+simple law gate (`pitch_bench_trial_meets_bench_criteria`), kd 5 overshot the 20 % 50 ms speed
 bar on the heavy-inertia variant (20.5 %); kd 6 gives a worst case of 16.8 % across all five
-plants, with predicted peak total torque 3.71 of 5 Nm and no clamps.
+plants, with predicted peak total torque 3.71 of 5 Nm and no clamps. **Those two figures hold
+only for that simple gate**: Coulomb friction (fs 0.37 Nm, no Stribeck), URDF inertia 0.071
+(heavy variant 0.111) kg·m², no position ripple, one estimator (5 ms count difference), one tick
+of delay, calibration-like moves. They do not carry over to the audit's richer plant (next
+section), where kd 6 fails.
+
+### Richer-plant check: kd 6 fails, kd 5 passes (2026-10-28)
+
+`bench_replay.rs` now replays both gains, everything else the master pitch entry, against the
+audit's plant: J 0.14 kg·m², Stribeck friction fs 0.65 → fc 0.37 Nm with v_b 0.08 rad/s, 0.4 Nm
+ripple at 28.6 cycles/rad, gravity fitted / ×0.96 / ×1.04 and the 1.05 Nm crest; drive
+estimators 5 ms count, 20 ms count and exact; one extra old feedback sample; Davout's danger-zone
+clamp, τ_ff limiter, total-torque prediction and reshape (fed back to the law) and RS03 wire
+quantization. Sessions are the 2026-10-04 suite plus the audit's extended stops and slow waves.
+The pass bar is the existing one, per move: slow track ≤ 30 mrad, fast 50 ms speed excess ≤ 20 %,
+stop ≤ 10 mrad, τ_ff step ≤ 0.05 Nm, no predicted total-torque clamp, final-second hold range
+≤ 5 mrad, repeat spread ≤ 10 mrad, no fault. The kd 5 rows land close to the audit's own
+candidate table: identical fast excess (14.87 / 19.87 %), stops within 0.8 mrad, slow track within
+2.1 mrad, and on the grid 10 (audit: 12) of 81 cases over the speed bar with the same 27.36 % worst.
+
+Worst value over the audit's prescribed table (4 plants × 3 estimators = 12 cases):
+
+| Metric | kd 5 | kd 6 |
+|---|---:|---:|
+| Cases passing the whole bar | **12 / 12** | **7 / 12** |
+| Predicted total-torque clamps | 0 | 8 ticks in 5 cases |
+| Peak predicted total torque (cap 5 Nm) | 4.95 Nm | 5.24 Nm |
+| Slow track | 22.73 mrad | 22.73 mrad |
+| Fast 50 ms speed excess | 19.87 % | 17.37 % |
+| Stop | 5.91 mrad | 5.91 mrad |
+| τ_ff step (law and decoded wire) | 0.0476 Nm | 0.0476 Nm |
+| Hold range / repeat spread | 0.38 / 0.38 mrad | 0.38 / 0.77 mrad |
+| Smoothness V, fitted plants (crest) | 0.043–0.047 (0.018) rad/s | 0.038–0.042 (0.016) rad/s |
+| Audit uncertainty grid (81 cases) passing | 71 (10 speed, worst 27.36 %) | 45 (34 clamp, 1 of them also speed; 2 speed; worst 22.37 %) |
+
+kd 6 fails on gravity×1.04 (5 and 20 ms estimators) and on the crest (all three estimators),
+only on the clamp. The mechanism: at the gravity extremes (|τ_ff| ≈ 2.8–3.2 Nm), while a slow
+move sticks on friction and ripple, Davout's position-difference velocity reads one encoder count
+backwards (−0.077 rad/s) against a 0.09–0.15 rad/s reference, and the predicted damping
+`kd·(v − dq) + kd·0.1 rad/s` reaches 1.6–2.0 Nm at kd 6, about 0.3 Nm more than at kd 5. That
+takes the prediction to 5.01–5.24 Nm, so Davout would reshape, which the bench scores as a FAIL.
+kd 6 is still the smoother gain (about 12 % lower V) and overshoots less, but on this plant it
+spends the torque margin kd 5 keeps.
+
+**The chosen gain is not changed here.** `control.yaml` keeps kd 6 for the reduced-speed bench
+trial; whether to return to kd 5 (or trade kp or the torque margin) is the owner's call, on bench
+evidence: a predicted total-torque clamp during the reduced-speed trial at the gravity extremes
+would confirm this result.
 
 ## Consequences
 
-- The PD is stiffer (kp 40 also applies to pitch's impedance mode), and torque margin shrinks
-  slightly; the gate still predicts no total-torque clamp.
+- The PD is stiffer (kp 40 also applies to pitch's impedance mode), and torque margin shrinks.
+  The simple law gate predicts no total-torque clamp at kd 6; the richer-plant replay predicts
+  clamps at the gravity extremes at kd 6 and none at kd 5 (above).
 - `v̂` uses Davout's position difference, which repeats the previous value on a stale tick
   rather than snapping to 0. A long feedback gap is already a Davout fault.
 - Pitch's fast-move overshoot margin is thin across the audit's wider uncertainty grid (12/81
@@ -80,7 +128,12 @@ plants, with predicted peak total torque 3.71 of 5 Nm and no clamps.
 - Unit: `host_damping_acts_on_filtered_velocity_error`,
   `leaky_reference_integral_settles_freezes_and_caps`,
   `ff_step_guard_bounds_every_step_and_starts_from_the_last_sent` (`position_law_tests.rs`);
-  the fitted-plant gate `pitch_bench_trial_meets_bench_criteria` (`law_gates.rs`).
+  the simple law gate `pitch_bench_trial_meets_bench_criteria` (`law_gates.rs`).
+- Richer plant (`bench_replay.rs`): `pitch_bench_suite_replay_meets_bench_bar` (master entry,
+  stop now gated on the ±4 % gravity variants too: worst 5.46 mrad at both gains);
+  `pitch_kd6_clamps_on_the_richer_plant_where_kd5_passes` (four representative cases); the full
+  kd 5 / kd 6 sweep, opt-in: `cargo test -p berthier --lib pitch_kd_richer_plant_full_sweep --
+  --ignored --nocapture` (about 30 s on four cores).
 - ControlLoop, decoded wire τ_ff: `position_entry_from_gravity_comp_starts_from_the_last_sent_tau_ff`
   and `mid_move_retarget_never_steps_the_tau_ff_past_the_guard` (`tests/position_law_wire.rs`);
   `davout_envelope_clamp_freezes_the_leaky_integral` (`loop_wp_d_tests.rs`).
