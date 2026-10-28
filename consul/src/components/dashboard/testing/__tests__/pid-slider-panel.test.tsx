@@ -67,4 +67,35 @@ describe('PID slider panel (UI-06, UI-25)', () => {
     expect(postTestingMitCommandBatch).toHaveBeenCalledTimes(1);
     expect(useTestingStore.getState().gains[JOINT]?.kp).toBe(40);
   });
+
+  it.each([
+    ['pointercancel', (el: HTMLElement) => fireEvent.pointerCancel(el)],
+    ['lostpointercapture', (el: HTMLElement) => fireEvent.lostPointerCapture(el)],
+    ['blur', (el: HTMLElement) => fireEvent.blur(el)],
+  ])('a drag that ends in %s still sends the shown gain', (_name, end) => {
+    render(<PidSliderPanel />);
+    const kp = screen.getAllByRole('slider')[0];
+    fireEvent.change(kp, { target: { value: '25' } });
+    end(kp);
+    expect(postTestingMitCommandBatch).toHaveBeenCalledTimes(1);
+    const [batch] = vi.mocked(postTestingMitCommandBatch).mock.calls[0];
+    expect(batch.joints[0]?.kp).toBe(25);
+  });
+
+  it('pointerup followed by lostpointercapture and blur sends once', () => {
+    render(<PidSliderPanel />);
+    const kp = screen.getAllByRole('slider')[0];
+    fireEvent.change(kp, { target: { value: '30' } });
+    fireEvent.pointerUp(kp);
+    fireEvent.lostPointerCapture(kp);
+    fireEvent.blur(kp);
+    expect(postTestingMitCommandBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('a blur with no change sends nothing', () => {
+    render(<PidSliderPanel />);
+    fireEvent.blur(screen.getAllByRole('slider')[0]);
+    expect(postTestingMitCommandBatch).not.toHaveBeenCalled();
+  });
 });
+

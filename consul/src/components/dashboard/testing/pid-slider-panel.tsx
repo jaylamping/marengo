@@ -24,7 +24,8 @@ function capped(practical: number, live: number | undefined): number {
 /**
  * Slider ranges stop at the live ActuatorLimitSnapshot caps, so the panel never
  * shows a gain the Pi clamps away (UI-06). A gain is sent once, when the drag
- * or the typed value is released, not on every tick (UI-06, UI-25).
+ * or the typed value is released, not on every tick (UI-06, UI-25). A drag
+ * that ends in pointercancel, lost capture or blur is released too.
  */
 export function PidSliderPanel() {
   const { selectedJointNames, gains, setGain, dispatchGainUpdate } = useTestingStore();
@@ -99,6 +100,12 @@ export function PidSliderPanel() {
                       }}
                       onPointerUp={() => send(jointName)}
                       onKeyUp={() => send(jointName)}
+                      // A drag can also end without pointerup: the browser takes a
+                      // touch over for scrolling, or the window loses focus. The
+                      // dirty set makes the later of these events a no-op.
+                      onPointerCancel={() => send(jointName)}
+                      onLostPointerCapture={() => send(jointName)}
+                      onBlur={() => send(jointName)}
                       className="flex-1"
                     />
                     <input
