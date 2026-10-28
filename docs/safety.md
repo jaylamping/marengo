@@ -186,6 +186,13 @@ Further rules enforced in `marengo-pi`/Berthier:
 * `robot/enable` is a stop channel. If its broadcast receiver reports `Lagged`, a Disable may have been dropped and cannot be recovered, so the drain **stops every drive, cancels the reference queue, forbids implicit re-enable and discards the queued survivors**, then publishes `ActionEvent{action: "stop_on_lag"}`. Lag is never treated as an empty channel.
 * A Testing gain override is refused (`GainOverrideNotApplicable`) outside Impedance/Position instead of returning Ok; a Testing POSITION batch applies its gains after the mode is entered.
 * Configuration-plane Chappe commands (Set Limits, config overlay tuning) are not motion and are not gated by the lease; they remain refused while a reference is busy.
+* Because a safety (non-operator) stop leaves implicit enable allowed, any Testing POSITION batch after one re-enables the drives. Consul's Hold **Stop** therefore sends its hold-where-you-are batch only while the mode is `ACTIVE`; when the drives are already off it sends nothing (and with an unknown mode it sends a disable).
+
+## Credential-free stop route (EDGE-01)
+
+`POST /command/disable` on the gateway needs **no credential**, so a reloaded or second Consul tab can always stop the robot. Browser Origin is still checked, but a client that sends no Origin header (curl, a script) is admitted, and the route has no rate limit. Anything that can reach the gateway on the bench LAN can therefore drop the drives. It cannot move them: the route publishes only `enable=false`, which is a Stop for marengo-pi and forbids implicit re-enable until an explicit enable. Dropping an elevated arm is still a hazard, so the gateway must not be exposed beyond the bench LAN while this holds ([ADR 0008](decisions/0008-chappe-webtransport-transport.md)).
+
+Each call is logged by the gateway (`credential-free disable requested`, with `peer` and `origin`), and the published `operator_id` is `consul peer=<ip:port>`, so marengo-pi's `disable via Chappe` log line names where the stop came from. The peer is a network address, not an identity.
 
 ## Graceful owner shutdown
 

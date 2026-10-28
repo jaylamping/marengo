@@ -13,6 +13,7 @@ import { z } from "zod";
 import { type MarengoPiConfig, sshTarget } from "../config.js";
 import { BENCH_PROFILES, profileMeta } from "../bench-profiles.js";
 import { waitCanReleasedShell } from "../can-owner.js";
+import { piSessionTimeout } from "../cancel.js";
 import { execLocal as sshExecLocal, type RemoteExecResult } from "../ssh.js";
 import {
   ADMISSION_REPLY_SEC,
@@ -233,7 +234,7 @@ export function soakSessionBody(cfg: MarengoPiConfig, plan: SoakPlan): string {
     "trap 'rm -f \"$LOG\"' EXIT",
     marengoPiLaunchShell(cfg),
     "set +e",
-    `{\n${soakFeederShell(plan.script)};\n} | timeout ${pipeTimeout} env -u MARENGO_CHAPPE_SOCKET "$PI_BIN" 2>&1 | tee -a "$LOG"`,
+    `{\n${soakFeederShell(plan.script)};\n} | ${piSessionTimeout(pipeTimeout)} env -u MARENGO_CHAPPE_SOCKET "$PI_BIN" 2>&1 | tee -a "$LOG"`,
     '_soak_status=("${PIPESTATUS[@]}")',
     'echo "can errors after marengo-pi: $(can_error_counters)"',
     waitCanReleasedShell(25),

@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iproute2 \
     can-utils \
     kmod \
+    procps \
     python3 \
     python3-pip \
     gosu \

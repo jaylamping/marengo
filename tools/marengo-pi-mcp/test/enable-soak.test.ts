@@ -153,9 +153,9 @@ describe("pi_enable_soak script", () => {
 
   it("launches every soak marengo-pi without the Chappe IPC socket", () => {
     const body = soakSessionBody(cfg, plan({ cycles: 2 }));
-    const launches = body.match(/\| timeout \d+ [^\n]*\$PI_BIN"?/g) ?? [];
+    const launches = body.match(/\| timeout --foreground \d+ [^\n]*\$PI_BIN"?/g) ?? [];
     assert.equal(launches.length, 1, "one launch inside the per-cycle loop");
-    assert.match(launches[0], /\| timeout \d+ env -u MARENGO_CHAPPE_SOCKET "\$PI_BIN"$/);
+    assert.match(launches[0], /\| timeout --foreground \d+ env -u MARENGO_CHAPPE_SOCKET "\$PI_BIN"$/);
   });
 
   it("exports the joint subset only for subset profiles", () => {
@@ -205,7 +205,7 @@ function soakFixture(
       "done",
     ].join("\n"),
     "fakebin/sleep": "exit 0",
-    "fakebin/timeout": 'shift; exec "$@"',
+    "fakebin/timeout": 'while [[ "$1" == -* ]]; do shift; done; shift; exec "$@"',
     "fakebin/ip": "exit 0",
     "fakebin/pgrep": "exit 1",
     ...(opts.wrapped

@@ -3,6 +3,7 @@ import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { BENCH_PROFILES, profileMeta } from "../bench-profiles.js";
 import { appendAudit } from "../audit.js";
 import { exitCodeOfRemoteOutput } from "../ssh.js";
+import { piSessionTimeout } from "../cancel.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { effectiveProfile, validateMotionConfirm } from "../safety.js";
 import { homingReportShell } from "../homing.js";
@@ -494,7 +495,7 @@ export function marengoPiPipeLine(line: string): string {
 
 export function marengoPiPipe(script: string[], pipeTimeoutSec: number, binary = "$PI_BIN"): string {
   const pipeLines = script.map(marengoPiPipeLine).join(";\n");
-  return `{\n${pipeLines};\n} | timeout ${pipeTimeoutSec} ${binary}`;
+  return `{\n${pipeLines};\n} | ${piSessionTimeout(pipeTimeoutSec)} ${binary}`;
 }
 
 /**
@@ -505,7 +506,7 @@ export function marengoPiAdmittedPipe(script: string[], pipeTimeoutSec: number):
   const pipeLines = script
     .map((line) => admissionGateShell(line) ?? marengoPiPipeLine(line))
     .join(";\n");
-  return `{\n${pipeLines};\n} | timeout ${pipeTimeoutSec} $PI_BIN`;
+  return `{\n${pipeLines};\n} | ${piSessionTimeout(pipeTimeoutSec)} $PI_BIN`;
 }
 
 function marengoPiTimedPipe(
@@ -591,7 +592,7 @@ function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
   return [
     'if ! bin/motor-repl disable; then echo "RECOVER_DISABLE_INCOMPLETE: motor-repl did not reach every drive"; fi',
     marengoPiLaunchShell(cfg),
-    '{ sleep 1; echo status; echo disable; echo quit; } | timeout 10 "$PI_BIN"',
+    `{ sleep 1; echo status; echo disable; echo quit; } | ${piSessionTimeout(10)} "$PI_BIN"`,
   ].join("\n");
 }
 
