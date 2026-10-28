@@ -14,6 +14,32 @@ use tracing::{debug, error, info, warn};
 
 const DEFAULT_FRAME_ID: &str = "torso_imu";
 
+const INITIAL_BACKOFF: Duration = Duration::from_secs(1);
+const MAX_BACKOFF: Duration = Duration::from_secs(10);
+
+/// Why a session ended, and whether it had published anything first.
+struct SessionFailure {
+    message: String,
+    delivered: bool,
+}
+
+/// No sample for this long ends the session: ten report intervals, at least
+/// 200 ms. A BNO085 reset by a brownout or ESD clears its enabled features and
+/// stops reporting; only a new session re-enables the rotation vector.
+fn silence_limit(report_interval_us: u32) -> Duration {
+    (Duration::from_micros(u64::from(report_interval_us)) * 10).max(Duration::from_millis(200))
+}
+
+/// Wait before restarting after a failed session. A session that delivered
+/// samples was healthy, so early failures do not slow every later recovery.
+fn restart_backoff(current: Duration, delivered: bool) -> Duration {
+    if delivered {
+        INITIAL_BACKOFF
+    } else {
+        current
+    }
+}
+
 struct ImuConfig {
     bus_path: String,
     address: u16,
@@ -89,8 +115,7 @@ pub fn spawn_imu_publisher(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>) {
 }
 
 fn run_imu_loop(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>, cfg: ImuConfig) {
-    let mut backoff = Duration::from_secs(1);
-    const MAX_BACKOFF: Duration = Duration::from_secs(10);
+    let mut backoff = INITIAL_BACKOFF;
 
     while !shutdown.load(Ordering::SeqCst) {
         info!("IMU session starting");
@@ -99,8 +124,9 @@ fn run_imu_loop(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>, cfg: ImuConfig) {
                 info!("IMU session ended cleanly");
                 return;
             }
-            Err(err) => {
-                warn!(error = %err, backoff_sec = backoff.as_secs(), "IMU session failed, restarting");
+            Err(failure) => {
+                backoff = restart_backoff(backoff, failure.delivered);
+                warn!(error = %failure.message, backoff_sec = backoff.as_secs(), "IMU session failed, restarting");
                 let deadline = Instant::now() + backoff;
                 while !shutdown.load(Ordering::SeqCst) && Instant::now() < deadline {
                     thread::sleep(Duration::from_millis(100));
@@ -115,25 +141,32 @@ fn run_imu_session(
     chappe: &Arc<Bus>,
     shutdown: &Arc<AtomicBool>,
     cfg: &ImuConfig,
-) -> Result<(), String> {
-    let bus = LinuxI2cBus::open(&cfg.bus_path, cfg.address).map_err(|e| e.to_string())?;
+) -> Result<(), SessionFailure> {
+    let mut delivered = false;
+    let fail = |message: String, delivered: bool| SessionFailure { message, delivered };
+    let bus =
+        LinuxI2cBus::open(&cfg.bus_path, cfg.address).map_err(|e| fail(e.to_string(), false))?;
     let mut imu = Bno085::new(bus);
     // Cancellable init: an absent sensor must not wedge shutdown for ~22 s.
     imu.initialize_while(|| !shutdown.load(Ordering::SeqCst))
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| fail(e.to_string(), false))?;
     if shutdown.load(Ordering::SeqCst) {
         return Ok(());
     }
     imu.enable_rotation_vector(cfg.report_interval_us)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| fail(e.to_string(), false))?;
 
     let poll_period = Duration::from_micros(u64::from(cfg.report_interval_us));
+    let silence = silence_limit(cfg.report_interval_us);
+    let mut last_sample = Instant::now();
     let mut consecutive_errors = 0u32;
     while !shutdown.load(Ordering::SeqCst) {
         let tick = Instant::now();
         match imu.poll() {
             Ok(Some(sample)) => {
                 consecutive_errors = 0;
+                delivered = true;
+                last_sample = tick;
                 let q = sample.quaternion;
                 let msg = ImuSample {
                     timestamp_ms: timestamp_ms(),
@@ -170,11 +203,22 @@ fn run_imu_session(
                 consecutive_errors += 1;
                 warn!(error = %err, consecutive_errors, "IMU poll failed");
                 if consecutive_errors >= 10 {
-                    return Err(format!(
-                        "IMU poll failed {consecutive_errors} times in a row: {err}"
+                    return Err(fail(
+                        format!("IMU poll failed {consecutive_errors} times in a row: {err}"),
+                        delivered,
                     ));
                 }
             }
+        }
+        // Silent polls are not errors, so they need their own limit.
+        if last_sample.elapsed() >= silence {
+            return Err(fail(
+                format!(
+                    "IMU silent for {} ms; restarting the session",
+                    silence.as_millis()
+                ),
+                delivered,
+            ));
         }
 
         let elapsed = tick.elapsed();
@@ -183,4 +227,25 @@ fn run_imu_session(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// DRV-10: a sensor that stops reporting ends its session.
+    #[test]
+    fn silence_limit_is_ten_intervals_but_at_least_200_ms() {
+        assert_eq!(silence_limit(20_000), Duration::from_millis(200));
+        assert_eq!(silence_limit(1_000), Duration::from_millis(200));
+        assert_eq!(silence_limit(100_000), Duration::from_secs(1));
+    }
+
+    /// DRV-16: a healthy session resets the restart backoff.
+    #[test]
+    fn backoff_resets_after_a_session_that_delivered_samples() {
+        assert_eq!(restart_backoff(MAX_BACKOFF, true), INITIAL_BACKOFF);
+        assert_eq!(restart_backoff(MAX_BACKOFF, false), MAX_BACKOFF);
+        assert_eq!(restart_backoff(INITIAL_BACKOFF, false), INITIAL_BACKOFF);
+    }
 }
