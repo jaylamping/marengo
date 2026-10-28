@@ -491,13 +491,53 @@ fn run_with_panic_stop<B: MotorBus>(
     true
 }
 
-fn stop_after_tick_error<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, error: &LoopError) -> String {
-    error!(error = %error, "control tick failed");
+/// Paces the stop after a tick error once Davout has latched a fault and the
+/// drives were stopped. A drive with a sticky fault flag answers every Disable
+/// with another hazard frame, so each drain fails again; stopping on every
+/// tick kept the bus at ~80 % load with 15-frame bursts (DAV-01).
+#[derive(Debug, Default)]
+pub(crate) struct TickStopPacer {
+    last_delivered_stop: Option<Instant>,
+    suppressed: u32,
+}
+
+impl TickStopPacer {
+    /// While latched and stopped, re-send the stop at most this often.
+    pub(crate) const RESTOP_INTERVAL: Duration = Duration::from_secs(1);
+}
+
+pub(crate) fn stop_after_tick_error<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    pacer: &mut TickStopPacer,
+    error: &LoopError,
+    now: Instant,
+) -> String {
+    let stopped_and_latched = loop_ctrl.supervisor().has_latched_fault()
+        && loop_ctrl.supervisor().mode() != davout::OperationalMode::Active
+        && loop_ctrl.control_mode() == ControlMode::Disabled;
+    if stopped_and_latched
+        && pacer
+            .last_delivered_stop
+            .is_some_and(|at| now.saturating_duration_since(at) < TickStopPacer::RESTOP_INTERVAL)
+    {
+        pacer.suppressed = pacer.suppressed.saturating_add(1);
+        return error.to_string();
+    }
+    error!(
+        error = %error,
+        repeats_since_last_stop = pacer.suppressed,
+        "control tick failed"
+    );
+    pacer.suppressed = 0;
     let stop = loop_ctrl.supervisor_mut().disable_all();
     loop_ctrl.set_control_mode(ControlMode::Disabled);
     match stop {
-        Ok(()) => error.to_string(),
+        Ok(()) => {
+            pacer.last_delivered_stop = Some(now);
+            error.to_string()
+        }
         Err(stop_error) => {
+            pacer.last_delivered_stop = None;
             error!(
                 error = %stop_error,
                 "stop after control tick failure was NOT delivered to every drive"
@@ -1929,6 +1969,7 @@ fn run_control_loop<B: MotorBus>(
     let mut last_chappe = Instant::now();
     let mut last_heartbeat = Instant::now();
     let mut unpublished_fault = UnpublishedTickFault::default();
+    let mut tick_stop_pacer = TickStopPacer::default();
     let mut timing = LoopTimingWindow::new(loop_ctrl.tick_count());
     let mut reference_queue = PiReferenceQueue::new(format!("marengo-pi-{}", std::process::id()));
     let mut enable_gate = EnableGate::default();
@@ -2052,7 +2093,12 @@ fn run_control_loop<B: MotorBus>(
             unpublished_fault.record(e.to_string());
         }
         if let Err(e) = loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
-            unpublished_fault.record(stop_after_tick_error(loop_ctrl, &e));
+            unpublished_fault.record(stop_after_tick_error(
+                loop_ctrl,
+                &mut tick_stop_pacer,
+                &e,
+                Instant::now(),
+            ));
         }
         if degraded::report_degraded_events(
             loop_ctrl.take_degraded_events(),

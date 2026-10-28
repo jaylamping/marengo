@@ -4,6 +4,9 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use armee_proto::{EnableRequest, SetZeroRequest};
 use berthier::{ControlLoop, ControlMode, LoopError};
@@ -13,7 +16,7 @@ use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceiveAttempt}
 use crate::enable_gate::EnableGate;
 use crate::{
     handle_chappe_enable, handle_chappe_set_zero, handle_command, parse_command,
-    run_with_panic_stop, stop_after_tick_error, PiReferenceQueue,
+    run_with_panic_stop, stop_after_tick_error, PiReferenceQueue, TickStopPacer,
 };
 
 const JOINT: &str = "right_elbow_pitch";
@@ -27,11 +30,19 @@ fn repo_root() -> PathBuf {
 struct FlakyBus {
     inner: MemoryBus,
     refuse_disable: bool,
+    /// When set and true, refuses Disable like `refuse_disable`; the test can
+    /// clear it after the bus moved into the controller.
+    refuse_disable_switch: Option<Arc<AtomicBool>>,
 }
 
 impl CanBus for FlakyBus {
     fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-        if self.refuse_disable && (frame.id >> 24) & 0x1f == 4 {
+        let refusing = self.refuse_disable
+            || self
+                .refuse_disable_switch
+                .as_ref()
+                .is_some_and(|switch| switch.load(Ordering::SeqCst));
+        if refusing && (frame.id >> 24) & 0x1f == 4 {
             return Err(BusError::Send {
                 message: "injected disable refusal".into(),
             });
@@ -138,7 +149,12 @@ fn tick_error_stops_every_drive_and_disables_even_for_comm_watchdog() {
     let mut loop_ctrl = loop_with(FlakyBus::default());
     loop_ctrl.set_control_mode(ControlMode::Position);
 
-    let fault = stop_after_tick_error(&mut loop_ctrl, &comm_watchdog());
+    let fault = stop_after_tick_error(
+        &mut loop_ctrl,
+        &mut TickStopPacer::default(),
+        &comm_watchdog(),
+        Instant::now(),
+    );
 
     assert!(fault.contains("comm watchdog"), "{fault}");
     assert!(!fault.contains("not delivered"), "{fault}");
@@ -160,7 +176,12 @@ fn tick_error_reports_a_stop_that_was_not_delivered() {
     });
     loop_ctrl.set_control_mode(ControlMode::GravityComp);
 
-    let fault = stop_after_tick_error(&mut loop_ctrl, &comm_watchdog());
+    let fault = stop_after_tick_error(
+        &mut loop_ctrl,
+        &mut TickStopPacer::default(),
+        &comm_watchdog(),
+        Instant::now(),
+    );
 
     assert!(
         fault.contains("stop after tick failure not delivered"),
@@ -168,6 +189,56 @@ fn tick_error_reports_a_stop_that_was_not_delivered() {
     );
     assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
     assert!(loop_ctrl.supervisor().has_latched_fault());
+}
+
+/// DAV-01: a sticky drive fault fails every drain while latched. Once the
+/// drives are stopped, the tick-error path re-stops at most once a second
+/// instead of every tick, but always retries a stop that was not delivered.
+#[test]
+fn latched_tick_errors_restop_at_most_once_a_second() {
+    let refusing = Arc::new(AtomicBool::new(true));
+    let mut loop_ctrl = loop_with(FlakyBus {
+        refuse_disable_switch: Some(Arc::clone(&refusing)),
+        ..FlakyBus::default()
+    });
+    loop_ctrl.set_control_mode(ControlMode::GravityComp);
+    let mut pacer = TickStopPacer::default();
+    let t0 = Instant::now();
+    let device = loop_ctrl.supervisor().motors.motors[0].device_id;
+
+    stop_after_tick_error(&mut loop_ctrl, &mut pacer, &comm_watchdog(), t0);
+    assert!(loop_ctrl.supervisor().has_latched_fault());
+    refusing.store(false, Ordering::SeqCst);
+
+    let tick = Duration::from_millis(5);
+    stop_after_tick_error(&mut loop_ctrl, &mut pacer, &comm_watchdog(), t0 + tick);
+    let after_retry = disables_to(&loop_ctrl, device);
+    assert!(
+        after_retry >= 1,
+        "an undelivered stop is retried on the next tick"
+    );
+
+    for k in 2..=100 {
+        let fault =
+            stop_after_tick_error(&mut loop_ctrl, &mut pacer, &comm_watchdog(), t0 + tick * k);
+        assert!(fault.contains("comm watchdog"), "{fault}");
+    }
+    assert_eq!(
+        disables_to(&loop_ctrl, device),
+        after_retry,
+        "no stop storm while latched and already stopped"
+    );
+
+    stop_after_tick_error(
+        &mut loop_ctrl,
+        &mut pacer,
+        &comm_watchdog(),
+        t0 + tick + TickStopPacer::RESTOP_INTERVAL,
+    );
+    assert!(
+        disables_to(&loop_ctrl, device) > after_retry,
+        "the stop is still repeated once a second"
+    );
 }
 
 fn set_zero(confirm: bool, sign_test_passed: bool, joint: &str) -> SetZeroRequest {
