@@ -436,4 +436,30 @@ describe('HardwareOverview', () => {
       expect(postEnableCommand).toHaveBeenCalledWith(true);
     });
   });
+
+  it('shows when an accepted Enable falls back to DISABLED (UI-07)', async () => {
+    useRobotStore.setState({
+      connected: true,
+      operationalMode: 'DISABLED',
+      robotState: {
+        $typeName: 'marengo.v1.RobotState',
+        timestamp: { $typeName: 'google.protobuf.Timestamp', seconds: 0n, nanos: 0 },
+        joints: [
+          wireJoint('right_shoulder_roll'),
+          wireJoint('right_shoulder_pitch'),
+        ],
+      } as never,
+    });
+
+    renderHardware();
+    fireEvent.click(await screen.findByTestId('hardware-enable-ready-in-scope'));
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('hardware-enable-outcome')).toHaveTextContent(
+          /returned to DISABLED/i,
+        );
+      },
+      { timeout: 3000 },
+    );
+  });
 });

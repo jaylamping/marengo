@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/toggle-group';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { useMotorStatusPoll } from '@/hooks/use-motor-status-poll';
+import { usePostEnableWatch } from '@/hooks/use-post-enable-watch';
 import { robotWireFacetsLive } from '@/lib/commissioning';
 import { postEnableCommand } from '@/lib/gateway-api';
 import { fetchCompleteness } from '@/lib/hardware-api';
@@ -50,6 +51,7 @@ export function HardwareOverview() {
   const wireLive = robotWireFacetsLive(robotState);
   const canEnable =
     wireLive && !enableBusy && operationalMode !== 'ACTIVE';
+  const enableWatch = usePostEnableWatch(snapshot ?? null, limitSnapshot);
 
   const onEnableReadyInScope = async () => {
     if (!canEnable) {
@@ -57,8 +59,10 @@ export function HardwareOverview() {
     }
     setEnableBusy(true);
     setEnableError(null);
+    enableWatch.clear();
     try {
       await postEnableCommand(true);
+      enableWatch.start();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setEnableError(message);
@@ -150,6 +154,18 @@ export function HardwareOverview() {
               data-testid="hardware-enable-error"
             >
               {enableError}
+            </span>
+          ) : enableWatch.outcome ? (
+            <span
+              className={
+                enableWatch.outcome.kind === 'error'
+                  ? 'micro-label text-destructive'
+                  : 'micro-label text-muted-foreground'
+              }
+              role="status"
+              data-testid="hardware-enable-outcome"
+            >
+              {enableWatch.outcome.message}
             </span>
           ) : null}
           <Button
