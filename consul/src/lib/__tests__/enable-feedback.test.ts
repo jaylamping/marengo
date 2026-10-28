@@ -14,6 +14,8 @@ import {
 import type { ConfigSnapshotDto } from '@/lib/config-api';
 import {
   diagnoseEnableDisabledTrip,
+  ENABLE_ACTIVE_HOLD_MS,
+  ENABLE_OUTCOME_TIMEOUT_MS,
   formatSafetyFaults,
   interpretPostEnableWatch,
 } from '@/lib/enable-feedback';
@@ -142,15 +144,56 @@ describe('interpretPostEnableWatch', () => {
     expect(result.message).toMatch(/tripped safety/i);
   });
 
-  it('flags DISABLED after enable without faults', () => {
+  it('keeps waiting while DISABLED before ACTIVE was ever seen (slow Enable)', () => {
+    // Preflight, IPC, the Enable stagger and a post-SetZero quiet can all
+    // keep the mode DISABLED past 700 ms on a healthy Enable.
+    for (const elapsedMs of [700, 900, 2500, ENABLE_OUTCOME_TIMEOUT_MS - 1]) {
+      const result = interpretPostEnableWatch({
+        elapsedMs,
+        operationalMode: 'DISABLED',
+        safetyState: null,
+        activeForMs: null,
+      });
+      expect(result.done).toBe(false);
+      expect(result.kind).toBe('pending');
+    }
+  });
+
+  it('flags a drop to DISABLED after ACTIVE was seen', () => {
     const result = interpretPostEnableWatch({
       elapsedMs: 900,
       operationalMode: 'DISABLED',
       safetyState: null,
+      activeForMs: 100,
     });
     expect(result.done).toBe(true);
     expect(result.kind).toBe('error');
-    expect(result.message).toMatch(/DISABLED/i);
+    expect(result.message).toMatch(/returned to DISABLED/i);
+  });
+
+  it('flags an Enable that never reaches ACTIVE once the Pi bound has passed', () => {
+    expect(ENABLE_OUTCOME_TIMEOUT_MS).toBeGreaterThanOrEqual(2000 + 200);
+    const result = interpretPostEnableWatch({
+      elapsedMs: ENABLE_OUTCOME_TIMEOUT_MS,
+      operationalMode: 'DISABLED',
+      safetyState: null,
+      activeForMs: null,
+    });
+    expect(result.done).toBe(true);
+    expect(result.kind).toBe('error');
+    expect(result.message).toMatch(/did not reach ACTIVE/i);
+  });
+
+  it('reports a published enable refusal at once', () => {
+    const result = interpretPostEnableWatch({
+      elapsedMs: 100,
+      operationalMode: 'DISABLED',
+      safetyState: null,
+      enableRefusal: 'enable refused: motion is owned by stdin, not chappe',
+    });
+    expect(result.done).toBe(true);
+    expect(result.kind).toBe('error');
+    expect(result.message).toMatch(/owned by stdin/);
   });
 
   it('confirms ACTIVE after a short hold', () => {
@@ -158,9 +201,21 @@ describe('interpretPostEnableWatch', () => {
       elapsedMs: 1500,
       operationalMode: 'ACTIVE',
       safetyState: null,
+      activeForMs: ENABLE_ACTIVE_HOLD_MS,
     });
     expect(result.done).toBe(true);
     expect(result.kind).toBe('ok');
+  });
+
+  it('a late ACTIVE is held before it is confirmed', () => {
+    const result = interpretPostEnableWatch({
+      elapsedMs: 3000,
+      operationalMode: 'ACTIVE',
+      safetyState: null,
+      activeForMs: 200,
+    });
+    expect(result.done).toBe(false);
+    expect(result.kind).toBe('pending');
   });
 });
 

@@ -116,8 +116,32 @@ export function diagnoseEnableDisabledTrip(
 }
 
 /**
+ * Pi-side bounds an Enable may legitimately take before Davout reports ACTIVE.
+ * `ENABLE_COMPLETION_TIMEOUT` (berthier, 2 s) already covers a target held for
+ * its post-SetZero quiet (800 ms) and the one-per-interface Enable stagger.
+ */
+const PI_ENABLE_COMPLETION_TIMEOUT_MS = 2000;
+/** The gravity saturation preflight runs first, about 0.2 s on the Pi. */
+const GRAVITY_PREFLIGHT_MS = 500;
+/** IPC, the 25 Hz SafetyState publish and the gateway stream. */
+const TELEMETRY_SLACK_MS = 1500;
+
+/**
+ * Never-ACTIVE Enable is reported as failed only after this long. A DISABLED
+ * mode before then is the normal pre-enable state, not a trip.
+ */
+export const ENABLE_OUTCOME_TIMEOUT_MS =
+  PI_ENABLE_COMPLETION_TIMEOUT_MS + GRAVITY_PREFLIGHT_MS + TELEMETRY_SLACK_MS;
+
+/** ACTIVE must hold this long before the Enable is confirmed. */
+export const ENABLE_ACTIVE_HOLD_MS = 1000;
+
+/**
  * Interpret post-Enable telemetry for operator-facing status.
- * Returns null while still waiting for a conclusive outcome.
+ *
+ * Failure is reported only on evidence: an E-stop or fault, a published
+ * `enable refused`, a drop to DISABLED after ACTIVE was seen, or no ACTIVE
+ * within `ENABLE_OUTCOME_TIMEOUT_MS`. DISABLED alone, early, is still pending.
  */
 export function interpretPostEnableWatch(args: {
   elapsedMs: number;
@@ -126,6 +150,10 @@ export function interpretPostEnableWatch(args: {
   robotState?: RobotState | null;
   config?: ConfigSnapshotDto | null;
   limitSnapshot?: ActuatorLimitSnapshot | null;
+  /** How long ACTIVE has been seen since the Enable; null if never. */
+  activeForMs?: number | null;
+  /** A Pi refusal of this Enable (`robot/audit/action`), if one arrived. */
+  enableRefusal?: string | null;
 }): { done: boolean; message: string | null; kind: 'ok' | 'error' | 'pending' } {
   if (args.safetyState?.hardwareEstopAsserted) {
     return {
@@ -142,16 +170,25 @@ export function interpretPostEnableWatch(args: {
       message: `Enable tripped safety — ${formatSafetyFaults(faults)}`,
     };
   }
+  if (args.enableRefusal) {
+    return {
+      done: true,
+      kind: 'error',
+      message: `Enable refused by the Pi — ${args.enableRefusal}`,
+    };
+  }
 
+  const activeForMs = args.activeForMs ?? null;
   if (args.operationalMode === 'ACTIVE') {
-    if (args.elapsedMs >= 1200) {
+    if ((activeForMs ?? 0) >= ENABLE_ACTIVE_HOLD_MS) {
       return { done: true, kind: 'ok', message: 'Motors ACTIVE.' };
     }
     return { done: false, kind: 'pending', message: 'Enable accepted — holding ACTIVE…' };
   }
 
-  // Gateway ACK is not enough: Davout may enable then immediately disable_all on hard limits.
-  if (args.elapsedMs >= 700 && args.operationalMode === 'DISABLED') {
+  // Davout may enable then immediately disable_all on hard limits: only a drop
+  // after ACTIVE was seen is a trip.
+  if (activeForMs !== null && args.operationalMode === 'DISABLED') {
     return {
       done: true,
       kind: 'error',
@@ -163,11 +200,16 @@ export function interpretPostEnableWatch(args: {
     };
   }
 
-  if (args.elapsedMs >= 4000) {
+  if (args.elapsedMs >= ENABLE_OUTCOME_TIMEOUT_MS) {
+    const mode = args.operationalMode ?? 'unknown';
     return {
       done: true,
       kind: 'error',
-      message: `Enable did not stay ACTIVE (mode: ${args.operationalMode ?? 'unknown'}).`,
+      message:
+        activeForMs === null
+          ? `Enable did not reach ACTIVE within ${(ENABLE_OUTCOME_TIMEOUT_MS / 1000).toFixed(1)} s ` +
+            `(mode: ${mode}) — check the Pi journal for "enable refused" or a safety trip.`
+          : `Enable did not stay ACTIVE (mode: ${mode}).`,
     };
   }
 

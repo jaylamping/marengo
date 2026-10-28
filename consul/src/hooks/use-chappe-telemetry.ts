@@ -73,6 +73,7 @@ export function useChappeTelemetry(): void {
   const setImuSample = useRobotStore((s) => s.setImuSample);
   const appendTrackingPoint = useRobotStore((s) => s.appendTrackingPoint);
   const setGatewayError = useRobotStore((s) => s.setGatewayError);
+  const setLastActionRefusal = useRobotStore((s) => s.setLastActionRefusal);
   const setTransportMode = useHostMetricsStore((s) => s.setTransportMode);
   const setPiMetrics = useHostMetricsStore((s) => s.setPiMetrics);
 
@@ -185,7 +186,14 @@ export function useChappeTelemetry(): void {
         if (disposed) return;
         // Every Pi refusal is shown on any page (UI-07).
         const refusal = formatActionRefusal(event);
-        if (refusal) toast.error(refusal);
+        if (refusal) {
+          toast.error(refusal);
+          setLastActionRefusal({
+            receivedAtMs: Date.now(),
+            action: event.action,
+            reason: event.rejectReason,
+          });
+        }
       },
     }).then((fn) => {
       if (!disposed) {
@@ -208,6 +216,7 @@ export function useChappeTelemetry(): void {
     setConnected,
     setRobotStateStale,
     setGatewayError,
+    setLastActionRefusal,
     setOperationalMode,
     setPiMetrics,
     setRobotState,

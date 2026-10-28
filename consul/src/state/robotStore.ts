@@ -11,6 +11,12 @@ import { isChappeLive } from '@/lib/chappe-config';
 
 export type OperationalModeLabel = 'DISABLED' | 'READY' | 'ACTIVE' | null;
 
+export type ActionRefusal = {
+  receivedAtMs: number;
+  action: string;
+  reason: string;
+};
+
 export type JointTrackingPointByJoint = Record<string, JointTrackingPoint[]>;
 
 interface RobotStore {
@@ -38,6 +44,10 @@ interface RobotStore {
 
   gatewayError: string | null;
   setGatewayError: (message: string | null) => void;
+
+  /** Latest Pi refusal on `robot/audit/action`, stamped with local receive time. */
+  lastActionRefusal: ActionRefusal | null;
+  setLastActionRefusal: (refusal: ActionRefusal | null) => void;
 
   trackingPoints: JointTrackingPoint[]; // legacy alias or empty
   trackingPointsByJoint: JointTrackingPointByJoint;
@@ -69,6 +79,9 @@ export const useRobotStore = create<RobotStore>((set) => ({
 
   gatewayError: null,
   setGatewayError: (gatewayError) => set({ gatewayError }),
+
+  lastActionRefusal: null,
+  setLastActionRefusal: (lastActionRefusal) => set({ lastActionRefusal }),
 
   trackingPoints: isChappeLive() ? [] : dummyShoulderPitchTracking.points, // keep legacy shape for backwards compat if needed
   trackingPointsByJoint: {},

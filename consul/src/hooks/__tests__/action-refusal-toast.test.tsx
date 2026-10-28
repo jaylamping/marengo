@@ -8,6 +8,7 @@ import type { ChappeTelemetryHandlers } from '@/lib/chappe-transport';
 import { dispatchEnvelope } from '@/lib/chappe-transport';
 import { getChappeSubscribeTopics } from '@/lib/chappe-config';
 import { useChappeTelemetry } from '@/hooks/use-chappe-telemetry';
+import { useRobotStore } from '@/state/robotStore';
 
 let handlers: ChappeTelemetryHandlers;
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
@@ -54,4 +55,19 @@ it('a Pi refusal is toasted on any page; an accepted action is not (UI-07)', asy
     'Pi refused motion_refused (right_elbow_pitch): enable refused: motion is owned by stdin, not chappe',
   );
   mounted.unmount();
+});
+
+it('a Pi refusal is kept in the store for the Enable watch; an accepted action is not', async () => {
+  useRobotStore.setState({ lastActionRefusal: null });
+  const mounted = renderHook(() => useChappeTelemetry());
+  await act(async () => {});
+  act(() => dispatchEnvelope(actionEnvelope(true), handlers));
+  expect(useRobotStore.getState().lastActionRefusal).toBeNull();
+  act(() => dispatchEnvelope(actionEnvelope(false), handlers));
+  expect(useRobotStore.getState().lastActionRefusal).toMatchObject({
+    action: 'motion_refused',
+    reason: 'enable refused: motion is owned by stdin, not chappe',
+  });
+  mounted.unmount();
+  useRobotStore.setState({ lastActionRefusal: null });
 });
