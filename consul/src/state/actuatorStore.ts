@@ -4,10 +4,7 @@ import type {
   ActuatorLimitSnapshot,
   JointActuatorLimit,
 } from '@/gen/marengo/v1/marengo_pb';
-import {
-  toCanonicalBenchJoint,
-  type JointCapLimits,
-} from '@/data/actuator-joints';
+import type { JointCapLimits } from '@/data/actuator-joints';
 
 export type ActuatorBootstrapStatus =
   | { kind: 'idle' }
@@ -113,11 +110,7 @@ export function findSnapshotLimit(
   snapshot: ActuatorLimitSnapshot | null,
   jointName: string,
 ): JointActuatorLimit | null {
-  const canonical = toCanonicalBenchJoint(jointName);
-  if (!canonical || !snapshot?.joints.length) {
-    return null;
-  }
-  return snapshot.joints.find((entry) => entry.joint === canonical) ?? null;
+  return snapshot?.joints.find((entry) => entry.joint === jointName) ?? null;
 }
 
 /** Live Davout position envelope (hard = enable/fault SoT; soft = ADR 0009 inset). */
