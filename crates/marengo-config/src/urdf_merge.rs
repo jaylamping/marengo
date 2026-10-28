@@ -6,6 +6,7 @@ use std::path::Path;
 use armee_kinematics::{actuated_joint_names, load_urdf};
 use urdf_rs::JointType;
 
+use crate::urdf_expand::find_element_range;
 use crate::ConfigError;
 
 const EPS: f64 = 1e-6;
@@ -583,32 +584,16 @@ fn extract_joint_block(xml: &str, joint: &str) -> Result<String, String> {
 }
 
 fn extract_xml_block(xml: &str, kind: &str, name: &str) -> Result<String, String> {
-    let open = format!("<{kind}");
-    let marker = format!("name=\"{name}\"");
-    let name_idx = xml
-        .find(&marker)
-        .ok_or_else(|| format!("{kind} {name} not found"))?;
-    let start = xml[..name_idx]
-        .rfind(&open)
-        .ok_or_else(|| format!("{kind} open tag missing for {name}"))?;
-    let after = &xml[name_idx..];
-    let close_tag = format!("</{kind}>");
-    let rel_end = after
-        .find(&close_tag)
-        .ok_or_else(|| format!("{kind} close tag missing for {name}"))?;
-    let end = name_idx + rel_end + close_tag.len();
+    let (start, end) = find_element_range(xml, kind, name)?;
     Ok(xml[start..end].to_string())
 }
 
 fn replace_joint_block(xml: &str, joint: &str, replacement: &str) -> Result<String, String> {
-    let block = extract_joint_block(xml, joint)?;
-    let start = xml
-        .find(&block)
-        .ok_or_else(|| format!("joint block missing for {joint}"))?;
+    let (start, end) = find_element_range(xml, "joint", joint)?;
     let mut out = String::with_capacity(xml.len() + replacement.len());
     out.push_str(&xml[..start]);
     out.push_str(replacement);
-    out.push_str(&xml[start + block.len()..]);
+    out.push_str(&xml[end..]);
     Ok(out)
 }
 
@@ -770,6 +755,60 @@ mod tests {
         assert_eq!(pitch.parent.link, "base_link");
         assert!(!pitch.child.link.is_empty());
         assert!(matches!(pitch.joint_type, JointType::Continuous));
+    }
+
+    /// A link named like a joint, placed between two joints, used to redirect the rewrite
+    /// into the previous joint's block (CFG-01).
+    fn name_collision_urdf(b_axis: &str) -> String {
+        format!(
+            r#"<?xml version="1.0"?>
+<robot name="collision">
+  <link name="base"/>
+  <link name="l1"/>
+  <joint name="a" type="revolute">
+    <parent link="base"/>
+    <child link="l1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1" upper="1" effort="1" velocity="1"/>
+  </joint>
+  <link name="b"/>
+  <joint name="b" type="revolute">
+    <parent link="l1"/>
+    <child link="b"/>
+    <origin xyz="0 0 -0.2" rpy="0 0 0"/>
+    <axis xyz="{b_axis}"/>
+    <limit lower="-1" upper="1" effort="1" velocity="1"/>
+  </joint>
+</robot>
+"#
+        )
+    }
+
+    #[test]
+    fn contributor_pick_rewrites_the_joint_not_an_earlier_element_with_its_name() {
+        let master = name_collision_urdf("1 0 0");
+        let contributor = name_collision_urdf("0 0 1");
+        let resolutions = vec![FieldResolution {
+            joint: "b".to_string(),
+            field: "axis".to_string(),
+            choice: ResolutionChoice::Contributor,
+        }];
+        let merged = simulate_merge_xml(&master, &contributor, &resolutions).expect("merged");
+        let robot = load_urdf_from_str(&merged, Path::new("merged.urdf")).expect("parse");
+        let axis = |name: &str| {
+            robot
+                .joints
+                .iter()
+                .find(|joint| joint.name == name)
+                .expect("joint present")
+                .axis
+                .xyz
+                .0
+        };
+        assert_eq!(axis("a"), [0.0, 1.0, 0.0], "joint a must keep its axis");
+        assert_eq!(axis("b"), [0.0, 0.0, 1.0], "joint b takes the contributor axis");
+        assert_eq!(robot.links.len(), 3, "link b is neither duplicated nor dropped");
     }
 
     #[test]
