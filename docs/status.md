@@ -28,9 +28,12 @@ The **right 5-DOF arm** on the bench is a deliberate first slice to prove the co
 
 ## CI
 
-`main` CI failed on the last commit (`07375aa`, run 921): one Davout test, `physical_reference::a_drive_that_died_while_the_host_held_its_stream_off_loses_its_grant` (expected `Unhomed`, got `Verified`). The previous commit passed, and `07375aa` only changed Berthier and config, so this looks timing-sensitive on the CI runner. It still needs a proper look because it guards grant revocation.
+`main` CI was red at `07375aa` (run 921) and both causes are fixed on the 2026-10-28 docs branch:
 
-As of 2026-10-28 CI also stops earlier, at `npm audit --audit-level=high` in `consul/`: advisories published since 2026-10-04 hit `vite` 8.0.16, `undici` 7.30.0 and `source-map-js` 1.2.1 (fixable with `npm audit fix`) and `zod` < 4.6.6, including the `zod` 3.x that `glinui` 0.1.1 pins (no fix in range; replace `glinui` or override its `zod`).
+- The Davout test `physical_reference::a_drive_that_died_while_the_host_held_its_stream_off_loses_its_grant` anchored its deadline on the post-SetZero quiet only, but the supervisor (correctly) also excuses silence during owner homing. On a loaded runner homing outlasts the quiet, so revocation landed after the deadline. The test now uses the later of the two; the safety rule is unchanged.
+- Consul's `npm audit --audit-level=high` began failing on advisories published after 2026-10-04 (`vite`, `undici`, `source-map-js`, `zod`). Lockfile bumps clear them, and the unused `glinui` CLI devDependency (which pinned a vulnerable `zod` 3.x) was dropped; run it through `npx`.
+- Still open, below the CI gate: two moderate `react-router` advisories whose fix is the 7.x major.
+- `marengo-gateway`'s real-QUIC tests bind `[::]:0` and fail in sandboxes without IPv6 (they pass on GitHub runners).
 
 ## Open issues (most important first)
 
@@ -67,8 +70,7 @@ These change the robot, so they are Joey's call; most want an ADR.
 
 ## Next steps (proposed order)
 
-1. Get CI green: clear the Consul `npm audit` advisories, then look at the failing `physical_reference` test.
-2. Cause-B physical checks (termination, ground), then an enable soak on current `main`.
-3. Bench-run the ADR 0040 pitch trial with `pi_motion_suite`; record it in the ledger; decide on 0039/0040.
-4. Gravity calibration sweep, RS03 value re-checks, then resume the limb playbook at the 50 % Position rung.
-5. In parallel, mechanical M2/M3: torso layout refs, pelvis and one leg in CAD, with decisions 1 and 2 above settled first.
+1. Cause-B physical checks (termination, ground), then an enable soak on current `main`.
+2. Bench-run the ADR 0040 pitch trial with `pi_motion_suite`; record it in the ledger; decide on 0039/0040.
+3. Gravity calibration sweep, RS03 value re-checks, then resume the limb playbook at the 50 % Position rung.
+4. In parallel, mechanical M2/M3: torso layout refs, pelvis and one leg in CAD, with decisions 1 and 2 above settled first.
