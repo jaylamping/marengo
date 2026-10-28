@@ -46,6 +46,37 @@ fn nan_torque_batch_is_rejected_before_any_motor_frame() {
     );
 }
 
+/// DRV-03: an out-of-vendor-range field is refused by `validate`, so a batch
+/// never writes a valid prefix before the bad command reaches the encoder.
+#[test]
+fn out_of_range_batch_is_rejected_before_any_motor_frame() {
+    for field in 0..5 {
+        let mut bus = MemoryBus::default();
+        let good = command(1, MotorType::Rs03);
+        let mut bad = command(2, MotorType::Rs03);
+        match field {
+            0 => bad.position_rad = 1.0e3,
+            1 => bad.velocity_rad_s = 1.0e3,
+            2 => bad.kp = 1.0e5,
+            3 => bad.kd = 1.0e3,
+            _ => bad.torque_ff_nm = 1.0e3,
+        }
+        assert!(
+            matches!(
+                bad.validate(),
+                Err(CommandError::OutOfRange { device_id: 2, .. })
+            ),
+            "field {field}: validate must check the vendor range"
+        );
+        let result = bus.mit_control_all_at(&[addressed(good), addressed(bad)]);
+        assert!(result.is_err(), "field {field}");
+        assert!(
+            bus.tx.is_empty(),
+            "field {field}: valid prefix escaped an out-of-range batch"
+        );
+    }
+}
+
 #[test]
 fn every_nonfinite_mit_field_and_negative_gain_is_rejected() {
     for model in [
