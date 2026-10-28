@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 import { OperationalMode, type HostMetrics, type RobotState } from '@/gen/marengo/v1/marengo_pb';
+import { formatActionRefusal } from '@/lib/action-refusal';
 import { connectChappeStream } from '@/lib/chappe-client';
 import { isChappeLive } from '@/lib/chappe-config';
 import { appendLiveLog, enableChappeLiveLogs } from '@/lib/log-buffer';
@@ -147,6 +149,12 @@ export function useChappeTelemetry(): void {
       onHostMetrics: (metrics) => {
         if (disposed) return;
         publishPiMetrics(metrics);
+      },
+      onActionEvent: (event) => {
+        if (disposed) return;
+        // Every Pi refusal is shown on any page (UI-07).
+        const refusal = formatActionRefusal(event);
+        if (refusal) toast.error(refusal);
       },
     }).then((fn) => {
       if (!disposed) {

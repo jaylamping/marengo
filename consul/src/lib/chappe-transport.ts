@@ -1,6 +1,8 @@
 import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
 
 import {
+  type ActionEvent,
+  ActionEventSchema,
   EnvelopeSchema,
   GatewaySubscribeSchema,
   GatewaySubscriptionAdmissionSchema,
@@ -41,6 +43,7 @@ export type ChappeTelemetryHandlers = {
   onImuSample?: (sample: ImuSample) => void;
   onLogEvent?: (event: LogEvent) => void;
   onHostMetrics?: (metrics: HostMetrics, topic: string) => void;
+  onActionEvent?: (event: ActionEvent) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
   onRuntimeObservationGap?: (gap: RuntimeObservationGap) => void;
@@ -186,6 +189,9 @@ export function dispatchEnvelope(
       }
       handlers.onLogEvent?.(fromBinary(LogEventSchema, envelope.payload));
       break;
+    case 'marengo.v1.ActionEvent':
+      handlers.onActionEvent?.(fromBinary(ActionEventSchema, envelope.payload));
+      break;
     case 'marengo.v1.HostMetrics':
       handlers.onHostMetrics?.(
         fromBinary(HostMetricsSchema, envelope.payload),
@@ -218,8 +224,11 @@ async function withAdmissionDeadline<T>(promise: Promise<T>, cancel: () => void)
   }
 }
 
+/** Topics the gateway admits only with the read credential. */
+const SENSITIVE_TOPICS = new Set(['logs/structured', 'robot/audit/action']);
+
 function subscriptionTopics(credential: string): string[] {
-  return getChappeSubscribeTopics().filter((topic) => credential || topic !== 'logs/structured');
+  return getChappeSubscribeTopics().filter((topic) => credential || !SENSITIVE_TOPICS.has(topic));
 }
 
 async function consumeTelemetryFrames(
