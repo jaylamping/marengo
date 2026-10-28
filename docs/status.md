@@ -32,7 +32,8 @@ The **right 5-DOF arm** on the bench is a deliberate first slice to prove the co
 
 - The Davout test `physical_reference::a_drive_that_died_while_the_host_held_its_stream_off_loses_its_grant` anchored its deadline on the post-SetZero quiet only, but the supervisor (correctly) also excuses silence during owner homing. On a loaded runner homing outlasts the quiet, so revocation landed after the deadline. The test now uses the later of the two; the safety rule is unchanged.
 - Consul's `npm audit --audit-level=high` began failing on advisories published after 2026-10-04 (`vite`, `undici`, `source-map-js`, `zod`). Lockfile bumps clear them, and the unused `glinui` CLI devDependency (which pinned a vulnerable `zod` 3.x) was dropped; run it through `npx`.
-- Still open, below the CI gate: two moderate `react-router` advisories whose fix is the 7.x major.
+- `cargo deny` began failing on RustSec advisories published after 2026-10-04 in `quinn-proto`, `rustls`, `rustls-webpki`, `webpki-root-certs` and `tokio`; `Cargo.lock` bumps clear them.
+- Still open, below the CI gate: two moderate `react-router` advisories whose fix is the 7.x major, and `unsafe-libyaml` (RUSTSEC-2024-0449, unmaintained, no upgrade) under the deprecated `serde_yaml`, ignored in `deny.toml` until `marengo-config`, Davout and the gateway move to a maintained YAML crate.
 - `marengo-gateway`'s real-QUIC tests bind `[::]:0` and fail in sandboxes without IPv6 (they pass on GitHub runners).
 
 ## Open issues (most important first)

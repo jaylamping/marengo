@@ -5,6 +5,10 @@ version = 2
 ignore = [
     # Transitive via nalgebra → simba; no patched release on our toolchain yet.
     { id = "RUSTSEC-2024-0436", reason = "paste unmaintained (nalgebra 0.33)" },
+    # Transitive via serde_yaml (deprecated), which only parses the repo's own
+    # config/ YAML. No maintained release exists; replacing serde_yaml is
+    # tracked in docs/status.md.
+    { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml unmaintained (serde_yaml 0.9)" },
 ]
 
 [licenses]
