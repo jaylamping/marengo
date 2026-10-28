@@ -631,13 +631,6 @@ impl PositionHold {
         self.init_planners(q, tick);
     }
 
-    /// Ensure setpoints exist (copy `q` if needed) without resetting planners if already armed.
-    pub fn ensure_armed_from_q(&mut self, q: &[f64], tick: u64) {
-        if self.setpoints.is_none() {
-            self.arm(q, q, tick);
-        }
-    }
-
     /// Atomic retarget: raw + clamped target; on change also planner sync, latch/onset clear, dq seed.
     ///
     /// Same-target (`|Δ| ≤ 1e-6`) is a full no-op on planner/latches/fuse (idempotent hold-at).

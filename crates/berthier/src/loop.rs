@@ -46,6 +46,11 @@ use crate::torque_cmd::TorqueCmdLatch;
 /// with margin. Exceeding it refuses the waiting command.
 pub const ENABLE_COMPLETION_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// Largest gap between a wave's first sample (`min_rad`) and the joint's reference
+/// that [`ControlLoop::start_position_wave`] admits. The wave bypasses the planner,
+/// so its start must already be where the joint is held.
+pub const WAVE_START_TOLERANCE_RAD: f64 = 0.02;
+
 #[derive(Debug, Error)]
 pub enum LoopError {
     #[error("safety: {0}")]
@@ -79,6 +84,15 @@ pub enum LoopError {
         max_rad: f64,
         lower: f64,
         upper: f64,
+    },
+    #[error(
+        "position wave on {joint}: starts at {min_rad:.4} rad but the joint reference is {reference_rad:.4} rad; hold at the wave minimum first (tolerance {tolerance_rad:.3} rad)"
+    )]
+    WaveStartTooFar {
+        joint: String,
+        min_rad: f64,
+        reference_rad: f64,
+        tolerance_rad: f64,
     },
     #[error(
         "position wave on {joint}: peak {quantity} {requested:.4} exceeds the joint limit {limit:.4}"
@@ -557,6 +571,20 @@ impl<B: MotorBus> ControlLoop<B> {
         }
     }
 
+    /// Arm the hold from measured `q` unless it already holds in Position.
+    ///
+    /// Outside Position any armed state is stale (a refused hold-at or wave may
+    /// have armed it minutes ago), so it is discarded: entering Position must
+    /// never command a joint back to an old pose.
+    fn arm_from_measured(&mut self, q: &[f64]) {
+        if self.control_mode != ControlMode::Position {
+            self.position_hold.clear();
+        }
+        if !self.position_hold.is_armed() {
+            self.latch_position_from_q(q);
+        }
+    }
+
     pub fn position_setpoints(&self) -> Option<&[f64]> {
         self.position_hold.targets()
     }
@@ -586,9 +614,7 @@ impl<B: MotorBus> ControlLoop<B> {
         }
         let q_now = self.refresh_joint_positions()?;
         self.enable_completion()?;
-        if !self.position_hold.is_armed() {
-            self.latch_position_from_q(&q_now);
-        }
+        self.arm_from_measured(&q_now);
         self.apply_joint_retarget(i, q_now[i], trimmed);
         Ok(())
     }
@@ -667,7 +693,14 @@ impl<B: MotorBus> ControlLoop<B> {
         });
         // Same-target hold-at must not cancel an in-loop wave (idempotent operator path).
         if target_changed {
-            self.position_wave = None;
+            if self
+                .position_wave
+                .as_ref()
+                .is_some_and(|wave| wave.joint_index == i)
+            {
+                self.position_wave = None;
+                info!(joint = %joint, "position wave cancelled by retarget");
+            }
             info!(
                 joint = %joint,
                 q,
@@ -832,14 +865,27 @@ impl<B: MotorBus> ControlLoop<B> {
         let half_period_ticks = (half_period_sec * f64::from(self.loop_hz)).round().max(1.0) as u64;
         self.validate_wave_motion(joint, min_rad, max_rad, half_period_ticks)?;
         let q = self.motion_positions()?;
-        let was_armed = self.position_hold.is_armed();
-        self.position_hold.ensure_armed_from_q(&q, self.tick_count);
-        if !was_armed {
-            for (i, name) in self.joint_names.iter().enumerate() {
-                self.position_hold
-                    .seed_dq_filter(i, self.joint_velocity(name));
-            }
+        // The wave's first sample is `min_rad`: it bypasses the planner, so a start
+        // away from the joint's reference would be an unplanned step bounded only by
+        // Davout's torque clamp. Holding Position, the reference is the planner's
+        // output; otherwise it is the measured pose.
+        let reference_rad = if self.control_mode == ControlMode::Position {
+            self.position_hold
+                .q_traj()
+                .and_then(|traj| traj.get(i).copied())
+                .unwrap_or(q[i])
+        } else {
+            q[i]
+        };
+        if (reference_rad - min_rad).abs() > WAVE_START_TOLERANCE_RAD {
+            return Err(LoopError::WaveStartTooFar {
+                joint: joint.to_string(),
+                min_rad,
+                reference_rad,
+                tolerance_rad: WAVE_START_TOLERANCE_RAD,
+            });
         }
+        self.arm_from_measured(&q);
         self.set_control_mode(ControlMode::Position);
         let wave = PositionWave::new(
             i,
@@ -1048,21 +1094,21 @@ impl<B: MotorBus> ControlLoop<B> {
                 value: position_rad,
             });
         }
-        let q = self.motion_positions()?;
-        if !self.position_hold.is_armed() {
-            self.position_hold.arm(&q, &q, self.tick_count);
-            for (i, name) in self.joint_names.iter().enumerate() {
-                self.position_hold
-                    .seed_dq_filter(i, self.joint_velocity(name));
-            }
-        }
-        if self.joint_names.len() == 1 {
-            let name = self.joint_names[0].clone();
-            self.set_joint_position_setpoint(&name, position_rad)?;
+        // Resolve the joint before touching hold state: a refused hold-at must leave
+        // nothing armed behind it.
+        let target = if self.joint_names.len() == 1 {
+            self.joint_names[0].clone()
         } else {
             let joint = joint.ok_or(LoopError::JointNameRequired)?;
-            self.set_joint_position_setpoint(joint, position_rad)?;
-        }
+            if !self.joint_names.iter().any(|name| name == joint) {
+                return Err(LoopError::UnknownJoint {
+                    joint: joint.to_string(),
+                });
+            }
+            joint.to_string()
+        };
+        self.motion_positions()?;
+        self.set_joint_position_setpoint(&target, position_rad)?;
         self.set_control_mode(ControlMode::Position);
         Ok(())
     }
