@@ -191,6 +191,29 @@ describe("bench harness config", () => {
     for (const name of names.slice(2)) assert.match(out, new RegExp(`\\[FAIL\\] ${name}\\n`));
   });
 
+  it("fails a session that exits 2 (a marengo-pi argv error), not only 1 (TOOL-24)", async () => {
+    const names = harnessScriptSuite("arm_2dof_smoke")?.scripts.map((s) => s.name) ?? [];
+    const out = await runBenchHarness(
+      cfg,
+      async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
+        if (!body.includes("sign-tested")) return "ok";
+        return [
+          "reference right_shoulder_pitch current pos=0.0000",
+          "reference right_shoulder_roll current pos=0.0001",
+          "reference right_upper_arm_yaw current pos=-0.0001",
+          ...names.flatMap((name) => [`=== harness suite ${name} ===`, "operational: Active"]),
+          "error: unexpected argument '--bogus' found",
+          "[exit 2]",
+        ].join("\n");
+      },
+      { profile: "arm_2dof_smoke", ...OPT_IN },
+    );
+
+    assert.match(out, new RegExp(`\\[FAIL\\] ${names[names.length - 1]}\\n`));
+    assert.match(out, /"pass": false/);
+  });
+
   it("refuses on a gravity model mismatch before any enable, then restores the unit", async () => {
     const bodies: string[] = [];
     const out = await runBenchHarness(
