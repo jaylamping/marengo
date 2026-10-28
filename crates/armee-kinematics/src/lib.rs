@@ -8,7 +8,9 @@
 //! - [`load_urdf`], [`joint_limits`], [`joint_limit_bounds`]: position/velocity/effort limits per joint name.
 //! - [`limits`]: velocity-scaled command envelope (ADR 0009).
 //! - [`actuated_joint_names`] / [`actuated_joint_count`]: revolute, continuous and prismatic joints.
-//! - [`fixtures`]: paths to `arm_4dof.urdf`, `marengo.urdf`, sim fixtures.
+//! - [`expand_urdf_joint_hard`]: expand-only URDF hard widening for Set Limits (ADR 0017).
+//! - `fixtures` (`test-support`): paths to the production URDF/MJCF, archived arm seeds and
+//!   sim fixtures.
 //!
 //! ## Does not
 //!
@@ -47,7 +49,7 @@ pub enum UrdfError {
     },
 }
 
-/// Paths to checked-in test fixtures under `sim/fixtures/`.
+/// Paths to checked-in test fixtures under `sim/fixtures/` and `assets/`.
 #[cfg(any(test, feature = "test-support"))]
 pub mod fixtures {
     use super::PathBuf;
