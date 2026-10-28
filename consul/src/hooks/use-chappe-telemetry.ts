@@ -14,6 +14,12 @@ import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const TELEMETRY_UI_MS = 100;
+/**
+ * RobotState arrives at `chappe_state_hz` (25 Hz on the bench). After this much
+ * silence the runtime facts are retired as stale, as on an IPC gap (UI-11):
+ * a stalled loop must not keep showing ACTIVE and frozen joint values.
+ */
+export const ROBOT_STATE_STALE_MS = 1500;
 
 function applyRobotState(
   state: RobotState,
@@ -77,6 +83,7 @@ export function useChappeTelemetry(): void {
     enableChappeLiveLogs();
     let disposed = false;
     let dispose: (() => void) | undefined;
+    let staleTimer: ReturnType<typeof setTimeout> | undefined;
 
     const publishRobotState = throttleTrailing((state: RobotState) => {
       applyRobotState(state, setRobotState, appendTrackingPoint);
@@ -87,6 +94,7 @@ export function useChappeTelemetry(): void {
     }, TELEMETRY_UI_MS);
 
     const retireRuntimeFacts = () => {
+      clearTimeout(staleTimer);
       publishRobotState.cancel();
       publishPiMetrics.cancel();
       setRobotState(null);
@@ -115,6 +123,10 @@ export function useChappeTelemetry(): void {
       onRobotState: (state) => {
         if (disposed) return;
         setConnected(true);
+        clearTimeout(staleTimer);
+        staleTimer = setTimeout(() => {
+          if (!disposed) retireRuntimeFacts();
+        }, ROBOT_STATE_STALE_MS);
         // Teach-record listens before UI throttle (~10 Hz store).
         publishTeachSampleFromRobotState(state);
         publishRobotState(state);
