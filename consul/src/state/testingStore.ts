@@ -38,6 +38,7 @@ interface TestingStore {
   ) => void;
   toggleDryRun: () => void;
   setDryRun: (dryRun: boolean) => void;
+  /** Rejects with the gateway error when the POST fails; isRunning is then false. */
   startTest: () => Promise<void>;
   /** Motion go-to-zero for selected joints — not HomingComplete / Mark READY. */
   returnHome: () => Promise<void>;
@@ -102,13 +103,19 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
     if (!dryRun) {
       // POSITION ends GravityComp — clear teach preflight checkbox.
       useTeachStore.getState().setGravityArmed(false);
-      await postTestingMitCommandBatch(
-        create(MitCommandBatchSchema, {
-          timestampMs: BigInt(Date.now()),
-          mode: ControlMode.POSITION,
-          joints,
-        }),
-      );
+      try {
+        await postTestingMitCommandBatch(
+          create(MitCommandBatchSchema, {
+            timestampMs: BigInt(Date.now()),
+            mode: ControlMode.POSITION,
+            joints,
+          }),
+        );
+      } catch (error) {
+        // Nothing was accepted: the hold is not running (UI-13).
+        set({ isRunning: false });
+        throw error;
+      }
     }
   },
   stopTest: async () => {

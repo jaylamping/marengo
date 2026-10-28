@@ -159,6 +159,18 @@ export const robotInventory: InventoryItem[] = [
   actuator(29, 'right_lower_arm_yaw', 'right_arm', 'Enabled', '—', '±1.6', 'unassigned'),
 ];
 
+/**
+ * Limb group for a joint name: the catalog's group, or `platform` for a joint
+ * the catalog does not list.
+ */
+export function inventoryGroupForJoint(jointName: string): InventoryGroup {
+  return (
+    robotInventory.find(
+      (item) => item.kind === 'actuator' && item.name === jointName,
+    )?.group ?? 'platform'
+  );
+}
+
 export function countByStatus(status: InventoryStatus): number {
   return robotInventory.filter((item) => item.status === status).length;
 }

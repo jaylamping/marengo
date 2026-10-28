@@ -51,3 +51,14 @@ describe('testing store stop paths', () => {
     expect(postEnableCommand).toHaveBeenCalledWith(false);
   });
 });
+
+describe('testing store start path', () => {
+  it('a refused Start Hold leaves the hold not running and rejects (UI-13)', async () => {
+    useTestingStore.setState({ isRunning: false });
+    vi.mocked(postTestingMitCommandBatch).mockRejectedValue(
+      new Error('joint not command-eligible: left_elbow'),
+    );
+    await expect(useTestingStore.getState().startTest()).rejects.toThrow('command-eligible');
+    expect(useTestingStore.getState().isRunning).toBe(false);
+  });
+});
