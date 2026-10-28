@@ -540,14 +540,17 @@ disables. The fault does not clear on its own.
   cannot stop it from reaching the drives it can reach. Each interface is
   opened transmit-only (no receive-side socket option can fail the stop), and
   a write the interface refuses (`ENOBUFS`/`EAGAIN`) is retried up to three
-  times, 5 ms apart. It prints a per-drive
+  times, 5 ms apart. Any other write error (`ENETDOWN`, `ENXIO`) fails that
+  frame at once, so it does not delay the later drives and interfaces. It prints a per-drive
   outcome per frame and exits 1 if any Disable or Off was not sent. A sent frame is queued on the
   bus, not drive-confirmed, and it is **not** a fault clear: no type-4
   Byte[0]=1 frame is ever sent (ADR 0020), so a latched drive fault persists.
   `set-zero` arms the independent stop on SIGTERM/SIGINT/SIGHUP (two passes
   20 ms apart, so an Enable written meanwhile is stopped too) and error exit,
   and refuses to start if it cannot be armed. Its successful Davout transaction
-  performs its own stop before returning. The MCP aborts a session when its
+  performs its own stop before returning. A set-zero refused by the one-owner
+  claim (below) skips the exit stop: it sent no frame, and the drives belong to
+  the running owner, whose arm the stop would drop. The MCP aborts a session when its
   pre-session disable did not reach every drive. Reference-independent stopping
   through the installed owner remains required; use the physical E-stop as the
   independent stop path.
@@ -555,10 +558,15 @@ disables. The fault does not clear on its own.
   `motor-repl status`/`set-zero`/`protocol-inspect`, through
   `SocketCanRouter::open` or `SocketCanBus::open_owner`) first binds the
   abstract Unix socket `marengo/can-owner/<iface>`; a second owner of the
-  same interface on this host is refused before it opens CAN. The kernel
+  same interface on this host is refused before it opens CAN or sends any
+  frame, exit stop included (`BusError::InterfaceOwned`). The kernel
   releases the claim when the process exits. Stops (`motor-repl disable`, the
   set-zero exit stop) open unowned sockets and are never refused; the owner
-  reads their frames as another writer and latches Transport.
+  reads their frames as another writer and latches Transport. A frame another
+  process queued before the owner bound and that went out only afterwards
+  (drives unpowered, nothing ACKing) is also another writer's: run
+  `can-up.sh` before starting an owner in that case (see
+  [troubleshooting.md](troubleshooting.md#socketcan)).
 - **No drive-side or independent watchdog:** Marengo never writes `ParameterId::CanTimeout` (0x7028);
   `motor-repl protocol-inspect` / `pi_protocol_inspect` read it back (ADR 0037). Nothing outside the 200 Hz thread watches it,
   so a killed or hung `marengo-pi` leaves each drive on its last MIT frame

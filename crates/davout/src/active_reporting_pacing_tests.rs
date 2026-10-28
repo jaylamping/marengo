@@ -174,6 +174,7 @@ impl CanBus for FailingRefreshBus {
         if self.failing_id == Some(header.device_id) && frame.data[6] == 1 {
             return Err(BusError::Send {
                 message: "scripted reporting failure".into(),
+                transient: false,
             });
         }
         Ok(())

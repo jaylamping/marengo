@@ -14,8 +14,10 @@ use berthier::ControlLoop;
 use marengo_config::{
     load_control_config, load_motor_stop_targets, load_motors_config, load_robot_config,
     resolve_config_dir, resolve_reference_journal_path, resolve_repo_root, resolve_urdf_path,
+    ControlConfigFile, MotorsConfigFile,
 };
 use robstride::RuntimeBus;
+use stop::CommandOutcome;
 use tracing::info;
 
 fn repo_root() -> PathBuf {
@@ -212,11 +214,26 @@ impl ExitStop {
         Ok(Self { addresses })
     }
 
-    fn run(&self) {
-        eprintln!("motor-repl: exit stop, disabling every drive");
-        let report = stop::disable_drives_socketcan(&self.addresses);
-        eprint!("{report}");
-        report_stop_failures(&report, "motor-repl: exit stop");
+    /// Stop every drive after an error exit. A command refused by another
+    /// motor owner sent nothing and is left alone (see
+    /// [`stop::exit_stop_required`]).
+    fn finish(&self, command: &str, outcome: CommandOutcome) {
+        match stop::exit_stop(
+            command,
+            outcome,
+            &self.addresses,
+            RuntimeBus::socketcan_transmit_only,
+        ) {
+            Some(report) => {
+                eprint!("{report}");
+                report_stop_failures(&report, "motor-repl: exit stop");
+            }
+            None if outcome == CommandOutcome::OwnerRefused => eprintln!(
+                "{command}: refused before any CAN frame was sent; exit stop skipped, \
+                 the drives belong to the running motor owner"
+            ),
+            None => {}
+        }
     }
 }
 
@@ -267,13 +284,11 @@ fn main() {
         None
     };
 
-    let code = run_command(&root, can_interface, &args);
+    let outcome = run_command(&root, can_interface, &args);
     if let Some(exit_stop) = &exit_stop {
-        if stop::exit_stop_required(&command, code) {
-            exit_stop.run();
-        }
+        exit_stop.finish(&command, outcome);
     }
-    std::process::exit(code);
+    std::process::exit(outcome.exit_code());
 }
 
 fn run_status(root: &std::path::Path, interface: Option<&str>) -> i32 {
@@ -439,52 +454,85 @@ fn run_protocol_inspect(
     }
 }
 
-fn run_command(root: &std::path::Path, can_interface: Option<String>, args: &[String]) -> i32 {
+fn run_command(
+    root: &std::path::Path,
+    can_interface: Option<String>,
+    args: &[String],
+) -> CommandOutcome {
     let command = args.get(1).map(String::as_str).unwrap_or_default();
     if !is_supported_command(command) {
         eprintln!("unsupported command: {command}");
-        return 1;
+        return CommandOutcome::Exited(1);
     }
     if is_read_only_command(command) {
-        return match command {
+        return CommandOutcome::Exited(match command {
             "status" => run_status(root, can_interface.as_deref()),
             "gravity-preview" => run_gravity_preview(root, args),
             _ => {
                 eprintln!("unsupported command: {command}");
-                return 1;
+                1
             }
-        };
+        });
     }
     let control = match load_control_config(root) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("control.yaml: {e}");
-            return 1;
+            return CommandOutcome::Exited(1);
         }
     };
     let motors = match load_motors_config(root) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("motors.yaml: {e}");
-            return 1;
+            return CommandOutcome::Exited(1);
         }
     };
-    let bus = match can_interface.as_deref() {
-        Some(interface) => match RuntimeBus::socketcan_owner(interface) {
-            Ok(bus) => bus,
-            Err(e) => {
-                eprintln!("open SocketCAN {interface}: {e}");
-                return 1;
-            }
-        },
-        None => match RuntimeBus::socketcan_from_motors(&motors) {
-            Ok(bus) => bus,
-            Err(e) => {
-                eprintln!("open SocketCAN from motors.yaml: {e}");
-                return 1;
-            }
-        },
+    let bus = match open_owner_bus(can_interface.as_deref(), &motors) {
+        Ok(bus) => bus,
+        Err(outcome) => return outcome,
     };
+    CommandOutcome::Exited(run_owned_command(
+        root,
+        bus,
+        &control,
+        &motors,
+        can_interface,
+        args,
+    ))
+}
+
+/// Open CAN as a motor owner. An interface another owner holds is refused
+/// before any socket opens ([`CommandOutcome::OwnerRefused`]).
+fn open_owner_bus(
+    can_interface: Option<&str>,
+    motors: &MotorsConfigFile,
+) -> Result<RuntimeBus, CommandOutcome> {
+    let (bus, label) = match can_interface {
+        Some(interface) => (
+            RuntimeBus::socketcan_owner(interface),
+            format!("SocketCAN {interface}"),
+        ),
+        None => (
+            RuntimeBus::socketcan_from_motors(motors),
+            "SocketCAN from motors.yaml".to_string(),
+        ),
+    };
+    bus.map_err(|e| {
+        eprintln!("open {label}: {e}");
+        CommandOutcome::from_owner_open_error(&e)
+    })
+}
+
+/// The drive-touching commands, on the owner bus this process holds.
+fn run_owned_command(
+    root: &std::path::Path,
+    bus: RuntimeBus,
+    control: &ControlConfigFile,
+    motors: &MotorsConfigFile,
+    can_interface: Option<String>,
+    args: &[String],
+) -> i32 {
     let bus_label = can_interface
         .clone()
         .unwrap_or_else(|| "motors.yaml".to_string());

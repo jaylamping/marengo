@@ -265,10 +265,7 @@ fn second_motor_owner_of_an_interface_is_refused_but_a_stop_is_not() {
         RuntimeBus::socketcan_owner("vcan1"),
     ] {
         assert!(
-            matches!(
-                &second,
-                Err(robstride::BusError::Driver(message)) if message.contains("already has a motor owner")
-            ),
+            matches!(&second, Err(robstride::BusError::InterfaceOwned { .. })),
             "{second:?}"
         );
     }

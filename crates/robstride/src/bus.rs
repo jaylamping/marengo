@@ -146,6 +146,33 @@ impl EchoLedger {
             received.frame.id
         )))
     }
+
+    /// Settle one read: `dropped` is the kernel-drop count newly reported with
+    /// it, `received` its frame when one parsed. A drop report fails the read,
+    /// but the frame is first claimed as this socket's echo: an echo discarded
+    /// with the failed read would leave a stale entry that a later identical
+    /// host command from another writer could match. Claiming never makes one
+    /// of this socket's own frames foreign.
+    pub(crate) fn settle_read(
+        &mut self,
+        interface: &str,
+        dropped: Option<u32>,
+        received: Option<&ReceivedCanFrame>,
+    ) -> Result<(), BusError> {
+        if let Some(dropped) = dropped {
+            if let Some(received) = received {
+                self.claim(received);
+            }
+            tracing::warn!(interface, dropped, "SocketCAN receive queue overflowed");
+            return Err(BusError::Driver(format!(
+                "SocketCAN {interface}: kernel dropped {dropped} received frame(s) from a full receive queue"
+            )));
+        }
+        match received {
+            Some(received) => self.admit(interface, received),
+            None => Ok(()),
+        }
+    }
 }
 
 /// Frames the kernel dropped since the last report, from the cumulative
@@ -167,7 +194,20 @@ pub enum BusError {
     #[error("invalid motor command: {0}")]
     InvalidCommand(#[from] CommandError),
     #[error("CAN send failed: {message}")]
-    Send { message: String },
+    Send {
+        message: String,
+        /// The interface refused the write for now (`ENOBUFS` from a full TX
+        /// queue, `EAGAIN`): the same write may succeed after a pause. Any
+        /// other failure (`ENETDOWN`, `ENXIO`, an invalid frame) will not.
+        transient: bool,
+    },
+    /// Another motor owner on this host holds the interface. Refused before
+    /// this process opened a CAN socket on it, so nothing was transmitted.
+    #[error(
+        "SocketCAN {interface} already has a motor owner on this host \
+         (marengo-pi or motor-repl); stop it first (motor-repl disable needs no ownership)"
+    )]
+    InterfaceOwned { interface: String },
     #[error("unknown joint {joint}")]
     UnknownJoint { joint: String },
     #[error("unknown motor address {interface}:{device_id}")]
@@ -1247,15 +1287,21 @@ mod socketcan {
             }),
             Err(error) if error.kind() == ErrorKind::AddrInUse => {
                 tracing::warn!(interface, "SocketCAN interface already has a motor owner");
-                Err(BusError::Driver(format!(
-                    "SocketCAN {interface} already has a motor owner on this host \
-                     (marengo-pi or motor-repl); stop it first (motor-repl disable needs no ownership)"
-                )))
+                Err(BusError::InterfaceOwned {
+                    interface: interface.to_owned(),
+                })
             }
             Err(error) => Err(BusError::Driver(format!(
                 "claim SocketCAN {interface}: {error}"
             ))),
         }
+    }
+
+    /// A write the interface refused for now: its TX queue is full
+    /// (`ENOBUFS`) or the nonblocking socket would block (`EAGAIN`).
+    fn is_transient_write_error(error: &std::io::Error) -> bool {
+        error.kind() == ErrorKind::WouldBlock
+            || error.raw_os_error() == Some(nix::errno::Errno::ENOBUFS as i32)
     }
 
     #[derive(Debug)]
@@ -1373,17 +1419,21 @@ mod socketcan {
             let frame = if frame.extended {
                 let id = ExtendedId::new(frame.id).ok_or_else(|| BusError::Send {
                     message: format!("invalid extended id {}", frame.id),
+                    transient: false,
                 })?;
                 SocketFrame::new(id, &frame.data).ok_or_else(|| BusError::Send {
                     message: "invalid extended frame payload".to_string(),
+                    transient: false,
                 })?
             } else {
                 use ::socketcan::StandardId;
                 let id = StandardId::new(frame.id as u16).ok_or_else(|| BusError::Send {
                     message: format!("invalid standard id {}", frame.id),
+                    transient: false,
                 })?;
                 SocketFrame::new(id, &frame.data).ok_or_else(|| BusError::Send {
                     message: "invalid standard frame payload".to_string(),
+                    transient: false,
                 })?
             };
             // A CAN datagram must be written atomically. write_all silently
@@ -1396,10 +1446,12 @@ mod socketcan {
                 .write(bytes)
                 .map_err(|e| BusError::Send {
                     message: e.to_string(),
+                    transient: is_transient_write_error(&e),
                 })?;
             if written != bytes.len() {
                 return Err(BusError::Send {
                     message: format!("short CAN datagram write: {written}/{} bytes", bytes.len()),
+                    transient: false,
                 });
             }
             self.echoes.transmitted(sent);
@@ -1443,40 +1495,46 @@ mod socketcan {
             };
             match read {
                 Ok((bytes, kernel, drops)) => {
-                    if let Some(dropped) = new_kernel_drops(&mut self.drops_reported, drops) {
-                        tracing::warn!(interface = %self.interface, dropped, "SocketCAN receive queue overflowed");
-                        return Err(BusError::Driver(format!(
-                            "SocketCAN {}: kernel dropped {dropped} received frame(s) from a full receive queue",
-                            self.interface
-                        )));
-                    }
+                    let dropped = new_kernel_drops(&mut self.drops_reported, drops);
                     // Wall clock before the monotonic read instant: the gap can
                     // only move the mapped time toward the read.
                     let wall_at_read = SystemTime::now();
                     let read_instant = Instant::now();
-                    let frame = match bytes {
-                        CAN_MTU => classic_frame(&datagram),
-                        CANFD_MTU => Err("unsupported CAN FD frame"),
-                        _ => {
-                            return Err(BusError::Driver(format!(
-                                "SocketCAN {} receive: unexpected {bytes}-byte datagram",
-                                self.interface
-                            )))
+                    // Parse before settling: a frame read with a drop report
+                    // still consumes its echo entry (see `settle_read`).
+                    let parsed = match bytes {
+                        CAN_MTU => match classic_frame(&datagram) {
+                            Ok(frame) => ReceivedCanFrame::from_socketcan(
+                                Some(self.interface.clone()),
+                                frame,
+                            )
+                            .map(Some),
+                            Err(reason) => {
+                                tracing::warn!(interface = %self.interface, reason, "skipping foreign CAN frame");
+                                Ok(None)
+                            }
+                        },
+                        CANFD_MTU => {
+                            tracing::warn!(
+                                interface = %self.interface,
+                                reason = "unsupported CAN FD frame",
+                                "skipping foreign CAN frame"
+                            );
+                            Ok(None)
                         }
+                        _ => Err(BusError::Driver(format!(
+                            "SocketCAN {} receive: unexpected {bytes}-byte datagram",
+                            self.interface
+                        ))),
                     };
-                    let frame = match frame {
-                        Ok(frame) => frame,
-                        Err(reason) => {
-                            tracing::warn!(interface = %self.interface, reason, "skipping foreign CAN frame");
-                            return Ok(ReceiveAttempt::Ignored);
-                        }
+                    let frame = parsed.as_ref().ok().and_then(Option::as_ref);
+                    self.echoes.settle_read(&self.interface, dropped, frame)?;
+                    let Some(received) = parsed? else {
+                        return Ok(ReceiveAttempt::Ignored);
                     };
                     let received_at =
                         self.rx_clock
                             .stamp(&self.interface, kernel, wall_at_read, read_instant);
-                    let interface = Some(self.interface.clone());
-                    let received = ReceivedCanFrame::from_socketcan(interface, frame)?;
-                    self.echoes.admit(&self.interface, &received)?;
                     tracing::trace!(
                         interface = %self.interface,
                         can_id = format_args!("{:#010x}", received.frame.id),
@@ -1681,8 +1739,11 @@ mod socketcan {
         fn a_second_owner_is_refused_before_opening_the_interface() {
             let interface = "mrgtest-own0";
             let held = claim_interface(interface).expect("first owner");
-            let refused = message(SocketCanBus::open_owner(interface).expect_err("second owner"));
-            assert!(refused.contains("already has a motor owner"), "{refused}");
+            let refused = SocketCanBus::open_owner(interface).expect_err("second owner");
+            assert!(
+                matches!(&refused, BusError::InterfaceOwned { interface: owned } if owned == interface),
+                "{refused:?}"
+            );
             drop(held);
             let reopened =
                 message(SocketCanBus::open_owner(interface).expect_err("no such interface"));
@@ -1696,6 +1757,23 @@ mod socketcan {
             let _held = claim_interface(interface).expect("owner");
             let error = message(SocketCanBus::open(interface).expect_err("no such interface"));
             assert!(error.contains("SocketCAN open failed"), "{error}");
+        }
+
+        /// Only a full queue is retried by a stop; a down or missing
+        /// interface fails at once so later frames still go out.
+        #[test]
+        fn only_queue_full_write_errors_are_transient() {
+            use nix::errno::Errno;
+            for (errno, transient) in [
+                (Errno::ENOBUFS, true),
+                (Errno::EAGAIN, true),
+                (Errno::ENETDOWN, false),
+                (Errno::ENXIO, false),
+                (Errno::EINVAL, false),
+            ] {
+                let error = std::io::Error::from_raw_os_error(errno as i32);
+                assert_eq!(is_transient_write_error(&error), transient, "{errno}");
+            }
         }
 
         #[test]
@@ -1863,6 +1941,50 @@ mod echo_ledger_tests {
         let remote =
             ReceivedCanFrame::new_remote(Some("can0".into()), id, true, 8).expect("remote frame");
         assert!(ledger.admit("can0", &remote).is_err());
+    }
+
+    /// A read that reports kernel drops fails, and still consumes the echo it
+    /// carries: a later identical host command from another writer is foreign.
+    #[test]
+    fn a_kernel_drop_report_still_consumes_the_echo_it_carries() {
+        for (id, data) in host_commands() {
+            let mut ledger = EchoLedger::default();
+            ledger.transmitted(&sent(id, data));
+            let error = ledger
+                .settle_read("can0", Some(3), Some(&received(id, data)))
+                .expect_err("a drop report fails the read");
+            assert!(
+                matches!(&error, BusError::Driver(message) if message.contains("kernel dropped 3")),
+                "{id:#010x}: {error}"
+            );
+            assert!(
+                ledger
+                    .settle_read("can0", None, Some(&received(id, data)))
+                    .is_err(),
+                "{id:#010x}: the echo was consumed with the failed read"
+            );
+        }
+    }
+
+    /// The drop path never turns this socket's own later echo foreign.
+    #[test]
+    fn a_kernel_drop_report_leaves_other_own_echoes_pending() {
+        let (id, data) = lifecycle::encode_default_enable(1);
+        let mut ledger = EchoLedger::default();
+        ledger.transmitted(&sent(id, data));
+        ledger.transmitted(&sent(id, data));
+        assert!(ledger
+            .settle_read("can0", Some(1), Some(&received(id, data)))
+            .is_err());
+        ledger
+            .settle_read("can0", None, Some(&received(id, data)))
+            .expect("second own echo");
+        ledger
+            .settle_read("can0", Some(1), None)
+            .expect_err("a drop with no parsed frame still fails");
+        ledger
+            .settle_read("can0", None, None)
+            .expect("nothing to admit");
     }
 
     #[test]
