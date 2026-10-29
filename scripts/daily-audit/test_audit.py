@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from audit import (
     UNWRAP_RE,
     check_adr_staleness,
     check_proto_checksum,
+    check_unwrap,
     production_rust_lines,
     strip_rust_tests,
     Report,
@@ -60,6 +62,87 @@ class StripRustTests(unittest.TestCase):
         self.assertIn("line1", out)
         self.assertIn("line2", out)
         self.assertNotIn("mod tests", out)
+
+    def test_out_of_line_test_module_keeps_the_code_after_it(self) -> None:
+        # `#[cfg(test)] mod x;` has no body: stripping must stop at the `;`
+        # instead of swallowing the production code that follows.
+        src = (
+            "#[cfg(test)]\n#[path = \"x_tests.rs\"]\nmod x_tests;\n\n"
+            "pub fn f(v: Option<u8>) -> u8 {\n    v.unwrap()\n}\n"
+        )
+        prod = production_rust_lines(src)
+        self.assertIn("pub fn f", prod)
+        self.assertIsNotNone(UNWRAP_RE.search(prod))
+        self.assertNotIn("mod x_tests", prod)
+
+
+    def test_cfg_all_test_module_is_stripped(self) -> None:
+        src = (
+            "pub fn ok() {}\n"
+            '#[cfg(all(test, feature = "x"))]\n#[allow(clippy::unwrap_used)]\n'
+            "mod t {\n    fn t() { a.unwrap(); }\n}\n"
+        )
+        self.assertIsNone(UNWRAP_RE.search(production_rust_lines(src)))
+
+    def test_cfg_not_test_module_is_kept(self) -> None:
+        src = "#[cfg(not(test))]\nmod real {\n    fn f() { a.unwrap(); }\n}\n"
+        self.assertIsNotNone(UNWRAP_RE.search(production_rust_lines(src)))
+
+
+class TestOnlyModuleFileTests(unittest.TestCase):
+    """Files that are only compiled under `#[cfg(test)]` are test code (R1)."""
+
+    def _crate(self, root: Path) -> None:
+        src = root / "crates" / "demo" / "src"
+        (src / "hold_tests").mkdir(parents=True)
+        (src / "lib.rs").write_text(
+            "pub mod hold;\n"
+            "#[cfg(test)]\nmod plain_tests;\n"
+            "#[cfg(test)]\n#[path = \"renamed_tests.rs\"]\nmod renamed;\n"
+            "#[cfg(all(test, unix))]\n#[path = \"unix_tests.rs\"]\nmod unix;\n"
+            "#[cfg(any(test, feature = \"sim\"))]\nmod sim;\n"
+        )
+        (src / "hold.rs").write_text(
+            "pub fn h() {}\n"
+            "#[cfg(test)]\n#[path = \"hold_tests/fuse.rs\"]\nmod fuse_tests;\n"
+            "#[cfg(test)]\nmod nested;\n"
+        )
+        (src / "hold" ).mkdir()
+        (src / "hold" / "nested.rs").write_text("mod deeper;\nfn t() { a.unwrap(); }\n")
+        (src / "hold" / "nested").mkdir()
+        (src / "hold" / "nested" / "deeper.rs").write_text("fn t() { a.unwrap(); }\n")
+        (src / "sim.rs").write_text("pub fn s() { a.unwrap(); }\n")
+        for name in ("plain_tests.rs", "renamed_tests.rs", "unix_tests.rs", "hold_tests/fuse.rs"):
+            (src / name).write_text("fn t() { a.expect(\"x\"); }\n")
+        (src / "prod.rs").write_text("pub fn p() { a.unwrap(); }\n")
+
+    def _flagged(self, root: Path, files: list[str]) -> list[str]:
+        report = Report(date="2026-10-29")
+        check_unwrap([f"crates/demo/src/{f}" for f in files], report, root=root)
+        return [f.file for f in report.findings]
+
+    def test_cfg_test_module_files_are_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._crate(root)
+            files = [
+                "plain_tests.rs",
+                "renamed_tests.rs",
+                "unix_tests.rs",
+                "hold_tests/fuse.rs",
+                "hold/nested.rs",
+                "hold/nested/deeper.rs",
+            ]
+            self.assertEqual(self._flagged(root, files), [])
+
+    def test_production_files_are_still_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._crate(root)
+            self.assertEqual(
+                self._flagged(root, ["prod.rs", "sim.rs"]),
+                ["crates/demo/src/prod.rs", "crates/demo/src/sim.rs"],
+            )
 
 
 class ProtoChecksumTests(unittest.TestCase):
