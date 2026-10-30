@@ -213,3 +213,175 @@ fn scaled_pd_pitch_never_predicts_total_torque_above_the_cap() {
         "the drag must exceed the cap and be clamped ({clamps} clamps, worst {worst:.2} Nm)"
     );
 }
+
+// ---- ADR 0040 item 3: Position entry and retargets keep the sent τ_ff -------------------------
+
+/// Pitch `position_ff_step_max_nm` in master control.yaml.
+const FF_STEP_MAX_NM: f64 = 0.048;
+/// One RS03 torque code (±60 Nm over 16 bits) of wire quantization.
+const WIRE_TORQUE_CODE_NM: f64 = 120.0 / 65535.0;
+
+fn pitch_scaled_loop(label: &str) -> (support::FixtureTree, ControlLoop<SimulationBus>) {
+    let fixture = support::fixture_tree_without_diagnostics(label, &source());
+    select_law(fixture.path(), PositionLaw::ScaledPd);
+    let mut ctrl = ControlLoop::from_simulation(
+        fixture.path(),
+        SimulationBus::default(),
+        InitialVirtualReference::Joints(vec![PITCH.to_string()]),
+        200,
+        50,
+    )
+    .expect("virtual initial reference");
+    ctrl.supervisor_mut()
+        .enable_targets(&[PITCH.to_string()])
+        .expect("scoped enable");
+    (fixture, ctrl)
+}
+
+/// One status per joint; pitch reports `(q, dq)` and a drive torque of `torque` Nm.
+fn queue_pitch(ctrl: &mut ControlLoop<SimulationBus>, q: f64, dq: f64, torque: f64) {
+    let motors = ctrl.supervisor().motors.motors.clone();
+    for motor in motors {
+        let frame = if motor.joint == PITCH {
+            support::status_with_torque(&motor, q, dq, torque)
+        } else {
+            support::status(&motor, 0.0, 0.0)
+        };
+        ctrl.supervisor_mut()
+            .bus_mut()
+            .queue_frame(frame)
+            .expect("finite raw status queue");
+    }
+}
+
+/// Joint-space `(q_des, τ_ff)` of the latest pitch MIT frame on the wire.
+fn last_pitch_wire(ctrl: &ControlLoop<SimulationBus>) -> (f64, f64) {
+    let motor = ctrl
+        .supervisor()
+        .motors
+        .motors
+        .iter()
+        .find(|motor| motor.joint == PITCH)
+        .expect("pitch motor");
+    let scale = f64::from(motor.direction) * motor.gear_ratio;
+    let fields = ctrl
+        .supervisor()
+        .bus()
+        .frames()
+        .iter()
+        .rev()
+        .filter(|frame| frame.id & 0xff == PITCH_DEVICE)
+        .find_map(|frame| decode_mit_command_fields(frame.id, &frame.data))
+        .expect("pitch MIT frame");
+    let (q_des, _, _, _, tau_ff) = decode_rs03(fields, scale);
+    (q_des, tau_ff)
+}
+
+/// GravityComp at `q` until Davout's τ_ff limiter has reached τ_g, the drive reporting the
+/// τ_ff it was sent. Returns that τ_ff (Nm).
+fn settle_gravity_comp(ctrl: &mut ControlLoop<SimulationBus>, q: f64) -> f64 {
+    queue_pitch(ctrl, q, 0.0, 0.0);
+    ctrl.supervisor_mut().drain_feedback().expect("pose drain");
+    ctrl.try_set_control_mode(berthier::ControlMode::GravityComp)
+        .expect("gravity-on");
+    let mut sent = 0.0;
+    for _ in 0..40 {
+        // Davout's τ_ff rate limiter runs on the wall clock.
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        queue_pitch(ctrl, q, 0.0, sent);
+        ctrl.tick(None).expect("gravity-comp tick");
+        sent = ctrl
+            .supervisor()
+            .last_tau_ff_nm(PITCH)
+            .expect("GravityComp sent a τ_ff");
+    }
+    sent
+}
+
+#[test]
+fn position_entry_from_gravity_comp_starts_from_the_last_sent_tau_ff() {
+    // GravityComp → Position (`hold-at`) while the drive reports a total torque 0.5 Nm below the
+    // τ_ff Davout sent. The first Position τ_ff on the wire starts from the sent τ_ff, not from
+    // the measured torque (ADR 0040 item 3).
+    let (_fixture, mut ctrl) = pitch_scaled_loop("position-entry-ff");
+    let q = 1.2;
+    let sent = settle_gravity_comp(&mut ctrl, q);
+    assert!(
+        sent.abs() > 1.0,
+        "elevated pose carries gravity: τ_ff {sent}"
+    );
+    let measured = sent - 0.5;
+    queue_pitch(&mut ctrl, q, 0.0, measured);
+    ctrl.enter_position_hold_at(Some(PITCH), q)
+        .expect("hold-at admitted");
+    let reported = ctrl
+        .supervisor()
+        .joint_torque_rad(PITCH)
+        .expect("pitch torque");
+    assert!(
+        (reported - measured).abs() < 0.01,
+        "the drive reports {reported}, fixture wants {measured}"
+    );
+    ctrl.supervisor_mut().bus_mut().clear_trace();
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    queue_pitch(&mut ctrl, q, 0.0, measured);
+    ctrl.tick(None).expect("first Position tick");
+    let (_, first) = last_pitch_wire(&ctrl);
+    assert!(
+        (first - sent).abs() <= FF_STEP_MAX_NM + WIRE_TORQUE_CODE_NM,
+        "first Position τ_ff {first:.4} Nm must start from the sent {sent:.4} Nm \
+         (measured {measured:.4} Nm)"
+    );
+}
+
+#[test]
+fn mid_move_retarget_never_steps_the_tau_ff_past_the_guard() {
+    // A `hold-at` retarget while pitch is moving, with the drive reporting 1 Nm more than the
+    // τ_ff Davout last sent (PD effort in the measured total). No sent τ_ff changes by more than
+    // the whole-τ_ff step guard from one tick to the next.
+    let (_fixture, mut ctrl) = pitch_scaled_loop("retarget-ff");
+    let q0 = 0.6;
+    settle_gravity_comp(&mut ctrl, q0);
+    let sent = ctrl.supervisor().last_tau_ff_nm(PITCH).unwrap_or(0.0);
+    queue_pitch(&mut ctrl, q0, 0.0, sent);
+    ctrl.enter_position_hold_at(Some(PITCH), q0 + 0.4)
+        .expect("move admitted");
+    let mut q = q0;
+    let mut wire_ff = Vec::new();
+    let mut retarget_at = None;
+    const RETARGET_TICK: usize = 60;
+    for tick in 0..RETARGET_TICK + 30 {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let sent = ctrl.supervisor().last_tau_ff_nm(PITCH).unwrap_or(0.0);
+        if tick == RETARGET_TICK {
+            let q_ref = ctrl.position_hold_commands().expect("planner")[0];
+            assert!(
+                q_ref > q0 + 0.02 && q_ref < q0 + 0.38,
+                "retarget lands mid-move (q_ref {q_ref})"
+            );
+            queue_pitch(&mut ctrl, q, 0.0, sent + 1.0);
+            ctrl.enter_position_hold_at(Some(PITCH), q0 + 0.6)
+                .expect("mid-move retarget admitted");
+            retarget_at = Some(wire_ff.len());
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        queue_pitch(&mut ctrl, q, 0.0, sent);
+        ctrl.tick(None).expect("Position tick");
+        let (q_des, tau_ff) = last_pitch_wire(&ctrl);
+        wire_ff.push(tau_ff);
+        // The drive tracks the commanded setpoint.
+        q = q_des;
+    }
+    let retarget_at = retarget_at.expect("retarget ran");
+    for (k, pair) in wire_ff.windows(2).enumerate() {
+        let step = (pair[1] - pair[0]).abs();
+        assert!(
+            step <= FF_STEP_MAX_NM + WIRE_TORQUE_CODE_NM,
+            "tick {} (retarget before tick {retarget_at}): τ_ff stepped {step:.4} Nm \
+             ({:.4} → {:.4})",
+            k + 1,
+            pair[0],
+            pair[1]
+        );
+    }
+}

@@ -422,8 +422,8 @@ pub struct HoldWorld<'a> {
     pub dt: f64,
     pub hz: u32,
     pub tick_count: u64,
-    /// Per joint: Davout reshaped the previous command (total-torque clamp, τ_ff cap or rate
-    /// limit). Freezes the ADR 0040 leaky integral; empty = none known.
+    /// Per joint: Davout reshaped the previous command (total-torque or envelope clamp, τ_ff cap
+    /// or rate limit). Freezes the ADR 0040 leaky integral; empty = none known.
     pub reshaped: &'a [bool],
     /// Per joint: τ_ff Davout last sent, for a bumpless τ_ff step guard; empty = unknown.
     pub ff_last_sent: &'a [Option<f64>],
@@ -605,6 +605,12 @@ impl PositionHold {
         self.planners
             .as_ref()
             .map(|planners| planners.iter().map(|p| p.q_traj).collect())
+    }
+
+    /// Scaled-PD law state after the latest tick (tests: integral and reshape flags).
+    #[cfg(test)]
+    pub(crate) fn scaled_state_for_test(&self, joint_idx: usize) -> Option<ScaledPdState> {
+        self.scaled.get(joint_idx).copied()
     }
 
     #[cfg(test)]

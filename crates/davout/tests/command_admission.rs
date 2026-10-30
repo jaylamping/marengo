@@ -708,18 +708,19 @@ fn derived_velocity_spike_never_pushes_wire_velocity_past_the_cap() {
     );
 }
 
-/// P2C-01 trade-off, option (a), pinned until the owner decides (see docs/safety.md,
-/// "Total MIT torque"). The total-torque clamp predicts with the measured velocity clipped
-/// to the joint's velocity cap. While the real `|dq|` lies between the cap and the feedback
-/// velocity-fault threshold (cap + 0.5 rad/s), the command is admitted, the prediction uses
-/// the clipped velocity, and the drive's actual damping torque `kd·(dq_des − dq)` can exceed
-/// the total-torque cap by at most `kd·(|dq| − cap)`, always opposing the motion (braking).
+/// P2C-01 trade-off, decided 2026-10-28 by the owner: keep the clipped velocity (see
+/// docs/safety.md, "Total MIT torque"). The total-torque clamp predicts with the measured
+/// velocity clipped to the joint's velocity cap. While the real `|dq|` lies between the cap
+/// and the feedback velocity-fault threshold (cap + 0.5 rad/s), the command is admitted, the
+/// prediction uses the clipped velocity, and the drive's actual damping torque
+/// `kd·(dq_des − dq)` can exceed the total-torque cap by at most `kd·(|dq| − cap)`, always
+/// opposing the motion (braking).
 ///
-/// Option (b), still open: predict with the real `dq`, so the actual torque stays within
-/// the cap and a command whose clamp would carry `dq_des` past the velocity cap is refused
-/// (the pre-P2C-01 behaviour). Choosing (b) makes this the test to flip.
+/// Rejected: predicting with the real `dq` and refusing a command whose clamp would carry
+/// `dq_des` past the velocity cap (the pre-P2C-01 behaviour), which refused on single-sample
+/// derived-velocity spikes.
 #[test]
-fn p2c01_option_a_in_band_velocity_admits_with_damping_over_torque_cap() {
+fn p2c01_in_band_velocity_admits_with_damping_over_torque_cap() {
     const KD: f64 = 3.0;
     let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
@@ -776,7 +777,7 @@ fn p2c01_option_a_in_band_velocity_admits_with_damping_over_torque_cap() {
             velocity_rad_s: 0.0,
             torque_ff_nm: 0.0,
         }])
-        .expect("option (a): admitted, not refused");
+        .expect("clipped velocity: admitted, not refused");
     assert_eq!(supervisor.total_torque_clamp_count(&pitch.joint), 1);
     let frame = supervisor.bus().frames().last().expect("pitch frame");
     let fields = robstride::decode_mit_command_fields(frame.id, &frame.data).expect("MIT");
