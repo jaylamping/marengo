@@ -417,7 +417,7 @@ struct FilteredMit {
     q_meas: f64,
     dq_meas: f64,
     total_torque: Option<TotalTorqueClamp>,
-    /// The limit envelope moved `q_des`.
+    /// The limit envelope moved `q_des`, or a danger zone clamped `dq_des`.
     envelope_clamped: bool,
 }
 
@@ -1411,8 +1411,9 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Sent MIT commands for `joint` whose `q_des` Davout moved into the velocity-scaled limit
-    /// envelope (judged at the larger of the commanded and measured speed), since process
-    /// start. The controller treats a new one as a reshaped output (ADR 0040).
+    /// envelope (judged at the larger of the commanded and measured speed), or whose `dq_des`
+    /// a `clamp_velocity` danger zone limited, since process start. The controller treats a
+    /// new one as a reshaped output (ADR 0040).
     pub fn envelope_clamp_count(&self, joint: &str) -> u64 {
         self.envelope_clamps.get(joint).copied().unwrap_or(0)
     }
@@ -3129,8 +3130,9 @@ impl<B: MotorBus> Supervisor<B> {
     ///
     /// `feedback` is the configured motor index for `cmd.joint` (measured pose source).
     /// Returns the filtered command, `(q_meas, dq_meas)`, the total-torque clamp it took, if
-    /// any, and whether the envelope moved `q_des`; the caller stores `torque_ff_nm` as the
-    /// joint's new `last_tau_ff` and counts the clamps once the command is sent.
+    /// any, and whether the envelope moved `q_des` or a danger zone clamped `dq_des`; the
+    /// caller stores `torque_ff_nm` as the joint's new `last_tau_ff` and counts the clamps
+    /// once the command is sent.
     fn filter_mit_core(
         &self,
         cmd: MitJointCommand,
@@ -3221,7 +3223,14 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         let vel_cap = lim.velocity;
+        let dq_requested = out.velocity_rad_s;
         let danger_zone_torque_cap = self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas)?;
+        // A `clamp_velocity` danger zone reshapes dq_des (the drive's damping term) without
+        // moving q_des; report it with the envelope so the controller's ADR 0040 integral
+        // freeze sees it too. (A `clamp_torque` zone shows up as a changed sent τ_ff.)
+        if (out.velocity_rad_s - dq_requested).abs() > 1e-9 {
+            envelope_clamped = true;
+        }
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
@@ -4388,6 +4397,45 @@ mod tests {
             filtered.velocity_rad_s >= -0.45 - 1e-9,
             "expected clamp to max_velocity_rad_s 0.45, got {}",
             filtered.velocity_rad_s
+        );
+    }
+
+    #[test]
+    fn danger_zone_velocity_clamp_counts_as_a_reshaped_command() {
+        // ADR 0040 item 2: Berthier freezes its leaky integral after any Davout reshape.
+        // A `clamp_velocity` danger zone changes dq_des (and with it the drive's damping
+        // term) without moving q_des, so it must still be visible to that watch.
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        receive_pose(&mut sup, "right_shoulder_pitch", 1.0, -0.5);
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = |velocity_rad_s: f64| MitJointCommand {
+            joint: "right_shoulder_pitch".to_string(),
+            kp: 10.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s,
+            torque_ff_nm: 0.0,
+        };
+
+        let within = sup.filter_mit_command(cmd(-0.3), &motor).expect("filter");
+        assert!((within.velocity_rad_s + 0.3).abs() < 1e-9);
+        assert_eq!(
+            sup.envelope_clamp_count("right_shoulder_pitch"),
+            0,
+            "a velocity inside the danger-zone cap is not reshaped"
+        );
+
+        let clamped = sup.filter_mit_command(cmd(-0.5), &motor).expect("filter");
+        assert!((clamped.velocity_rad_s + 0.45).abs() < 1e-9);
+        assert_eq!(
+            sup.envelope_clamp_count("right_shoulder_pitch"),
+            1,
+            "the danger-zone velocity clamp reshaped dq_des"
         );
     }
 

@@ -48,8 +48,8 @@ Per joint, in `control.yaml`, all off by default:
    `ki·leak·e` instead of ramping to the cap. Its input is frozen, and only the leak runs, on the
    tick after any reshaped output: the τ_ff step guard acted, Berthier's or Davout's envelope
    clamped `q_des` (Davout judges it at the larger of the commanded and measured speed, so it can
-   bind alone), Davout counted a new total-torque clamp, or Davout sent a τ_ff different from the
-   one commanded.
+   bind alone) or a Davout `clamp_velocity` danger zone limited `dq_des`, Davout counted a new
+   total-torque clamp, or Davout sent a τ_ff different from the one commanded.
 3. **Whole τ_ff step guard** `position_ff_step_max_nm` limits each sent tick's change of the
    complete Position τ_ff (gravity + dynamic + integral). On mode entry it starts from the τ_ff
    Davout last sent, so a supported elevated transition never jumps from 0. Davout's own τ_ff
