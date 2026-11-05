@@ -16,7 +16,7 @@ Current bench (2026-10-28):
 
 ```
 [Pi 5 Waveshare 2-CH CAN HAT can0] ---- right arm ids 1-5 (RS03, RS03, RS02, RS02, RS00) ---- [120Ω term]
-[Pi 5 Waveshare 2-CH CAN HAT can1] ---- (unused; previously left shoulder pitch id 12)
+[Pi 5 Waveshare 2-CH CAN HAT can1] ---- (unused; previously left shoulder pitch id 12; planned: left shoulder ids 11-13, see left-shoulder-bench-harness.md)
 ```
 
 The full-body bus plan is open: `config/motors_humanoid.yaml` assumes five buses (`can0`–`can4`), which needs more channels than the 2-CH HAT, and its ID numbering disagrees with the ID blocks in [hardware ADR 0001](../../docs/decisions/0001-can-and-motors.md). The MCP2515 holds only 2 RX frames, so per-bus traffic and TX pacing matter.
