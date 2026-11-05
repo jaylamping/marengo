@@ -23,37 +23,28 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
 
 ## 2. Topology
 
-Two separate decisions (handoff): power branches as a **star**, CAN runs as a **daisy chain**.
+**Trunk with drops** (Joey, 2026-11-05): one harness runs from the torso down the arm, inside it where the parts allow, with a short pigtail at each actuator that plugs into one of its two XT30(2+2) ports. No daisy-chaining through the motors' second ports.
 
 ```
- 24 V bench PSU (current-limited)                Pi 5 + Waveshare 2-CH CAN HAT
-   + ──[NC E-stop]──[15 A trunk fuse]──┐           can1 (wired, unused today)
-   − ──────────────────────────────┐   │             H  L  GND
-                                   │   │             │  │   │
-                          ┌────────┴───┴──────┐      │  │   └──── to PSU − (single ground tie)
-                          │ fused junction    │      │  │
-                          │  F1 10A  F2 10A  F3 7.5A │  │  (twisted pair, ~0.5 m)
-                          └──┬──────┬───────┬─┘      │  │
-                             │      │       │        ▼  ▼
-        power pair (16 AWG)  │      │       │   ┌── M11 pitch  RS03 ──┐
-                             └──────┼───────┼──►│ XT30(2+2)-F         │
-                                    │       │   └──────────┬──────────┘
-                                    │       │      CAN in/out splice ≤ 5 cm from plug
-                                    │       │   ┌──────────▼──────────┐
-                                    └───────┼──►│ M12 roll   RS03     │
-                                            │   └──────────┬──────────┘
-                                            │   ┌──────────▼──────────┐
-                                            └──►│ M13 upper yaw RS02  │
-                                                └──────────┬──────────┘
-                                                        [120 Ω]  end of bus
+ 24 V bench PSU (current-limited)            Pi 5 + Waveshare 2-CH CAN HAT can1
+   + ──[NC E-stop]──[10 A trunk fuse]──┐        H  L  GND ── to PSU − (single ground tie)
+   − ──────────────────────────────┐   │        │  │
+                                   ▼   ▼        ▼  ▼
+   torso ═════ trunk: +, −, CAN_H, CAN_L (CAN pair twisted) ═════════════► down the arm
+                     │                    │                     │
+                 drop ≤ 15 cm         drop ≤ 15 cm          drop ≤ 15 cm
+                     │                    │                     │
+               XT30(2+2)-F           XT30(2+2)-F           XT30(2+2)-F   [120 Ω] trunk end
+               M11 pitch RS03        M12 roll RS03         M13 upper yaw RS02
 ```
 
 - **Bus:** `can1`. `can0` keeps the right arm (ids 1 to 5) so the two arms never share one MCP2515 and its 2-frame receive buffer (repo, ADR 0001). `can1` is already wired to the HAT and unused (repo, pi-commissioning.md).
 - **IDs (proposal):** left arm block is 11 to 20 (repo, ADR 0001). Pitch **11**, roll **12**, upper-arm yaw **13**. An earlier left pitch used **12** on can1 and an earlier left 4-DOF used **11 to 14** on can0 (repo), so the drives may already hold old IDs: scan first, set IDs in firmware one motor at a time, then set zero.
-- **Why star power:** each actuator gets its own fuse, and the pitch connector does not carry the roll and yaw current. The RS02 lead concept is already a separate rearward feed (handoff).
-- **Why daisy-chain CAN:** at 1 Mbit/s stubs should stay short (ISO 11898, roughly 0.3 m or less). Each RS03/RS02 has two XT30(2+2) ports, but this harness uses only one per motor (Joey, 2026-11-05: no daisy-chaining through the second port). Power stays star; the CAN pair goes into each motor's single lead and back out, spliced within about 5 cm of the plug, so CAN is still a chain electrically without a long stub per motor.
+- **CAN on a trunk:** at 1 Mbit/s stubs should stay short (ISO 11898, roughly 0.3 m or less), so keep each drop at 15 cm or less and the pair twisted to the splice. That keeps the bus a proper line with the terminator at the far end of the trunk.
+- **Power on a trunk:** the trunk carries all three motors' current, so it is sized for the sum and fused once at the source. Per-motor fusing is dropped for the bench (simpler, fewer parts in the arm). Add drop fuses later only if a fault case needs them.
+- **Extendable:** later actuators (elbow RS02, lower-arm yaw RS00) become more drops on the same trunk, and the terminator moves to the new end.
+- **Crossing joints:** the trunk passes the roll and upper-yaw joints, so it bends and twists with them. This is the open routing problem from the handoff (L05 to L11: slack at pitch, turn at yaw). On the bench, leave visible service loops at each joint and note how much each one uses through the range; that measurement feeds the fixed-length harness.
 - **Unused second port:** it is probably paralleled with the used one inside the drive, so treat its pins as live at bus voltage (**to measure** with a multimeter once powered). Cap or tape it so it cannot short against tools, screws or the printed parts.
-- **Mirror the right arm:** the right arm harness already works on can0. If it is built differently from the above (for example, the motors have a second pass-through port), copy what it does and note the difference here.
 
 ## 3. Termination and ground
 
@@ -66,12 +57,11 @@ Two separate decisions (handoff): power branches as a **star**, CAN runs as a **
 
 | Run | Wire | Bench length | Notes |
 |-----|------|--------------|-------|
-| PSU to E-stop to junction | 14 AWG silicone, red/black | 1.0 m | Trunk; E-stop breaks + (repo: physical NC E-stop is the only E-stop authority) |
-| Junction to M11 pitch | 16 AWG silicone pair | 0.6 m | XT30(2+2) rated 20 A at 16 AWG power (handoff) |
-| Junction to M12 roll | 16 AWG silicone pair | 0.8 m | Leave a service loop at the pitch output |
-| Junction to M13 upper yaw | 16 AWG silicone pair | 1.0 m | Rearward feed per handoff lead concept |
-| HAT can1 to M11 | 22 to 24 AWG twisted pair, ~1 twist per 25 mm | 0.6 m | Keep twisted to within 1 cm of the pins |
-| M11 to M12, M12 to M13 | same | 0.3 m each | Spliced in/out at each plug |
+| PSU to E-stop to trunk start | 14 AWG silicone, red/black | 1.0 m | E-stop breaks + (repo: physical NC E-stop is the only E-stop authority) |
+| Trunk power, torso to past M13 | 16 AWG silicone pair | about 1.0 m | Sum of three motors at bench torque caps; XT30(2+2) rated 20 A at 16 AWG (handoff) |
+| Trunk CAN, HAT to past M13 | 22 to 24 AWG twisted pair, ~1 twist per 25 mm | about 1.3 m | Runs alongside the power pair |
+| Drops to M11, M12, M13 | 16 AWG pair + twisted CAN pair | 15 cm or less each | Spliced into the trunk, heat-shrunk, strain-relieved |
+| Service loops | — | at pitch output, roll output, upper-yaw | Sized generously; measure what each joint uses |
 
 Lengths are bench **assumptions**, sized long. Record the actual cut lengths here once built; they are the starting point for the fixed-length harness (work package 4).
 
@@ -84,19 +74,17 @@ Plug and unplug only with the E-stop open. The drives have input capacitance and
 | Qty | Part | Note |
 |-----|------|------|
 | 3 + 2 spare | AMASS XT30(2+2)-F.G.B female | Motor end |
-| 1 | Fused junction: 4 to 6 way ATC/ATO blade fuse block, or 3 inline ATO holders + Wago 221 lever nuts | Star point |
-| 2 | 10 A ATO fuses | Pitch, roll (RS03) |
-| 1 | 7.5 A ATO fuse | Upper yaw (RS02) |
-| 1 | 15 A ATO fuse + inline holder | Trunk |
+| 1 + spare | 10 A ATO fuse + inline holder | Trunk, at the source |
+| — | Solder sleeves or inline splices for the drops | One power + one CAN splice per drop |
 | 2 m each | 14 AWG silicone, red + black | Trunk |
-| 3 m each | 16 AWG silicone, red + black | Branches |
+| 2 m each | 16 AWG silicone, red + black | Trunk power and drops |
 | 3 m | 22 to 24 AWG twisted pair (or 2-core shielded) | CAN |
 | 2 | 120 Ω 1/4 W resistors | One spare |
 | 1 | NC mushroom E-stop | Reuse the right-arm one if the left branch goes through it |
 | — | Heat-shrink, cable ties, labels (M11/M12/M13, CAN1) | Label both ends of every lead |
 | — | Bench clamps or a scrap board with M4/M3 screws | Holds loose actuators for unloaded tests |
 
-Fuse values are for the 24 V bench with the low torque caps used on the right arm (5 Nm RS03, 3 Nm RS02, repo motors.yaml). They protect the wire and connector, not the motor. Revisit for the 48 V pack.
+The fuse value is for the 24 V bench with the low torque caps used on the right arm (5 Nm RS03, 3 Nm RS02, repo motors.yaml). It protects the wire and connectors, not the motor. Revisit for the 48 V pack.
 
 Not wiring but needed before section 6: the shoulder fastener kit (M4 washers OD9/ID4.3, M3 washers, limiters, 3 mm under-head spacers, M3x12), none of which is owned yet (handoff).
 
