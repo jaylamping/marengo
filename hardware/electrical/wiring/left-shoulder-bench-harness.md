@@ -23,7 +23,7 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
 
 ## 2. Topology
 
-**Trunk with drops** (Joey, 2026-11-05): one harness runs from the torso down the arm, inside it where the parts allow, with a short pigtail at each actuator that plugs into one of its two XT30(2+2) ports. No daisy-chaining through the motors' second ports.
+**Trunk with drops** (Joey, 2026-11-05): one harness runs from the torso down the arm, inside it where the parts allow, with a short pigtail at each actuator. Connectors differ by motor (Joey, 2026-11-05): the RS02 has XT30(2+2) (power + CAN in one plug); the RS03 has a regular 2-pin XT30 for power, so its CAN goes on a separate signal connector (part **to measure**). Each motor has two ports; the harness uses one. No daisy-chaining through the motors' second ports.
 
 ```
  24 V bench PSU (current-limited)            Pi 5 + Waveshare 2-CH CAN HAT can1
@@ -34,7 +34,7 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
                      │                    │                     │
                  drop ≤ 15 cm         drop ≤ 15 cm          drop ≤ 15 cm
                      │                    │                     │
-               XT30(2+2)-F           XT30(2+2)-F           XT30(2+2)-F   [120 Ω] trunk end
+            XT30-F + CAN plug     XT30-F + CAN plug       XT30(2+2)-F   [120 Ω] trunk end
                M11 pitch RS03        M12 roll RS03         M13 upper yaw RS02
 ```
 
@@ -65,7 +65,7 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
 
 Lengths are bench **assumptions**, sized long. Record the actual cut lengths here once built; they are the starting point for the fixed-length harness (work package 4).
 
-**Mating connector:** AMASS XT30(2+2)-F.G.B (90° exit) for the motor end (handoff, RS02 header XT30PB(2+2)-M.G.B). Confirm the RS03 header is the same part (**to measure**). Pin order of power and signal: read it off the motor's datasheet or the right-arm leads before crimping/soldering; do not assume.
+**Mating connectors:** RS02: AMASS XT30(2+2)-F.G.B (90° exit) (handoff, header XT30PB(2+2)-M.G.B). RS03: regular 2-pin XT30 female for power plus a separate CAN plug; identify the RS03 CAN connector part from the motor or the right-arm leads (**to measure**). Pin order of power and signal: read it off the motor's datasheet or the right-arm leads before crimping/soldering; do not assume.
 
 Plug and unplug only with the E-stop open. The drives have input capacitance and XT30 contacts arc on hot-plug at 24 V (assumption, typical for these drives).
 
@@ -73,7 +73,9 @@ Plug and unplug only with the E-stop open. The drives have input capacitance and
 
 | Qty | Part | Note |
 |-----|------|------|
-| 3 + 2 spare | AMASS XT30(2+2)-F.G.B female | Motor end |
+| 1 + 2 spare | AMASS XT30(2+2)-F.G.B female | RS02 drop |
+| 2 + 2 spare | XT30 female (2-pin) | RS03 power drops |
+| 2 + 2 spare | RS03 CAN mating plug (part TBD) | RS03 CAN drops |
 | 1 + spare | 10 A ATO fuse + inline holder | Trunk, at the source |
 | — | Solder sleeves or inline splices for the drops | One power + one CAN splice per drop |
 | 2 m each | 14 AWG silicone, red + black | Trunk |
