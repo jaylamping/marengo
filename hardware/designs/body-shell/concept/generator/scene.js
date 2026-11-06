@@ -280,6 +280,7 @@ if (q.get('stl')) {
   const M = { white: new THREE.MeshPhysicalMaterial({ color: 0xeef0f3, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
     gun: new THREE.MeshPhysicalMaterial({ color: 0x4a4f57, roughness: 0.32, metalness: 0.75, clearcoat: 0.3 }),
     dark: new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5, metalness: 0.4 }),
+    chrome: new THREE.MeshPhysicalMaterial({ color: 0xdfe3e8, roughness: 0.12, metalness: 1.0, clearcoat: 1 }),
     lens: new THREE.MeshPhysicalMaterial({ color: 0x050607, roughness: 0.05, metalness: 0.2, clearcoat: 1 }),
     eye: new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: Number(q.get('eyecol') ?? 0xffc95e), emissiveIntensity: Number(q.get('eyek') ?? 1.0) }) };
   const base = 'giantout/' + q.get('stl') + '/';

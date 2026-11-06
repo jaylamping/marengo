@@ -1,4 +1,20 @@
-# Head: Giant-inspired concept (first CAD pass)
+# Head: Giant-inspired concept
+
+## Pass 2 (current, 2026-11-06)
+
+![pass 2](HEAD_GIANT_PASS2.png)
+
+From Joey's references (Giant side and front posters) and his style brief: *"his face should evoke images of 1930s
+locomotives, elegant but brawny"* (reference: a 1930s streamlined steam locomotive nose). Model: `build_head2.py`.
+
+- Scoop jaw over the lower face: tapers and rakes back toward the chin, pivots on a round side boss (servo jaw for speech).
+- Tapered crest blade that starts as a point between the eyes and grows over the forehead.
+- Big bevelled eye sockets with chrome rings (headlamp bezels); round display in each.
+- Head sits straight on a stepped collar ring (neck yaw bearing inside), no visible neck column.
+- Streamliner cues: chrome speed lines wrapping the chin over speaker slots; stepped cheek louvres with a chrome arc (cooling exhaust for the head electronics).
+- Two colourways: white, and white with a gunmetal jaw and collar.
+
+## Pass 1
 
 2026-11-06. Joey picked a design that is sentimental to him (the Iron Giant, Brad Bird film) "with some slight alterations".
 This is an **original restyle** in that spirit for marengo, not a replica: white armor and gunmetal to match the body,
