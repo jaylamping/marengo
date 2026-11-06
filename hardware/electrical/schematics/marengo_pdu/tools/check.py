@@ -156,9 +156,10 @@ ok(len(opt)==2 and len(inv)==2 and len(ff)==2,'2 optos, inverters, latches')
 ok(sfx(n(opt[0],1),'LOOP_RET') and n(opt[0],2)==n(opt[1],1),'optos in series'); ok(val(through_r(n(opt[1],2),'GND')).startswith('620R'),'620R to GND')
 for u,f,ch in zip(inv,ff,'AB'):
     ok(n(f,2)==n(u,4) and through_r(n(f,5),f'ESTOP_EN_{ch}') is not None,f'latch {ch}: D from loop, Q to EN')
-    ok(val(through_r(n(f,6),n(u,4)))=='10k' and any(val(c)=='100nF' and {n(c,1),n(c,2)}=={n(f,6),'GND'} for c in comp if c.startswith('C')) and sfx(n(f,1),'ESTOP_RST') and n(f,7)=='+3V3_AON',f'latch {ch}: CLK reset, loop clears, no preset')
-    dd=[d for d in comp if d.startswith('D') and n(d,1)=='WD_N' and n(d,2)==n(f,6) and val(d)=='BAT54' and not comp_dnp(d)]
-    ok(len(dd)==1,f'latch {ch}: watchdog clears it')
+    g8=[a for a in comp if val(a)=='SN74LVC1G08DBV' and n(a,4)==n(f,6)]
+    ok(len(g8)==1 and {n(g8[0],1),n(g8[0],2)}=={n(u,4),'WD_N'} and n(g8[0],5)=='+3V3_AON' and n(g8[0],3)=='GND',f'latch {ch}: CLR is loop AND watchdog through a gate')
+    ok(str(val(through_r(n(u,2),n(opt['AB'.index(ch)],4)) or 'x')).startswith('10k') and any(val(c)=='100nF' and {n(c,1),n(c,2)}=={n(u,2),'GND'} for c in comp if c.startswith('C')),f'latch {ch}: chatter filter ahead of the Schmitt input')
+    ok(sfx(n(f,1),'ESTOP_RST') and n(f,7)=='+3V3_AON',f'latch {ch}: CLK reset, no PRE')
 ok(through_r('SUP_OPEN_A','+3V3_AON') is not None,'SUP_OPEN pull-up')
 ok(sfx(n(ff[0],3),'PORT_OE_N') and n('U2032',1)==n('U2032',19)==n(ff[0],3),'port buffer OE from latch A')
 ok(n(ff[1],3) is None or n(ff[1],3).startswith('unconnected'),'latch B Qn open')
@@ -177,7 +178,7 @@ ok(n('U1321',1)==n('U1321',2)=='+3V3_AON' and sfx(n('U1321',3),'SHED_N'),'U1321 
 ok(any(val(r).startswith('2mR') and n(r,1)=='L12_OUT' and n(r,2)=='+12V' for r in comp if r.startswith('R')),'12 V total shunt')
 ok(sum(1 for q in comp if q.startswith('Q') and n(q,1) and sfx(n(q,1),'SHED_12V') and n(q,3) in ('EN_12V_THIRD','EN_12V_AUX','EN_SPARE'))==3,'shed FETs')
 ok(n('D15',1)==n('U1',16) and n('D15',2)==n('U1',17),'D15 anode VSS, cathode VC0')
-ok(n('Q211',2)==dg and n('Q211',3)==VS and sfx(n('Q211',1),'DSG_OFF_B'),'DSG turn-off PNP')
+ok(n('Q211',2)==dg and sfx(n('Q211',1),'DSG_OFF_B') and (through_r(n('Q211',3),VS) and val(through_r(n('Q211',3),VS)))=='15R','DSG turn-off PNP, collector limited')
 ok(val(through_r(n('Q211',1),dg))=='10k','Q211 base-emitter R')
 ok(sum(1 for r in comp if r.startswith('R') and val(r)=='220R' and n('Q211',1) in (n(r,1),n(r,2)))==1,'Q211 series base R')
 ok(sum(1 for c in comp if val(c).startswith('100uF 80V') and n(c,1).endswith('PACK_TOP') and n(c,2)=='GND')==4,'pack top snubber')
@@ -254,5 +255,8 @@ for r in use:
 if MY:
     land=sorted((float(x),float(w),float(h)) for x,w,h in re.findall(r'\(pad "[12]" smd rect\s+\(at (\S+) 0\)\s+\(size (\S+) (\S+)\)',open(MY+'/Fuse_2410.kicad_mod').read())) if os.path.exists(MY+'/Fuse_2410.kicad_mod') else []
     ok(land==[(-2.75,2.5,2.8),(2.75,2.5,2.8)],f'Fuse_2410 land {land}')
+for s_ in ('MID_DIV','VMOT_DIV','VSYS_DIV'):
+    rr=[r for r in comp if r.startswith('R') and any(sfx(n(r,p),s_) for p in (1,2))]
+    ok(sorted(val(r) for r in rr if val(r)[:2] in ('1M','56'))==['1M 0.1%','56k 0.1%'],f'{s_} 0.1 %')
 print('audited',aud,'parts')
 print(sorted(nets)[:60]); print('FAILS',len(fail))

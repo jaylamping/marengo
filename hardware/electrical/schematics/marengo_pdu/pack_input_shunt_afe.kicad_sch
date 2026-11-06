@@ -11707,7 +11707,7 @@
 		)
 		(uuid "5af139ad-b541-5910-8ff6-7e642042ec17")
 	)
-	(text "Keeps VC0 defined with the harness out. 9 uA at 60 A. D15 clamps VC0 near -0.3 V in a short (1.5 mOhm return, -0.3 V at 200 A), R14 limits it."
+	(text "Keeps VC0 defined with the harness out. 9 uA at 60 A. D15 clamps VC0 near -0.3 V in a short, no guaranteed margin. Keep the B0 to VSS return under 1 mOhm in layout: -0.6 V at 600 A, about 3 mA through R14."
 		(exclude_from_sim no)
 		(at 30.48 165.1 0)
 		(effects

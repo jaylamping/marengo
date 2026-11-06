@@ -126,10 +126,47 @@ Reviewed commit `0cbda7f8`, changed sheets and fixes only, with `Bash(python3 *)
 ### Still open, none blocks layout planning
 
 - Bench: CAN double-fault clearing time (0.43 to 0.48 A, below the PTC's 0.5 A test point), R209 at about 30 J, 12 V load-step droop, FET sharing, stack inductance (3 µH gives 85 V), real drive capacitance.
-- Before layout: USE 2410 land, 2010 stand-in today. D220 is 3.4 A free air against the 4 A charger, so its copper matters.
+- Before layout: D220 is 3.4 A free air against the 4 A charger, so its copper matters. The USE 2410 land was added after pass 2.
 - Firmware requirements: INA238 alert configured at boot, BANK_B_CLOSE dropped on any open loop (no hardware interlock), precharge timeout opens the loop (R318 has no hardware timer), FLT_A read with ESTOP_ARMED, U301 retries bounded.
 - Accepted residuals: a short across one contact pair or WL_12V to LOOP_TH defeats the loop (Cat 0, not Cat 3). With a hung supervisor, a reset press re-arms for up to 1.84 s. U301's 105 A minimum is below six ports at full limit, fine for rev A's three.
 - U1 CHG pin about 88 V during the surge against VSS + 85 V, through 5.1 kΩ.
 - F503 may trip on ground-shift current in normal use. It is harmless, but CAN_REF cannot then be relied on.
 
 Fixes after pass 2 have ERC 0 and check.py FAILS 0 but no third model review.
+
+## Pass 3 (2026-11-06)
+
+Reviewed commit `c0f24ea9`, the pass 2 fixes and the USE 2410 land only. Sol 509 s, Opus high 813 s, Fable high 946 s. Hashes matched before and after. All three found the 16 fixes wired as logged and reran check.py: FAILS 0. All three found problems in the numbers. Each finding below was checked against the netlist, a datasheet or a calculation.
+
+**Joey's decision, 13:03Z: keep the reset press at every power-up, no auto-arm.** No schematic change.
+
+### Fixed after pass 3
+
+| Finding | Source | Verified | Fix |
+|---|---|---|---|
+| Bank B's 0.5 V close is unreachable and unmeasurable: up to 9 mA gives 0.9 V across R318, and 1 % dividers can read 2 V apart | Opus (blocker), Sol, Fable (major) | Yes. Resistive 4.73 mA recomputed by Opus; LM5069 650 µA max from its datasheet | Close at 1.5 V read, timeout 1.5 s, 0.1 % dividers |
+| RC on CLR drives a non-Schmitt input, about 5 orders over its slew limit | Sol (blocker), Opus (major), Fable (minor) | Yes | Filter ahead of the Schmitt, CLR from a 1G08 gate |
+| C2005, C2007 discharge into WDO | Opus (major, in the above), Fable (minor) | Yes | Capacitors removed from WD_N |
+| R215 does not limit Q211's collector current | Sol, Opus (major) | Yes, 844 nC / 2 µs is an average. Fable checked base drive only | 15 Ω in the collector |
+| BUCK12_OFF at boot undoes M2, and misses later predischarges | Opus | Yes | Rule tied to DSG state |
+| FET_EN missing from the OTP list | Opus | Yes, TRM default 0 | Added |
+| SCD retry unbounded on a VSYS short | Opus (major), Fable (minor) | Yes, Latch Limit default 0 | SCDL on, limit 2, 60 s |
+
+### Rated major, not closed
+
+D15 sits at VC0's -0.3 V limit with no guaranteed margin at 600 A (Sol major; Opus, Fable minor). B140 stays with a 1 mΩ layout limit on the return. A part with a published low-current Vf is still owed.
+
+### Minors left open
+
+- Soft VSYS shorts of about 0.5 Ω and up do not end in SCD. Above about 0.82 Ω nothing trips. Firmware should check INA228 current with rails off.
+- VCLAMP12 can decay slowly if U401 dies open. The port does end up off.
+- D15 is 40 V, and B0 shorted to stack top puts 54.6 V across it through R14. Its conduction at -90 mV may make cell 1 read low.
+- CAN note on port_channel still says 24.8 W and "PTC trips".
+- ESTOP_EN_A and ESTOP_EN_B are diagonal on J101; a bridge plus a stuck latch leaves the node at 1.65 V.
+
+### Reviewer views
+
+Fable: the physically consistent surge start peaks lower, 60 to 63 V, so the logged model is the pessimistic case. Opus: stack rating is crossed near 2.3 µH, so measure it.
+
+Fixes after pass 3 have ERC 0 and check.py FAILS 0 but no fourth model review. New since pass 3: U2033, U2034, R222, and the bank B close numbers.
+

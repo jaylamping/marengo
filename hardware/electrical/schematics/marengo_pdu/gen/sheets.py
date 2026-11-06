@@ -118,13 +118,13 @@ def bms():
     s.wire((43.18,Y2),(43.18,Y3)); s.junc((43.18,Y2))
     s.sym('Device:D',s.nref('D'),'BAV19W',(46.99,Y3),0,SOD,refat=(46.99,Y3-2.54),valat=(46.99,Y3+2.54))
     a3,b3=rhor(s,(58.42,Y3),'220R',refat=(58.42,Y3-2.54),valat=(58.42,Y3+2.54)); s.wire((50.8,Y3),a3)
-    nic(s,'Transistor_BJT:Q_PNP_BEC','Q211','MMBT2907A',(177.8,175.26),'Package_TO_SOT_SMD:SOT-23',{'1':'DSG_OFF_B','2':'DSG_G','3':'DSG_OUT'})
+    nic(s,'Transistor_BJT:Q_PNP_BEC','Q211','MMBT2907A',(177.8,175.26),'Package_TO_SOT_SMD:SOT-23',{'1':'DSG_OFF_B','2':'DSG_G','3':'DSG_OFF_C'})
     s.wire(b3,(66.04,Y3)); s.label('DSG_OFF_B',(66.04,Y3))
     nic(s,'Device:R',s.nref('R'),'10k',(149.86,175.26),'Resistor_SMD:R_0402_1005Metric',{'1':'DSG_OFF_B','2':'DSG_G'})
     s.wire(N,(78.74,Y2)); s.junc((78.74,Y2)); s.wire((78.74,Y2),(93.98,Y2)); s.junc((93.98,Y2)); s.wire((93.98,Y2),(114.3,Y2)); s.label('DSG_G',(114.3,Y2))
     a,b=rvert(s,(78.74,Y2+7.62),'10M'); s.wire((78.74,Y2),a); stub(s,b,'DSG_OUT','D')
     a,b=dvert(s,(93.98,Y2+7.62),'MMSZ5246B 16V'); s.wire((93.98,Y2),a); stub(s,b,'DSG_OUT','D')
-    s.text('DSG drive. On: 10.2k (Fig 16-3 R39+R41). Off: PNP Q211 local turn-off, base through 220R in series + diode to the DSG pin, 10k base-emitter. Not the 7.5k of Fig 16-3 (see note 2).',(38.1,Y2-7.62),size=1.27,bold=True)
+    s.text('DSG drive. On: 10.2k (Fig 16-3 R39+R41). Off: PNP Q211 local turn-off, base through 220R in series + diode to the DSG pin, 10k base-emitter, 15R in the collector. Not the 7.5k of Fig 16-3 (see note 2).',(38.1,Y2-7.62),size=1.27,bold=True)
     # Q210 negative PACK+ gate clamp
     NF='Transistor_FET:Q_NMOS_GSD'; ln=libsym(NF); Q2=(165.1,Y2)
     s.sym(NF,'Q210','BSS123',Q2,0,'Package_TO_SOT_SMD:SOT-23',refat=(Q2[0]+6.35,Q2[1]-1.27),valat=(Q2[0]+6.35,Q2[1]+1.27))
@@ -188,12 +188,13 @@ Shunt voltage rule p69: 13S x 5 V = 65 V DC, 130 V peak. 100 V FETs meet DC. Pea
     N2="""SOA must cover 600 A prospective for about 50 us. Reworked after gate 3:
 1. Prospective current: 600 A / 4 = 150 A per FET. On-state part: 0.6 mOhm x 600 A = 0.36 V, 216 W bank, nothing.
 2. Turn-off: TI gives only 2 us typ, 20 us max at 20 nF for the DSG pin, pulsed, stopping at LD (section 16.5). Ours is 48 nF, so a bare 220R is unsupported.
-   Q211: base through 220R and D202, about 45 mA, 10k base-emitter. All gate charge 844 nC max in about 2 us. 10 us SOA at 54 V is about 300 A per FET: PASSES at 150 A, with sharing unmodelled: scope at bring-up.
+   Q211: base through 220R and D202, about 45 mA, 10k base-emitter. 15R in the collector sets the peak: 0.62 A from 11 V, under the 800 mA rating. All gate charge 844 nC max in about 2 us. 10 us SOA at 54 V is about 300 A per FET: PASSES at 150 A, with sharing unmodelled: scope at bring-up.
 3. Spike: p72 warns fast turn-off raises the top of stack. 4 x 100 uF hybrid, pack EMF behind 2 uH and 90 mOhm (PLAN pack R): peak about 77 V at -20% C. FET stays under 100 V without avalanche."""
     N3="""CP1 is 1 uF on sheet 1: 8 x 211 nC max = 1.69 uC at p65's rule, droop 1.7 V from 11 V.
 PDSG not PCHG: p45 PDSG charges the LOAD before DSG closes; PCHG charges a LOW BATTERY. README 2.1 described the PDSG job.
 100R: peak 54.6^2/100 = 29.8 W. VSYS load 1.46 mF (hold-up via Q1101 body diode, plus VSYS bulk): 2.2 J per power-up, tau 0.146 s. PWR263S chart: 10 J at 100 ms.
-Set OTP: PREDISCHARGE on, Predischarge Timeout 100 (1.0 s), Stop Delta 2500 mV. Stop Delta needs under 25 mA, so the timeout must exist: a VSYS short ends in SCD. Firmware holds BUCK12_OFF high at boot until DSG is on."""
+Set OTP: Mfg Status Init[FET_EN] = 1 (default 0 is FET test mode: no PDSG, VSYS stays down, the MCU never boots). PREDISCHARGE on, Predischarge Timeout 100 (1.0 s), Stop Delta 2500 mV.\nStop Delta needs under 25 mA, so the timeout must exist: a hard VSYS short ends in SCD.\nEnabled Protections C[SCDL] = 1, SCDL Latch Limit 2, Counter Dec Delay 60 s: a persistent short costs R209 30 J about every 65 s, not every 6 s.\nFirmware reads FET Status first and holds BUCK12_OFF high only while DSG is off, at every predischarge. It never asserts it with DSG on, so an MCU reset keeps compute up."""
+    nic(s,'Device:R',s.nref('R'),'15R',(198.12,175.26),'Resistor_SMD:R_0805_2012Metric',{'1':'DSG_OFF_C','2':'DSG_OUT'})
     s.text(N1,(170.18,195.58),size=1.27); s.text(N2,(182.88,213.36),size=1.27); s.text(N3,(182.88,241.3),size=1.27)
     return s
 

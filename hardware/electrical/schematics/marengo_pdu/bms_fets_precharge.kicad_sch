@@ -6541,7 +6541,7 @@
 		)
 		(uuid "da32c9e9-5dae-551f-a799-0b17b675cf5c")
 	)
-	(label "DSG_OUT"
+	(label "DSG_OFF_C"
 		(at 180.34 165.1 90)
 		(effects
 			(font
@@ -6944,7 +6944,7 @@
 		)
 		(uuid "53eaf28b-6279-5193-8799-6fcb1c5b081c")
 	)
-	(text "DSG drive. On: 10.2k (Fig 16-3 R39+R41). Off: PNP Q211 local turn-off, base through 220R in series + diode to the DSG pin, 10k base-emitter. Not the 7.5k of Fig 16-3 (see note 2)."
+	(text "DSG drive. On: 10.2k (Fig 16-3 R39+R41). Off: PNP Q211 local turn-off, base through 220R in series + diode to the DSG pin, 10k base-emitter, 15R in the collector. Not the 7.5k of Fig 16-3 (see note 2)."
 		(exclude_from_sim no)
 		(at 38.1 139.7 0)
 		(effects
@@ -10961,6 +10961,120 @@
 		)
 		(uuid "a7e93f74-e1fc-5b7f-868c-a6b8c0b2af61")
 	)
+	(symbol
+		(lib_id "Device:R")
+		(at 198.12 175.26 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "6e86c16f-e977-549d-b276-1ceab1eac6e5")
+		(property "Reference" "R222"
+			(at 193.04 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "15R"
+			(at 193.04 190.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 198.12 175.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 198.12 175.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 198.12 175.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "7190822f-19b7-5c18-a07f-c118f4a28f6a")
+		)
+		(pin "2"
+			(uuid "05540d44-d3a1-51f7-97a3-a6ab2b7f9495")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/9bee7a75-ab13-57dd-9d33-ef5e0c3e5ee4"
+					(reference "R222")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 198.12 171.45)
+			(xy 198.12 166.37)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "51cfd983-f3ee-5e30-8236-268eec1c2974")
+	)
+	(label "DSG_OFF_C"
+		(at 198.12 166.37 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "2c993efb-a673-51c9-9989-fb6d2af61c35")
+	)
+	(wire
+		(pts
+			(xy 198.12 179.07)
+			(xy 198.12 184.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5c14b360-4606-5a84-92af-a86d525519b0")
+	)
+	(label "DSG_OUT"
+		(at 198.12 184.15 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "f91838d4-bef0-52a4-8c3e-350c222b88ea")
+	)
 	(text "SIZING (design/README 2.2)\nConduction, 80 A: 2 x 0.6 mOhm hot x 80^2 = 7.7 W total. At 10 to 30 A: 0.1 to 1.1 W for these two banks.\nFET: IPT015N10N5 Rds 1.5 mOhm max at Vgs 10 V, Vgs +/-20 V, so 11 V drive and 16 V zeners are in range (p69 needs >= 15 V).\nShunt voltage rule p69: 13S x 5 V = 65 V DC, 130 V peak. 100 V FETs meet DC. Peak: both TVS parts hold it under 100 V."
 		(exclude_from_sim no)
 		(at 170.18 195.58 0)
@@ -10970,9 +11084,9 @@
 			)
 			(justify left top)
 		)
-		(uuid "51cfd983-f3ee-5e30-8236-268eec1c2974")
+		(uuid "a2c6d594-e132-5857-8dad-9099b69c9bb1")
 	)
-	(text "SOA must cover 600 A prospective for about 50 us. Reworked after gate 3:\n1. Prospective current: 600 A / 4 = 150 A per FET. On-state part: 0.6 mOhm x 600 A = 0.36 V, 216 W bank, nothing.\n2. Turn-off: TI gives only 2 us typ, 20 us max at 20 nF for the DSG pin, pulsed, stopping at LD (section 16.5). Ours is 48 nF, so a bare 220R is unsupported.\n   Q211: base through 220R and D202, about 45 mA, 10k base-emitter. All gate charge 844 nC max in about 2 us. 10 us SOA at 54 V is about 300 A per FET: PASSES at 150 A, with sharing unmodelled: scope at bring-up.\n3. Spike: p72 warns fast turn-off raises the top of stack. 4 x 100 uF hybrid, pack EMF behind 2 uH and 90 mOhm (PLAN pack R): peak about 77 V at -20% C. FET stays under 100 V without avalanche."
+	(text "SOA must cover 600 A prospective for about 50 us. Reworked after gate 3:\n1. Prospective current: 600 A / 4 = 150 A per FET. On-state part: 0.6 mOhm x 600 A = 0.36 V, 216 W bank, nothing.\n2. Turn-off: TI gives only 2 us typ, 20 us max at 20 nF for the DSG pin, pulsed, stopping at LD (section 16.5). Ours is 48 nF, so a bare 220R is unsupported.\n   Q211: base through 220R and D202, about 45 mA, 10k base-emitter. 15R in the collector sets the peak: 0.62 A from 11 V, under the 800 mA rating. All gate charge 844 nC max in about 2 us. 10 us SOA at 54 V is about 300 A per FET: PASSES at 150 A, with sharing unmodelled: scope at bring-up.\n3. Spike: p72 warns fast turn-off raises the top of stack. 4 x 100 uF hybrid, pack EMF behind 2 uH and 90 mOhm (PLAN pack R): peak about 77 V at -20% C. FET stays under 100 V without avalanche."
 		(exclude_from_sim no)
 		(at 182.88 213.36 0)
 		(effects
@@ -10981,9 +11095,9 @@
 			)
 			(justify left top)
 		)
-		(uuid "2c993efb-a673-51c9-9989-fb6d2af61c35")
+		(uuid "f4519e96-ae71-5014-b2a4-d888c8317749")
 	)
-	(text "CP1 is 1 uF on sheet 1: 8 x 211 nC max = 1.69 uC at p65's rule, droop 1.7 V from 11 V.\nPDSG not PCHG: p45 PDSG charges the LOAD before DSG closes; PCHG charges a LOW BATTERY. README 2.1 described the PDSG job.\n100R: peak 54.6^2/100 = 29.8 W. VSYS load 1.46 mF (hold-up via Q1101 body diode, plus VSYS bulk): 2.2 J per power-up, tau 0.146 s. PWR263S chart: 10 J at 100 ms.\nSet OTP: PREDISCHARGE on, Predischarge Timeout 100 (1.0 s), Stop Delta 2500 mV. Stop Delta needs under 25 mA, so the timeout must exist: a VSYS short ends in SCD. Firmware holds BUCK12_OFF high at boot until DSG is on."
+	(text "CP1 is 1 uF on sheet 1: 8 x 211 nC max = 1.69 uC at p65's rule, droop 1.7 V from 11 V.\nPDSG not PCHG: p45 PDSG charges the LOAD before DSG closes; PCHG charges a LOW BATTERY. README 2.1 described the PDSG job.\n100R: peak 54.6^2/100 = 29.8 W. VSYS load 1.46 mF (hold-up via Q1101 body diode, plus VSYS bulk): 2.2 J per power-up, tau 0.146 s. PWR263S chart: 10 J at 100 ms.\nSet OTP: Mfg Status Init[FET_EN] = 1 (default 0 is FET test mode: no PDSG, VSYS stays down, the MCU never boots). PREDISCHARGE on, Predischarge Timeout 100 (1.0 s), Stop Delta 2500 mV.\nStop Delta needs under 25 mA, so the timeout must exist: a hard VSYS short ends in SCD.\nEnabled Protections C[SCDL] = 1, SCDL Latch Limit 2, Counter Dec Delay 60 s: a persistent short costs R209 30 J about every 65 s, not every 6 s.\nFirmware reads FET Status first and holds BUCK12_OFF high only while DSG is off, at every predischarge. It never asserts it with DSG on, so an MCU reset keeps compute up."
 		(exclude_from_sim no)
 		(at 182.88 241.3 0)
 		(effects
@@ -10992,7 +11106,7 @@
 			)
 			(justify left top)
 		)
-		(uuid "5c14b360-4606-5a84-92af-a86d525519b0")
+		(uuid "5d59375a-8fa0-5c1d-8b88-3874a997bc97")
 	)
 	(embedded_fonts no)
 )

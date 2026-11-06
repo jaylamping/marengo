@@ -303,7 +303,7 @@ P.text(NOTE2,(20.32,233.68),size=1.5)
 _a,_b=(40.64,160.02),(55.88,160.02)
 P.sym('Device:R',Rr(),'10k',(48.26,160.02),90,R603,refat=(48.26,157.48),valat=(48.26,162.56))
 P.wire((44.45,160.02),_a); P.label('B0',_a,180); P.wire((52.07,160.02),_b); P.label('BAT-',_b)
-P.text('Keeps VC0 defined with the harness out. 9 uA at 60 A. D15 clamps VC0 near -0.3 V in a short (1.5 mOhm return, -0.3 V at 200 A), R14 limits it.',(30.48,165.1))
+P.text('Keeps VC0 defined with the harness out. 9 uA at 60 A. D15 clamps VC0 near -0.3 V in a short, no guaranteed margin. Keep the B0 to VSS return under 1 mOhm in layout: -0.6 V at 600 A, about 3 mA through R14.',(30.48,165.1))
 P.wire((68.58,160.02),(73.66,160.02)); P.label('VC0',(73.66,160.02)); P.sym('Device:D','D15','B140-13-F 40V 1A',(64.77,160.02),180,'Diode_SMD:D_SMA',refat=(64.77,157.48),valat=(64.77,162.56)); vss((60.96,160.02),270)
 # ---------- hierarchy ----------
 def ph(key,title,extra=None):

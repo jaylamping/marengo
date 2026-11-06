@@ -7541,7 +7541,7 @@
 		)
 		(uuid "fe6241c2-7b30-5d4b-9d78-7865755fdfcd")
 	)
-	(text "VMOT precharge (IPT015N10N5 SOA is 0.7 A at 54 V, 10 ms, so a hard close on 1.8 mF is out). U302 EN and INP2 on ESTOP_EN_B: loop closed and latch armed, G2 precharges at once, bank B stays open.\nBANK_B_CLOSE (INP1, 100k down) closes bank B on command once VMOT is within 0.5 V of VSYS. Close at 0.5 V or less so U301 does not trip: 0.84 s, 1.01 s at +20% C, firmware timeout 1.2 s, then open the loop. EN low kills G1 and G2. Energy 2.68 J, tau 180 ms, peak 29.8 W."
+	(text "VMOT precharge (IPT015N10N5 SOA is 0.7 A at 54 V, 10 ms, so a hard close on 1.8 mF is out). U302 EN and INP2 on ESTOP_EN_B: loop closed and latch armed, G2 precharges at once, bank B stays open.\nBANK_B_CLOSE (INP1, 100k down) closes bank B on command once VMOT reads within 1.5 V of VSYS. Up to 9 mA of VMOT standing load sets a 0.9 V floor across R318, so 0.5 V is out of reach. 0.1% dividers: true gap 1.2 to 1.8 V. 0.81 s, 1.12 s worst case, firmware timeout 1.5 s, then open the loop. EN low kills G1 and G2. Energy 2.68 J, tau 180 ms, peak 29.8 W."
 		(exclude_from_sim no)
 		(at 25.4 198.12 0)
 		(effects
@@ -8342,7 +8342,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 0.1%"
 			(at 165.1 234.95 0)
 			(effects
 				(font
@@ -8467,7 +8467,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "56k"
+		(property "Value" "56k 0.1%"
 			(at 182.88 234.95 0)
 			(effects
 				(font
@@ -8930,7 +8930,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 0.1%"
 			(at 236.22 234.95 0)
 			(effects
 				(font
@@ -9055,7 +9055,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "56k"
+		(property "Value" "56k 0.1%"
 			(at 254 234.95 0)
 			(effects
 				(font
