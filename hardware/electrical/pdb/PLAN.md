@@ -276,6 +276,11 @@ its fuse values.
 
 Leg ports are footprints on rev A; populate when the legs exist.
 
+**Future hands** (hand research, `hardware/designs/hand/RESEARCH.md` section 5.4, PR #275): each hand is a fused 48 V drop and
+a CAN node on its own **arm trunk** at the forearm, with its own 48 → 12 V DC-DC (about 60 W) and CAN bridge. No new board port:
+the arm port's 20 A trip and 15 A fuse already cover about 1.3 A more, and the hand node sits on that arm's CAN bus. The aux
+port and the spare CAN6 stay free in case a hand ever needs a separate feed.
+
 ### 3.6 CAN: on the board, isolated, one bus per limb
 
 - **Today:** a Waveshare 2-CH MCP2515 HAT on the Pi (2 RX frames per controller; Davout paces TX around it). The full body
