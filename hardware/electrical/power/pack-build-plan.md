@@ -22,8 +22,8 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
   for about 3% of capacity. Use an adjustable-voltage charger at 4 A, ending in an XT60.
 - **Busbars are wide plates, not 10 mm strip.** A 10 mm nickel strip cannot carry 60 A. The pack doc's nickel line is
   replaced (section 4).
-- **Tools to buy: about $285** in the lean build. A spot welder (Glitter 811H class or kWeld), a cell internal-resistance meter, a
-  150 to 200 W electronic load, a lithium fire extinguisher, and small consumables. The welder is reusable for the pelvis and
+- **Tools to buy: about $285** in the lean build. A spot welder (Glitter 811H class), a cell internal-resistance meter, a
+  Micro-Fit crimper and a lithium fire extinguisher. An electronic load is an optional extra. The welder is reusable for the pelvis and
   leg packs.
 - **Total first pack with tools: about $850** in the lean build (section 9). The pack and charger alone are about $570. Upgrades are optional and listed separately.
 
