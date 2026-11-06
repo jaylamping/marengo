@@ -122,8 +122,8 @@
  {
   "item": 16,
   "name": "Insulating sheet 0.5 mm",
-  "qty": 11,
-  "mass_g": 367,
+  "qty": 12,
+  "mass_g": 377,
   "material": "Nomex 410 0.5 mm",
   "group": "electronics"
  },

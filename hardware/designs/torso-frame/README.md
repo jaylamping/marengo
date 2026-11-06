@@ -193,7 +193,8 @@ M3 T-nuts, in the intake downdraft. Frame bonding: one point, at a carrier stand
 proposal, agreed: the frame touches the actuator housings anyway, so "floating" would not be). Connector edges: top = pack XT90 and
 16-pin balance (rear face), both arm ports, USB to the Pi, fans; bottom = waist and leg ports, brake resistor; sides = E-stop loop,
 charge port, sensors. A 40 × 25 × 10 pack sense board (2 × 9 Micro-Fit; battery thread layout) rides on the pack's rear face at its
-top corner by the XT90 (X 5 to 45, Y 318 to 343, Z −55 to −45), 15 mm inside the frame rear face, and slides out with the pack through D2. The FlexVolt options (D1 to D3) stay in `generator/variants.py` as the record of what was rejected.
+top corner by the XT90 (X 5 to 45, Y 318 to 343, Z −55 to −45), 15 mm inside the frame rear face, and slides out with the pack through D2. A Pi power stub (30 × 20 × 10, 12 V in from the logic board, 5 V out to the Pi's GPIO header; PLAN.md 6a, main e7d0b62)
+sits on the compute shelf beside the Pi at X 22 to 52, Z 20 to 40, clear of the IMU. The FlexVolt options (D1 to D3) stay in `generator/variants.py` as the record of what was rejected.
 
 Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 × 100 × 178.6 between the bottom rails and the shared rails; waist bay 150 × 140 × 40 below the frame.
 

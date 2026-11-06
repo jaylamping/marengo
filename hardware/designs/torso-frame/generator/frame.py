@@ -293,6 +293,7 @@ box('pack_sense', 32, 'Pack sense board 40 x 25 x 10 on the pack rear face, top 
     note='Rides on the pack, 15 mm inside the frame rear face, inside the D2 opening (|X| <= 60), so it slides out with the pack.')
 for sx in (1, -1):
     box(f'packrail_{sx}', 40, 'Pack tray rails, printed, on the lower post inner faces (2)', (min(sx * 47.5, sx * 55), 180, -50), (max(sx * 47.5, sx * 55), 348, 40), COL['printed'], 'electronics', (0, 0, -60), balloon=(sx > 0), mass_g=40, material='PETG print', opacity=0.8)
+box('pi_stub', 16, 'Pi power stub 30 x 20 x 10 on the compute shelf beside the Pi: 12 V lead from the logic board, 5 V into the GPIO header (board thread PLAN.md 6a, main e7d0b62)', (22, Y_STEP_HI, 20), (52, Y_STEP_HI + 10, 40), COL['pdb'], 'electronics', (0, 80, 0), balloon=True, mass_g=10, material='PCB 30 x 20 x 10', opacity=0.8)
 box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 70, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
 # ---- spine pads (rear crush pads, outside the shell; shell manufacturing thread geometry, main c38d83e shell rev B: four pads, bridges removed for the D2 battery door) ----
 first = True
