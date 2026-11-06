@@ -24,7 +24,7 @@ JOINTS = [
     ("shoulder_pitch", "F_L_SHOULDER_PITCH", (0, -1, 0), (-0.87, 3.14), 60, 20),
     ("shoulder_roll", "F_L_SHOULDER_ROLL", (1, 0, 0), (-0.26, 3.14), 60, 20),
     ("upper_arm_yaw", "F_L_UPPER_ARM_YAW", (0, 0, 1), (-1.57, 1.57), 17, 44),
-    ("elbow_pitch", "F_L_ELBOW_PITCH", (0, -1, 0), (0.0, 2.321), 17, 44),
+    ("elbow_pitch", "F_L_ELBOW_PITCH", (0, -1, 0), (0.0, 2.164), 17, 44),
     ("lower_arm_yaw", "F_L_LOWER_ARM_YAW", (0, 0, 1), (-1.05, 1.05), 14, 50),
 ]
 LINKS = ["shoulder_pitch_link", "shoulder_roll_link", "upper_arm_link", "forearm_link", "hand_link"]
@@ -40,15 +40,16 @@ LINK_PARTS = {
 PLACEHOLDER_MASS = 0.001
 
 # Hand placeholders: rough estimates from Joey, not designs. Replace when the hand exists.
-# Hand, measured from the RS00 output flange (the lower arm yaw joint) along the forearm.
-L_HAND = 0.190  # m, flange to tip
+# Both ride on the RS00 output. The hand is measured from the wrist, the end of the forearm.
+L_HAND = 0.190  # m, wrist to tip
 HAND_MASS = 0.200  # kg
-HAND_COM = 0.090  # m, flange to COM
+HAND_COM = 0.090  # m, wrist to COM
 HAND_WIDTH, HAND_THICKNESS = 0.080, 0.030  # m, box used for inertia only
-# Forearm pack (servos, CAN bridge, 48 V to 12 V converter), carried on the forearm link.
+# Forearm pack (servos, CAN bridge, 48 V to 12 V converter), in the turning tube past the
+# clock-spring: flange at 120 mm, spring 12 mm, wrist at 195 mm from the elbow.
 PACK_MASS = 0.300  # kg
-PACK_COM = 0.140  # m, elbow axis to COM along the forearm
-PACK_SIZE = (0.050, 0.050, 0.080)  # m, box used for inertia only, long side along the forearm
+PACK_COM = 0.165  # m, elbow axis to COM along the forearm
+PACK_SIZE = (0.050, 0.050, 0.060)  # m, box used for inertia only, long side along the forearm
 
 
 def robot_origin(frames, name):
@@ -72,26 +73,25 @@ def hand_axis(frames):
     return axis / np.linalg.norm(axis)
 
 
+def box_inertia(mass, size):
+    a, b, c = size
+    return mass / 12 * np.diag([b * b + c * c, a * a + c * c, a * a + b * b])
+
+
 def hand_inertial(frames):
-    """Placeholder hand as a solid box, in the hand link frame. Its long side lies along the forearm, robot Z at zero pose."""
-    a, b, c = HAND_THICKNESS, HAND_WIDTH, L_HAND
-    box = HAND_MASS / 12 * np.diag([b * b + c * c, a * a + c * c, a * a + b * b])
-    return HAND_MASS, hand_axis(frames) * HAND_COM, box
-
-
-def add_pack(frames, mass, com, inertia):
-    """Add the forearm pack placeholder to the forearm link, in the link frame."""
-    elbow = robot_origin(frames, "F_L_ELBOW_PITCH")
-    r = elbow + hand_axis(frames) * PACK_COM - robot_origin(frames, "F_L_ELBOW_PITCH")
-    a, b, c = PACK_SIZE
-    box = PACK_MASS / 12 * np.diag([b * b + c * c, a * a + c * c, a * a + b * b])
-    total = mass + PACK_MASS
-    center = (mass * com + PACK_MASS * r) / total
-    combined = np.zeros((3, 3))
-    for m, c_, moi in ((mass, com, inertia), (PACK_MASS, r, box)):
-        d = c_ - center
-        combined += moi + m * ((d @ d) * np.eye(3) - np.outer(d, d))
-    return total, center, combined
+    """Hand and pack placeholders in the hand link frame, each a solid box with its long side along the forearm."""
+    axis, flange = hand_axis(frames), robot_origin(frames, "F_L_LOWER_ARM_YAW")
+    hand = robot_origin(frames, "F_L_HAND") - flange + axis * HAND_COM
+    pack = robot_origin(frames, "F_L_ELBOW_PITCH") - flange + axis * PACK_COM
+    items = ((HAND_MASS, hand, box_inertia(HAND_MASS, (HAND_THICKNESS, HAND_WIDTH, L_HAND))),
+             (PACK_MASS, pack, box_inertia(PACK_MASS, PACK_SIZE)))
+    total = HAND_MASS + PACK_MASS
+    center = sum(m * c for m, c, _ in items) / total
+    inertia = np.zeros((3, 3))
+    for m, c, moi in items:
+        d = c - center
+        inertia += moi + m * ((d @ d) * np.eye(3) - np.outer(d, d))
+    return total, center, inertia
 
 
 def link_inertial(names, parts, overrides, torso, origin):
@@ -132,8 +132,6 @@ def build(export, overrides):
             mass, com, inertia = hand_inertial(frames)
         else:
             mass, com, inertia = link_inertial(LINK_PARTS[link], parts, overrides, torso, origin)
-        if link == "forearm_link":
-            mass, com, inertia = add_pack(frames, mass, com, inertia)
         inertial = ET.SubElement(element, "inertial")
         ET.SubElement(inertial, "origin", xyz=vec(com), rpy="0 0 0")
         ET.SubElement(inertial, "mass", value=f"{mass:.6f}")
@@ -150,7 +148,7 @@ def build(export, overrides):
         ET.SubElement(node, "limit", lower=str(limit[0]), upper=str(limit[1]),
                       effort=str(effort), velocity=str(velocity))
         parent, parent_origin = f"left_{link}", origin
-    for name, offset in (("left_wrist", robot_origin(frames, "F_L_HAND") - parent_origin), ("left_hand_tip", hand_axis(frames) * L_HAND)):
+    for name, offset in (("left_wrist", robot_origin(frames, "F_L_HAND") - parent_origin), ("left_hand_tip", robot_origin(frames, "F_L_HAND") - parent_origin + hand_axis(frames) * L_HAND)):
         ET.SubElement(robot, "link", name=name)
         node = ET.SubElement(robot, "joint", name=f"{name}_fixed", type="fixed")
         ET.SubElement(node, "parent", link="left_hand_link")
@@ -205,7 +203,7 @@ def check(path, export):
     frames = export["frames"]
     zero = forward(robot, {})
     assert np.allclose(zero["left_wrist"], robot_origin(frames, "F_L_HAND"), atol=1e-6), "wrist"
-    tip = robot_origin(frames, "F_L_LOWER_ARM_YAW") + hand_axis(frames) * L_HAND
+    tip = robot_origin(frames, "F_L_HAND") + hand_axis(frames) * L_HAND
     assert np.allclose(zero["left_hand_tip"], tip, atol=1e-6), "tip"
     check_actuators(export)
     half = np.pi / 2
