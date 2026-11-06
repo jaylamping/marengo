@@ -35,7 +35,7 @@ The floorplan's boxes were estimates from before capture. Gate 3 checked the cir
 ## Levers
 
 1. **Take the leg channels off the board.** Already counted in the second row. Legs then need a later board. The main path keeps its leg-ready rating.
-2. **Move the 46 caps to their own board or to the frame.** Saves 6,385 mm² and fixes the height problem below. Needs a location from the frame thread. Row 3 shows this alone is not enough.
+2. **Move the 43 caps to their own board or to the frame.** Saves 6,385 mm² and fixes the height problem below. Needs a location from the frame thread. Row 3 shows this alone is not enough.
 3. **Get more height.** Frame front face is Z 70, ceiling is Z 61.5, and the board looks out between the posts from Y 175 to 353.6. Up to Z 67 would stand the 17 mm caps, and taller cans mean fewer. Frame thread must confirm, including shell, airflow and trunks.
 4. **Get more board.** LP might extend down towards Y 176, about 1,400 mm² a face, with its rear 0.5 mm into the brake resistor's Z range and plug room lost. Unchecked.
 5. **Smaller PWR263S parts.** Clamp and termination power were sized in gate 3, so this needs recalculation.
