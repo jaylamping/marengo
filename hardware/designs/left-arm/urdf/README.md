@@ -20,6 +20,6 @@ Each whole actuator is carried on its stator side, since rotor mass isn't known.
 
 Limitations:
 
-- The upper arm is in upper_arm_link and the fork in forearm_link. The hand is a placeholder estimate, not a design: 200 g, COM 90 mm past the RS00 output flange, 190 mm long, as a solid box. The forearm link also carries a 300 g placeholder pack, COM 140 mm from the elbow axis. That point sits inside the RS00, so the pack's real location is still open. Change `L_HAND`, the `HAND_` and the `PACK_` values in `generate_urdf.py`. The fork is not a layout component, so its entry in cad_export.json comes from the exported STL (volume within 0.1% of SolidWorks) and a SolidWorks re-export drops it: re-add it, or add the fork to the layout.
-- Joint limits are provisional. Elbow stops at 133° (see ../ELBOW_COMPACTION.md). Inward roll at 15° is a hand calculation, not a sweep.
+- The upper arm is in upper_arm_link and the fork in forearm_link. The hand and forearm pack are placeholder estimates, not designs. Both ride on the RS00 output in `left_hand_link`: the hand is 200 g, COM 90 mm past the wrist, 190 mm long, and the pack is 300 g, COM 165 mm from the elbow, in the turning tube. Change `L_HAND`, the `HAND_` and the `PACK_` values in `generate_urdf.py`. The fork is not a layout component, so its entry in cad_export.json comes from the exported STL (volume within 0.1% of SolidWorks) and a SolidWorks re-export drops it: re-add it, or add the fork to the layout.
+- Joint limits are provisional. Elbow stops at 124°, with the RS00 flange 120 mm below the elbow (see ../ELBOW_COMPACTION.md). Inward roll at 15° is a hand calculation, not a sweep.
 - `velocity` is the MIT protocol range, not rated speed.
