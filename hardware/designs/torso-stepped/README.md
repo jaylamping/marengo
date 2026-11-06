@@ -1,5 +1,7 @@
 # Stepped torso frame
 
+> Release spec and full exploded view: [`../torso-frame/`](../torso-frame/README.md) (thread "Finalize the internal torso frame"). This folder stays the FEA and study record.
+
 2026-11-06. Two-box 2020 frame: a wide upper box at the shoulders on the existing lower cage. This is the master, locked with the shell baseline. The skeleton, layout, URDF (shoulder at ±208.49) and envelope all use it. The pre-step backup is on Joey-PC.
 
 Coordinates: torso STEP frame, mm. X lateral, Y up, Z forward. Y is measured from the pelvis bottom.
