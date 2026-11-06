@@ -9,7 +9,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | Fable (replaces Grok from 2026-11-06, Joey) | Claude Code CLI, fresh session | `--model claude-fable-5-1` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | not yet timed |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
-| Argon | Antigravity `agy` (MacBook only) | `--model gemini-4-argon-high` | Prompt only, so check hashes after | not yet timed |
+| Argon | Antigravity `agy` (MacBook only) | `--model gemini-4-argon-high` (always High effort, Joey 2026-11-06) | Prompt only, so check hashes after | not yet timed |
 
 Run times are from one run. Allow 20 minutes.
 
