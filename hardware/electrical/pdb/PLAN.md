@@ -343,7 +343,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 ## 10. Joey's decisions (my recommendation first)
 
-1. **Size the board for the legs now?** Recommend **yes**: 80 A continuous, 150 A for 100 ms on the main path, leg port
+1. **Size the board for the legs now?** **DECIDED: yes (Joey 2026-11-06 07:28Z).** 80 A continuous, 150 A for 100 ms on the main path, leg port
    footprints unpopulated. Arms-and-waist-only (40 A) is a smaller board but means a re-spin when the legs arrive. The pack
    stays the real limit either way.
 2. **CAN on the board** (two 3-channel bridges, isolated, one USB cable) instead of more Pi HATs. Recommend yes; needs the
@@ -370,6 +370,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.4 | 2026-11-06 | Joey chose leg-ready ratings: 80 A continuous, 150 A for 100 ms main path, leg ports as unpopulated footprints |
 | 0.3 | 2026-11-06 | BMS thresholds and connection order agreed with the battery thread; pack resistance estimate updated |
 | 0.2 | 2026-11-06 | Test mode, dummy-load port, CAN fault-injection header (3.8) |
 | 0.1 | 2026-11-06 | Frame thread placed the assembly (main 0a31dda); open item closed |
