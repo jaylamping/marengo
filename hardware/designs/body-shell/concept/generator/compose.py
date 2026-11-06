@@ -44,10 +44,10 @@ sheet([(crop('w0.png', (700, 300, 2500, 2300), w=900), 'Shoulders as built: roll
       ['Head removed until it is designed. Chest has pec masses, a sternum groove and a crisp lower edge; the black yoke panel is gone.',
        'The +25 mm option lengthens P1 (arm thread); the shell shoulder line widens with it. Shell upper panels then need a centre split for the P2S.'])
 sheet([(crop('m25.png', (600, 300, 2600, 2300), w=800), 'Previous: shoulders +25 mm per side'),
-       (crop('m38.png', (600, 300, 2600, 2300), w=800), 'Latest: +38 mm per side (frame 226 wide)'),
-       (crop('m38iso.png', (700, 200, 2500, 2400), w=800), 'Latest, three-quarter'),
-       (crop('m38x.png', (600, 300, 2600, 2300), w=800), 'Latest, x-ray: wider 2020 frame')],
-      'Body shell: broader again, by widening the frame', sub, 'SHELL_CONCEPT_BLEND.png',
+       (crop('w38.png', (600, 300, 2600, 2300), w=800), 'Latest: shoulders +38, waist +10 per side'),
+       (crop('w38iso.png', (700, 200, 2500, 2400), w=800), 'Latest, three-quarter'),
+       (crop('w38x.png', (600, 300, 2600, 2300), w=800), 'Latest, x-ray: wider 2020 frame')],
+      'Body shell: broader shoulders (wider frame) and a wider waist', sub, 'SHELL_CONCEPT_BLEND.png',
       ['Same side line as before, but the whole shoulder moves out another 13 mm per side: longer left-right 2020 rails (150 -> 226 mm),',
        'pitch RS03 faces at Y +-110.5, P1 unchanged. Widening only the shell there would hit the hanging upper arm, so the arm moves out with it.',
-       'Upper panels 324 mm wide and lower front 279 mm: both split at the centre for the P2S.'])
+       'Waist +10 mm per side: chest bottom 178 mm, dark bands 156 mm. Upper panels 324 mm and lower front 279 mm wide: both split at the centre for the P2S.'])

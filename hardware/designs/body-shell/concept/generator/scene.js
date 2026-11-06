@@ -129,10 +129,11 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 // inboard of the hanging arm for 5 deg inward roll. Earlier: side runs almost straight down to ~65 mm below the
 // black P1 part (bottom at ZS-46), then tapers to the waist. Wall tracks the shoulder width (YSX).
 const WALL = 124 + YSX + FW;
+const WX = Number(q.get('wx') ?? 10); // waist widening per side (Joey 2026-11-06: 'widen the waist a bit')
 const TAPER_Z = ZS - 46 - 65;
 const chest = [
-  [F0 - 6, 79, 80, 76, 3.6],
-  [ZS - 200, WALL - 60, 92, 80, 3.6],
+  [F0 - 6, 79 + WX, 80, 76, 3.6],
+  [ZS - 200, WALL - 60 + 0.6 * WX, 92, 80, 3.6],
   [ZS - 160, WALL - 46, 100, 84, 3.8],
   [ZS - 111, WALL - 23, 106, 86, 4.0],
   [ZS - 55, WALL - 7, 108, 88, 4.4],
@@ -250,7 +251,7 @@ const nb = EXT >= 50 ? 3 : 2; const gap = 5; const bh = (abTop - abBot - gap * (
 for (let b = 0; b < nb; b++) {
   const zt = abTop - b * (bh + gap), zb = zt - bh;
   const t = b / Math.max(1, nb - 1);
-  const hw = 68 - 3 * t, df = 66 - 2 * t, db = 64 - 2 * t;
+  const hw = 68 + WX - 3 * t, df = 66 - 2 * t, db = 64 - 2 * t;
   const rows = [[zb, hw - 4, df - 4, db - 4, 3.2], [zb + 6, hw, df, db, 3.2], [zt - 6, hw, df, db, 3.2], [zt, hw - 4, df - 4, db - 4, 3.2]];
   loft(rows, zb, zt, EXPLODE ? white : abdMat, 16, 64, 2, 0, Math.PI, `abdomen band ${b + 1} front`, [90, 0, -40 - 30 * b]);
   loft(rows, zb, zt, EXPLODE ? white : abdMat, 16, 64, 2, Math.PI, 2 * Math.PI, `abdomen band ${b + 1} back`, [-90, 0, -40 - 30 * b]);
