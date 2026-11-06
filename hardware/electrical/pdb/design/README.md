@@ -55,7 +55,7 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 | --- | --- | --- | --- |
 | Pack input | 2 × M4 threaded board terminals + 10 AWG ring-lug pigtail to an XT90 at the pack's rear top corner (section 1a) | 1 | the board's rear face sits 3.5 mm off the pack lid, so nothing mounts there |
 | Pack sense | low-profile locking board header (JST GH or Micro-Fit vertical, to fit 13.6 mm) + harness to the pack sense board's 2 × 10 at the rear | 1 | 14 taps, 3 NTC, presence loop, spare |
-| BMS AFE | TI BQ76952 on the HP board, next to the shunt and FET banks, so the gate drive and Kelvin sense stay short | 1 | 13 cells on VC0 to VC13, unused VC inputs tied per datasheet; 3 pack NTCs plus 1 board NTC; DFETOFF from the E-stop loop and the presence loop; I2C to the LP supervisor through the board-to-board connector |
+| BMS AFE | TI BQ76952 on the HP board, next to the shunt and FET banks, so the gate drive and Kelvin sense stay short | 1 | 13 cells per datasheet Table 16-3 (cells 1 to 12 on VC0 to VC12, cell 13 on VC15 to VC16, VC13 to VC15 tied to VC12; section 2.2); 3 pack NTCs plus 1 board NTC; DFETOFF from the E-stop loop and the presence loop; I2C to the LP supervisor through the board-to-board connector |
 | Charge port | M4 terminals + pigtail to the shell charge port (XT60), reverse-polarity FET, presence divider | 1 | 4 A, CV 53.9 V; joins PACK+ after the BMS FETs (common port) |
 | Pack shunt (low side, for the AFE) | 0.25 mΩ 4-terminal, 5 W, 3921 size (Vishay WSLP3921 or Bourns CSS4J-4026 class) | 1 | 80 A → 20 mV, 1.6 W |
 | BMS CHG bank, DSG bank (back-to-back) | Infineon IPT015N10N5 (100 V, 1.5 mΩ, TOLL) | 4 + 4 | see 2.2 |
