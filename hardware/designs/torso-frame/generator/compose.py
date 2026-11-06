@@ -136,14 +136,14 @@ fits = table([['Pi 5 + CAN HAT', '85 x 56 x 21', 'upper bay, shelf', 'yes, as bu
               ['Brake resistor 50 W', '25 x 50 x 8', '-X bottom side rail, inner face', 'yes'],
               ['Pitch RS03 x 2', 'D99 x 57', 'through the upper sides', 'yes (0.5 mm to depth)'], ['Waist RS03', 'D99 x 57 + 6 adapter', '40 mm waist bay', 'NO: 23 mm short (hip stage)'],
               ['Third board / USB hub', '90 x 60 x 20', 'no home yet', 'NO: pelvis or over the Pi'], ['Fixed pelvis cell (Joey)', 'placeholder', 'pelvis', 'hip stage'],
-              ['Fans', '4 x 40 x 40 x 10', '2 exhaust in the D1 door plane, 2 intakes Y 272-312 and 193-233', 'provisional'],
+              ['Fans', '4 x 40 x 40 x 10', '2 exhaust in the D1 door plane, 2 intakes Y 264-304 and 193-233', 'provisional'],
               ['Sensors', 'IMU; head cams later', 'shelf; top rails', 'yes'], ['Harness', '2 trunks + CAN', 'front corners beside the packs, step bus', 'yes, off H1-H6 slots']],
              [420, 420, 440, 420], size=24, head=['Component', 'Envelope, mm', 'Where', 'Fits?'])
 sheet([(crop(p1, w=1150), 'Front section at Z 0'), (crop(p2, w=935), 'Side section at X 0'), (crop(p3, w=1150), 'Plan section through the shoulder plane')],
       'Internal torso frame rev A: internal packaging check', 'FRAME_PACKAGING.png', side=fits,
       notes=['Red dashed boxes are the bays. Upper bay 156.8 x 100 x 101.4 between the RS03 rear bosses; lower box 110 x 100 x 178.6 above the bottom rails; waist bay 150 x 140 x 40 under the frame.',
              'The 13S2P pack (yellow) fills the rear 79 mm of the lower box on printed tray rails and slides out the back through D2; the power and logic boards stand in front of it on one carrier (6 x M3 at X +-46, Y 194/265/336),',
-             '3 mm plus an insulating sheet off the pack lid, with two intake fans in the front panel at Y 272-312 (FET and E-stop banks) and Y 193-233 (DC-DC); brake resistor on the -X bottom side rail; no plugs on the boards: ring-lug pigtails over the pack, up the front corners and down the side bands (yellow paths).'])
+             '3 mm plus an insulating sheet off the pack lid, with two intake fans in the front panel at Y 264-304 (E-stop and FET banks) and Y 193-233 (DC-DC); brake resistor on the -X bottom side rail; no plugs on the boards: ring-lug pigtails over the pack, up the front corners and down the side bands (yellow paths).'])
 # 7. hardpoints
 h1, m1 = load('hp_front'); h2, m2 = load('hp_rear'); balloons(h1, m1, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24); balloons(h2, m2, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24)
 sheet([(crop(h1, w=1500), 'Shell hardpoint brackets H1-H6 on the frame, from the front left (frame ghosted)'), (crop(h2, w=1500), 'From the back right, with the four TPU spine pads, the H3 spine rail lip and the collars')],

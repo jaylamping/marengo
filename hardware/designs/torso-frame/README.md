@@ -133,7 +133,7 @@ No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
 | 27 | Harness trunks: Pi/PDB to each shoulder RS03, two front-corner drops to the waist, step bus | 5 | 12–14 AWG + CAN pair | 220 | routing proposal |
 | 28 | Pelvis ring | 1 | draft | | hip stage, shown only in the viewer |
 | 29 | Jetson Orin Nano dev kit envelope 103 × 90.5 × 45 including its fan | 1 | proposed | 250 | second shelf, Y 410 to 455, ports to the rear; 20 mm to the top rails |
-| 30 | Fans 40 × 40 × 10: 2 exhaust, 2 intakes lower front (Y 272 to 312, Y 193 to 233) | 4 | proposed | 80 | exhaust position PROVISIONAL: in the D1 door plane behind the frame face (Y 430 to 470, Z −70 to −80); inside the bay they hit the top rail. The power-board rework will redo the cooling layout |
+| 30 | Fans 40 × 40 × 10: 2 exhaust, 2 intakes lower front (Y 264 to 304, Y 193 to 233) | 4 | proposed | 80 | exhaust position PROVISIONAL: in the D1 door plane behind the frame face (Y 430 to 470, Z −70 to −80); inside the bay they hit the top rail. The power-board rework will redo the cooling layout |
 | 31 | Third compute / USB hub board envelope 90 × 60 × 20 | 1 | proposed | 60 | lower box front |
 | 32 | OPTION: in-torso battery, 2 × 6S 5000 mAh standing in the lower box | 2 | option | 1500 | baseline keeps the pack in the pelvis |
 | 33 | Sensors: IMU on the shelf; head cameras/mics future on the top rails | | | | |
@@ -189,7 +189,7 @@ printed carrier: power board ~100 × 95 on top (Y 245 to 340), logic board ~100 
 Y 194 / 265 / 336 with 6 mm keep-out pads. The carrier rear face is at Z 37.5 (3 mm air plus a 0.5 mm Nomex sheet over the pack lid at
 Z 34), the component face at Z 61.5, 8.5 mm to the front rail plane. Cooling per the board floorplan rev A (`hardware/electrical/pdb/design/FLOORPLAN.png`): the heat is in the BMS FET banks (Y 294 to 318) and
 E-stop banks (Y 266 to 290) on the power board and the 12/24 V DC-DC (Y 192 to 235, left half) on the logic board, so the single intake at
-Y 250 to 290 becomes **two 40 mm intakes** in the front panel between the posts, Y 272 to 312 and Y 193 to 233 (shell thread: grille
+Y 250 to 290 becomes **two 40 mm intakes** in the front panel between the posts, Y 264 to 304 (dropped 8 mm clear of the U1/U3 shell seam at Y 315) and Y 193 to 233 (shell thread: grille
 change in U3). A 50 W aluminium-clad brake resistor (25 × 50 × 8) sits on the inner face of the −X bottom side rail at Y 155 to 180,
 Z ±25, below the pack tray rail, on M3 T-nuts, in the lower intake's air.
 
