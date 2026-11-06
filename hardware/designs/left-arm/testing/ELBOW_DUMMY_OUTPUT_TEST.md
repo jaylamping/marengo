@@ -7,7 +7,7 @@ The fixtures and coupon parts are not designed yet, so print times are not known
 ## What this answers
 
 1. Which part fails first at the stop, and at what torque?
-2. Does the stop hold the 34 N·m shoulder-through-stop case?
+2. What torque does the printed stop actually fail at, and does it fail before anything else?
 3. Does the stop survive a limp arm dropping onto it?
 4. Do the screw joints hold until the printed parts fail?
 5. What is the real strength across layers, on Joey's process?
@@ -17,6 +17,15 @@ The fixtures and coupon parts are not designed yet, so print times are not known
 
 The dummy's thread is not the RS02's either, since the RS02 output alloy is unknown. The thread result shows the printed joint's limit, not the RS02's.
 
+## Validation pass conditions
+
+Agreed 2026-11-06. The first validation pass has no steel or metal stop, and the printed stop is a wear part that should break before anything else.
+
+- **Design load is 17 N·m**, the RS02's own peak. Target at that load is SF 1.5 and layer SF 1.3.
+- **34 N·m is not a design case for this pass.** It stays in this plan as a measured point only.
+- **The shoulder-through-stop case is covered by operation:** a software torque cap, a position soft limit 2 to 3 degrees inside each hard stop, and supervised bench use only.
+- **The stop is tested to failure** so the real number replaces the FEA estimate.
+
 ## Load cases
 
 Elbow to hand is 285 mm (195 + 90). All loads below are at the elbow axis.
@@ -24,7 +33,7 @@ Elbow to hand is 285 mm (195 + 90). All loads below are at the elbow axis.
 | Case | Elbow torque | Source |
 | --- | --- | --- |
 | Actuator peak | 17 N·m | RS02 peak, also the FEA case |
-| Shoulder through stop | 34 N·m | 60 N·m shoulder over 500 mm gives 120 N at the hand, over 285 mm |
+| Shoulder through stop, information only this pass | 34 N·m | 60 N·m shoulder over 500 mm gives 120 N at the hand, over 285 mm |
 | Limp drop | 2 J | Forearm 0.48 kg with its centre about 95 mm below the elbow, plus a hand assumed at 0.5 kg at 285 mm, falling through 90 degrees. About 1.9 J |
 
 A full ground-level tip-over is not defined yet. Breaking energy from test 5 gives the number to compare when it is.
@@ -122,14 +131,12 @@ Assemble the full order on the dummy parts with real tools.
 Set the sector against the 0 degree stop, then the 133 degree stop. Mount the dummy housing rigidly to the bench.
 
 1. Load at 17 N·m for 30 seconds, unload, 10 times at each stop. Measure the stop angle before and after.
-2. Load to 34 N·m for 30 seconds, 3 times at each stop.
-3. On the second set, at the stop that looks weaker, add 2 N·m steps, 30 seconds each, to failure.
+2. On the second set, at the stop that looks weaker, add 2 N·m steps from 17 N·m, 30 seconds each, to failure. Record whether it passed 34 N·m.
 
 **Proposed pass:**
 
 - 17 N·m: no cracks, and stop angle change under 0.5 degrees over 10 cycles.
-- 34 N·m: no cracks, and stop angle change under 1 degree after 3 cycles.
-- Failure is at 40 N·m or above, which is 1.2 times the shoulder-through-stop case.
+- Failure is at 25.5 N·m or above, which is 1.5 times the design load.
 - First failure is in the printed stop features, not at the M3 joint to the housing and not in a thread.
 
 Record the failure torque, which part broke first, the path of the crack, and photos.

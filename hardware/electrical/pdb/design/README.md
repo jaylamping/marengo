@@ -55,11 +55,11 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 | --- | --- | --- | --- |
 | Pack input | 2 × M4 threaded board terminals + 10 AWG ring-lug pigtail to an XT90 at the pack's rear top corner (section 1a) | 1 | the board's rear face sits 3.5 mm off the pack lid, so nothing mounts there |
 | Pack sense | low-profile locking board header (JST GH or Micro-Fit vertical, to fit 13.6 mm) + harness to the pack sense board's 2 × 10 at the rear | 1 | 14 taps, 3 NTC, presence loop, spare |
-| BMS AFE | TI BQ76952 on the HP board, next to the shunt and FET banks, so the gate drive and Kelvin sense stay short | 1 | 13 cells on VC0 to VC13, unused VC inputs tied per datasheet; 3 pack NTCs plus 1 board NTC; DFETOFF from the E-stop loop and the presence loop; I2C to the LP supervisor through the board-to-board connector |
+| BMS AFE | TI BQ76952 on the HP board, next to the shunt and FET banks, so the gate drive and Kelvin sense stay short | 1 | 13 cells per datasheet Table 16-3 (cells 1 to 12 on VC0 to VC12, cell 13 on VC15 to VC16, VC13 to VC15 tied to VC12; section 2.2); 3 pack NTCs plus 1 board NTC; DFETOFF from the E-stop loop and the presence loop; I2C to the LP supervisor through the board-to-board connector |
 | Charge port | M4 terminals + pigtail to the shell charge port (XT60), reverse-polarity FET, presence divider | 1 | 4 A, CV 53.9 V; joins PACK+ after the BMS FETs (common port) |
 | Pack shunt (low side, for the AFE) | 0.25 mΩ 4-terminal, 5 W, 3921 size (Vishay WSLP3921 or Bourns CSS4J-4026 class) | 1 | 80 A → 20 mV, 1.6 W |
 | BMS CHG bank, DSG bank (back-to-back) | Infineon IPT015N10N5 (100 V, 1.5 mΩ, TOLL) | 4 + 4 | see 2.2 |
-| BMS precharge FET + resistor | small 100 V P-FET + 100 Ω 3 W | 1 | AFE PCHG pin, charges VSYS bulk before DSG closes |
+| BMS predischarge FET + resistor | small 100 V P-FET + 100 Ω 3 W | 1 | AFE PDSG pin (datasheet p45: PDSG charges the load, PCHG charges a low battery), charges VSYS bulk before DSG closes |
 | E-stop bank A, bank B | IPT015N10N5 | 3 + 3 | single direction, body diodes VMOT → VSYS (PLAN 3.4) |
 | E-stop gate drivers | TI TPS4810-Q1 class 100 V smart high-side driver, one per bank, enable from the loop | 2 | hardware path, short-circuit protection built in |
 | VMOT bulk | 8 × 220 µF 80 V polymer-hybrid, Ø10 × 12.5 mm, laid flat if needed | 8 | about 1.8 mF, under the 24 mm height |
@@ -76,7 +76,13 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 - Short circuit: the pack can push about 54.6 V / 0.09 Ω ≈ 600 A prospective. AFE SCD at 40 mV on 0.25 mΩ = **160 A, delay set
   to the minimum (about 15 µs, verify)**. In practice the Class T pack fuse, the port eFuses (faster, lower) and the FET pulse
   rating all share this; the schematic gate must show the FET SOA covers 600 A for about 50 µs.
-- AFE thresholds on 0.25 mΩ: OCD 60 A = 15 mV, OCC 50 A = 12.5 mV (both inside the BQ76952 ranges, verify).
+- AFE thresholds on 0.25 mΩ, corrected against the BQ76952 datasheet SLUSE13B (p22: OCD/OCC in 2 mV steps, OCC delay max
+  425 ms): **OCD1 16 mV = 64 A** (hardware comparator, ≤ 425 ms), **OCD3 60 A for 1 s** (current-based, firmware level inside the
+  AFE) as the agreed 60 A ceiling, **OCC 12 mV = 48 A at 425 ms** (stays under the P50B's 50 A pack charge limit), **SCD 40 mV =
+  160 A** (valid step).
+- Cell wiring per datasheet Table 16-3 (p75): cells 1, 2 and 16 must be real, so cells 1 to 12 on VC0 to VC12, cell 13 on
+  VC15 to VC16, VC13 to VC15 shorted to VC12 as the table shows. Thermistors: TS1, TS3, CFETOFF and HDQ as thermistor inputs,
+  TS2 left free for wake from SHUTDOWN (DFETOFF stays on the E-stop loop).
 
 ### 2.3 Regen clamp sizing
 
@@ -130,13 +136,12 @@ The LM5069 current limit is set by a 55 mV (typ, verify) sense threshold: 2.5 m�
 ```
 marengo_pdu (root)
 ├── HP_power_board
-│   ├── pack_input_shunt
+│   ├── pack_input_shunt_afe   (BQ76952 lives on HP)
 │   ├── bms_fets_precharge
 │   ├── estop_banks
 │   ├── vmot_bulk_clamp
 │   └── port_channel ×6        (one sheet, instanced; legs DNP)
 ├── LP_logic_board
-│   ├── afe_bq76952
 │   ├── supervisor_mcu
 │   ├── can_bridges_usb_hub
 │   ├── isolated_can ×6        (instanced)
@@ -149,6 +154,8 @@ marengo_pdu (root)
 ```
 
 ## 5. HP-to-LP board-to-board connector (draft)
+
+> Superseded by the captured pinout: two 2x15 ribbons, J101 and J102 on `HP_power_board.kicad_sch`. Reasons are in [RATIONALE-log.md](RATIONALE-log.md), section HP_power_board top sheet.
 
 One locking 2 × 30 header, 2.0 mm pitch, along the HP bottom edge and the LP top edge. No motor current crosses it.
 

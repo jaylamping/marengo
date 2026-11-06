@@ -1,3 +1,4 @@
 # Large runtime assets only (CAD lives outside this repo — see cad/README.md).
 *.onnx   filter=lfs diff=lfs merge=lfs -text
 hardware/designs/left-arm/envelope/*.stl filter=lfs diff=lfs merge=lfs -text
+hardware/designs/head/**/*.step filter=lfs diff=lfs merge=lfs -text

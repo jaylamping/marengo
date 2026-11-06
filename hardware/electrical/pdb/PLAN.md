@@ -219,7 +219,7 @@ homing before `READY`).
   - pack at or near full (any cell at 4.15 V; the OV trip at 4.22 to 4.25 V with 1 s delay is the hard stop), the 0.7 V of
     headroom between the 53.9 V charge end and the 57.5 V clamp is where regen lives;
   - pack outside the 0 to 45 °C charge window (cold-weather regen goes to the resistor, by design);
-  - regen current above the charge over-current limit: **AFE OCC 50 A with about 1 s delay** (P50B max charge 25 A per cell,
+  - regen current above the charge over-current limit: **AFE OCC 48 A at 425 ms (the AFE's maximum delay)** (datasheet check 09:2xZ) (P50B max charge 25 A per cell,
     battery thread 08:58Z; redo if 6 Ah cells are bought). The charge path (same FETs and shunt as discharge, rated 80 A
     continuous) carries that easily;
   - BMS faulted or CHG FET open, or pack removed.
@@ -275,6 +275,11 @@ its fuse values.
 | L leg, R leg | XT60 + separate locking 4-pin signal connector (JST GH), or a 2+2 XT60 if AMASS makes one (verify) | 40 A / 40 A |
 
 Leg ports are footprints on rev A; populate when the legs exist.
+
+**Future hands** (hand research, `hardware/designs/hand/RESEARCH.md` section 5.4, PR #275): each hand is a fused 48 V drop and
+a CAN node on its own **arm trunk** at the forearm, with its own 48 → 12 V DC-DC (about 60 W) and CAN bridge. No new board port:
+the arm port's 20 A trip and 15 A fuse already cover about 1.3 A more, and the hand node sits on that arm's CAN bus. The aux
+port and the spare CAN6 stay free in case a hand ever needs a separate feed.
 
 ### 3.6 CAN: on the board, isolated, one bus per limb
 
@@ -417,8 +422,8 @@ is a new failure point and a contact resistance that heats, so high current stay
 
 | Board | Job | Where | Size | Status |
 | --- | --- | --- | --- | --- |
-| **HP: high-power board** | pack in, BMS FETs and shunt, E-stop banks A and B, VMOT bulk, regen clamp, six switched and metered limb ports with fuses and connectors | lower box, upper part of the carrier (Y 245 to 340) | about 100 × 95, 4 layers, 2 oz or heavier | rev A |
-| **LP: low-power board** | AFE, supervisor, CAN bridges and isolated transceivers, USB hub, 12 V intermediate and all LV rails, rail switches and meters, fans, temperatures, E-stop loop logic, I/O | lower box, lower part (Y 190 to 243) | about 100 × 55, 6 layers | rev A |
+| **HP: high-power board** | pack in, BMS AFE (BQ76952), BMS FETs and shunt, E-stop banks A and B, VMOT bulk, regen clamp, six switched and metered limb ports with fuses and connectors | lower box, upper part of the carrier (Y 245 to 340) | about 100 × 95, 4 layers, 2 oz or heavier | rev A |
+| **LP: low-power board** | supervisor, CAN bridges and isolated transceivers, USB hub, 12 V intermediate and all LV rails, rail switches and meters, fans, temperatures, E-stop loop logic, I/O | lower box, lower part (Y 190 to 243) | about 100 × 55, 6 layers | rev A |
 | **Pi power stub** | 12 V → 5.1 V at 6 A right at the Pi, so the Pi's rail is regulated at the load and not 300 mm of wire away | Pi shelf, upper bay | about 30 × 20 | rev A, tiny |
 | **Pack sense board** | tap fuses, NTCs, 2 × 10 Micro-Fit | on the pack | 40 × 25 | rev A (battery thread asked) |
 | ~~Junction boards~~ | ruled out by Joey 08:35Z; trunk is spliced with inline fuses and plug-in joint jumpers | | | trunk thread |

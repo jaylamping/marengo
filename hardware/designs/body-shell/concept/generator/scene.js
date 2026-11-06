@@ -1,4 +1,5 @@
 import * as THREE from './node_modules/three/build/three.module.js';
+import { buildHead } from './heads.js';
 import { RoomEnvironment } from './node_modules/three/examples/jsm/environments/RoomEnvironment.js';
 
 // Robot frame (mm): X forward, Y left, Z up, Z measured from FLOOR.
@@ -183,12 +184,20 @@ const pec = (x, y, z) => { if (x <= 0) return [x, y, z]; const ay = Math.abs(y);
   const rz = sstep(ZS - 170, ZS - 90, z) * (1 - sstep(F1 + 20, F1 + 45, z));
   const roll = 1 - 0.3 * sstep(0.45 * WALL, 0.98 * WALL, ay) * rz;
   return [(x + 15 * g * v * w) * roll, y, z]; };
-const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); if (Math.abs(y) <= FACE) return [x, y, z];
-  const t = Math.min(1, Math.max(0, (r - SOCK_R) / RIM));
-  // RIM > 7: parabolic lip (finite slope into the cavity floor, constant curvature): convex radius at the rim = RIM^2 / (2 * depth),
-  // ~5 mm at RIM 14 for the ~19 mm socket depth, so a 2.4 mm wall thickens (SolidWorks pilot 2026-11-06). RIM <= 7: old smoothstep.
-  const k = RIM > 7 ? 1 - (1 - t) * (1 - t) : t * t * (3 - 2 * t);
-  return [x, Math.sign(y) * (FACE + (Math.abs(y) - FACE) * k), z]; };
+// Socket rev 3 (2026-11-06, SolidWorks pilot rev 2): at the top and bottom of the socket the lip rose straight into the
+// chest's front corner rounding, leaving a ~2 mm ridge that SolidWorks could only thicken by thinning the wall to 0.57 mm.
+// Now the cavity is a cone of revolution about the pitch axis (flat floor at FACE out to SOCK_R, filleted foot, slope
+// SOCK_S), and the shell side is the SMOOTH MIN of the original surface and that cone (quadratic blend SOCK_B). The blend
+// only ever moves the wall inward (toward the torso), so the arm sweep clearance at r >= SOCK_R is unchanged.
+// ?rim=N restores the old y-map lip.
+const SOCK_S = Number(q.get('sslope') ?? 1.2), SOCK_B = Number(q.get('sblend') ?? 22), SOCK_F = Number(q.get('sfoot') ?? 6);
+const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS), ay = Math.abs(y);
+  if (q.has('rim')) { if (ay <= FACE) return [x, y, z]; const t = Math.min(1, Math.max(0, (r - SOCK_R) / RIM));
+    const k = RIM > 7 ? 1 - (1 - t) * (1 - t) : t * t * (3 - 2 * t); return [x, Math.sign(y) * (FACE + (ay - FACE) * k), z]; }
+  const u = r - SOCK_R, g = u <= 0 ? 0 : u < SOCK_F ? u * u / (2 * SOCK_F) : u - SOCK_F / 2;
+  const bowl = FACE + SOCK_S * g, h = Math.max(SOCK_B - Math.abs(ay - bowl), 0) / SOCK_B;
+  if (h <= 0 && ay <= bowl) return [x, y, z];
+  return [x, Math.sign(y) * (Math.min(ay, bowl) - h * h * SOCK_B / 4), z]; };
 const SEAM_Z = F0 + 160;
 CLAMP = (x, y, z) => { const p = pec(x, y, z); return socket(p[0], p[1], p[2]); }; SEAM_CLAMP = CLAMP;
 loft(chest, SEAM_Z, F1 + 48, white, 240, 200, 4, 0, Math.PI, 'chest upper front', [110, 0, 60]);
@@ -263,9 +272,25 @@ const core = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 3, 48), accent);
 
 
 // neck collar + head placeholder
-const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 58)); if (!EXPLODE) add(neck);
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 58)); if (!EXPLODE && !q.get('stl')) add(neck);
+// head from CAD (2026-11-06): ?stl=<variant> loads ../../../head/concepts/giant/out/<variant>/parts.json (served as giantout/)
+if (q.get('stl')) {
+  const { STLLoader } = await import('./node_modules/three/examples/jsm/loaders/STLLoader.js');
+  const BGU = await import('./node_modules/three/examples/jsm/utils/BufferGeometryUtils.js');
+  const M = { white: new THREE.MeshPhysicalMaterial({ color: 0xeef0f3, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
+    gun: new THREE.MeshPhysicalMaterial({ color: 0x4a4f57, roughness: 0.32, metalness: 0.75, clearcoat: 0.3 }),
+    dark: new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5, metalness: 0.4 }),
+    lens: new THREE.MeshPhysicalMaterial({ color: 0x050607, roughness: 0.05, metalness: 0.2, clearcoat: 1 }),
+    eye: new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: Number(q.get('eyecol') ?? 0xffc95e), emissiveIntensity: Number(q.get('eyek') ?? 1.0) }) };
+  const base = 'giantout/' + q.get('stl') + '/';
+  const man = await (await fetch(base + 'parts.json')).json();
+  const loader = new STLLoader(); const m4 = new THREE.Matrix4().set(0, 1, 0, OFFX, 0, 0, 1, F1 + 40 + Number(q.get('hz') ?? 0), 1, 0, 0, 0, 0, 0, 0, 1);
+  for (const it of man) { const g = loader.parse(await (await fetch('giantout/' + it.file)).arrayBuffer()); g.applyMatrix4(m4); const gs = BGU.toCreasedNormals(g, 35 * Math.PI / 180); const mt = (M[it.mat] || M.white); mt.side = THREE.DoubleSide; add(new THREE.Mesh(gs, mt)); }
+}
 const headRows = [[F1 + 70, 50, 60, 58, 3.4], [F1 + 96, 60, 76, 72, 3.6], [F1 + 190, 64, 82, 80, 3.6], [F1 + 252, 56, 70, 72, 3.2], [F1 + 276, 34, 44, 46, 2.6], [F1 + 284, 4, 4, 4, 2]];
 const SHOW_HEAD = false;
+// head concept line-up (2026-11-06): ?head=1..20, ?hs = head scale
+if (!EXPLODE && q.get('head')) buildHead(Number(q.get('head')), { THREE, loft, patch, add, P, interp, white, dark, F1, scale: Number(q.get('hs') ?? 1), setFacet: (b) => { FACET = b; }, setClamp: (f) => { CLAMP = f; } });
 if (!EXPLODE && SHOW_HEAD) loft(headRows, F1 + 70, F1 + 284, white, 60, 96, 6);
 if (!EXPLODE && SHOW_HEAD) { // visor: thin dark strip following head front
   const pos = [], idx = []; const nz = 8, nt = 48;
@@ -364,7 +389,7 @@ const tgtY = q.get('ty') ? ZS + Number(q.get('ty')) : (FULL ? 780 : (ZS - 120));
 let cam;
 const aspect = W / H;
 const ortho = (h) => { const c = new THREE.OrthographicCamera(-h * aspect / 2, h * aspect / 2, h / 2, -h / 2, 1, 10000); return c; };
-const span = FULL ? Number(q.get('span') ?? 1700) : 900;
+const span = Number(q.get('span') ?? (FULL ? 1700 : 900));
 if (VIEW === 'front') { cam = ortho(span); cam.position.set(Number(q.get('cx') ?? 0), tgtY, 3000); }
 else if (VIEW === 'side') { cam = ortho(span); cam.position.set(3000, tgtY, 0); }
 else if (VIEW === 'back') { cam = ortho(span); cam.position.set(0, tgtY, -3000); }

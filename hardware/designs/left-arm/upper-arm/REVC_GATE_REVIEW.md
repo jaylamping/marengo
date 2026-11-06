@@ -85,3 +85,5 @@ No CAD work until SolidWorks is free.
 6. Print full parts only after that, with lengths and the wiring openings frozen.
 
 **Decision, Joey, 2026-11-06: measure first.** Keep the compact, centred elbow, and prove what fails first on a dummy RS02 output before printing the full arm. Plan: `../testing/ELBOW_DUMMY_OUTPUT_TEST.md`. The compact layout saves 3 mm of width but raises the side-moment couple on the RS02 output bearing by 28%, with no rating to judge it, so that risk stays open until a limit is known.
+
+**Validation pass condition, Joey, 2026-11-06.** The first validation pass has no steel stop. The printed stop is a wear part rated at the RS02's own 17 N·m, with a target of SF 1.5 and layer SF 1.3 at that load. The 34 N·m shoulder-through-stop case is reported for information only. For this pass it is covered by a software torque cap, a position soft limit 2 to 3 degrees inside each hard stop, and supervised bench use. The dummy output test measures the stop's real failure torque. See `../testing/ELBOW_DUMMY_OUTPUT_TEST.md`.
