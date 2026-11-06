@@ -1,4 +1,6 @@
-# Left forearm and elbow fork, rev A draft
+# Left forearm and elbow fork, draft 3
+
+**Superseded in part by draft 3, see `../ELBOW_COMPACTION.md`.** Fork width is now 75.5 mm, mass 181.5 g, stop 133 degrees, and the 6808 sits in the carrier on a fork stub. The bearing notes below describe the older layout.
 
 2026-11-06. **Not released, not reviewed.** Built at the 215/195 skeleton, and rebuilds with the length decision. The CAD stays on Joey-PC. Coordinates are arm coordinates, with the arm axis at X 170.49. The master layout moves it +38 mm, the same as the upper arm. It is not in the layout or URDF yet.
 
