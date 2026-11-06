@@ -264,6 +264,13 @@ that would reopen the frame.
 1. ~~Photo of the built frame bottom~~ Joey 2026-11-06 10:36Z: the built frame is still just the bare 2020 box, no waist actuator and no
    mount yet, so nothing on it constrains the hip interface; the bottom rails' under-face is free. A photo would still confirm the rail
    count (12 or 16) and bracket positions. Shelf footprint is from the CAD.
+   Photos 10:40Z in `reference/` (user-reported, read by eye, not measured): the bottom rectangle is four 2020 rails joined at the
+   corners by **printed inside-corner gussets** lying in the rail plane, with printed L brackets at the rear post feet, not the
+   aluminium 2028 cast brackets the generator counts. Printed foot tabs on the bottom rails (one mid-front, two splayed at the front
+   corners) screw the frame to the bench stool. The bottom rails' under-face carries nothing. Consequences: (a) the cut list and
+   bracket count describe the new frame, not the built one; the built printed corner pieces are reused or replaced by the 2028 set
+   at the rebuild, Joey's call; (b) the foot tabs are bench fixtures and come off for the hip interface; (c) the rail count still
+   cannot be read from these two photos (posts at the front corners look doubled in the side view), so the nut map keeps it open.
 1a. **Which connector flat each pitch RS03 has** (A or B above), for the harness exit.
 2. **Main battery location**: pelvis (baseline) or torso (reopens the lower box width).
 3. **M18 aux bay**: drop, or move to the pelvis.
