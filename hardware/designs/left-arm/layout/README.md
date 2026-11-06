@@ -17,7 +17,8 @@ Joey-PC.
 The torque excludes links, hand, fasteners, cables, and payload.
 
 The arm is on robot left (+X in the torso STEP) and the elbow flexes forward (+Z). Forward comes from the
-right arm sitting on -X, the right-arm CAD flex direction, and the Pi ports facing -Z.
+right arm sitting on -X, the right-arm CAD flex direction, and the Pi ports facing -Z, and Joey confirmed it on
+the physical robot on 2026-11-05. The fixed pitch bracket names are swapped; go by coordinates, not those names.
 
 **Elbow fold:** target 135°. With a 3 mm shell wall over the 78.5 mm actuators, the rear corner of the RS00 leaves
 about 2.8 mm of air at 135° and touches at about 137°. This is a hand calculation, not a motion sweep. It leaves
@@ -27,7 +28,6 @@ The elbow and RS00 are mated to the skeleton, so `L_UPPER` and `RS00_OFFSET` mov
 
 Open items:
 
-- Confirm forward on the physical robot. The fixed pitch bracket names disagree with the arm names.
 - P1 hole pattern: the 7.83 mm residual looks like a 30° clocking miss, but that is unmeasured.
 - Elbow output is one-sided, 22.7 mm outboard of the arm line, and its load is unchecked.
 - No upper-arm or forearm structure, motion sweep, or cable routing yet.
