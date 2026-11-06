@@ -20,6 +20,6 @@ Each whole actuator is carried on its stator side, since rotor mass isn't known.
 
 Limitations:
 
-- The upper arm is in upper_arm_link. The forearm fork and hand are not in the URDF yet, so forearm_link is RS00 mass only.
+- The upper arm is in upper_arm_link and the fork in forearm_link. The hand is not in the URDF yet. The fork is not a layout component, so its entry in cad_export.json comes from the exported STL (volume within 0.1% of SolidWorks) and a SolidWorks re-export drops it: re-add it, or add the fork to the layout.
 - Joint limits are provisional. Elbow stops at 133° (see ../ELBOW_COMPACTION.md). Inward roll at 15° is a hand calculation, not a sweep.
 - `velocity` is the MIT protocol range, not rated speed.

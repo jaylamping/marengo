@@ -44,9 +44,9 @@
   </joint>
   <link name="left_forearm_link">
     <inertial>
-      <origin xyz="-0.000000 -0.000000 -0.117489" rpy="0 0 0" />
-      <mass value="0.310000" />
-      <inertia ixx="0.000128254" ixy="0.000000014" ixz="-0.000000002" iyy="0.000128946" iyz="-0.000000000" izz="0.000125912" />
+      <origin xyz="-0.001357 -0.000125 -0.095483" rpy="0 0 0" />
+      <mass value="0.481033" />
+      <inertia ixx="0.001107820" ixy="0.000003612" ixz="0.000026865" iyy="0.001028425" iyz="0.000003256" izz="0.000320086" />
     </inertial>
   </link>
   <joint name="left_elbow_pitch" type="revolute">
