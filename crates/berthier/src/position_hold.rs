@@ -558,6 +558,8 @@ pub struct PositionHold {
     /// Speed fraction of each joint's latched move (ADR 0040 amendment); FULL unless a
     /// hold-at asked to slow it.
     speeds: Vec<SpeedFraction>,
+    /// Reused per tick for the scaled params of a slowed hold (no per-tick allocation).
+    scaled_joints: Vec<HoldJointParams>,
 }
 
 impl PositionHold {
@@ -584,6 +586,7 @@ impl PositionHold {
             laws: vec![PositionLaw::Legacy; n_joints],
             scaled: vec![ScaledPdState::default(); n_joints],
             speeds: vec![SpeedFraction::FULL; n_joints],
+            scaled_joints: Vec::with_capacity(n_joints),
         }
     }
 
@@ -778,8 +781,10 @@ impl PositionHold {
         // per-joint law selection.
         let progress_thresholds = std::mem::take(&mut self.progress_thresholds);
         let laws = std::mem::take(&mut self.laws);
+        let scaled_joints = std::mem::take(&mut self.scaled_joints);
         *self = Self::with_progress_thresholds(progress_thresholds);
         self.laws = laws;
+        self.scaled_joints = scaled_joints;
     }
 
     /// Force Hold at `q_traj` (tests: residual lead-follow / AscentStall scenarios).
@@ -941,29 +946,36 @@ impl PositionHold {
                 *speed = SpeedFraction::FULL;
             }
         }
-        // Slowed moves plan from scaled speeds; at FULL the params are used as given.
-        let scaled_joints: Vec<HoldJointParams>;
-        let mut world = if self
+        // Slowed moves plan from scaled speeds; at FULL the params are used as given. The
+        // scaled params go into a buffer kept across ticks (the params hold no heap data), so
+        // a slowed hold allocates nothing per tick.
+        if self
             .speeds
             .iter()
-            .any(|&speed| speed != SpeedFraction::FULL)
+            .all(|&speed| speed == SpeedFraction::FULL)
         {
-            scaled_joints = world
+            let mut world = world;
+            self.advance(&mut world, period)?;
+            return self.compose(&world, period);
+        }
+        let mut scaled_joints = std::mem::take(&mut self.scaled_joints);
+        scaled_joints.clear();
+        scaled_joints.extend(
+            world
                 .joints
                 .iter()
                 .zip(&self.speeds)
-                .map(|(jp, &speed)| jp.at_speed_fraction(speed))
-                .collect();
-            HoldWorld {
-                joints: &scaled_joints,
-                ..world
-            }
-        } else {
-            world
+                .map(|(jp, &speed)| jp.at_speed_fraction(speed)),
+        );
+        let mut world = HoldWorld {
+            joints: &scaled_joints,
+            ..world
         };
-
-        self.advance(&mut world, period)?;
-        self.compose(&world, period)
+        let out = self
+            .advance(&mut world, period)
+            .and_then(|()| self.compose(&world, period));
+        self.scaled_joints = scaled_joints;
+        out
     }
 
     fn init_planners(&mut self, q: &[f64], tick: u64) {
