@@ -149,7 +149,9 @@ Options for J1 and J2 (rendered in [options/TRUNK_OPTIONS_SHOULDER_CROSSING.png]
 
 A rolling-loop groove with round wire (the "wrap groove" in rev 0 of this plan) is dropped: its U-turn needs a gap of twice the 30 mm bend radius, about 60 mm. That is why A coils the wire instead.
 
-**Proposal:** A for both pitch and roll, modelled with the arm thread once SolidWorks is free, with B as the upgrade if A is too big. Either way the jumper stays a plug-in part.
+**Space check (arm thread, 2026-11-06):** neither r 52 to 78 band is free today. At pitch, the RS03 sits inside the torso on its bracket (X ±78.4 to ±113, bolted to the step and top side rails and the upper posts). The only free annulus is outboard of X ±135, where P1 and the r78 shell cavity are, and a 14 mm ring there would push the arm out 14 mm. At roll, P1 L01 clamps the housing on the r49 screw ring and fills much of r 52 to 78. CAD will measure the real free annuli; until then, A is unproven, and B (thinner) or a shrunk A are the likelier fits.
+
+**Proposal (pending that measurement):** A for both pitch and roll, modelled with the arm thread once SolidWorks is free, with B as the upgrade if A is too big. Either way the jumper stays a plug-in part.
 
 ## 7. Interfaces this needs from other threads
 
