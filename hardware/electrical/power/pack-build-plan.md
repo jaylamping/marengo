@@ -200,6 +200,9 @@ it is about 2 W. That's fine for arms and waist. A leg-rated pack needs copper b
 - End plates (B0−, B13+): solder the 10 AWG lead to a **nickel tab that extends past the cell**, never to a cell. Pre-tin the
   tab before welding it on, so the soldering heat stays off the can.
 - Taps: weld a small 0.15 mm nickel tab to each plate, then solder the 22 AWG tap wire to the tab, away from the can.
+- **B0 and B13 taps are their own tabs (Kelvin sense)**, welded to the end plates apart from the 10 AWG power tabs, so no
+  pack current flows in a sense wire (board gate-3 review, main 3c1dab91). Tap fuses on the sense board must interrupt
+  at least 150 A (a harness short at the cells draws about 146 A).
 - Spot-weld the cells. Never solder them.
 
 ## 5. Charging
