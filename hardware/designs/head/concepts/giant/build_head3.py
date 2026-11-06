@@ -151,7 +151,8 @@ MATS = dict(core='dark', head='white', crest='grey2', bezel='dark', glow='eye', 
 VARIANTS = {'G1': dict(), 'G2': dict(chin_drop=34, chin_fwd=16, chin_chamfer=12, jaw_taper=6, chin_flat=0.5),  # G2 rejected: jaw got bigger
             'G3': dict(jaw_top=68, crest_tip=74, hinge_r=11, chin_drop=6, chin_fwd=7, chin_chamfer=5, jaw_taper=5, chin_flat=0.45),
             'G4': dict(W=64, D=64, top=180, zc=144, dome_m=2.6, eye_z=114, eye_y=34, eye_ro=21, eye_r=15, jaw_bot=26, jaw_top=70, crest_tip=76, crest_end=95,
-                       hinge_r=10, chin_drop=3, chin_fwd=3, chin_chamfer=5, jaw_taper=3, chin_flat=0.45, jaw_facet=16, jaw_ledge=3, ear_z=124, ear_x=-2, collar_r=74)}  # G3: smaller jaw, top ~25 mm lower, small chin (Joey 11:42Z)
+                       hinge_r=10, chin_drop=3, chin_fwd=3, chin_chamfer=5, jaw_taper=3, chin_flat=0.45, jaw_facet=16, jaw_ledge=3, ear_z=124, ear_x=-2, collar_r=74)}
+VARIANTS['G5'] = dict(VARIANTS['G4'], top=205, zc=169)  # G4 with the top of the head stretched 25 mm (Joey 11:50Z)  # G3: smaller jaw, top ~25 mm lower, small chin (Joey 11:42Z)
 
 if __name__ == '__main__':
     for nm in (sys.argv[1:] or list(VARIANTS)):
