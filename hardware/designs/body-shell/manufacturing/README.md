@@ -98,7 +98,7 @@ is designed to tear out before the bracket does, so a crash breaks the cheap par
 | --- | --- | --- | --- | --- |
 | H1 | Upper box top front rail, front face | 2 | U1 top edge | 33 |
 | H2 | Upper box top rear rail, rear face | 2 | U2 top edge, D3 catch | 21 |
-| H3 | Step shared rail, front and rear faces, between the gussets (Y ±35) | 4 | U1/U2 bottom, U3/U4 top, D1 frame | 43 front, 22 rear |
+| H3 | Step shared rail, front and rear faces, between the gussets (Y ±35) | 4 | U1/U2 bottom, U3/U4 top, D1 frame | 43 front (54.7 along the panel normal at Y 35, SolidWorks pilot), 22 rear |
 | H4 | Lower box bottom rails, front and rear faces | 4 | U3/U4 bottom, D2 frame | 15 front, 19 rear |
 | H5 | Lower box corner posts, outer side faces | 4 | U3/U4 sides, V1 grilles | 25 to 32 |
 | H6 | Lower box bottom side rails, outer side faces (under-face left free for the hip interface) | 4 | Abdomen band carrier | to check |
@@ -183,6 +183,18 @@ Each stage is cheaper than the next. Nothing goes to a full panel until the earl
 | C7 | Wall coupons at 2.0, 2.4 and 3.0 mm, 1 kg drop weight | Pick the wall thickness |
 | C8 | Grille sample: free area and a finger probe | ≥ 50% open, slots ≤ 6 mm |
 | C9 | TPU pad crush: 60 × 60 × 30 blocks at 3 infills, weight drop or slow press | Absorbs the per-pad share of the back-fall energy within 25 mm |
+
+## 8b. SolidWorks pilot, upper front left (2026-11-06)
+
+First real panel built on Joey-PC from the section CSVs (native files in the CAD folder, not in git). Loft of 40 sections clean.
+**2.4 mm would not thicken** (2.3 did): the socket lip had a ~0.4 mm convex radius (smoothstep over 7 mm). Fixed in the generator:
+parabolic lip over 14 mm (~5 mm radius, `SHELL_SOCKET_LIP.png`), cavity floor r78 unchanged, the wall only moves away from the arm.
+The section export missed the sternum groove (no samples between Y 0 and 32); now exported from an 8x denser grid, resampled by
+arc length, 80 sections for the upper panels (`sections/`, `sections_report.json` lists the tightest radius per panel).
+Pilot mass 168 g (2.3 mm wall), box 125 × 154 × 228. Bracket standoffs: H1 27.5 mm, H3 front 48.7 mm (boss moved to Y 35 so it
+clears the sternum splice holes). Fixes for the next build: bottom shadow-gap chamfer 0.6 mm, not 1 (it left a 0.2 mm feather
+edge); the H1 screw goes through the open chest, so screws move to blind bosses from inside or under the shield; STL to be checked
+in the slicer (249 non-manifold edges after merge; the STEP is one solid).
 
 ## 9. Open items
 

@@ -11,7 +11,7 @@ const FULL = q.get('full') === '1';
 const OFFX = Number(q.get('offx') ?? 0);
 const EXPLODE = q.get('explode') === '1';
 const parts = [];
-const DUMP = q.get('dump') === '1'; window.__grids = [];  // dump=1: export tagged loft grids for the split pipeline
+const DUMP = q.get('dump') === '1'; const DENSE = q.get('dense') === '1'; window.__grids = [];  // dump=1: export tagged loft grids for the split pipeline
 const PALETTE = [0x4f9de0, 0x4f9de0, 0x63c08a, 0x63c08a, 0xe8a34a, 0xe8a34a, 0xb07fd6, 0xb07fd6, 0xd96a8a, 0xd96a8a, 0xe8d36a, 0xe8d36a, 0x56c7c7, 0x56c7c7];        // lateral offset for side-by-side
 
 const P = (x, y, z) => new THREE.Vector3(y + OFFX, z, x);
@@ -92,6 +92,7 @@ function ringPt(hw, df, db, n, th, x0 = 0) {
 }
 let CLAMP = null; let SEAM_CLAMP = null;
 function loft(rows, z0, z1, mat, nz = 90, nt = 128, x0 = 0, th0 = 0, th1 = 2 * Math.PI, tag = null, ex = [0, 0, 0]) {
+  if (tag && DENSE && tag.startsWith('chest')) { nt *= 8; }   // dense=1: resolve the sternum groove for the SolidWorks section export
   const pos = [], idx = [];
   for (let i = 0; i <= nz; i++) {
     const z = z0 + (z1 - z0) * i / nz; const [hw, df, db, n] = interp(rows, z);
@@ -168,7 +169,7 @@ if (STRAIGHT) { const a = chest[2], b = chest[0], m = chest[1]; const t = (m[0] 
   for (const k of [1, 2]) { const lin = b[k] + (a[k] - b[k]) * t; m[k] += (Math.min(m[k], lin) - m[k]) * STRAIGHT; } }
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
 // so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it
-const RIM = Number(q.get('rim') ?? 7);
+const RIM = Number(q.get('rim') ?? 14);   // 2026-11-06 SolidWorks pilot: rim 7 (smoothstep) left a ~0.4 mm convex radius at the socket lip, so a 2.4 mm wall would not thicken. Parabolic lip over 14 mm: ~5 mm. Cavity floor r78 unchanged; the wall only moves away from the arm.
 const SOCK_R = Number(q.get('sock') ?? 78);   // arm thread 2026-11-06: r76 min for full pitch with >=3 mm, r78 for margin
 const sstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 // male chest plate: two pec masses with a sternum groove and a crisp lower edge
@@ -184,7 +185,9 @@ const pec = (x, y, z) => { if (x <= 0) return [x, y, z]; const ay = Math.abs(y);
   return [(x + 15 * g * v * w) * roll, y, z]; };
 const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); if (Math.abs(y) <= FACE) return [x, y, z];
   const t = Math.min(1, Math.max(0, (r - SOCK_R) / RIM));
-  const k = RIM > 7 ? Math.sqrt(1 - (1 - t) * (1 - t)) : t * t * (3 - 2 * t);   // RIM > 7: rolled quarter-round lip into the cavity
+  // RIM > 7: parabolic lip (finite slope into the cavity floor, constant curvature): convex radius at the rim = RIM^2 / (2 * depth),
+  // ~5 mm at RIM 14 for the ~19 mm socket depth, so a 2.4 mm wall thickens (SolidWorks pilot 2026-11-06). RIM <= 7: old smoothstep.
+  const k = RIM > 7 ? 1 - (1 - t) * (1 - t) : t * t * (3 - 2 * t);
   return [x, Math.sign(y) * (FACE + (Math.abs(y) - FACE) * k), z]; };
 const SEAM_Z = F0 + 160;
 CLAMP = (x, y, z) => { const p = pec(x, y, z); return socket(p[0], p[1], p[2]); }; SEAM_CLAMP = CLAMP;
