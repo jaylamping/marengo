@@ -43,11 +43,11 @@ sheet([(crop('w0.png', (700, 300, 2500, 2300), w=900), 'Shoulders as built: roll
       'Body shell, concept B: chest plate and shoulder width', sub, 'SHELL_CONCEPT_WIDTH.png',
       ['Head removed until it is designed. Chest has pec masses, a sternum groove and a crisp lower edge; the black yoke panel is gone.',
        'The +25 mm option lengthens P1 (arm thread); the shell shoulder line widens with it. Shell upper panels then need a centre split for the P2S.'])
-sheet([(crop('s25.png', (700, 300, 2500, 2300), w=800), 'Previous: straight sides'),
-       (crop('m25.png', (700, 300, 2500, 2300), w=800), 'In-between (latest)'),
-       (crop('m25iso.png', (700, 200, 2500, 2400), w=800), 'In-between, three-quarter'),
+sheet([(crop('m25a.png', (700, 300, 2500, 2300), w=800), 'Previous in-between'),
+       (crop('m25.png', (700, 300, 2500, 2300), w=800), 'Latest: lower shoulder +13 mm per side'),
+       (crop('m25iso.png', (700, 200, 2500, 2400), w=800), 'Latest, three-quarter'),
        (crop('m25side.png', (900, 300, 2300, 2300), w=620), 'Side')],
-      'Body shell: in-between side line (P1 +25 mm)', sub, 'SHELL_CONCEPT_BLEND.png',
-      ['From the full-width shoulder point the side curves in gently (about 9 mm by the shoulder axis, 20 mm by 55 mm below it),',
-       'then tapers more steeply to the 158 mm chest bottom. The wall stays inboard of the hanging upper arm, so 5 deg inward roll keeps >= 5 mm.',
-       'Upper panels are 298 mm wide at this shoulder width, so they split at the centre line for the P2S.'])
+      'Body shell: in-between side line, fuller below the shoulder (P1 +25 mm)', sub, 'SHELL_CONCEPT_BLEND.png',
+      ['From the full-width shoulder point the side eases in about 5 mm by the shoulder axis and 7 mm at 55 mm below it,',
+       'then tapers to the 158 mm chest bottom. Rough check: about 7 mm to the upper arm at 5 deg inward roll (confirm on the arm envelope).',
+       'Upper panels 298 mm wide (centre split for the P2S); lower front 253 mm, just inside 256.'])
