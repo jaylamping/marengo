@@ -42,6 +42,10 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
   fitted when the legs exist.
 - **LP bottom edge** carries the small connectors (fans, rail outputs, USB, E-stop loop, sensors), mating downward.
 - The floorplan's connector boxes now read as terminal pads; the layout gate re-draws them as such.
+- Cable paths reserved by the frame thread (main e1be5af, item 27): over-the-pack run X −35 to 30, Y 345 to 353.6; front-corner
+  trunks X ±47 to 55, Z 62 to 70; side drops |X| 50 to 55, Z 40 to 50, Y 160 to 300; LV up-run X 33 to 45, Z 50 to 60, Y 340 to 376
+  (12 V, USB, CAN, fan leads to the upper bay). **Layout constraint:** HP top-edge ring lugs and the 10 AWG bend stay inside
+  Y 340 to 353.6, Z 43.5 to 60, so the terminals sit flat with the lug pointing up and the cable turning rearward over the pack.
 
 ## 2. High-power board
 
