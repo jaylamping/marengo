@@ -30,9 +30,9 @@
   </joint>
   <link name="left_upper_arm_link">
     <inertial>
-      <origin xyz="0.000048 -0.003447 -0.201650" rpy="0 0 0" />
-      <mass value="0.575034" />
-      <inertia ixx="0.000858122" ixy="0.000000513" ixz="0.000001342" iyy="0.000994432" iyz="0.000121923" izz="0.000360640" />
+      <origin xyz="0.000050 -0.002639 -0.199419" rpy="0 0 0" />
+      <mass value="0.581979" />
+      <inertia ixx="0.001002634" ixy="0.000000571" ixz="0.000001600" iyy="0.001096503" iyz="0.000132538" izz="0.000374457" />
     </inertial>
   </link>
   <joint name="left_upper_arm_yaw" type="revolute">
