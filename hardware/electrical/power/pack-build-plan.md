@@ -69,7 +69,7 @@ to put it on the pack instead and found two, neither strong enough:
 
 Both connectors mate at the **pack's rear top corner, behind the D2 door**. The board's leads (a ring-lugged 10 AWG pair and
 the sense harness) run over the pack's top edge, which has 8.6 mm of headroom, to an XT90 and a 2 × 10 plug. On the pack
-side: a short XT90S pigtail (about 60 mm, 10 AWG) from the fuse, and the sense board's header on the rear face at X 5 to 45,
+side: a short XT90S pigtail (about 60 mm, 10 AWG) from the fuse, and the sense board's header on the rear face at X −45 to −5,
 Y 295 to 322 (moved, see the rear-corner table). Both are parked in a printed holder on the case so nothing hangs loose when the door is open.
 
 ### Pack heat for the shell's airflow sizing (estimate, for frame gate review 2 item F)
