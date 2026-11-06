@@ -80,7 +80,7 @@ power board ═ T0 ═ [JB-11]─M11 ~J1~ [JB-12]─M12 ~J2~ [JB-13]─M13 ~J3~ 
 | JB-13 | P2, at the upper-arm yaw RS02 housing | — | static, feeds M13 |
 | J3 | yaw jumper | upper-arm yaw, ±90° (twist) | dynamic |
 | JB-14 | upper arm, near the elbow RS02 upper port | — | static, feeds M14 |
-| J4 | elbow jumper | elbow, 0° to 135° | dynamic |
+| J4 | elbow jumper | elbow, 0° to 133° (main d6cae06); band X 121.7 to 131.2 inboard of the fork cheek, 28.2 mm shell margin, sweep clean | dynamic |
 | JB-15 | forearm, at the RS00 | — | static, feeds M15, carries the terminator |
 | J5 (later) | wrist jumper | lower-arm yaw, ±60° (twist) | dynamic |
 
@@ -138,15 +138,20 @@ Bend radii and torsion lengths are already in the bench harness doc (static ≥ 
 
 The pitch and roll RS03s have no through-bore (vendor), and their ranges are large: 230° at pitch, 195° at roll. Yaw (±90°) and elbow (135°) already have candidate routes in the upper-arm README; the shoulder has none.
 
-Options for J1 and J2:
+Options for J1 and J2 (rendered in [options/TRUNK_OPTIONS_SHOULDER_CROSSING.png](options/TRUNK_OPTIONS_SHOULDER_CROSSING.png); the drop architectures are in [options/TRUNK_OPTIONS_TOPOLOGY.png](options/TRUNK_OPTIONS_TOPOLOGY.png)):
 
 | Option | How | Good | Bad |
 |--------|-----|------|-----|
-| A. Wrap groove (clock spring) | The jumper lies in a printed annular channel around the outside of the RS03 and winds or unwinds as the joint turns. Steering-column style. | Handles 230° in a fixed envelope; predictable bend radius | Needs ~200 mm of wrap length and a channel around a Ø100 housing; shell clearance at the shoulder cavity (r78) must allow it |
-| B. Service loop in the shoulder cavity | A free loop of loose wires beside the joint | Simplest to build | Hard to keep from snagging or pinching over 230°; the old L05 to L11 studies did not close this |
-| C. Flat flex ribbon in a spiral cassette | A flat cable coiled in a printed cassette, as in a car steering wheel | Smallest and most reliable over many cycles | Custom or sourced flat cable that can carry 15 A; more parts |
+| A. Spiral coil around the housing | Jumper coils 2 to 3 turns in a ring around the RS03 (r 55 to 75); inner end on a sleeve that turns with the link, outer end fixed. The joint tightens or loosens the coil. | Round flex wire works: coil radius ~50 mm is above the 30 mm dynamic minimum; fits inside the r78 shoulder cavity | ~14 mm ring plus a rotating sleeve and cover; most design work |
+| B. Flat-flex clock-spring cassette | Flat ribbon wound in a thin cassette, steering-wheel style | Smallest (~8 mm ring, r 52 to 62), longest flex life | Flat cable for 15 A at 60 V is special or custom; harder to repair |
+| C. Free service loop | Slack loop beside the joint | Simplest; fine for the bench | Snags, pinches or rubs over 230° (L05 to L11 never closed it) |
+| D. Rotary cable carrier | Drag-chain links guide a U-turn arc | Off the shelf, proven | U-turn needs ~2× bend radius, so the arc reaches r ~110+, outside the cavity and shell; heavy |
 
-**Proposal:** start with A for both pitch and roll, modelled with the arm thread once SolidWorks is free, and keep C as the upgrade if A is too big. Either way the jumper stays a plug-in part.
+A rolling-loop groove with round wire (the "wrap groove" in rev 0 of this plan) is dropped: its U-turn needs a gap of twice the 30 mm bend radius, about 60 mm. That is why A coils the wire instead.
+
+**Space check (arm thread, 2026-11-06):** neither r 52 to 78 band is free today. At pitch, the RS03 sits inside the torso on its bracket (X ±78.4 to ±113, bolted to the step and top side rails and the upper posts). The only free annulus is outboard of X ±135, where P1 and the r78 shell cavity are, and a 14 mm ring there would push the arm out 14 mm. At roll, P1 L01 clamps the housing on the r49 screw ring and fills much of r 52 to 78. CAD will measure the real free annuli; until then, A is unproven, and B (thinner) or a shrunk A are the likelier fits.
+
+**Proposal (pending that measurement):** A for both pitch and roll, modelled with the arm thread once SolidWorks is free, with B as the upgrade if A is too big. Either way the jumper stays a plug-in part.
 
 ## 7. Interfaces this needs from other threads
 
@@ -168,8 +173,8 @@ Options for J1 and J2:
 Following the standing method: build simple, test for a baseline, then iterate. No destructive test ever uses a real actuator; a dummy load board (resistor bank plus a CAN node) stands in.
 
 1. **Measure bus current** on the bench (24 V now, 48 V when the pack exists) for each motor through representative moves, with a clamp meter or shunt logger. Sets fuse values and gauges.
-2. **Fuse selectivity**: short a drop on the dummy load, confirm only the drop fuse opens.
-3. **CAN fault injection** on the dummy node: CAN_H to GND, CAN_L to GND, CAN_H to VBUS through a limiting resistor. Confirm the junction board clamp holds and the bus recovers.
+2. **Fuse selectivity**: short a drop on the dummy load, confirm only the drop fuse opens. Uses the power board's test mode (PLAN.md section 3.8, 254e2f9): aux port as test port with the plug-in load box, adjustable trip from 1 A, and every trip logged with peak current and time to open.
+3. **CAN fault injection** on the board's spare bus (CAN6) fault header, motors disarmed: H-L short, CAN_H or CAN_L to GND, VBUS on CAN_H through 100 Ω. Put a junction board and a dummy CAN node on that bus, and confirm the clamp holds and the bus recovers.
 4. **Jumper flex life** on a printed jig that cycles each joint's motion, with a continuity monitor on every conductor. Target to be set; a starting point is 100k cycles at full range.
 5. **Connector retention** under vibration with the arm moving.
 6. **Thermal**: trunk and drops at the measured peak current for a few minutes, temperature by hand or thermocouple.

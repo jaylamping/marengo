@@ -1,5 +1,11 @@
 # Custom 21700 pack for the torso
 
+> **Update 2026-11-06:** the build is now planned in [`pack-build-plan.md`](pack-build-plan.md), which wins where the two differ.
+> Changed there: cells are **P50B** (P45B sold out, P50B is 60 A / 12.8 mΩ); **no BMS on the pack** (BQ76952-class high-side BMS on the
+> power board, a JK only for bench bring-up), so the BMS-on-the-pack-rear-face and 2 A active balance lines below are superseded;
+> **charge to 4.15 V/cell (53.9 V)** through the board's XT60 charge port; series links are **wide 0.2 mm nickel plates**, not 0.2 × 10 strip;
+> balance leads go through a fused pack sense board to one locking Micro-Fit connector instead of a JST plug.
+
 2026-11-06. Answer to Joey's "dig into the custom 21700 option". Torso coords as in `hardware/designs/torso-frame/README.md`.
 Numbers marked (verify) come from memory of the datasheets and need a check against the current sheet before ordering.
 

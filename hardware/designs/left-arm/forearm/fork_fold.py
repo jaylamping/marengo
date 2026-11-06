@@ -17,7 +17,7 @@ def mm(t):
 
 S = np.array([38.0, 0, 0])
 ua = sample(mm(read_stl(HERE / "stl" / "UPPER_ARM.STL")), 1.0)
-rs02 = sample(world("ELBOW_RS02", read_stl(HERE / "stl" / "ELBOW_RS02.STL"), comp, boxes), 1.0) - S + np.array([4.0, 0, 0])
+rs02 = sample(world("ELBOW_RS02", read_stl(HERE / "stl" / "ELBOW_RS02.STL"), comp, boxes), 1.0) - S
 rs00 = sample(world("FOREARM_RS00", read_stl(HERE / "stl" / "FOREARM_RS00.STL"), comp, boxes), 1.5) - S
 fork = sample(mm(read_stl(E / "marengo_forearm_left.stl")), 1.0)
 O = np.array([0, 209.860668, 5.985875])

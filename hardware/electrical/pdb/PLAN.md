@@ -26,7 +26,7 @@ plane. If the plan below outgrows that envelope I must say so before routing (se
 
 ## 1. Fixed inputs
 
-- **Pack (decided 06:13Z):** 13S2P Molicel P45B/P50B, 46.8 V nominal, **54.6 V full**, 39 V empty at 3.0 V/cell (2.9 V
+- **Pack (decided 06:13Z):** 13S2P Molicel P50B (P45B sold out, battery thread 07:29Z), 46.8 V nominal, **54.6 V full**, 39 V empty at 3.0 V/cell (2.9 V
   cutoff → 37.7 V), 9 to 10 Ah, 60 A MIDI fuse on the pack, XT90S out.
 - **BMS on this board (decided 06:14Z):** "we can probably incorporate the bms onto there as well".
 - **Drives (vendor manual):** RS00, RS02, RS03, RS04 all rated 48 V, operating **24 to 60 V**. At 54.6 V full there are only
@@ -69,20 +69,37 @@ trip point, not the pack.
 
 Robot draw (estimate): arms plus waist at work, 100 to 300 W average with 1 to 1.5 kW spikes; with legs walking, 400 to
 800 W average with 2 to 3 kW spikes. **The pack is the limit, not the board:** 60 A fuse × 46.8 V = 2.8 kW, and a 13S2P pack
-has roughly 65 to 90 mΩ total resistance (estimate: about 5 to 7 mΩ per P45B pair plus nickel and leads), so 60 A sags it
-4 to 5 V and heats it about 250 W while it lasts. Fine for arms and waist. For legs the pack (and its fuse) needs a second look
+has about 90 mΩ total resistance (battery thread, P50B at 12.8 mΩ DCIR; measured value to come from cell grading), so 60 A
+sags it about 5.5 V and heats it about 320 W while it lasts. P50B cells are good for 120 A continuous at 2P, so the 60 A fuse is
+the limit. Fine for arms and waist. For legs the pack (and its fuse) needs a second look
 (13S3P, or a pelvis pack in parallel); the board below is sized so that it is not the thing that has to change.
 
-### 2.3 Low-voltage rails
+### 2.3 Low-voltage rails (Joey 07:29Z: "many different voltage rails, and steady too")
 
-| Rail | Rating | Loads | Notes |
-| --- | --- | --- | --- |
-| 12 V | 8 A (100 W) | Jetson Orin Nano (7 to 25 W in Super mode), third compute board (up to 25 W), 3 × 40 mm fans, spare | Jetson dev kit input range: **verify** (19 V barrel on the kit; I believe the carrier takes 9 to 20 V). If it needs 19 V the rail becomes 19 V and the fans get a small 12 V buck |
-| 5.1 V | 6 A (30 W) | Pi 5 through its GPIO 5 V pins | Back-feeding the GPIO 5 V skips USB-PD, so set `usb_max_current_enable=1` in `config.txt` (verify) |
-| 5 V aux | 3 A | IMU, sensors, status LEDs, buzzer, USB hub, CAN transceivers | |
-| 3.3 V always-on | 0.1 A | supervisor MCU, BMS AFE logic | stays up while the robot is "off" so the power button works; ship mode drops it to µA |
+**Two-stage regulation, so every rail is steady no matter what the motors do.** VSYS swings from 37 V (empty, sagging) to
+58 V (full, regen clamp). Stage 1 is one stiff 12 V intermediate bus with hold-up; stage 2 is a point-of-load converter per
+rail, fed from 12 V, which never sees a motor transient. Noise-sensitive loads get an extra LDO after their buck.
 
-Compute branch total: about 90 W worst case, 1.9 A at 46.8 V.
+```
+VSYS ─[ideal diode]─┬─[hold-up ≈1 mF, rides 10 ms dropouts at 90 W]─[48→12 V, 150 W]─► 12 V bus ─┬─ point-of-load rails
+                    └─[48→24 V, 75 W]─► 24 V                                                    └─ 12 V outputs
+```
+
+| Rail | Rating | Loads | Source | Steadiness target |
+| --- | --- | --- | --- | --- |
+| 24 V | 3 A | aux actuators, LED strips, solenoids, small pumps or grippers, 24 V sensors | VSYS buck | ±3% |
+| 12 V | 12 A total (the intermediate bus) | Jetson Orin Nano (9 to 20 V input per NVIDIA forum, so 12 V is fine; 7 to 25 W), third compute board, fans, cameras | VSYS, 150 W module | ±2% static, ±3% on a 50% load step |
+| 7.4 V servo (adjustable 6 to 8.4 V) | 5 A | hobby or smart servos for the head, hands, grippers | 12 V buck | ±3% |
+| 5.1 V compute | 6 A | Pi 5 through its GPIO 5 V pins (set `usb_max_current_enable=1`, verify) | 12 V buck | ±2%, under 30 mV ripple |
+| 5 V peripheral | 4 A | USB devices, cameras, LED strips, CAN-isolator supplies, hub | 12 V buck | ±3% |
+| 3.3 V peripheral | 2 A | I2C/SPI sensors, encoders, small boards | 12 V buck | ±2% |
+| 5 V and 3.3 V clean | 0.3 A each | IMU, microphones, analog sensors, ADC references | low-noise LDOs after the 5 V and 3.3 V bucks | under 5 mV ripple |
+| Spare rail slot | 3 A, set by resistor from 3.3 to 24 V | whatever the third board or a new sensor needs | 12 V buck, standard footprint | ±2% |
+| 3.3 V always-on | 0.1 A | supervisor MCU, AFE logic, power button | VSYS, low-Iq | stays up when "off"; ship mode drops it to µA |
+
+Every rail output (and each compute board separately) gets its own **load switch and current/voltage meter** (section 3.9),
+a polyfuse or electronic limit, and a status LED. Every converter is rated for a 75 V input so a regen or clamp event cannot
+kill it. Compute and peripheral total: about 150 W worst case, 3.2 A at 46.8 V; about 50 W typical.
 
 ## 3. Architecture
 
@@ -91,7 +108,7 @@ two series motor switches → motor bus with regen clamp → one switched, fused
 
 ```
  PACK (cells + 60 A MIDI fuse + 2 NTC)
-   │ XT90S              │ 16-pin balance/NTC (Micro-Fit, locking)
+   │ XT90S              │ 18-pin balance/NTC/sense (Micro-Fit 2x9)
    ▼                    ▼
  [shunt, low side]  [BMS AFE: BQ76952-class, 13S]──I2C──[Supervisor MCU]
    │                    │ drives                          │
@@ -121,10 +138,19 @@ two series motor switches → motor bus with regen clamp → one switched, fused
   is the reason to put the BMS on our board.
 - **AFE: TI BQ76952 class** (3 to 16 cells, integrated high-side NFET charge pump, coulomb counter, I2C, 3 thermistor
   inputs, precharge and predischarge FET control; verify the current part and its errata). It runs autonomously: OV, UV,
-  over-current in discharge and charge, short circuit in discharge (µs), over-temperature, all in hardware with no MCU in the
+  over-current in discharge and charge, short circuit in discharge (µs), over-temperature, charge only between 0 and 45 °C
+  (battery thread), random cell attach tolerated as long as cells land on ascending VC pins (datasheet 16.3), cell open-wire
+  detection (datasheet 12.11, detection time still to read), all in hardware with no MCU in the
   loop. The supervisor MCU only configures it and reads it.
-- **Settings** (carried from the pack doc): 2.9 V cell cutoff, 4.15 V charge cutoff, 60 A discharge OC (matches the pack fuse;
-  raise only with a new pack), 60 °C over-temp, short-circuit trip about 150 A in 200 µs (verify against FET SOA).
+- **Settings** (agreed with the battery thread 07:26Z): charge ends at **4.15 V/cell** (charger CV 53.9 V, and the supervisor
+  stops charge when any cell reaches 4.15 V); AFE cell **OV trip 4.22 to 4.25 V with about 1 s delay**, so braking into a full
+  pack (terminal voltage rises about 0.15 V/cell at 20 A regen) does not trip it; **UV 3.0 V soft** (host warns, then disarms
+  motors) and **2.8 V hard** AFE trip; 60 A discharge OC (matches the pack fuse; raise only with a new pack); 60 °C over-temp;
+  short-circuit trip about 150 A in 200 µs (verify against FET SOA). The regen clamp at 57.5 V (4.42 V/cell) sits above the OV
+  trip and only acts when the pack can't take the energy.
+- **Connection order:** mate the 18-pin balance connector first and the XT90 last; unplug the XT90 first. Check the BQ76952
+  datasheet on random cell attach and the cell-input series resistors it needs (verify). The AFE's open-wire check must fault
+  safe if the 18-pin comes off with the XT90 still in (verify the BQ76952 open-wire feature and its detection time).
 - **Balancing:** passive, external bleed FETs at about 150 mA per cell, during charge above 3.9 V. Matched cells and attended
   charging make passive enough; the pack doc's 2 A active balancer is not needed.
 - **Charge FET stays on while running**, so braking energy goes back into the pack. The regen clamp (3.4) covers the moments
@@ -138,8 +164,12 @@ Consequences Joey should know:
    connected to the board. A spare pack for swap-and-charge would need its own BMS. Pack removal is for service.
 2. **Buy one cheap 13S JK/JBD BMS anyway** (the $45 to 80 line in the pack doc). The pack has to be graded, charged and
    discharge-tested before this board exists, and that BMS is the bring-up tool and the fallback if board rev A has a problem.
-3. **Pack connector change:** the 14 balance leads plus 2 pack NTCs go to one locking 16-pin connector (Molex Micro-Fit 3.0
-   2 × 8, 600 V class, verify) instead of a JST balance plug, each lead fused at the pack end as the pack doc already says.
+3. **Pack sense board (this thread builds it, battery thread asked 07:29Z):** a 40 × 25 mm PCB on the pack carrying 14 tap
+   fuses (0.5 to 1 A, at least 63 V DC), 2 NTC inputs (10k B3435, which is the 103AT curve the BQ76952 defaults to; verify)
+   and the 2 × 9 Micro-Fit header, tap order chosen so adjacent pins are one cell apart, 2 pins for a connector-present loop.
+   The AFE input resistors stay on the main board. Ordered with the main boards.
+4. **Pack connector change:** the 14 balance leads plus 2 pack NTCs go to one locking 18-pin connector (Molex Micro-Fit 3.0
+   2 × 9, 600 V class, verify; 2 pins form the connector-present loop that opens DSG directly) instead of a JST balance plug, each lead fused at the pack end as the pack doc already says.
 
 ### 3.2 Power-on sequence and states
 
@@ -231,6 +261,61 @@ Leg ports are footprints on rev A; populate when the legs exist.
 
 The BNO085 IMU stays on the Pi shelf (rigid, close to the host); the board does not need to carry it.
 
+### 3.8 Test mode and fault injection (trunk thread ask, 07:24Z)
+
+So fuse selectivity and CAN fault tests can run without risking real actuators:
+
+- **Bench test mode** (supervisor command + a physical jumper, both needed): ports can be enabled with no host heartbeat, the
+  trip point of each port is programmable from 1 A upward, and every trip is logged with peak current and time to open.
+- **Dummy-load port:** the aux port doubles as the test port. A plug-in load box (power resistors plus a MOSFET pulse load on
+  a small board of its own) drives step and short-circuit currents into a trunk segment, so drop fuses can be checked to blow
+  before the port trips.
+- **CAN fault-injection header** on one bus (the spare CAN6): jumper positions to short CAN_H to CAN_L, CAN_H or CAN_L to GND,
+  and CAN_H to VBUS through a 100 ohm current-limit resistor, plus a removable terminator. This checks the trunk junction boards'
+  surge protection and the isolated transceivers before a real trunk sees it. Only usable in test mode with motors disarmed.
+- Test points on VSYS, VMOT and every port, sized for a scope probe ground spring.
+
+### 3.9 Observability and telemetry (Joey 07:28Z: "know at all times how many amps/volts we are pulling and where")
+
+**Every branch on the board has its own meter.** The board measures the pack, every limb, every rail and every compute
+board directly. Per-motor numbers come from the drives' own CAN feedback, checked against the limb meter. Nothing on the
+power tree goes unmeasured.
+
+| Where | What is measured | Part (verify) | Rate |
+| --- | --- | --- | --- |
+| Each of 13 cells, the stack | voltage per cell, stack voltage, cell imbalance | BQ76952 AFE | 4 to 20 Hz |
+| Pack | current (coulomb counter), state of charge, charge/energy in and out, cycle count, 2 pack NTCs, FET states, every protection flag | BQ76952 | 4 Hz, flags instantly |
+| Main path (VSYS) | voltage, current, power, energy and charge accumulators (independent of the AFE, so the two cross-check) | INA228 on its own shunt | 1 kHz |
+| VMOT | voltage, regen-clamp on-time, clamp energy, brake-resistor NTC | supervisor ADC + INA228 | 1 kHz |
+| Each limb port (6) | voltage, current, power, energy; trip count, peak current, time to open | INA228 per port (85 V, 20-bit, energy registers) | 1 kHz |
+| Each limb port, fast | current waveform for faults | INA241-class high-side amp into the MCU ADC | 20 kHz into a ring buffer |
+| Each rail and compute output (10) | voltage, current, power, energy | INA228/INA238 class per output | 100 Hz |
+| E-stop | loop state; each FET bank's gate and drain-source voltage, so a shorted FET is detected | supervisor GPIO/ADC | 1 kHz, edges instantly |
+| Temperatures | 2 pack, 2 FET banks, DC-DC, logic, intake air, exhaust air, brake resistor | NTCs on the AFE and supervisor | 10 Hz |
+| Fans | RPM and PWM duty per fan | supervisor | 1 Hz |
+| Per motor | bus voltage, phase current, torque, speed, temperature as each drive reports them over CAN | RobStride feedback frames (check which parameters the drives expose, e.g. VBUS) | at the control rate |
+
+**Where the data goes.** The supervisor streams a 100 Hz telemetry frame over USB to the Pi: min, max and average of every
+channel in each 10 ms window, so short spikes are not lost. It also sends events immediately: port trip, E-stop edge, BMS
+fault, clamp activation, over-temperature. On any event it freezes a **black box**: 200 ms before and 200 ms after, at
+20 kHz, for every port's fast current plus VSYS and VMOT. The Pi pulls it and stores it with the CAN log, so every trip comes
+with its own waveform. The Consul dashboard already has a dummy `PowerBoardMetrics` card (`consul/src/data/power-metrics.ts`,
+"replace with shunt telemetry from custom board later"). The channel list above is what the code project would wire into it.
+
+**Derived pack values** (battery thread 07:30Z; supervisor firmware or host): cell spread (max minus min), balance-on time per
+cell, a running pack DCIR estimate from load steps (ΔV/ΔI) to track ageing, cycle count and lifetime Ah/Wh throughput, peak
+current and peak pack temperature per session, and a timestamped fault log (OV, UV, OC, OT, open-wire) in the supervisor's
+non-volatile memory so it survives a pack swap. A third pack NTC by the pack fuse: the BQ76952 has spare multi-function pins
+that can read thermistors (verify), but the 2 × 9 connector is full, so it costs a 2 × 10 Micro-Fit. Recommended, cheap.
+
+**Per-motor current.** The board measures each limb exactly. Per motor it relies on the drives' own reports, and the
+supervisor reconciles the sum against the limb meter (the residual is wiring loss or error). If Joey wants measured current
+per motor as well, the trunk junction boards can carry a sense chip, which needs a small MCU on CAN at each one. That is the
+trunk thread's call, offered as an option.
+
+**Accuracy target:** ±1% current above 1 A, ±0.2% voltage, energy within 2% over a session. Calibrated against a bench meter
+at bring-up, with the calibration stored in the supervisor.
+
 ## 4. Grounding
 
 - Pack negative is the single system ground; the low-side BMS shunt sits between the cell stack and that node, everything else
@@ -266,7 +351,7 @@ Board stands vertically, component side forward (+Z) into the fan, 100 wide (X) 
 
 | Band (torso Y) | Contents | Edge connectors |
 | --- | --- | --- |
-| 310 to 340 (top) | Pack input XT90 and 16-pin balance connector on the rear face top edge; arm and waist ports | top edge: L arm, R arm (up the front corners to the shoulders), USB to the Pi, fan leads, power button cable |
+| 310 to 340 (top) | Pack input XT90 and 18-pin balance connector on the rear face top edge; arm and waist ports | top edge: L arm, R arm (up the front corners to the shoulders), USB to the Pi, fan leads, power button cable |
 | 250 to 310 | BMS FETs, E-stop banks, VMOT bulk, DC-DC modules in the fan jet | |
 | 205 to 250 | Logic section: supervisor, CAN bridges, USB hub, isolated transceivers, AFE | side edge: E-stop loop, charge port, sensors |
 | 190 to 205 (bottom) | Port switches for waist, legs, aux | bottom edge: waist and leg ports down past Y 155, brake resistor |
@@ -291,7 +376,7 @@ keep-out pads, onto standoffs on the frame thread's printed carrier.
 | Supervisor MCU | STM32G0/G4 or RP2350; separate from the CAN bridges so a bridge crash cannot touch power control |
 | CAN bridges | 2 × STM32G4 (3 FDCAN each), USB FS, behind a USB2514-class hub |
 | CAN transceivers | ISOW1044-class isolated CAN FD with integrated power |
-| Connectors | XT90 (pack), Micro-Fit 2 × 8 (balance), XT30(2+2) (arm, waist, aux), XT60 + GH (legs), JST GH/XH for low-current |
+| Connectors | XT90 (pack), Micro-Fit 2 × 9 (balance + sense), XT30(2+2) (arm, waist, aux), XT60 + GH (legs), JST GH/XH for low-current |
 | Fab | KiCad (the existing empty `../schematics/marengo_pdu/` project), PCB and SMT assembly at JLCPCB or PCBWay; through-hole power connectors hand-soldered |
 
 Rough cost for rev A (estimate): $150 to 250 for 5 power PCBs and 5 logic PCBs assembled (2 sets populated), $100 to 150 in
@@ -315,14 +400,15 @@ bench supply has no current limit.
 ## 9. Does it fit 100 × 150 × 24?
 
 Estimate of placed area including spacing: BMS and FETs 3,000 mm², E-stop banks 1,500, six ports 5,400, converters 2,000,
-logic and CAN 2,500, connectors and bulk 3,500: about **18,000 mm²** against 30,000 mm² of two-sided area (15,000 a side).
+logic and CAN 2,500, connectors and bulk 3,500, the extra rails and their switches 2,500, telemetry meters 1,500: about
+**22,000 mm²** against 30,000 mm² of two-sided area (15,000 a side).
 It fits with high-current parts on the front and small parts on both faces. The tightest constraints are height (bulk caps,
 XT90, converter modules all approach 24 mm) and the top edge, which carries the most connectors. If the leg ports are dropped
 from rev A, area falls by about 1,800 mm². No change to the frame envelope requested yet.
 
 ## 10. Joey's decisions (my recommendation first)
 
-1. **Size the board for the legs now?** Recommend **yes**: 80 A continuous, 150 A for 100 ms on the main path, leg port
+1. **Size the board for the legs now?** **DECIDED: yes (Joey 2026-11-06 07:28Z).** 80 A continuous, 150 A for 100 ms on the main path, leg port
    footprints unpopulated. Arms-and-waist-only (40 A) is a smaller board but means a re-spin when the legs arrive. The pack
    stays the real limit either way.
 2. **CAN on the board** (two 3-channel bridges, isolated, one USB cable) instead of more Pi HATs. Recommend yes; needs the
@@ -339,7 +425,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 | Jetson Orin Nano input range (12 V vs 19 V rail) | this thread, datasheet |
 | RobStride drive input capacitance and inrush; whether the drives terminate CAN; anti-backdrive behaviour unpowered | measure on a drive (bench) |
 | Measured arm bus current to set port trip and trunk fuse values | shoulder wiring + arm trunk threads, after the board logs it; bench meanwhile |
-| Pack-to-board air gap, carrier and standoffs, frame bonding, brake-resistor location on a rail | frame thread |
+| ~~Pack-to-board air gap, carrier and standoffs, frame bonding, brake-resistor location~~ closed by the frame thread (main 0a31dda): 0.5 mm Nomex over the pack lid at Z 34, carrier rear face Z 37.5, component face Z 61.5; power PCB Y 245 to 340, logic PCB Y 190 to 243; 6 × M3 standoffs at X ±46, Y 194/265/336; brake resistor 25 × 50 × 8 on the front bottom rail inner face, X ±25, Y 153 to 178, Z 52 to 60; frame bonded at one carrier standoff via 1 MΩ ∥ 10 nF | done |
 | E-stop button and charge-port location on the shell; power button and LED location | shell manufacturing thread |
 | Bus-plan ADR (5 or 6 buses, interface names, IDs) | code project |
 | Third compute board identity and power | Joey |
@@ -349,4 +435,9 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.5 | 2026-11-06 | Rails reworked into two-stage regulation with 9 rails (Joey 07:29Z); telemetry section 3.9 (Joey 07:28Z); P50B cells, pack sense board, charge temperature window from the battery thread |
+| 0.4 | 2026-11-06 | Joey chose leg-ready ratings: 80 A continuous, 150 A for 100 ms main path, leg ports as unpopulated footprints |
+| 0.3 | 2026-11-06 | BMS thresholds and connection order agreed with the battery thread; pack resistance estimate updated |
+| 0.2 | 2026-11-06 | Test mode, dummy-load port, CAN fault-injection header (3.8) |
+| 0.1 | 2026-11-06 | Frame thread placed the assembly (main 0a31dda); open item closed |
 | 0 | 2026-11-06 | First architecture plan. Takes over the board from the torso-frame thread (which keeps placement, mounting, cooling envelope) |

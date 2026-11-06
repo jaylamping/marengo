@@ -46,7 +46,18 @@ Simply shifting the stack dropped the twist case to SF 1.94, under the 2.0 targe
 | 100 N fore-aft | 2.38 | 1.85 | 2.15 | 2.43 | 1.90 | 1.52 |
 | 100 N lateral, 14 N·m twist | 2.07 | 1.60 | 1.94 | 2.26 | 1.61 | **0.82** |
 
-**Fork orientation is +X.** +Y has far less overhang but fails layer SF, 0.82 at the inboard gusset root, X 138.4, Y 150. The cost is more supports. The overhang area, thickness check and slice were not rerun with the deeper gusset.
+**Fork orientation is +X.** +Y has far less overhang but fails layer SF, 0.82 at the inboard gusset root, X 138.4, Y 150. The cost is more supports.
+
+### Fork print, with the deeper gusset
+
+| Check | Result |
+| --- | --- |
+| Overhang, 45 degrees, +X up | 11511 mm², 4112 mm² of it flat down-facing; +Y up is 2315 mm² |
+| Footprint, height | 176.2 × 69.0 mm, 75.5 mm tall, fits the P2S bed |
+| Walls | 0.29% of surface under 1.2 mm; median 5.0 mm. Thin spots are feather edges at the finger tip (0.06 mm) and gusset tips (0.07 to 0.35 mm), not load-carrying walls |
+| Slice, Bambu Studio CLI | 377 layers, 7 h 23 min, 197.7 g with supports |
+
+Slice settings: Joey's P2S 0.4 machine preset and Joe PETG HF filament preset, on Textured PEI. The filament preset's first-slot values were applied over the system preset, because the CLI refuses its other slots. There is no saved process preset for these parts, so the process is an assumption: 0.20mm Standard, 100% infill, 4 walls, tree supports. The slice proves the orientation slices, not print quality.
 
 ### Mass
 
@@ -67,12 +78,28 @@ From the trunk plan draft `hardware/electrical/wiring/left-arm-trunk-plan.md`, n
 
 - **Upper arm junction board, 30 x 18 x 8 mm:** fits on the existing pad at Y 260 to 290 and passes through the 21 x 40 mm cable window, so it needs no cut and costs no SF there. It replaces the fuse holder pockets if approved. Clearance to the cable bundle in the tube is not checked.
 - **Forearm junction board, 30 x 18 x 8 mm, absorbs the RS00 fuse:** needs a location and a cover opening. **SF cost not measured.** An opening in this tube will cost something, and the twist case layer SF of 1.61 has little margin.
-- **Elbow jumper, 4 x 9 mm flat or Ø8, 25 mm minimum dynamic bend radius, 30 preferred:** proposed path is a loop in the band inboard of the fork cheek, about X 126.7 to 131.2, around the Ø84 carrier, so the radius is met across 0 to 133 degrees. The band has 41.9 mm to the shell at r 78 before the loop's own width, and the fold check above does not include the jumper. Clamp points at both ends need placing.
+- **Elbow jumper, 4 x 9 mm flat or Ø8, 25 mm minimum dynamic bend radius, 30 preferred:** proposed path is a loop inboard of the fork cheek, around the Ø84 carrier. **The X 126.7 to 131.2 band is too narrow for it.** A flat jumper looped around the elbow axis must bend across its 4 mm, so its 9 mm width lies along X. In a 4.5 mm band it would have to bend edgewise. It needs about 9.5 mm, X 121.7 to 131.2, and Ø8 needs X 122.7 to 131.2. That puts the inboard side 16.8 mm past the 64 mm forearm, which hands back the visual compaction, though not the shell margin:
+
+| Band, r 42.5 to 50 | Moving fork and RS00, 0 to 133 | Upper arm | Shell, 5 degrees inward, r 78 |
+| --- | --- | --- | --- |
+| X 126.7 to 131.2, as proposed | 1.0 mm | 5.6 mm | 33.4 mm |
+| X 121.7 to 131.2, 9 mm flat | 1.0 mm | 5.6 mm | 28.2 mm |
+| X 122.7 to 131.2, Ø8 | 1.0 mm | 5.6 mm | 29.3 mm |
+
+  No clash at any width, by sampled points at 1 to 2 mm spacing, with the band as a full ring. The jumper is not modelled as a solid, and its entry from the upper arm, exit into the forearm and clamp points are not placed.
 - **Next P2 rev:** 30 x 18 x 8 mm junction pocket near the RS02 housing on the trunk-entry side, jumpers 3 x 9 mm flat with a 30 mm radius. No P2 work now.
 
 ### Still to update
 
-The URDF and master layout still place the elbow RS02 and fork at the pass 1 position. Solid interference across travel is still not run.
+The fork is not yet a component in the master layout or the URDF, so `forearm_link` carries RS00 only and is about 171 g light.
+
+### Layout, URDF and interference
+
+- Master layout: elbow RS02 output plane moved to X 231.19, so the RS02 sits at X 189.74 to 235.19 in layout coordinates. Saved, reopened through the export. The layout still reports the needs-rebuild flag it had before this change.
+- URDF regenerated from it, with the elbow limit at 133 degrees, 2.321 rad. Weighed masses unchanged. The elbow axis does not move along the arm, so only `upper_arm_link` inertials and the limit change. `generate_urdf.py --check` passed, total 2.580 kg.
+- Solid interference, SolidWorks, upper arm, carrier, cover, elbow ring and sleeves, RS02, fork and RS00: elbow 0 to 130 every 5 degrees and at 133, and RS00 at ±60 degrees of lower-arm yaw at elbow 0, 90 and 133. **No part-to-part interference**, except a 0.04 mm³ cover to upper arm overlap at every pose, unchanged and negligible, and a zero-volume carrier to fork touch at elbow 0, the rest stop.
+- Control: the same sweep reports fork and RS00 into the upper arm at 150 and 170 degrees, and fork into carrier at -10 degrees, so the check does detect collisions.
+- Lower-arm yaw moves only the hand, which is not modelled, so the yaw cases cover RS00 turned as a whole, which is conservative. Not included: screws, washers, the 6808 and the hand.
 
 ## Stack along the elbow axis, arm coordinates
 
