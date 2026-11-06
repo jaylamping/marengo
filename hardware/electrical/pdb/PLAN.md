@@ -302,6 +302,12 @@ fault, clamp activation, over-temperature. On any event it freezes a **black box
 with its own waveform. The Consul dashboard already has a dummy `PowerBoardMetrics` card (`consul/src/data/power-metrics.ts`,
 "replace with shunt telemetry from custom board later"). The channel list above is what the code project would wire into it.
 
+**Derived pack values** (battery thread 07:30Z; supervisor firmware or host): cell spread (max minus min), balance-on time per
+cell, a running pack DCIR estimate from load steps (ΔV/ΔI) to track ageing, cycle count and lifetime Ah/Wh throughput, peak
+current and peak pack temperature per session, and a timestamped fault log (OV, UV, OC, OT, open-wire) in the supervisor's
+non-volatile memory so it survives a pack swap. A third pack NTC by the pack fuse: the BQ76952 has spare multi-function pins
+that can read thermistors (verify), but the 2 × 9 connector is full, so it costs a 2 × 10 Micro-Fit. Recommended, cheap.
+
 **Per-motor current.** The board measures each limb exactly. Per motor it relies on the drives' own reports, and the
 supervisor reconciles the sum against the limb meter (the residual is wiring loss or error). If Joey wants measured current
 per motor as well, the trunk junction boards can carry a sense chip, which needs a small MCU on CAN at each one. That is the
