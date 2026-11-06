@@ -174,12 +174,12 @@ def bolt_bracket(p, idx):
         # the member is on the side of the leg that is away from the bracket corner: the corner lies at the start of the long leg direction
         other = p['boxes'][1 - li]; ocen = [(other[0][k] + other[1][k]) / 2 for k in range(3)]
         sign = 1 if ocen[t_ax] < cen[t_ax] else -1      # member is opposite to the other leg
-        head = cen.copy(); head[t_ax] = hi[t_ax] if sign > 0 else lo[t_ax]
-        head[L] = cen[L] + (0 if True else 0)
+        head = cen.copy(); head[t_ax] = lo[t_ax] if sign > 0 else hi[t_ax]   # gate 2: head on the leg's open face (was on the member side, inside the leg)
+        head[L] += 2.5 if cen[L] > ocen[L] else -2.5   # gate 2: the two heads met in the inside corner; holes 2.5 mm further out along the leg
         FAST['m5'] += 1; FAST['tnut'] += 1
         screw(f"f{idx}_{li}", 35, 'M5 x 10 button head + T-nut (brackets)', 'xyz'[t_ax], head, sign, p['explode'], balloon=(idx == 0 and li == 0))
         slot_ax = [k for k in range(3) if k not in (t_ax, L)][0]
-        tn = cen.copy(); tn[t_ax] = lo[t_ax] if sign > 0 else hi[t_ax]
+        tn = head.copy(); tn[t_ax] = hi[t_ax] if sign > 0 else lo[t_ax]   # gate 2: nut behind the member face (was 4 mm shallow)
         tnut(f"t{idx}_{li}", 35, 'M5 T-nut', 'xyz'[t_ax], tn, sign, p['explode'], 'xyz'[L] if abs(cen[L]) < 1e9 else 'xyz'[slot_ax])
 for idx, p in enumerate([q for q in parts if q['group'] == 'bracket']):
     bolt_bracket(p, idx)
@@ -209,7 +209,8 @@ for sx in (1, -1):
     # Bolt size not in CAD (slots fit M5/M6): M5 assumed, checked on the built robot.
     for k, (yy, zz) in enumerate(((363.69, 0), (485.0, 0), (424.7, 60), (424.7, -60))):
         FAST['m5'] += 1; FAST['tnut'] += 1
-        screw(f'pb{sx}_{k}', 39, 'M5 x 12 button head + T-nut, pitch bracket ears to the step side rail, top side rail and upper posts (8; real slot positions, bolt size assumed)', 'x', [sx * 89, yy, zz], sx, (sx * 80, 70, 0), balloon=(sx > 0 and k == 0), length=12)
+        screw(f'pb{sx}_{k}', 39, 'M5 x 10 button head + T-nut, pitch bracket ears to the step side rail, top side rail and upper posts (8; real slot positions, bolt size assumed; gate 2: x12 bottomed in the slot)', 'x', [sx * 89, yy, zz], sx, (sx * 80, 70, 0), balloon=(sx > 0 and k == 0), length=10)
+        tnut(f'pbt{sx}_{k}', 39, 'M5 T-nut', 'x', [sx * 93, yy, zz], sx, (sx * 80, 70, 0), 'z' if zz == 0 else 'y')   # gate 2: these nuts were counted but not drawn
     for k in range(8):
         ang = math.radians(k * 45 + 22.5); FAST['m4'] += 1
         screw(f'c{sx}_{k}', 38, 'M4 x 10 button head, collar on the RS03 outboard holes (16)', 'x', [sx * (RS03_OUT + 3), Y_SHOULDER + 49 * math.cos(ang), 49 * math.sin(ang)], -sx, (sx * 200, 70, 0), balloon=(k == 0 and sx > 0), dia=4, head_d=7.5, head_h=4, length=10, color='#cfae4a')
@@ -222,28 +223,34 @@ box('shelf', 14, 'Compute shelf plate (existing: X +-55 between the shelf rails,
 box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, 376, -71.8), (19.7, 397, 13.2), COL['pi'], 'electronics',
     (0, 70, 0), balloon=True, mass_g=110, material='electronics', note='Position from the arm thread CAD check; ports face the rear (-Z) and reach Z -71.8')
 # power and peripheral board (board thread, main 0b6a6ef, hardware/electrical/pdb/PLAN.md s.5-6): two PCBs coplanar on one carrier, 6 x M3 at X +-46, Y 194/265/336.
-# Rear face moved from Z 34 to 37.5: 3 mm air plus a 0.5 mm insulating sheet over the pack lid (board thread ask 1). Front face Z 61.5, 8.5 mm to the front rail plane.
+# Rear face moved from Z 34 to 37.5: 3 mm air plus a 0.5 mm insulating sheet over the pack lid (board thread ask 1). Front face Z 61.5, 8.5 mm behind the frame front face (Z 70; the front rails are only at Y 155-175 and 353.6-373.6, so the board sees open space between the posts).
 PDB_Z0 = PK_Z1 + 3.5
-box('pdb', 16, 'Power and logic boards on one carrier (BMS onboard): power board ~100 x 95 (13S BMS, fuse, precharge, contactor, motor ports, DC-DC at Y 250-290 in the intake jet) on 6 mm standoffs', (-50, 245, PDB_Z0 + 6), (50, 340, PDB_Z0 + PSU_T), COL['pdb'], 'electronics',
+box('pdb', 16, 'Power and logic boards on one carrier (BMS onboard): power board ~100 x 95 (13S BMS, fuse, precharge, contactor, motor ports, DC-DC at Y 250-290 in the intake jet) on 6 mm standoffs', (-50, 245, PDB_Z0 + 10), (50, 340, PDB_Z0 + PSU_T), COL['pdb'], 'electronics',
     (0, 0, 120), balloon=True, mass_g=180, material='PCB + parts, 100 x 95 x 18', opacity=0.7,
     note='Board thread plan main 0b6a6ef. Top edge: pack XT90 + 16-pin balance (rear face), both arm ports, USB to the Pi, fan leads. Sides: E-stop loop, charge port, sensors.')
-box('pdb_logic', 16, 'Logic / peripheral board ~100 x 55 below the power board, same carrier', (-50, 190, PDB_Z0 + 6), (50, 243, PDB_Z0 + PSU_T), COL['pdb'], 'electronics', (0, 0, 120), mass_g=70, material='PCB + parts, 100 x 55 x 18', opacity=0.7,
+box('pdb_logic', 16, 'Logic / peripheral board ~100 x 55 below the power board, same carrier', (-50, 190, PDB_Z0 + 10), (50, 243, PDB_Z0 + PSU_T), COL['pdb'], 'electronics', (0, 0, 120), mass_g=70, material='PCB + parts, 100 x 55 x 18', opacity=0.7,
     note='Bottom edge: waist and leg ports, brake resistor lead.')
-box('pdb_sheet', 16, 'Insulating sheet 0.5 mm (Nomex or FR4) over the pack lid, 3 mm air gap to the board', (-50, 190, PK_Z1), (50, 340, PK_Z1 + 0.5), '#e8e2c0', 'electronics', (0, 0, 90), mass_g=5, material='Nomex 410 0.5 mm', opacity=0.8)
-box('pdb_carrier', 16, 'Board carrier, printed, on the lower post inner faces; holds the two PCBs coplanar on M3 standoffs', (-50, 190, PDB_Z0), (50, 340, PDB_Z0 + 4), COL['printed'], 'electronics', (0, 0, 100), mass_g=60, material='PETG print 100 x 150 x 4', opacity=0.8)
+box('pdb_sheet', 16, 'Insulating sheet 0.5 mm (Nomex or FR4) over the pack lid, between the tray rails, 3 mm air gap to the carrier', (-47.5, 190, PK_Z1), (47.5, 340, PK_Z1 + 0.5), '#e8e2c0', 'electronics', (0, 0, 90), mass_g=5, material='Nomex 410 0.5 mm', opacity=0.8)
+box('pdb_carrier', 16, 'Board carrier, printed, screwed to the front ends of the pack tray rails (gate 2: it had no attachment); holds the two PCBs coplanar on 6 mm M3 standoffs', (-55, 190, PDB_Z0), (55, 340, PDB_Z0 + 4), COL['printed'], 'electronics', (0, 0, 100), mass_g=60, material='PETG print 100 x 150 x 4', opacity=0.8)
 for k, (xx, yy) in enumerate(((46, 194), (-46, 194), (46, 265), (-46, 265), (46, 336), (-46, 336))):
-    screw(f'pdb_m3_{k}', 16, 'M3 x 8 + 6 mm standoff, board to carrier (6, 6 mm keep-out pads at X +-46, Y 194/265/336)', 'z', [xx, yy, PDB_Z0 + PSU_T], -1, (0, 0, 150), balloon=(k == 0), dia=3, head_d=5.5, head_h=1.7, length=8, color='#c9b86a')
-    FAST['m3'] = FAST.get('m3', 0) + 1
+    # gate 2: the screws floated 10 mm above the carrier. Now: M3 x 6 through the 1.6 mm PCB into a 6 mm F-F standoff on the carrier, second M3 x 6 from the carrier rear
+    screw(f'pdb_m3_{k}', 16, 'M3 x 6 (2 per standoff) + 6 mm F-F standoff, board to carrier (6 standoffs, 6 mm keep-out pads at X +-46, Y 194/265/336)', 'z', [xx, yy, PDB_Z0 + 11.6], -1, (0, 0, 150), balloon=(k == 0), dia=3, head_d=5.5, head_h=1.7, length=6, color='#c9b86a')
+    cyl(f'pdb_so_{k}', 16, 'M3 F-F standoff 6 mm', 'z', (xx, yy, PDB_Z0 + 7), 2.75, 6, '#c9b86a', 'fastener', (0, 0, 130), mass_g=1, material='brass')
+    FAST['m3'] = FAST.get('m3', 0) + 2
 # brake resistor (board thread ask 3): 50 W aluminium-clad, 25 x 50 x 8, on the inner face of the front bottom rail, under the logic board's bottom edge, in the intake downdraft
 box('brake_res', 16, 'Brake resistor 50 W aluminium-clad 25 x 50 x 8 on the inner face of the -X bottom side rail (M3 T-nuts), below the pack tray rail, two-wire lead to the logic board bottom edge', (-55, 155, -25), (-47, 180, 25), '#9a9ea6', 'electronics', (-60, -40, 0), balloon=True, mass_g=40, material='TO-247 class 50 W, 2 x M3')
 # harness trunks: Pi/PDB to each shoulder RS03 and down to the waist
 for sx in (1, -1):
-    cyl(f'harness_shoulder_{sx}', 27, 'Harness trunks: shoulder RS03 connector runs (right-angle exit inboard from the rear-boss flat, flat A assumed), step bus, two front-corner drops', 'x', (sx * 60, 452, -27), 5, 36, '#d8b84a', 'harness', (0, 70, 0), balloon=(sx > 0), mass_g=40, material='silicone 14 AWG + CAN pair', opacity=0.95)
-    cyl(f'harness_down_{sx}', 27, 'Harness trunk down the front corner in front of the board face, beside the post (X +-47..55, Z 62..70): arm pigtails up, waist/leg runs down', 'y', (sx * 51, 265, 66), 4, 210, '#d8b84a', 'harness', (0, -70, 0), mass_g=60, material='silicone 12-14 AWG + CAN', opacity=0.95)
+    # gate 2: was X +-42..78 and ran through the Jetson (X +-51.5). Now stops at |X| 52 and turns behind the Jetson (Z -58, 12 mm of air behind its rear face)
+    cyl(f'harness_shoulder_{sx}', 27, 'Harness trunks: shoulder RS03 connector runs (right-angle exit inboard from the rear-boss flat, flat A assumed), then behind the Jetson to the centre', 'x', (sx * 65, 452, -27), 5, 26, '#d8b84a', 'harness', (0, 70, 0), balloon=(sx > 0), mass_g=40, material='silicone 14 AWG + CAN pair', opacity=0.95)
+# side band trunk below
 box('harness_pack', 27, 'Cable path reserved: pack power (10 AWG pair) and sense harness from the HP top edge over the pack top edge to the XT90S and sense board at the pack rear top corner (8.6 mm under the shared rail)', (-35, 345, -45), (30, 353.6, 37.5), '#d8b84a', 'harness', (0, 0, 0), balloon=True, mass_g=30, material='reserved path', opacity=0.6)
-box('harness_step', 27, 'Cable path reserved: 12 V, USB, CAN and fan leads from the boards up through the gap between the shelf plate and the shared front rail (Z 50-60) to the Pi stub and the upper bay', (33, 340, 50), (45, 376, 60), '#d8b84a', 'harness', (0, 0, 0), mass_g=10, material='reserved path', opacity=0.6)
+# gate 2: there is NO gap between the shelf (Z <= 50) and the shared front rail (Z 50-70); the old harness_step box sat in the aluminium.
 for sx in (1, -1):
-    box(f'harness_side_{sx}', 27, 'Cable path reserved: side-band pigtails (waist, aux, legs, charge) in the Z 40-50 band between the posts and the tray rails, dropping past the LP board to inline connectors below Y 190', (min(sx*50, sx*55), 160, 40), (max(sx*50, sx*55), 300, 50), '#d8b84a', 'harness', (sx*40, 0, 0), balloon=(sx>0), mass_g=15, material='reserved path', opacity=0.6)
+    box(f'harness_step_{sx}', 27, 'OPEN (Joey decision): no cable passage from the lower box to the upper bay exists. PROPOSED: 10 x 10 notch in each front corner of the printed shelf plate (|X| 45-55, Z 40-50) for the arm pigtails, 12 V, USB, CAN and fan leads', (min(sx * 45, sx * 55), 354.6, 40), (max(sx * 45, sx * 55), 372.6, 50), '#d8b84a', 'harness', (0, 0, 0), mass_g=5, material='proposed notch', opacity=0.6)
+for sx in (1, -1):
+    box(f'harness_side_{sx}', 27, 'Cable trunk, side band X +-50..55, Z 42..50 (5 x 8 mm per side, tight: board thread to confirm bundle size): arm pigtails up to the proposed shelf corner notch, waist/aux/leg/charge pigtails down past the LP board to inline connectors below Y 190. Gate 2: replaces the front-corner path at Z 62-70, which ran through the front rails and 8 corner brackets', (min(sx*50, sx*55), 160, 42), (max(sx*50, sx*55), 353.6, 50), '#d8b84a', 'harness', (sx*40, 0, 0), balloon=(sx>0), mass_g=15, material='reserved path', opacity=0.6)
+cyl('harness_shoulder_x', 27, 'Shoulder harness cross run behind the Jetson (Z -58), joins both shoulder runs to the step bus', 'x', (0, 452, -58), 5, 104, '#d8b84a', 'harness', (0, 70, 0), mass_g=20, material='silicone 14 AWG + CAN pair', opacity=0.95)
 box('imu_old', 15, 'BNO085 IMU (existing)', (30, Y_STEP_HI + 3, -10), (50, Y_STEP_HI + 9, 10), '#8fd36b', 'electronics', (0, 70, 0), mass_g=5, material='electronics')
 
 # ---- waist interface ---------------------------------------------------------------------------
@@ -274,12 +281,14 @@ for hid, h in HP.items():
         tier = 0
         FAST['m5'] += 1; FAST['tnut'] += 1
         hp = [x, y, z]; hp['xyz'.index('xyz'[[k for k in range(3) if n[k]][0]])] += (t if n[[k for k in range(3) if n[k]][0]] > 0 else -t)
-        screw(f'hf_{hid}_{i}', 37, 'M5 x 20 button head + T-nut (shell hardpoints, 20; 16 left ~2 mm of thread through 12 mm of PETG)', 'xyz'[[k for k in range(3) if n[k]][0]], hp, -[v for v in n if v][0], (n[0] * 40, 0, n[2] * 40), balloon=(hid == 'H1' and i == 0), length=20)
+        screw(f'hf_{hid}_{i}', 37, 'M5 x 18 button head + T-nut (shell hardpoints; gate 2: x20 bottomed in the slot before clamping 12 mm of PETG, x16 left ~2 mm of thread)', 'xyz'[[k for k in range(3) if n[k]][0]], hp, -[v for v in n if v][0], (n[0] * 40, 0, n[2] * 40), balloon=(hid == 'H1' and i == 0), length=18)
+        ax = 'xyz'[[k for k in range(3) if n[k]][0]]
+        tnut(f'hft_{hid}_{i}', 37, 'M5 T-nut', ax, [x, y, z], -[v for v in n if v][0], (n[0] * 40, 0, n[2] * 40), 'x' if ax == 'z' else ('z' if hid == 'H6' else 'y'))   # gate 2: counted, not drawn
         box(f'{hid}_{i}', h['item'], f'Shell hardpoint bracket {hid}, PETG with M3 inserts, on M5 T-nut', lo, hi, COL['hard'], 'hardpoint',
             (n[0] * 40, 0, n[2] * 40), balloon=True, tag=hid, mass_g=8, material='PETG print', carries=h['carries'])
 
 # spine rail lip: bridges the two rear H3 brackets; the D2 battery door's magnets close onto it (shell thread, main 761c62b). Stays below Y 374 (Pi ports).
-box('spine_rail', 21, 'Spine rail lip on the H3 rear brackets, |X| <= 60, Y 355-372, 12 mm proud of the frame rear face: magnet catch for the D2 battery door (shell thread, main 761c62b)', (-60, 355, -82), (60, 372, -70), COL['hard'], 'hardpoint',
+box('spine_rail', 21, 'Spine rail lip on the H3 rear brackets, |X| <= 52 (gate 2: |X| <= 60 hit the rear gussets and their screw heads), Y 355-372, 12 mm proud of the frame rear face: magnet catch for the D2 battery door (shell thread, main 761c62b)', (-52, 355, -82), (52, 372, -70), COL['hard'], 'hardpoint',
     (0, 0, -40), balloon=True, tag='H3 rail', mass_g=12, material='PETG print, part of H3 rear', carries='D2 door magnets (3), joins the two H3 rear brackets')
 # ---- packaging envelopes for Joey's component list (2026-11-06): proposed positions, not designed parts ----
 PRO = '#26b3c9'
@@ -296,7 +305,7 @@ box('pack', 32, '13S2P 21700 pack, 95 x 162 x 79, 2.2 kg: 26 x Molicel P45B/P50B
 box('pack_sense', 32, 'Pack sense board 40 x 25 x 10 on the pack rear face, top corner by the XT90 (2 x 9 Micro-Fit to the power board; battery thread layout, board thread main 79d1e88)', (5, 318, PK_Z1 - PK_D - 10), (45, 343, PK_Z1 - PK_D), COL['pdb'], 'electronics', (0, 0, -90), mass_g=12, material='PCB 40 x 25 x 10', opacity=0.8,
     note='Rides on the pack, 15 mm inside the frame rear face, inside the D2 opening (|X| <= 60), so it slides out with the pack.')
 for sx in (1, -1):
-    box(f'packrail_{sx}', 40, 'Pack tray rails, printed, on the lower post inner faces (2)', (min(sx * 47.5, sx * 55), 180, -50), (max(sx * 47.5, sx * 55), 348, 40), COL['printed'], 'electronics', (0, 0, -60), balloon=(sx > 0), mass_g=40, material='PETG print', opacity=0.8)
+    box(f'packrail_{sx}', 40, 'Pack tray rails, printed, on the lower post inner faces (2)', (min(sx * 47.5, sx * 55), 180, -50), (max(sx * 47.5, sx * 55), 348, 37.5), COL['printed'], 'electronics', (0, 0, -60), balloon=(sx > 0), mass_g=40, material='PETG print', opacity=0.8)
 box('pi_stub', 16, 'Pi power stub 30 x 20 x 10 on the compute shelf beside the Pi: 12 V lead from the logic board, 5 V into the GPIO header (board thread PLAN.md 6a, main e7d0b62)', (22, Y_STEP_HI, 20), (52, Y_STEP_HI + 10, 40), COL['pdb'], 'electronics', (0, 80, 0), balloon=True, mass_g=10, material='PCB 30 x 20 x 10', opacity=0.8)
 box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 70, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
 # ---- spine pads (rear crush pads, outside the shell; shell manufacturing thread geometry, main c38d83e shell rev B: four pads, bridges removed for the D2 battery door) ----

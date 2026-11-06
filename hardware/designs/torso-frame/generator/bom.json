@@ -122,8 +122,8 @@
  {
   "item": 16,
   "name": "Power and logic boards on one carrier",
-  "qty": 12,
-  "mass_g": 377,
+  "qty": 18,
+  "mass_g": 383,
   "material": "PCB + parts, 100 x 95 x 18",
   "group": "electronics"
  },
@@ -211,7 +211,7 @@
   "item": 27,
   "name": "Harness trunks: shoulder RS03 connector runs",
   "qty": 8,
-  "mass_g": 270,
+  "mass_g": 170,
   "material": "silicone 14 AWG + CAN pair",
   "group": "harness"
  },
@@ -289,9 +289,9 @@
  },
  {
   "item": 37,
-  "name": "M5 x 20 button head + T-nut",
-  "qty": 20,
-  "mass_g": 40,
+  "name": "M5 x 18 button head + T-nut",
+  "qty": 40,
+  "mass_g": 100,
   "material": "M5 button head",
   "group": "fastener"
  },
@@ -305,9 +305,9 @@
  },
  {
   "item": 39,
-  "name": "M5 x 12 button head + T-nut, pitch bracket ears to the step side rail, top side rail and upper posts",
-  "qty": 8,
-  "mass_g": 16,
+  "name": "M5 x 10 button head + T-nut, pitch bracket ears to the step side rail, top side rail and upper posts",
+  "qty": 16,
+  "mass_g": 40,
   "material": "M5 button head",
   "group": "fastener"
  },
