@@ -23,7 +23,7 @@ Buy list with links: [BUY_LIST.md](BUY_LIST.md).
 
 | Seg | From | To | Crosses | Est. routed | Cut |
 |-----|------|----|---------|-------------|-----|
-| S0 | Board L-arm port | M11 splice (torso, at pitch RS03 top-rear flat) | — | ~300 mm | 400 mm |
+| S0 | Board pigtail's inline XT30(2+2)-F (at frame step corner, ~Y 360 to 380, behind a removable panel) | M11 splice (torso, at pitch RS03 top-rear flat) | — | ~150 mm (pigtail from the board, ~250 mm, is the board thread's) | 200 mm |
 | S1 | M11 splice | M12 splice (P1, roll RS03 housing) | pitch, 230° | ~350 mm (crossing provisional) | 450 mm |
 | S2 | M12 splice | M13 splice (P2, yaw RS02 housing) | roll, 195° | ~300 mm (crossing provisional) | 400 mm |
 | S3 | M13 splice | M14 splice (upper arm, shoulder end of tube) | yaw ±90° twist (~185 mm free) + elbow slack loop (~130 mm stored) | ~400 mm | 500 mm |
@@ -48,7 +48,7 @@ Fuse values are provisional until the board's limb meter gives measured current.
 
 ## Connectors and pinout
 
-- **Board port:** XT30(2+2)-F on the board, XT30(2+2)-M on the trunk (power board PLAN.md 3.5).
+- **Board port:** the board has no room for a plug, so each arm port is a short pigtail (ring lugs + CAN header on the board) ending in an inline XT30(2+2)-F; the trunk starts with XT30(2+2)-M (power board design README 1a, main 9ce67a0).
 - **Joint breaks (recommended):** XT30 pair for power with the **female on the upstream (live) side**, plus a JST-GH 2-pin latching pair for CAN. Four breaks: J1 to J4.
 - **RS02 / RS00 plug:** AMASS XT30(2+2)-F.G.B. VBAT+ and GND on the blades; CAN-L and CAN-H on the signal pins (vendor diagram: CAN-L above CAN-H, beside GND).
 - **RS03 plugs:** AMASS XT30UW-F (VBAT+, GND) and GH1.25-T 2-pin (CAN-H, CAN-L per vendor diagram).

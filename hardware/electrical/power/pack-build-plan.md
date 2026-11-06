@@ -65,6 +65,13 @@ to put it on the pack instead and found two, neither strong enough:
    in section 7 cover the rest.
 2. *Swap-and-charge.* Not needed for a robot that runs about 2 hours per charge on the bench (estimate, pack doc section 2).
 
+### Where the pack mates (board thread, main 9ce67a0)
+
+Both connectors mate at the **pack's rear top corner, behind the D2 door**. The board's leads (a ring-lugged 10 AWG pair and
+the sense harness) run over the pack's top edge, which has 8.6 mm of headroom, to an XT90 and a 2 × 10 plug. On the pack
+side: a short XT90S pigtail (about 60 mm, 10 AWG) from the fuse, and the sense board's header on the rear face at X 5 to 45,
+Y 318 to 343. Both are parked in a printed holder on the case so nothing hangs loose when the door is open.
+
 ### Connector mating rule (agreed)
 
 **Sense connector in first, XT90 last. XT90 out first, sense connector last.** The board thread is checking the BQ76952's
