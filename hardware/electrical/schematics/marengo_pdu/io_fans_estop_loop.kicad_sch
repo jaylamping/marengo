@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "21719ad6-3113-5496-b721-de5e453d55f5")
+	(paper "A4")
+	(title_block
+		(title "io_fans_estop_loop")
+		(date "2026-11-06")
+		(rev "A-wip")
+		(company "marengo")
+		(comment 1 "Placeholder, not yet captured")
+	)
+	(lib_symbols)
+	(text "Placeholder. Not yet captured."
+		(exclude_from_sim no)
+		(at 25.4 35.56 0)
+		(effects
+			(font
+				(size 2 2)
+			)
+			(justify left top)
+		)
+		(uuid "120b653d-551f-5cc6-b52c-c42dda5b9f12")
+	)
+	(embedded_fonts no)
+)

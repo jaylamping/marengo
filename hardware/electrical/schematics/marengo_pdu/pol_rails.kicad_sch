@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "2862e873-bdea-5f0a-b728-5ed79e73d344")
+	(paper "A4")
+	(title_block
+		(title "pol_rails")
+		(date "2026-11-06")
+		(rev "A-wip")
+		(company "marengo")
+		(comment 1 "Placeholder, not yet captured")
+	)
+	(lib_symbols)
+	(text "Placeholder. Not yet captured."
+		(exclude_from_sim no)
+		(at 25.4 35.56 0)
+		(effects
+			(font
+				(size 2 2)
+			)
+			(justify left top)
+		)
+		(uuid "2dc16d01-18b3-530f-8d47-a1cabd312fef")
+	)
+	(embedded_fonts no)
+)

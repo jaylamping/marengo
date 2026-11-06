@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "486994b7-ac66-5866-bc4b-76b7b57c8564")
+	(paper "A4")
+	(title_block
+		(title "vmot_bulk_clamp: VMOT bulk, TVS, regen clamp")
+		(date "2026-11-06")
+		(rev "A-wip")
+		(company "marengo")
+		(comment 1 "Placeholder, not yet captured")
+	)
+	(lib_symbols)
+	(text "Placeholder. Not yet captured."
+		(exclude_from_sim no)
+		(at 25.4 35.56 0)
+		(effects
+			(font
+				(size 2 2)
+			)
+			(justify left top)
+		)
+		(uuid "4886f9d0-92d6-50e0-b4b1-1cf88e46683a")
+	)
+	(embedded_fonts no)
+)

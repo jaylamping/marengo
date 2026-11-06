@@ -1,0 +1,507 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "fc2d61a0-8a30-563f-b2e0-e7ee050898fc")
+	(paper "A3")
+	(title_block
+		(title "LP_logic_board: low-power board")
+		(date "2026-11-06")
+		(rev "A-wip")
+		(company "marengo")
+	)
+	(lib_symbols)
+	(sheet
+		(at 38.1 38.1)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "9fa0657e-d8c7-53fa-aaf5-5dbccfe2779d")
+		(property "Sheetname" "supervisor_mcu"
+			(at 38.1 37.3884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "supervisor_mcu.kicad_sch"
+			(at 38.1 59.0046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "14")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 101.6 38.1)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "32c336be-4109-5974-be29-5b49b9d11648")
+		(property "Sheetname" "can_bridges_usb_hub"
+			(at 101.6 37.3884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "can_bridges_usb_hub.kicad_sch"
+			(at 101.6 59.0046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "15")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 38.1 81.28)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "affc3ec5-661d-594f-b5c7-14cdd95d0b5c")
+		(property "Sheetname" "isolated_can_1"
+			(at 38.1 80.5684 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "isolated_can.kicad_sch"
+			(at 38.1 102.1846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "16")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 91.44 81.28)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "f8c157f6-f88c-596f-b957-28796a964992")
+		(property "Sheetname" "isolated_can_2"
+			(at 91.44 80.5684 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "isolated_can.kicad_sch"
+			(at 91.44 102.1846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "17")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 144.78 81.28)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "f34de623-a930-567c-8cf9-fca098df6fee")
+		(property "Sheetname" "isolated_can_3"
+			(at 144.78 80.5684 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "isolated_can.kicad_sch"
+			(at 144.78 102.1846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "18")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 198.12 81.28)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "baf4d400-47d5-57e1-b9c5-8cdfa2252842")
+		(property "Sheetname" "isolated_can_4"
+			(at 198.12 80.5684 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "isolated_can.kicad_sch"
+			(at 198.12 102.1846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "19")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 251.46 81.28)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "730a0df3-ac0c-5898-912d-9fd50e58f455")
+		(property "Sheetname" "isolated_can_5"
+			(at 251.46 80.5684 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "isolated_can.kicad_sch"
+			(at 251.46 102.1846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "20")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 304.8 81.28)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "df47e322-7e09-5e6d-a7f3-d4e97b516e9b")
+		(property "Sheetname" "isolated_can_6"
+			(at 304.8 80.5684 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "isolated_can.kicad_sch"
+			(at 304.8 102.1846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "21")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 38.1 124.46)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "1c5f62e0-d30d-57c9-b525-832ec149bd48")
+		(property "Sheetname" "front_end_12v_24v"
+			(at 38.1 123.7484 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "front_end_12v_24v.kicad_sch"
+			(at 38.1 145.3646 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "22")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 101.6 124.46)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "b43b68f6-8c5e-5bd7-b839-c40d9b131d2e")
+		(property "Sheetname" "pol_rails"
+			(at 101.6 123.7484 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "pol_rails.kicad_sch"
+			(at 101.6 145.3646 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "23")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 165.1 124.46)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "fefb82fc-ad0c-51e7-aadf-fc3f3de498ce")
+		(property "Sheetname" "rail_switches_meters"
+			(at 165.1 123.7484 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "rail_switches_meters.kicad_sch"
+			(at 165.1 145.3646 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "24")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 228.6 124.46)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "aa0c3c5b-d4bb-5995-924d-17c6f230454d")
+		(property "Sheetname" "io_fans_estop_loop"
+			(at 228.6 123.7484 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "io_fans_estop_loop.kicad_sch"
+			(at 228.6 145.3646 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c"
+					(page "25")
+				)
+			)
+		)
+	)
+	(embedded_fonts no)
+)

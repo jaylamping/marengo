@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "029c896e-4789-5080-8d74-6f3805743e70")
+	(paper "A4")
+	(title_block
+		(title "isolated_can: one isolated CAN channel (instanced x6)")
+		(date "2026-11-06")
+		(rev "A-wip")
+		(company "marengo")
+		(comment 1 "Placeholder, not yet captured")
+	)
+	(lib_symbols)
+	(text "Placeholder. Not yet captured."
+		(exclude_from_sim no)
+		(at 25.4 35.56 0)
+		(effects
+			(font
+				(size 2 2)
+			)
+			(justify left top)
+		)
+		(uuid "de2d185d-cc7f-5ee5-bea7-5de54346bd13")
+	)
+	(embedded_fonts no)
+)

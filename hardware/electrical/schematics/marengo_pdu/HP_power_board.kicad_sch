@@ -1,0 +1,660 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "40f43ab9-bda0-5bef-97e1-807cfd0d7023")
+	(paper "A3")
+	(title_block
+		(title "HP_power_board: high-power board")
+		(date "2026-11-06")
+		(rev "A-wip")
+		(company "marengo")
+	)
+	(lib_symbols)
+	(sheet
+		(at 38.1 38.1)
+		(size 50.8 48.26)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "faf4e342-1617-57fb-bd2d-7a33c6d20eea")
+		(property "Sheetname" "pack_input_shunt_afe"
+			(at 38.1 37.3884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "pack_input_shunt_afe.kicad_sch"
+			(at 38.1 86.9446 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(pin "PACK+" passive
+			(at 88.9 40.64 0)
+			(uuid "2801e6d5-30e0-598f-b860-c4978fccd91d")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "PACK_TOP" passive
+			(at 88.9 43.18 0)
+			(uuid "605d3cfd-0662-5544-89b0-5f51ffe4aea7")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "CHG_GATE" output
+			(at 88.9 45.72 0)
+			(uuid "ffd3ad24-2a2b-5480-8e5f-00faff3b1db9")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "DSG_GATE" output
+			(at 88.9 48.26 0)
+			(uuid "f283dbf8-29fa-5597-a715-55001392aed4")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "PCHG" output
+			(at 88.9 50.8 0)
+			(uuid "8b67cd07-29c4-5f1f-b00f-4f7793edaa85")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "I2C_SDA" bidirectional
+			(at 88.9 53.34 0)
+			(uuid "54bdf5ac-34fa-55fc-88c3-a5c41c4c7488")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "I2C_SCL" bidirectional
+			(at 88.9 55.88 0)
+			(uuid "78520bc7-01a2-5339-8e28-93ed42b69e01")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "ALERT" output
+			(at 88.9 58.42 0)
+			(uuid "dadb562d-c572-5ae0-ab34-df8c869763af")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "DFETOFF" input
+			(at 88.9 60.96 0)
+			(uuid "9b0a521b-7882-5e32-bba1-865fdcd7030e")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "RST_SHUT" input
+			(at 88.9 63.5 0)
+			(uuid "805b9caf-16a3-5f93-98c9-6209ce8d5bae")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "NTC1" input
+			(at 88.9 66.04 0)
+			(uuid "4e2905d7-7cf5-56a3-829a-d0d4224a25ea")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "NTC2" input
+			(at 88.9 68.58 0)
+			(uuid "e1475473-fc45-5a07-bf41-c2a3c2191666")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "NTC3" input
+			(at 88.9 71.12 0)
+			(uuid "b4aca40d-c196-56e8-a67e-dc1fbaeebec4")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "BOARD_NTC" input
+			(at 88.9 73.66 0)
+			(uuid "34df538e-0a85-57b2-970e-773afa6884bc")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "PACK_PRESENT_N" passive
+			(at 88.9 76.2 0)
+			(uuid "4a0da34e-47c5-5696-8404-0703588e43e6")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "TS2_WAKE" input
+			(at 88.9 78.74 0)
+			(uuid "ecb897f0-3970-566f-af00-ac81f3b98f18")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "3")
+				)
+			)
+		)
+	)
+	(no_connect
+		(at 88.9 40.64)
+		(uuid "6cb0148d-2f9a-5eda-957b-aea1768f29c1")
+	)
+	(no_connect
+		(at 88.9 43.18)
+		(uuid "3e65f9f1-e258-50fb-856b-3e20880914ae")
+	)
+	(no_connect
+		(at 88.9 45.72)
+		(uuid "ee09d1e9-5311-53df-bfb8-3796ddb5d1da")
+	)
+	(no_connect
+		(at 88.9 48.26)
+		(uuid "6daf89bd-031c-5434-b25b-32e6309347b5")
+	)
+	(no_connect
+		(at 88.9 50.8)
+		(uuid "ba383aeb-15a2-5fd7-85b0-ccf35b92c6dd")
+	)
+	(no_connect
+		(at 88.9 53.34)
+		(uuid "732ba0d4-a14e-5d0f-9c01-3189893a9a95")
+	)
+	(no_connect
+		(at 88.9 55.88)
+		(uuid "b7754913-14aa-5ff8-b169-d8aaeed42944")
+	)
+	(no_connect
+		(at 88.9 58.42)
+		(uuid "a2ec57a0-b5fb-5d9e-9fb4-533a56172853")
+	)
+	(no_connect
+		(at 88.9 60.96)
+		(uuid "287e4dbd-0f49-58de-b515-9ddaf633cd2e")
+	)
+	(no_connect
+		(at 88.9 63.5)
+		(uuid "36b37813-93bd-5eaa-bacf-10c3faab27af")
+	)
+	(no_connect
+		(at 88.9 66.04)
+		(uuid "2af6810b-357b-5c42-b68a-ecf56c88f200")
+	)
+	(no_connect
+		(at 88.9 68.58)
+		(uuid "b3349517-4f7f-58dd-93e4-bfd9e7d7ae70")
+	)
+	(no_connect
+		(at 88.9 71.12)
+		(uuid "e67a7304-060e-5016-b776-8aef835f8dbc")
+	)
+	(no_connect
+		(at 88.9 73.66)
+		(uuid "a7f4e77d-bebc-5675-9415-b443e0411df2")
+	)
+	(no_connect
+		(at 88.9 76.2)
+		(uuid "42d23e48-088f-59f7-a6c0-2964a7b577f1")
+	)
+	(no_connect
+		(at 88.9 78.74)
+		(uuid "b42f6626-acf0-5ebc-98a8-e5f3a2fb15ac")
+	)
+	(text "Sheet pins carry no-connect flags until the FET, E-stop and LP sheets exist."
+		(exclude_from_sim no)
+		(at 38.1 27.94 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "16b9b468-64cb-5af3-8948-092f10af34c9")
+	)
+	(sheet
+		(at 38.1 109.22)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "9bee7a75-ab13-57dd-9d33-ef5e0c3e5ee4")
+		(property "Sheetname" "bms_fets_precharge"
+			(at 38.1 108.5084 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "bms_fets_precharge.kicad_sch"
+			(at 38.1 130.1246 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "4")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 101.6 109.22)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "4cbdfc49-700b-594f-ae64-34b973495964")
+		(property "Sheetname" "estop_banks"
+			(at 101.6 108.5084 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "estop_banks.kicad_sch"
+			(at 101.6 130.1246 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "5")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 165.1 109.22)
+		(size 50.8 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "feafff58-5589-5071-b3e1-40195090d9ef")
+		(property "Sheetname" "vmot_bulk_clamp"
+			(at 165.1 108.5084 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "vmot_bulk_clamp.kicad_sch"
+			(at 165.1 130.1246 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "6")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 38.1 152.4)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "98b54cb4-cfcc-5691-93d6-5146e350a2bd")
+		(property "Sheetname" "port_channel_1"
+			(at 38.1 151.6884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "port_channel.kicad_sch"
+			(at 38.1 173.3046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "7")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 91.44 152.4)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "2095e3a0-d977-5a35-be27-9dfb85a9507e")
+		(property "Sheetname" "port_channel_2"
+			(at 91.44 151.6884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "port_channel.kicad_sch"
+			(at 91.44 173.3046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "8")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 144.78 152.4)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "5722b570-bee2-5eea-81ba-19031866455c")
+		(property "Sheetname" "port_channel_3"
+			(at 144.78 151.6884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "port_channel.kicad_sch"
+			(at 144.78 173.3046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "9")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 198.12 152.4)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "45f9dac5-39c2-59f7-adf3-4165b80a4450")
+		(property "Sheetname" "port_channel_4"
+			(at 198.12 151.6884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "port_channel.kicad_sch"
+			(at 198.12 173.3046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "10")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 251.46 152.4)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "6a648007-539f-51a5-977f-2eb4079b6bde")
+		(property "Sheetname" "port_channel_5"
+			(at 251.46 151.6884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "port_channel.kicad_sch"
+			(at 251.46 173.3046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "11")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 304.8 152.4)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "20f66312-1af5-5b4b-adf8-9eabdb43dbee")
+		(property "Sheetname" "port_channel_6"
+			(at 304.8 151.6884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "port_channel.kicad_sch"
+			(at 304.8 173.3046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008"
+					(page "12")
+				)
+			)
+		)
+	)
+	(embedded_fonts no)
+)

@@ -2,9 +2,179 @@
 	(version 20260306)
 	(generator "eeschema")
 	(generator_version "10.0")
-	(uuid a840985c-3387-42ba-bc64-1037eae04a32)
-	(paper "A4")
+	(uuid "a840985c-3387-42ba-bc64-1037eae04a32")
+	(paper "A3")
+	(title_block
+		(title "marengo power board rev A")
+		(date "2026-11-06")
+		(rev "A-wip")
+		(company "marengo")
+	)
 	(lib_symbols)
+	(sheet
+		(at 50.8 50.8)
+		(size 76.2 50.8)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "7db6970d-03f6-5118-b8c2-ce321044e008")
+		(property "Sheetname" "HP_power_board"
+			(at 50.8 50.0884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "HP_power_board.kicad_sch"
+			(at 50.8 102.1846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 152.4 50.8)
+		(size 76.2 50.8)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "cb892ff5-299e-5458-8f55-49d6108f545c")
+		(property "Sheetname" "LP_logic_board"
+			(at 152.4 50.0884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "LP_logic_board.kicad_sch"
+			(at 152.4 102.1846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32"
+					(page "13")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 50.8 127)
+		(size 76.2 25.4)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "f6a43e5d-b5ac-594c-bde3-df5e974c1509")
+		(property "Sheetname" "pi_power_stub"
+			(at 50.8 126.2884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "pi_power_stub.kicad_sch"
+			(at 50.8 152.9846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32"
+					(page "26")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 152.4 127)
+		(size 76.2 25.4)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "65be0fdd-0c29-58b5-8671-fdf5246b67e1")
+		(property "Sheetname" "pack_sense_board"
+			(at 152.4 126.2884 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "pack_sense_board.kicad_sch"
+			(at 152.4 152.9846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32"
+					(page "27")
+				)
+			)
+		)
+	)
 	(sheet_instances
 		(path "/"
 			(page "1")

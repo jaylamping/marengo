@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "9d8a9b9b-ebc0-589f-8af6-5e6f390fb7d1")
+	(paper "A4")
+	(title_block
+		(title "front_end_12v_24v")
+		(date "2026-11-06")
+		(rev "A-wip")
+		(company "marengo")
+		(comment 1 "Placeholder, not yet captured")
+	)
+	(lib_symbols)
+	(text "Placeholder. Not yet captured."
+		(exclude_from_sim no)
+		(at 25.4 35.56 0)
+		(effects
+			(font
+				(size 2 2)
+			)
+			(justify left top)
+		)
+		(uuid "dab623c4-a225-5831-a587-fd49a1c3982e")
+	)
+	(embedded_fonts no)
+)
