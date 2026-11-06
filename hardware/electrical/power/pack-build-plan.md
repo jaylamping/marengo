@@ -41,6 +41,19 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
 - **Consequence (agreed):** the pack charges in the robot through the board's charge port. A second swap-and-charge pack
   would need its own BMS. That is not planned; removing the pack is a service job.
 
+### Pack fuse voltage rating (flag from the trunk and board threads)
+
+Common automotive MIDI/ANL/blade fuses are rated **32 V DC**, which won't reliably break an arc at 54.6 V (57.5 V with the
+regen clamp). The pack fuse and its holder must carry a DC rating above that:
+
+- **Preferred: Class T 60 A ferrule fuse (Littelfuse JLLN060 class, 300 V AC / 160 V DC, verify)** in a matching DC-rated
+  holder. That gives 2.8× voltage margin, very high interrupt rating, and the ferrule is small (about 14 × 22 mm, verify). It
+  fits the spare grid positions.
+- **Fallback: Littelfuse MIDI 58 V series** (60 A 58 V bolt-down part 142.5631.5602 seen at Digi-Key, verify series and
+  holder rating). Only 0.5 V above the regen clamp, so it's a fallback.
+- **Interrupt rating check (estimate):** a dead short at the pack is about 54.6 V ÷ 90 mΩ ≈ 600 A. Both options are rated
+  far above that (verify on the datasheet).
+
 ### Why the BMS stays on the board (checked from the pack side)
 
 The power board thread's reason is ground. A high-side BMS keeps pack negative as system ground, so a BMS trip can't lift
@@ -253,7 +266,7 @@ handheld welder, needs no crimper (pre-crimped leads), and skips the extinguishe
 | Molicel P50B × 28 | $294 | vendor page, $10.50 at 10+. P45B at about $6, if back in stock, saves about $120 |
 | Nickel plate 0.15 mm (40 mm+ wide) + 0.15 × 8 mm tab strip | $30 | |
 | Cell holders, fish paper, Kapton, foam, wrap | $45 | |
-| MIDI 60 A fuse + holder, spare fuse | $15 | |
+| 60 A pack fuse **rated ≥ 58 V DC (never a 32 V automotive part)** + matching holder, spare fuse | $15 to 40 | see section 1 fuse note |
 | XT90S, XT60, 10 AWG + 22 AWG silicone wire | $35 | |
 | Micro-Fit 2 × 10 housings + pre-crimped leads, 3 NTCs, sense board (in the power board's PCB order) | $30 | |
 | Printed case (PC FR or ASA) | $15 | filament |
