@@ -253,7 +253,7 @@ for sx in (1, -1):
     # gate 2: was X +-42..78 and ran through the Jetson (X +-51.5). Now stops at |X| 52 and turns behind the Jetson (Z -58, 12 mm of air behind its rear face)
     cyl(f'harness_shoulder_{sx}', 27, 'Harness trunks: shoulder RS03 connector runs (right-angle exit inboard from the rear-boss flat, flat A assumed), then behind the Jetson to the centre', 'x', (sx * 65, 452, -27), 5, 26, '#d8b84a', 'harness', (0, 70, 0), balloon=(sx > 0), mass_g=40, material='silicone 14 AWG + CAN pair', opacity=0.95)
 # side band trunk below
-box('harness_pack', 27, 'Cable path reserved: pack power (10 AWG pair) and sense harness from the HP top edge over the pack top edge to the XT90S and sense board at the pack rear top corner (8.6 mm under the shared rail)', (-35, 345, -45), (30, 353.6, 37.5), '#d8b84a', 'harness', (0, 0, 0), balloon=True, mass_g=30, material='reserved path', opacity=0.6)
+box('harness_pack', 27, 'Cable path reserved: pack power (10 AWG pair) and sense harness from the HP top edge over the pack top edge to the XT90S and sense board at the pack rear top corner (8.6 mm under the shared rail)', (-5, 345, -45), (25, 353.6, 37.5), '#d8b84a', 'harness', (0, 0, 0), balloon=True, mass_g=30, material='reserved path', opacity=0.6)
 # Joey 16:34Z: cable passage = intentional oval slots in the printed shelf (PC-case style grommet slots), as on the built shelf.
 # Front-edge slots sit straight above the HP top corners (arm terminals inboard of |X| 44) and the side bands; 4 mm land to the shelf front edge.
 SHELF_SLOTS = [('shelf_slot_L', -42, -22), ('shelf_slot_C', -10, 10), ('shelf_slot_R', 22, 42)]   # corners stop at |X| 42, clear of the shelf-rail bracket heads
