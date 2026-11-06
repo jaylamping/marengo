@@ -183,3 +183,23 @@ One locking 2 × 30 header, 2.0 mm pitch, along the HP bottom edge and the LP to
 2. Schematic capture sheet by sheet, starting with the HP main path and the AFE (the safety-critical core), with the calculation
    notes above carried into the schematic as text.
 3. Gate 3 review of the schematic (review recipe), then layout.
+
+## 1b. Frame gate 2 constraints for layout (frame thread 11:23Z, main 8a15651)
+
+- **Stack:** carrier Z 37.5 to 41.5, 6 mm M3 F-F standoffs, PCBs from Z 47.5 (top copper Z 49.1), component ceiling Z 61.5. That
+  leaves 12.4 mm above the board; the 10.8 mm hold-up caps keep 1.6 mm. Standoff hole positions are set at layout and sent to
+  the frame thread.
+- **Corner screw heads:** X ±46.5 to 51, Y 175 to 203 and 325 to 353, Z 55 to 65. Boards stay 100 mm wide. Each outer corner
+  (|X| > 46, Y 190 to 203 and Y 325 to 340) is a keep-out for parts taller than 5 mm. The arm-port M4 terminals and their
+  upward ring lugs move inboard of |X| 44, clear of the posts at Y 325 to 353.
+- **Brake resistor (Arcol HS50, datasheet maxima):** 72.5 mm long including tags, 49.1 mm body, 29.7 mm wide, 14.8 mm tall.
+  Mounting holes are 39.7 × 21.4 mm. The 50 W rating needs the frame as its heatsink. The leg stage (2 Ω, about 1.7 kW
+  pulses) may need a larger part, so leave room to grow.
+- **Pigtail bundles, per port, flat:**
+  - Arm: 2 × 16 AWG silicone (Ø about 2.9) plus a twisted CAN pair (about Ø2.5), about 8 × 3 mm.
+  - Leg: 2 × 12 AWG silicone (Ø about 4) plus CAN, about 10.5 × 4 mm.
+  - One arm bundle fits the 5 × 8 mm side band. A leg bundle does not fit at the band's full height, and an arm plus a leg
+    together never fit in one cross-section.
+  - All ring lugs are booted with heat-shrink.
+- **Housing bond:** if the RS03 housings are at GND, the frame becomes GND through the motors and the 1 MΩ || 10 nF bond is
+  moot. Meter-check a real RS03 (housing to its GND pin) before layout fixes the bond.
