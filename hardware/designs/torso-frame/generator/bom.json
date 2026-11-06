@@ -210,8 +210,8 @@
  {
   "item": 27,
   "name": "Harness trunks: shoulder RS03 connector runs",
-  "qty": 8,
-  "mass_g": 170,
+  "qty": 9,
+  "mass_g": 160,
   "material": "silicone 14 AWG + CAN pair",
   "group": "harness"
  },
@@ -257,10 +257,10 @@
  },
  {
   "item": 33,
-  "name": "Sensors: BNO085 IMU on the shelf",
+  "name": "Sensors",
   "qty": 1,
-  "mass_g": 5,
-  "material": "proposed",
+  "mass_g": 0,
+  "material": "same part as imu_old",
   "group": "proposed"
  },
  {

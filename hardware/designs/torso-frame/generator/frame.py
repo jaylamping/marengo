@@ -252,9 +252,11 @@ for sx in (1, -1):
     cyl(f'harness_shoulder_{sx}', 27, 'Harness trunks: shoulder RS03 connector runs (right-angle exit inboard from the rear-boss flat, flat A assumed), then behind the Jetson to the centre', 'x', (sx * 65, 452, -27), 5, 26, '#d8b84a', 'harness', (0, 70, 0), balloon=(sx > 0), mass_g=40, material='silicone 14 AWG + CAN pair', opacity=0.95)
 # side band trunk below
 box('harness_pack', 27, 'Cable path reserved: pack power (10 AWG pair) and sense harness from the HP top edge over the pack top edge to the XT90S and sense board at the pack rear top corner (8.6 mm under the shared rail)', (-35, 345, -45), (30, 353.6, 37.5), '#d8b84a', 'harness', (0, 0, 0), balloon=True, mass_g=30, material='reserved path', opacity=0.6)
-# gate 2: there is NO gap between the shelf (Z <= 50) and the shared front rail (Z 50-70); the old harness_step box sat in the aluminium.
-for sx in (1, -1):
-    box(f'harness_step_{sx}', 27, 'OPEN (Joey decision): no cable passage from the lower box to the upper bay exists. PROPOSED: 10 x 10 notch in each front corner of the printed shelf plate (|X| 45-55, Z 40-50) for the arm pigtails, 12 V, USB, CAN and fan leads', (min(sx * 45, sx * 55), 354.6, 40), (max(sx * 45, sx * 55), 372.6, 50), '#d8b84a', 'harness', (0, 0, 0), mass_g=5, material='proposed notch', opacity=0.6)
+# Joey 16:34Z: cable passage = intentional oval slots in the printed shelf (PC-case style grommet slots), as on the built shelf.
+# Front-edge slots sit straight above the HP top corners (arm terminals inboard of |X| 44) and the side bands; 4 mm land to the shelf front edge.
+SHELF_SLOTS = [('shelf_slot_L', -42, -22), ('shelf_slot_C', -10, 10), ('shelf_slot_R', 22, 42)]   # corners stop at |X| 42, clear of the shelf-rail bracket heads
+for sid, x0, x1 in SHELF_SLOTS:
+    box(sid, 27, 'Oval cable slot in the printed shelf, 20 x 12, Z 34-46 (Joey 16:34Z): corners = arm pigtails, 12 V and fan leads; centre = USB, CAN and Pi stub 12 V', (x0, 354.6, 34), (x1, 372.6, 46), '#d8b84a', 'harness', (0, 0, 0), mass_g=0, material='slot (no part)', opacity=0.6)
 for sx in (1, -1):
     box(f'harness_side_{sx}', 27, 'Cable trunk, side band X +-50..55, Z 42..50 (5 x 8 mm per side, tight: board thread to confirm bundle size): arm pigtails up to the proposed shelf corner notch, waist/aux/leg/charge pigtails down past the LP board to inline connectors below Y 190. Gate 2: replaces the front-corner path at Z 62-70, which ran through the front rails and 8 corner brackets', (min(sx*50, sx*55), 160, 42), (max(sx*50, sx*55), 353.6, 50), '#d8b84a', 'harness', (sx*40, 0, 0), balloon=(sx>0), mass_g=15, material='reserved path', opacity=0.6)
 cyl('harness_shoulder_x', 27, 'Shoulder harness cross run behind the Jetson (Z -58), joins both shoulder runs to the step bus', 'x', (0, 452, -58), 5, 104, '#d8b84a', 'harness', (0, 70, 0), mass_g=20, material='silicone 14 AWG + CAN pair', opacity=0.95)
@@ -313,8 +315,8 @@ box('pack_sense', 32, 'Pack sense board 40 x 25 x 10 on the pack rear face, top 
     note='Rides on the pack, 15 mm inside the frame rear face, inside the D2 opening (|X| <= 60), so it slides out with the pack.')
 for sx in (1, -1):
     box(f'packrail_{sx}', 40, 'Pack tray rails, printed, on the lower post inner faces (2)', (min(sx * 47.5, sx * 55), 180, -50), (max(sx * 47.5, sx * 55), 348, 37.5), COL['printed'], 'electronics', (0, 0, -60), balloon=(sx > 0), mass_g=40, material='PETG print', opacity=0.8)
-box('pi_stub', 16, 'Pi power stub 30 x 20 x 10 on the compute shelf beside the Pi: 12 V lead from the logic board, 5 V into the GPIO header (board thread PLAN.md 6a, main e7d0b62)', (22, Y_STEP_HI, 20), (52, Y_STEP_HI + 10, 40), COL['pdb'], 'electronics', (0, 80, 0), balloon=True, mass_g=10, material='PCB 30 x 20 x 10', opacity=0.8)
-box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 70, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
+box('pi_stub', 16, 'Pi power stub 30 x 20 x 10 on the compute shelf beside the Pi: 12 V lead from the logic board, 5 V into the GPIO header (board thread PLAN.md 6a, main e7d0b62)', (22, Y_STEP_HI, 12), (52, Y_STEP_HI + 10, 32), COL['pdb'], 'electronics', (0, 80, 0), balloon=True, mass_g=10, material='PCB 30 x 20 x 10', opacity=0.8)
+box('bno085', 33, 'Sensors (item 33): the BNO085 is the existing IMU on the shelf (item 15, X 30-50, Z -10..10; this entry duplicated it at the front corner); head cameras and mics are future, on the top rails', (30, Y_STEP_HI + 3, -10), (50, Y_STEP_HI + 9, 10), PRO, 'proposed', (0, 70, 0), balloon=False, mass_g=0, material='same part as imu_old', opacity=0.0)
 # ---- spine pads (rear crush pads, outside the shell; shell manufacturing thread geometry, main c38d83e shell rev B: four pads, bridges removed for the D2 battery door) ----
 first = True
 for sx in (1, -1):
