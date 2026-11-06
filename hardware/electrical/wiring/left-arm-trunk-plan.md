@@ -138,15 +138,18 @@ Bend radii and torsion lengths are already in the bench harness doc (static ≥ 
 
 The pitch and roll RS03s have no through-bore (vendor), and their ranges are large: 230° at pitch, 195° at roll. Yaw (±90°) and elbow (135°) already have candidate routes in the upper-arm README; the shoulder has none.
 
-Options for J1 and J2:
+Options for J1 and J2 (rendered in [options/TRUNK_OPTIONS_SHOULDER_CROSSING.png](options/TRUNK_OPTIONS_SHOULDER_CROSSING.png); the drop architectures are in [options/TRUNK_OPTIONS_TOPOLOGY.png](options/TRUNK_OPTIONS_TOPOLOGY.png)):
 
 | Option | How | Good | Bad |
 |--------|-----|------|-----|
-| A. Wrap groove (clock spring) | The jumper lies in a printed annular channel around the outside of the RS03 and winds or unwinds as the joint turns. Steering-column style. | Handles 230° in a fixed envelope; predictable bend radius | Needs ~200 mm of wrap length and a channel around a Ø100 housing; shell clearance at the shoulder cavity (r78) must allow it |
-| B. Service loop in the shoulder cavity | A free loop of loose wires beside the joint | Simplest to build | Hard to keep from snagging or pinching over 230°; the old L05 to L11 studies did not close this |
-| C. Flat flex ribbon in a spiral cassette | A flat cable coiled in a printed cassette, as in a car steering wheel | Smallest and most reliable over many cycles | Custom or sourced flat cable that can carry 15 A; more parts |
+| A. Spiral coil around the housing | Jumper coils 2 to 3 turns in a ring around the RS03 (r 55 to 75); inner end on a sleeve that turns with the link, outer end fixed. The joint tightens or loosens the coil. | Round flex wire works: coil radius ~50 mm is above the 30 mm dynamic minimum; fits inside the r78 shoulder cavity | ~14 mm ring plus a rotating sleeve and cover; most design work |
+| B. Flat-flex clock-spring cassette | Flat ribbon wound in a thin cassette, steering-wheel style | Smallest (~8 mm ring, r 52 to 62), longest flex life | Flat cable for 15 A at 60 V is special or custom; harder to repair |
+| C. Free service loop | Slack loop beside the joint | Simplest; fine for the bench | Snags, pinches or rubs over 230° (L05 to L11 never closed it) |
+| D. Rotary cable carrier | Drag-chain links guide a U-turn arc | Off the shelf, proven | U-turn needs ~2× bend radius, so the arc reaches r ~110+, outside the cavity and shell; heavy |
 
-**Proposal:** start with A for both pitch and roll, modelled with the arm thread once SolidWorks is free, and keep C as the upgrade if A is too big. Either way the jumper stays a plug-in part.
+A rolling-loop groove with round wire (the "wrap groove" in rev 0 of this plan) is dropped: its U-turn needs a gap of twice the 30 mm bend radius, about 60 mm. That is why A coils the wire instead.
+
+**Proposal:** A for both pitch and roll, modelled with the arm thread once SolidWorks is free, with B as the upgrade if A is too big. Either way the jumper stays a plug-in part.
 
 ## 7. Interfaces this needs from other threads
 
