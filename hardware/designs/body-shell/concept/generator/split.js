@@ -44,7 +44,9 @@ function frame() {
   // compute shelf + Pi 5 stand-in, PDB stand-in, waist RS03
   add(new THREE.Mesh(new THREE.BoxGeometry(186, 3, 120), new THREE.MeshStandardMaterial({ color: 0x6b4fa0 }))).position.copy(P(0, 0, ZB + 21.5));
   add(new THREE.Mesh(new THREE.BoxGeometry(85, 20, 56), new THREE.MeshStandardMaterial({ color: 0x2e8b57 }))).position.copy(P(-20, 0, ZB + 33));
-  add(new THREE.Mesh(new THREE.BoxGeometry(90, 70, 12), new THREE.MeshStandardMaterial({ color: 0xb8860b }))).position.copy(P(-52, 0, F0 + 80));
+  // custom 13S2P pack (|X|<=47.5, torso Y 183-345, Z -45..34) and the front power board (Z 34..58)
+  add(new THREE.Mesh(new THREE.BoxGeometry(95, 162, 79), new THREE.MeshStandardMaterial({ color: 0x2f6fb0 }))).position.copy(P(-5.5, 0, 810 + 264));
+  add(new THREE.Mesh(new THREE.BoxGeometry(100, 170, 24), new THREE.MeshStandardMaterial({ color: 0xb8860b }))).position.copy(P(46, 0, 810 + 260));
   const wy = add(new THREE.Mesh(new THREE.CylinderGeometry(49.75, 49.75, 56.6, 48), dark)); wy.position.copy(P(0, 0, F0 - 40));
 }
 function hardpoints() {

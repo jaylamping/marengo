@@ -6,7 +6,7 @@ rep = json.load(open('out/split_report.json'))
 sub = f"Manufacturing study, concept geometry with a {rep['wall_mm']} mm wall. Not a part. 2026-11-06"
 C = (900, 150, 2300, 2250)
 sheet([(crop('sp_asm.png', C, w=900), 'Front: seams on the sternum and side'),
-       (crop('sp_asm_back.png', C, w=900), 'Back: compute door (blue), power door (green)'),
+       (crop('sp_asm_back.png', C, w=900), 'Back: compute door (blue), battery door (green)'),
        (crop('sp_explode.png', (500, 0, 2700, 2300), w=1150), 'Exploded: service units off the frame'),
        (crop('sp_explode_back.png', (500, 0, 2700, 2300), w=1150), 'Exploded, back')],
       f"Body shell split for the Bambu P2S: {len(rep['pieces'])} prints, {len({q['unit'] for q in rep['pieces']})} service units", sub, 'SHELL_MFG_SPLIT.png',
@@ -19,7 +19,7 @@ sheet([(crop('sp_mounts.png', C, w=900), 'Hardpoints, front'),
       'Mounting hardpoints and airflow', sub, 'SHELL_MFG_MOUNTS.png',
       notes=['Orange blocks: 20 printed PETG hardpoint brackets on M5 T-nuts (top rails, step rail between the gussets, bottom rails, lower posts, abdomen carrier).',
              'Brackets hold the M3 heat-set inserts; panels only carry clearance holes and two locating pins, so a reprinted panel needs no inserts.',
-             'Air: cool air in through the side grilles and abdomen band gaps (blue), up past the PDB and Pi, out of the compute-door louvres and neck ring (red).'])
+             'Air: in through the front power-board fan, side grilles and band gaps (blue), up past the pack, Pi and Jetson, out through the D1 fans and neck ring (red). Blue box: 13S2P pack.'])
 sheet([(crop('sp_plates.png', (0, 0, 3200, 2400), w=2200), 'Each print in its chosen orientation inside a 256 mm P2S volume')],
       f"Print plates: all {len(rep['pieces'])} pieces", sub, 'SHELL_MFG_PLATES.png',
       notes=[f"Shell about {rep['total_part_g']} g PETG, spine pack {rep['spine_pack_g']} g TPU, plus {rep['total_support_g']} g support, {rep['total_hours'][0]} to {rep['total_hours'][1]} h of printing (estimate, not a slice).",
@@ -39,5 +39,5 @@ sheet([(crop('pk_back.png', (600, 0, 2600, 2400), w=900), 'Back 3/4: pads flank 
        (crop('pk_side.png', (900, 100, 2300, 2300), w=760), 'Side: 30 mm proud of the shell')],
       'Spine pack: back crush pads (first pass, function only)', sub, 'SHELL_MFG_SPINEPACK.png',
       notes=['The frame needs ~30 mm of crush behind the shell in a backward fall. TPU 95A, 2 walls + ~10% gyroid; crush coupon C9 tunes it.',
-             f"Six pieces, about {rep['spine_pack_g']} g. They bolt through the shell to the H2/H3/H4 rear brackets on standoff posts; D1 and D2 open between them.",
+             f"Four pads, about {rep['spine_pack_g']} g. They bolt through the shell to the H2/H3/H4 rear brackets on standoff posts; D1 and the D2 battery door open between them.",
              'Styling (armour plates, chamfers) comes in SolidWorks. Lighter option: EVA foam blocks in a thin TPU skin, about 60 g.'])
