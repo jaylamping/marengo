@@ -159,7 +159,11 @@ const pec = (x, y, z) => { if (x <= 0) return [x, y, z]; const ay = Math.abs(y);
   const g = sstep(3, 26, ay) * (1 - sstep(0.62 * WALL, 0.86 * WALL, ay));
   const v = dz >= 0 ? 1 - sstep(10, 105, dz) : 1 - sstep(38, 50, -dz);
   const w = sstep(30, 85, x);
-  return [x + 15 * g * v * w, y, z]; };
+  // Joey 2026-11-06: front of the chest rolls gently back toward each shoulder (plan view), like a human
+  // pec wrapping into the deltoid. Proportional in x so the side wall is untouched.
+  const rz = sstep(ZS - 170, ZS - 90, z) * (1 - sstep(F1 + 20, F1 + 45, z));
+  const roll = 1 - 0.3 * sstep(0.45 * WALL, 0.98 * WALL, ay) * rz;
+  return [(x + 15 * g * v * w) * roll, y, z]; };
 const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); if (Math.abs(y) <= FACE) return [x, y, z];
   const t = Math.min(1, Math.max(0, (r - SOCK_R) / 7)); const k = t * t * (3 - 2 * t);
   return [x, Math.sign(y) * (FACE + (Math.abs(y) - FACE) * k), z]; };
