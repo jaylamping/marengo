@@ -121,10 +121,10 @@
  },
  {
   "item": 16,
-  "name": "Power and bus board envelope 100 x 150 x 24",
-  "qty": 1,
-  "mass_g": 250,
-  "material": "placeholder 100 x 150 x 24",
+  "name": "Insulating sheet 0.5 mm",
+  "qty": 11,
+  "mass_g": 367,
+  "material": "Nomex 410 0.5 mm",
   "group": "electronics"
  },
  {

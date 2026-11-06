@@ -124,7 +124,7 @@ No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
 | 13 | Shoulder pitch bracket | 2 | PETG | 240 | existing part, moved out 38; envelope X 78.4 to 113, Y 353.6 to 495, Z ±50, wing to ±69 at Y 400 to 450 (recorded CAD check) |
 | 14 | Compute shelf plate | 1 | existing | 60 | existing; X ±55 between the shelf rails, Y 354.6 to 372.6 (recorded CAD check) |
 | 15 | Pi 5 + 2-CH CAN HAT, BNO085 | 1 | | 115 | existing; Y 376 to 397, X −37.5 to 19.7, ports to Z −71.8 (recorded CAD check) |
-| 16 | PDB + E-stop / main switch envelope 100 × 90 × 28 | 1 | placeholder | 150 | proposed: lower box rear, behind the D2 door |
+| 16 | Power + logic boards on a printed carrier (6 × M3 standoffs), 0.5 mm insulating sheet, 50 W brake resistor | 1 set | PCB / PETG / Nomex | 355 | board thread plan main 0b6a6ef; in front of the pack, Z 37.5 to 61.5 |
 | 17 | RS03 waist yaw | 1 | RobStride | 880 | existing; 57 tall in a 40 bay (**unresolved**, hip stage) |
 | 18 | Waist yaw adapter plate | 1 | PETG | 120 | existing; bolt pattern **unresolved** |
 | 19–24 | Shell hardpoint brackets H1–H6, PETG with M3 inserts on M5 T-nuts | 20 | PETG | 160 | shell thread; H6 moved (section 5) |
@@ -184,10 +184,15 @@ Y 166 to 295; the bridges are gone (the door is there now). They give the 30 to 
 2.2 kg, 46.8 V nominal, 54.6 V full, 421 to 468 Wh. It sits at |X| ≤ 47.5, Y 183 to 345, Z −45 to +34 on two printed tray rails on the
 lower post inner faces, 7.5 mm to the posts, 8 mm to the bottom and shared rails, 25 mm inside the frame rear face, and slides out the
 back through D2 (now the battery door, |X| ≤ 60, Y 175 to 352: shell thread, main 761c62b). The **power and bus board** (Joey 06:14Z: one
-board with the 13S BMS on it, not designed yet; envelope 100 × 150 × 24) stands between the pack and the front rail plane at Z 34 to 58,
-X ±50, Y 190 to 340, flush with the frame front face; the intake fan sits in the front panel grille in front of it at Y 250 to 290. The
-board carries the 13 balance leads, precharge, E-stop or contactor, the pack fuse, the 48 V motor bus to the two shoulders and the waist,
-12 and 5 V rails and CAN. The FlexVolt options (D1 to D3) stay in `generator/variants.py` as the record of what was rejected.
+board with the 13S BMS on it; plan by the board thread, `hardware/electrical/pdb/PLAN.md`, main 0b6a6ef) is two PCBs coplanar on one
+printed carrier: power board ~100 × 95 on top (Y 245 to 340), logic board ~100 × 55 below (Y 190 to 243), 6 × M3 standoffs at X ±46,
+Y 194 / 265 / 336 with 6 mm keep-out pads. The carrier rear face is at Z 37.5 (3 mm air plus a 0.5 mm Nomex sheet over the pack lid at
+Z 34), the component face at Z 61.5, 8.5 mm to the front rail plane. The intake fan grille at Y 250 to 290 blows on the DC-DC section.
+A 50 W aluminium-clad brake resistor (25 × 50 × 8) sits on the inner face of the front bottom rail under the logic board's bottom edge, on
+M3 T-nuts, in the intake downdraft. Frame bonding: one point, at a carrier standoff, 1 MΩ ∥ 10 nF to system ground (board thread's
+proposal, agreed: the frame touches the actuator housings anyway, so "floating" would not be). Connector edges: top = pack XT90 and
+16-pin balance (rear face), both arm ports, USB to the Pi, fans; bottom = waist and leg ports, brake resistor; sides = E-stop loop,
+charge port, sensors. The FlexVolt options (D1 to D3) stay in `generator/variants.py` as the record of what was rejected.
 
 Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 × 100 × 178.6 between the bottom rails and the shared rails; waist bay 150 × 140 × 40 below the frame.
 
@@ -198,7 +203,7 @@ Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 �
 | Third compute board / USB hub | up to 90 × 60 × 20 | lower box front, standing | yes |
 | Shoulder pitch RS03 × 2 | Ø99 × 57 | through the upper box sides | yes (0.5 mm per side to the 100 inner depth, as built) |
 | Waist yaw RS03 | Ø99 × 57 | 40 mm waist bay | **no**, 23 mm short including the 6 mm adapter plate (motor Y 92 to 149). Hip stage: pocket the adapter, add the +70 waist section, or redesign the pelvis around Joey's fixed cell |
-| PDB + converters + E-stop + main switch | 100 × 90 × 28 assumed | lower box rear, behind D2 | yes; the board is not designed yet |
+| Power + logic boards (BMS, fuse, contactor, DC-DC, CAN) | 100 × 150 × 24 on one carrier | in front of the pack, Z 37.5 to 61.5 | yes, 8.5 mm to the front rail plane (board thread 0b6a6ef) |
 | Battery, main 48 V pack | 185 × 165 × 90 draft | pelvis | **not in the torso frame**. The lower box can take two 6S 5000 mAh packs standing (155 × 50 × 45 each, ~1.5 kg) if Joey wants torso batteries, at the cost of the PDB depth and a higher centre of mass |
 | M18 HD12 aux bay (handoff draft) | 168 × 98 × 112 | upper back cantilever | **no**: the shell back has 10 to 17 mm to the frame and the spine pads sit there. Recommend dropping it or moving it to the pelvis |
 | Fans | 40 × 40 × 10 | 2 exhaust, provisionally in the D1 door plane (Y 430 to 470, behind the frame face; a 40 mm fan does not fit the 20 mm left above the Jetson cooler), 1 intake in the lower front panel at Y 250 to 290 | provisional; 45 W chest heat estimate in the shell plan, plus the Jetson's 7 to 15 W |

@@ -221,9 +221,21 @@ box('shelf', 14, 'Compute shelf plate (existing: X +-55 between the shelf rails,
     (0, 40, 0), balloon=True, mass_g=60, material='existing part')
 box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, 376, -71.8), (19.7, 397, 13.2), COL['pi'], 'electronics',
     (0, 70, 0), balloon=True, mass_g=110, material='electronics', note='Position from the arm thread CAD check; ports face the rear (-Z) and reach Z -71.8')
-box('pdb', 16, 'Power and bus board envelope 100 x 150 x 24 (BMS onboard), standing between the pack and the front rail plane, inside the frame', (-50, 190, PK_Z1), (50, 340, PK_Z1 + PSU_T), COL['pdb'], 'electronics',
-    (0, 0, 120), balloon=True, mass_g=250, material='placeholder 100 x 150 x 24', opacity=0.6,
-    note='Not designed yet (Joey 06:14Z: one power and bus board with the 13S BMS on it). 13S in (54.6 V full, XT90S), 13 balance leads, precharge, E-stop/contactor, pack fuse, 48 V motor bus to the shoulders and waist, 12 and 5 V rails, CAN. Flush with the frame front face; the intake fan sits in the front panel in front of it.')
+# power and peripheral board (board thread, main 0b6a6ef, hardware/electrical/pdb/PLAN.md s.5-6): two PCBs coplanar on one carrier, 6 x M3 at X +-46, Y 194/265/336.
+# Rear face moved from Z 34 to 37.5: 3 mm air plus a 0.5 mm insulating sheet over the pack lid (board thread ask 1). Front face Z 61.5, 8.5 mm to the front rail plane.
+PDB_Z0 = PK_Z1 + 3.5
+box('pdb_sheet', 16, 'Insulating sheet 0.5 mm (Nomex or FR4) over the pack lid, 3 mm air gap to the board', (-50, 190, PK_Z1), (50, 340, PK_Z1 + 0.5), '#e8e2c0', 'electronics', (0, 0, 90), mass_g=5, material='Nomex 410 0.5 mm', opacity=0.8)
+box('pdb_carrier', 16, 'Board carrier, printed, on the lower post inner faces; holds the two PCBs coplanar on M3 standoffs', (-50, 190, PDB_Z0), (50, 340, PDB_Z0 + 4), COL['printed'], 'electronics', (0, 0, 100), mass_g=60, material='PETG print 100 x 150 x 4', opacity=0.8)
+box('pdb', 16, 'Power board ~100 x 95 (13S BMS, fuse, precharge, contactor, motor ports, DC-DC at Y 250-290 in the intake jet) on 6 mm standoffs', (-50, 245, PDB_Z0 + 6), (50, 340, PDB_Z0 + PSU_T), COL['pdb'], 'electronics',
+    (0, 0, 120), balloon=True, mass_g=180, material='PCB + parts, 100 x 95 x 18', opacity=0.7,
+    note='Board thread plan main 0b6a6ef. Top edge: pack XT90 + 16-pin balance (rear face), both arm ports, USB to the Pi, fan leads. Sides: E-stop loop, charge port, sensors.')
+box('pdb_logic', 16, 'Logic / peripheral board ~100 x 55 below the power board, same carrier', (-50, 190, PDB_Z0 + 6), (50, 243, PDB_Z0 + PSU_T), COL['pdb'], 'electronics', (0, 0, 120), mass_g=70, material='PCB + parts, 100 x 55 x 18', opacity=0.7,
+    note='Bottom edge: waist and leg ports, brake resistor lead.')
+for k, (xx, yy) in enumerate(((46, 194), (-46, 194), (46, 265), (-46, 265), (46, 336), (-46, 336))):
+    screw(f'pdb_m3_{k}', 16, 'M3 x 8 + 6 mm standoff, board to carrier (6, 6 mm keep-out pads at X +-46, Y 194/265/336)', 'z', [xx, yy, PDB_Z0 + PSU_T], -1, (0, 0, 150), balloon=(k == 0), dia=3, head_d=5.5, head_h=1.7, length=8, color='#c9b86a')
+    FAST['m3'] = FAST.get('m3', 0) + 1
+# brake resistor (board thread ask 3): 50 W aluminium-clad, 25 x 50 x 8, on the inner face of the front bottom rail, under the logic board's bottom edge, in the intake downdraft
+box('brake_res', 16, 'Brake resistor 50 W aluminium-clad 25 x 50 x 8 on the front bottom rail inner face (M3 T-nuts), two-wire lead to the logic board bottom edge', (-25, 153, HZ - 10 - 8), (25, 178, HZ - 10), '#9a9ea6', 'electronics', (0, -60, 60), balloon=True, mass_g=40, material='TO-247 class 50 W, 2 x M3')
 # harness trunks: Pi/PDB to each shoulder RS03 and down to the waist
 for sx in (1, -1):
     cyl(f'harness_shoulder_{sx}', 27, 'Harness trunks: shoulder RS03 connector runs (right-angle exit inboard from the rear-boss flat, flat A assumed), step bus, two front-corner drops', 'x', (sx * 60, 452, -27), 5, 36, '#d8b84a', 'harness', (0, 70, 0), balloon=(sx > 0), mass_g=40, material='silicone 14 AWG + CAN pair', opacity=0.95)
