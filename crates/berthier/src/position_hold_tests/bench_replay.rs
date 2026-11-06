@@ -1450,8 +1450,9 @@ fn pitch_kd6_clamps_on_the_richer_plant_where_kd5_passes() {
 }
 
 /// Full sweep: both gains on the audit's prescribed table (12 cases) and its 81-case uncertainty
-/// grid, printed as a table. About 30 s on four cores in a debug build, so opt-in:
-/// `cargo test -p berthier --lib pitch_kd_richer_plant_full_sweep -- --ignored --nocapture`.
+/// grid, written as a table to `$TMPDIR/berthier-pitch-kd-sweep.txt`. About 30 s on four cores
+/// in a debug build, so opt-in:
+/// `cargo test -p berthier --lib pitch_kd_richer_plant_full_sweep -- --ignored`.
 ///
 /// Result (2026-10-28, recorded in ADR 0040): prescribed, kd 5 passes 12/12 and kd 6 7/12, its
 /// five failures all predicted total-torque clamps (gravity×1.04 with the 5 and 20 ms
@@ -1459,7 +1460,7 @@ fn pitch_kd6_clamps_on_the_richer_plant_where_kd5_passes() {
 /// worst 27.36 %) and kd 6 45/81 (34 with clamps, one of them also over the speed bar, and 2
 /// speed only, worst 22.37 %).
 #[test]
-#[ignore = "full kd 5 / kd 6 sweep (~30 s on 4 cores); run with --ignored --nocapture"]
+#[ignore = "full kd 5 / kd 6 sweep (~30 s on 4 cores); run with --ignored, report in $TMPDIR"]
 fn pitch_kd_richer_plant_full_sweep() {
     let (_, model) = pitch_with_kd(6.0);
     let prescribed = prescribed_cases(model);
@@ -1467,10 +1468,12 @@ fn pitch_kd_richer_plant_full_sweep() {
     let mut cases = prescribed.clone();
     cases.extend(grid.iter().cloned());
     let results = qualify_all(&[5.0, 6.0], &cases);
-    println!("{}", table(&results));
+    // Library sources may not print (scripts/check-println-crates.sh): the report goes to a
+    // file instead.
+    let mut report = table(&results);
     for (kd, label, s) in &results {
         if !s.passed() {
-            println!("kd {kd} {label}:\n  {}", s.lines.join("\n  "));
+            report.push_str(&format!("\nkd {kd} {label}:\n  {}", s.lines.join("\n  ")));
         }
     }
     let count = |kd: f64, set: &[Case], pass: bool| {
@@ -1479,14 +1482,16 @@ fn pitch_kd_richer_plant_full_sweep() {
             .count()
     };
     for kd in [5.0, 6.0] {
-        println!(
-            "kd {kd}: prescribed {}/{} pass, grid {}/{} pass",
+        report.push_str(&format!(
+            "\nkd {kd}: prescribed {}/{} pass, grid {}/{} pass",
             count(kd, &prescribed, true),
             prescribed.len(),
             count(kd, &grid, true),
             grid.len()
-        );
+        ));
     }
+    let report_path = std::env::temp_dir().join("berthier-pitch-kd-sweep.txt");
+    std::fs::write(&report_path, report).expect("write the sweep report");
     let only = |kd: f64, set: &[Case], allowed: &[&str]| {
         set.iter().all(|c| {
             find(&results, kd, &c.label)

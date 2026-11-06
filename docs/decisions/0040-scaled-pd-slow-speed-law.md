@@ -133,7 +133,7 @@ would confirm this result.
   stop now gated on the ±4 % gravity variants too: worst 5.46 mrad at both gains);
   `pitch_kd6_clamps_on_the_richer_plant_where_kd5_passes` (four representative cases); the full
   kd 5 / kd 6 sweep, opt-in: `cargo test -p berthier --lib pitch_kd_richer_plant_full_sweep --
-  --ignored --nocapture` (about 30 s on four cores).
+  --ignored` (about 30 s on four cores; the table goes to `$TMPDIR/berthier-pitch-kd-sweep.txt`).
 - ControlLoop, decoded wire τ_ff: `position_entry_from_gravity_comp_starts_from_the_last_sent_tau_ff`
   and `mid_move_retarget_never_steps_the_tau_ff_past_the_guard` (`tests/position_law_wire.rs`);
   `davout_envelope_clamp_freezes_the_leaky_integral` (`loop_wp_d_tests.rs`).
