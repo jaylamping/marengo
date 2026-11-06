@@ -65,3 +65,7 @@ Fuse values are provisional until the board's limb meter gives measured current.
 2. CAN_H to CAN_L about 60 Ω with both terminators in.
 3. Before fitting to the arm, move each joint by hand through full range with the harness in place: no pull, pinch or rub; note how much slack each crossing used and trim the cut list.
 4. First power-up per the bench harness doc (3 A fuse, one motor at a time).
+5. **Backdrive test (with the power board thread):** backdrive an unpowered RS03 by hand on the bench and scope its bus voltage. This shows whether the drive's own phase-short braking keeps regen small. It also shows whether a single motor isolated by a blown **drop** fuse can pump its own bus caps past 60 V. The power board clamps every port in every state (57.5 V on VMOT through the FET body diodes, plus a 59 V active clamp after each port fuse, PLAN.md 3.4), but a blown drop fuse isolates one drive from all of that.
+
+**Regen path (Joey 2026-11-06):** braking energy goes back through the BMS into the pack first (CHG FET on while running, 53.9 V charge stop for headroom); the clamp only takes overflow.
+
