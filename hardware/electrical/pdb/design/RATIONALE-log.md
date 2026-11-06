@@ -50,7 +50,7 @@ Gate-source 1 MΩ (p45: driver sinks 30 µA). Vgs on = −7.5 to −9.7 V (p12).
 
 **Naming, deviation 4.** The brief's "PACK+" means the stack; sheet 1's hierarchical PACK+ meant the post-FET port. Renamed sheet 1's
 to VSYS so PACK_TOP = stack and VSYS = common port, with no PACK+ net left. PACK and LD sense VSYS through 5.1 k + 5.1 k (R18 to R21).
-The 40 mV shunt offset between DSG_OUT and VSYS is negligible for LD.
+The 40 mV shunt offset between DSG_OUT and VSYS is negligible for LD. Pack + terminal J1 sits on PACK_TOP (BAT_P in the coordinator's naming), ahead of both banks, confirmed from the netlist: J1.1 shares a net with the CHG FET sources, and VSYS is the separate load-side net. The rename touched only the PACK/LD sense label; nothing bypasses the FETs.
 
 **CP1, sheet 1 change.** 470 nF → 1 µF. p65: if gate load is large, raise CP1 (400 nF load → 2.2 µF, 11 V dips to 9 V). Ours: 8 × 211 nC
 = 1.69 µC max, droop 1.7 V, start-up about 130 ms (60 ms at 470 nF, scaled).
