@@ -48,7 +48,8 @@ def yawed(cloud, yaw):
 def gap_of(p, rows, floor):
     x, inside = wall_x(rows, p[:, 1], p[:, 2])
     rad = np.hypot(p[:, 1] - Y0, p[:, 2] - Z0)
-    x = np.where(rad < SOCK_R, floor, x)
+    t = np.clip((rad - SOCK_R) / 7.0, 0, 1)
+    x = floor + (x - floor) * (t * t * (3 - 2 * t))
     inside = inside & (rad >= BORE_R)
     if not inside.any():
         return None
@@ -100,7 +101,7 @@ export = json.loads((HERE.parent / "cad_export.json").read_text())
 comp = export["components"]
 raw = json.loads((HERE.parent / "component_boxes_mm.json").read_text())
 boxes = {k.replace("parts/", "").replace(".SLDPRT", ""): v for k, v in raw.items() if k.startswith("parts/")}
-boxes["marengo_upper_arm_left"] = [131.24, 167.611, -36.264, 209.74, 319.86, 48.236]
+boxes["marengo_upper_arm_left"] = [169.24, 167.611, -36.264, 247.74, 319.86, 48.236]
 files = {"P1_L01": "P1_L01", "ROLL_RS03": "ROLL_RS03", "SPACER": "SPACER", "P2_L04B": "P2_L04B", "YAW_RS02": "YAW_RS02",
          "marengo_upper_arm_left": "UPPER_ARM", "ELBOW_RS02": "ELBOW_RS02"}
 pts = {}
@@ -128,30 +129,37 @@ def fix_roll(sets):
     return sets
 
 
-PITCH = list(range(-50, 181, 10))
 FW = 38.0
-TOP = 124.0 + FW
+TOPW = 124.0 + FW
+WALL38 = 124.0 + FW
 WX = 10.0
-SHELL_38 = [[F0 - 6, 79 + WX, 80, 76, 3.6], [ZS - 200, TOP - 60 + 0.6 * WX, 92, 80, 3.6], [ZS - 160, TOP - 46, 100, 84, 3.8], [ZS - 111, TOP - 23, 106, 86, 4.0],
-            [ZS - 55, TOP - 7, 108, 88, 4.4], [ZS + 10, TOP - 5, 108, 88, 4.8], [F1 + 12, TOP, 100, 88, 4.8], [F1 + 28, TOP - 10, 88, 82, 4.2],
-            [F1 + 38, 64, 60, 64, 3.0], [F1 + 48, 42, 44, 46, 2.4]]
+ROWS = [[F0 - 6, 79 + WX, 80, 76, 3.6], [ZS - 200, WALL38 - 60 + 0.6 * WX, 92, 80, 3.6], [ZS - 160, WALL38 - 46, 100, 84, 3.8], [ZS - 111, WALL38 - 23, 106, 86, 4.0],
+        [ZS - 55, TOPW - 3, 108, 88, 4.4], [ZS + 10, TOPW - 1, 108, 88, 4.8], [F1 - 15, TOPW, 104, 88, 4.6], [F1 + 2, TOPW - 4, 100, 87, 4.4], [F1 + 13, TOPW - 12, 95, 85, 4.1],
+        [F1 + 21, TOPW - 24, 88, 82, 3.8], [F1 + 27, TOPW - 40, 80, 78, 3.5], [F1 + 34, 96, 68, 70, 3.1], [F1 + 41, 68, 55, 58, 2.7], [F1 + 48, 42, 44, 46, 2.4]]
+PITCHES = list(range(-50, 181, 5))
 report = {}
-ROLLS = [0.0, -5.0]
-OUT = [float(r) for r in range(10, 181, 20)]
-for name, rows, floor, shift, sock in (
-    ("A_base_shoulder_shell_4421a5d", BASE, 97.5, 0.0, 62.0),
-    ("D_cage_plus38_shell_fa63d48", SHELL_38, 135.5, FW, 62.0),
-    ("E_cage_plus38_socket_r93", SHELL_38, 135.5, FW, 93.0),
-):
+for sock in (93.0, 62.0):
     SOCK_R = sock
     s = sets_for(False)
-    report[name] = {"inward_and_zero": sweep(s, rows, floor, shift, ROLLS, PITCH), "outward": sweep(s, rows, floor, shift, OUT, PITCH)}
-    for part, table in report[name]["inward_and_zero"].items():
-        print(name, part, table)
-    print(name, "outward worst", {p: min((v for v in t.values() if v), default=None, key=lambda v: v[0]) for p, t in report[name]["outward"].items()})
-s = sets_for(False)
-del s["P1"], s["roll_RS03"]
-SOCK_R = 62.0
-report["allowed_5deg_plus38"] = allowed(s, [-10, 55, 111, 160, 200], FW, -5.0, PITCH)
-print(report["allowed_5deg_plus38"])
+    for roll in (0.0, -5.0):
+        table = {}
+        for pitch in PITCHES:
+            worst = {}
+            for name, (cloud, yaws, _) in s.items():
+                best = None
+                for yaw in yaws:
+                    base = yawed(cloud, yaw) if yaw else cloud
+                    g = gap_of(posed(base, pitch, 0.0 if name in PITCH_ONLY else roll, 0.0), ROWS, 135.5)
+                    if g and (best is None or g[0] < best[0]):
+                        best = (g[0], yaw, g[1])
+                worst[name] = best
+            table[pitch] = worst
+        key = f"sock{int(sock)}_roll{int(roll)}"
+        report[key] = table
+        for part in s:
+            vals = {p: table[p][part][0] for p in PITCHES if table[p][part]}
+            ok = [p for p in PITCHES if p not in vals or vals[p] >= 5]
+            bad = [p for p in PITCHES if p not in ok]
+            m = min(vals.items(), key=lambda kv: kv[1]) if vals else None
+            print(key, part, "min", m, "where", table[m[0]][part][2] if m else None, "under5 at", bad)
 (HERE / "shell_gaps.json").write_text(json.dumps(report, indent=1))

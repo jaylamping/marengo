@@ -10,7 +10,7 @@
   <joint name="left_shoulder_pitch" type="revolute">
     <parent link="torso_link" />
     <child link="left_shoulder_pitch_link" />
-    <origin xyz="0.000000 0.170490 0.000000" rpy="0 0 0" />
+    <origin xyz="0.000000 0.208490 0.000000" rpy="0 0 0" />
     <axis xyz="0 -1 0" />
     <limit lower="-0.87" upper="3.14" effort="60" velocity="20" />
   </joint>
@@ -30,9 +30,9 @@
   </joint>
   <link name="left_upper_arm_link">
     <inertial>
-      <origin xyz="-0.000116 -0.002232 -0.192899" rpy="0 0 0" />
-      <mass value="0.651702" />
-      <inertia ixx="0.001298218" ixy="-0.000000593" ixz="0.000003707" iyy="0.001404742" iyz="0.000139937" izz="0.000418924" />
+      <origin xyz="-0.000115 -0.002198 -0.192873" rpy="0 0 0" />
+      <mass value="0.650687" />
+      <inertia ixx="0.001297075" ixy="-0.000000589" ixz="0.000003664" iyy="0.001403113" iyz="0.000138351" izz="0.000417469" />
     </inertial>
   </link>
   <joint name="left_upper_arm_yaw" type="revolute">
@@ -66,7 +66,7 @@
   <joint name="left_lower_arm_yaw" type="revolute">
     <parent link="left_forearm_link" />
     <child link="left_hand_link" />
-    <origin xyz="0.000000 -0.000000 -0.143600" rpy="0 0 0" />
+    <origin xyz="0.000000 0.000000 -0.143600" rpy="0 0 0" />
     <axis xyz="0 0 1" />
     <limit lower="-1.05" upper="1.05" effort="14" velocity="50" />
   </joint>
@@ -80,6 +80,6 @@
   <joint name="left_hand_tip_fixed" type="fixed">
     <parent link="left_hand_link" />
     <child link="left_hand_tip" />
-    <origin xyz="0.000000 0.000000 -0.141400" rpy="0 0 0" />
+    <origin xyz="0.000000 -0.000000 -0.141400" rpy="0 0 0" />
   </joint>
 </robot>

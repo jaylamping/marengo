@@ -1,4 +1,5 @@
 # Wider torso variant, +38 mm per side
+n**Superseded as a study.** This width is now the master: see `../../torso-stepped/`. Scripts in this folder use the master positions, with the joint line at X 208.49.
 
 2026-11-05. A study only: no torso CAD, master layout or URDF has been changed. Member sizes come from `marengo_torso_asm` and need checking against the real frame.
 

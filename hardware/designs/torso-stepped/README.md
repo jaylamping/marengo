@@ -1,6 +1,6 @@
 # Stepped torso frame
 
-2026-11-06. **WIP.** Two-box 2020 frame: a wide upper box at the shoulders on the existing lower cage. Locked with the shell baseline. Master skeleton and URDF are still to come.
+2026-11-06. Two-box 2020 frame: a wide upper box at the shoulders on the existing lower cage. This is the master, locked with the shell baseline. The skeleton, layout, URDF (shoulder at ±208.49) and envelope all use it. The pre-step backup is on Joey-PC.
 
 Coordinates: torso STEP frame, mm. X lateral, Y up, Z forward. Y is measured from the pelvis bottom.
 
@@ -132,3 +132,34 @@ New extrusion is 1024 mm. Total goes from 2460 to 3124 mm, about 332 g more, ass
 | Pitch brackets | Same parts, moved out 38 mm to the X ±103 rails |
 | Waist adapter | No change. The bottom rectangle stays ±75 |
 | Side room below the step | Frame steps in 38 mm per side below Y 353.62. The arm clears the shell, not the frame, so this frees the shell to taper at the waist. It adds no roll range by itself |
+
+## Tip-over against crush distance
+
+The shell only has 8 to 17 mm to the frame at the back and sides, so 40 mm of crush was optimistic. Linear scaling from the 3 mm aluminium runs. Limit used: 99th percentile at 145 MPa yield.
+
+Back case: frame held on the rear rails of the upper box, 5.3 kN of lower body, 3.2 mm, 99th percentile 146 MPa. See `STEPPED_FALL_BACK_3MM.png`. Holding one face is harsher than a real landing on the whole shell.
+
+| Stop | Peak factor | Load | Side, 99th pct | Back, 99th pct | Holds? |
+| --- | --- | --- | --- | --- | --- |
+| 10 mm shell gap | 1.5 | 26 kN | 400 MPa | 584 MPa | No |
+| 10 mm gap + 10 mm TPU | 1.2 | 10.6 kN | 160 MPa | 234 MPa | No, local yield |
+| 20 mm of rigid crush | 1.5 | 13 kN | 200 MPa | 292 MPa | No |
+| 30 mm | 1.5 | 8.8 kN | 133 MPa | 194 MPa | Side only |
+| 40 mm | 1.5 | 6.6 kN | 100 MPa | 146 MPa | Side yes, back at the limit |
+
+The frame needs about 30 mm of stop at the side and 40 mm at the back. A side fall lands on the arm first, which stands more than 100 mm proud of the frame, so 30 mm is reachable there if the printed arm parts crush. The back has nothing proud of it, so it needs a pad. Bolted joints will slip or tear before these stresses matter, so treat 2020 and its T-nuts as parts to inspect after any fall.
+
+## Shell hardpoints
+
+From `body-shell/concept/generator/mounts.json`. Torso Y = robot Z - 810, torso X = robot Y, torso Z = robot X.
+
+| Point | On | Status |
+| --- | --- | --- |
+| H1, H2 | Top rails, X ±60, Y 485, Z ±70 | Free. Gusset stops at X 93 and Y 425 |
+| H3 | Shared rail, X ±35, Y 364, Z ±70 | Free on the rail. **At the rear, stay under Y 374:** the Pi reaches Z -71.8 from X -37.5 to 19.7, Y 376 to 397 |
+| H4 | Bottom rails, X ±40, Y 165, Z ±70 | Free |
+| H5 | Lower post side faces, Z ±60, Y 255, X ±75 | Free. Gusset starts at Y 285 |
+| H6 | Bottom side rails, under face, Z ±45, X ±65, Y 155 | **Check on the robot:** the waist adapter is not in CAD and bolts somewhere on this rectangle |
+| C | Pitch RS03 outer ring | Free. Button heads are the P2 item in `../left-arm/upper-arm/README.md` |
+
+The PDB and harness clips are not in the CAD, so those cannot be checked yet. Keep them off these slots. Pi ports at the rear also need plug room inside the 8 to 17 mm shell gap.

@@ -41,7 +41,7 @@ def gap(p, sock, floor):
 PITCH = [i * 2.5 for i in range(-20, 73)]
 out = {}
 for floor in (135.5,):
-    for sock in (62.0, 70.0, 72.0, 74.0, 76.0, 78.0, 93.0):
+    for sock in (76.0, 78.0):
         for roll in (0.0, -5.0):
             key = f"floor{floor}_sock{int(sock)}_roll{int(roll)}"
             tab = {}
@@ -51,7 +51,7 @@ for floor in (135.5,):
                     best = None
                     for yaw in yaws:
                         b = yawed(cloud, yaw) if yaw else cloud
-                        g, w, h = gap(posed(b, pitch, roll, FW), sock, floor)
+                        g, w, h = gap(posed(b, pitch, roll, 0.0), sock, floor)
                         if g is not None and (best is None or g < best[0]):
                             best = [round(g, 1), yaw, w, None if h is None else round(h, 1)]
                     row[pitch] = best

@@ -14,7 +14,7 @@ from scipy import ndimage as ni
 
 HERE = Path(__file__).resolve().parent
 VOX = 5.0
-CX, Y0, Z0, AZ = 170.49, 424.860667548, -0.0141253, 5.985875
+CX, Y0, Z0, AZ = 208.49, 424.860667548, -0.0141253, 5.985875
 EY, RY = 209.860668, 66.260668
 HAND_TIP_Y = -75.14
 PITCH_AXIS, ROLL_AXIS, YAW_AXIS, ELBOW_AXIS = (-1, 0, 0), (0, 0, 1), (0, 1, 0), (-1, 0, 0)
@@ -99,7 +99,7 @@ def write_stl(path, occ, origin):
 def wall(y):
     """Chest side half-width at height y."""
     h = Y0 - y
-    return np.where(h <= 170, 108.0, 108.0 - (h - 170) * (108 - 82) / (Y0 - FRAME_BOTTOM - 170))
+    return 38.0 + np.where(h <= 170, 108.0, 108.0 - (h - 170) * (108 - 82) / (Y0 - FRAME_BOTTOM - 170))
 
 
 def gap(cloud, pitch, roll):
@@ -132,7 +132,7 @@ def main():
     comp = export["components"]
     raw = json.loads((HERE.parent / "component_boxes_mm.json").read_text())
     boxes = {k.replace("parts/", "").replace(".SLDPRT", ""): v for k, v in raw.items() if k.startswith("parts/")}
-    boxes["marengo_upper_arm_left"] = [131.24, 167.611, -36.264, 209.74, 319.86, 48.236]
+    boxes["marengo_upper_arm_left"] = [169.24, 167.611, -36.264, 247.74, 319.86, 48.236]
     files = {"P1_L01": "P1_L01", "ROLL_RS03": "ROLL_RS03", "SPACER": "SPACER", "P2_L04B": "P2_L04B", "YAW_RS02": "YAW_RS02",
              "marengo_upper_arm_left": "UPPER_ARM", "ELBOW_RS02": "ELBOW_RS02", "FOREARM_RS00": "FOREARM_RS00"}
     pts = {n: sample(world(n, read_stl(HERE / "stl" / f"{f}.STL"), comp, boxes)) for n, f in files.items()}
