@@ -138,9 +138,15 @@ const chest = [
   [ZS - 111, WALL - 23, 106, 86, 4.0],
   [ZS - 55, WALL - 7, 108, 88, 4.4],
   [ZS + 10, WALL - 5, 108, 88, 4.8],
-  [F1 + 12, WALL, 100, 88, 4.8],   // shoulder point
-  [F1 + 28, WALL - 10, 88, 82, 4.2],
-  [F1 + 38, 64, 60, 64, 3.0],
+  // Joey 2026-11-06: rounded human shoulder top. Quarter-round cap (R ~40) at the shoulder point,
+  // then a sloped trapezius line up to the neck.
+  [F1 - 15, WALL, 104, 88, 4.6],   // shoulder point
+  [F1 + 2, WALL - 4, 100, 87, 4.4],
+  [F1 + 13, WALL - 12, 95, 85, 4.1],
+  [F1 + 21, WALL - 24, 88, 82, 3.8],
+  [F1 + 27, WALL - 40, 80, 78, 3.5],
+  [F1 + 34, 96, 68, 70, 3.1],
+  [F1 + 41, 68, 55, 58, 2.7],
   [F1 + 48, 42, 44, 46, 2.4],
 ];
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),

@@ -18,7 +18,7 @@ mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look i
 | `SHELL_CONCEPT_PROPORTIONS.png` | Full 5 ft figure: frame as built vs a +70 mm waist section |
 | `SHELL_CONCEPT_PANELS.png` | Shoulder close-up of the collar; exploded print panels |
 | `SHELL_CONCEPT_WIDTH.png` | Pec chest plate, no head, shoulders as built vs P1 +25 mm per side |
-| `SHELL_CONCEPT_BLEND.png` | Latest: in-between side line, shoulders +38 mm per side via a wider 2020 frame (226 mm), waist +10 mm per side |
+| `SHELL_CONCEPT_BLEND.png` | Latest: in-between side line, shoulders +38 mm per side via a wider 2020 frame (226 mm), waist +10 mm per side, rounded shoulder top |
 
 ## Key dimensions (robot frame, X forward, Y left, Z up)
 
