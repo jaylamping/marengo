@@ -122,6 +122,18 @@ describe("removed motor-repl tools", () => {
   });
 });
 
+describe("sleep lines fail closed", () => {
+  it("counts an unparseable sleep as over every budget and never pipes it as a command", () => {
+    for (const line of ["sleep 1.6959999999999997e+21", "sleep 1e3", "sleep Infinity", "sleep NaN", "sleep -1", "sleep", "SLEEP 2 3"]) {
+      assert.equal(scriptSleepTotalSec(["hold-at 0", line]), Infinity, line);
+      assert.throws(() => marengoPiPipeLine(line), /sleep/, line);
+    }
+    // Plain finite durations keep their meaning.
+    assert.equal(scriptSleepTotalSec(["sleep 0", "sleep 2.5", "Sleep 1"]), 3.5);
+    assert.equal(marengoPiPipeLine(" sleep 2.5 "), "sleep 2.5");
+  });
+});
+
 describe("marengo-pi script tool", () => {
   it("uses timeout_sec as total pipe budget", async () => {
     assert.equal(scriptSleepTotalSec(["hold-at 0", "sleep 2", "sleep 1.5"]), 3.5);
@@ -140,6 +152,25 @@ describe("marengo-pi script tool", () => {
       timeout_sec: 15,
     });
     assert.match(script, /\} \| timeout --foreground 15 \$PI_BIN/);
+  });
+
+  it("refuses a script whose sleep has no plain duration before running anything", async () => {
+    let ran = false;
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        ran = true;
+        return body;
+      },
+      () => {},
+    );
+    const out = await tools.pi_marengo_pi_script.handler({
+      confirm: true,
+      script: ["hold-at 0.1", "sleep 1e9", "disable"],
+      timeout_sec: 15,
+    });
+    assert.match(String(out), /^Refused: /);
+    assert.equal(ran, false);
   });
 
   it("expands wave lines with auto wait sleep", () => {

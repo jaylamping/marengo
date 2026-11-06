@@ -318,6 +318,19 @@ describe("pi_motion_suite plan", () => {
     assert.equal(wait, expected);
   });
 
+  it("refuses a speed fraction too small to time within the budget", () => {
+    // f = 1e-22 renders sleeps in exponent notation (1.69…e+21 s): the plan must still be
+    // judged over budget, never accepted as 0 s of sleep.
+    const p = planSuite({
+      geometry: geometry(PITCH, PITCH_TAU),
+      chain: CHAIN,
+      limits: repoLimits(),
+      sessions: ["long_moves"],
+      options: { ...OPTIONS, speedFractions: [1e-22] },
+    });
+    assert.equal(p.ok, false, p.ok ? JSON.stringify(p.parts.map((x) => x.budgetSec)) : "");
+  });
+
   it("splits a session that exceeds 300 s at block boundaries", () => {
     const g = geometry(PITCH, PITCH_TAU);
     const p = planSuite({
