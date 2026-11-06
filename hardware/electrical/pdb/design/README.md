@@ -155,6 +155,8 @@ marengo_pdu (root)
 
 ## 5. HP-to-LP board-to-board connector (draft)
 
+> Superseded by the captured pinout: two 2x15 ribbons, J101 and J102 on `HP_power_board.kicad_sch`. Reasons are in [RATIONALE-log.md](RATIONALE-log.md), section HP_power_board top sheet.
+
 One locking 2 × 30 header, 2.0 mm pitch, along the HP bottom edge and the LP top edge. No motor current crosses it.
 
 | Pins | Signal |
