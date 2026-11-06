@@ -16,7 +16,7 @@ Physical robot design for Marengo: CAD, electrical, prints, and BOM. Mechanics a
 
 | Target | Status |
 |--------|--------|
-| Humanoid rev-a (G1/R1-class biped, 1524 mm, 23 DOF) | Torso frame 125×150×380 mm committed; pelvis/shell draft — [`docs/kinematics.md`](docs/kinematics.md) |
+| Humanoid rev-a (G1/R1-class biped, 1524 mm, 23 DOF) | Torso frame 140×150×340 mm committed; pelvis/shell draft — [`docs/kinematics.md`](docs/kinematics.md) |
 | Right arm (5 DOF, live bench) | First subsystem wired and commissioning: [`config/robot.yaml`](../config/robot.yaml) + [`assets/urdf/marengo.urdf`](../assets/urdf/marengo.urdf) (geometry and inertials from CAD, 2026-10-03). It is the first slice of the humanoid arm, not a separate robot |
 | Electrical | Pi 5 + 2-CH MCP2515 CAN HAT + BNO085 IMU on the bench. PDB/PDU KiCad project is an empty stub; 48 V pack and full harness are draft |
 

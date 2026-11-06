@@ -33,17 +33,17 @@ Upper body structure is a single **2020 aluminum cage** (`marengo_upper_torso_fr
 
 | | Depth (X) | Width (Y) | Height (Z) |
 |---|-----------|-----------|------------|
-| **Outer (2020 OD)** | **125** | **150** | **380** |
-| **Inner clear (between rails)** | **85** | **110** | **~300** above waist bay |
+| **Outer (2020 OD)** | **140** | **150** | **340** |
+| **Inner clear (between rails)** | **100** | **110** | **~300** |
 
 | Feature | mm | Notes |
 |---------|-----|-------|
 | **Waist bay** (bottom of frame) | **≥ 40** | Reserved for `waist_yaw` RS03 + adapter; no shelves |
 | **Chest zone** (above waist bay) | **~340** outer | Pi, PDB, harness; M18 bay *draft* |
 | **Bottom interface** | — | Bottom rail → waist adapter → pelvis ring (*pelvis draft*) |
-| **Top interface** | Z = **495** from pelvis bottom | Shoulder pitch RS03 mounts **inside** the cage at the shoulder plane (rev-a; see [torso-actuator-brackets.md](torso-actuator-brackets.md)) |
+| **Top interface** | Z = **495** from pelvis bottom | Shoulder pitch RS03 mounts through the cage side at the shoulder plane, Z = **424.9**, output face at Y = **±97**, 22 mm outboard of the frame (rev-a; see [torso-actuator-brackets.md](torso-actuator-brackets.md)) |
 
-Vertical: **380 mm** = waist joint plane → shoulder plane when pelvis height remains **115 mm** (draft).
+Vertical: the frame is **340 mm**, Z = 155 to 495 from pelvis bottom in CAD. The 40 mm waist bay sits below it.
 
 ### Link dimensions (mm)
 
@@ -61,11 +61,11 @@ Floor → crown must sum to **1524 mm**. Values marked *draft* are CAD targets u
 
 | Part | Size (mm) | Status | Notes |
 |------|-----------|--------|-------|
-| **Upper torso frame** | **125 × 150 × 380** outer; **85 × 110** inner clear | **committed** | 2020 cage; see [torso frame](#torso-frame-committed) |
+| **Upper torso frame** | **140 × 150 × 340** outer; **100 × 110** inner clear | **committed** | 2020 cage; see [torso frame](#torso-frame-committed) |
 | Pelvis ring | ~215 × 260 × 115 outer *draft* | draft | Wider than torso; main pack bay TBD |
 | Main battery envelope | ~185 × 165 × 90 *draft* | draft | Pelvis; max Wh TBD |
 | M18 HD12 aux bay | ~168 × 98 × 112 *draft* | draft | Upper back cantilever |
-| Shoulder outer width | ~150 at the frame *draft* | draft | Rev-a puts shoulder pitch inside the cage, so no ~40 mm/side poke; arms exit through shell cutouts |
+| Shoulder outer width | ~150 at the frame *draft* | draft | Pitch output faces are 194 mm apart in CAD, 22 mm outboard of the frame per side |
 | Hip span (joint centers) | ~250 *draft* | draft | R1-class; splayed mounts |
 | Foot (each) | 250 × 115 × 80 *draft* | draft | Toe-heavy for CoM |
 | Head | 175 × 160 × 224 *draft* | draft | Skipped in v1 CAD |
@@ -201,7 +201,7 @@ Leg bring-up: start with **hip pitch** and **knee** RS04 sign tests under load b
 | Frame | Use |
 |-------|-----|
 | `base_link` / pelvis | Biped origin; pelvis `urdf_link_frame` on CAD pelvis (*pelvis draft*) |
-| `torso_link` | Upper torso 2020 frame; shoulder **pitch** RS03 inside cage at shoulder plane (rev-a layout) |
+| `torso_link` | Upper torso 2020 frame; shoulder **pitch** RS03 through the cage side at the shoulder plane (rev-a layout) |
 | `left_foot` / `right_foot` | Sole contact; Z = floor in standing neutral |
 | `left_hand` / `right_hand` | Tool frame placeholder (TCP when gripper defined) |
 | `right_forearm_link` | Live right-arm bench tool frame (full humanoid: `left_hand` / `right_hand`) |

@@ -1,6 +1,6 @@
 # Upper torso — 2020 extrusion (rev A)
 
-Cut list and vendor CAD for the **committed** upper torso cage (`125 × 150 × 380 mm` outer, `85 × 110 mm` inner clear). SSOT envelope: [`kinematics.md`](kinematics.md#torso-frame-committed). **Built frame** uses **340 mm** corner posts (see below).
+Cut list and vendor CAD for the **committed** upper torso cage (`140 × 150 × 340 mm` outer, `100 × 110 mm` inner clear). SSOT envelope: [`kinematics.md`](kinematics.md#torso-frame-committed). **Built frame** uses **340 mm** corner posts (see below).
 
 ## Purchased stock
 

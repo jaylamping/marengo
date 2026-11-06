@@ -24,7 +24,8 @@ the physical robot on 2026-11-05. The fixed pitch bracket files were swapped and
 about 2.8 mm of air at 135° and touches at about 137°. This is a hand calculation, not a motion sweep. It leaves
 51.4 mm from the RS00 output to the end of the forearm. There is no wrist pitch; the arm stays at five actuators.
 
-The elbow and RS00 are mated to the skeleton, so `L_UPPER` and `RS00_OFFSET` move them.
+The elbow and RS00 are mated to the skeleton, so `L_UPPER` and `RS00_OFFSET` move them. The skeleton has one named
+coordinate system per joint, and `../urdf/` generates the URDF from them. Inward shoulder roll is limited to 15°.
 
 Open items:
 

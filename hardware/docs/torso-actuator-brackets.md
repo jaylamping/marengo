@@ -2,13 +2,13 @@
 
 Printed mounts for the **three RS03 layout motors** in `marengo_torso_asm`.
 
-**Rev-a shoulder decision:** shoulder **pitch** RS03 units live **inside** the 2020 cage (not on outer Y faces). Shoulder **roll** RS03 mounts on the arm sub-assembly (distal). Packaging and brackets only on the torso for pitch.
+**Rev-a shoulder decision:** shoulder **pitch** RS03 units sit through the 2020 cage sides: rear faces 80.8 mm apart inside the cage, output faces at Y = ±97, 22 mm outboard of the frame. Shoulder **roll** RS03 mounts on the arm sub-assembly (distal). Packaging and brackets only on the torso for pitch.
 
 | Instance | Joint | Axis | Mount region |
 |----------|-------|------|----------------|
 | `actuator_rs03_waist_yaw` | `waist_yaw` | **+Z** | Bottom **40 mm** waist bay (`waist_bay_top`) |
-| `actuator_rs03_left_shoulder_pitch` | `left_shoulder_pitch` | **+Y** | **Inside** cage, **+Y** half, at `shoulder_plane` |
-| `actuator_rs03_right_shoulder_pitch` | `right_shoulder_pitch` | **+Y** | **Inside** cage, **−Y** half, at `shoulder_plane` |
+| `actuator_rs03_left_shoulder_pitch` | `left_shoulder_pitch` | **+Y** | Through cage side, **+Y** half, at `shoulder_plane` |
+| `actuator_rs03_right_shoulder_pitch` | `right_shoulder_pitch` | **+Y** | Through cage side, **−Y** half, at `shoulder_plane` |
 
 SSOT frame: [`kinematics.md`](kinematics.md#torso-frame-committed). Handoff: [`torso-design-handoff.md`](torso-design-handoff.md).
 
@@ -36,7 +36,7 @@ Measured bbox on `vendor_robstride_rs03_vendor.SLDPRT` (mm):
 | **X** (depth) | **~57** (if body depth along X) | **85** → OK |
 | **Z** (height) | **~57** | shoulder band at `shoulder_plane` |
 
-**Required orientation at shoulder (pitch motor):** pitch axis **+Y**; pack body so **99 mm spans Y** and **57 mm spans X** (not 99 mm into the 85 mm depth). Verify in a test assembly before printing brackets.
+**Required orientation at shoulder (pitch motor):** pitch axis **+Y**; the 57 mm body length spans Y and the 99 mm diameter spans X and Z, inside the 100 mm clear depth.
 
 CAD action: **move** the two shoulder layout instances in `marengo_torso_asm` from outer fixed poses into the cage; remate to layout refs `shoulder_mount_left` / `shoulder_mount_right` (add on layout part).
 
@@ -69,7 +69,7 @@ Layout part anchors to add:
 
 ## 1. Internal shoulder pitch mount bracket (L / R)
 
-**Purpose:** Capture RS03 against **inner face** of the side vertical (`frame_2020_vertical_*_340`) or a short PETG bridge from vertical + front/rear rail; keep motor mass inside **110 mm** Y span.
+**Purpose:** Capture RS03 against **inner face** of the side vertical (`frame_2020_vertical_*_340`) or a short PETG bridge from vertical + front/rear rail; motor body spans Y = ±40.4 to ±97.
 
 **Interfaces**
 
@@ -102,7 +102,7 @@ Plate in **≥ 40 mm** waist bay; **Z** axis; bolts to bottom 2020 rectangle. Se
 
 ## Assembly checklist
 
-- [ ] Shoulder RS03 instances physically **inside** cage in SW
+- [x] Shoulder RS03 instances through the cage sides in SW
 - [ ] `Hardware` folder: 3 bracket instances
 - [ ] `marengo_kinematics_consistency` finds `waist_yaw`, `left_shoulder_pitch`, `right_shoulder_pitch` in torso asm
 - [ ] Shell/URDF: arm attachment at **shaft**, not outer frame corner
