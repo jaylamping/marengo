@@ -30,7 +30,9 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 - **Pack power and pack sense mate at the back, at the D2 door,** not at the board. The HP top edge carries a 10 AWG pair and the
   sense harness over the pack's top edge (8.6 mm headroom, fine for cable) to the pack's rear top corner, where they meet the
   pack's XT90S and the battery thread's sense board (pack rear face, X 5 to 45, Y 318 to 343). Unplug at the door, slide the
-  pack out: no reaching into the torso, and no shelf cutout needed.
+  pack out: no reaching into the torso, and no shelf cutout needed. Battery thread (09:18Z): the pack's XT90S pigtail is about 60 mm of
+  10 AWG from the fuse, and both pack-side connectors sit in a printed holder on the case; board-side leads reach that holder with
+  about 30 mm of slack.
 - **Arm ports:** pigtails from the HP top corners run up the front corners with the trunk; the arm trunk's first XT30(2+2) joint
   becomes an inline connector on that run. Agreed with the trunk thread (09:18Z): about 250 mm of 16 AWG or heavier plus the
   CAN pair, XT30(2+2) **female on the pigtail** (live side), joint at the frame step corner around Y 360 to 380, 80 to 100 mm
