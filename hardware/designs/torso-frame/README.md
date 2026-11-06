@@ -261,7 +261,9 @@ that would reopen the frame.
 
 0. **Power**: 13S2P custom pack locked (Joey 06:13Z). Next: the power and bus board design (KiCad), the pack build, and D2 sized to pass the pack. The third compute board has no home (pack and board fill the lower box): pelvis, or a second layer over the Pi.
 
-1. **Photo of the built frame bottom**: how the waist adapter bolts on (the hip interface depends on it). Shelf footprint is now from the CAD.
+1. ~~Photo of the built frame bottom~~ Joey 2026-11-06 10:36Z: the built frame is still just the bare 2020 box, no waist actuator and no
+   mount yet, so nothing on it constrains the hip interface; the bottom rails' under-face is free. A photo would still confirm the rail
+   count (12 or 16) and bracket positions. Shelf footprint is from the CAD.
 1a. **Which connector flat each pitch RS03 has** (A or B above), for the harness exit.
 2. **Main battery location**: pelvis (baseline) or torso (reopens the lower box width).
 3. **M18 aux bay**: drop, or move to the pelvis.
