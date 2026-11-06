@@ -56,7 +56,7 @@ def build(v):
     p = dict(W=64, D=66, n=3.4, top=212, zc=150, eye_z=146, eye_y=30, eye_ro=21, eye_r=14.5, eye_dep=6,
              jaw_top=93, jaw_bot=30, jaw_t=4, jaw_gap=1.5, jaw_ledge=3, chin_back=12, jaw_taper=5,
              hinge_r=14, hinge_back=0.52, chin_drop=0, chin_fwd=6, chin_flat=0.35, chin_chamfer=0, crest_tip=99, crest_h=13, crest_b=16, crest_end=100,
-             ear_z=150, ear_x=-4, dome_m=2.0, jaw_facet=0, collar_r=58)
+             ear_z=150, ear_x=-4, dome_m=2.0, jaw_facet=0, collar_r=58, jaw_round=0, jaw_bulge=0)
     p.update(v)
     W, D, n, top, zc = p['W'], p['D'], p['n'], p['top'], p['zc']
     jt, jb, t, gap = p['jaw_top'], p['jaw_bot'], p['jaw_t'], p['jaw_gap']
@@ -112,14 +112,26 @@ def build(v):
     def jsec(z, off):
         f = (jt - z) / (jt - jbf)
         fwd = p['jaw_ledge'] * (1 - f) + (p['chin_fwd'] if p['chin_drop'] else -p['chin_back']) * f
+        fwd += p['jaw_bulge'] * math.sin(math.pi * f)          # convex front in side view
         tw = p['jaw_taper'] * f
+        rb = p['jaw_round']                                     # rounded lower edge (scoop), radius rb
+        if rb and z < jbf + rb:
+            dz = (jbf + rb - z) / rb
+            sh = rb * (1 - math.sqrt(max(0.0, 1 - min(1.0, dz) ** 2)))
+            tw += sh; fwd -= 0.0
         if p['jaw_facet']:  # flat front, flat sides, angled corner facets (plan view)
             hw, hd, c = W + off - tw, D + off - tw, p['jaw_facet']
             pts = [(fwd + hd, -hw + c), (fwd + hd, hw - c), (fwd + hd - c, hw), (-hd, hw), (-hd, -hw), (fwd + hd - c, -hw)]
             return make_face(Polyline(*[(x_, y_, z) for x_, y_ in pts], close=True))
         return sec(z, W + off - tw, D + off - tw, n, x0=fwd)
-    outer = loft([jsec(jbf, gap + t), jsec(jt, gap + t)])
-    inner = loft([jsec(jbf - 0.01, gap), jsec(jt + 0.01, gap)])
+    if p['jaw_round'] or p['jaw_bulge']:
+        rb = max(p['jaw_round'], 1)
+        zs = [jbf + 0.02 * rb, jbf + 0.08 * rb, jbf + 0.2 * rb, jbf + 0.4 * rb, jbf + 0.7 * rb, jbf + rb] + [jbf + rb + (jt - jbf - rb) * k / 4 for k in (1, 2, 3, 4)]
+        outer = loft([jsec(z, gap + t) for z in zs])
+        inner = loft([jsec(z, gap) for z in [zs[0] - 0.01] + zs[1:-1] + [zs[-1] + 0.01]])
+    else:
+        outer = loft([jsec(jbf, gap + t), jsec(jt, gap + t)])
+        inner = loft([jsec(jbf - 0.01, gap), jsec(jt + 0.01, gap)])
     inner = extrude(inner.faces().sort_by(Axis.Z)[-1], amount=2) + inner + extrude(inner.faces().sort_by(Axis.Z)[0], amount=-2)
     hr = p['hinge_r']; hx = -D * p['hinge_back'] + hr; hz = jb + hr + 2
     def profile(lift):
@@ -153,7 +165,8 @@ VARIANTS = {'G1': dict(), 'G2': dict(chin_drop=34, chin_fwd=16, chin_chamfer=12,
             'G4': dict(W=64, D=64, top=180, zc=144, dome_m=2.6, eye_z=114, eye_y=34, eye_ro=21, eye_r=15, jaw_bot=26, jaw_top=70, crest_tip=76, crest_end=95,
                        hinge_r=10, chin_drop=3, chin_fwd=3, chin_chamfer=5, jaw_taper=3, chin_flat=0.45, jaw_facet=16, jaw_ledge=3, ear_z=124, ear_x=-2, collar_r=74)}
 VARIANTS['G5'] = dict(VARIANTS['G4'], top=205, zc=169)  # G4 with the top of the head stretched 25 mm (Joey 11:50Z)
-VARIANTS['G6'] = dict(VARIANTS['G5'], jaw_facet=0)  # rounded jaw, no flats (Joey 11:53Z)  # G3: smaller jaw, top ~25 mm lower, small chin (Joey 11:42Z)
+VARIANTS['G6'] = dict(VARIANTS['G5'], jaw_facet=0)  # rounded jaw, no flats (Joey 11:53Z)
+VARIANTS['G7'] = dict(VARIANTS['G5'], jaw_round=16, jaw_bulge=4, chin_chamfer=0)  # pass 8 jaw rounded in side view: convex front, scoop-round lower edge  # G3: smaller jaw, top ~25 mm lower, small chin (Joey 11:42Z)
 
 if __name__ == '__main__':
     for nm in (sys.argv[1:] or list(VARIANTS)):
