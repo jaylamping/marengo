@@ -125,7 +125,8 @@ def build(v):
 
 
 MATS = dict(core='dark', head='white', crest='grey2', bezel='dark', glow='eye', jaw='grey1', ears='white', collar='white', neck='dark')
-VARIANTS = {'G1': dict(), 'G2': dict(chin_drop=34, chin_fwd=16, chin_chamfer=12, jaw_taper=6, chin_flat=0.5)}  # G2: chin dropped ~2 in and jutting forward (Joey 11:34Z)
+VARIANTS = {'G1': dict(), 'G2': dict(chin_drop=34, chin_fwd=16, chin_chamfer=12, jaw_taper=6, chin_flat=0.5),  # G2 rejected: jaw got bigger
+            'G3': dict(jaw_top=68, crest_tip=74, hinge_r=11, chin_drop=6, chin_fwd=7, chin_chamfer=5, jaw_taper=5, chin_flat=0.45)}  # G3: smaller jaw, top ~25 mm lower, small chin (Joey 11:42Z)
 
 if __name__ == '__main__':
     for nm in (sys.argv[1:] or list(VARIANTS)):

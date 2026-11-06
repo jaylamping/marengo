@@ -68,3 +68,9 @@ Known nit: thin dark seam between the back skirt and the jaw's rear edge in side
 `build_head3.py G2` -> `HEAD_GIANT_PASS5.png` (render `?stl=G2&hz=10`). Joey 11:34-11:35Z: lower the jaw about 2 in and make
 sure he has a chin; mohawk is good. The jaw front now hangs 34 mm below the hinge end and leans forward 16 mm to a
 bevelled chin, with a sloped floor back to the hinge; the head rides 16 mm higher on the neck so the chin clears the chest.
+
+## Pass 6 (current): smaller jaw
+
+Pass 5 (G2) was rejected: the jaw got bigger. Joey meant the jaw's TOP edge should come down. `build_head3.py G3` ->
+`HEAD_GIANT_PASS6.png` (render `?stl=G3&hz=-6`): jaw top 68 (was 93), crest tip 74, jaw 44 mm tall, small hinge boss,
+slight forward lean to a small bevelled chin.
