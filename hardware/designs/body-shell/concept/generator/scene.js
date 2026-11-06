@@ -123,16 +123,18 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 // ---------- CHEST shell (torso-fixed, bolts to 2020 frame) ----------
 // rows: [z, half-width Y, front depth +X, back depth -X, squareness n]
 // frame is +-75 Y, +-70 X. Arm hangs at Y=170 with 15 deg inward roll -> keep side <= ~100 below shoulder.
-// Joey 2026-11-06: from the shoulder point the side runs almost straight down to ~65 mm below the
+// Joey 2026-11-06 (in-between): from the shoulder point the side curves gently in, steeper below ~110 mm;
+// inboard of the hanging arm for 5 deg inward roll. Earlier: side runs almost straight down to ~65 mm below the
 // black P1 part (bottom at ZS-46), then tapers to the waist. Wall tracks the shoulder width (YSX).
 const WALL = 124 + YSX;
 const TAPER_Z = ZS - 46 - 65;
 const chest = [
   [F0 - 6, 79, 80, 76, 3.6],
-  [F0 + 60, 90, 90, 80, 3.6],
-  [TAPER_Z - 45, WALL - 14, 104, 86, 4.0],
-  [TAPER_Z, WALL - 2, 108, 88, 4.4],
-  [ZS + 10, WALL, 108, 88, 4.8],
+  [ZS - 200, WALL - 60, 92, 80, 3.6],
+  [ZS - 160, WALL - 52, 100, 84, 3.8],
+  [ZS - 111, WALL - 36, 106, 86, 4.0],
+  [ZS - 55, WALL - 20, 108, 88, 4.4],
+  [ZS + 10, WALL - 9, 108, 88, 4.8],
   [F1 + 12, WALL, 100, 88, 4.8],   // shoulder point
   [F1 + 28, WALL - 10, 88, 82, 4.2],
   [F1 + 38, 64, 60, 64, 3.0],

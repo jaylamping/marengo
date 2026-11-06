@@ -18,7 +18,7 @@ mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look i
 | `SHELL_CONCEPT_PROPORTIONS.png` | Full 5 ft figure: frame as built vs a +70 mm waist section |
 | `SHELL_CONCEPT_PANELS.png` | Shoulder close-up of the collar; exploded print panels |
 | `SHELL_CONCEPT_WIDTH.png` | Pec chest plate, no head, shoulders as built vs P1 +25 mm per side |
-| `SHELL_CONCEPT_STRAIGHT.png` | Latest: straight sides from the shoulder point, then taper (P1 +25 mm); conflicts with inward roll |
+| `SHELL_CONCEPT_BLEND.png` | Latest: side line between the straight and tapered versions (P1 +25 mm); keeps 5° inward roll |
 
 ## Key dimensions (robot frame, X forward, Y left, Z up)
 
@@ -51,6 +51,7 @@ the outer frame slots, M3 heat-set inserts in the panel bosses, lapped seams.
 - Collar mounting (from the arm thread): the 8 unused outboard M4 holes on the pitch RS03's 98 mm bolt circle, new M4x10
   button heads, 2–3 mm flange, bore at least 72 mm. P1 stays beyond Y 101.75 from r 24 to 54, so the flange must stay inside that.
 - Sides are pulled in to Y ±90 from 100–200 mm below the shoulder axis, as the arm thread asked (at least 5 mm at 5° inward roll).
+  The in-between line keeps the wall 9–20 mm inside the shoulder point down to 55 mm below the axis, so 5° inward roll keeps at least 5 mm.
   Re-check once Joey picks the inward roll stop (5° or 15°); see `../../left-arm/envelope/`.
 - The exposed shoulder parts in these renders are simple stand-ins, not the real P1/P2 geometry.
 - At 215 + 195 + 90 mm the arms read short against a 5 ft body in the proportion view.

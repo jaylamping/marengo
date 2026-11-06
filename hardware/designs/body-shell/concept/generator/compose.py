@@ -43,10 +43,11 @@ sheet([(crop('w0.png', (700, 300, 2500, 2300), w=900), 'Shoulders as built: roll
       'Body shell, concept B: chest plate and shoulder width', sub, 'SHELL_CONCEPT_WIDTH.png',
       ['Head removed until it is designed. Chest has pec masses, a sternum groove and a crisp lower edge; the black yoke panel is gone.',
        'The +25 mm option lengthens P1 (arm thread); the shell shoulder line widens with it. Shell upper panels then need a centre split for the P2S.'])
-sheet([(crop('s25.png', (700, 300, 2500, 2300), w=900), 'Front'),
-       (crop('s25iso.png', (700, 200, 2500, 2400), w=900), 'Three-quarter'),
-       (crop('s25side.png', (900, 300, 2300, 2300), w=700), 'Side')],
-      'Body shell: straight sides from the shoulder point, then taper (P1 +25 mm)', sub, 'SHELL_CONCEPT_STRAIGHT.png',
-      ['Side wall at Y +-149 from the shoulder point down to ~65 mm below the P1 part, then tapering to the 158 mm chest bottom.',
-       'Conflict: in that straight band the hanging upper arm sits only ~5 mm off the shell, so inward roll would be about 0 deg.',
-       'Upper panels become 298 mm wide, so they split at the centre line for the P2S.'])
+sheet([(crop('s25.png', (700, 300, 2500, 2300), w=800), 'Previous: straight sides'),
+       (crop('m25.png', (700, 300, 2500, 2300), w=800), 'In-between (latest)'),
+       (crop('m25iso.png', (700, 200, 2500, 2400), w=800), 'In-between, three-quarter'),
+       (crop('m25side.png', (900, 300, 2300, 2300), w=620), 'Side')],
+      'Body shell: in-between side line (P1 +25 mm)', sub, 'SHELL_CONCEPT_BLEND.png',
+      ['From the full-width shoulder point the side curves in gently (about 9 mm by the shoulder axis, 20 mm by 55 mm below it),',
+       'then tapers more steeply to the 158 mm chest bottom. The wall stays inboard of the hanging upper arm, so 5 deg inward roll keeps >= 5 mm.',
+       'Upper panels are 298 mm wide at this shoulder width, so they split at the centre line for the P2S.'])
