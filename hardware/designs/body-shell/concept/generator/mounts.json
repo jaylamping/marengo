@@ -1,0 +1,10 @@
+{"_doc": "Proposed hardpoints (robot frame mm, Z from floor at ext=70). Printed PETG brackets on M5 T-nuts, each carrying M3 heat-set inserts. Panels hold no inserts. face = frame face the bracket sits on.",
+ "hardpoints": [
+  {"id": "H1", "where": "upper box top front rail, front face", "face": "+X", "pts": [[70, 60, 1295], [70, -60, 1295]], "carries": "U1 upper front (top edge)"},
+  {"id": "H2", "where": "upper box top rear rail, rear face", "face": "-X", "pts": [[-70, 60, 1295], [-70, -60, 1295]], "carries": "U2 upper back (top edge), D3 hatch catch"},
+  {"id": "H3", "where": "step shared rail, front and rear faces, between the gusset plates", "face": "+/-X", "pts": [[70, 35, 1174], [70, -35, 1174], [-70, 35, 1174], [-70, -35, 1174]], "carries": "U1/U2 bottom edge, U3/U4 top edge, D1 door frame"},
+  {"id": "H4", "where": "lower box bottom rails, front and rear faces", "face": "+/-X", "pts": [[70, 40, 975], [70, -40, 975], [-70, 40, 975], [-70, -40, 975]], "carries": "U3/U4 bottom edge, D2 door frame"},
+  {"id": "H5", "where": "lower box corner posts, outer side faces", "face": "+/-Y", "pts": [[60, 75, 1065], [-60, 75, 1065], [60, -75, 1065], [-60, -75, 1065]], "carries": "U3/U4 side edge, V1 vent grille"},
+  {"id": "H6", "where": "lower box bottom side rails, under face", "face": "-Z", "pts": [[45, 65, 962], [-45, 65, 962], [45, -65, 962], [-45, -65, 962]], "carries": "abdomen band carrier (3 bands)"},
+  {"id": "C", "where": "pitch RS03 outer ring, 8 unused outboard M4 holes per side", "face": "+/-Y", "pts": [[0, 135.5, 1234.9], [0, -135.5, 1234.9]], "carries": "collar halves; U1/U2 socket rims lap onto them (location only)"}
+ ]}

@@ -52,6 +52,8 @@ the outer frame slots, M3 heat-set inserts in the panel bosses, lapped seams.
 
 ## Open points
 
+- **Manufacturing (2026-11-06):** split, mounts, doors, vents and the pre-print test ladder are in `../manufacturing/`. It found the back too shallow for the frame's rear corners and proposes a fix (generator `bd`, `bdlo`, `nlo`, `wlo`), waiting for Joey.
+
 - Shell fits the two-box frame (de5a006) with 15 mm or more to the gusset plates; panel mounts still to be placed on the new frame members.
 - Upper-arm length card (240/200, 215/195 or 250/210) is open with Joey on the arm thread; the renders use 215/195.
 - Collar M4 button heads stand 2.2 mm proud; the arm thread adds a local relief to P2's inner edge.

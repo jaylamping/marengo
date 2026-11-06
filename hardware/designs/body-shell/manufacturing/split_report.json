@@ -1,0 +1,612 @@
+{
+ "wall_mm": 2.4,
+ "usable_mm": 250.0,
+ "pieces": [
+  {
+   "name": "upper_front_L",
+   "unit": "U1 upper front",
+   "kind": "panel",
+   "note": "pec plate, left (+Y)",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    124.2,
+    154.2,
+    228.0
+   ],
+   "print_xyz": [
+    228.0,
+    124.2,
+    154.2
+   ],
+   "part_g": 176.6,
+   "support_g": 6.2,
+   "outer_support_cm2": 0.3,
+   "hours": [
+    4.0,
+    6.7
+   ]
+  },
+  {
+   "name": "upper_front_R",
+   "unit": "U1 upper front",
+   "kind": "panel",
+   "note": "pec plate, right",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    124.2,
+    154.2,
+    228.0
+   ],
+   "print_xyz": [
+    228.0,
+    124.2,
+    154.2
+   ],
+   "part_g": 176.6,
+   "support_g": 6.2,
+   "outer_support_cm2": 0.3,
+   "hours": [
+    4.0,
+    6.7
+   ]
+  },
+  {
+   "name": "upper_back_L",
+   "unit": "U2 upper back",
+   "kind": "panel",
+   "note": "back plate, left (+Y); door opening not cut",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    98.0,
+    156.9,
+    228.0
+   ],
+   "print_xyz": [
+    179.5,
+    156.9,
+    245.6
+   ],
+   "part_g": 176.9,
+   "support_g": 3.2,
+   "outer_support_cm2": 2.1,
+   "hours": [
+    3.9,
+    6.6
+   ]
+  },
+  {
+   "name": "upper_back_R",
+   "unit": "U2 upper back",
+   "kind": "panel",
+   "note": "back plate, right",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    98.0,
+    156.9,
+    228.0
+   ],
+   "print_xyz": [
+    179.5,
+    156.9,
+    245.6
+   ],
+   "part_g": 176.9,
+   "support_g": 3.3,
+   "outer_support_cm2": 2.4,
+   "hours": [
+    3.9,
+    6.6
+   ]
+  },
+  {
+   "name": "door_compute",
+   "unit": "D1 compute door",
+   "kind": "door",
+   "note": "Pi 5, CAN HAT, shelf; vented or fan variants",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    2.7,
+    120.3,
+    120.6
+   ],
+   "print_xyz": [
+    120.6,
+    120.3,
+    2.7
+   ],
+   "part_g": 42.7,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.9,
+    1.6
+   ]
+  },
+  {
+   "name": "hatch_shoulder_L",
+   "unit": "D3 shoulder hatch L",
+   "kind": "door",
+   "note": "pitch RS03 connectors and harness entry",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    39.0,
+    101.4,
+    35.8
+   ],
+   "print_xyz": [
+    101.4,
+    33.6,
+    52.2
+   ],
+   "part_g": 9.6,
+   "support_g": 0.1,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.2,
+    0.4
+   ]
+  },
+  {
+   "name": "hatch_shoulder_R",
+   "unit": "D3 shoulder hatch R",
+   "kind": "door",
+   "note": "pitch RS03 connectors and harness entry",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    39.0,
+    101.4,
+    35.8
+   ],
+   "print_xyz": [
+    101.4,
+    33.6,
+    52.2
+   ],
+   "part_g": 9.6,
+   "support_g": 0.1,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.2,
+    0.4
+   ]
+  },
+  {
+   "name": "lower_front_L",
+   "unit": "U3 lower front",
+   "kind": "panel",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    107.0,
+    139.6,
+    166.9
+   ],
+   "print_xyz": [
+    139.6,
+    107.0,
+    166.9
+   ],
+   "part_g": 93.3,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    2.0,
+    3.4
+   ]
+  },
+  {
+   "name": "lower_front_R",
+   "unit": "U3 lower front",
+   "kind": "panel",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    107.0,
+    139.6,
+    166.9
+   ],
+   "print_xyz": [
+    139.6,
+    107.0,
+    166.9
+   ],
+   "part_g": 93.3,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    2.0,
+    3.4
+   ]
+  },
+  {
+   "name": "lower_back_L",
+   "unit": "U4 lower back",
+   "kind": "panel",
+   "note": "door opening not cut",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    97.2,
+    139.6,
+    166.9
+   ],
+   "print_xyz": [
+    139.6,
+    97.2,
+    166.9
+   ],
+   "part_g": 93.9,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    2.1,
+    3.4
+   ]
+  },
+  {
+   "name": "lower_back_R",
+   "unit": "U4 lower back",
+   "kind": "panel",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    97.2,
+    139.6,
+    166.9
+   ],
+   "print_xyz": [
+    139.6,
+    97.2,
+    166.9
+   ],
+   "part_g": 93.9,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    2.1,
+    3.4
+   ]
+  },
+  {
+   "name": "door_power",
+   "unit": "D2 power door",
+   "kind": "door",
+   "note": "PDB, harness trunk, USB/Ethernet/switch ports",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    5.3,
+    127.3,
+    129.5
+   ],
+   "print_xyz": [
+    127.3,
+    68.5,
+    113.6
+   ],
+   "part_g": 43.8,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    1.0,
+    1.6
+   ]
+  },
+  {
+   "name": "vent_side_L",
+   "unit": "V1 side vent L",
+   "kind": "vent",
+   "note": "intake grille insert, swappable",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    130.0,
+    37.0,
+    117.3
+   ],
+   "print_xyz": [
+    130.0,
+    37.0,
+    117.3
+   ],
+   "part_g": 46.3,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    1.0,
+    1.7
+   ]
+  },
+  {
+   "name": "vent_side_R",
+   "unit": "V1 side vent R",
+   "kind": "vent",
+   "note": "intake grille insert, swappable",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    130.0,
+    37.0,
+    117.3
+   ],
+   "print_xyz": [
+    130.0,
+    37.0,
+    117.3
+   ],
+   "part_g": 46.3,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    1.0,
+    1.7
+   ]
+  },
+  {
+   "name": "collar_L_front",
+   "unit": "C collar L",
+   "kind": "collar",
+   "note": "on 4 unused outboard M4 holes",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    57.0,
+    2.0,
+    114.0
+   ],
+   "print_xyz": [
+    114.0,
+    57.0,
+    2.0
+   ],
+   "part_g": 5.6,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.1,
+    0.2
+   ]
+  },
+  {
+   "name": "collar_L_back",
+   "unit": "C collar L",
+   "kind": "collar",
+   "note": "on 4 unused outboard M4 holes",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    57.0,
+    2.0,
+    114.0
+   ],
+   "print_xyz": [
+    114.0,
+    57.0,
+    2.0
+   ],
+   "part_g": 5.6,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.1,
+    0.2
+   ]
+  },
+  {
+   "name": "collar_R_front",
+   "unit": "C collar R",
+   "kind": "collar",
+   "note": "on 4 unused outboard M4 holes",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    57.0,
+    2.0,
+    114.0
+   ],
+   "print_xyz": [
+    114.0,
+    57.0,
+    2.0
+   ],
+   "part_g": 5.6,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.1,
+    0.2
+   ]
+  },
+  {
+   "name": "collar_R_back",
+   "unit": "C collar R",
+   "kind": "collar",
+   "note": "on 4 unused outboard M4 holes",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    57.0,
+    2.0,
+    114.0
+   ],
+   "print_xyz": [
+    114.0,
+    57.0,
+    2.0
+   ],
+   "part_g": 5.6,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.1,
+    0.2
+   ]
+  },
+  {
+   "name": "abdomen_1_front",
+   "unit": "A1 abdomen band 1",
+   "kind": "band",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    66.0,
+    156.0,
+    28.0
+   ],
+   "print_xyz": [
+    156.0,
+    68.5,
+    55.2
+   ],
+   "part_g": 21.2,
+   "support_g": 0.5,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.5,
+    0.8
+   ]
+  },
+  {
+   "name": "abdomen_1_back",
+   "unit": "A1 abdomen band 1",
+   "kind": "band",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    64.0,
+    156.0,
+    28.0
+   ],
+   "print_xyz": [
+    156.0,
+    66.7,
+    54.2
+   ],
+   "part_g": 20.9,
+   "support_g": 0.5,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.5,
+    0.8
+   ]
+  },
+  {
+   "name": "abdomen_2_front",
+   "unit": "A2 abdomen band 2",
+   "kind": "band",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    65.0,
+    153.0,
+    28.0
+   ],
+   "print_xyz": [
+    153.0,
+    67.6,
+    54.7
+   ],
+   "part_g": 20.8,
+   "support_g": 0.5,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.5,
+    0.8
+   ]
+  },
+  {
+   "name": "abdomen_2_back",
+   "unit": "A2 abdomen band 2",
+   "kind": "band",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    63.0,
+    153.0,
+    28.0
+   ],
+   "print_xyz": [
+    153.0,
+    65.9,
+    53.7
+   ],
+   "part_g": 20.5,
+   "support_g": 0.5,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.5,
+    0.8
+   ]
+  },
+  {
+   "name": "abdomen_3_front",
+   "unit": "A3 abdomen band 3",
+   "kind": "band",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    64.0,
+    150.0,
+    28.0
+   ],
+   "print_xyz": [
+    150.0,
+    66.7,
+    54.2
+   ],
+   "part_g": 20.4,
+   "support_g": 0.5,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.5,
+    0.8
+   ]
+  },
+  {
+   "name": "abdomen_3_back",
+   "unit": "A3 abdomen band 3",
+   "kind": "band",
+   "note": "",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    62.0,
+    150.0,
+    28.0
+   ],
+   "print_xyz": [
+    150.0,
+    65.0,
+    53.2
+   ],
+   "part_g": 20.1,
+   "support_g": 0.5,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.5,
+    0.8
+   ]
+  }
+ ],
+ "total_part_g": 1228,
+ "total_support_g": 22,
+ "total_hours": [
+  31.7,
+  53.2
+ ]
+}

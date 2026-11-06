@@ -11,6 +11,7 @@ const FULL = q.get('full') === '1';
 const OFFX = Number(q.get('offx') ?? 0);
 const EXPLODE = q.get('explode') === '1';
 const parts = [];
+const DUMP = q.get('dump') === '1'; window.__grids = [];  // dump=1: export tagged loft grids for the split pipeline
 const PALETTE = [0x4f9de0, 0x4f9de0, 0x63c08a, 0x63c08a, 0xe8a34a, 0xe8a34a, 0xb07fd6, 0xb07fd6, 0xd96a8a, 0xd96a8a, 0xe8d36a, 0xe8d36a, 0x56c7c7, 0x56c7c7];        // lateral offset for side-by-side
 
 const P = (x, y, z) => new THREE.Vector3(y + OFFX, z, x);
@@ -102,6 +103,8 @@ function loft(rows, z0, z1, mat, nz = 90, nt = 128, x0 = 0, th0 = 0, th1 = 2 * M
     const a = i * (nt + 1) + j, b = a + nt + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setIndex(idx); g.computeVertexNormals();
+  if (tag && DUMP) { const rp = []; for (let k = 0; k < pos.length; k += 3) rp.push(+pos[k + 2].toFixed(3), +(pos[k] - OFFX).toFixed(3), +pos[k + 1].toFixed(3));
+    window.__grids.push({ tag, nz, nt, pts: rp }); }   // robot frame X, Y, Z (Z from floor)
   let m2 = mat;
   if (tag) { g.computeBoundingBox(); const bb = g.boundingBox;
     parts.push({ tag, Xdepth: +(bb.max.z - bb.min.z).toFixed(0), Ywidth: +(bb.max.x - bb.min.x).toFixed(0), Zheight: +(bb.max.y - bb.min.y).toFixed(0) });
@@ -133,6 +136,11 @@ const WALL = 124 + YSX + FW;
 const TOPW = WALL - Number(q.get('topcap') ?? 0);   // 7 = arm-thread cap (155 at fw=38); Joey kept the baseline
 const WX = Number(q.get('wx') ?? 10); // waist widening per side (Joey 2026-11-06: 'widen the waist a bit')
 const TAPER_Z = ZS - 46 - 65;
+// Manufacturing thread 2026-11-06: frame_clearance.py found the back too shallow for the 2020 frame (rear corners
+// through the wall at the frame bottom, <1 mm at the gusset corners, <8 mm across the back). bd deepens the back
+// everywhere, bdlo adds more toward the frame bottom. Defaults 0 = locked baseline.
+const BD = Number(q.get('bd') ?? 0), BDLO = Number(q.get('bdlo') ?? 0);
+const bdz = (z) => BD + BDLO * (1 - Math.min(1, Math.max(0, (z - (F0 - 6)) / 170)));
 const chest = [
   [F0 - 6, 79 + WX, 80, 76, 3.6],
   [ZS - 200, WALL - 60 + 0.6 * WX, 92, 80, 3.6],
@@ -151,6 +159,8 @@ const chest = [
   [F1 + 41, 68, 55, 58, 2.7],
   [F1 + 48, 42, 44, 46, 2.4],
 ];
+const NLO = Number(q.get('nlo') ?? 0), WLO = Number(q.get('wlo') ?? 0);   // squarer / wider section at the frame bottom (clears the lower-box corners)
+for (const r of chest) { r[3] += bdz(r[0]); const lo = 1 - Math.min(1, Math.max(0, (r[0] - (F0 - 6)) / 170)); r[4] += NLO * lo; r[1] += WLO * lo; r[2] += WLO * 0.5 * lo; }
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
 // so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it
 const RIM = Number(q.get('rim') ?? 7);
