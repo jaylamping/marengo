@@ -80,7 +80,7 @@ power board ═ T0 ═ [JB-11]─M11 ~J1~ [JB-12]─M12 ~J2~ [JB-13]─M13 ~J3~ 
 | JB-13 | P2, at the upper-arm yaw RS02 housing | — | static, feeds M13 |
 | J3 | yaw jumper | upper-arm yaw, ±90° (twist) | dynamic |
 | JB-14 | upper arm, near the elbow RS02 upper port | — | static, feeds M14 |
-| J4 | elbow jumper | elbow, 0° to 135° | dynamic |
+| J4 | elbow jumper | elbow, 0° to 133° (main d6cae06); band X 121.7 to 131.2 inboard of the fork cheek, 28.2 mm shell margin, sweep clean | dynamic |
 | JB-15 | forearm, at the RS00 | — | static, feeds M15, carries the terminator |
 | J5 (later) | wrist jumper | lower-arm yaw, ±60° (twist) | dynamic |
 
