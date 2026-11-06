@@ -51,3 +51,11 @@ sheet([(crop('r38iso.png', (700, 200, 2500, 2400), w=760), 'Previous: flatter ch
       ['Shoulder point is a quarter-round cap (about 40 mm radius), the top slopes up to the neck like a trapezius, and the chest front rolls back',
        'toward each shoulder (up to 30% of its depth at the outer edge), like a pec wrapping into the shoulder. Side line unchanged.',
        'Width from a wider 2020 frame: +38 mm per side (rails 150 -> 226 mm), pitch RS03 faces at Y +-135.5, P1 unchanged. Waist +10 mm per side.'])
+sheet([(crop('c38.png', (600, 200, 2600, 2300), w=760), 'Baseline you approved'),
+       (crop('k93.png', (600, 200, 2600, 2300), w=760), 'With the arm clearance fixes'),
+       (crop('c38iso.png', (700, 200, 2500, 2400), w=760), 'Baseline, three-quarter'),
+       (crop('k93iso.png', (700, 200, 2500, 2400), w=760), 'With the fixes, three-quarter')],
+      'Body shell: what full arm reach costs at the shoulder', sub, 'SHELL_CONCEPT_CLEARANCE.png',
+      ['Arm-thread sweep (pitch -50..180, 5 deg inward roll): P2 cuts 16 mm into the baseline shoulder at pitch ~150 (arm raised high) because it',
+       'swings out to r 88 around the pitch axis. Fix shown: socket radius 62 -> 93 mm, shoulder half-width capped at 155 mm.',
+       'Inside that circle the shell steps in to the RS03 face, so the rounded shoulder point becomes a recessed bowl around the joint.'])

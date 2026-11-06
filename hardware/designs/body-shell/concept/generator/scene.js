@@ -20,7 +20,7 @@ const PELVIS0 = 740, WAIST = 855;
 const F0 = PELVIS0 + 155 + EXT, F1 = PELVIS0 + 495 + EXT;
 const ZS = PELVIS0 + 424.9 + EXT;   // shoulder pitch axis
 const YSX = Number(q.get('ysx') ?? 0); // P1 lengthening per side (arm-thread option)
-const FW = Number(q.get('fw') ?? 0);  // frame widening per side (longer left-right 2020 rails; arm thread 2026-11-06)
+const FW = Number(q.get('fw') ?? 38);  // frame widening per side (longer left-right 2020 rails; arm thread 2026-11-06)
 const FACE = 97.5 + FW;              // pitch RS03 output face |Y|
 const YS = 170.49 + YSX + FW;             // pitch/roll joint, from left_arm.urdf
 
@@ -129,6 +129,8 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 // inboard of the hanging arm for 5 deg inward roll. Earlier: side runs almost straight down to ~65 mm below the
 // black P1 part (bottom at ZS-46), then tapers to the waist. Wall tracks the shoulder width (YSX).
 const WALL = 124 + YSX + FW;
+// arm-thread gap check (TORSO_WIDE_VARIANT.md): shoulder-point half-width <= 155 at fw=38 for 5 mm at 5 deg inward roll
+const TOPW = WALL - 7;
 const WX = Number(q.get('wx') ?? 10); // waist widening per side (Joey 2026-11-06: 'widen the waist a bit')
 const TAPER_Z = ZS - 46 - 65;
 const chest = [
@@ -136,22 +138,22 @@ const chest = [
   [ZS - 200, WALL - 60 + 0.6 * WX, 92, 80, 3.6],
   [ZS - 160, WALL - 46, 100, 84, 3.8],
   [ZS - 111, WALL - 23, 106, 86, 4.0],
-  [ZS - 55, WALL - 7, 108, 88, 4.4],
-  [ZS + 10, WALL - 5, 108, 88, 4.8],
+  [ZS - 55, TOPW - 3, 108, 88, 4.4],
+  [ZS + 10, TOPW - 1, 108, 88, 4.8],
   // Joey 2026-11-06: rounded human shoulder top. Quarter-round cap (R ~40) at the shoulder point,
   // then a sloped trapezius line up to the neck.
-  [F1 - 15, WALL, 104, 88, 4.6],   // shoulder point
-  [F1 + 2, WALL - 4, 100, 87, 4.4],
-  [F1 + 13, WALL - 12, 95, 85, 4.1],
-  [F1 + 21, WALL - 24, 88, 82, 3.8],
-  [F1 + 27, WALL - 40, 80, 78, 3.5],
+  [F1 - 15, TOPW, 104, 88, 4.6],   // shoulder point
+  [F1 + 2, TOPW - 4, 100, 87, 4.4],
+  [F1 + 13, TOPW - 12, 95, 85, 4.1],
+  [F1 + 21, TOPW - 24, 88, 82, 3.8],
+  [F1 + 27, TOPW - 40, 80, 78, 3.5],
   [F1 + 34, 96, 68, 70, 3.1],
   [F1 + 41, 68, 55, 58, 2.7],
   [F1 + 48, 42, 44, 46, 2.4],
 ];
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
 // so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it
-const SOCK_R = 62;
+const SOCK_R = Number(q.get('sock') ?? 93);   // P2 sweeps to r 88 about the pitch axis (arm thread, 2026-11-06)
 const sstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 // male chest plate: two pec masses with a sternum groove and a crisp lower edge
 const PEC_Z = ZS - 30;
@@ -216,7 +218,8 @@ function patch(rows, z0, z1, thA, thB, grow, mat, x0 = 4, clamp = null) {
 }
 if (!EXPLODE && !XRAY) {
   // socket bezel: raised white ring around each shoulder opening + dark shadow gap
-  for (const sd of [1, -1]) {
+  // (bezel rings dropped with the r 93 socket: they stood proud of the shell top)
+  for (const sd of (SOCK_R < 80 ? [1, -1] : [])) {
     const bz = new THREE.Mesh(new THREE.TorusGeometry(SOCK_R + 3, 3.2, 14, 96), white); bz.rotation.y = Math.PI / 2; bz.position.copy(P(0, sd * 116, ZS)); add(bz);
     const gap = new THREE.Mesh(new THREE.TorusGeometry(SOCK_R - 1, 1.6, 10, 96), darkGloss); gap.rotation.y = Math.PI / 2; gap.position.copy(P(0, sd * 108, ZS)); add(gap);
   }

@@ -19,6 +19,7 @@ mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look i
 | `SHELL_CONCEPT_PANELS.png` | Shoulder close-up of the collar; exploded print panels |
 | `SHELL_CONCEPT_WIDTH.png` | Pec chest plate, no head, shoulders as built vs P1 +25 mm per side |
 | `SHELL_CONCEPT_BLEND.png` | Latest: in-between side line, shoulders +38 mm per side via a wider 2020 frame (226 mm), waist +10 mm per side, rounded shoulder top and chest front |
+| `SHELL_CONCEPT_CLEARANCE.png` | Baseline vs the arm-thread clearance fixes (socket r 93, shoulder half-width ≤155); pending Joey |
 
 ## Key dimensions (robot frame, X forward, Y left, Z up)
 
@@ -61,4 +62,4 @@ the outer frame slots, M3 heat-set inserts in the panel bosses, lapped seams.
 
 `generator/` holds the three.js scene. Run `npm install three@0.170.0` in that folder, serve it over HTTP on
 port 8765, then run `node shoot.js '[["hero","view=iso"]]'` (Playwright). Parameters: `ext` (waist extension, mm),
-`view` (iso, front, side, back), `fw` (frame widening per side, mm), `ysx` (P1 lengthening per side, mm), `wx` (waist widening per side, default 10), `xray=1`, `explode=1`, `full=1`. `compose.py` builds the labelled sheets.
+`view` (iso, front, side, back), `fw` (frame widening per side, mm), `ysx` (P1 lengthening per side, mm), `wx` (waist widening per side, default 10), `sock` (socket radius, default 93; the approved baseline used 62), `xray=1`, `explode=1`, `full=1`. `compose.py` builds the labelled sheets.
