@@ -373,10 +373,16 @@ fn run_arm<B: MotorBus>(
         PiCommand::HoldAt {
             joint,
             position_rad,
+            speed_fraction,
         } => {
-            loop_ctrl.enter_position_hold_at(joint.as_deref(), *position_rad)?;
+            loop_ctrl.enter_position_hold_at_speed(
+                joint.as_deref(),
+                *position_rad,
+                *speed_fraction,
+            )?;
+            let speed = speed_fraction.map_or_else(String::new, |f| format!(", speed ×{f}"));
             lines.push(GateLine::Out(format!(
-                "control mode → Position hold → target {position_rad:.4} rad (ramping, operational={:?})",
+                "control mode → Position hold → target {position_rad:.4} rad (ramping{speed}, operational={:?})",
                 loop_ctrl.supervisor().mode()
             )));
             if let Some(joint) = joint.as_deref() {

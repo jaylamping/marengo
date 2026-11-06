@@ -141,6 +141,27 @@ fn hold_on_before_enable_completes_waits_then_latches_measured_q() {
 }
 
 #[test]
+fn stdin_hold_at_speed_fraction_reaches_the_hold() {
+    let mut loop_ctrl = enabled_without_pose();
+    first_session_status(&mut loop_ctrl);
+    let mut gate = EnableGate::default();
+    let cmd = crate::parse_command(&format!("hold-at {JOINT} 0.1 speed=0.5")).expect("parses");
+    let lines = gate.submit(&mut loop_ctrl, cmd, Instant::now());
+    assert!(
+        lines.iter().any(
+            |line| matches!(line, GateLine::Out(text) if text.contains("ramping, speed ×0.5"))
+        ),
+        "{lines:?}"
+    );
+    assert_eq!(
+        loop_ctrl
+            .position_speed_fraction(JOINT)
+            .map(berthier::SpeedFraction::get),
+        Some(0.5)
+    );
+}
+
+#[test]
 fn enable_not_completing_within_the_bound_is_refused_and_stops() {
     let mut loop_ctrl = enabled_without_pose();
     let mut gate = EnableGate::default();
@@ -151,6 +172,7 @@ fn enable_not_completing_within_the_bound_is_refused_and_stops() {
         PiCommand::HoldAt {
             joint: Some(JOINT.into()),
             position_rad: 0.1,
+            speed_fraction: None,
         },
         now,
     );

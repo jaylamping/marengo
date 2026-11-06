@@ -294,3 +294,55 @@ async fn malformed_bodies_stay_bad_request() {
         assert_eq!(status, StatusCode::BAD_REQUEST, "{uri}");
     }
 }
+
+fn speed_batch(mode: ControlMode, name: &str, speed: f64) -> Vec<u8> {
+    MitCommandBatch {
+        mode: mode as i32,
+        joints: vec![MitJointCommand {
+            name: name.into(),
+            position: 0.1,
+            speed_fraction: Some(speed),
+            ..Default::default()
+        }],
+        ..Default::default()
+    }
+    .encode_to_vec()
+}
+
+#[tokio::test]
+async fn position_speed_fraction_is_forwarded() {
+    let (app, mut rx) = fixture(MIT_TOPIC);
+    let (status, message) = post(
+        &app,
+        "/command/testing_mit",
+        speed_batch(ControlMode::Position, "right_shoulder_pitch", 0.25),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{message}");
+    let bytes = rx.try_recv().expect("published envelope");
+    let envelope = Envelope::decode(bytes.as_slice()).expect("envelope");
+    let batch = MitCommandBatch::decode(envelope.payload.as_slice()).expect("batch");
+    assert_eq!(batch.joints[0].speed_fraction, Some(0.25));
+}
+
+#[tokio::test]
+async fn bad_or_misplaced_speed_fraction_refuses_the_whole_batch() {
+    let cases = [0.0, -0.5, 1.5, f64::NAN, f64::INFINITY, f64::NEG_INFINITY]
+        .map(|speed| speed_batch(ControlMode::Position, "right_shoulder_pitch", speed))
+        .into_iter()
+        .chain([
+            speed_batch(ControlMode::Impedance, "right_shoulder_pitch", 0.5),
+            speed_batch(
+                ControlMode::Position,
+                "wave:right_shoulder_pitch:0.1:0.2:1:0.5",
+                0.5,
+            ),
+        ]);
+    for body in cases {
+        let (app, mut rx) = fixture(MIT_TOPIC);
+        let (status, message) = post(&app, "/command/testing_mit", body).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{message}");
+        assert!(message.contains("speed"), "{message}");
+        assert!(rx.try_recv().is_err(), "nothing may be published");
+    }
+}

@@ -5,9 +5,12 @@
  * position trace (swept joint every tick) is then scored per move by
  * scripts/analyze-position-trace.py --score-bench.
  *
- * hold-at always runs at the configured planner speed, so a move at a chosen speed is a
- * single-cycle `wave` a→b→a (the move plus its return) whose peak speed is a share of what
- * marengo-pi admits for that span.
+ * A wave move at a chosen speed is a single-cycle `wave` a→b→a (the move plus its return) whose
+ * peak speed is a share of what marengo-pi admits for that span, one wave per speed fraction.
+ * Every hold-at the suite sends (holds, short moves, repeats, mid-move retargets and the return
+ * to 0 that stops each session) carries `speed=<f>` with f the largest speed fraction (ADR 0040
+ * amendment: the planner's speeds × f, its acceleration unchanged), so a reduced-speed suite
+ * moves at no more than its fractions anywhere.
  *
  * Guards (all sessions, before any motion): every target ≥ 0.05 rad inside soft ∩ hard, wave
  * speeds and accelerations within the admission limits, model |τ_g| × uncertainty factor ≤ 0.8 ×
@@ -235,15 +238,33 @@ function travelSec(m: Motion, d: number): number {
   return d <= m.threshold ? d / m.slew + m.slew / m.a : trapezoidTime(d, m.v, m.a);
 }
 
+/**
+ * Speed fraction of every suite hold-at: the largest requested speed fraction, so no hold-at is
+ * faster than the fastest share the caller approved (`[0.25]` slows every move to 25 %).
+ */
+export function holdSpeedFraction(o: Pick<SuiteOptions, "speedFractions">): number {
+  return Math.max(...o.speedFractions);
+}
+
+/** The planner at speed fraction f: slew and cruise (already ≤ the velocity cap) × f, accel kept. */
+function atSpeed(m: Motion, f: number): Motion {
+  return { ...m, slew: m.slew * f, v: m.v * f };
+}
+
+/** The marengo-pi hold-at line; `speed=` only below the configured speed. */
+export function holdAtLine(joint: string, target: number, share: number): string {
+  return `hold-at ${joint} ${String(target)}${share < 1 ? ` speed=${String(share)}` : ""}`;
+}
+
 // ---------------------------------------------------------------------------
 // Plan
 
 /** One commanded motion: a hold-at dwelling after its travel, a single-cycle wave, or a retarget
  * issued mid-move (no travel wait: the reversal). */
 type Op =
-  | { kind: "hold"; target: number; dwell: number }
+  | { kind: "hold"; target: number; dwell: number; share: number }
   | { kind: "wave"; a: number; b: number; share: number }
-  | { kind: "retarget"; target: number };
+  | { kind: "retarget"; target: number; share: number };
 
 /** Atomic run of motions: a session part never splits one. */
 type Block = Op[];
@@ -261,6 +282,8 @@ export interface SuitePart {
   steps: JointCalStep[];
   script: string[];
   budgetSec: number;
+  /** Speed fraction of every hold-at in the script ({@link holdSpeedFraction}). */
+  holdSpeedFraction: number;
 }
 
 export interface SuiteOptions {
@@ -276,7 +299,8 @@ export interface SuiteOptions {
 
 /** The motion blocks of one session, before any start pose is known. */
 function sessionBlocks(session: SuiteSession, g: SuiteGeometry, o: SuiteOptions): Block[] {
-  const hold = (target: number, dwell = o.settleSec): Op => ({ kind: "hold", target: roundRad(target), dwell });
+  const share = holdSpeedFraction(o);
+  const hold = (target: number, dwell = o.settleSec): Op => ({ kind: "hold", target: roundRad(target), dwell, share });
   const sweep = ([a, b]: [number, number]): Block => [hold(a), ...o.speedFractions.map((share): Op => ({ kind: "wave", a, b, share }))];
   switch (session) {
     case "long_moves":
@@ -287,7 +311,7 @@ function sessionBlocks(session: SuiteSession, g: SuiteGeometry, o: SuiteOptions)
         ...o.spanFractions.map((f): Block => {
           const [a, b] = suiteBand(g, f);
           // Retarget back to a halfway through the move to b: the planner reverses mid-move.
-          return [hold(a), { kind: "retarget", target: b }, hold(a)];
+          return [hold(a), { kind: "retarget", target: b, share }, hold(a)];
         }),
       ];
     case "short_moves":
@@ -327,23 +351,34 @@ function renderBlock(block: Block, start: number, g: SuiteGeometry, limits: Join
       continue;
     }
     if (op.target === r.end) continue;
+    const ms = atSpeed(m, op.share);
     const sleep =
       op.kind === "retarget"
-        ? reversalSleep(Math.abs(op.target - r.end) / 2, m.v, m.a)
-        : ceilTenth(travelSec(m, Math.abs(op.target - r.end)) + MOVE_SLACK_SEC + op.dwell);
-    r.lines.push(`hold-at ${J} ${String(op.target)}`, `sleep ${sleep}`);
+        ? reversalSleep(Math.abs(op.target - r.end) / 2, ms.v, ms.a)
+        : ceilTenth(travelSec(ms, Math.abs(op.target - r.end)) + MOVE_SLACK_SEC + op.dwell);
+    r.lines.push(holdAtLine(J, op.target, op.share), `sleep ${sleep}`);
     r.steps.push({ kind: "hold", joint: J, target_rad: op.target, measure: false });
     r.end = op.target;
   }
   return r;
 }
 
-function partScript(chain: readonly string[], joint: string, blocks: readonly Rendered[], o: SuiteOptions): string[] {
+function partScript(
+  chain: readonly string[],
+  joint: string,
+  blocks: readonly Rendered[],
+  o: SuiteOptions,
+  m: Motion,
+): string[] {
   const script = [referenceAcquireLine(chain), "home", `enable ${o.operator}`];
   for (const b of blocks) script.push(...b.lines);
+  const share = holdSpeedFraction(o);
+  // The return to 0 runs at the suite's speed too; disable must wait until it has arrived.
+  const end = blocks.at(-1)?.end ?? 0;
+  const returnSec = Math.max(o.returnHomeSec, ceilTenth(travelSec(atSpeed(m, share), Math.abs(end)) + MOVE_SLACK_SEC));
   for (const j of [...chain].reverse()) {
-    script.push(`hold-at ${j} 0`);
-    if (j === joint) script.push(`sleep ${o.returnHomeSec}`);
+    script.push(holdAtLine(j, 0, share));
+    if (j === joint) script.push(`sleep ${returnSec}`);
   }
   script.push("status", "disable", "quit");
   return script;
@@ -377,7 +412,7 @@ export function planSuite(input: {
   };
   const parts: SuitePart[] = [];
   const skipped: string[] = [];
-  const fits = (rs: Rendered[]) => scriptSleepTotalSec(partScript(chain, g.joint, rs, o)) <= MAX_SESSION_SLEEP_SEC;
+  const fits = (rs: Rendered[]) => scriptSleepTotalSec(partScript(chain, g.joint, rs, o, m)) <= MAX_SESSION_SLEEP_SEC;
   for (const session of input.sessions) {
     const blocks = sessionBlocks(session, g, o);
     if (blocks.length === 0) {
@@ -404,13 +439,14 @@ export function planSuite(input: {
     }
     groups.push(group);
     groups.forEach((rs, i) => {
-      const script = partScript(chain, g.joint, rs, o);
+      const script = partScript(chain, g.joint, rs, o, m);
       parts.push({
         name: groups.length > 1 ? `${session}_${i + 1}` : session,
         session,
         steps: rs.flatMap((r) => r.steps),
         script,
         budgetSec: Math.round(scriptSleepTotalSec(script) * 100) / 100,
+        holdSpeedFraction: holdSpeedFraction(o),
       });
     });
   }
@@ -439,7 +475,7 @@ export function describeParts(parts: readonly SuitePart[]): string[] {
       .map((s) => (s.kind === "wave" ? wavePeakSpeed(s.min_rad, s.max_rad, s.half_period_s) : 0))
       .map((v) => v.toFixed(2));
     const vText = speeds.length > 0 ? `; wave peaks ${speeds.join(", ")} rad/s` : "";
-    return `  ${p.name}: budget ${p.budgetSec} s, ${holds} hold-at, ${waves.length} single-cycle waves${vText}`;
+    return `  ${p.name}: budget ${p.budgetSec} s, ${holds} hold-at at speed ×${p.holdSpeedFraction}, ${waves.length} single-cycle waves${vText}`;
   });
 }
 
@@ -473,7 +509,10 @@ export const motionSuiteSchema = motionConfirmSchema.extend({
     .min(1)
     .max(4)
     .default(DEFAULT_SPEED_FRACTIONS)
-    .describe("Wave peak speeds as shares of the admissible speed for the span (≤ 0.9)"),
+    .describe(
+      "Wave peak speeds as shares of the admissible speed for the span (≤ 0.9), one wave each; every hold-at " +
+        "(holds, short moves, repeats, retargets, the return to 0) runs at the largest share × the planner speed",
+    ),
   short_moves_rad: z.array(z.number().gt(0).max(0.15)).min(1).max(5).default(DEFAULT_SHORT_MOVES_RAD),
   hold_sec: z.number().min(10).max(60).default(DEFAULT_HOLD_SEC).describe("Drift hold at each gravity extreme"),
   repeat_count: z.number().int().min(3).max(10).default(DEFAULT_REPEAT_COUNT),
@@ -523,7 +562,8 @@ export function registerMotionSuiteTools(
       description:
         "Single-joint motion suite in several marengo-pi sessions (each ≤ 300 s with reference acquisition): " +
         "long_moves (single-cycle `wave` a→b→a over span_fractions 25/50/90 % of the usable window at " +
-        "speed_fractions 25/50/90 % of the admissible speed), sweeps_and_reversals (full-width waves at the same " +
+        "speed_fractions 25/50/90 % of the admissible speed; every hold-at, including the return to 0, carries " +
+        "speed=<largest speed fraction> of the planner speed), sweeps_and_reversals (full-width waves at the same " +
         "speeds; hold-at a→b retargeted back to a halfway), short_moves (0.02/0.05/0.1 rad out and back at each " +
         "gravity extreme and at 0), gravity_extremes (≥ hold_sec drift holds at both extremes, moves between " +
         "them), repeatability (the same hold-at move × repeat_count). Usable window: soft ∩ hard inset 0.05 rad, " +
@@ -686,6 +726,7 @@ export function registerMotionSuiteTools(
                   usable_window_rad: [geometry.lower, geometry.upper],
                   gravity_extremes_rad: { lo: geometry.gLo ?? null, hi: geometry.gHi ?? null },
                   budget_sec: part.budgetSec,
+                  hold_speed_fraction: part.holdSpeedFraction,
                   steps: part.steps,
                   gravity_gate_report: gateReport,
                   session_complete: complete,

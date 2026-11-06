@@ -11,7 +11,7 @@ use armee_kinematics::{
     approach_velocity_cap, clamp_position_in_envelope, effective_command_bounds, JointLimitPolicy,
 };
 use davout::MitJointCommand as DavoutMit;
-use marengo_config::{FrictionGains, PositionLaw};
+use marengo_config::{FrictionGains, PositionLaw, SpeedFraction};
 use thiserror::Error;
 use tracing::{info, trace};
 
@@ -400,6 +400,25 @@ pub struct HoldJointParams {
     pub descent_cap: Option<DescentCap>,
 }
 
+impl HoldJointParams {
+    /// These params for a move at speed fraction `f` (ADR 0040 amendment): every planner speed
+    /// (slew, trajectory cruise, velocity cap) is `f ×` the configured one, so every speed the
+    /// planner or the reference governor selects from them is too. `a_max` is kept: the profile
+    /// stays a valid trapezoid within the configured acceleration, and the planner keeps its
+    /// full braking authority, so a slowed retarget issued mid-move never coasts above its
+    /// new cruise longer than an unslowed one would. The danger-zone descent cap and the
+    /// envelope approach cap stay ceilings on top. Gains, leads and deadbands are untouched.
+    pub fn at_speed_fraction(&self, speed: SpeedFraction) -> Self {
+        let f = speed.get();
+        Self {
+            slew_rad_s: self.slew_rad_s * f,
+            trajectory_v_max: self.trajectory_v_max * f,
+            velocity_cap: self.velocity_cap.map(|cap| cap * f),
+            ..self.clone()
+        }
+    }
+}
+
 /// Atomic operator retarget — owns raw/clamped/planner/latch/dq ordering.
 #[derive(Debug, Clone)]
 pub struct HoldRetarget {
@@ -410,6 +429,9 @@ pub struct HoldRetarget {
     pub tick: u64,
     pub dq_seed: Option<f64>,
     pub downward_seed: Option<f64>,
+    /// Speed fraction of this move (ADR 0040 amendment); [`SpeedFraction::FULL`] = configured
+    /// speeds. Latched with the target: a same-target retarget changes neither.
+    pub speed: SpeedFraction,
 }
 
 /// Tick inputs borrowed from [`ControlLoop`](crate::ControlLoop).
@@ -533,6 +555,11 @@ pub struct PositionHold {
     laws: Vec<PositionLaw>,
     /// Scaled-PD time scale, commanded velocity and integral, per joint.
     scaled: Vec<ScaledPdState>,
+    /// Speed fraction of each joint's latched move (ADR 0040 amendment); FULL unless a
+    /// hold-at asked to slow it.
+    speeds: Vec<SpeedFraction>,
+    /// Reused per tick for the scaled params of a slowed hold (no per-tick allocation).
+    scaled_joints: Vec<HoldJointParams>,
 }
 
 impl PositionHold {
@@ -558,6 +585,8 @@ impl PositionHold {
             tick_stuck_residual: vec![false; n_joints],
             laws: vec![PositionLaw::Legacy; n_joints],
             scaled: vec![ScaledPdState::default(); n_joints],
+            speeds: vec![SpeedFraction::FULL; n_joints],
+            scaled_joints: Vec::with_capacity(n_joints),
         }
     }
 
@@ -591,6 +620,14 @@ impl PositionHold {
 
     pub fn targets(&self) -> Option<&[f64]> {
         self.setpoints.as_deref()
+    }
+
+    /// Speed fraction of joint `joint_idx`'s latched move ([`SpeedFraction::FULL`] when none).
+    pub fn speed_fraction(&self, joint_idx: usize) -> SpeedFraction {
+        self.speeds
+            .get(joint_idx)
+            .copied()
+            .unwrap_or(SpeedFraction::FULL)
     }
 
     /// Operator-requested targets before envelope clamp, for tests.
@@ -647,6 +684,8 @@ impl PositionHold {
             .collect();
         self.setpoints_raw = Some(raw);
         self.setpoints = Some(sp);
+        // A fresh latch is a new set of moves: none inherits an earlier hold-at's fraction.
+        self.speeds.fill(SpeedFraction::FULL);
         self.init_planners(q, tick);
     }
 
@@ -678,6 +717,7 @@ impl PositionHold {
         let changed = self.set_clamped_target(cmd.joint_idx, clamped, cmd.tick);
         // First arm sees equal targets after `arm`, so treat unarmed as a full retarget apply.
         if was_unarmed || changed {
+            self.speeds[cmd.joint_idx] = cmd.speed;
             // Scaled PD replans from the reference's own state; only the first arm starts at q.
             if self.laws[cmd.joint_idx] == PositionLaw::Legacy {
                 self.sync_retarget_planner(cmd.joint_idx, cmd.q, clamped, cmd.downward_seed);
@@ -741,8 +781,10 @@ impl PositionHold {
         // per-joint law selection.
         let progress_thresholds = std::mem::take(&mut self.progress_thresholds);
         let laws = std::mem::take(&mut self.laws);
+        let scaled_joints = std::mem::take(&mut self.scaled_joints);
         *self = Self::with_progress_thresholds(progress_thresholds);
         self.laws = laws;
+        self.scaled_joints = scaled_joints;
     }
 
     /// Force Hold at `q_traj` (tests: residual lead-follow / AscentStall scenarios).
@@ -870,7 +912,7 @@ impl PositionHold {
     }
 
     /// Advance planners then compose MIT for every joint.
-    pub fn tick(&mut self, mut world: HoldWorld<'_>) -> Result<HoldTickOut, HoldError> {
+    pub fn tick(&mut self, world: HoldWorld<'_>) -> Result<HoldTickOut, HoldError> {
         let n = self.n_joints;
         if world.q.len() != n
             || world.dq_meas.len() != n
@@ -897,8 +939,43 @@ impl PositionHold {
             return Err(HoldError::InvalidPeriod { seconds: world.dt });
         }
 
-        self.advance(&mut world, period)?;
-        self.compose(&world, period)
+        // A wave owns its joint at its own admitted speed; the hold-at fraction it replaced
+        // must not shrink the wave's velocity cap (nor the hold that follows the wave).
+        if let Some(wave) = world.wave.as_ref() {
+            if let Some(speed) = self.speeds.get_mut(wave.joint_index) {
+                *speed = SpeedFraction::FULL;
+            }
+        }
+        // Slowed moves plan from scaled speeds; at FULL the params are used as given. The
+        // scaled params go into a buffer kept across ticks (the params hold no heap data), so
+        // a slowed hold allocates nothing per tick.
+        if self
+            .speeds
+            .iter()
+            .all(|&speed| speed == SpeedFraction::FULL)
+        {
+            let mut world = world;
+            self.advance(&mut world, period)?;
+            return self.compose(&world, period);
+        }
+        let mut scaled_joints = std::mem::take(&mut self.scaled_joints);
+        scaled_joints.clear();
+        scaled_joints.extend(
+            world
+                .joints
+                .iter()
+                .zip(&self.speeds)
+                .map(|(jp, &speed)| jp.at_speed_fraction(speed)),
+        );
+        let mut world = HoldWorld {
+            joints: &scaled_joints,
+            ..world
+        };
+        let out = self
+            .advance(&mut world, period)
+            .and_then(|()| self.compose(&world, period));
+        self.scaled_joints = scaled_joints;
+        out
     }
 
     fn init_planners(&mut self, q: &[f64], tick: u64) {
@@ -1316,6 +1393,7 @@ impl PositionHold {
                     targets[i],
                     effective_max_lead,
                     jp.slew_rad_s,
+                    self.speeds[i],
                 );
             } else if planner_drifted_from_measurement(
                 &planners[i],
@@ -1944,6 +2022,10 @@ mod law_gates;
 mod bench_replay;
 
 #[cfg(test)]
+#[path = "position_hold_tests/speed_fraction.rs"]
+mod speed_fraction_tests;
+
+#[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
@@ -2005,6 +2087,7 @@ mod tests {
             tick: 1,
             dq_seed: Some(0.0),
             downward_seed: Some(downward_return_seed_velocity(0.12, 1.43, start, target)),
+            speed: SpeedFraction::FULL,
         }));
         let mut q = start;
         let mut dq = 0.0;
@@ -2066,6 +2149,7 @@ mod tests {
             tick: 200,
             dq_seed: Some(0.0),
             downward_seed: None,
+            speed: SpeedFraction::FULL,
         }));
         assert_eq!(hold.ascent_stall_ms_at(0), 1500);
         assert_eq!(hold.retarget_tick_at(0), Some(100));
@@ -2110,6 +2194,7 @@ mod tests {
             tick: 300,
             dq_seed: Some(0.0),
             downward_seed: None,
+            speed: SpeedFraction::FULL,
         }));
         assert!(
             hold.ascent_stall_ms_at(0) >= 1500,
@@ -2171,6 +2256,7 @@ mod tests {
             tick: 1,
             dq_seed: Some(0.07),
             downward_seed: None,
+            speed: SpeedFraction::FULL,
         }));
         assert!(hold.is_armed());
         assert_eq!(hold.targets().unwrap()[0], 0.3);

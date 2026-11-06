@@ -18,6 +18,7 @@ import {
   type SuiteGeometry,
   type SuiteOptions,
   SUITE_SESSIONS,
+  holdSpeedFraction,
   planSuite,
   registerMotionSuiteTools,
   reversalSleep,
@@ -27,6 +28,7 @@ import {
   suiteGeometry,
   suiteWaveHalfPeriod,
   tauGridSamples,
+  trapezoidTime,
 } from "../src/tools/motion-suite.js";
 import { gravityPreviewReply, isGravityPreviewBody, localFiles } from "./gravity-fixture.js";
 
@@ -227,9 +229,106 @@ describe("pi_motion_suite plan", () => {
     const repeat = p.parts.find((x) => x.name === "repeatability");
     assert.equal(repeat?.steps.length, 10);
     const reversal = p.parts.find((x) => x.name === "sweeps_and_reversals")?.script ?? [];
-    // hold-at a, settle; hold-at b; √(2 · 0.212 / 1.5) = 0.53 s → 0.55; hold-at a again.
-    const i = reversal.indexOf("hold-at right_shoulder_pitch 0.212");
-    assert.ok(i > 0 && reversal[i + 1] === "sleep 0.55" && reversal[i + 2] === "hold-at right_shoulder_pitch -0.212", reversal.join("\n"));
+    // hold-at a, settle; hold-at b; √(2 · 0.212 / 1.5) = 0.53 s → 0.55 (inside the accel ramp,
+    // which the speed fraction leaves unscaled); hold-at a again.
+    const i = reversal.indexOf("hold-at right_shoulder_pitch 0.212 speed=0.9");
+    assert.ok(
+      i > 0 && reversal[i + 1] === "sleep 0.55" && reversal[i + 2] === "hold-at right_shoulder_pitch -0.212 speed=0.9",
+      reversal.join("\n"),
+    );
+  });
+
+  it("passes the speed fraction to every hold-at: holds, repeats, retargets and the stops at 0", () => {
+    const g = geometry(PITCH, PITCH_TAU);
+    for (const [fractions, share] of [
+      [[0.25, 0.5, 0.9], 0.9],
+      [[0.25], 0.25],
+      [[0.5, 0.25], 0.5],
+    ] as const) {
+      assert.equal(holdSpeedFraction({ speedFractions: fractions }), share);
+      const p = planSuite({
+        geometry: g,
+        chain: CHAIN,
+        limits: repoLimits(),
+        sessions: SUITE_SESSIONS,
+        options: { ...OPTIONS, speedFractions: fractions },
+      });
+      assert.ok(p.ok, p.ok ? "" : p.message);
+      for (const part of p.parts) {
+        assert.equal(part.holdSpeedFraction, share);
+        const holds = part.script.filter((l) => l.startsWith("hold-at "));
+        assert.ok(holds.length > 0, part.name);
+        for (const line of holds) assert.match(line, new RegExp(` speed=${share}$`), `${part.name}: ${line}`);
+        // The session's stop: every chain joint back to 0, distal first, at the same speed.
+        assert.deepEqual(
+          holds.slice(-CHAIN.length),
+          [...CHAIN].reverse().map((j) => `hold-at ${j} 0 speed=${share}`),
+          part.name,
+        );
+      }
+      const kinds = (name: string) => p.parts.find((x) => x.name === name)?.script.filter((l) => l.startsWith("hold-at ")).length ?? 0;
+      // Repeats (10 moves) and the reversal retargets are hold-ats, so they carry it too.
+      assert.equal(kinds("repeatability"), 10 + CHAIN.length);
+      assert.ok(kinds("sweeps_and_reversals") >= 3 * OPTIONS.spanFractions.length);
+    }
+  });
+
+  it("times slowed hold-ats from the scaled planner speed, acceleration unchanged", () => {
+    const g = geometry(PITCH, PITCH_TAU);
+    const l = repoLimits()[PITCH];
+    const v = Math.min(l.trajectoryVelocityRadS ?? NaN, l.velocityCapRadS);
+    const a = l.trajectoryAccelRadS2 ?? NaN;
+    const plan = (fractions: number[]) => {
+      const p = planSuite({
+        geometry: g,
+        chain: CHAIN,
+        limits: repoLimits(),
+        sessions: ["repeatability", "sweeps_and_reversals"],
+        options: { ...OPTIONS, speedFractions: fractions },
+      });
+      assert.ok(p.ok, p.ok ? "" : p.message);
+      return p.parts;
+    };
+    const sleepAfter = (script: string[], line: string) => Number(script[script.indexOf(line) + 1].slice(6));
+    const [b] = [suiteBand(g, OPTIONS.spanFractions[0])[1]];
+    for (const share of [0.9, 0.25]) {
+      const [repeat, sweeps] = plan([share]);
+      // Out to b: trapezoid at share·v (accel a) + 0.5 s slack + settle, to the 0.1 s.
+      const travel = trapezoidTime(b, share * v, a);
+      const expected = Math.ceil((travel + 0.5 + OPTIONS.settleSec) * 10 - 1e-9) / 10;
+      assert.equal(sleepAfter(repeat.script, `hold-at ${PITCH} ${b} speed=${share}`), expected, `${share}`);
+      // Mid-move reversal: the time to half the move at share·v.
+      const [lo, hi] = suiteBand(g, OPTIONS.spanFractions[2]);
+      assert.equal(sleepAfter(sweeps.script, `hold-at ${PITCH} ${hi} speed=${share}`), reversalSleep((hi - lo) / 2, share * v, a));
+    }
+    // The stop at 0 waits for the slowed return when it outlasts return_home_sec: gravity_extremes
+    // ends at g_lo (−0.85 rad), 0.85 rad from 0 at 0.1·v.
+    const p = planSuite({
+      geometry: g,
+      chain: CHAIN,
+      limits: repoLimits(),
+      sessions: ["gravity_extremes"],
+      options: { ...OPTIONS, speedFractions: [0.1] },
+    });
+    assert.ok(p.ok, p.ok ? "" : p.message);
+    const script = p.parts[0].script;
+    const wait = sleepAfter(script, `hold-at ${PITCH} 0 speed=0.1`);
+    const expected = Math.ceil((trapezoidTime(0.85, 0.1 * v, a) + 0.5) * 10 - 1e-9) / 10;
+    assert.ok(expected > OPTIONS.returnHomeSec, `${expected}`);
+    assert.equal(wait, expected);
+  });
+
+  it("refuses a speed fraction too small to time within the budget", () => {
+    // f = 1e-22 renders sleeps in exponent notation (1.69…e+21 s): the plan must still be
+    // judged over budget, never accepted as 0 s of sleep.
+    const p = planSuite({
+      geometry: geometry(PITCH, PITCH_TAU),
+      chain: CHAIN,
+      limits: repoLimits(),
+      sessions: ["long_moves"],
+      options: { ...OPTIONS, speedFractions: [1e-22] },
+    });
+    assert.equal(p.ok, false, p.ok ? JSON.stringify(p.parts.map((x) => x.budgetSec)) : "");
   });
 
   it("splits a session that exceeds 300 s at block boundaries", () => {
@@ -464,6 +563,13 @@ describe("pi_motion_suite tool", () => {
     const plan = JSON.parse(h.writes.get("/tmp/marengo/var/motion-suite/20261004T130001Z/plan.json") ?? "{}");
     assert.equal(plan.session, "gravity_extremes");
     assert.equal(plan.session_complete, true);
+    assert.equal(plan.hold_speed_fraction, 0.9);
+    // What reaches marengo-pi's stdin: every hold-at at the suite's speed fraction.
+    for (const b of bodies) {
+      const holds = stdinLines(b).filter((l) => l.startsWith("hold-at "));
+      assert.ok(holds.length > 0);
+      for (const line of holds) assert.match(line, / speed=0\.9$/, line);
+    }
     assert.match(out, /gravity_extremes \| 20261004T130001Z \| \d+(\.\d+)? \| PASS/);
     assert.match(out, /repeatability \| 20261004T130002Z \| \d+(\.\d+)? \| PASS/);
     assert.match(out, /overall: PASS/);

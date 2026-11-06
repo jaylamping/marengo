@@ -141,6 +141,7 @@ fn retarget_preserves_hold_tracking_budget() {
         tick: 201,
         dq_seed: Some(0.0),
         downward_seed: None,
+        speed: SpeedFraction::FULL,
     }));
     assert!(
         hold.hold_tracking_ms_at(0) >= 900,

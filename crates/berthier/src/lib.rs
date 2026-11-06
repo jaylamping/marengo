@@ -78,6 +78,8 @@ pub use degraded::{
     DegradedEvent, DegradedLowerCause, DriveLossAdmission, DEGRADED_REST_TOLERANCE_RAD,
 };
 pub use gain_runtime::{mode_allows_gain_override, GainOverride, GainShapeError};
+/// Hold-at speed fraction (ADR 0040 amendment); one rule for every command surface.
+pub use marengo_config::{InvalidSpeedFraction, SpeedFraction};
 pub use position_hold::HoldFuseTrip;
 pub use r#loop::{
     proto_control_mode, ControlLoop, LoopError, TickPhaseAverages, ENABLE_COMPLETION_TIMEOUT,

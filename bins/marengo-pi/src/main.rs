@@ -137,6 +137,9 @@ enum PiCommand {
     HoldAt {
         joint: Option<String>,
         position_rad: f64,
+        /// `speed=<f>`: share `(0, 1]` of the configured planner speeds (ADR 0040
+        /// amendment); `None` is the configured speed. Validated at parse time.
+        speed_fraction: Option<f64>,
     },
     Wave {
         joint: String,
@@ -161,6 +164,18 @@ where
         say_err!("{error}");
         error
     })
+}
+
+/// `speed=<f>` of a hold-at: a number in `(0, 1]`, else the line is refused (never clamped).
+fn parse_speed_fraction(token: &str) -> Option<f64> {
+    let value = parse_number::<f64>(token, "hold-at", "speed").ok()?;
+    match berthier::SpeedFraction::new(value) {
+        Ok(speed) => Some(speed.get()),
+        Err(error) => {
+            say_err!("hold-at: {error}");
+            None
+        }
+    }
 }
 
 fn parse_command(line: &str) -> Option<PiCommand> {
@@ -210,13 +225,29 @@ fn parse_command(line: &str) -> Option<PiCommand> {
         "hold-on" | "hold_on" => Some(PiCommand::HoldOn),
         "hold-off" | "hold_off" => Some(PiCommand::HoldOff),
         "hold-at" | "hold_at" => {
-            let tokens: Vec<_> = parts.collect();
+            let mut tokens: Vec<_> = parts.collect();
+            // Optional trailing `speed=<f>`; anything but a number in (0, 1] refuses the line.
+            let speed_fraction = match tokens.last().and_then(|t| t.strip_prefix("speed=")) {
+                Some(value) => {
+                    tokens.pop();
+                    Some(parse_speed_fraction(value)?)
+                }
+                None => None,
+            };
+            // Any other `speed=` token is misplaced or repeated: refuse it rather than read
+            // it as a joint name (a one-joint session ignores the name and would run at
+            // full speed).
+            if tokens.iter().any(|t| t.starts_with("speed=")) {
+                say_err!("hold-at: speed=<f> must be the last token, given once");
+                return None;
+            }
             match tokens.as_slice() {
                 [rad] => {
                     let position_rad = parse_number::<f64>(rad, "hold-at", "position_rad").ok()?;
                     Some(PiCommand::HoldAt {
                         joint: None,
                         position_rad,
+                        speed_fraction,
                     })
                 }
                 [joint, rad] => {
@@ -224,10 +255,13 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                     Some(PiCommand::HoldAt {
                         joint: Some(joint.to_string()),
                         position_rad,
+                        speed_fraction,
                     })
                 }
                 _ => {
-                    say_err!("hold-at usage: hold-at <rad>  OR  hold-at <joint> <rad>");
+                    say_err!(
+                        "hold-at usage: hold-at [joint] <rad> [speed=<f>]  (0 < f <= 1 slows the move)"
+                    );
                     None
                 }
             }
@@ -294,7 +328,8 @@ fn print_usage() {
          gravity-on | gravity-off\n  \
          torque-cmd <joint> <nm>\n  \
          impedance-on | impedance-off\n  \
-         hold-on | hold-at [joint] <rad> | hold-off\n  \
+         hold-on | hold-at [joint] <rad> [speed=<f>] | hold-off\n  \
+         \x20                                       (speed: 0 < f <= 1 of the planner speed)\n  \
          wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]\n  \
          lower                                  (after a drive loss: lower to rest, then disable)\n  \
          status\n  \
@@ -1054,6 +1089,11 @@ fn drain_testing_commands<B: MotorBus>(
             ProtoControlMode::try_from(batch.mode),
             Ok(ProtoControlMode::Position)
         );
+        // A bad speed fraction refuses the whole batch before any enable, mode or gain.
+        if let Some(reason) = testing_batch_speed_refusal(&batch, want_position) {
+            report_refusal(chappe, "consul", "", "testing batch", &reason);
+            continue;
+        }
         if want_position && loop_ctrl.supervisor().mode() != OperationalMode::Active {
             // Only an explicit enable arms implicit re-enable (RT-01); without it
             // the batch would run the sweep and then be refused anyway.
@@ -1080,6 +1120,25 @@ fn drain_testing_commands<B: MotorBus>(
         }
         apply_testing_batch(loop_ctrl, &batch, want_position, stop);
     }
+}
+
+/// Why a Testing batch's speed fractions refuse it, if they do (ADR 0040 amendment): a
+/// `speed_fraction` must be in `(0, 1]` and belongs only to a POSITION hold target (never a
+/// wave entry or another mode). Never clamped: a refused batch does nothing at all.
+fn testing_batch_speed_refusal(batch: &MitCommandBatch, want_position: bool) -> Option<String> {
+    batch.joints.iter().find_map(|joint| {
+        let value = joint.speed_fraction?;
+        let reason = if let Err(error) = berthier::SpeedFraction::new(value) {
+            error.to_string()
+        } else if !want_position {
+            "speed_fraction applies only to a POSITION batch".to_string()
+        } else if joint.name.starts_with("wave:") {
+            "speed_fraction does not apply to a wave entry".to_string()
+        } else {
+            return None;
+        };
+        Some(format!("testing batch refused: {}: {reason}", joint.name))
+    })
 }
 
 /// Apply an admitted Testing batch: waves, Position setpoints (re-arming
@@ -1130,10 +1189,18 @@ fn apply_testing_batch<B: MotorBus>(
             // session feedback arrives (a later batch retries).
             let result = if loop_ctrl.control_mode() == ControlMode::Position {
                 loop_ctrl.ensure_active_for_motion().and_then(|()| {
-                    loop_ctrl.set_joint_position_setpoint(joint.name.as_str(), joint.position)
+                    loop_ctrl.set_joint_position_setpoint_at_speed(
+                        joint.name.as_str(),
+                        joint.position,
+                        joint.speed_fraction,
+                    )
                 })
             } else {
-                loop_ctrl.enter_position_hold_at(Some(joint.name.as_str()), joint.position)
+                loop_ctrl.enter_position_hold_at_speed(
+                    Some(joint.name.as_str()),
+                    joint.position,
+                    joint.speed_fraction,
+                )
             };
             if let Err(e) = result {
                 warn!(
@@ -2518,6 +2585,7 @@ mod owned_motor_tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod stdin_command_tests {
     use std::io::Cursor;
     use std::sync::mpsc;
@@ -2529,6 +2597,55 @@ mod stdin_command_tests {
         assert!(parse_number::<f64>("abc", "torque-cmd", "torque_nm").is_err());
         assert!(parse_command("torque-cmd joint abc").is_none());
         assert!(parse_command("wave joint 0 abc 2").is_none());
+    }
+
+    fn hold_at(line: &str) -> Option<(Option<String>, f64, Option<f64>)> {
+        match parse_command(line)? {
+            PiCommand::HoldAt {
+                joint,
+                position_rad,
+                speed_fraction,
+            } => Some((joint, position_rad, speed_fraction)),
+            _ => panic!("{line:?} is not a hold-at"),
+        }
+    }
+
+    #[test]
+    fn hold_at_takes_an_optional_speed_fraction() {
+        let joint = Some("right_elbow_pitch".to_string());
+        assert_eq!(
+            hold_at("hold-at right_elbow_pitch 0.1"),
+            Some((joint.clone(), 0.1, None))
+        );
+        assert_eq!(
+            hold_at("hold-at right_elbow_pitch 0.1 speed=0.25"),
+            Some((joint, 0.1, Some(0.25)))
+        );
+        assert_eq!(hold_at("hold-at 0.1 speed=1"), Some((None, 0.1, Some(1.0))));
+        assert_eq!(hold_at("hold_at 0.1"), Some((None, 0.1, None)));
+    }
+
+    #[test]
+    fn hold_at_refuses_a_speed_fraction_outside_zero_to_one() {
+        for speed in [
+            "0", "-0", "-0.25", "1.0001", "2", "NaN", "nan", "inf", "-inf", "abc", "",
+        ] {
+            let line = format!("hold-at right_elbow_pitch 0.1 speed={speed}");
+            assert!(parse_command(&line).is_none(), "{line:?} must be refused");
+        }
+        // Misplaced or repeated speed tokens are not a hold-at either.
+        for line in [
+            "hold-at speed=0.5",
+            "hold-at right_elbow_pitch speed=0.5 0.1",
+            "hold-at right_elbow_pitch 0.1 speed=0.5 speed=0.5",
+            // A misplaced token must not pass as a joint name: a one-joint session ignores
+            // the name, so the move would otherwise run at full speed.
+            "hold-at speed=0.25 0.1",
+            "hold-at speed=NaN 0.1 speed=1",
+            "hold-at speed= 0.1",
+        ] {
+            assert!(parse_command(line).is_none(), "{line:?} must be refused");
+        }
     }
 
     #[test]

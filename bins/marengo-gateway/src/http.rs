@@ -530,6 +530,29 @@ fn canonicalize_testing_mit_name(
     Ok(format!("wave:{canonical}:{}", fields[1..].join(":")))
 }
 
+/// ADR 0040 amendment: a `speed_fraction` is in `(0, 1]` and belongs only to a POSITION hold
+/// target. Anything else refuses the whole batch (never clamped); marengo-pi checks it again.
+fn check_testing_speed_fraction(
+    joint: &armee_proto::MitJointCommand,
+    position: bool,
+) -> Result<(), (StatusCode, String)> {
+    let Some(value) = joint.speed_fraction else {
+        return Ok(());
+    };
+    let refuse =
+        |reason: String| Err((StatusCode::BAD_REQUEST, format!("{}: {reason}", joint.name)));
+    if let Err(error) = marengo_config::SpeedFraction::new(value) {
+        return refuse(error.to_string());
+    }
+    if !position {
+        return refuse("speed_fraction applies only to a POSITION batch".into());
+    }
+    if joint.name.starts_with("wave:") {
+        return refuse("speed_fraction does not apply to a wave entry".into());
+    }
+    Ok(())
+}
+
 async fn command_testing_mit(
     State(state): State<SharedState>,
     body: axum::body::Bytes,
@@ -548,6 +571,10 @@ async fn command_testing_mit(
     // Validate and rewrite every entry before any publication: all-or-nothing.
     for joint in &mut request.joints {
         joint.name = canonicalize_testing_mit_name(&joint.name, &state)?;
+    }
+    let position = request.mode == armee_proto::ControlMode::Position as i32;
+    for joint in &request.joints {
+        check_testing_speed_fraction(joint, position)?;
     }
 
     let bucket = crate::ratelimit::CommandBucket::Testing;

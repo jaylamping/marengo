@@ -339,13 +339,30 @@ export function referenceAcquireLine(joints: readonly string[]): string {
   return `home ${joints.join(" ")} sign-tested`;
 }
 
-/** Sum `sleep N` dwell lines plus the wait budget of reference acquisition lines. */
+/**
+ * A feeder `sleep` line: `undefined` for any other line; otherwise its duration text and seconds.
+ * A duration that is not a plain finite non-negative decimal (exponent notation, NaN, Infinity,
+ * a sign, a missing or extra token) has no text and `Infinity` seconds: over every budget, and
+ * {@link marengoPiPipeLine} refuses to pipe it (fail closed).
+ */
+function sleepLine(line: string): { text?: string; sec: number } | undefined {
+  const trimmed = line.trim();
+  if (!/^sleep(?:\s|$)/i.test(trimmed)) return undefined;
+  const text = /^sleep\s+(\d+(?:\.\d+)?)$/i.exec(trimmed)?.[1];
+  const sec = text === undefined ? NaN : Number(text);
+  return Number.isFinite(sec) ? { text, sec } : { sec: Infinity };
+}
+
+/**
+ * Sum `sleep N` dwell lines plus the wait budget of reference acquisition lines. A `sleep` line
+ * without a plain finite duration makes the total `Infinity`, so every budget check refuses it.
+ */
 export function scriptSleepTotalSec(script: string[]): number {
   let total = 0;
   for (const line of script) {
-    const sleepMatch = /^sleep (\d+(?:\.\d+)?)$/i.exec(line.trim());
-    if (sleepMatch) {
-      total += Number(sleepMatch[1]);
+    const sleep = sleepLine(line);
+    if (sleep) {
+      total += sleep.sec;
     }
     const joints = referenceAcquireJoints(line);
     if (joints) {
@@ -484,11 +501,17 @@ export function sessionRefusal(output: string): string | undefined {
   )?.[0];
 }
 
-/** One feeder entry: shell sleep, awaited reference acquisition, or a printf'd stdin line. */
+/**
+ * One feeder entry: shell sleep, awaited reference acquisition, or a printf'd stdin line. Throws
+ * on a `sleep` line without a plain finite duration: it is neither slept nor sent to marengo-pi.
+ */
 export function marengoPiPipeLine(line: string): string {
-  const sleepMatch = /^sleep (\d+(?:\.\d+)?)$/i.exec(line.trim());
-  if (sleepMatch) {
-    return `sleep ${sleepMatch[1]}`;
+  const sleep = sleepLine(line);
+  if (sleep) {
+    if (sleep.text === undefined) {
+      throw new Error(`refusing sleep line without a plain finite duration in seconds: ${JSON.stringify(line)}`);
+    }
+    return `sleep ${sleep.text}`;
   }
   const joints = referenceAcquireJoints(line);
   if (joints) {
@@ -976,6 +999,9 @@ export function registerMotionTools(
         }
         const expanded = expandScriptWithWaveWaits(args.script);
         const sleepBudget = scriptSleepTotalSec(expanded);
+        if (!Number.isFinite(sleepBudget)) {
+          return "Refused: every sleep line needs a plain duration in seconds (e.g. sleep 2.5); no motion was run.";
+        }
         const controlTimeoutSec =
           args.timeout_sec !== undefined
             ? args.timeout_sec

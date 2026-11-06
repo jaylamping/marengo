@@ -40,6 +40,7 @@ mod config_revision;
 mod limit_patch;
 mod profile_txn;
 mod safety_validation;
+mod speed_fraction;
 mod urdf_expand;
 mod urdf_merge;
 
@@ -64,6 +65,7 @@ pub use safety_validation::validate_safety_config;
 pub(crate) use safety_validation::{
     validate_homing_config, validate_motors_config, validate_robot_config,
 };
+pub use speed_fraction::{InvalidSpeedFraction, SpeedFraction};
 pub use urdf_expand::{
     apply_local_limit_patch, expand_urdf_file_to_cover_motors, write_motors_control_and_urdf,
 };
