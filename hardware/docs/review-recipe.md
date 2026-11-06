@@ -9,6 +9,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | Fable (replaces Grok from 2026-11-06, Joey) | Claude Code CLI, fresh session | `--model claude-fable-5-1` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | not yet timed |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
+| Argon | Antigravity `agy` (MacBook only) | `--model gemini-4-argon-high` | Prompt only, so check hashes after | not yet timed |
 
 Run times are from one run. Allow 20 minutes.
 
@@ -26,7 +27,15 @@ Always pass the model flag. Codex without `-m` did not give Sol. Grok 4.8 Fast w
 
 cursor-agent launched from Git Bash can be blocked by the repo's `.cursor` pre-tool hook (`impeccable-before-edit.js` dies with a bash syntax error, every file read rejected, exit still 0, 30 s). Launch it from PowerShell with the same flags (torso frame gate, 2026-11-06). Check that the review actually read files before trusting an exit 0.
 
-Antigravity (Argon) is not on Joey-PC. It may be on the Mac, but that is untested and it has never produced a review; as of 2026-11-06 no gate has included it.
+Antigravity (Argon) is on the MacBook, not Joey-PC: `agy` 1.3.4 at `~/.local/bin/agy` (checked 2026-11-06 05:40Z, signed in, `agy models` lists `gemini-4-argon-high`, a one-word smoke test answered in 7 s). Run it from the Mac against the packet. Prompt must be attached to the flag (`-p='...'`), or `-p` swallows the next flag as the prompt:
+
+```bash
+(agy --model gemini-4-argon-high --disable-slash-commands --print-timeout 0 \
+  --add-dir "$PWD" -p="$P" > reviews/antigravity-argon.md 2> reviews/antigravity-argon.log </dev/null
+ echo "argon exit $?" >> reviews/STATUS.txt) &
+```
+
+Read-only is by prompt only (like Muse); `--mode plan` is ignored with slash commands disabled, and there is no sandbox flag that forbids writes, so check the hashes after.
 
 ## 1. Build the packet
 
