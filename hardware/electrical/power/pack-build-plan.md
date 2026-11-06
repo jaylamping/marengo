@@ -89,10 +89,18 @@ about 2 kJ/K (26 cells × 70 g × about 1 J/g·K, plus case).
 cycle. The AFE's 60 °C discharge cutoff and the NTC-driven fans are the backstop. Measured numbers replace this table after
 build step 6 and the first logged sessions.
 
-### Retention bosses for the frame cradle (item A)
+### Retention bosses for the frame cradle (Joey's cradle decision, 2026-11-06 16:32Z)
 
-Yes. The printed case takes **two M4 heat-set inserts on its rear face**, at about X ±35, Y 205 (low corners). Keep clear of
-the sense board and connector zone at X 5 to 45, Y 300 to 345. The frame thread designs the cradle around them.
+The cradle is printed, with a bottom lip, a front lip, a top strap, and **no rear bar**. A side thumbscrew on each side
+goes through the tray rail into the case. The rear face stays free for a possible on-pack BMS.
+
+- **One M4 heat-set insert per side face (|X| 47.5) at Y 252.6 ± 0.5** (alternative Y 275.3), anywhere in Z −25 to +15.
+  This is the cusp between two cells of the outer column: row centres sit at Y 195.9 + k × 22.7. The 2 mm wall thickens
+  inward into the cusp to about 6 mm, which is the only place a 5.6 mm insert fits clear of the cells. The Z range keeps
+  it clear of the holder plates.
+- **The thumbscrew must bottom on a shoulder or be length-limited,** so its tip never reaches more than 6 mm in from the
+  outer side face. Any further reaches a cell can.
+- Keep tap wires and NTC leads out of those two cusps.
 
 ### Connector mating rule (agreed)
 
