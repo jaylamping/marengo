@@ -133,7 +133,7 @@ Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 �
 | PDB + converters + E-stop + main switch | 100 × 90 × 28 assumed | lower box rear, behind D2 | yes; the board is not designed yet |
 | Battery, main 48 V pack | 185 × 165 × 90 draft | pelvis | **not in the torso frame**. The lower box can take two 6S 5000 mAh packs standing (155 × 50 × 45 each, ~1.5 kg) if Joey wants torso batteries, at the cost of the PDB depth and a higher centre of mass |
 | M18 HD12 aux bay (handoff draft) | 168 × 98 × 112 | upper back cantilever | **no**: the shell back has 10 to 17 mm to the frame and the spine pads sit there. Recommend dropping it or moving it to the pelvis |
-| Fans | 40 × 40 × 10 | 2 exhaust at the upper rear under the top rail, 1 intake lower front | yes; 45 W chest heat estimate in the shell plan |
+| Fans | 40 × 40 × 10 | 2 exhaust at the upper rear under the top rail (behind D1, now Y 360 to 492), 1 intake in the lower front panel at Y 250 to 295 | yes; 45 W chest heat estimate in the shell plan |
 | Sensors | IMU fitted; cameras/mics in the head later | shelf; top rails | yes |
 | Harness | two 12–14 AWG + CAN trunks | front inner corners of the lower box, step bus to the PDB, shoulder runs at Y 460 | yes, T-slot clips; keep off the H1–H6 slots |
 

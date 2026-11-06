@@ -207,8 +207,8 @@ box('jetson', 29, 'Jetson Orin Nano dev kit envelope 103 x 90.5 x 35 (+10 fan), 
     note='Fits the upper bay between the RS03 rears (156.8 wide); 30 mm left above it under the top rails for a fan.')
 box('fan_exhaust_1', 30, 'Exhaust fans 40 x 40 x 10 (2), upper rear under the top rail, blowing out through the D1 door louvres', (-55, 448, -50), (-15, 488, -40), PRO, 'proposed', (0, 150, -60), balloon=True, mass_g=20, material='proposed', opacity=0.75)
 box('fan_exhaust_2', 30, 'Exhaust fan', (15, 448, -50), (55, 488, -40), PRO, 'proposed', (0, 150, -60), mass_g=20, material='proposed', opacity=0.75)
-box('fan_intake', 30, 'Intake fan 40 x 40 x 10, lower front behind the V1 grille zone', (-20, 300, 40), (20, 340, 50), PRO, 'proposed', (0, -60, 90), mass_g=20, material='proposed', opacity=0.75)
-box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing', (-45, 190, 22), (45, 280, 42), PRO, 'proposed', (0, -60, 90), balloon=True, mass_g=60, material='proposed', opacity=0.75)
+box('fan_intake', 30, 'Intake fan 40 x 40 x 10, lower front panel grille (Y 250-295)', (-20, 250, 40), (20, 295, 50), PRO, 'proposed', (0, -60, 90), mass_g=20, material='proposed', opacity=0.75)
+box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing', (-45, 190, 18), (45, 280, 38), PRO, 'proposed', (0, -60, 90), balloon=True, mass_g=60, material='proposed', opacity=0.75)
 for sx in (1, -1):
     box(f'battery_{sx}', 32, 'OPTION: in-torso battery, 2 x 6S 5000 mAh (155 x 50 x 45 each) standing in the lower box. Baseline keeps the main 48 V pack in the pelvis.',
         (min(sx * 2, sx * 52), 175, -20), (max(sx * 2, sx * 52), 330, 25), '#e0c23a', 'option', (0, -60, 0), balloon=(sx > 0), mass_g=750, material='option', opacity=0.6)
