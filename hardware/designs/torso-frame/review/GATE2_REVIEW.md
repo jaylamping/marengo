@@ -73,3 +73,12 @@ bracket heads at the board corners, spine pads vs H2 and gusset heads), plus pla
 
 **NO-GO stands** on ordering the gussets and building the tray, carrier and harness until A, B/C, E and L are settled. Post cutting
 waits for Joey's call on O.
+
+## Joey's decisions (2026-11-06 16:32 to 16:43Z)
+
+| Item | Decision |
+| --- | --- |
+| A, pack retention | Printed cradle on the lower post inner faces, bottom and front lips, top strap, **two side thumbscrews** through the tray rails into M4 heat-set bosses in the pack case sides (battery thread: Y 252.6, Z −20 to +10; tip at most 6 mm past the side face, shouldered screw). No rear bar; more support can be added later |
+| B, cable passage | **Oval cable slots in the printed shelf**, PC-case style, as on the built shelf. Modelled as three 20 × 12 slots along the front edge; Joey packs the upper bay himself (Pi I/O stays at the rear, behind D1) |
+| C, step-level joints | **End-tapped**: M5 × 35 through the gusset and the shared rail into the tapped shelf rail / step side rail end, gusset holes X ±65 and ±103 at Y 363.62 (DXF regenerated). These fixed screws also anchor the gusset along the slot (item L) |
+| O, post cuts | **Cut now** (198.62 + 121.38); the hips attach under the bottom ring later |
