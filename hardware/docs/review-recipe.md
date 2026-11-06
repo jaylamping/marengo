@@ -13,6 +13,8 @@ Run times are from one run. Allow 20 minutes.
 
 Always pass the model flag. Codex without `-m` did not give Sol. Grok 4.8 Fast was not available through cursor-agent, so use `grok-4.7-high-fast`. Check with `--list-models` if that changes.
 
+cursor-agent launched from Git Bash can be blocked by the repo's `.cursor` pre-tool hook (`impeccable-before-edit.js` dies with a bash syntax error, every file read rejected, exit still 0, 30 s). Launch it from PowerShell with the same flags (torso frame gate, 2026-11-06). Check that the review actually read files before trusting an exit 0.
+
 Antigravity (Argon) is not on Joey-PC. It may be on the Mac, but that is untested.
 
 ## 1. Build the packet
