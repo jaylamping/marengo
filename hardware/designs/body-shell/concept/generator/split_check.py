@@ -159,7 +159,7 @@ def pad(G, za, zb, ya, yb, name, unit):
     piece(name, unit, "pad", thicken(G[i0:i1 + 1, js.min():js.max() + 1], t=-30.0), "TPU 95A gyroid, 30 mm crush")
 for s_, nm in ((1, "L"), (-1, "R")):
     lo, hi = sorted((s_ * 72, s_ * 135)); pad(UB, F0 + 215, F0 + 325, lo, hi, f"pad_upper_{nm}", "P spine pack")
-    lo, hi = sorted((s_ * 70, s_ * 90)); pad(LB, F0 + 15, F0 + 140, lo, hi, f"pad_lower_{nm}", "P spine pack")
+    lo, hi = sorted((s_ * 70, s_ * 100)); pad(LB, F0 + 15, F0 + 140, lo, hi, f"pad_lower_{nm}", "P spine pack")
 for b in (1, 2, 3):
     for h in ("front", "back"):
         piece(f"abdomen_{b}_{h}", f"A{b} abdomen band {b}", "band", thicken(grid(f"abdomen band {b} {h}"), x_axis=2.0))

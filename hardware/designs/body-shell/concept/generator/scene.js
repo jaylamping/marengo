@@ -134,7 +134,7 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 const WALL = 124 + YSX + FW;
 // arm-thread gap check (TORSO_WIDE_VARIANT.md): shoulder-point half-width <= 155 at fw=38 for 5 mm at 5 deg inward roll
 const TOPW = WALL - Number(q.get('topcap') ?? 0);   // 7 = arm-thread cap (155 at fw=38); Joey kept the baseline
-const WX = Number(q.get('wx') ?? 10); // waist widening per side (Joey 2026-11-06: 'widen the waist a bit')
+const WX = Number(q.get('wx') ?? 29);  // Joey 2026-11-06 07:19: ~193 mm waist with straight sides (was 10 -> 156) // waist widening per side (Joey 2026-11-06: 'widen the waist a bit')
 const TAPER_Z = ZS - 46 - 65;
 // Manufacturing thread 2026-11-06: frame_clearance.py found the back too shallow for the 2020 frame (rear corners
 // through the wall at the frame bottom, <1 mm at the gusset corners, <8 mm across the back). bd deepens the back
@@ -162,7 +162,7 @@ const chest = [
 const NLO = Number(q.get('nlo') ?? 1.0), WLO = Number(q.get('wlo') ?? 4);   // squarer / wider section at the frame bottom (clears the lower-box corners)
 // straight=0..1 (Joey 2026-11-06, "reduce these cute little hips"): pull the ZS-200 row onto the straight line between the
 // ZS-160 row and the chest bottom, so the side tapers into the waist without an S-bend.
-const STRAIGHT = Number(q.get('straight') ?? 0);
+const STRAIGHT = Number(q.get('straight') ?? 1);  // Joey 2026-11-06 07:19: straight sides are the baseline
 for (const r of chest) { r[3] += bdz(r[0]); const lo = 1 - Math.min(1, Math.max(0, (r[0] - (F0 - 6)) / 170)); r[4] += NLO * lo; r[1] += WLO * lo; r[2] += WLO * 0.5 * lo; }
 if (STRAIGHT) { const a = chest[2], b = chest[0], m = chest[1]; const t = (m[0] - b[0]) / (a[0] - b[0]);
   for (const k of [1, 2]) { const lin = b[k] + (a[k] - b[k]) * t; m[k] += (Math.min(m[k], lin) - m[k]) * STRAIGHT; } }

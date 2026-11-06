@@ -8,6 +8,8 @@ Evidence labels follow the project convention: **script check** (ran here, repro
 
 | Sheet | Shows |
 | --- | --- |
+| `SHELL_BASELINE_REVB.png` | Rev B baseline: deepened back, ~193 mm straight-sided waist (Joey 2026-11-06) |
+| `SHELL_WAIST_OPTIONS.png`, `SHELL_WAIST_STRAIGHT.png` | Waist width studies behind rev B |
 | `SHELL_MFG_SPLIT.png` | The proposed split: assembled front/back, exploded front/back |
 | `SHELL_MFG_PLATES.png` | All 24 prints, each in its chosen orientation inside a 256 mm P2S volume |
 | `SHELL_MFG_MOUNTS.png` | X-ray: the 20 hardpoint brackets on the frame, and the cooling airflow path |

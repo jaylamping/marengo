@@ -194,12 +194,12 @@
     107.0,
     166.9
    ],
-   "part_g": 93.3,
+   "part_g": 95.5,
    "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
-    2.0,
-    3.4
+    2.1,
+    3.5
    ]
   },
   {
@@ -219,12 +219,12 @@
     107.0,
     166.9
    ],
-   "part_g": 93.3,
+   "part_g": 95.5,
    "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
-    2.0,
-    3.4
+    2.1,
+    3.5
    ]
   },
   {
@@ -244,12 +244,12 @@
     97.2,
     166.9
    ],
-   "part_g": 93.9,
+   "part_g": 96.2,
    "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
     2.1,
-    3.4
+    3.5
    ]
   },
   {
@@ -269,12 +269,12 @@
     97.2,
     166.9
    ],
-   "part_g": 93.9,
+   "part_g": 96.2,
    "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
     2.1,
-    3.4
+    3.5
    ]
   },
   {
@@ -285,13 +285,13 @@
    "fits": true,
    "watertight": true,
    "extents_robot": [
-    6.6,
+    6.0,
     120.0,
     177.1
    ],
    "print_xyz": [
     177.1,
-    6.6,
+    6.0,
     120.0
    ],
    "part_g": 64.7,
@@ -311,15 +311,15 @@
    "watertight": true,
    "extents_robot": [
     130.0,
-    37.0,
-    117.3
+    23.3,
+    117.4
    ],
    "print_xyz": [
     130.0,
-    37.0,
-    117.3
+    23.3,
+    117.4
    ],
-   "part_g": 46.3,
+   "part_g": 45.7,
    "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
@@ -336,15 +336,15 @@
    "watertight": true,
    "extents_robot": [
     130.0,
-    37.0,
-    117.3
+    23.3,
+    117.4
    ],
    "print_xyz": [
     130.0,
-    37.0,
-    117.3
+    23.3,
+    117.4
    ],
-   "part_g": 46.3,
+   "part_g": 45.7,
    "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
@@ -485,21 +485,21 @@
    "fits": true,
    "watertight": true,
    "extents_robot": [
-    37.6,
-    52.5,
-    128.2
+    43.4,
+    56.7,
+    126.2
    ],
    "print_xyz": [
-    52.5,
-    37.6,
-    128.2
+    56.7,
+    43.4,
+    126.2
    ],
-   "part_g": 28.6,
-   "support_g": 0.2,
+   "part_g": 44.5,
+   "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
-    1.6,
-    2.5
+    2.4,
+    3.9
    ]
   },
   {
@@ -535,21 +535,21 @@
    "fits": true,
    "watertight": true,
    "extents_robot": [
-    37.6,
-    52.5,
-    128.2
+    43.4,
+    56.7,
+    126.2
    ],
    "print_xyz": [
-    94.3,
-    52.5,
-    126.5
+    56.7,
+    43.4,
+    126.2
    ],
-   "part_g": 28.6,
-   "support_g": 0.2,
+   "part_g": 44.4,
+   "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
-    1.6,
-    2.5
+    2.4,
+    3.9
    ]
   },
   {
@@ -561,20 +561,20 @@
    "watertight": true,
    "extents_robot": [
     66.0,
-    156.0,
+    194.0,
     28.0
    ],
    "print_xyz": [
-    156.0,
+    194.0,
     68.5,
     55.2
    ],
-   "part_g": 21.2,
-   "support_g": 0.5,
+   "part_g": 24.1,
+   "support_g": 0.6,
    "outer_support_cm2": 0.0,
    "hours": [
     0.5,
-    0.8
+    0.9
    ]
   },
   {
@@ -586,20 +586,20 @@
    "watertight": true,
    "extents_robot": [
     64.0,
-    156.0,
+    194.0,
     28.0
    ],
    "print_xyz": [
-    156.0,
+    194.0,
     66.7,
     54.2
    ],
-   "part_g": 20.9,
-   "support_g": 0.5,
+   "part_g": 23.8,
+   "support_g": 0.6,
    "outer_support_cm2": 0.0,
    "hours": [
     0.5,
-    0.8
+    0.9
    ]
   },
   {
@@ -611,20 +611,20 @@
    "watertight": true,
    "extents_robot": [
     65.0,
-    153.0,
+    191.0,
     28.0
    ],
    "print_xyz": [
-    153.0,
+    191.0,
     67.6,
     54.7
    ],
-   "part_g": 20.8,
-   "support_g": 0.5,
+   "part_g": 23.8,
+   "support_g": 0.6,
    "outer_support_cm2": 0.0,
    "hours": [
     0.5,
-    0.8
+    0.9
    ]
   },
   {
@@ -636,20 +636,20 @@
    "watertight": true,
    "extents_robot": [
     63.0,
-    153.0,
+    191.0,
     28.0
    ],
    "print_xyz": [
-    153.0,
+    191.0,
     65.9,
     53.7
    ],
-   "part_g": 20.5,
-   "support_g": 0.5,
+   "part_g": 23.5,
+   "support_g": 0.6,
    "outer_support_cm2": 0.0,
    "hours": [
     0.5,
-    0.8
+    0.9
    ]
   },
   {
@@ -661,20 +661,20 @@
    "watertight": true,
    "extents_robot": [
     64.0,
-    150.0,
+    188.0,
     28.0
    ],
    "print_xyz": [
-    150.0,
+    188.0,
     66.7,
     54.2
    ],
-   "part_g": 20.4,
-   "support_g": 0.5,
+   "part_g": 23.4,
+   "support_g": 0.6,
    "outer_support_cm2": 0.0,
    "hours": [
     0.5,
-    0.8
+    0.9
    ]
   },
   {
@@ -686,28 +686,28 @@
    "watertight": true,
    "extents_robot": [
     62.0,
-    150.0,
+    188.0,
     28.0
    ],
    "print_xyz": [
-    150.0,
+    188.0,
     65.0,
     53.2
    ],
-   "part_g": 20.1,
-   "support_g": 0.5,
+   "part_g": 23.1,
+   "support_g": 0.6,
    "outer_support_cm2": 0.0,
    "hours": [
     0.5,
-    0.8
+    0.9
    ]
   }
  ],
- "total_part_g": 1228,
+ "total_part_g": 1254,
  "total_support_g": 24,
  "total_hours": [
-  43.1,
-  71.5
+  44.9,
+  75.3
  ],
- "spine_pack_g": 201
+ "spine_pack_g": 233
 }
