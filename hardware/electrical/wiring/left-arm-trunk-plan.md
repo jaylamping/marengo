@@ -155,6 +155,10 @@ A rolling-loop groove with round wire (the "wrap groove" in rev 0 of this plan) 
 
 **Proposal (pending that measurement):** A for both pitch and roll, modelled with the arm thread once SolidWorks is free, with B as the upgrade if A is too big. Either way the jumper stays a plug-in part.
 
+### Elbow crossing (J4), with the arm thread
+
+The inboard band (X 121.7 to 131.2) works but sticks out 16.8 mm past the forearm and undoes the elbow slimming, so it is the fallback. Lead route: posterior, across the back of the elbow. The RS02 body and Ø84 carrier put the wires at r 45 to 55 from the axis, so the path grows about 120 to 130 mm from 0 to 133°. That length is stored as a **guided rolling loop** in the upper-arm tube (U-turn ~50 to 55 mm across, ~70 mm axial travel, legs ~3 × 8 mm, smooth lining or rails), not a free S-loop, which kinks when pushed back. The wires wrap onto a guide surface on the posterior carrier during flexion, like a pulley. JB-14 sits at the shoulder end of the tube, clear of the loop. Second fallback: small clock-spring between the RS02 end face and the fork cheek. CAD check pending (free posterior radius, tube travel).
+
 ## 7. Interfaces this needs from other threads
 
 | Thread | What we need |
