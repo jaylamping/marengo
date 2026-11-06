@@ -89,7 +89,7 @@ function ringPt(hw, df, db, n, th, x0 = 0) {
   const x = (s >= 0 ? df : db) * sgnpow(s, 2 / n);
   return [x + x0, y];
 }
-let CLAMP = null;
+let CLAMP = null; let SEAM_CLAMP = null;
 function loft(rows, z0, z1, mat, nz = 90, nt = 128, x0 = 0, th0 = 0, th1 = 2 * Math.PI, tag = null, ex = [0, 0, 0]) {
   const pos = [], idx = [];
   for (let i = 0; i <= nz; i++) {
@@ -118,7 +118,7 @@ function seamRing(rows, z, x0 = 0, grow = 0.8) {
 function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
   const pts = [];
   for (let i = 0; i <= 60; i++) { const z = za + (zb - za) * i / 60; const [hw, df, db, n] = interp(rows, z);
-    const [x, y] = ringPt(hw + grow, df + grow, db + grow, n, th, x0); pts.push(P(x, y, z)); }
+    let [x, y] = ringPt(hw + grow, df + grow, db + grow, n, th, x0); let zz = z; if (SEAM_CLAMP) [x, y, zz] = SEAM_CLAMP(x, y, z); pts.push(P(x, y, zz)); }
   add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.9, 6), seamMat));
 }
 
@@ -153,7 +153,8 @@ const chest = [
 ];
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
 // so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it
-const SOCK_R = Number(q.get('sock') ?? 62);   // P2 sweeps to r 88 about the pitch axis (arm thread, 2026-11-06)
+const RIM = Number(q.get('rim') ?? 7);
+const SOCK_R = Number(q.get('sock') ?? 78);   // arm thread 2026-11-06: r76 min for full pitch with >=3 mm, r78 for margin
 const sstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 // male chest plate: two pec masses with a sternum groove and a crisp lower edge
 const PEC_Z = ZS - 30;
@@ -167,10 +168,11 @@ const pec = (x, y, z) => { if (x <= 0) return [x, y, z]; const ay = Math.abs(y);
   const roll = 1 - 0.3 * sstep(0.45 * WALL, 0.98 * WALL, ay) * rz;
   return [(x + 15 * g * v * w) * roll, y, z]; };
 const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); if (Math.abs(y) <= FACE) return [x, y, z];
-  const t = Math.min(1, Math.max(0, (r - SOCK_R) / 7)); const k = t * t * (3 - 2 * t);
+  const t = Math.min(1, Math.max(0, (r - SOCK_R) / RIM));
+  const k = RIM > 7 ? Math.sqrt(1 - (1 - t) * (1 - t)) : t * t * (3 - 2 * t);   // RIM > 7: rolled quarter-round lip into the cavity
   return [x, Math.sign(y) * (FACE + (Math.abs(y) - FACE) * k), z]; };
 const SEAM_Z = F0 + 160;
-CLAMP = (x, y, z) => { const p = pec(x, y, z); return socket(p[0], p[1], p[2]); };
+CLAMP = (x, y, z) => { const p = pec(x, y, z); return socket(p[0], p[1], p[2]); }; SEAM_CLAMP = CLAMP;
 loft(chest, SEAM_Z, F1 + 48, white, 240, 200, 4, 0, Math.PI, 'chest upper front', [110, 0, 60]);
 loft(chest, SEAM_Z, F1 + 48, white, 240, 200, 4, Math.PI, 2 * Math.PI, 'chest upper back', [-110, 0, 60]);
 loft(chest, F0 - 6, SEAM_Z, white, 50, 80, 4, 0, Math.PI, 'chest lower front', [110, 0, -40]);

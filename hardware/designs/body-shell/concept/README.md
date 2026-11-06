@@ -22,23 +22,24 @@ mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look i
 | `PROPORTIONS.md` | Proportion check of the baseline against ANSUR II men scaled to 5 ft |
 | `SHELL_CONCEPT_CLEARANCE.png` | Baseline vs the arm-thread clearance fixes (socket r 93, shoulder half-width ≤155); Joey kept the baseline |
 
-## Key dimensions (robot frame, X forward, Y left, Z up)
+## Key dimensions (robot frame, X forward, Y left, Z up), baseline 2026-11-06
 
 | Item | Value | Source |
 | --- | --- | --- |
-| Frame | 140 deep x 150 wide x 340 tall | `docs/kinematics.md` |
-| Shoulder pitch axis | 424.9 mm above pelvis bottom; output faces at Y ±97 | `docs/kinematics.md` |
-| Arm line | Y ±170.5 | `designs/left-arm/urdf/left_arm.urdf` |
-| Chest shell | 242 mm at the shoulders; sides ±90 from 100–200 mm below the shoulder axis; 158 mm at the chest bottom | this concept |
-| Waist (dark bands) | 136 mm wide, 3 bands over the waist yaw RS03 | this concept |
-| Shoulder socket | 62 mm radius around the pitch axis, floor at the RS03 face (Y ±97.5); P1/roll sweep is ~57 mm | this concept |
-| Chest depth | 108 mm front + 88 mm back of frame centre (196 mm) | this concept |
-| Shoulder collar | 114 mm OD, 86 mm ID, about 3 mm, under the RS03 outer-ring bolts | this concept |
-| Waist extension (option) | +70 mm between waist yaw and frame | closes the shoulder-height shortfall |
+| Frame | Two-box: wide upper box (+38 mm per side, 226 wide) over the 150 wide lower box; 140 deep | arm thread, `designs/left-arm/envelope/TORSO_WIDE_VARIANT.md` |
+| Shoulder pitch axis | 424.9 mm above pelvis bottom; RS03 output faces at Y ±135 | arm thread |
+| Arm line | Y ±208.5 | arm thread |
+| Chest shell | 324 mm at the shoulder point (rounded cap ~R40, trapezius slope to the neck); 278 mm 111 mm below the axis; 178 mm at the chest bottom | this concept |
+| Waist (dark bands) | 156 mm wide, 3 bands over the waist yaw RS03 | this concept |
+| Shoulder cavity | 78 mm radius around the pitch axis, floor at the RS03 face. r 76 is the minimum for full pitch (-50..180) with >= 3 mm at 0 and 5 deg inward roll | arm-thread sweep |
+| Chest depth | ~124 mm front (pec) + 88 mm back (212 mm) | this concept |
+| Shoulder collar | 114 mm OD, 86 mm ID, 2 mm flange, on the 8 unused outboard M4 holes (M4x10 button heads) | arm thread |
+| Waist extension (option) | +70 mm between waist yaw and frame | brings shoulder height within 1 % of a 5 ft man |
+| Proportions | Robot-stylised (Joey): heroic shoulders, slim waist | `PROPORTIONS.md` |
 
 ## Panels (Bambu P2S, 256 x 256 x 256 mm)
 
-13 panels, all inside the build volume. The largest is the chest upper front at 242 x 228 x 108 mm (14 mm margin).
+At the baseline width the chest panels exceed 256 mm across (upper ~310, lower ~279), so each splits at the centre line: 17 panels, all inside the P2S volume.
 
 - Chest: upper front, upper back, lower front, lower back (magnet-held service hatch for the Pi).
 - Chest shield: separate raised front plate, so it can be printed in a different finish.
@@ -50,14 +51,12 @@ the outer frame slots, M3 heat-set inserts in the panel bosses, lapped seams.
 
 ## Open points
 
-- Collar mounting (from the arm thread): the 8 unused outboard M4 holes on the pitch RS03's 98 mm bolt circle, new M4x10
-  button heads, 2–3 mm flange, bore at least 72 mm. P1 stays beyond Y 101.75 from r 24 to 54, so the flange must stay inside that.
-- Sides are pulled in to Y ±90 from 100–200 mm below the shoulder axis, as the arm thread asked (at least 5 mm at 5° inward roll).
-  The in-between line keeps the wall 5–7 mm inside the shoulder point down to 55 mm below the axis (about 7 mm to the arm at 5° inward roll, rough check).
-  Re-check once Joey picks the inward roll stop (5° or 15°); see `../../left-arm/envelope/`.
-- The exposed shoulder parts in these renders are simple stand-ins, not the real P1/P2 geometry.
-- At 215 + 195 + 90 mm the arms read short against a 5 ft body in the proportion view.
-- The +70 mm waist section changes the URDF torso height and needs a structural spacer, not just shell.
+- Shell geometry has to follow the two-box frame once the arm thread fixes the step height and gusset outline.
+- Upper-arm length card (240/200, 215/195 or 250/210) is open with Joey on the arm thread; the renders use 215/195.
+- Collar M4 button heads stand 2.2 mm proud; the arm thread adds a local relief to P2's inner edge.
+- Panels are sacrificial crash covers (load case: a fall down the stairs). Keep one fixed mounting interface per panel so variants (colour, shape, cooling and vents) can swap without frame changes.
+- Exposed shoulder parts and the exploded-view frame are stand-ins.
+- Armor-plate breakup and the real panels are SolidWorks work on Joey-PC.
 
 ## Regenerating
 

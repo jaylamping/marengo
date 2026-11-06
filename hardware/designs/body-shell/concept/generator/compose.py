@@ -21,22 +21,22 @@ def sheet(panels, title, sub, out, notes=None):
         for n in notes: d.text((pad, y), n, font=f(30), fill=(40, 44, 50)); y += 44
     S.save('final/' + out, optimize=True); print(out, S.size)
 sub = 'Concept only, not a part. Original design; shell bolts to the 2020 torso frame. 2026-11-06'
-sheet([(crop('hero.png', (560, 0, 2640, 2400)), 'Square shoulders, V-taper, slim dark waist; arm mechanics exposed')], 'Marengo body shell, concept B', sub, 'SHELL_CONCEPT_HERO.png')
+sheet([(crop('hero.png', (560, 0, 2640, 2400)), 'Baseline: heroic shoulders on a wider frame, rounded shoulder and chest, slim dark waist; arm mechanics exposed')], 'Marengo body shell, baseline', sub, 'SHELL_CONCEPT_HERO.png')
 sheet([(crop(n + '.png', (900, 0, 2300, 2400), w=900), l) for n, l in [('front', 'Front'), ('side', 'Side (robot left)'), ('back', 'Back')]],
-      'Body shell, concept B: front, side, back', sub, 'SHELL_CONCEPT_VIEWS.png')
+      'Body shell baseline: front, side, back', sub, 'SHELL_CONCEPT_VIEWS.png')
 sheet([(crop('fullA.png', (1100, 0, 2100, 2400), w=760), 'Frame as built: shoulder 1165 mm'),
        (crop('fullB.png', (1100, 0, 2100, 2400), w=760), '+70 mm waist: shoulder 1235 mm'),
        (crop('fullBiso.png', (900, 0, 2300, 2400), w=1060), '+70 mm waist, 3/4')],
       'Longer stomach: +70 mm waist section', sub, 'SHELL_CONCEPT_PROPORTIONS.png',
-      ['Legs are grey placeholders at the draft lengths in kinematics.md (5 ft total). The extension goes between the waist yaw and the frame,',
-       'which closes the ~70 mm shoulder-height shortfall and gives the longer belly. Arms at 215 + 195 + 90 mm read short against a 5 ft body.'])
-sheet([(crop('shoulder.png', (0, 0, 3200, 2400), w=1300), 'Shoulder socket: shell steps in to the RS03 face around the joint'),
+      ['Legs are grey placeholders at the draft lengths in kinematics.md (5 ft total). The extension goes between the waist yaw and the frame and brings',
+       'shoulder height within 1% of a 5 ft man. Arms at 215 + 195 + 90 mm are 24% / 12% short (see PROPORTIONS.md); the arm thread has a length card open.'])
+sheet([(crop('shoulder.png', (0, 0, 3200, 2400), w=1300), 'Shoulder cavity (r 78): shell steps in to the RS03 face around the joint'),
        (crop('explode.png', (600, 350, 2600, 2250), w=1000), 'Print panels, exploded')],
-      'Body shell, concept B: shoulder interface and P2S panel split', sub, 'SHELL_CONCEPT_PANELS.png',
-      ['Shoulders 242 mm across, sides pulled to +-90 where the arm hangs, 158 mm at the chest bottom, 136 mm dark waist. Around the pitch joint the shell steps in to the RS03 face (Y +-97) inside a 62 mm',
-       'radius socket, clear of the ~57 mm P1/roll sweep. The collar (114 mm OD) sits in the socket under the RS03 outer-ring bolts; those bolts also',
-       'hold the motor to its bracket, so the collar waits on the arm thread. Socket edge is jagged only in this mock-up render.',
-       '13 panels, largest 242 x 228 x 108 mm (chest upper front), all inside the P2S 256 mm cube. Shoulder parts shown are stand-ins.'])
+      'Body shell baseline: shoulder cavity and P2S panel split', sub, 'SHELL_CONCEPT_PANELS.png',
+      ['Frame widened 38 mm per side (wide upper box), shoulder joints at Y +-208.5. Shell 324 mm across the shoulders, 178 mm at the chest bottom,',
+       '156 mm dark waist. Around each pitch joint the shell steps in to the RS03 face (Y +-135) inside a 78 mm cavity: the arm thread\'s sweep',
+       'needs r 76 for full pitch (-50..180) with >= 3 mm. The 2 mm collar sits in the cavity on the RS03\'s unused outboard M4 holes.',
+       'Upper panels ~310 mm and lower ~279 mm wide split at the centre for the P2S. Exploded frame is the single-box stand-in; the two-box frame is in progress.'])
 sheet([(crop('w0.png', (700, 300, 2500, 2300), w=900), 'Shoulders as built: roll axes 341 mm apart'),
        (crop('w25.png', (700, 300, 2500, 2300), w=900), 'P1 +25 mm per side: 391 mm apart'),
        (crop('w25iso.png', (700, 200, 2500, 2400), w=900), '+25 mm, three-quarter')],
@@ -51,11 +51,10 @@ sheet([(crop('r38iso.png', (700, 200, 2500, 2400), w=760), 'Previous: flatter ch
       ['Shoulder point is a quarter-round cap (about 40 mm radius), the top slopes up to the neck like a trapezius, and the chest front rolls back',
        'toward each shoulder (up to 30% of its depth at the outer edge), like a pec wrapping into the shoulder. Side line unchanged.',
        'Width from a wider 2020 frame: +38 mm per side (rails 150 -> 226 mm), pitch RS03 faces at Y +-135.5, P1 unchanged. Waist +10 mm per side.'])
-sheet([(crop('c38.png', (600, 200, 2600, 2300), w=760), 'Baseline you approved'),
-       (crop('k93.png', (600, 200, 2600, 2300), w=760), 'With the arm clearance fixes'),
-       (crop('c38iso.png', (700, 200, 2500, 2400), w=760), 'Baseline, three-quarter'),
-       (crop('k93iso.png', (700, 200, 2500, 2400), w=760), 'With the fixes, three-quarter')],
-      'Body shell: what full arm reach costs at the shoulder', sub, 'SHELL_CONCEPT_CLEARANCE.png',
-      ['Arm-thread sweep (pitch -50..180, 5 deg inward roll): P2 cuts 16 mm into the baseline shoulder at pitch ~150 (arm raised high) because it',
-       'swings out to r 88 around the pitch axis. Fix shown: socket radius 62 -> 93 mm, shoulder half-width capped at 155 mm.',
-       'Inside that circle the shell steps in to the RS03 face, so the rounded shoulder point becomes a recessed bowl around the joint.'])
+sheet([(crop('c38.png', (600, 200, 2600, 2300), w=760), 'r 62: P2 hits at every pitch'),
+       (crop('front.png', (600, 200, 2600, 2300), w=760), 'r 78 (baseline): full pitch, >= 3 mm'),
+       (crop('k93.png', (600, 200, 2600, 2300), w=760), 'r 93: full pitch, >= 5 mm'),
+       (crop('hero.png', (700, 200, 2500, 2400), w=760), 'r 78, three-quarter')],
+      'Body shell: shoulder cavity size vs arm clearance', sub, 'SHELL_CONCEPT_CLEARANCE.png',
+      ['Arm-thread sweep, pitch -50..180 at 0 and 5 deg inward roll, 2 mm collar. r 76 is the smallest cavity with >= 3 mm everywhere; r 78 gives 3.2 / 3.8 mm.',
+       'r 70 and below fail in bands a pitch stop cannot avoid. Collar button heads stand 2.2 mm proud; P2 gets a local relief in its next rev.'])
