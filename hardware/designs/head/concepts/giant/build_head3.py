@@ -166,7 +166,8 @@ VARIANTS = {'G1': dict(), 'G2': dict(chin_drop=34, chin_fwd=16, chin_chamfer=12,
                        hinge_r=10, chin_drop=3, chin_fwd=3, chin_chamfer=5, jaw_taper=3, chin_flat=0.45, jaw_facet=16, jaw_ledge=3, ear_z=124, ear_x=-2, collar_r=74)}
 VARIANTS['G5'] = dict(VARIANTS['G4'], top=205, zc=169)  # G4 with the top of the head stretched 25 mm (Joey 11:50Z)
 VARIANTS['G6'] = dict(VARIANTS['G5'], jaw_facet=0)  # rounded jaw, no flats (Joey 11:53Z)
-VARIANTS['G7'] = dict(VARIANTS['G5'], jaw_round=16, jaw_bulge=4, chin_chamfer=0)  # pass 8 jaw rounded in side view: convex front, scoop-round lower edge  # G3: smaller jaw, top ~25 mm lower, small chin (Joey 11:42Z)
+VARIANTS['G7'] = dict(VARIANTS['G5'], jaw_round=16, jaw_bulge=4, chin_chamfer=0)  # pass 8 jaw rounded in side view: convex front, scoop-round lower edge
+VARIANTS['G8'] = dict(VARIANTS['G6'], jaw_ledge=11, chin_fwd=12)  # G6 with the mouth area pulled ~10 mm forward (Joey 12:22Z)
 
 if __name__ == '__main__':
     for nm in (sys.argv[1:] or list(VARIANTS)):

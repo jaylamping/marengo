@@ -87,6 +87,11 @@ corner facets (jaw_facet), wide stepped collar (r74).
 Joey 11:50Z: pass 7 is the right direction; stretch the top of the head about an inch. `build_head3.py G5` (= G4 with
 top 205, zc 169) -> `HEAD_GIANT_PASS8.png`. Head 128 W x 179 H mm; everything from the eyes down unchanged.
 
-## Pass 9 (current): G6, rounded jaw
+## Pass 9: G6, rounded jaw
 
 Joey 11:53Z: "his jaw is rounded, no flat". `build_head3.py G6` (= G5 with jaw_facet 0) -> `HEAD_GIANT_PASS9.png`.
+
+## Pass 10 (current): G8, mouth pulled forward
+
+Joey 12:22Z: pull the mouth area out so it isn't so smushed. `build_head3.py G8` (= G6 with jaw_ledge 11, chin_fwd 12)
+-> `HEAD_GIANT_PASS10.png`. G7 (pass 8 with a side-rounded scoop jaw) is in the script but was not shown.
