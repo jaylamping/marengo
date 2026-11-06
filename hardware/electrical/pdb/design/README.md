@@ -32,7 +32,9 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
   pack's XT90S and the battery thread's sense board (pack rear face, X 5 to 45, Y 318 to 343). Unplug at the door, slide the
   pack out: no reaching into the torso, and no shelf cutout needed.
 - **Arm ports:** pigtails from the HP top corners run up the front corners with the trunk; the arm trunk's first XT30(2+2) joint
-  becomes an inline connector on that run.
+  becomes an inline connector on that run. Agreed with the trunk thread (09:18Z): about 250 mm of 16 AWG or heavier plus the
+  CAN pair, XT30(2+2) **female on the pigtail** (live side), joint at the frame step corner around Y 360 to 380, 80 to 100 mm
+  short of the pitch RS03's top-rear flat, reachable through a removable shell panel, 30 mm of slack at the joint.
 - **Waist, aux, leg ports and the charge input:** pigtails leave the HP side edges in the open Z 40 to 50 band and drop past
   the LP board to inline connectors below Y 190 (35 mm of room), or straight to the shell charge port. The leg pigtails are
   fitted when the legs exist.
