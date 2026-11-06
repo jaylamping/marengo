@@ -26,8 +26,10 @@ plane. If the plan below outgrows that envelope I must say so before routing (se
 
 ## 1. Fixed inputs
 
-- **Pack (decided 06:13Z):** 13S2P Molicel P50B (P45B sold out, battery thread 07:29Z), 46.8 V nominal, **54.6 V full**, 39 V empty at 3.0 V/cell (2.9 V
-  cutoff → 37.7 V), 9 to 10 Ah, 60 A MIDI fuse on the pack, XT90S out.
+- **Pack (decided 06:13Z):** 13S2P; cell choice open with the battery thread (08:52Z): preferred 6 Ah 30 A-class cells (Reliance
+  RS60 / Linkdata 60P / Great Power 60Q, about 12 Ah, 560 Wh, 60 A continuous at 2P, equal to the BMS OC limit), Molicel P50B
+  as the fallback; pack resistance assumed 90 to 110 mΩ until measured. Pack fuse is a Class T 60 A ferrule, 160 V DC (verify).
+  46.8 V nominal, **54.6 V full**, 39 V empty at 3.0 V/cell, hard UV trip 2.8 V/cell (36.4 V), XT90S out.
 - **BMS on this board (decided 06:14Z):** "we can probably incorporate the bms onto there as well".
 - **Drives (vendor manual):** RS00, RS02, RS03, RS04 all rated 48 V, operating **24 to 60 V**. At 54.6 V full there are only
   5.4 V of headroom for regen.
