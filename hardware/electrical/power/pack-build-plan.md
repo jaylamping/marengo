@@ -16,7 +16,7 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
   energy in the same can (datasheet). It is in stock today at $10.50 each for 10 or more; P45B is sold out at the cheaper
   vendor (vendor page). 28 cells (26 plus 2 spares) is about $295.
 - **The BMS stays on the power board, high-side (agreed).** The pack itself has no BMS. It is cells, a 60 A MIDI fuse, an
-  XT90S, 2 NTCs, and a small **pack sense board** that fuses the 14 cell taps and brings them out on one locking Micro-Fit
+  XT90S, 3 NTCs, and a small **pack sense board** that fuses the 14 cell taps and brings them out on one locking Micro-Fit
   connector. A cheap 13S JK BMS is the bench tool for grading, first charges and discharge tests before the power board exists.
 - **Charge to 4.15 V per cell (53.9 V), not 4.2 (agreed).** This leaves room for regen in a full pack and adds cycle life
   for about 3% of capacity. Use an adjustable-voltage charger at 4 A, ending in an XT60.
@@ -34,10 +34,10 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
    B13+ ── 60 A MIDI fuse ── 10 AWG ── XT90S male (anti-spark) ──┐
    B0−  ─────────────────── 10 AWG ── XT90S ─────────────────────┤──► power board top edge, rear face (Y ≈ 335)
    B0..B13 taps (14) ─┐                                          │
-   NTC1, NTC2 ────────┴─ pack sense board (fuse per tap) ── Micro-Fit 3.0 2x9 ──► board AFE (BQ76952 class)
+   NTC1..NTC3 ────────┴─ pack sense board (fuse per tap) ── Micro-Fit 3.0 2x10 ─► board AFE (BQ76952 class)
 ```
 
-- **On the pack:** cells, plates, fuse, XT90S, sense board, two 10 kΩ NTCs (B = 3435, verify against the AFE's table),
+- **On the pack:** cells, plates, fuse, XT90S, sense board, three 10 kΩ NTCs (103AT curve, B = 3435, the BQ76952 default; board thread verifies),
   printed case, foam, wrap.
 - **Not on the pack:** charge and discharge FETs, balancing, coulomb counting, shunt. They live on the power board.
 - **Consequence (agreed):** the pack charges in the robot through the board's charge port. A second swap-and-charge pack
@@ -57,9 +57,9 @@ to put it on the pack instead and found two, neither strong enough:
 ### Connector mating rule (agreed)
 
 **Sense connector in first, XT90 last. XT90 out first, sense connector last.** The board thread is checking the BQ76952's
-random cell attach claim and how fast it detects an open wire. Until it confirms, the pack keeps room for an **18-pin
-Micro-Fit (2 × 9)**: 14 taps, 2 NTCs, and 2 pins for a connector-present loop that opens DSG directly if the sense
-connector is pulled.
+random cell attach claim and how fast it detects an open wire. The datasheet (section 16.3) tolerates random cell attach as long as
+each tap lands on its own ascending VC pin. **The sense connector is a 20-pin Micro-Fit (2 × 10), agreed:** 14 taps,
+3 NTCs, 2 pins for a connector-present loop that opens DSG directly if the sense connector is pulled, 1 spare.
 
 ## 2. Cells
 
@@ -123,7 +123,7 @@ SP15S 13S 60 A. About $50 to $90. Use it for:
 - the discharge and DCIR tests,
 - the fallback if power board rev A has a problem.
 
-It plugs into the pack through a **bench adapter harness**: Micro-Fit 2 × 9 to the JK's balance plug and NTC leads. So the
+It plugs into the pack through a **bench adapter harness**: Micro-Fit 2 × 10 to the JK's balance plug and NTC leads. So the
 pack is built exactly the same way whether the board exists yet or not.
 
 **Fallback-only rule (agreed):** the JK switches the low side. If it ever goes into the robot, nothing may reference pack B−
@@ -229,7 +229,7 @@ Each step has a pass/fail check. A failure stops the build until it is understoo
 | 4. Dry fit | Holders, fish-paper rings on every positive end, polarity marked with a paint pen on the holder, series path drawn on the holder face | photo, matches the layout drawing |
 | 5. Weld | Pull-test scrap first (the weld should tear the nickel, not peel). Parallel pairs first, then series plates. 4 welds per cell end | every weld passes a gentle pry with a plastic spudger; each pair reads the same voltage |
 | 6. Sense and measure | Weld tap tabs, wire the sense board, connect the JK through the bench harness. **Measure pack DCIR**: ΔV between a 1 A and a 5 A load step, 10 s each | all 13 cell voltages within 10 mV; DCIR 70 to 110 mΩ. **Send the number to the board thread** |
-| 7. Close | Fuse, XT90S, NTCs (one in the middle of the stack, one near the fuse), foam, wrap, printed case | insulation check: no continuity from any plate to the case's outside |
+| 7. Close | Fuse, XT90S, NTCs (one in the middle of the stack, one at a stack edge, one next to the fuse), foam, wrap, printed case | insulation check: no continuity from any plate to the case's outside |
 | 8. First charge | JK at 2 A to 53.9 V, attended, logging every 15 min | cells stay within 20 mV; pack under 35 °C |
 | 9. Capacity | Electronic load at 3 A (C/3) to 3.0 V per cell | at least 9.4 Ah (94% of 10 Ah); cells within 50 mV at the end |
 | 10. Recharge and rest | Charge to 53.9 V, rest 7 days, measure | self-discharge under 20 mV per cell over 7 days |
@@ -248,8 +248,8 @@ connected to the robot** (gate 3: load-bearing or powered).
 | Cell holders, fish paper, Kapton, foam, wrap | | $45 |
 | MIDI 60 A fuse + holder (Littelfuse 498 series class) | 1 + spare fuse | $15 |
 | Amass XT90S pair, XT60 pair, 10 AWG and 22 AWG silicone wire | | $35 |
-| Pack sense board (with the power board's PCB order) + Micro-Fit 2 × 9 parts | | $15 |
-| 2 × 10 kΩ NTC | | $5 |
+| Pack sense board (with the power board's PCB order) + Micro-Fit 2 × 10 parts | | $15 |
+| 3 × 10 kΩ NTC (103AT) | | $5 |
 | Printed case (PC FR or ASA, never PETG next to cells) | | $15 in filament |
 | JK 13S bench BMS | 1 | $50 to 90 |
 | 13S charger (trimmable 4 A), or Grin Satiator | 1 | $40 to 70, or $300 to 350 |
@@ -267,8 +267,8 @@ A small PCB (about 40 × 25 mm, estimate) sitting in the two spare grid position
 
 - 14 tap inputs (B0 to B13) on solder pads, each through a **0.5 to 1 A fast fuse** (0603/0805 SMD, rated at least 63 V DC,
   verify) or a fusible PCB trace. The AFE's own input resistors stay on the main board.
-- 2 NTC inputs.
-- One **Molex Micro-Fit 3.0, 2 × 9 right-angle header** (keep the 2 × 8 option until the board thread confirms).
+- 3 NTC inputs, plus the 2-pin connector-present loop.
+- One **Molex Micro-Fit 3.0, 2 × 10 right-angle header** (agreed with the board thread, which builds the board in its PCB order).
 - Conformal coat, Kapton over the back.
 - Tap order on the header must keep adjacent pins one cell apart (never B0 next to B13), so that a bent pin shorts at most
   4.2 V through a fuse.
@@ -279,7 +279,7 @@ The power board thread designs it into the same PCB order; this thread owns its 
 
 | Item | Owner | Status |
 | --- | --- | --- |
-| BQ76952 random cell attach, open-wire detection time → 2 × 8 or 2 × 9 sense connector | power board thread | checking |
+| BQ76952 open-wire detection timing (section 12.11) | power board thread | checking; connector settled at 2 × 10 |
 | Measured pack DCIR | this thread | after build step 6 |
 | Measured per-arm bus current | arm trunk thread | after the bench shoulder runs |
 | Legs: 13S3P (39 cells, about 3.3 kg) or a pelvis pack in parallel | this thread + frame | later, when the leg loads are known |
