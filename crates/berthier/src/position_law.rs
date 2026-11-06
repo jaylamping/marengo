@@ -202,7 +202,8 @@ pub struct FeedforwardInput {
     pub reference_error: f64,
     /// Davout's measured joint velocity (rad/s): the position difference over receive times.
     pub dq_meas: f64,
-    /// Davout reshaped the previous command (total-torque clamp or τ_ff cap/rate limit).
+    /// Davout reshaped the previous command (total-torque or envelope clamp, τ_ff cap/rate
+    /// limit).
     pub reshaped_downstream: bool,
     /// τ_ff Davout last sent for this joint, to start the step guard bumplessly.
     pub ff_last_sent: Option<f64>,

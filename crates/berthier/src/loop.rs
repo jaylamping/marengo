@@ -212,8 +212,8 @@ pub struct ControlLoop<B: MotorBus> {
     control_mode: ControlMode,
     /// Position-hold lifecycle + control law ([`PositionHold`]).
     position_hold: PositionHold,
-    /// Per joint `(Davout total-torque clamp count, τ_ff commanded)` from the previous Position
-    /// tick: a reshaped previous command freezes the ADR 0040 leaky integral.
+    /// Per joint `(Davout total-torque + envelope clamp count, τ_ff commanded)` from the previous
+    /// Position tick: a reshaped previous command freezes the ADR 0040 leaky integral.
     hold_reshape_watch: Vec<(u64, Option<f64>)>,
     loop_period: Duration,
     chappe_publish_period: Duration,
@@ -1446,11 +1446,18 @@ impl<B: MotorBus> ControlLoop<B> {
         if previous != mode {
             info!(?previous, ?mode, "control mode transition");
         }
-        let arm_ramp = mode != ControlMode::Disabled && previous != ControlMode::Disabled;
+        let reseed =
+            previous != mode && mode != ControlMode::Disabled && previous != ControlMode::Disabled;
         self.gains.on_mode_enter(previous, mode, &from, &to);
-        if arm_ramp {
-            // Mode changes slew from measured torque within the current hard cap.
-            // Enable/disable resets the limiter; an unseeded output starts at zero.
+        if reseed && mode == ControlMode::Position {
+            // ADR 0040 item 3: Position τ_ff starts from the τ_ff Davout last sent. The
+            // measured torque includes the drive's PD effort, so it seeds only a joint with
+            // nothing sent this session.
+            self.supervisor.seed_unsent_tau_ff_rate_limiter();
+        } else if reseed {
+            // Other mode changes slew from measured torque within the current hard cap.
+            // Enable/disable resets the limiter; an unseeded output starts at zero. A
+            // same-mode re-entry (e.g. a `hold-at` retarget) keeps slewing from the last sent.
             self.supervisor.seed_tau_ff_rate_limiter();
         }
     }
@@ -1915,14 +1922,20 @@ impl<B: MotorBus> ControlLoop<B> {
                             self.position_hold
                                 .set_commanded_joint(i, self.supervisor.joint_drive_active(joint));
                         }
-                        // Davout's reshaping of the previous command: a new total-torque clamp, or
-                        // a sent τ_ff (cap / rate limit) different from the one commanded.
+                        // Davout's reshaping of the previous command: a new total-torque or
+                        // envelope clamp (Davout judges the envelope at the larger of the
+                        // commanded and measured speed, so it can bind where Berthier's did
+                        // not), or a sent τ_ff (cap / rate limit) different from the one
+                        // commanded.
                         let mut reshaped = Vec::with_capacity(self.joint_names.len());
                         let mut ff_last_sent = Vec::with_capacity(self.joint_names.len());
                         let mut clamp_counts = Vec::with_capacity(self.joint_names.len());
                         for (i, joint) in self.joint_names.iter().enumerate() {
                             let sent = self.supervisor.last_tau_ff_nm(joint);
-                            let clamps = self.supervisor.total_torque_clamp_count(joint);
+                            let clamps = self
+                                .supervisor
+                                .total_torque_clamp_count(joint)
+                                .saturating_add(self.supervisor.envelope_clamp_count(joint));
                             let (prev_clamps, prev_cmd) = self
                                 .hold_reshape_watch
                                 .get(i)

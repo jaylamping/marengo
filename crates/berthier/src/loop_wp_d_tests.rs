@@ -536,3 +536,166 @@ fn leaving_position_drops_the_reshape_watch() {
         "a watch from the previous Position episode must not survive leaving it"
     );
 }
+
+// ---- ADR 0040 item 2: Davout's own envelope clamp freezes the leaky integral -------------
+
+/// Joint-space `q_des` of the latest pitch MIT frame (RS03, can0 id 1).
+fn last_pitch_wire_q_des(ctrl: &ControlLoop<SimulationBus>) -> f64 {
+    let motor = ctrl
+        .supervisor()
+        .motors
+        .motors
+        .iter()
+        .find(|motor| motor.joint == JOINT)
+        .expect("pitch motor");
+    let scale = f64::from(motor.direction) * motor.gear_ratio;
+    let fields = ctrl
+        .supervisor()
+        .bus()
+        .frames()
+        .iter()
+        .rev()
+        .filter(|frame| frame.id & 0xff == u32::from(motor.device_id))
+        .find_map(|frame| robstride::decode_mit_command_fields(frame.id, &frame.data))
+        .expect("pitch MIT frame");
+    (f64::from(fields.position) / 32767.0 - 1.0) * 4.0 * std::f64::consts::PI / scale
+}
+
+/// Every joint at rest at 0 except pitch at `q`, whose status carries the receive time `at`
+/// (Davout derives velocity from receive times).
+fn replay_stamped(ctrl: &mut ControlLoop<SimulationBus>, q: f64, at: Instant) {
+    let motors = ctrl.supervisor().motors.motors.clone();
+    for motor in motors {
+        if motor.joint == JOINT {
+            let frame = crate::test_support::status(&motor, q, 0.0);
+            ctrl.supervisor_mut()
+                .bus_mut()
+                .queue_timed(robstride::TimedCanFrame {
+                    received_at: at,
+                    received: robstride::ReceivedCanFrame::full_data(
+                        Some(motor.can_interface.clone()),
+                        frame,
+                    ),
+                })
+                .expect("finite raw status queue");
+        } else {
+            ctrl.supervisor_mut()
+                .bus_mut()
+                .queue_frame(crate::test_support::status(&motor, 0.0, 0.0))
+                .expect("finite raw status queue");
+        }
+    }
+    ctrl.supervisor_mut()
+        .drain_feedback()
+        .expect("finite raw observations");
+}
+
+#[test]
+fn davout_envelope_clamp_freezes_the_leaky_integral() {
+    // Pitch's reference has settled on a target near the upper limit (v_ref = 0), and the joint
+    // passes 9 mrad below it at about 0.3 rad/s. Berthier's envelope, judged at v_ref, admits
+    // the reference; Davout's, judged at the larger measured speed, moves q_des down. That
+    // reshaped output must freeze the next tick's integral input (ADR 0040 item 2).
+    const TARGET: f64 = 2.979;
+    const Q_SETTLE: f64 = 2.9685;
+    const Q_PASS: f64 = 2.970;
+    /// `(Q_PASS − Q_SETTLE) / SAMPLE_GAP`.
+    const PASS_RAD_S: f64 = 0.3;
+    const SAMPLE_GAP: std::time::Duration = std::time::Duration::from_millis(5);
+    let mut ctrl = test_loop();
+    let i = ctrl
+        .joint_names
+        .iter()
+        .position(|name| name == JOINT)
+        .expect("pitch index");
+    let cfg = ctrl.supervisor.control.control.joints[JOINT].clone();
+    assert_eq!(
+        cfg.position_integral_mode,
+        Some(marengo_config::PositionIntegralMode::LeakyReference),
+        "fixture needs the leaky reference integral"
+    );
+    let leak_s = cfg.position_integral_leak_s.expect("pitch leak");
+    let policy = *ctrl
+        .supervisor()
+        .joint_limit_policy(JOINT)
+        .expect("pitch limits");
+    let (_, hi_settled) = armee_kinematics::effective_command_bounds(&policy, Q_PASS, 0.0);
+    let (_, hi_moving) = armee_kinematics::effective_command_bounds(&policy, Q_PASS, PASS_RAD_S);
+    assert!(
+        hi_settled >= TARGET && hi_moving < TARGET - 1e-3,
+        "only the measured-speed envelope binds: settled hi {hi_settled}, moving hi {hi_moving}"
+    );
+
+    ready_active_at(&mut ctrl, Q_SETTLE);
+    ctrl.enter_position_hold_at(Some(JOINT), TARGET)
+        .expect("hold-at near the upper limit");
+    assert_eq!(ctrl.position_setpoints().expect("latched")[i], TARGET);
+    let mut stamped = Instant::now();
+    for _ in 0..300 {
+        // Davout's τ_ff limiter runs on the wall clock.
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        stamped = Instant::now();
+        replay_stamped(&mut ctrl, Q_SETTLE, stamped);
+        ctrl.tick(None).expect("settle tick");
+    }
+    let (q_ref, v_ref) = ctrl.position_hold.planner_state(i).expect("planner");
+    assert!(
+        (q_ref - TARGET).abs() < 1e-9 && v_ref == 0.0,
+        "reference settled at the target: q_ref {q_ref}, v_ref {v_ref}"
+    );
+
+    // One sample 1.5 mrad on, received 5 ms later: Davout measures 0.3 rad/s toward the limit.
+    std::thread::sleep(SAMPLE_GAP);
+    let torque_clamps = ctrl.supervisor().total_torque_clamp_count(JOINT);
+    replay_stamped(&mut ctrl, Q_PASS, stamped + SAMPLE_GAP);
+    ctrl.tick(None).expect("pass tick");
+    let dq = ctrl
+        .supervisor()
+        .joint_feedback(JOINT)
+        .expect("pitch pose")
+        .velocity_rad_s;
+    assert!(
+        (dq - PASS_RAD_S).abs() < 0.01,
+        "Davout measures the pass speed: {dq}"
+    );
+    let state = ctrl
+        .position_hold
+        .scaled_state_for_test(i)
+        .expect("scaled state");
+    assert!(
+        !state.reshaped_local,
+        "neither Berthier's envelope nor its step guard acted"
+    );
+    assert_eq!(
+        ctrl.supervisor().total_torque_clamp_count(JOINT),
+        torque_clamps,
+        "no total-torque clamp"
+    );
+    let sent = ctrl.supervisor().last_tau_ff_nm(JOINT).expect("sent τ_ff");
+    let commanded = state.ff_prev.expect("commanded τ_ff");
+    assert!(
+        (sent - commanded).abs() <= 1e-6,
+        "Davout sent the commanded τ_ff: {sent} vs {commanded}"
+    );
+    let q_des = last_pitch_wire_q_des(&ctrl);
+    assert!(
+        q_des < TARGET - 1e-3,
+        "Davout's envelope moved q_des {q_des} below the reference {TARGET}"
+    );
+
+    replay_stamped(&mut ctrl, Q_PASS, Instant::now());
+    ctrl.tick(None).expect("tick after the reshaped output");
+    let next = ctrl
+        .position_hold
+        .scaled_state_for_test(i)
+        .expect("scaled state")
+        .tau_i;
+    let dt = ctrl.loop_period.as_secs_f64();
+    let leak_only = state.tau_i * (-dt / leak_s).exp();
+    assert!(
+        (next - leak_only).abs() < 1e-12,
+        "integral input must be frozen after Davout's envelope clamp: τ_I {} → {next}, \
+         leak only {leak_only}",
+        state.tau_i
+    );
+}

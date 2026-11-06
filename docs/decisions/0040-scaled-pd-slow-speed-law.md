@@ -46,11 +46,16 @@ Per joint, in `control.yaml`, all off by default:
    `position_integral_leak_s`, integrates `ki·(q_ref − q)` only inside `position_integral_band_rad`,
    and stays within `position_integral_cap_nm` (≤ 0.5). A constant error therefore settles at
    `ki·leak·e` instead of ramping to the cap. Its input is frozen, and only the leak runs, on the
-   tick after any reshaped output: the τ_ff step guard acted, the envelope clamped `q_des`, Davout
-   counted a new total-torque clamp, or Davout sent a τ_ff different from the one commanded.
+   tick after any reshaped output: the τ_ff step guard acted, Berthier's or Davout's envelope
+   clamped `q_des` (Davout judges it at the larger of the commanded and measured speed, so it can
+   bind alone) or a Davout `clamp_velocity` danger zone limited `dq_des`, Davout counted a new
+   total-torque clamp, or Davout sent a τ_ff different from the one commanded.
 3. **Whole τ_ff step guard** `position_ff_step_max_nm` limits each sent tick's change of the
    complete Position τ_ff (gravity + dynamic + integral). On mode entry it starts from the τ_ff
-   Davout last sent, so a supported elevated transition never jumps from 0.
+   Davout last sent, so a supported elevated transition never jumps from 0. Davout's own τ_ff
+   rate limiter keeps that value too: neither Position entry nor a `hold-at` retarget reseeds it
+   from the measured torque, which includes the drive's PD effort. Only a joint with no τ_ff sent
+   this session starts from the measured torque.
 4. **The friction assist (λ) is removed**, together with `position_friction_error_gain_per_s` and
    the fuses' assist exclusion. The HoldTracking fuse again judges the full commanded torque.
 
@@ -76,6 +81,9 @@ plants, with predicted peak total torque 3.71 of 5 Nm and no clamps.
   `leaky_reference_integral_settles_freezes_and_caps`,
   `ff_step_guard_bounds_every_step_and_starts_from_the_last_sent` (`position_law_tests.rs`);
   the fitted-plant gate `pitch_bench_trial_meets_bench_criteria` (`law_gates.rs`).
+- ControlLoop, decoded wire τ_ff: `position_entry_from_gravity_comp_starts_from_the_last_sent_tau_ff`
+  and `mid_move_retarget_never_steps_the_tau_ff_past_the_guard` (`tests/position_law_wire.rs`);
+  `davout_envelope_clamp_freezes_the_leaky_integral` (`loop_wp_d_tests.rs`).
 - Bench, reduced speed first (audit §"reduced-speed deciding experiment"): the candidate must cut
   the matched slow velocity-error RMS by at least 15 % (target ≈ 0.045 rad/s, from ≈ 0.055) with
   no worse stopping, no clamps and no hold hunting; repeat spread ≤ 10 mrad and final-second

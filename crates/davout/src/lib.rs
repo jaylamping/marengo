@@ -408,6 +408,17 @@ struct StagedMitState {
     tau_ff_nm: f64,
     wrong_sign: Option<WrongSignState>,
     total_torque: Option<TotalTorqueClamp>,
+    envelope_clamped: bool,
+}
+
+/// One command through [`Supervisor::filter_mit_core`], before anything is committed.
+struct FilteredMit {
+    out: MitJointCommand,
+    q_meas: f64,
+    dq_meas: f64,
+    total_torque: Option<TotalTorqueClamp>,
+    /// The limit envelope moved `q_des`, or a danger zone clamped `dq_des`.
+    envelope_clamped: bool,
 }
 
 /// Reused MIT admission buffers; contents never outlive one batch.
@@ -519,6 +530,8 @@ pub struct Supervisor<B: MotorBus> {
     last_tau_ff: FxHashMap<String, f64>,
     /// MIT total-torque clamps (ADR 0039 open question 1), counted when sent.
     total_torque_clamps: TotalTorqueClampLog,
+    /// MIT commands whose `q_des` the limit envelope moved, per joint, counted when sent.
+    envelope_clamps: FxHashMap<String, u64>,
     feedback_velocity_trips: FxHashMap<String, u8>,
     last_feedback_samples: FxHashMap<String, FeedbackSample>,
     wrong_sign_state: FxHashMap<String, WrongSignState>,
@@ -704,6 +717,7 @@ impl<B: MotorBus> Supervisor<B> {
             invalid_feedback: FxHashSet::default(),
             last_tau_ff: FxHashMap::default(),
             total_torque_clamps: TotalTorqueClampLog::default(),
+            envelope_clamps: FxHashMap::default(),
             feedback_velocity_trips: FxHashMap::default(),
             last_feedback_samples: FxHashMap::default(),
             wrong_sign_state: FxHashMap::default(),
@@ -1396,13 +1410,36 @@ impl<B: MotorBus> Supervisor<B> {
         self.total_torque_clamps.count(joint)
     }
 
+    /// Sent MIT commands for `joint` whose `q_des` Davout moved into the velocity-scaled limit
+    /// envelope (judged at the larger of the commanded and measured speed), or whose `dq_des`
+    /// a `clamp_velocity` danger zone limited, since process start. The controller treats a
+    /// new one as a reshaped output (ADR 0040).
+    pub fn envelope_clamp_count(&self, joint: &str) -> u64 {
+        self.envelope_clamps.get(joint).copied().unwrap_or(0)
+    }
+
     /// Seed the tau_ff rate limiter with current measured torque for each joint.
     ///
     /// Called on mode transitions to slew from measured torque, bounded by the
     /// current feedforward policy. Without a seed, the limiter starts from zero.
     pub fn seed_tau_ff_rate_limiter(&mut self) {
+        self.seed_tau_ff_from_measured(false);
+    }
+
+    /// [`Self::seed_tau_ff_rate_limiter`] only for joints with no τ_ff sent this session
+    /// (Disabled or freshly enabled); every other joint keeps slewing from the τ_ff Davout
+    /// last sent. For Position entry (ADR 0040): the measured torque includes the drive's PD
+    /// effort, so seeding from it would put that effort into τ_ff.
+    pub fn seed_unsent_tau_ff_rate_limiter(&mut self) {
+        self.seed_tau_ff_from_measured(true);
+    }
+
+    fn seed_tau_ff_from_measured(&mut self, only_unsent: bool) {
         for motor in &self.motors.motors {
             let joint = &motor.joint;
+            if only_unsent && self.last_tau_ff.contains_key(joint) {
+                continue;
+            }
             let measured = self.joint_torque_rad(joint).unwrap_or(0.0);
             let cap = self
                 .limits
@@ -2514,6 +2551,9 @@ impl<B: MotorBus> Supervisor<B> {
             if let Some(clamp) = stage.total_torque {
                 self.total_torque_clamps.record(joint, clamp, batch_tick);
             }
+            if stage.envelope_clamped {
+                count_by_joint(&mut self.envelope_clamps, joint);
+            }
         }
         // Each commanded target answers with a status (ADR 0036, *Solicited
         // silence while Active*). The controller commands every Active joint
@@ -2582,8 +2622,13 @@ impl<B: MotorBus> Supervisor<B> {
         let mut neutral = true;
         for (slot, (cmd, &index)) in cmds.into_iter().zip(&scratch.configured).enumerate() {
             let motor = supplied.unwrap_or(&self.motors.motors[index]);
-            let (filtered, q_meas, dq_meas, total_torque) =
-                self.filter_mit_core(cmd, motor, Some(index), self.last_tick)?;
+            let FilteredMit {
+                out: filtered,
+                q_meas,
+                dq_meas,
+                total_torque,
+                envelope_clamped,
+            } = self.filter_mit_core(cmd, motor, Some(index), self.last_tick)?;
             let wrong_sign = self
                 .wrong_sign_step(&filtered, q_meas, dq_meas)
                 .map(|(state, admitted)| admitted.map(|()| state))
@@ -2610,6 +2655,7 @@ impl<B: MotorBus> Supervisor<B> {
                 tau_ff_nm: filtered.torque_ff_nm,
                 wrong_sign,
                 total_torque,
+                envelope_clamped,
             });
         }
         scratch.wires.truncate(scratch.staged.len());
@@ -3056,12 +3102,20 @@ impl<B: MotorBus> Supervisor<B> {
             &self.homing_config,
         )?;
         let tick = Instant::now();
-        let (out, q_meas, dq_meas, total_torque) =
-            self.filter_mit_core(cmd, configured, Some(index), self.last_tick)?;
+        let FilteredMit {
+            out,
+            q_meas,
+            dq_meas,
+            total_torque,
+            envelope_clamped,
+        } = self.filter_mit_core(cmd, configured, Some(index), self.last_tick)?;
         // Unlike a batch, a single filter keeps limiter/watchdog advances on error.
         store_by_joint(&mut self.last_tau_ff, &out.joint, out.torque_ff_nm);
         if let Some(clamp) = total_torque {
             self.total_torque_clamps.record(&out.joint, clamp, tick);
+        }
+        if envelope_clamped {
+            count_by_joint(&mut self.envelope_clamps, &out.joint);
         }
         if let Some((state, admitted)) = self.wrong_sign_step(&out, q_meas, dq_meas) {
             store_by_joint(&mut self.wrong_sign_state, &out.joint, state);
@@ -3075,16 +3129,17 @@ impl<B: MotorBus> Supervisor<B> {
     /// without mutating state.
     ///
     /// `feedback` is the configured motor index for `cmd.joint` (measured pose source).
-    /// Returns the filtered command, `(q_meas, dq_meas)` and the total-torque clamp it took, if
-    /// any; the caller stores `torque_ff_nm` as the joint's new `last_tau_ff` and counts the
-    /// clamp once the command is sent.
+    /// Returns the filtered command, `(q_meas, dq_meas)`, the total-torque clamp it took, if
+    /// any, and whether the envelope moved `q_des` or a danger zone clamped `dq_des`; the
+    /// caller stores `torque_ff_nm` as the joint's new `last_tau_ff` and counts the clamps
+    /// once the command is sent.
     fn filter_mit_core(
         &self,
         cmd: MitJointCommand,
         motor: &MotorEntry,
         feedback: Option<usize>,
         previous_tick: Option<Instant>,
-    ) -> Result<(MitJointCommand, f64, f64, Option<TotalTorqueClamp>), DavoutError> {
+    ) -> Result<FilteredMit, DavoutError> {
         validate_mit_command(&cmd)?;
         let lim = self
             .limits
@@ -3130,9 +3185,11 @@ impl<B: MotorBus> Supervisor<B> {
             out.velocity_rad_s
         };
         let keepalive = out.kp == 0.0 && out.kd == 0.0 && out.torque_ff_nm == 0.0;
+        let mut envelope_clamped = false;
         if !keepalive {
             let clamped = clamp_position_in_envelope(lim, q_meas, dq_envelope, out.position_rad);
             if (clamped - out.position_rad).abs() > 1e-9 {
+                envelope_clamped = true;
                 trace!(
                     joint = %out.joint,
                     requested = out.position_rad,
@@ -3166,7 +3223,14 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         let vel_cap = lim.velocity;
+        let dq_requested = out.velocity_rad_s;
         let danger_zone_torque_cap = self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas)?;
+        // A `clamp_velocity` danger zone reshapes dq_des (the drive's damping term) without
+        // moving q_des; report it with the envelope so the controller's ADR 0040 integral
+        // freeze sees it too. (A `clamp_torque` zone shows up as a changed sent τ_ff.)
+        if (out.velocity_rad_s - dq_requested).abs() > 1e-9 {
+            envelope_clamped = true;
+        }
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
@@ -3192,13 +3256,14 @@ impl<B: MotorBus> Supervisor<B> {
         // close together) without tripping the 3-sample velocity fault. The
         // clamp moves dq_des toward it, so feed it a velocity within the cap:
         // dq_des then stays a blend of two in-cap values (P2C-01).
-        // Trade-off (owner decision open, not settled): while the real |dq| lies between
-        // vel_cap and the velocity-fault threshold, the prediction understates the drive's
-        // damping term, so the actual total can exceed torque_cap by up to kd·(|dq| − vel_cap).
-        // That excess always opposes the motion (braking). The alternative is to predict with
-        // dq_meas and refuse when the clamp would carry dq_des past vel_cap (pre-P2C-01).
+        // Trade-off, decided 2026-10-28 (owner): keep this on purpose. While the real |dq|
+        // lies between vel_cap and the velocity-fault threshold, the prediction understates
+        // the drive's damping term, so the actual total can exceed torque_cap by up to
+        // kd·(|dq| − vel_cap). That excess is bounded and always opposes the motion
+        // (braking), whereas predicting with dq_meas and refusing when the clamp would carry
+        // dq_des past vel_cap (pre-P2C-01) refused on single-sample spikes.
         // Pinned by tests/command_admission.rs
-        // p2c01_option_a_in_band_velocity_admits_with_damping_over_torque_cap.
+        // p2c01_in_band_velocity_admits_with_damping_over_torque_cap.
         let dq_bounded = dq_meas.clamp(-vel_cap, vel_cap);
         let total_torque = clamp_total_torque(&mut out, q_meas, dq_bounded, torque_cap, horizon_s)?;
         if out.velocity_rad_s.abs() > vel_cap {
@@ -3224,7 +3289,13 @@ impl<B: MotorBus> Supervisor<B> {
                 ),
             });
         }
-        Ok((out, q_meas, dq_meas, total_torque))
+        Ok(FilteredMit {
+            out,
+            q_meas,
+            dq_meas,
+            total_torque,
+            envelope_clamped,
+        })
     }
 
     /// Next wrong-sign watchdog state for `out.joint` and whether it admits `out`.
@@ -3449,6 +3520,12 @@ fn store_by_joint<V>(map: &mut FxHashMap<String, V>, joint: &str, value: V) {
     } else {
         map.insert(joint.to_owned(), value);
     }
+}
+
+/// Add one to `joint`'s count (allocates only for a new joint).
+fn count_by_joint(map: &mut FxHashMap<String, u64>, joint: &str) {
+    let count = map.get(joint).copied().unwrap_or(0).saturating_add(1);
+    store_by_joint(map, joint, count);
 }
 
 /// `*address == MotorAddress::from(motor)` without allocating.
@@ -4272,6 +4349,28 @@ mod tests {
     }
 
     #[test]
+    fn unsent_seed_keeps_the_sent_tau_ff_and_fills_only_missing_joints() {
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        bench_active(&mut sup);
+        initial_poses(&mut sup, "right_shoulder_pitch", 1.0, 0.5);
+        sup.last_tau_ff
+            .insert("right_shoulder_pitch".to_string(), 2.0);
+        sup.last_tau_ff.remove("right_shoulder_roll");
+
+        sup.seed_unsent_tau_ff_rate_limiter();
+
+        assert_eq!(sup.last_tau_ff_nm("right_shoulder_pitch"), Some(2.0));
+        assert_eq!(
+            sup.last_tau_ff_nm("right_shoulder_roll"),
+            Some(0.0),
+            "a joint with nothing sent starts from measured torque"
+        );
+    }
+
+    #[test]
     fn clamp_velocity_danger_zone_limits_downward_speed() {
         let bus = SimulationBus::default();
         let mut sup =
@@ -4298,6 +4397,45 @@ mod tests {
             filtered.velocity_rad_s >= -0.45 - 1e-9,
             "expected clamp to max_velocity_rad_s 0.45, got {}",
             filtered.velocity_rad_s
+        );
+    }
+
+    #[test]
+    fn danger_zone_velocity_clamp_counts_as_a_reshaped_command() {
+        // ADR 0040 item 2: Berthier freezes its leaky integral after any Davout reshape.
+        // A `clamp_velocity` danger zone changes dq_des (and with it the drive's damping
+        // term) without moving q_des, so it must still be visible to that watch.
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        receive_pose(&mut sup, "right_shoulder_pitch", 1.0, -0.5);
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = |velocity_rad_s: f64| MitJointCommand {
+            joint: "right_shoulder_pitch".to_string(),
+            kp: 10.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s,
+            torque_ff_nm: 0.0,
+        };
+
+        let within = sup.filter_mit_command(cmd(-0.3), &motor).expect("filter");
+        assert!((within.velocity_rad_s + 0.3).abs() < 1e-9);
+        assert_eq!(
+            sup.envelope_clamp_count("right_shoulder_pitch"),
+            0,
+            "a velocity inside the danger-zone cap is not reshaped"
+        );
+
+        let clamped = sup.filter_mit_command(cmd(-0.5), &motor).expect("filter");
+        assert!((clamped.velocity_rad_s + 0.45).abs() < 1e-9);
+        assert_eq!(
+            sup.envelope_clamp_count("right_shoulder_pitch"),
+            1,
+            "the danger-zone velocity clamp reshaped dq_des"
         );
     }
 

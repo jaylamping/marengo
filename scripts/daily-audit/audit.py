@@ -127,18 +127,42 @@ def git_changed_files() -> tuple[list[str], list[str], dict[str, str]]:
     return commits, merged, windows
 
 
+def is_test_cfg(attribute: str) -> bool:
+    """True for ``#[cfg(test)]`` and ``#[cfg(all(test, ...))]``: code only built for tests."""
+    attr = attribute.strip().replace(" ", "")
+    if attr == "#[cfg(test)]":
+        return True
+    if not (attr.startswith("#[cfg(all(") and attr.endswith("))]")):
+        return False
+    terms, depth, term = [], 0, ""
+    for ch in attr[len("#[cfg(all(") : -len("))]")]:
+        if ch == "," and depth == 0:
+            terms.append(term)
+            term = ""
+            continue
+        depth += {"(": 1, ")": -1}.get(ch, 0)
+        term += ch
+    terms.append(term)
+    return "test" in terms
+
+
 def strip_rust_tests(source: str) -> str:
-    """Drop #[cfg(test)] modules so test unwrap/expect do not false-positive."""
+    """Drop test-only (``is_test_cfg``) modules so test unwrap/expect do not false-positive."""
     lines = source.splitlines()
     out: list[str] = []
     i = 0
     while i < len(lines):
-        if lines[i].strip() == "#[cfg(test)]":
+        if is_test_cfg(lines[i]):
             i += 1
             while i < len(lines) and not lines[i].strip().startswith("mod "):
                 i += 1
             if i >= len(lines):
                 break
+            if lines[i].rstrip().endswith(";"):
+                # Out-of-line `mod x;`: no body here (the file itself is
+                # handled by test_only_rust_files).
+                i += 1
+                continue
             brace_depth = 0
             started = False
             while i < len(lines):
@@ -163,13 +187,85 @@ def production_rust_lines(source: str) -> str:
     return "\n".join(line for line in body.splitlines() if not COMMENT_LINE_RE.match(line))
 
 
-def check_unwrap(changed: list[str], report: Report) -> None:
+MOD_DECL_RE = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(r#)?(\w+)\s*;")
+PATH_ATTR_RE = re.compile(r'^\s*#\[path\s*=\s*"([^"]+)"\]')
+
+
+def _out_of_line_mods(source: str) -> list[tuple[str, str | None, bool]]:
+    """`(name, #[path] or None, under #[cfg(test)])` for each `mod name;` in a file."""
+    decls: list[tuple[str, str | None, bool]] = []
+    cfg_test = False
+    path: str | None = None
+    for line in source.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("//"):
+            continue
+        if stripped.startswith("#["):
+            if is_test_cfg(stripped):
+                cfg_test = True
+            match = PATH_ATTR_RE.match(stripped)
+            if match:
+                path = match.group(1)
+            continue
+        match = MOD_DECL_RE.match(line)
+        if match:
+            decls.append((match.group(2), path, cfg_test))
+        cfg_test = False
+        path = None
+    return decls
+
+
+def test_only_rust_files(crate_src: Path) -> set[Path]:
+    """Files under ``crate_src`` compiled only under ``#[cfg(test)]``.
+
+    Follows out-of-line ``mod`` declarations (with ``#[path]``) from the crate
+    roots; a file declared under ``#[cfg(test)]``, or by such a file, is test code.
+    """
+    test_only: set[Path] = set()
+    seen: set[Path] = set()
+    # (file, resolves children like mod.rs, test-only)
+    stack = [(crate_src / root, True, False) for root in ("lib.rs", "main.rs")]
+    while stack:
+        file, mod_rs, in_test = stack.pop()
+        file = file.resolve()
+        if file in seen or not file.is_file():
+            continue
+        seen.add(file)
+        if in_test:
+            test_only.add(file)
+        source = file.read_text(encoding="utf-8", errors="replace")
+        for name, path_attr, cfg_test in _out_of_line_mods(source):
+            child_test = in_test or cfg_test
+            if path_attr is not None:
+                stack.append((file.parent / path_attr, True, child_test))
+                continue
+            base = file.parent if mod_rs else file.parent / file.stem
+            stack.append((base / f"{name}.rs", False, child_test))
+            stack.append((base / name / "mod.rs", True, child_test))
+    return test_only
+
+
+def _crate_src(path: str) -> str | None:
+    parts = path.split("/")
+    if len(parts) < 4 or parts[0] != "crates" or parts[2] != "src":
+        return None
+    return "/".join(parts[:3])
+
+
+def check_unwrap(changed: list[str], report: Report, root: Path = ROOT) -> None:
+    test_only: dict[str, set[Path]] = {}
     for path in changed:
         if not path.startswith("crates/") or "/tests/" in path:
             continue
-        full = ROOT / path
+        full = root / path
         if not full.is_file() or not path.endswith(".rs"):
             continue
+        crate_src = _crate_src(path)
+        if crate_src is not None:
+            if crate_src not in test_only:
+                test_only[crate_src] = test_only_rust_files(root / crate_src)
+            if full.resolve() in test_only[crate_src]:
+                continue
         text = production_rust_lines(full.read_text(encoding="utf-8", errors="replace"))
         if UNWRAP_RE.search(text):
             report.add(
