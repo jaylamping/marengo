@@ -134,7 +134,7 @@ Assemble the full order on the dummy parts with real tools.
 
 - **Torque wrench:** 13 mm deep socket on both locked M8 nuts together, through the Ø30 stub bore from the inboard side. With the flats lined up, neither nut can turn against the other, so this works for both stops. Set them up as in the M8 stack in `../prints/test-pass-1/PRINT_ORDER.md`. Apply 17 N·m against each stop. **Check the paint line after every step.** If it has moved, that run doesn't count: relock the nuts and repeat.
 - **If the nuts won't hold:** use the wrench in the tightening direction only, and re-mount the fixture for the other stop.
-- **Wrench limit: 25 N·m.** Above that the class 10.9 bolt gets close to yield in torsion. Past 25 N·m use the lever, and note that the failure then loads only the stub and finger.
+- **Wrench limit: 20 N·m.** Between the nuts the bolt carries the jam preload and the torsion together; at 15 N·m jam and 20 N·m torque it is at about 75% of class 10.9 yield, and at 25 N·m about 90%. Past 20 N·m use the lever, and note that the failure then loads only the stub and finger.
 - **Lever:** as below.
 
 

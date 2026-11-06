@@ -90,3 +90,14 @@ What changed after R2:
 
 Plates 5 and 7 are re-sliced. The other five are unchanged. The fork strength numbers are still open, see the forearm notes.
 
+## Recheck R3 (fork sector and dummy output only)
+
+Fable about 6 min, Opus about 10 min, same method. **Both plates GO.**
+
+- Fork: slit and cheek slots closed. The old slit plane is a full 3179 mm² section, against 470 mm² before. One solid body. A small open notch, about 2 × 3 × 4 mm, remains at the stub-cheek root (x 128–130, y 124–126, z 69–73 print frame). It is in the live fork too, so the test stays representative. Fill it in the live fork later, and note it if the first crack starts there.
+- Dummy output: the thin wall is gone. Hex pocket to nut slot is at least 1.19 mm in plan, at different heights. Axial stack confirmed: 0.8 mm running gap, M4 × 16 still right, dowels fit, bolt tip clear, second nut fully on thread.
+- Changes made from R3, in the docs:
+  - Jam torque cut from 30 to 15 N·m, and the wrench limit from 25 to 20 N·m. Fable found that jam preload plus torsion put the bolt over class 10.9 yield at 25 N·m (von Mises about 1000 MPa).
+  - The bolt is now specified fully threaded (ISO 4017), so the first nut is on full thread.
+  - Clean and test-fit the M4 nut slots, which the slicer fills with support.
+  - Drill the fork dowel holes about 4.5 mm deep.
