@@ -282,11 +282,12 @@ if (q.get('stl')) {
     dark: new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5, metalness: 0.4 }),
     chrome: new THREE.MeshPhysicalMaterial({ color: 0xdfe3e8, roughness: 0.12, metalness: 1.0, clearcoat: 1 }),
     lens: new THREE.MeshPhysicalMaterial({ color: 0x050607, roughness: 0.05, metalness: 0.2, clearcoat: 1 }),
+    jaw: new THREE.MeshPhysicalMaterial({ color: Number(q.get('jawcol') ?? 0xeef0f3), roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.3 }), // ?jawcol=0x... tints only the jaw
     eye: new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: Number(q.get('eyecol') ?? 0xffc95e), emissiveIntensity: Number(q.get('eyek') ?? 1.0) }) };
   const base = 'giantout/' + q.get('stl') + '/';
   const man = await (await fetch(base + 'parts.json')).json();
   const loader = new STLLoader(); const m4 = new THREE.Matrix4().set(0, 1, 0, OFFX, 0, 0, 1, F1 + 40 + Number(q.get('hz') ?? 0), 1, 0, 0, 0, 0, 0, 0, 1);
-  for (const it of man) { const g = loader.parse(await (await fetch('giantout/' + it.file)).arrayBuffer()); g.applyMatrix4(m4); const gs = BGU.toCreasedNormals(g, 35 * Math.PI / 180); const mt = (M[it.mat] || M.white); mt.side = THREE.DoubleSide; add(new THREE.Mesh(gs, mt)); }
+  for (const it of man) { const g = loader.parse(await (await fetch('giantout/' + it.file)).arrayBuffer()); g.applyMatrix4(m4); const gs = BGU.toCreasedNormals(g, 35 * Math.PI / 180); const mt = (q.get('jawcol') && it.file.endsWith('/jaw.stl')) ? M.jaw : (M[it.mat] || M.white); mt.side = THREE.DoubleSide; add(new THREE.Mesh(gs, mt)); }
 }
 const headRows = [[F1 + 70, 50, 60, 58, 3.4], [F1 + 96, 60, 76, 72, 3.6], [F1 + 190, 64, 82, 80, 3.6], [F1 + 252, 56, 70, 72, 3.2], [F1 + 276, 34, 44, 46, 2.6], [F1 + 284, 4, 4, 4, 2]];
 const SHOW_HEAD = false;
