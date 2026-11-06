@@ -29,7 +29,8 @@ Depth is ±70 over 2020, the same in both tiers.
 
 ## Gusset plate
 
-`gusset_plate_left.step` and `gusset_plate_left.dxf`. Four plates, two per step corner, on the front and rear faces. The files are the left side at the front. Mirror X for the right.
+`gusset_plate_left.step` and `gusset_plate_left.dxf` (R8 at every corner: the FEA geometry). **The release plate is
+`../torso-frame/gusset_plate_left.dxf`, R15 at the X 113 / Y 335 corner**, generated from the frame spec. Four plates, two per step corner, on the front and rear faces. The files are the left side at the front. Mirror X for the right.
 
 | Item | Value |
 | --- | --- |

@@ -101,7 +101,7 @@ for sx in (1, -1):
         add(id=f'gusset_{sx}_{sz}', item=10, name='Gusset plate, 3 mm 6061-T6', type='poly', pts=pts, radii=GUSSET_R,
             holes=[(sx * x, y, 2.75) for x, y in GUSSET_HOLES], z0=HZ if sz > 0 else -HZ - G_T, t=G_T,
             color=COL['gusset'], group='gusset', explode=[0, 0, sz * 90], balloon=first, material='6061-T6 sheet, 3 mm',
-            mass_g=10, note='4 off; the left-front plate is the drawing, mirror X for the right. 9 x 5.5 mm holes for M5 T-nuts.')
+            mass_g=40, note='4 off (about 40 g each, 5.0e3 mm2 x 3 mm x 2.70); the left-front plate is the drawing, mirror X for the right. 9 x 5.5 mm holes for M5 T-nuts.')
         first = False
 
 # ---- 2028 corner brackets --------------------------------------------------------------------
@@ -124,7 +124,7 @@ nb = 0
 def BX(sx, sz, y, dy, which, explode, leg=None):
     """post corner brackets: which='x' = bracket between post X-inward face and a front/rear rail; 'z' = post Z-inward face and a side rail."""
     global nb
-    hx = HX_LO if y < Y_STEP_LO else HX_UP
+    hx = HX_LO if y <= Y_STEP_LO else HX_UP   # gate review: at Y_STEP_LO the bracket is on the LOWER post (was HX_UP: 38 mm off)
     cx = sx * (hx - E); cz = sz * (HZ - E)   # inner faces of the post
     if which == 'x':
         bracket(f'br{nb}', (cx, y, sz * (HZ - E / 2)), (0, -sx), (1, dy), 2, E, explode, balloon=(nb == 0 or leg is not None and nb == 16), leg=leg)
@@ -142,7 +142,7 @@ for sx in (1, -1):
     for sz in (1, -1):
         for hx in (HX_SHELF, HX_UP):
             corner = (sx * (hx - E), Y_STEP_LO + E / 2, sz * (HZ - E))
-            bracket(f'br{nb}', corner, (0, -sx), (2, -sz), 1, E, (0, 0, 0)); nb += 1
+            bracket(f'br{nb}', corner, (0, -sx), (2, -sz), 1, E, (0, 0, 0), leg=20 if hx == HX_UP else None); nb += 1   # gate review: 28 mm legs ran 10 mm into the shelf rails
 N_BRACKETS = nb
 
 # ---- fasteners: M5 button heads + T-nuts on every bracket, gusset and hardpoint ---------------------
@@ -155,11 +155,11 @@ def screw(id, item, name, axis, head_pt, sign, explode, balloon=False, dia=5, he
     cyl(id + '_h', item, name, axis, ch, head_d / 2, head_h, color, 'fastener', explode, balloon=balloon, mass_g=2, material='M%d button head' % dia)
     cyl(id + '_s', item, name, axis, cs, dia / 2, length, color, 'fastener', explode, mass_g=0, material='')
 def tnut(id, item, name, axis, pt, sign, explode, slot_axis):
-    """T-nut 10 x 6 x 20 in the slot behind face point pt (face normal = axis*sign)."""
+    """T-nut 10 x 6 x 10 (standard 2020 slide-in / drop-in) in the slot behind face point pt (face normal = axis*sign). Gate review: was 20 long."""
     a = 'xyz'.index(axis); sa = 'xyz'.index(slot_axis)
     lo = [pt[k] - 5 for k in range(3)]; hi = [pt[k] + 5 for k in range(3)]
     lo[a], hi[a] = (pt[a] + sign * 1.5, pt[a] + sign * 7.5) if sign > 0 else (pt[a] + sign * 7.5, pt[a] + sign * 1.5)
-    lo[sa], hi[sa] = pt[sa] - 10, pt[sa] + 10
+    lo[sa], hi[sa] = pt[sa] - 5, pt[sa] + 5
     box(id, item, name, lo, hi, '#8a8d93', 'fastener', explode, mass_g=3, material='M5 T-nut')
 def bolt_bracket(p, idx):
     """Two M5 + T-nuts for an L bracket (multibox): one through each leg into the member behind it."""
@@ -215,7 +215,7 @@ box('shelf', 14, 'Compute shelf plate (existing: X +-55 between the shelf rails,
     (0, 40, 0), balloon=True, mass_g=60, material='existing part')
 box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, 376, -71.8), (19.7, 397, 13.2), COL['pi'], 'electronics',
     (0, 70, 0), balloon=True, mass_g=110, material='electronics', note='Position from the arm thread CAD check; ports face the rear (-Z) and reach Z -71.8')
-box('pdb', 16, 'PDB + E-stop/main switch envelope (proposed: lower box, behind the D2 power door)', (-50, 200, -48), (50, 290, -24), COL['pdb'], 'electronics',
+box('pdb', 16, 'PDB + E-stop/main switch envelope (proposed: lower box, behind the D2 power door)', (-50, 200, -48), (50, 290, -20), COL['pdb'], 'electronics',
     (0, -70, -90), balloon=True, mass_g=150, material='placeholder 100 x 90 x 28', opacity=0.6,
     note='Not designed yet (KiCad stub). Envelope reserved on standoffs to the rear lower posts, faces the D2 door (|X| < 58, Y 167-295).')
 # harness trunks: Pi/PDB to each shoulder RS03 and down to the waist
@@ -253,18 +253,18 @@ for hid, h in HP.items():
         tier = 0
         FAST['m5'] += 1; FAST['tnut'] += 1
         hp = [x, y, z]; hp['xyz'.index('xyz'[[k for k in range(3) if n[k]][0]])] += (t if n[[k for k in range(3) if n[k]][0]] > 0 else -t)
-        screw(f'hf_{hid}_{i}', 37, 'M5 x 16 button head + T-nut (shell hardpoints, 20)', 'xyz'[[k for k in range(3) if n[k]][0]], hp, -[v for v in n if v][0], (n[0] * 40, 0, n[2] * 40), balloon=(hid == 'H1' and i == 0), length=16)
+        screw(f'hf_{hid}_{i}', 37, 'M5 x 20 button head + T-nut (shell hardpoints, 20; 16 left ~2 mm of thread through 12 mm of PETG)', 'xyz'[[k for k in range(3) if n[k]][0]], hp, -[v for v in n if v][0], (n[0] * 40, 0, n[2] * 40), balloon=(hid == 'H1' and i == 0), length=20)
         box(f'{hid}_{i}', h['item'], f'Shell hardpoint bracket {hid}, PETG with M3 inserts, on M5 T-nut', lo, hi, COL['hard'], 'hardpoint',
             (n[0] * 40, 0, n[2] * 40), balloon=True, tag=hid, mass_g=8, material='PETG print', carries=h['carries'])
 
 # ---- packaging envelopes for Joey's component list (2026-11-06): proposed positions, not designed parts ----
 PRO = '#26b3c9'
-box('jetson', 29, 'Jetson Orin Nano dev kit envelope 103 x 90.5 x 35 (+10 fan), second shelf above the Pi, ports to the rear', (-51.5, 410, -45.5), (51.5, 445, 45), PRO, 'proposed', (0, 110, 0), balloon=True, mass_g=250, material='proposed', opacity=0.75,
-    note='Fits the upper bay between the RS03 rears (156.8 wide); 30 mm left above it under the top rails for a fan.')
-box('fan_exhaust_1', 30, 'Exhaust fans 40 x 40 x 10 (2), upper rear under the top rail, blowing out through the D1 door louvres', (-55, 448, -50), (-15, 488, -40), PRO, 'proposed', (0, 150, 0), balloon=True, mass_g=20, material='proposed', opacity=0.75)
-box('fan_exhaust_2', 30, 'Exhaust fan', (15, 448, -50), (55, 488, -40), PRO, 'proposed', (0, 150, 0), mass_g=20, material='proposed', opacity=0.75)
-box('fan_intake', 30, 'Intake fan 40 x 40 x 10, lower front panel grille (Y 250-295)', (-20, 250, 40), (20, 295, 50), PRO, 'proposed', (0, -70, 90), mass_g=20, material='proposed', opacity=0.75)
-box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing', (-45, 190, 18), (45, 280, 38), PRO, 'proposed', (0, -70, 90), balloon=True, mass_g=60, material='proposed', opacity=0.75)
+box('jetson', 29, 'Jetson Orin Nano dev kit envelope 103 x 90.5 x 45 including its fan, second shelf above the Pi, ports to the rear', (-51.5, 410, -45.5), (51.5, 455, 45), PRO, 'proposed', (0, 110, 0), balloon=True, mass_g=250, material='proposed', opacity=0.75,
+    note='Fits the upper bay between the RS03 rears (156.8 wide); 20 mm left above the cooler under the top rails.')
+box('fan_exhaust_1', 30, 'Exhaust fans 40 x 40 x 10 (2), PROVISIONAL: in the D1 door plane behind the frame rear face (needs a 12 mm shell gap); the 2026-11-06 reviews showed 13 mm of a fan inside the bay would blow into the top rail', (-55, 430, -80), (-15, 470, -70), PRO, 'proposed', (0, 150, 0), balloon=True, mass_g=20, material='proposed', opacity=0.75)
+box('fan_exhaust_2', 30, 'Exhaust fan', (15, 430, -80), (55, 470, -70), PRO, 'proposed', (0, 150, 0), mass_g=20, material='proposed', opacity=0.75)
+box('fan_intake', 30, 'Intake fan 40 x 40 x 10, lower front panel grille (Y 250-295)', (-20, 250, 40), (20, 290, 50), PRO, 'proposed', (0, -70, 90), mass_g=20, material='proposed', opacity=0.75)
+box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing', (-45, 190, 18), (45, 250, 38), PRO, 'proposed', (0, -70, 90), balloon=True, mass_g=60, material='proposed', opacity=0.75)
 for sx in (1, -1):
     box(f'battery_{sx}', 32, 'OPTION: in-torso battery, 2 x 6S 5000 mAh (155 x 50 x 45 each) standing in the lower box. Baseline keeps the main 48 V pack in the pelvis.',
         (min(sx * 2, sx * 52), 175, -20), (max(sx * 2, sx * 52), 330, 25), '#e0c23a', 'option', (0, -60, 0), balloon=(sx > 0), mass_g=750, material='option', opacity=0.6)

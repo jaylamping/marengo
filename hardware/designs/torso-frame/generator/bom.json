@@ -75,15 +75,15 @@
   "item": 10,
   "name": "Gusset plate, 3 mm 6061-T6",
   "qty": 4,
-  "mass_g": 40,
+  "mass_g": 160,
   "material": "6061-T6 sheet, 3 mm",
   "group": "gusset"
  },
  {
   "item": 11,
   "name": "Corner bracket, 2028, with 2 x M5 T-nuts",
-  "qty": 28,
-  "mass_g": 504,
+  "qty": 24,
+  "mass_g": 432,
   "material": "Al bracket + M5 T-nuts",
   "group": "bracket"
  },
@@ -225,7 +225,7 @@
  },
  {
   "item": 29,
-  "name": "Jetson Orin Nano dev kit envelope 103 x 90.5 x 35",
+  "name": "Jetson Orin Nano dev kit envelope 103 x 90.5 x 45 including its fan, second shelf above the Pi, ports to the rear",
   "qty": 1,
   "mass_g": 250,
   "material": "proposed",
@@ -266,8 +266,8 @@
  {
   "item": 34,
   "name": "Corner bracket, 2020",
-  "qty": 4,
-  "mass_g": 56,
+  "qty": 8,
+  "mass_g": 112,
   "material": "Al bracket + M5 T-nuts",
   "group": "bracket"
  },
@@ -289,7 +289,7 @@
  },
  {
   "item": 37,
-  "name": "M5 x 16 button head + T-nut",
+  "name": "M5 x 20 button head + T-nut",
   "qty": 20,
   "mass_g": 40,
   "material": "M5 button head",
