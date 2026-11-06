@@ -120,7 +120,7 @@ with the arms fitted, because the collar is split and the U1/U2 seam passes thro
 | --- | --- | --- |
 | D1 compute door, upper back, 120 wide, torso Y 374 to 492 (top raised 12 mm for the fans) | Pi 5, CAN HAT, Jetson Orin Nano rear ports (Y 376–445), two 40 mm exhaust fans (Y 448–488), pitch RS03 rear faces | 2 hinge tabs at the bottom, 4 magnets at the top, optional M3 lock |
 | D2 battery door, lower back, |X| ≤ 60, torso Y 175–352 | 13S2P 21700 pack (95 × 162 × 79 at |X| ≤ 47.5, Y 183–345), pulled ~90 mm straight back on printed tray rails; XT90S and fuse at its top rear corner | Bottom hinge on H4, magnets onto a spine rail on the H3 rear bracket (Y 355–372), M3 lock screw for runs |
-| Front power board (frame part) | Bus/BMS board in front of the pack, intake fan at Y 250–290 behind a U3 grille | Reached by removing U3 |
+| Front power board (frame part) | Bus/BMS board in front of the pack; two 40 mm intake fans (X ±20, Z 70–80) behind two U3 grilles: Y 264–304 (BMS FETs, E-stop) and Y 193–233 (logic-board DC-DC, brake resistor on the −X bottom side rail, Y 155–180) | Reached by removing U3 |
 | D3 shoulder hatches, top of each shoulder | Pitch RS03 connectors, harness entry to the arm | Magnets, lip under U2 |
 | V1 side grilles | Lower-box sides, side harness runs | M3 to H5 |
 | Abdomen bands | Waist yaw RS03 and its harness | Carrier clips or M3 |
@@ -137,7 +137,7 @@ about **75 cm² net free area** at each end (about 150 cm² gross with a 50% ope
 
 - **Intake (low):** V1 side grilles, 2 × ~130 cm² gross, louvres angled down; abdomen band gaps.
 - **Exhaust (high):** the two 40 mm fans blow out through D1's louvres (louvre free area at least the fans' 2 × 12.5 cm²; fan guard 6 mm max); neck ring gap.
-- **Front intake fan:** needs a front grille. Frame spec 6ba6c61 puts it at torso Y 250–295, X ±20, fully inside U3, which gets a front grille (≤ 6 mm slots) over it.
+- **Front intake fans (frame 733b9d0):** two 40 mm fans, X ±20, fan bodies Z 70–80 behind U3: upper Y 264–304 (frame d01106a, dropped 8 mm so the U1/U3 seam lap at Y 315 stays intact), lower Y 193–233. U3 gets two front grilles (≤ 6 mm slots, ~40 × 40 open each).
 - **Variants:** D1 plain, louvred, or with a 40 × 10 mm fan (each ~2.4 L/s; two fans move ~4.8 L/s, enough for 70 W at a 12 K rise). V1 lattice
   or open mesh. The swap interface stays fixed.
 - Slots no wider than 6 mm (fingers, cable snags). The shoulder RS03s also shed heat through their exposed output faces.
@@ -195,6 +195,21 @@ Pilot mass 168 g (2.3 mm wall), box 125 × 154 × 228. Bracket standoffs: H1 27.
 clears the sternum splice holes). Fixes for the next build: bottom shadow-gap chamfer 0.6 mm, not 1 (it left a 0.2 mm feather
 edge); the H1 screw goes through the open chest, so screws move to blind bosses from inside or under the shield; STL to be checked
 in the slicer (249 non-manifold edges after merge; the STEP is one solid).
+
+**Rev 2 (pilot on the new sections):** 2.4 mm thickened only because SolidWorks patched two spots: wall down to 0.57 mm at
+(45.7, 135.5, 1297.9) and 1.63 mm at (48.7, 135.5, 1174.4), the top and bottom of the socket. Otherwise clean: 175.1 g, box
+124.2 × 150.5 × 228.0, sternum groove within 0.001 mm, watertight STL with 0 non-manifold edges. Bambu Studio: sternum-down
+10 h 10 m, 160 g + 93 g support, none on the outer face (socket-down 7 h, but support on the visible socket wall). The support
+estimate in `split_check.py` (a few g) is far too low for curved panels; recalibrate against slices before trusting print times.
+Cause: at the socket's top and bottom the lip rose straight into the chest's front corner rounding, and the old y-map left a
+crease where the original side crossed the floor plane. **Socket rev 3** (`SHELL_SOCKET_REV3.png`): the cavity is a cone of
+revolution about the pitch axis (flat floor at the RS03 face out to r78, 6 mm filleted foot, slope 1.2) and the side is the
+smooth minimum of the original surface and that cone (22 mm quadratic blend). The blend only moves the wall inward (floor dips
+at most 5.5 mm along the old crease line, at r > 60, clear of the RS03 body r 49.75), so arm clearance is unchanged and frame
+clearance is unchanged (7.8 mm minimum at the gussets). Inward offset folds at 2.4 mm (`thicken_check.py`): 0 / 0 (rev 2:
+908 front, 1743 back). Tightest convex radius in the socket sections ≥ 5.0 mm (`curv_check.py` on the CSVs, `curv_grid.py` on
+the dense grid); the shoulder top cap at ~3.3 mm is the tightest spot left and thickened fine in both pilots. Upper panels
+now ~170 g each from the split check. `?rim=14` in the generator restores rev 2.
 
 ## 9. Open items
 

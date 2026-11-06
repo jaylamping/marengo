@@ -69,6 +69,13 @@ def zi(G, z):                                   # row index nearest a height
     return int(np.argmin(np.abs(G[:, 0, 2] - z)))
 
 
+def run(mask, near):
+    """Contiguous run of True columns that starts closest to the column `near` (keeps a patch from wrapping round a corner
+    into the shoulder socket, whose floor dips just inside |Y| 135 since socket rev 3)."""
+    idx = np.where(mask)[0]; k = idx[np.argmin(abs(idx - near))]; a = b = k
+    while a - 1 >= 0 and mask[a - 1]: a -= 1
+    while b + 1 < len(mask) and mask[b + 1]: b += 1
+    return np.arange(a, b + 1)
 def jy(G, i, ymax):                             # column range with |Y| <= ymax on row i (contiguous, centred)
     js = np.where(np.abs(G[i, :, 1]) <= ymax)[0]
     return int(js.min()), int(js.max())
@@ -111,7 +118,7 @@ piece("door_compute", "D1 compute door", "door", thicken(UB[i0:i1 + 1, j0:j1 + 1
 for s, nm in ((1, "L"), (-1, "R")):
     i0, i1 = zi(UB, F1 - 5), zi(UB, F1 + 30)
     ys = UB[(i0 + i1) // 2, :, 1]
-    js = np.where((s * ys > 75) & (s * ys < 140))[0]
+    js = run((s * ys > 75) & (s * ys < 140), int(np.argmin(abs(ys - s * 75))))
     piece(f"hatch_shoulder_{nm}", f"D3 shoulder hatch {nm}", "door", thicken(UB[i0:i1 + 1, js.min():js.max() + 1]),
           "pitch RS03 connectors and harness entry")
 # lower front / back: split on the sternum and spine
@@ -155,7 +162,9 @@ for s, nm in ((1, "L"), (-1, "R")):
 # flanking the doors so the doors open between them. Bolted through the shell to H2/H3/H4 rear on standoff posts.
 def pad(G, za, zb, ya, yb, name, unit):
     i0, i1 = zi(G, za), zi(G, zb); ys = G[(i0 + i1) // 2, :, 1]
-    js = np.where((ys >= ya) & (ys <= yb))[0]
+    inner = ya if ya > 0 else yb   # the spine-side edge
+    m = G[(i0 + i1) // 2]; rs = np.hypot(m[:, 0], m[:, 2] - ZS)
+    js = run((ys >= ya) & (ys <= yb) & (rs >= 84), int(np.argmin(abs(ys - inner))))   # stay behind the socket rim
     piece(name, unit, "pad", thicken(G[i0:i1 + 1, js.min():js.max() + 1], t=-30.0), "TPU 95A gyroid, 30 mm crush")
 for s_, nm in ((1, "L"), (-1, "R")):
     lo, hi = sorted((s_ * 72, s_ * 135)); pad(UB, F0 + 215, F0 + 325, lo, hi, f"pad_upper_{nm}", "P spine pack")
