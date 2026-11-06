@@ -82,7 +82,11 @@ only, do NOT copy its chibi style) and a 3/4 poster crop. Head 128 W x 154 H wit
 near mid-height and wider apart, mohawk tip just above the jaw, short jaw band (44 mm) with a flat front and angled
 corner facets (jaw_facet), wide stepped collar (r74).
 
-## Pass 8 (current): G5
+## Pass 8: G5
 
 Joey 11:50Z: pass 7 is the right direction; stretch the top of the head about an inch. `build_head3.py G5` (= G4 with
 top 205, zc 169) -> `HEAD_GIANT_PASS8.png`. Head 128 W x 179 H mm; everything from the eyes down unchanged.
+
+## Pass 9 (current): G6, rounded jaw
+
+Joey 11:53Z: "his jaw is rounded, no flat". `build_head3.py G6` (= G5 with jaw_facet 0) -> `HEAD_GIANT_PASS9.png`.
