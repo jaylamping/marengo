@@ -53,3 +53,9 @@ Both thumbscrews pull the pack toward their own web, so with the pack centred, t
 
 Not checked: strength (no FEA), and the thumbscrew head against the shell (assumed Ø18 × 6.5 for the frame check).
 Print suggestion, untested: stand each side on its rear edge so the C section lies in the layer plane.
+
+## Pending change (frame thread, 2026-11-06 17:3xZ)
+
+The pack power leads (10 AWG silicone, 5.2 to 5.8 mm OD) cross the pack top along Z and do not fit the 5.1 mm left above the strap.
+Next SolidWorks pass: cut a **30 mm wide gap through the top strap** at X −5 to +25 (over the lead path), so the strap becomes two
+hooks from the webs; the leads then have the full 8.6 mm (Y 345 to 353.6) in that window. Battery thread prefers this to 12 AWG.
