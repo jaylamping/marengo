@@ -1,6 +1,6 @@
 # Left upper arm, rev B
 
-2026-11-05. Not reviewed and not released for printing or load. The CAD stays on Joey-PC.
+2026-11-06. **Not released for printing or load.** Gate 2 review said no-go: see [GATE2_REVIEW.md](GATE2_REVIEW.md). Rev C follows the arm length decision. The CAD stays on Joey-PC.
 
 The arm carries the yaw RS02 output at the top and holds the elbow RS02 housing at the bottom. Strength results and the load test are in [BASELINE.md](BASELINE.md).
 
@@ -42,4 +42,4 @@ The 10 mm band for the elbow crossing is shared with the stop lugs, so the fork 
 - Two M3 holes fall short of the safety targets on refined meshes. See BASELINE.md.
 - The shoulder roll stop is not here: it belongs on P1 and P2, at the roll joint. See `../envelope/README.md`.
 - No bearing retainer or forearm fork yet.
-- Rev B has had no adversarial review.
+- Inward roll bench soft limit is 2° until the new P2 exists. P2 clears the collar M4 button heads by only 1.0 mm at 5°. P2 gets a local relief over the r 49 screw ring, so the 5° target stands.

@@ -4,7 +4,7 @@
 
 ## Result
 
-**Rev B carries the fixed load case on the 3 mm mesh, but two M3 holes fall short once the mesh is refined.** Peak safety factor is 2.08 against a target of 2. It drops to 1.73 with local refinement at the bolt holes, and tension across layers reaches 1.36 to 2.5 against a target of 1.5. The rest of the part is well above target. The stress at those holes rises with mesh density, so it depends on the rigid bolt model and needs the bench test to settle.
+**Rev B carries the fixed load case, with one spot short of target.** With flanged limiters the refined peak safety factor is 1.88 to 2.15 against a target of 2, and the layer safety factor is 1.36 to 2.5 against a target of 1.5. Both shortfalls are at the same M3 hole edge on the RS02 side of the hoop. The stress there rises with mesh density, so it depends on the rigid bolt model and needs the bench test to settle.
 
 | Item | Rev A | Rev B |
 | --- | --- | --- |
@@ -44,13 +44,26 @@ Same load cases, material and fixed holes as rev A, on the hoop-flat print orien
 
 Deflection has converged. Stress at the top two M3 holes has not, because the model pulls on a rigid bolt surface. Treat those peaks as an upper bound. Loading the flange seat instead gave 50 MPa at a sharp corner on an earlier geometry, which is the same kind of artefact in the other direction.
 
+### With flanged limiters
+
+Superseded by gate 2: the upper bound claim above and the jig predictions below are not supported. See GATE2_REVIEW.md.
+
+Six Ø5 steel limiters with Ø9 × 0.5 mm flanges, seated in 0.5 mm recesses on the inboard hoop face. The load now acts on the bores and flange faces, with 0.8 mm mesh at the holes.
+
+| Case | Peak, MPa | Safety factor | Across layers, MPa | Layer safety factor | Deflection, mm |
+| --- | --- | --- | --- | --- | --- |
+| LC1C | 23.9 | 1.88 | 9.0 | 2.50 | 1.23 |
+| LC1A | 20.9 | 2.15 | 16.6 at M3 hole, RS02 side | 1.36 | 1.03 |
+
+Limiters lift the refined LC1C peak from 1.73 to 1.88 and the layer factor from 1.39 to 2.50. The two figures still short of target, 1.88 and 1.36, sit at the M3 hole edge on the RS02 side of the hoop. A flange on the inboard face cannot reach that edge.
+
 ### Print orientation
 
 Print with the hoop flat on the bed, tube axis horizontal. Upright printing gives a layer safety factor of about 1.0 on rev B. Printing with the rear face down gives 1.42 to 2.18. Hoop-flat needs supports inside the tube.
 
 ### Next
 
-Use M3 steel limiters with flanged washers on the top two holes, then run the jig. Lightweighting should wait for that, and the hub and window frame hold most of the added mass.
+Run the jig. Lightweighting should wait for that, and the hub and window frame hold most of the added mass.
 
 ---
 
