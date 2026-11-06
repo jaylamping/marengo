@@ -105,6 +105,17 @@ goes through the tray rail into the case. The rear face stays free for a possibl
   (Y 345 to 353.6). The 10 AWG power pair crosses the pack top only inside that window. The sense lead may run under the strap
   hooks. Keep the case top flat there, with no bosses or labels proud of Y 345.
 
+### Rear-corner layout (provisional, for the shell's D2 check; limits |X| ≤ 45, Z ≥ −68)
+
+| Part | Position (torso coords) | Note |
+| --- | --- | --- |
+| Pack fuse | inside the case, empty top-corner grid slot, about X +34, Y 333, Z −40 to +30, axis along Z | nothing behind the rear face |
+| Mated XT90S pair | flat on the rear face, axis along X: X −15 to +43, Y 323 to 345, Z −45 to −60 incl. a printed saddle | pack pigtail enters at the +X end; board pair comes over the top in X −5 to 25 and enters at the −X end |
+| Sense Micro-Fit 2 × 10 (board BMS only) | flat: X −42 to −17, Y 325 to 345, Z −45 to −58 | goes away with an on-pack BMS |
+| On-pack BMS (if chosen) | rear face, Y 185 to 315, Z −45 to −65, \|X\| ≤ 45 | under the connectors |
+
+XT90 sizes are from memory (verify): about 22 × 12 mm section, about 45 mm mated length.
+
 ### Connector mating rule (agreed)
 
 **Sense connector in first, XT90 last. XT90 out first, sense connector last.** The board thread is checking the BQ76952's
