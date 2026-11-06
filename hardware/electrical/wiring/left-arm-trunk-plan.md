@@ -34,7 +34,9 @@ Five ideas, each one aimed at a specific way the arm can be hurt.
 
 ### 3.1 One trunk per arm, fused at the power board
 
-The power-and-bus board (owned by the "Finalize the internal torso frame" thread) gives each arm its own output: a fast-blow trunk fuse, behind the E-stop and precharge. Left and right arms never share a fuse.
+The power board (owned by the "Plan the custom power and peripheral board" thread, plan at [../pdb/PLAN.md](../pdb/PLAN.md), main 0b6a6ef) gives each arm its own port: an XT30(2+2) female carrying VBUS, GND, CAN_H, CAN_L. Behind it sit a hot-swap switch with soft start (the precharge) and a 20 A electronic trip, a current meter, then a 15 A blade fuse as the backstop. Left and right arms never share a port. CAN1 (left arm) leaves the board through an isolated transceiver whose bus side references the trunk GND at the port, with a switchable 120 Ω at the board end. The port meter gives the measured arm current that sets the fuse values in section 4.
+
+**E-stop on the robot:** the button switches only a low-current loop that gates the board's motor FET banks. It is never in series with the 48 V trunk current (a mushroom head is not rated to break 20 A+ DC at 54 V). The bench harness's series E-stop is fine at 24 V only.
 
 ### 3.2 Junction boards instead of splices
 
@@ -96,10 +98,10 @@ VBUS, GND, CAN_H, CAN_L. Nothing else runs down the arm. The wrist and hand, whe
 |--------|--------------|---------------------|
 | Short in a cable or drop | Melts wire, burns connector | Drop fuse on the junction board, then trunk fuse |
 | Bus voltage onto CAN (crushed cable, XT30(2+2) plugged in skewed, stray screw) | Kills the CAN transceiver in every drive on that bus | TVS + series protection on each junction board; CAN and power pairs kept apart in the jumpers; keyed connectors |
-| Regen overvoltage (arm back-driven or braking hard at full charge) | Pushes the bus over 60 V; only 5.4 V headroom at 54.6 V | Bus clamp or braking resistor on the power board (dependency on the frame thread) |
-| Hot-plug inrush and arcing | Pits contacts, spikes the bus | Precharge on the power board; plug only with the E-stop open |
+| Regen overvoltage (arm back-driven or braking hard at full charge) | Pushes the bus over 60 V; only 5.4 V headroom at 54.6 V | Active regen clamp at 57.5 V into a brake resistor on a frame rail (power board PLAN.md) |
+| Hot-plug inrush and arcing | Pits contacts, spikes the bus | Hot-swap soft start on the power board port; plug only with the E-stop open |
 | Reverse polarity | Instant drive damage | Keyed connectors everywhere; no bare pigtails on the robot |
-| Ground offset between Pi and drives | CAN errors, transceiver stress | One ground tie at the power board |
+| Ground offset between Pi and drives | CAN errors, transceiver stress | Single star ground on the power board; isolated CAN transceiver referenced to trunk GND |
 
 No fuse protects a drive from its own internal failure. The fuses protect the wiring, connectors and the other drives.
 
@@ -107,7 +109,7 @@ No fuse protects a drive from its own internal failure. The fuses protect the wi
 
 | Fuse | Value | Type |
 |------|-------|------|
-| Arm trunk, on the power board | 15 A | fast-blow |
+| Arm port, on the power board | 20 A electronic trip, then 15 A blade backstop | power board PLAN.md |
 | Drop, RS03 (M11, M12) | 7.5 A | fast-blow, on junction board |
 | Drop, RS02 (M13, M14) | 5 A | same |
 | Drop, RS00 (M15) | 3 A | same |
@@ -150,7 +152,8 @@ Options for J1 and J2:
 
 | Thread | What we need |
 |--------|--------------|
-| Finalize the internal torso frame (power and bus board) | One fused, E-stop-switched, precharged arm output per arm; regen clamp or braking resistor; single ground tie; CAN1 connector; a place for JB-11 at the pitch top-rear flat |
+| Plan the custom power and peripheral board | Agreed (0b6a6ef): one XT30(2+2) port per arm, soft start, 20 A e-trip, meter, 15 A backstop, 57.5 V regen clamp, star ground, isolated CAN1 with board-end 120 Ω |
+| Finalize the internal torso frame | A place for T0 from the board to the shoulder and JB-11 at the pitch top-rear flat |
 | Design the left arm from scratch | Pockets for JB-12 to JB-15 (about 30 × 18 × 8 mm each) on the upstream side of each joint; clamp points at both ends of each jumper; the wrap groove at pitch and roll; access to each junction board's fuse |
 | Wire the RS03/RS02 shoulder actuators | Bench harness keeps its splice-and-inline-fuse build for first power-up; its measured lengths, service-loop use and bus current feed this plan |
 | Body shell | No shell over the shoulder actuators (standing rule), so the wrap groove is visible there; style it rather than hide it |
@@ -177,5 +180,5 @@ Following the standing method: build simple, test for a baseline, then iterate. 
 1. Junction boards (small custom PCB at each drop) or splices with inline fuse holders?
 2. OK with the jumpers as separate plug-in wear parts at every joint?
 3. Pitch and roll crossing: start with the wrap groove (A)?
-4. Does the left arm get its own E-stop channel on the power board, or one E-stop for the whole robot?
+4. One E-stop for the whole robot (it gates all motor FET banks on the power board), or a separate stop per arm?
 5. When the E-stop cuts arm power the arm goes limp and falls. Is that acceptable for now, or should the stop be a controlled one (software damping first, power cut after)?
