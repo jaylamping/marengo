@@ -168,8 +168,8 @@ Options for J1 and J2:
 Following the standing method: build simple, test for a baseline, then iterate. No destructive test ever uses a real actuator; a dummy load board (resistor bank plus a CAN node) stands in.
 
 1. **Measure bus current** on the bench (24 V now, 48 V when the pack exists) for each motor through representative moves, with a clamp meter or shunt logger. Sets fuse values and gauges.
-2. **Fuse selectivity**: short a drop on the dummy load, confirm only the drop fuse opens.
-3. **CAN fault injection** on the dummy node: CAN_H to GND, CAN_L to GND, CAN_H to VBUS through a limiting resistor. Confirm the junction board clamp holds and the bus recovers.
+2. **Fuse selectivity**: short a drop on the dummy load, confirm only the drop fuse opens. Uses the power board's test mode (PLAN.md section 3.8, 254e2f9): aux port as test port with the plug-in load box, adjustable trip from 1 A, and every trip logged with peak current and time to open.
+3. **CAN fault injection** on the board's spare bus (CAN6) fault header, motors disarmed: H-L short, CAN_H or CAN_L to GND, VBUS on CAN_H through 100 Ω. Put a junction board and a dummy CAN node on that bus, and confirm the clamp holds and the bus recovers.
 4. **Jumper flex life** on a printed jig that cycles each joint's motion, with a continuity monitor on every conductor. Target to be set; a starting point is 100k cycles at full range.
 5. **Connector retention** under vibration with the arm moving.
 6. **Thermal**: trunk and drops at the measured peak current for a few minutes, temperature by hand or thermocouple.
