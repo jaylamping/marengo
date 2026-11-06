@@ -31,6 +31,21 @@ Rev A (27 sheets, about 1,290 parts) stays in the repo as a reference only. Noth
 | 18 | **Charge port electronics** | No | The charger plugs into the BMS charge path with a keyed XT60 | **Drop.** |
 | 19 | **Leg channels** | Not yet | n/a | **Defer.** Leg outputs are just two more terminals plus meters; a 100–200 A smart BMS already covers leg current. |
 
+### Row 1 conditions from the battery thread (16:13Z, supports the swap)
+
+1. **Fit** is the real risk. A 60–100 A unit is enough behind the 60 A pack fuse. It goes on the pack's rear face (D2 space)
+   or in the freed part of this board's slot. Candidates must come with real dimensions.
+2. **Inrush:** JK short-circuit protection trips in microseconds. All bulk capacitance (12 V brick input, clamp caps) sits
+   behind the E-stop soft-start bank, or the BMS must have its own precharge.
+3. **Ground:** the robot's only ground is P−. Nothing touches B−: not the charger, the clamp or the bench supply.
+4. **Trip order:** with no supervisor, a BMS trip drops the Pi too. Set discharge OC at about 80–100 A for 1 s, above the
+   limb fuses, so a limb fault blows its own fuse first. Charge OC 50 A, OV 4.22–4.25 V, UV 2.8 V. The 3.0 V soft cutoff is
+   done by the Pi from BMS telemetry.
+5. **Telemetry:** RS485 or CAN to the Pi, via a USB-RS485 adapter (about $10) plus software.
+
+Pack plan if chosen: cells + Class T fuse + BMS on the rear face + XT90S + charge lead. The pack becomes self-protecting
+and can charge outside the robot. The pack sense board and 2x10 connector go away.
+
 ## What would be left on the board
 
 Battery in (from the BMS), one E-stop switch bank with soft start and the latch, braking clamp, a few bus capacitors, six
