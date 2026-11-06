@@ -14,6 +14,8 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 
 Run times are from one run. Allow 20 minutes.
 
+Power board gate 3 (2026-11-06): with `Bash(sha256sum*)` only, Fable and Opus cannot rerun scripts; add `Bash(python3 *)` when the packet has scripts to rerun, and check hashes after. Without sed and awk in its allow list, Argon exited 0 with an empty review after 25 min.
+
 Fable and Opus: run each as a fresh session with only the packet folder, never from the thread that wrote the packet, so it has no memory of the author's reasoning. Both run on the **API credits**, not the Claude subscription, at **high** effort (Joey 2026-11-06 06:33Z: "high effort for both", API route confirmed). Claude Code bills the API account whenever `ANTHROPIC_API_KEY` is set in the shell, and the subscription when it is not, so set the key for these two commands only:
 
 ```bash
@@ -40,7 +42,7 @@ cursor-agent launched from Git Bash can be blocked by the repo's `.cursor` pre-t
 Antigravity (Argon) is on the MacBook, not Joey-PC: `agy` 1.3.4 at `~/.local/bin/agy` (checked 2026-11-06 05:40Z, signed in, `agy models` lists `gemini-4-argon-high`, a one-word smoke test answered in 7 s). Run it from the Mac against the packet. Prompt must be attached to the flag (`-p='...'`), or `-p` swallows the next flag as the prompt:
 
 ```bash
-AGY_ALLOW='{"permissions":{"allow":["command(cat)","command(ls)","command(head)","command(tail)","command(wc)","command(find)","command(grep)","command(shasum)","command(sha256sum)","command(python3)","command(python)"]}}'
+AGY_ALLOW='{"permissions":{"allow":["command(sed)","command(awk)","command(cat)","command(ls)","command(head)","command(tail)","command(wc)","command(find)","command(grep)","command(shasum)","command(sha256sum)","command(python3)","command(python)"]}}'
 (agy --model gemini-4-argon-high --disable-slash-commands --print-timeout 0 \
   --add-dir "$PWD" --settings "$AGY_ALLOW" -p="$P" > reviews/antigravity-argon.md 2> reviews/antigravity-argon.log </dev/null
  echo "argon exit $?" >> reviews/STATUS.txt) &
