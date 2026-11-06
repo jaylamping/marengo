@@ -98,7 +98,7 @@ is designed to tear out before the bracket does, so a crash breaks the cheap par
 | H3 | Step shared rail, front and rear faces, between the gussets (Y ±35) | 4 | U1/U2 bottom, U3/U4 top, D1 frame | 43 front, 22 rear |
 | H4 | Lower box bottom rails, front and rear faces | 4 | U3/U4 bottom, D2 frame | 15 front, 19 rear |
 | H5 | Lower box corner posts, outer side faces | 4 | U3/U4 sides, V1 grilles | 25 to 32 |
-| H6 | Lower box bottom side rails, under face | 4 | Abdomen band carrier | 5 |
+| H6 | Lower box bottom side rails, outer side faces (under-face left free for the hip interface) | 4 | Abdomen band carrier | to check |
 | C | Pitch RS03, 8 unused outboard M4 holes per side | 2 | Collar halves; U1/U2 socket rims lap on (location only) | 0 |
 
 The gusset plates are not used as mounts, so they carry only frame load. The arm thread needs to keep these slot positions free
