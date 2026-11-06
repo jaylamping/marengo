@@ -115,7 +115,7 @@ with the arms fitted, because the collar is split and the U1/U2 seam passes thro
 
 | Door | Opens to | Retention |
 | --- | --- | --- |
-| D1 compute door, upper back, 120 × 120 | Pi 5, CAN HAT, compute shelf, pitch RS03 rear faces | 2 hinge tabs at the bottom, 4 magnets at the top, optional M3 lock |
+| D1 compute door, upper back, 124 wide, torso Y 360 to 492 (top raised 12 mm for the fans) | Pi 5, CAN HAT, Jetson Orin Nano rear ports (Y 376–445), two 40 mm exhaust fans (Y 448–488), pitch RS03 rear faces | 2 hinge tabs at the bottom, 4 magnets at the top, optional M3 lock |
 | D2 power door, lower back | PDB, harness trunk, ports (USB-C, Ethernet, main switch) through cut-outs | Same |
 | D3 shoulder hatches, top of each shoulder | Pitch RS03 connectors, harness entry to the arm | Magnets, lip under U2 |
 | V1 side grilles | Lower-box sides, side harness runs | M3 to H5 |
@@ -126,14 +126,15 @@ The battery lives in the pelvis (`../../../docs/torso-design-handoff.md`), so it
 
 ## 6. Cooling (estimate)
 
-Heat in the chest: two pitch RS03s (assume 15 W each on average when holding), Pi 5 (~8 W), PDB and converters (~5 W): **about 45 W**.
+Heat in the chest: two pitch RS03s (assume 15 W each on average when holding), Pi 5 (~8 W), Jetson Orin Nano (7 to 25 W by power mode), PDB and converters (~5 W): **about 55 to 70 W**. Frame release 2477a12 adds two 40 mm exhaust fans behind D1 and one intake fan low at the front.
 
 Chimney flow from low intakes to high exhausts, 0.3 m apart, 15 K rise: draft speed about 0.33 m/s, so natural convection needs
 about **75 cm² net free area** at each end (about 150 cm² gross with a 50% open grille).
 
 - **Intake (low):** V1 side grilles, 2 × ~130 cm² gross, louvres angled down; abdomen band gaps.
-- **Exhaust (high):** louvres in D1 (upper back) and the neck ring gap.
-- **Variants:** D1 plain, louvred, or with a 40 × 10 mm fan (~2.4 L/s, enough for the whole 45 W at a 15 K rise on its own). V1 lattice
+- **Exhaust (high):** the two 40 mm fans blow out through D1's louvres (louvre free area at least the fans' 2 × 12.5 cm²; fan guard 6 mm max); neck ring gap.
+- **Front intake fan:** needs a front grille. At torso Y 300–340 it straddles the U1/U3 seam (Y 315), so the frame thread was asked to move it to Y 250–295, fully inside U3.
+- **Variants:** D1 plain, louvred, or with a 40 × 10 mm fan (each ~2.4 L/s; two fans move ~4.8 L/s, enough for 70 W at a 12 K rise). V1 lattice
   or open mesh. The swap interface stays fixed.
 - Slots no wider than 6 mm (fingers, cable snags). The shoulder RS03s also shed heat through their exposed output faces.
 - **Unresolved:** real RS03 losses at the duty cycle. Log RS03 temperatures with and without the shell in the first powered run.
