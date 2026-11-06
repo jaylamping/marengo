@@ -8,7 +8,7 @@ the repo as a reference.
 
 | What | Choice | Notes |
 | ---- | ------ | ----- |
-| BMS | Off-the-shelf **JK smart BMS** (Joey: "whichever has the most features and is the best") | JK has active balancing, a Bluetooth app, CAN/RS485, common port, and a heater output on some models. Needs 13S Li-ion, 60–100 A, and must fit 170 × 90 × 20 mm on the pack's rear face. The JK BD6A20S10P (162 × 102 × 20) is 12 mm too wide, so the exact model is still to be found (battery thread). The battery thread's five conditions apply (clean sheet, row 1). |
+| BMS | **JK-BD6A17S8P** on the pack's rear face (battery thread pick, pack plan d42e88f section 3) | 80 A continuous / 150 A peak, 8–17S Li-ion, common port, 0.6 A active balance, 3 temperature sensors, Bluetooth, RS485 or CAN through an add-on module (order with it). 133 × 81 × 18 mm, fits 170 × 90 × 20. About $85 plus the module. **No precharge** (the board's soft-start bank covers all bulk capacitance) and **no hardware remote-off** (it can't be the E-stop's second break). Settings: OVP 4.22 V, UVP 2.8 V, DOC 80 A at the longest delay, COC 50 A for about 1 s, charge 0–45 °C. Charging uses an XT60 pigtail on the pack's P+/P−, so there is no charge port on the board; the host blocks arming while the BMS shows charge current. The robot's only ground is P−. |
 | Pack fuse | Class T 60 A | On the pack, unchanged. |
 | E-stop button | **Joey's own large E-stop switch** | Its rating decides the wiring: a control-rated button breaks a small loop that drives the on-board switch; a DC-rated disconnect could break the power itself. Model to confirm. |
 | CAN | Isolated USB-CAN adapters at the Pi (gs_usb / SocketCAN), one per bus used | The board doesn't touch CAN. |
@@ -32,6 +32,6 @@ the repo as a reference.
 
 ## Next
 
-1. Battery thread picks the JK model that fits, and confirms precharge and remote-off.
+1. Done: JK-BD6A17S8P (see above).
 2. Joey confirms the E-stop switch model or rating.
 3. New small schematic on the Mac, ERC, short review, then layout.
