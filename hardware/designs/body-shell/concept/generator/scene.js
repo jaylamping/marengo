@@ -272,7 +272,21 @@ const core = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 3, 48), accent);
 
 
 // neck collar + head placeholder
-const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 58)); if (!EXPLODE) add(neck);
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 58)); if (!EXPLODE && !q.get('stl')) add(neck);
+// head from CAD (2026-11-06): ?stl=<variant> loads ../../../head/concepts/giant/out/<variant>/parts.json (served as giantout/)
+if (q.get('stl')) {
+  const { STLLoader } = await import('./node_modules/three/examples/jsm/loaders/STLLoader.js');
+  const BGU = await import('./node_modules/three/examples/jsm/utils/BufferGeometryUtils.js');
+  const M = { white: new THREE.MeshPhysicalMaterial({ color: 0xeef0f3, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
+    gun: new THREE.MeshPhysicalMaterial({ color: 0x4a4f57, roughness: 0.32, metalness: 0.75, clearcoat: 0.3 }),
+    dark: new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5, metalness: 0.4 }),
+    lens: new THREE.MeshPhysicalMaterial({ color: 0x050607, roughness: 0.05, metalness: 0.2, clearcoat: 1 }),
+    eye: new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: Number(q.get('eyecol') ?? 0xffc95e), emissiveIntensity: Number(q.get('eyek') ?? 1.0) }) };
+  const base = 'giantout/' + q.get('stl') + '/';
+  const man = await (await fetch(base + 'parts.json')).json();
+  const loader = new STLLoader(); const m4 = new THREE.Matrix4().set(0, 1, 0, OFFX, 0, 0, 1, F1 + 40 + Number(q.get('hz') ?? 0), 1, 0, 0, 0, 0, 0, 0, 1);
+  for (const it of man) { const g = loader.parse(await (await fetch('giantout/' + it.file)).arrayBuffer()); g.applyMatrix4(m4); const gs = BGU.toCreasedNormals(g, 35 * Math.PI / 180); const mt = (M[it.mat] || M.white); mt.side = THREE.DoubleSide; add(new THREE.Mesh(gs, mt)); }
+}
 const headRows = [[F1 + 70, 50, 60, 58, 3.4], [F1 + 96, 60, 76, 72, 3.6], [F1 + 190, 64, 82, 80, 3.6], [F1 + 252, 56, 70, 72, 3.2], [F1 + 276, 34, 44, 46, 2.6], [F1 + 284, 4, 4, 4, 2]];
 const SHOW_HEAD = false;
 // head concept line-up (2026-11-06): ?head=1..20, ?hs = head scale
