@@ -48,7 +48,7 @@ class LayoutTests(unittest.TestCase):
         report = run([
             "codex/a.SLDPRT",
             "task-2/notes.txt",
-            "parts/arm/.checkpoints/x.SLDPRT",
+            "parts/arm/x.SLDPRT",
             "exports/left_arm/render/UA.SLDPRT",
             "exports/loose.stl",
             "shoulder/fea.CWR",
@@ -59,7 +59,7 @@ class LayoutTests(unittest.TestCase):
             "codex: forbidden",
             "task-2: forbidden",
             "parts: unknown top-level",
-            ".checkpoints: forbidden",
+            "parts: unknown top-level",
             "UA.SLDPRT: native SolidWorks file in exports/",
             "loose.stl: exports/ must be split by region",
             "fea.CWR: simulation results",
@@ -70,6 +70,11 @@ class LayoutTests(unittest.TestCase):
     def test_dated_folder_outside_reviews(self) -> None:
         report = run(["shoulder/LEFT_P2_20261105/a.SLDPRT"])
         self.assertTrue(any("date-stamped" in e for e in report.errors))
+
+    def test_checkpoints_are_warning(self) -> None:
+        report = run(["shoulder/.checkpoints/marengo_shoulder_x.SLDPRT"])
+        self.assertEqual(report.errors, [])
+        self.assertTrue(any(".checkpoints" in w for w in report.warnings))
 
     def test_bad_name_is_warning(self) -> None:
         report = run(["shoulder/P1_L01.SLDPRT"])

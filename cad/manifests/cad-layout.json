@@ -37,9 +37,9 @@
     "^cursor$",
     "^_import.*$",
     "^old$",
-    "^\\.checkpoints$",
     "^solver_results$"
   ],
+  "warnFolderPatterns": ["^\\.checkpoints$"],
   "datedFolderPattern": "(19|20)\\d{6}",
   "datedFoldersAllowedUnder": ["reviews", "_wip", "_sim", "_archive"],
   "ignoreFilePatterns": ["^~\\$", "^\\.gitkeep$", "^desktop\\.ini$", "^Thumbs\\.db$"]

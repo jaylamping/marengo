@@ -11,7 +11,7 @@ Stdlib only, so it runs on Windows, macOS and Linux without setup.
 Errors (break the rule):
   - unknown top-level folder or loose top-level file
   - forbidden folder names anywhere outside _archive (codex, task, task-2, _import*,
-    old, .checkpoints, solver_results, ...)
+    old, solver_results, ...)
   - native SolidWorks parts/assemblies outside a region folder, vendor/, or the
     scratch folders (_wip, _sim, _archive)
   - simulation results (.CWR) outside _sim/ or _archive/
@@ -20,6 +20,7 @@ Errors (break the rule):
   - date-stamped folders outside reviews/, _wip/, _sim/, _archive/
 Warnings (should be fixed, do not fail without --strict):
   - native file names that do not match cad/manifests/cad-conventions.json
+  - .checkpoints folders (SolidWorks recreates them beside open parts; gitignored)
 """
 
 from __future__ import annotations
@@ -63,6 +64,7 @@ class Checker:
         self.native_ext = {e.lower() for e in layout["nativeExtensions"]}
         self.sim_ext = {e.lower() for e in layout["simExtensions"]}
         self.forbidden = [re.compile(p, re.IGNORECASE) for p in layout["forbiddenFolderPatterns"]]
+        self.warn_dirs = [re.compile(p, re.IGNORECASE) for p in layout.get("warnFolderPatterns", [])]
         self.dated = re.compile(layout["datedFolderPattern"])
         self.dated_ok = {d.lower() for d in layout["datedFoldersAllowedUnder"]}
         self.ignore = [re.compile(p, re.IGNORECASE) for p in layout["ignoreFilePatterns"]]
@@ -84,6 +86,8 @@ class Checker:
         name = parts[-1]  # every folder is visited by the walk, so check only its own name
         if any(pat.search(name) for pat in self.forbidden):
             self.report.error(rel_dir, f"forbidden folder name '{name}'")
+        if any(pat.search(name) for pat in self.warn_dirs):
+            self.report.warn(rel_dir, "SolidWorks checkpoints (gitignored); move to _archive/checkpoints/ when they pile up")
         if self.dated.search(name) and parts[0].lower() not in self.dated_ok:
             self.report.error(rel_dir, "date-stamped folder outside reviews/, _wip/, _sim/, _archive/")
 
