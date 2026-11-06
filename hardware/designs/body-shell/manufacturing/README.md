@@ -248,7 +248,7 @@ counterbores over Ø12 inner pads. H5 bosses sit on the panel normal (37° front
 | Part | Mass | Slice | Notes |
 | --- | --- | --- | --- |
 | D1 compute door | 39 g | outer up, 4 h 25 m, 32 g support | slotted hinge tabs at Y ±52 on H3 rear (pull out, then swing); 4 magnets Y ±50.5; M3 lock Y 0 Z 1240; 2 louvre patches Y ±25, Z 1258–1298, 6 slots 5.5 × 38 tipped 30° up, 12.5 cm² each |
-| D2 battery door | 68 g | outer up, 8 h 01 m, 55 g support | hinge tabs Y ±52 on H4 rear; magnets Y ±30 Z 1153; M3 lock Y 0; ~40 mm to the pack |
+| D2 battery door | 58 g | outer up, 8 h 06 m, 55 g support | hinge tabs Y ±52 on H4 rear; retention as built below; ~40 mm to the pack |
 | Intake grilles (2) | 6 g | outer up, ~1 h | 58% open, 6 slots ≤ 6 mm; held by 4 M2.5 × 6 plastite per grille into blind pilots in U3 (also ties the U3 halves); fit before U3 goes on |
 | D3 shoulder hatches | 11 g | upright, 52 m | first pass: still needs the 0.3 mm gap, lip under U2, magnet pockets and the matching U2 cut; 1.75 mm to the H2 boss |
 
@@ -264,6 +264,20 @@ plate must clear it. Not yet checked: D1 against the fans, Pi and Jetson behind 
 - Upper panels with all cuts: front 147 g / 12 h 03 m, back 115 g / 11 h 02 m (left; right matches).
 - **Check on a real RS03 before torquing the collar screws:** the vendor drawing gives the 8 housing M4 holes 8 mm deep on a 98 mm
   BC (r 49), but in the CAD model their Ø3.3 tap drills break the r 50.25 housing wall. The model is probably simplified there.
+
+**Hardpoint brackets (16, PETG, ~151 g total, renders in `pilot/`):** H1 front hook, H2 rear hook, H3 front (Ø3.7 pin + M3 insert),
+H3 rear (D1 hinge arm, door top-stop lip Y 0–52, Z 1165–1182), H4 front, H4 rear (D2 hinge arm), H5 front 37° and back 22°, each L/R.
+Each prints in 22–41 min. M5 into a T-nut, offset from the post so a driver reaches it, with a 5.8 × 1.6 slot key against rotation
+(H4 front has no key: it is shortened to clear the splice boss). Door hinges pivot on **M3 × 12** screws into inserts in the
+arms. Clash checks: no frame clash (the slot keys sit 1 mm into the slot by design, so check on a real rail); gussets clear by position
+(H3 stops at |Y| 54, plates start at 55, nearest screw head 57.25; H5 tops out at Z 1093, gussets start at 1095). Shell touches only at
+the boss faces, 0.3 mm at each hinge.
+
+**D2 retention, as built:** magnets work vertically. Pads on U2 at Y ±30 (Z 1158–1163) hold magnets facing down onto door blocks
+(Z 1150–1157.7) facing up, 0.5 mm air. The door slides off them sideways as it opens, so hold is shear (~1/3 of axial): **test on the
+real door.** Locks: 2 × M2.5 × 8 plastite at Y ±50.5, Z 1153 into U2 side-flange pads (caps: 23 per robot). Nothing on U2 sits below
+Z 1158 in the pack column. The lock pads clear the pack by 0.3 mm at |Y| 47.8, so check them against the tray rails. The XT90S/fuse
+corner is not in the CAD yet; the door blocks reach X −77.8.
 
 ## 9. Open items
 
