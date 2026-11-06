@@ -1,0 +1,36 @@
+You are a senior industrial designer polishing a robot head. The robot is marengo, a personal, non-commercial humanoid
+that Joey is building. The head should look as close as possible to the Iron Giant's head from the 1999 film. Its face
+should read as inquisitive, brave and endearing.
+
+Your starting point is the current best design. Joey called it "the best iteration yet". Do not redesign it. Make it
+better through targeted, well-judged polish.
+
+Files in this folder:
+- packet/BRIEF.md: the original design brief. Its frame, size and material rules still apply. The neck and raised head
+  added in round 3 are approved.
+- packet/fable_r3/build_head.py and packet/fable_r3/NOTES.md: the current design (build123d) and its designer's notes,
+  including measured ratios against the master references.
+- packet/HEAD_FABLE_R3.png: renders of the current design (top row) next to the previous round.
+- packet/MASTER_*.jpg/png, if present: Joey's three master reference pictures. These are a film still from below, a red
+  poster at 3/4 and a side view from the barn scene. Judge likeness against them. If they are missing, work from the
+  ratios in NOTES.md.
+
+Known issues to look at first:
+1. In side view there is a small second spike behind the mohawk's peak. Remove it.
+2. The jaw's side-plate "knee" sits further back than in the barn still (0.70 vs about 0.55 of the head depth).
+3. The jaw band is 141 mm wide against a 124 mm cranium. Check this against the film still and keep it only if it is
+   right.
+4. Anything else that makes it read less like the Giant, or less inquisitive, brave and endearing. Be specific.
+
+Rules:
+- Work only inside this folder.
+- Copy packet/fable_r3/build_head.py to ./build_head.py and edit that copy.
+- It must run with `python build_head.py` and write out/*.stl plus out/parts.json. Keep the same part names and the
+  materials white, grey1, grey2, dark and eye.
+- You may render previews any way you like, for example trimesh or matplotlib. The organiser re-renders every entry in
+  one identical scene.
+- Write NOTES.md with a numbered list of every change, why you made it, and which reference it serves.
+- Keep changes surgical. If a change is a matter of taste rather than likeness, list it as a suggestion and do not apply
+  it.
+
+Return a short summary of your changes as your final message.
