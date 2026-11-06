@@ -201,8 +201,8 @@ homing before `READY`).
   24 V; once the battery arrives, the button only ever switches the loop. (Flagged to the arm trunk thread.)
 - **Stop category:** Cat 0 (power cut, joints go limp) is the default and what the robot does today. A Cat 1 option (supervisor
   tells the host and the drives to damp first, hardware cuts after a fixed 300 ms RC timer no matter what) costs two parts and
-  can be fitted by a jumper. RobStride manuals have a "post-power-off anti-backdrive protection" section (4.2.5 in the RS03
-  manual) that may give passive damping when unpowered: **verify** on a drive before relying on it.
+  can be fitted by a jumper. The RobStride manuals (4.2.5, RS00/RS03/RS04) confirm passive damping when unpowered, on by default:
+  a Cat 0 stop leaves the joints damped, not free, when moved quickly (see 3.4).
 
 ### 3.4 Motor bus: bulk capacitance, precharge, regen clamp
 
@@ -241,8 +241,19 @@ homing before `READY`).
   | Pack removed | port → VMOT → self-powered clamp |
   | **Port fuse blown** | **isolated from the board.** Covered by a small per-port active clamp on the load side, after the fuse (59 V, about 20 W, sized for a hand-pushed or falling arm, not a full leg). A plain TVS can't do it: one that stays off at 54.6 V clamps near 80 V |
 
-  Bench check before relying on any of this: backdrive an unpowered RS03 by hand and scope its bus voltage. The drives'
-  anti-backdrive feature (RS03 manual 4.2.5) may short the phases when unpowered and make the energy small.
+  **What the RobStride manuals say (read 2026-11-06, `hardware/docs/robstride/`):**
+  - *Unpowered:* RS00, RS03 and RS04 manuals section 4.2.5, "Motor Post-Power-Off Anti-Backdrive Protection": "If the motor is
+    rotated rapidly while unpowered, a certain damping force will be felt. This protection prevents surges caused by excessively
+    high external rotation speeds." On by default; `damper` (0x702A, default 0) = 1 disables it. The RS02 manual lists the same
+    `damper` parameter but has no section describing it, so assume it behaves the same and confirm on the bench. **Keep it
+    enabled on every drive.** This is the drives' built-in braking, and it is what limits the energy in the blown-fuse case, so
+    the per-port load-side clamp above is a cheap backup, not the primary protection.
+  - *Powered, damping or braking:* the drives regenerate into the supply, with no internal brake resistor mentioned. The damping
+    mode example in every manual says: "the motor generates electricity under this condition and requires power supply to
+    prevent overvoltage." So the board must absorb braking energy, which is exactly the pack-first + clamp path above.
+  - *Drive limits:* overvoltage fault at 60 V, undervoltage fault at 12 V (fault bits 3 and 2). The 57.5 V clamp stays below the
+    drives' own trip; the 2.8 V/cell hard UV (36.4 V) is far above theirs.
+  Bench check still worth doing: backdrive an unpowered RS02 and RS03 by hand and scope the bus, to put a number on it.
 - **Bulk:** about 2 mF of low-ESR polymer or low-profile electrolytics on VMOT. Standard 63 V cans are 25 mm tall and break the
   24 mm envelope, so they lie down or are replaced by arrays of shorter ones.
 
@@ -498,6 +509,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.11 | 2026-11-06 | RobStride manuals checked: unpowered anti-backdrive damping (keep enabled), drives regenerate into the supply, 60 V OV / 12 V UV faults |
 | 0.10 | 2026-11-06 | Regen routed through the BMS into the pack first, clamp as backup (Joey 08:58Z) |
 | 0.9 | 2026-11-06 | Regen path in every state, self-powered clamp, per-port load-side clamp (trunk thread question) |
 | 0.8 | 2026-11-06 | Port fuses and holders must be 58 V DC rated, not 32 V blades (trunk thread flag) |
