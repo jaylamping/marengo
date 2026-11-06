@@ -104,9 +104,9 @@ piece("upper_front_R", "U1 upper front", "panel", thicken(UF[:, nt // 2:]), "pec
 # upper back: print split on the spine; compute door spans the spine
 piece("upper_back_L", "U2 upper back", "panel", thicken(UB[:, nt // 2:]), "back plate, left (+Y); door opening not cut")
 piece("upper_back_R", "U2 upper back", "panel", thicken(UB[:, : nt // 2 + 1]), "back plate, right")
-i0, i1 = zi(UB, F0 + 205), zi(UB, F1 - 15)
+i0, i1 = zi(UB, F0 + 219), zi(UB, F1 - 3)   # torso Y 374-492: H3 rear below 374, fans to 488
 j0, j1 = jy(UB, (i0 + i1) // 2, 62)
-piece("door_compute", "D1 compute door", "door", thicken(UB[i0:i1 + 1, j0:j1 + 1]), "Pi 5, CAN HAT, shelf; vented or fan variants")
+piece("door_compute", "D1 compute door", "door", thicken(UB[i0:i1 + 1, j0:j1 + 1]), "Pi 5, CAN HAT, Jetson ports, 2 exhaust fans; louvre/fan variants")
 # shoulder-top hatches over each pitch RS03 (back half of the cap, outboard of the neck)
 for s, nm in ((1, "L"), (-1, "R")):
     i0, i1 = zi(UB, F1 - 5), zi(UB, F1 + 30)
@@ -120,9 +120,23 @@ piece("lower_front_L", "U3 lower front", "panel", thicken(LF[:, : nl // 2 + 1]))
 piece("lower_front_R", "U3 lower front", "panel", thicken(LF[:, nl // 2:]))
 piece("lower_back_L", "U4 lower back", "panel", thicken(LB[:, nl // 2:]), "door opening not cut")
 piece("lower_back_R", "U4 lower back", "panel", thicken(LB[:, : nl // 2 + 1]))
-i0, i1 = zi(LB, F0 + 12), zi(LB, F0 + 140)
-j0, j1 = jy(LB, (i0 + i1) // 2, 58)
-piece("door_power", "D2 power door", "door", thicken(LB[i0:i1 + 1, j0:j1 + 1]), "PDB, harness trunk, USB/Ethernet/switch ports")
+# D2 battery door (custom 13S2P pack, hardware/electrical/power/custom-21700-pack.md): pack |X| <= 47.5, torso Y 183-345,
+# pulled straight out the back. Door covers torso Y 175-352 (robot Z F0+20 .. F0+197), |Y| <= 60, and spans the U2/U4 seam,
+# so it is resampled across both grids. Bottom hinge on H4, magnets onto a spine rail on the H3 rear bracket (Y 355-372).
+def back_patch(za, zb, ymax, nz=80, ny=60):
+    rows = [G[i] for G in (LB, UB) for i in range(G.shape[0])]
+    rows = sorted(rows, key=lambda r: r[0, 2])
+    zs = np.array([r[0, 2] for r in rows]); out = np.zeros((nz + 1, ny + 1, 3))
+    for a, z in enumerate(np.linspace(za, zb, nz + 1)):
+        k = int(np.clip(np.searchsorted(zs, z), 1, len(rows) - 1)); r0, r1 = rows[k - 1], rows[k]
+        t = 0 if zs[k] == zs[k - 1] else (z - zs[k - 1]) / (zs[k] - zs[k - 1])
+        for b, y in enumerate(np.linspace(ymax, -ymax, ny + 1)):
+            x0 = np.interp(y, r0[:, 1][::-1] if r0[0, 1] > r0[-1, 1] else r0[:, 1], (r0[:, 0][::-1] if r0[0, 1] > r0[-1, 1] else r0[:, 0]))
+            x1 = np.interp(y, r1[:, 1][::-1] if r1[0, 1] > r1[-1, 1] else r1[:, 1], (r1[:, 0][::-1] if r1[0, 1] > r1[-1, 1] else r1[:, 0]))
+            out[a, b] = [x0 + (x1 - x0) * t, y, z]
+    return out
+D2 = back_patch(F0 + 20, F0 + 197, 60)
+piece("door_battery", "D2 battery door", "door", thicken(D2), "13S2P pack slides out the back; PDB/ports moved to the front power board")
 # side vent grilles: straddle the front/back seam at the sides of the lower chest (cooling variants)
 for s, nm in ((1, "L"), (-1, "R")):
     A = LF if True else LB
@@ -146,8 +160,6 @@ def pad(G, za, zb, ya, yb, name, unit):
 for s_, nm in ((1, "L"), (-1, "R")):
     lo, hi = sorted((s_ * 72, s_ * 135)); pad(UB, F0 + 215, F0 + 325, lo, hi, f"pad_upper_{nm}", "P spine pack")
     lo, hi = sorted((s_ * 70, s_ * 90)); pad(LB, F0 + 15, F0 + 140, lo, hi, f"pad_lower_{nm}", "P spine pack")
-pad(LB, F0 + 145, F0 + 158, -60, 60, "pad_spine_lo", "P spine pack")
-pad(UB, F0 + 161, F0 + 200, -60, 60, "pad_spine_hi", "P spine pack")
 for b in (1, 2, 3):
     for h in ("front", "back"):
         piece(f"abdomen_{b}_{h}", f"A{b} abdomen band {b}", "band", thicken(grid(f"abdomen band {b} {h}"), x_axis=2.0))

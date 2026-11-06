@@ -59,9 +59,9 @@ All 24 prints fit inside 250 mm usable (256 mm bed less 3 mm a side). The talles
 | U1 upper front | 2 (L/R pec plates, sternum split) | 228 × 124 × 154 | Chest shield covers the sternum seam (to model) |
 | U2 upper back | 2 (spine split) | 180 × 157 × 246 | Frames the compute door |
 | U3 lower front | 2 | 140 × 107 × 167 | |
-| U4 lower back | 2 | 140 × 97 × 167 | Frames the power door |
+| U4 lower back | 2 | 140 × 97 × 167 | Frames the battery door |
 | D1 compute door | 1 | 121 × 120 × 3 | Pi 5, CAN HAT, shelf. Vent/fan variants |
-| D2 power door | 1 | 127 × 69 × 114 | PDB, harness trunk, USB/Ethernet/main switch cut-outs |
+| D2 battery door | 1 | 177 × 120 × 7 | Custom 13S2P pack slides out the back; spans the U2/U4 seam |
 | D3 shoulder hatches | 2 | 101 × 34 × 52 | Pitch RS03 connectors and harness entry |
 | V1 side vent grilles | 2 | 130 × 37 × 117 | Intake. Swappable cooling variants |
 | C shoulder collars | 4 halves | 114 × 57 × 2 | Split front/back so they come off with the arm fitted |
@@ -116,8 +116,9 @@ with the arms fitted, because the collar is split and the U1/U2 seam passes thro
 
 | Door | Opens to | Retention |
 | --- | --- | --- |
-| D1 compute door, upper back, 124 wide, torso Y 360 to 492 (top raised 12 mm for the fans) | Pi 5, CAN HAT, Jetson Orin Nano rear ports (Y 376–445), two 40 mm exhaust fans (Y 448–488), pitch RS03 rear faces | 2 hinge tabs at the bottom, 4 magnets at the top, optional M3 lock |
-| D2 power door, lower back | PDB, harness trunk, ports (USB-C, Ethernet, main switch) through cut-outs | Same |
+| D1 compute door, upper back, 120 wide, torso Y 374 to 492 (top raised 12 mm for the fans) | Pi 5, CAN HAT, Jetson Orin Nano rear ports (Y 376–445), two 40 mm exhaust fans (Y 448–488), pitch RS03 rear faces | 2 hinge tabs at the bottom, 4 magnets at the top, optional M3 lock |
+| D2 battery door, lower back, |X| ≤ 60, torso Y 175–352 | 13S2P 21700 pack (95 × 162 × 79 at |X| ≤ 47.5, Y 183–345), pulled ~90 mm straight back on printed tray rails; XT90S and fuse at its top rear corner | Bottom hinge on H4, magnets onto a spine rail on the H3 rear bracket (Y 355–372), M3 lock screw for runs |
+| Front power board (frame part) | Bus/BMS board in front of the pack, intake fan at Y 250–290 behind a U3 grille | Reached by removing U3 |
 | D3 shoulder hatches, top of each shoulder | Pitch RS03 connectors, harness entry to the arm | Magnets, lip under U2 |
 | V1 side grilles | Lower-box sides, side harness runs | M3 to H5 |
 | Abdomen bands | Waist yaw RS03 and its harness | Carrier clips or M3 |
@@ -127,7 +128,7 @@ The battery lives in the pelvis (`../../../docs/torso-design-handoff.md`), so it
 
 ## 6. Cooling (estimate)
 
-Heat in the chest: two pitch RS03s (assume 15 W each on average when holding), Pi 5 (~8 W), Jetson Orin Nano (7 to 25 W by power mode), PDB and converters (~5 W): **about 55 to 70 W**. Frame release 2477a12 adds two 40 mm exhaust fans behind D1 and one intake fan low at the front.
+Heat in the chest: two pitch RS03s (assume 15 W each on average when holding), Pi 5 (~8 W), Jetson Orin Nano (7 to 25 W by power mode), power board, BMS and converters (~5 to 10 W), pack (a few W at 40 A): **about 60 to 75 W**. Frame release 2477a12 adds two 40 mm exhaust fans behind D1 and one intake fan low at the front.
 
 Chimney flow from low intakes to high exhausts, 0.3 m apart, 15 K rise: draft speed about 0.33 m/s, so natural convection needs
 about **75 cm² net free area** at each end (about 150 cm² gross with a 50% open grille).
@@ -189,11 +190,11 @@ The back does not: **the shell needs a back crush pad (or hip guard) giving abou
 proud of the back, flanking D1 and D2 so the doors open between them, bolted through the shell to H2/H3/H4 rear on standoff posts so a
 fall loads the brackets, not the shell wall. About 258 g at 2 walls + ~10% gyroid (coupon C9 tunes it); EVA foam in a thin TPU
 skin is a ~60 g alternative. Extents in the torso frame: upper pads |X| 68–147, Y 368–481; lower pads |X| 64–116, Y 166–295 (inner edges 6 mm clear of the D1/D2 openings, frame gate review);
-spine bridges |X| < 63, Y 298–355; all Z −77 to −124. Styling comes in SolidWorks.
+the spine bridges are gone (the battery door now runs up to Y 352); all Z −77 to −124. Styling comes in SolidWorks.
 **Frame gate review (main 6ab5703):** pad standoffs need a metal load path, clamped through to the rail (aluminium standoff on an M5
 through the PETG bracket into the T-nut), not just the PETG bracket. The back needs **40 mm** of stop; the pads give 30, so either 40 mm
-pads or pad plus standoff crush. No back-fall survival claim until coupon C9 gives a force-travel curve. If Joey picks battery option D2
-(lumbar backpack) or D3 (packs end-on through the back), the pack housing replaces these pads as the rear crush element and they get redrawn. One-face
+pads or pad plus standoff crush. No back-fall survival claim until coupon C9 gives a force-travel curve. Battery locked 2026-11-06 06:13Z: custom 13S2P pack inside
+the rev A lower box (25 mm behind the frame rear face), so the pads stay as the rear crush element. D2 must not be a crush path into the pack. One-face
 loading is harsher than a real fall, but it is the sizing target.
 Hardpoints checked in CAD: H1, H2, H4, H5, C and H3 free. **H3 rear bracket stays below Y 374 (torso frame)**: the Pi sits above it and its
 rear ports need plug room in the gap behind D1. H6 needs a check on the robot (waist adapter not in CAD).

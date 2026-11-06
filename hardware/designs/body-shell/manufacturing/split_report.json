@@ -106,25 +106,25 @@
    "name": "door_compute",
    "unit": "D1 compute door",
    "kind": "door",
-   "note": "Pi 5, CAN HAT, shelf; vented or fan variants",
+   "note": "Pi 5, CAN HAT, Jetson ports, 2 exhaust fans; louvre/fan variants",
    "fits": true,
    "watertight": true,
    "extents_robot": [
-    2.7,
+    3.1,
     120.3,
-    120.6
+    117.8
    ],
    "print_xyz": [
-    120.6,
     120.3,
-    2.7
+    117.8,
+    3.1
    ],
-   "part_g": 42.7,
+   "part_g": 42.0,
    "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
     0.9,
-    1.6
+    1.5
    ]
   },
   {
@@ -278,28 +278,28 @@
    ]
   },
   {
-   "name": "door_power",
-   "unit": "D2 power door",
+   "name": "door_battery",
+   "unit": "D2 battery door",
    "kind": "door",
-   "note": "PDB, harness trunk, USB/Ethernet/switch ports",
+   "note": "13S2P pack slides out the back; PDB/ports moved to the front power board",
    "fits": true,
    "watertight": true,
    "extents_robot": [
-    5.3,
-    127.3,
-    129.5
+    6.6,
+    120.0,
+    177.1
    ],
    "print_xyz": [
-    127.3,
-    68.5,
-    113.6
+    177.1,
+    6.6,
+    120.0
    ],
-   "part_g": 43.8,
+   "part_g": 64.7,
    "support_g": 0.0,
    "outer_support_cm2": 0.0,
    "hours": [
-    1.0,
-    1.6
+    1.4,
+    2.4
    ]
   },
   {
@@ -553,56 +553,6 @@
    ]
   },
   {
-   "name": "pad_spine_lo",
-   "unit": "P spine pack",
-   "kind": "pad",
-   "note": "TPU 95A gyroid, 30 mm crush",
-   "fits": true,
-   "watertight": true,
-   "extents_robot": [
-    30.8,
-    112.2,
-    13.5
-   ],
-   "print_xyz": [
-    112.2,
-    30.8,
-    13.5
-   ],
-   "part_g": 13.6,
-   "support_g": 0.0,
-   "outer_support_cm2": 0.0,
-   "hours": [
-    0.7,
-    1.2
-   ]
-  },
-  {
-   "name": "pad_spine_hi",
-   "unit": "P spine pack",
-   "kind": "pad",
-   "note": "TPU 95A gyroid, 30 mm crush",
-   "fits": true,
-   "watertight": true,
-   "extents_robot": [
-    31.9,
-    126.6,
-    39.4
-   ],
-   "print_xyz": [
-    126.6,
-    31.9,
-    39.4
-   ],
-   "part_g": 42.6,
-   "support_g": 0.0,
-   "outer_support_cm2": 0.0,
-   "hours": [
-    2.3,
-    3.7
-   ]
-  },
-  {
    "name": "abdomen_1_front",
    "unit": "A1 abdomen band 1",
    "kind": "band",
@@ -756,8 +706,8 @@
  "total_part_g": 1228,
  "total_support_g": 24,
  "total_hours": [
-  45.7,
-  75.7
+  43.1,
+  71.5
  ],
- "spine_pack_g": 258
+ "spine_pack_g": 201
 }
