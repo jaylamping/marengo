@@ -8658,7 +8658,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "470nF"
+		(property "Value" "1uF"
 			(at 176.53 41.91 0)
 			(effects
 				(font
@@ -8744,7 +8744,7 @@
 		)
 		(uuid "b0b98d4e-b1b2-5795-8ccd-1041b8889657")
 	)
-	(text "BAT from the pack + terminal, so the AFE stays up if J2 is pulled\nwith pack power still connected. Fig 16-2: diode, 100R, 1uF, 100pF, 0.47uF CP1. Caps 100 V."
+	(text "BAT from the pack + terminal, so the AFE stays up if J2 is pulled\nwith pack power still connected. Fig 16-2: diode, 100R, 1uF, 100pF. CP1 is 1uF, not 0.47uF: see sheet bms_fets_precharge. Caps 100 V."
 		(exclude_from_sim no)
 		(at 129.54 22.86 0)
 		(effects
@@ -9286,8 +9286,8 @@
 	)
 	(wire
 		(pts
-			(xy 215.9 73.66)
-			(xy 223.52 73.66)
+			(xy 215.9 76.2)
+			(xy 223.52 76.2)
 		)
 		(stroke
 			(width 0)
@@ -9295,9 +9295,9 @@
 		)
 		(uuid "d4be9feb-6be5-5553-9180-6b025de005d0")
 	)
-	(hierarchical_label "PCHG"
+	(hierarchical_label "PDSG"
 		(shape output)
-		(at 223.52 73.66 0)
+		(at 223.52 76.2 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9307,7 +9307,7 @@
 		(uuid "fcdaf7a6-d726-5dfc-9d5f-239867a2150c")
 	)
 	(no_connect
-		(at 215.9 76.2)
+		(at 215.9 73.66)
 		(uuid "ffd90b25-1d87-550e-929d-6fccd67d5881")
 	)
 	(no_connect
@@ -10037,7 +10037,7 @@
 		)
 		(uuid "a0cd9ff4-1eac-5cd9-849b-37e820bd6315")
 	)
-	(hierarchical_label "PACK+"
+	(hierarchical_label "VSYS"
 		(shape passive)
 		(at 284.48 60.96 0)
 		(effects
@@ -10225,7 +10225,7 @@
 		)
 		(uuid "08c15f3e-722b-5c12-83f6-64e1ba0eac38")
 	)
-	(hierarchical_label "PACK+"
+	(hierarchical_label "VSYS"
 		(shape passive)
 		(at 284.48 71.12 0)
 		(effects
@@ -10236,7 +10236,7 @@
 		)
 		(uuid "c3c11bef-5909-5b3c-9ffc-02940439880b")
 	)
-	(text "PACK and LD both sense the common port after the FETs\n(Fig 16-3 R42-R45). PDSG, FUSE, DCHG, DDSG unused (p75)."
+	(text "PACK and LD both sense VSYS, the common port after the FETs\n(Fig 16-3 R42-R45). PCHG, FUSE, DCHG, DDSG unused, left floating (p75)."
 		(exclude_from_sim no)
 		(at 256.54 47 0)
 		(effects
@@ -11041,7 +11041,7 @@
 		)
 		(uuid "047c5a2f-b028-523c-9927-0f334d6c49b3")
 	)
-	(text "OPEN ON THIS SHEET\n1. PACK_PRESENT_N: loop pulled low through BAT- when J2 is mated. PLAN says it opens DSG directly; the logic joining it to DFETOFF is not captured here.\n2. External balance FETs (PLAN 3.1, 150 mA per cell) are not captured. They change the cell RC network: revisit 20R.\n3. CP1 0.47 uF is the datasheet value. Check against the gate charge of the 4+4 FET banks (p65 example: 2.2 uF for 400 nF of gate load).\n4. I2C pull-ups, ALERT pull-up and the DFETOFF/CFETOFF polarity go with the LP sheets and OTP settings.\n5. No footprints yet for J1, J3 (M4 terminal part not chosen) or RS1 (no 3921 4-terminal in the library). J2 footprint assumes Micro-Fit vertical."
+	(text "OPEN ON THIS SHEET\n1. PACK_PRESENT_N: loop pulled low through BAT- when J2 is mated. PLAN says it opens DSG directly; the logic joining it to DFETOFF is not captured here.\n2. External balance FETs (PLAN 3.1, 150 mA per cell) are not captured. They change the cell RC network: revisit 20R.\n3. CP1 raised to 1 uF for the 4+4 FET gate load (p65 rule): worst case 1.69 uC droops 11 V by 1.7 V, pump start about 130 ms.\n4. I2C pull-ups, ALERT pull-up and the DFETOFF/CFETOFF polarity go with the LP sheets and OTP settings.\n5. No footprints yet for J1, J3 (M4 terminal part not chosen) or RS1 (no 3921 4-terminal in the library). J2 footprint assumes Micro-Fit vertical."
 		(exclude_from_sim no)
 		(at 20.32 233.68 0)
 		(effects

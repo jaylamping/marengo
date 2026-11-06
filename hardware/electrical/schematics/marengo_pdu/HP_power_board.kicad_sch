@@ -44,9 +44,9 @@
 				(justify left top)
 			)
 		)
-		(pin "PACK+" passive
+		(pin "VSYS" passive
 			(at 88.9 40.64 0)
-			(uuid "2801e6d5-30e0-598f-b860-c4978fccd91d")
+			(uuid "a259c271-ebf8-5f87-8f19-b45b3b067205")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -84,9 +84,9 @@
 				(justify right)
 			)
 		)
-		(pin "PCHG" output
+		(pin "PDSG" output
 			(at 88.9 50.8 0)
-			(uuid "8b67cd07-29c4-5f1f-b00f-4f7793edaa85")
+			(uuid "4e53a02a-d8b7-5e37-8513-e2807c78ba36")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -212,71 +212,156 @@
 			)
 		)
 	)
-	(no_connect
-		(at 88.9 40.64)
+	(wire
+		(pts
+			(xy 88.9 40.64)
+			(xy 91.44 40.64)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
 		(uuid "6cb0148d-2f9a-5eda-957b-aea1768f29c1")
 	)
-	(no_connect
-		(at 88.9 43.18)
+	(label "VSYS"
+		(at 91.44 40.64 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
 		(uuid "3e65f9f1-e258-50fb-856b-3e20880914ae")
 	)
-	(no_connect
-		(at 88.9 45.72)
+	(wire
+		(pts
+			(xy 88.9 43.18)
+			(xy 91.44 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
 		(uuid "ee09d1e9-5311-53df-bfb8-3796ddb5d1da")
 	)
-	(no_connect
-		(at 88.9 48.26)
+	(label "PACK_TOP"
+		(at 91.44 43.18 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
 		(uuid "6daf89bd-031c-5434-b25b-32e6309347b5")
 	)
-	(no_connect
-		(at 88.9 50.8)
+	(wire
+		(pts
+			(xy 88.9 45.72)
+			(xy 91.44 45.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
 		(uuid "ba383aeb-15a2-5fd7-85b0-ccf35b92c6dd")
 	)
-	(no_connect
-		(at 88.9 53.34)
+	(label "CHG_GATE"
+		(at 91.44 45.72 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
 		(uuid "732ba0d4-a14e-5d0f-9c01-3189893a9a95")
 	)
-	(no_connect
-		(at 88.9 55.88)
+	(wire
+		(pts
+			(xy 88.9 48.26)
+			(xy 91.44 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
 		(uuid "b7754913-14aa-5ff8-b169-d8aaeed42944")
 	)
-	(no_connect
-		(at 88.9 58.42)
+	(label "DSG_GATE"
+		(at 91.44 48.26 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
 		(uuid "a2ec57a0-b5fb-5d9e-9fb4-533a56172853")
 	)
-	(no_connect
-		(at 88.9 60.96)
+	(wire
+		(pts
+			(xy 88.9 50.8)
+			(xy 91.44 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
 		(uuid "287e4dbd-0f49-58de-b515-9ddaf633cd2e")
 	)
-	(no_connect
-		(at 88.9 63.5)
+	(label "PDSG"
+		(at 91.44 50.8 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
 		(uuid "36b37813-93bd-5eaa-bacf-10c3faab27af")
 	)
 	(no_connect
-		(at 88.9 66.04)
+		(at 88.9 53.34)
 		(uuid "2af6810b-357b-5c42-b68a-ecf56c88f200")
 	)
 	(no_connect
-		(at 88.9 68.58)
+		(at 88.9 55.88)
 		(uuid "b3349517-4f7f-58dd-93e4-bfd9e7d7ae70")
 	)
 	(no_connect
-		(at 88.9 71.12)
+		(at 88.9 58.42)
 		(uuid "e67a7304-060e-5016-b776-8aef835f8dbc")
 	)
 	(no_connect
-		(at 88.9 73.66)
+		(at 88.9 60.96)
 		(uuid "a7f4e77d-bebc-5675-9415-b443e0411df2")
 	)
 	(no_connect
-		(at 88.9 76.2)
+		(at 88.9 63.5)
 		(uuid "42d23e48-088f-59f7-a6c0-2964a7b577f1")
 	)
 	(no_connect
-		(at 88.9 78.74)
+		(at 88.9 66.04)
 		(uuid "b42f6626-acf0-5ebc-98a8-e5f3a2fb15ac")
 	)
-	(text "Sheet pins carry no-connect flags until the FET, E-stop and LP sheets exist."
+	(no_connect
+		(at 88.9 68.58)
+		(uuid "16b9b468-64cb-5af3-8948-092f10af34c9")
+	)
+	(no_connect
+		(at 88.9 71.12)
+		(uuid "2d981533-9a64-5a3c-ab39-0b6f8f77b1b8")
+	)
+	(no_connect
+		(at 88.9 73.66)
+		(uuid "5ecfe633-166c-56e3-96df-5111739114b7")
+	)
+	(no_connect
+		(at 88.9 76.2)
+		(uuid "1b7e6f1d-e04e-5558-83c8-58a87cb09f7a")
+	)
+	(no_connect
+		(at 88.9 78.74)
+		(uuid "35322251-a77d-5e9e-b855-02fdff07ea0f")
+	)
+	(text "Sheet pins with a no-connect flag are not linked yet."
 		(exclude_from_sim no)
 		(at 38.1 27.94 0)
 		(effects
@@ -285,11 +370,11 @@
 			)
 			(justify left top)
 		)
-		(uuid "16b9b468-64cb-5af3-8948-092f10af34c9")
+		(uuid "4c199307-b24f-54be-b48e-d8ad2d85f5fe")
 	)
 	(sheet
 		(at 38.1 109.22)
-		(size 50.8 20.32)
+		(size 50.8 27.94)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -312,12 +397,102 @@
 			)
 		)
 		(property "Sheetfile" "bms_fets_precharge.kicad_sch"
-			(at 38.1 130.1246 0)
+			(at 38.1 137.7446 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left top)
+			)
+		)
+		(pin "PACK_TOP" passive
+			(at 88.9 111.76 0)
+			(uuid "a99edf8e-5a28-5087-a355-58aabae9d03c")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "VSYS" passive
+			(at 88.9 114.3 0)
+			(uuid "5f9b6fd5-70b3-5fac-b10a-5038c343f297")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "CHG_GATE" input
+			(at 88.9 116.84 0)
+			(uuid "2df28095-d685-58b2-b78e-606c02dd489e")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "DSG_GATE" input
+			(at 88.9 119.38 0)
+			(uuid "c32fe039-aecd-5ceb-b830-c64245fe82af")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "PDSG" input
+			(at 88.9 121.92 0)
+			(uuid "1a8336e4-b40b-5ba3-a6a9-e0689d26e8d8")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "CHARGER_PRESENT" output
+			(at 88.9 124.46 0)
+			(uuid "06422a5d-9d05-59f2-a108-366d2bea9039")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "I2C_HP_SDA" bidirectional
+			(at 88.9 127 0)
+			(uuid "cb553b2d-54ab-5ad3-8a72-6b52edb31c14")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "I2C_HP_SCL" input
+			(at 88.9 129.54 0)
+			(uuid "93dcdaba-577c-515f-8641-ff6dc9454838")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "+3V3_HP" passive
+			(at 88.9 132.08 0)
+			(uuid "66fccbc2-e511-59fc-8833-8e9ada3217e7")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
 			)
 		)
 		(instances
@@ -327,6 +502,127 @@
 				)
 			)
 		)
+	)
+	(wire
+		(pts
+			(xy 88.9 111.76)
+			(xy 91.44 111.76)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0f6070f4-42d5-54a5-af71-e24c1c7a9ce1")
+	)
+	(label "PACK_TOP"
+		(at 91.44 111.76 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "fb3a15d1-2490-5729-b749-77c0040eddf1")
+	)
+	(wire
+		(pts
+			(xy 88.9 114.3)
+			(xy 91.44 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "57c8108e-af95-5c65-b7d5-73c2b93338fe")
+	)
+	(label "VSYS"
+		(at 91.44 114.3 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "82a2bd33-f7b6-5f4b-b062-940c96acb525")
+	)
+	(wire
+		(pts
+			(xy 88.9 116.84)
+			(xy 91.44 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "68d551c4-7b1c-5da6-83e9-7f83151ce39b")
+	)
+	(label "CHG_GATE"
+		(at 91.44 116.84 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0fbf5277-8a8b-5264-9aaa-2fd455c31a4c")
+	)
+	(wire
+		(pts
+			(xy 88.9 119.38)
+			(xy 91.44 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c4847065-2bed-56a5-95cd-01a250627887")
+	)
+	(label "DSG_GATE"
+		(at 91.44 119.38 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f140f19d-3189-5ce4-bce5-dbbd01e9f415")
+	)
+	(wire
+		(pts
+			(xy 88.9 121.92)
+			(xy 91.44 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f97b90fb-e3e1-51e1-a3df-96409e59130c")
+	)
+	(label "PDSG"
+		(at 91.44 121.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5294fca0-3a8c-5ac6-b6d2-35fa088c975c")
+	)
+	(no_connect
+		(at 88.9 124.46)
+		(uuid "92a42abb-9c0b-58f9-965a-3d47231e972b")
+	)
+	(no_connect
+		(at 88.9 127)
+		(uuid "fa3e053c-3a3d-5f2a-8a48-e6dfe266ab60")
+	)
+	(no_connect
+		(at 88.9 129.54)
+		(uuid "7dbd019f-9d0f-54e7-a872-5cd29f0f24af")
+	)
+	(no_connect
+		(at 88.9 132.08)
+		(uuid "0f8c8df6-ffd2-5a69-bb56-d23b158c0f3f")
 	)
 	(sheet
 		(at 101.6 109.22)

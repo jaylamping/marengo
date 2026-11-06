@@ -59,7 +59,7 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 | Charge port | M4 terminals + pigtail to the shell charge port (XT60), reverse-polarity FET, presence divider | 1 | 4 A, CV 53.9 V; joins PACK+ after the BMS FETs (common port) |
 | Pack shunt (low side, for the AFE) | 0.25 mΩ 4-terminal, 5 W, 3921 size (Vishay WSLP3921 or Bourns CSS4J-4026 class) | 1 | 80 A → 20 mV, 1.6 W |
 | BMS CHG bank, DSG bank (back-to-back) | Infineon IPT015N10N5 (100 V, 1.5 mΩ, TOLL) | 4 + 4 | see 2.2 |
-| BMS precharge FET + resistor | small 100 V P-FET + 100 Ω 3 W | 1 | AFE PCHG pin, charges VSYS bulk before DSG closes |
+| BMS predischarge FET + resistor | small 100 V P-FET + 100 Ω 3 W | 1 | AFE PDSG pin (datasheet p45: PDSG charges the load, PCHG charges a low battery), charges VSYS bulk before DSG closes |
 | E-stop bank A, bank B | IPT015N10N5 | 3 + 3 | single direction, body diodes VMOT → VSYS (PLAN 3.4) |
 | E-stop gate drivers | TI TPS4810-Q1 class 100 V smart high-side driver, one per bank, enable from the loop | 2 | hardware path, short-circuit protection built in |
 | VMOT bulk | 8 × 220 µF 80 V polymer-hybrid, Ø10 × 12.5 mm, laid flat if needed | 8 | about 1.8 mF, under the 24 mm height |
