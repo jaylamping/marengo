@@ -230,6 +230,19 @@ marks on up to ~137 cm² of the socket wall; neck down 7 h 20 m, 36 g, marks at 
 (unexplained): print from the STL.
 **Decision (Joey, 2026-11-06 09:48Z): chest panels print sternum-down**, keeping the outer face clean and accepting ~11 h and ~106 g of support each.
 
+**All 8 chest panels built in SolidWorks (2026-11-06, renders in `pilot/`):** every one thickens clean at 2.4 mm (min wall 2.399 mm),
+0 non-manifold edges, no support on the outer face in the default (split face on the plate) orientation.
+
+| Panel | Mass | Box (mm) | Default slice | Support |
+| --- | --- | --- | --- | --- |
+| upper_front L/R | 170 g | 124 × 145 × 228 | 11 h 05 m | 106 g |
+| upper_back L/R (D2 notch, H2 at Y ±85) | 164 g | 98 × 146 × 228 | 11 h 30 m | 117 g |
+| lower_front L/R (2 grille cuts) | 94 g | 107 × 142 × 175 | 8 h 40 m | 85 g |
+| lower_back L/R (D2 cut, 1.6 × 6 return flange) | 77 g | 96 × 141 × 175 | 9 h 13 m | 97 g (tilted 45°: 5 h 20 m, 42 g, needs a finish test) |
+
+Panel set ≈ 1.01 kg and ~81 h of printing at the defaults. Screw caps: 22 per robot (Ø7.9 × 4.2, solid 2.35 mm roof) in Ø8.2 × 4.2
+counterbores over Ø12 inner pads. H5 bosses sit on the panel normal (37° front, 22° back): the brackets take the angle.
+
 ## 9. Open items
 
 **Arm-thread tip-over recheck (main 022da44):** with only 10 mm of stop the frame yields (side 400 MPa, back 584, limit 145). It holds
