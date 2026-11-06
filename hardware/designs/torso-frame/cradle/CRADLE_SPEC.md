@@ -20,9 +20,9 @@ the thumbscrew may reach at most **6 mm** past the side face (cells behind), so 
 One printed piece per side, PETG, a C-shape seen from the front:
 
 1. **Web**: plate |X| 47.5 to 51 (3.5 thick), Y 175 to 353.62, Z −50 to +37.5.
-2. **Bottom foot**: |X| 51 to 75, Y 175 to 179, Z −50 to +37.5, lying on the bottom side rail top face. 2 × M5 slots (5.5 × 10, long
+2. **Bottom foot**: |X| 51 to 75, Y 175 to 179, Z −44 to +37.5 (the rear bottom corner brackets sit on the post Z face at Z −50 to −46), lying on the bottom side rail top face. 2 × M5 slots (5.5 × 10, long
    along Z) at |X| 65, Z −30 and +20, into drop-in T-nuts.
-3. **Top foot**: |X| 51 to 75, Y 349.62 to 353.62, Z −50 to +37.5, under the shelf rail. 2 × M5 slots at |X| 65, Z −30 and +20.
+3. **Top foot**: |X| 51 to 75, Y 349.62 to 353.62, Z −44 to +37.5, under the shelf rail. 2 × M5 slots at |X| 65, Z −30 and +20.
 4. **Bottom ledge** (the pack rests on it): |X| 40 to 47.5, Y 179 to 183, Z −45 to +34.
 5. **Front lip**: |X| 42 to 47.5, Y 183 to 345, Z 34 to 37.5. Stops the pack moving forward.
 6. **Thumbscrew boss**: Ø16 boss on the web outer face at Y 252.6, Z −5, through hole for the thumbscrew; the boss length plus the
