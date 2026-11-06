@@ -23,7 +23,9 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
 
 ## 2. Topology
 
-**Trunk with drops** (Joey, 2026-11-05): one harness runs from the torso down the arm, inside it where the parts allow, with a short pigtail at each actuator. Connectors differ by motor (Joey, 2026-11-05): the RS02 has XT30(2+2) (power + CAN in one plug); the RS03 has a regular 2-pin XT30 for power and a separate GH1.25 2-pin connector for CAN (vendor manual, [../../docs/robstride/](../../docs/robstride/README.md)). Each motor has two ports; the harness uses one. No daisy-chaining through the motors' second ports.
+**Trunk with drops** (Joey, 2026-11-05): one harness runs from the torso down the arm, inside it where the parts allow, with a short pigtail at each actuator. Connectors differ by motor (Joey, 2026-11-05): the RS02 has XT30(2+2) (power + CAN in one plug); the RS03 has a regular 2-pin XT30 for power and a separate GH1.25 2-pin connector for CAN (vendor manual, [../../docs/robstride/](../../docs/robstride/README.md)). Each motor has two ports; downstream of the pitch motor the harness uses one per motor.
+
+**Torso pitch RS03 (2026-11-06):** the plan is one port per motor here too. The pitch motor's drop uses the port on its **top-rear flat** (closest to the cable path out to the arm); the **low-front** port is capped. Joey's current setup feeds the low-front port from the supply and runs the top-rear port to the arm (power passing through the drive); that is how it is wired today, not a requirement, and this harness replaces it. Plug room at the pitch flats is only 11 to 12 mm from flat to bracket: use a low-profile XT30UW-F or solder loose wires with heat-shrink, exit inboard, and check plug height plus 1 mm clearance (**to measure**). The frame design keeps both corner zones clear.
 
 ```
  24 V bench PSU (current-limited)            Pi 5 + Waveshare 2-CH CAN HAT can1
@@ -35,7 +37,7 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
                  drop ≤ 15 cm         drop ≤ 15 cm          drop ≤ 15 cm
                      │                    │                     │
             XT30-F + CAN plug     XT30-F + CAN plug       XT30(2+2)-F   [120 Ω] trunk end
-               M11 pitch RS03        M12 roll RS03         M13 upper yaw RS02
+      M11 pitch RS03 (top-rear port) M12 roll RS03       M13 upper yaw RS02
 ```
 
 - **Bus:** `can1`. `can0` keeps the right arm (ids 1 to 5) so the two arms never share one MCP2515 and its 2-frame receive buffer (repo, ADR 0001). `can1` is already wired to the HAT and unused (repo, pi-commissioning.md).
