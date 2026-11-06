@@ -8288,7 +8288,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, charger +"
+		(property "Value" "M4 terminal, charger +, 74651194R"
 			(at 25.4 215.9 0)
 			(effects
 				(font
@@ -8297,7 +8297,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "TerminalBlock_Wuerth:Wuerth_REDCUBE-THR_WP-THRSH_74651194_THR"
 			(at 38.1 213.36 0)
 			(effects
 				(font
@@ -8357,7 +8357,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, charger -"
+		(property "Value" "M4 terminal, charger -, 74651194R"
 			(at 25.4 241.3 0)
 			(effects
 				(font
@@ -8366,7 +8366,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "TerminalBlock_Wuerth:Wuerth_REDCUBE-THR_WP-THRSH_74651194_THR"
 			(at 38.1 238.76 0)
 			(effects
 				(font
