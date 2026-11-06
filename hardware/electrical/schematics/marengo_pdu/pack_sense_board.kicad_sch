@@ -2702,7 +2702,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 114.3 38.1 0)
 			(effects
 				(font
@@ -2816,7 +2816,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 143.51 38.1 0)
 			(effects
 				(font
@@ -2930,7 +2930,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 172.72 38.1 0)
 			(effects
 				(font
@@ -3044,7 +3044,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 201.93 38.1 0)
 			(effects
 				(font
@@ -3158,7 +3158,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 231.14 38.1 0)
 			(effects
 				(font
@@ -3272,7 +3272,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 260.35 38.1 0)
 			(effects
 				(font
@@ -3386,7 +3386,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 289.56 38.1 0)
 			(effects
 				(font
@@ -3500,7 +3500,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 114.3 68.58 0)
 			(effects
 				(font
@@ -3614,7 +3614,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 143.51 68.58 0)
 			(effects
 				(font
@@ -3728,7 +3728,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 172.72 68.58 0)
 			(effects
 				(font
@@ -3842,7 +3842,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 201.93 68.58 0)
 			(effects
 				(font
@@ -3956,7 +3956,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 231.14 68.58 0)
 			(effects
 				(font
@@ -4070,7 +4070,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 260.35 68.58 0)
 			(effects
 				(font
@@ -4184,7 +4184,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_2010_5025Metric"
+		(property "Footprint" "marengo:Fuse_2410"
 			(at 289.56 68.58 0)
 			(effects
 				(font
@@ -4613,7 +4613,7 @@
 		)
 		(uuid "d524beca-d4fe-5c6a-980f-e7c5aeba436b")
 	)
-	(text "Fuse at the cell, one per tap. Schurter USE 2410 1 A: 79 mOhm, 200 A at 86 VDC, tau under 0.05 ms, against 146 A prospective. Balance adds 24 mV of sense error at 150 mA across two taps.\nFootprint is a 2010 stand-in: the 6.1 x 2.5 mm 2410 land is owed in layout.\nPresence: pin 13 goes out through the cell tap plug (J2202 pins 1, 2 looped in the harness, beside B0, away from B13) and back on pin 3, so either plug out opens DSG and CHG. B0 and B13 are their own Kelvin tabs: no pack current in a sense wire. NTC_RET returns on pin 3 to VSS, no cell connection."
+	(text "Fuse at the cell, one per tap. Schurter USE 2410 1 A: 79 mOhm, 200 A at 86 VDC, tau under 0.05 ms, against 146 A prospective. Balance adds 24 mV of sense error at 150 mA across two taps.\nFootprint is the Schurter land: 2.5 x 2.8 mm pads, 3.0 mm gap (data sheet p.2).\nPresence: pin 13 goes out through the cell tap plug (J2202 pins 1, 2 looped in the harness, beside B0, away from B13) and back on pin 3, so either plug out opens DSG and CHG. B0 and B13 are their own Kelvin tabs: no pack current in a sense wire. NTC_RET returns on pin 3 to VSS, no cell connection."
 		(exclude_from_sim no)
 		(at 25.4 152.4 0)
 		(effects

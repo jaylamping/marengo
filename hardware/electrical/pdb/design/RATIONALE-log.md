@@ -344,7 +344,7 @@ The old 0402 took 24.8 W at the same fault. The SMAJ58CA stays off at 54.6 V and
 | B1 | U302 EN and INP2 on ESTOP_EN_B, INP1 on BANK_B_CLOSE with 100 kΩ down. Text and check.py corrected |
 | B2 | D220 V10PM15-M3/I, 3-pin symbol, TO-277A. Vishay doc 87432: pads 1, 2 anode, tab cathode. Reversed charger 109 V is under 150 V. TVS surge plus reversal is a double fault |
 | B3 | Custom PWR263S symbol: terminals on pads 1, 3, tab pad 2 no-connect. Bourns PWR263S-35: "electrically isolated from the backplate", 5.08 mm pitch. R209, precharge, mini clamp, termination. Pulse chart about 10 J at 100 ms against 2.68 J and 2.2 J. 35 W at 25 °C case; 3.5 W at ambient on a small FR4 test board, so copper matters: tab pad on GND (isolated part) |
-| B4 | F2201 to F2214: Schurter 3-148-693 USE 2410, 1 A, 200 A at 86 VDC (τ under 0.05 ms), 79 mΩ, against 146 A prospective. Balance error 24 mV at 150 mA. Footprint is a 2010 stand-in; the 2410 land is owed before layout |
+| B4 | F2201 to F2214: Schurter 3-148-693 USE 2410, 1 A, 200 A at 86 VDC (τ under 0.05 ms), 79 mΩ, against 146 A prospective. Balance error 24 mV at 150 mA. Footprint marengo:Fuse_2410 from Schurter data sheet 21.07.2026 p.2: 2.50 x 2.80 mm pads, 3.00 mm gap |
 
 ### Majors
 

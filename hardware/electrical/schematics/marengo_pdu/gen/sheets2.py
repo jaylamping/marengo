@@ -358,10 +358,10 @@ def packsense():
     nic(s,'Connector_Generic:Conn_02x10_Top_Bottom','J2201','Micro-Fit 2x10',(63.5,63.5),'Connector_Molex:Molex_Micro-Fit_3.0_43045-2000_2x10_P3.00mm_Horizontal',{str(k):v for k,v in PIN.items()})
     conn(s,16,'cell taps B0..B13, presence loop',(355.6,76.2),'Connector_PinSocket_2.54mm:PinSocket_1x16_P2.54mm_Vertical',['PRES','NTC_RET']+[f'B{i}' for i in range(14)])
     g=Grid(s,114.3,38.1,29.21,30.48,295)
-    for i in range(14): g.Fu('1A 3-148-693 USE 2410',f'B{i}',f'B{i}_F','Fuse:Fuse_2010_5025Metric')
+    for i in range(14): g.Fu('1A 3-148-693 USE 2410',f'B{i}',f'B{i}_F','marengo:Fuse_2410')
     g.nl(101.6)
     for k in (1,2,3): g.RT('10k 103AT, on leads',f'NTC{k}','NTC_RET','marengo:Wire_Pads_2_NTC')
-    s.text('Fuse at the cell, one per tap. Schurter USE 2410 1 A: 79 mOhm, 200 A at 86 VDC, tau under 0.05 ms, against 146 A prospective. Balance adds 24 mV of sense error at 150 mA across two taps.\nFootprint is a 2010 stand-in: the 6.1 x 2.5 mm 2410 land is owed in layout.\nPresence: pin 13 goes out through the cell tap plug (J2202 pins 1, 2 looped in the harness, beside B0, away from B13) and back on pin 3, so either plug out opens DSG and CHG. B0 and B13 are their own Kelvin tabs: no pack current in a sense wire. NTC_RET returns on pin 3 to VSS, no cell connection.',(25.4,152.4),size=1.5)
+    s.text('Fuse at the cell, one per tap. Schurter USE 2410 1 A: 79 mOhm, 200 A at 86 VDC, tau under 0.05 ms, against 146 A prospective. Balance adds 24 mV of sense error at 150 mA across two taps.\nFootprint is the Schurter land: 2.5 x 2.8 mm pads, 3.0 mm gap (data sheet p.2).\nPresence: pin 13 goes out through the cell tap plug (J2202 pins 1, 2 looped in the harness, beside B0, away from B13) and back on pin 3, so either plug out opens DSG and CHG. B0 and B13 are their own Kelvin tabs: no pack current in a sense wire. NTC_RET returns on pin 3 to VSS, no cell connection.',(25.4,152.4),size=1.5)
     return s
 # ---------- board tops ----------
 CONN_A=['VSYS']*6+['GND']*3+['ESTOP_EN_A','ESTOP_EN_B','GND','TS2_WAKE','BANK_B_CLOSE']+[f'PORT_EN{k}' for k in range(1,7)]+['I2C_AFE_SDA','I2C_AFE_SCL','AFE_ALERT','AFE_DFETOFF_SUP','AFE_RST_SHUT','I2C_HP_SDA','I2C_HP_SCL','+3V3_HP','CLAMP_STATUS','CHARGER_PRESENT']

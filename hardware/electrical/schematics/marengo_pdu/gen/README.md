@@ -15,7 +15,7 @@ Regenerate and check, from `hardware/electrical/schematics/marengo_pdu`:
 tools/regen.sh
 ```
 
-That runs `gen/gen.py`, ERC, `tools/check.py` (netlist checks and pad audit) and `tools/wirescan.py` (wires that tie two labels). Pass a directory to write somewhere else, which is how to compare against the committed sheets. Pass: ERC 0 errors, `FAILS 0`, and no wirescan lines. Read the ERC warnings too; a `multiple_net_names` warning can be a real short.
+That runs `gen/gen.py`, ERC (0 errors, 0 warnings in this folder; a scratch output directory has no `.kicad_pro`, so it uses default rules and shows warnings), `tools/check.py` (netlist checks and pad audit) and `tools/wirescan.py` (wires that tie two labels). Pass a directory to write somewhere else, which is how to compare against the committed sheets. Pass: ERC 0 errors, `FAILS 0`, and no wirescan lines. Read the ERC warnings too; a `multiple_net_names` warning can be a real short.
 
 Footprints are regenerated on their own:
 

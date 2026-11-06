@@ -254,4 +254,17 @@ f.rect(-1.38, -1.38, 3.92, 1.38, "F.SilkS", 0.12)
 f.tri(0, -1.5, half=0.2, h=0.26)
 f.crtyd(-1.75, -2.0, 4.3, 1.75)
 f.write()
+# ---- 6. Schurter USE 2410 fuse --------------------------------------------
+f = FP("Fuse_2410",
+       "Schurter USE 2410 fuse. Soldering pads 2.50 x 2.80 mm, 3.00 mm gap; body 6.1 x 2.5 x 2.2 mm. Schurter USE 2410 data sheet, 21.07.2026, p.2.",
+       "fuse Schurter USE 2410 6125 SMD", "smd", -2.6, 2.6)
+f.fab_y, f.fab_size = 0, 0.5
+PW, PH, PGAP = 2.5, 2.8, 3.0           # datasheet soldering pads
+BL, BW = 6.1, 2.5                      # datasheet body
+f.rc(1, -(PGAP + PW) / 2, 0, PW, PH)
+f.rc(2,  (PGAP + PW) / 2, 0, PW, PH)
+f.rect(-BL / 2, -BW / 2, BL / 2, BW / 2, "F.Fab", 0.1)
+f.silk((-1.2, -1.36), (1.2, -1.36)); f.silk((-1.2, 1.36), (1.2, 1.36))
+f.crtyd(-4.25, -1.65, 4.25, 1.65)      # 0.25 past the land
+f.write()
 print("ok")

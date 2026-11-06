@@ -1,4 +1,5 @@
 import sys,subprocess
+import os
 sys.path.insert(0,sys.argv[1]); from sx import *
 N=parse(open(sys.argv[2]).read())
 nets={}; pinnet={}
@@ -245,5 +246,13 @@ for r,c in comp.items():
     pins={p for (a,p) in pinnet if a==r and p not in ('MP','SH')}
     ok(pd<=pins,f'audit {r} {val(r)}: footprint pads without a symbol pin {sorted(pd-pins)[:8]} ({fp})')
     ok(pins<=pd,f'audit {r} {val(r)}: symbol pins without a pad {sorted(pins-pd)[:8]} ({fp})')
+# USE 2410 land, Schurter datasheet p.2: pads 2.50 x 2.80, gap 3.00
+use=[r for r in comp if 'USE 2410' in val(r)]
+ok(len(use)==14,f'USE 2410 count {len(use)}')
+for r in use:
+    fp=get(comp[r],'footprint'); ok(fp and str(fp[1])=='marengo:Fuse_2410',f'{r} not on marengo:Fuse_2410')
+if MY:
+    land=sorted((float(x),float(w),float(h)) for x,w,h in re.findall(r'\(pad "[12]" smd rect\s+\(at (\S+) 0\)\s+\(size (\S+) (\S+)\)',open(MY+'/Fuse_2410.kicad_mod').read())) if os.path.exists(MY+'/Fuse_2410.kicad_mod') else []
+    ok(land==[(-2.75,2.5,2.8),(2.75,2.5,2.8)],f'Fuse_2410 land {land}')
 print('audited',aud,'parts')
 print(sorted(nets)[:60]); print('FAILS',len(fail))
