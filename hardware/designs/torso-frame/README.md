@@ -91,7 +91,7 @@ What the BOM (`hardware/bom/master-bom.csv`) says Joey bought against what rev A
 
 | Item | Bought (BOM) | Needed for rev A | Buy |
 | --- | --- | --- | --- |
-| 2020 extrusion, 500 mm sticks | 2 × 4-pack = 4000 mm; 2400 mm cut for the built frame | 1024 mm new (2 × 226, 2 × 186, 2 × 100) | Depends on the inventory (the as-built list has 2200 mm and no shelf rails; this spec assumed 2400 mm). Buy the pack either way; the two spare 110 rails can become the two 100 shelf rails, which drops the new stock to 824 mm: **1 more 4-pack (`B08Y8KCJW4`)** |
+| 2020 extrusion | the built frame + **an entire spare frame** (Joey 16:44Z) | 1024 mm new (2 × 226, 2 × 186, 2 × 100) | **buy none**: cut the spare frame's four 340 posts into 2 × (226 + 114) and 2 × (186 + 154); trim the two 114s to the 100 shelf rails (square ends: the shelf-level rail ends get tapped). The spare's brackets, T-nuts and screws also count against the lines below |
 | 2028 corner brackets | kit of 30, 16 used | 16 | the built box's 16: **buy none** (14 spare) |
 | 2020 corner brackets, 20 mm legs | none | 4 | **1 pack of 10** (any 2020-series inside corner bracket, 20 × 20) |
 | M5 tap (spiral point or plug) + tap handle, M5 × 35 socket head | none | 1 tap, 8 screws | **1 M5 × 0.8 tap and a 25-pack of M5 × 35 SHCS** for the 8 end-tapped joints (the 2020 core hole is already the 4.2 mm tap drill) |
