@@ -28,23 +28,39 @@ def xz_prism(pts, half=150):
     return extrude(make_face(Plane.XZ * Polyline(*pts, close=True)), amount=half, both=True)
 
 
-def cranium(W, D, n, z0, zc, top, grow=0.0):
+def cranium(W, D, n, z0, zc, top, grow=0.0, m=2.0):
     W, D, Hd = W + grow, D + grow, top - zc + grow
     S = [sec(zc, W, D, n)]
-    for t in range(12, 90, 12):
-        r = math.cos(math.radians(t)); S.append(sec(zc + Hd * math.sin(math.radians(t)), W * r, D * r, n))
-    return extrude(sec(z0, W, D, n), amount=zc - z0) + loft(S + [Vertex(0, 0, zc + Hd)])  # straight walls + dome
+    if m == 2.0:
+        for t in range(12, 90, 12):
+            r = math.cos(math.radians(t)); S.append(sec(zc + Hd * math.sin(math.radians(t)), W * r, D * r, n))
+        dome = loft(S + [Vertex(0, 0, zc + Hd)])
+    else:  # flatter crown: r = (1 - f^m)^(1/m), closed by a small flat top
+        for f in (0.2, 0.4, 0.55, 0.7, 0.8, 0.88, 0.94, 0.98, 1.0):
+            r = max(0.18, (1 - f ** m) ** (1 / m)); S.append(sec(zc + Hd * f, W * r, D * r, n))
+        dome = loft(S)
+    return extrude(sec(z0, W, D, n), amount=zc - z0) + dome  # straight walls + dome
+
+
+def dome_path(D, Hd, zc, m, N=400):
+    """Centre-line (y=0) front profile over the dome: list of (x, z) from the front wall top to the back."""
+    pts = []
+    for i in range(N + 1):
+        a = math.pi * i / N  # 0 = front, pi = back
+        c, s_ = math.cos(a), math.sin(a)
+        pts.append((D * math.copysign(abs(c) ** (2 / m), c), zc + Hd * abs(s_) ** (2 / m)))
+    return pts
 
 
 def build(v):
     p = dict(W=64, D=66, n=3.4, top=212, zc=150, eye_z=146, eye_y=30, eye_ro=21, eye_r=14.5, eye_dep=6,
              jaw_top=93, jaw_bot=30, jaw_t=4, jaw_gap=1.5, jaw_ledge=3, chin_back=12, jaw_taper=5,
              hinge_r=14, hinge_back=0.52, chin_drop=0, chin_fwd=6, chin_flat=0.35, chin_chamfer=0, crest_tip=99, crest_h=13, crest_b=16, crest_end=100,
-             ear_z=150, ear_x=-4)
+             ear_z=150, ear_x=-4, dome_m=2.0, jaw_facet=0, collar_r=58)
     p.update(v)
     W, D, n, top, zc = p['W'], p['D'], p['n'], p['top'], p['zc']
     jt, jb, t, gap = p['jaw_top'], p['jaw_bot'], p['jaw_t'], p['jaw_gap']
-    head = cranium(W, D, n, jt - 5, zc, top)  # face ends just under the jaw ledge; dark core below
+    head = cranium(W, D, n, jt - 5, zc, top, m=p['dome_m'])  # face ends just under the jaw ledge; dark core below
     hr_ = p['hinge_r']; hx_ = -D * p['hinge_back'] + hr_
     head = head + (extrude(sec(jb + 6, W, D, n), amount=jt - jb - 5) & Box(300, 300, 300, align=(Align.MAX, Align.CENTER, Align.CENTER)).move(Location((hx_ - hr_ - 1.5, 0, 100))))  # back skirt behind the jaw hinge
     core = extrude(sec(jb + 3, W - 12, D - 24, n, x0=-8), amount=jt - jb - 3)  # dark inner face / neck housing seen under and behind the jaw
@@ -62,17 +78,20 @@ def build(v):
     head = head - sockets
     # crest: trapezoid sections lofted along the centre line, point just above the jaw, spike at the crown
     Hd = top - zc
-    def cl(u):  # centre-line point, outward normal, tangent; u in [0,1] from tip up and over to the back end
-        z_tip = p['crest_tip']; a_end = math.radians(p['crest_end'])
-        L1 = zc - z_tip; L2 = Hd * a_end
+    path = dome_path(D, Hd, zc, p['dome_m'])
+    a_end = math.radians(p['crest_end']); path = path[:int(len(path) * a_end / math.pi) + 1]
+    seg = [((path[i + 1][0] - path[i][0]) ** 2 + (path[i + 1][1] - path[i][1]) ** 2) ** 0.5 for i in range(len(path) - 1)]
+    L1 = zc - p['crest_tip']; L2 = sum(seg)
+    def cl(u):  # centre-line point, outward normal, tangent; u in [0,1] from the tip up and over the crown
         s_ = u * (L1 + L2)
         if s_ <= L1:
-            return Vector(D, 0, z_tip + s_), Vector(1, 0, 0), Vector(0, 0, 1)
-        a = (s_ - L1) / Hd  # angle over the dome (approx: elliptic arc treated as circular)
-        pt = Vector(D * math.cos(a), 0, zc + Hd * math.sin(a))
-        nrm = Vector(math.cos(a) / D, 0, math.sin(a) / Hd).normalized()
-        tan = Vector(-D * math.sin(a), 0, Hd * math.cos(a)).normalized()
-        return pt, nrm, tan
+            return Vector(D, 0, p['crest_tip'] + s_), Vector(1, 0, 0), Vector(0, 0, 1)
+        s_ -= L1; i = 0
+        while i < len(seg) - 1 and s_ > seg[i]:
+            s_ -= seg[i]; i += 1
+        (x0, z0_), (x1, z1) = path[i], path[i + 1]; f = min(1.0, s_ / max(seg[i], 1e-9))
+        tan = Vector(x1 - x0, 0, z1 - z0_).normalized()
+        return Vector(x0 + (x1 - x0) * f, 0, z0_ + (z1 - z0_) * f), Vector(tan.Z, 0, -tan.X), tan
     secs = []
     U = [0, 0.03, 0.08, 0.16, 0.26, 0.38, 0.5, 0.6, 0.68, 0.76, 0.84, 0.91, 0.96, 1.0]
     for u in U:
@@ -94,6 +113,10 @@ def build(v):
         f = (jt - z) / (jt - jbf)
         fwd = p['jaw_ledge'] * (1 - f) + (p['chin_fwd'] if p['chin_drop'] else -p['chin_back']) * f
         tw = p['jaw_taper'] * f
+        if p['jaw_facet']:  # flat front, flat sides, angled corner facets (plan view)
+            hw, hd, c = W + off - tw, D + off - tw, p['jaw_facet']
+            pts = [(fwd + hd, -hw + c), (fwd + hd, hw - c), (fwd + hd - c, hw), (-hd, hw), (-hd, -hw), (fwd + hd - c, -hw)]
+            return make_face(Polyline(*[(x_, y_, z) for x_, y_ in pts], close=True))
         return sec(z, W + off - tw, D + off - tw, n, x0=fwd)
     outer = loft([jsec(jbf, gap + t), jsec(jt, gap + t)])
     inner = loft([jsec(jbf - 0.01, gap), jsec(jt + 0.01, gap)])
@@ -119,14 +142,16 @@ def build(v):
         ye = se_x(p['ear_x'], D, W, n)  # ear block at the top of the eyes: a base plate and a narrower stepped tab
         ears += Box(14, 8, 26).move(Location((p['ear_x'], s * (ye + 2), p['ear_z'])))
         ears += Box(8, 7, 16).move(Location((p['ear_x'], s * (ye + 7), p['ear_z'] + 2)))
-    collar = Cylinder(58, 7, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, 4))) + Cylinder(48, 10, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, 11)))
+    collar = Cylinder(p['collar_r'], 7, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, 4))) + Cylinder(p['collar_r'] - 10, 10, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, 11)))
     neck = Cylinder(36, 40, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, -20)))
     return dict(core=core, head=head, crest=crest, bezel=bez, glow=glow, jaw=jaw, ears=ears, collar=collar, neck=neck)
 
 
 MATS = dict(core='dark', head='white', crest='grey2', bezel='dark', glow='eye', jaw='grey1', ears='white', collar='white', neck='dark')
 VARIANTS = {'G1': dict(), 'G2': dict(chin_drop=34, chin_fwd=16, chin_chamfer=12, jaw_taper=6, chin_flat=0.5),  # G2 rejected: jaw got bigger
-            'G3': dict(jaw_top=68, crest_tip=74, hinge_r=11, chin_drop=6, chin_fwd=7, chin_chamfer=5, jaw_taper=5, chin_flat=0.45)}  # G3: smaller jaw, top ~25 mm lower, small chin (Joey 11:42Z)
+            'G3': dict(jaw_top=68, crest_tip=74, hinge_r=11, chin_drop=6, chin_fwd=7, chin_chamfer=5, jaw_taper=5, chin_flat=0.45),
+            'G4': dict(W=64, D=64, top=180, zc=144, dome_m=2.6, eye_z=114, eye_y=34, eye_ro=21, eye_r=15, jaw_bot=26, jaw_top=70, crest_tip=76, crest_end=95,
+                       hinge_r=10, chin_drop=3, chin_fwd=3, chin_chamfer=5, jaw_taper=3, chin_flat=0.45, jaw_facet=16, jaw_ledge=3, ear_z=124, ear_x=-2, collar_r=74)}  # G3: smaller jaw, top ~25 mm lower, small chin (Joey 11:42Z)
 
 if __name__ == '__main__':
     for nm in (sys.argv[1:] or list(VARIANTS)):
