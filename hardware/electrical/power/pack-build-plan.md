@@ -132,11 +132,11 @@ warm the pack. That is what the two NTCs are for. The measured number replaces t
 | Cell over-voltage trip | 4.22 to 4.25 V, about 1 s delay (so braking into a full pack doesn't trip) | AFE |
 | Cell under-voltage, soft | 3.0 V: the host warns, then disarms the motors | supervisor |
 | Cell under-voltage, hard | 2.8 V trip (datasheet floor is 2.5 V) | AFE |
-| Discharge over-current | 60 A (matches the fuse) | AFE |
+| Discharge over-current | 60 A for 1 s (AFE OCD3), plus a 64 A hardware comparator (board thread, main d9a7339) | AFE |
 | Short circuit | about 150 A in 200 µs (board thread checks FET SOA) | AFE |
 | Over-temperature | 60 °C discharge cutoff; charge allowed only 0 to 45 °C (P50B is rated −20 to 60 °C; we stay conservative) | AFE |
 | Balancing | passive, about 150 mA, during charge above 3.9 V, cells more than 15 mV apart | AFE |
-| Regen charging (Joey wants regen back into the cells, agreed 2026-11-06) | through the BMS FETs, counted as charge. Charge OC trip 50 A with about 1 s delay (P50B max charge 25 A per cell). Host caps braking at 30 A from 0 to 95% charge, and at 5 A above 95% or below 5 °C. Clamp energy logged | AFE + host |
+| Regen charging (Joey wants regen back into the cells, agreed 2026-11-06) | through the BMS FETs, counted as charge. Charge OC trip 48 A at 425 ms (12 mV on the 0.25 mΩ shunt; the BQ76952's longest delay; board thread, main d9a7339). P50B max charge is 25 A per cell. Host caps braking at 30 A from 0 to 95% charge, and at 5 A above 95% or below 5 °C. Clamp energy logged | AFE + host |
 | Regen backstop | clamp at 57.5 V (4.42 V per cell) into the brake resistor | power board |
 
 The board thread notes that 20 A of braking raises a full pack's terminal voltage to about 4.30 V per cell, which is why the
@@ -295,8 +295,8 @@ A small PCB (about 40 × 25 mm, estimate) sitting in the two spare grid position
 - 3 NTC inputs, plus the 2-pin connector-present loop.
 - One **Molex Micro-Fit 3.0, 2 × 10 right-angle header** (agreed with the board thread, which builds the board in its PCB order).
 - Conformal coat, Kapton over the back.
-- Tap order on the header must keep adjacent pins one cell apart (never B0 next to B13), so that a bent pin shorts at most
-  4.2 V through a fuse.
+- Tap order on the 2 × 10 header is a **zigzag**: adjacent pins across a column are one cell apart (4.2 V), and pins along
+  a row are two cells apart (8.4 V). Never put B0 next to B13. A bent pin then shorts at most 8.4 V, and always through a tap fuse.
 
 The power board thread designs it into the same PCB order; this thread owns its placement in the pack.
 
