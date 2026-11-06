@@ -68,7 +68,7 @@ Everything here is meant to be possible at home.
 | Carrier | PETG | Real part after the CAD fixes |
 | Fork sector | PETG | Fork cut across the tube near Y 118, keeping both cheeks, gussets, stub and finger, with a solid crown and a socket for the lever. Printed with the outboard cheek down |
 | Dummy housing | PETG, printed, over-built | RS02 stator stand-in: 6 M3 at r 36.5 on the real Ø73 circle, using the same hole clock as the hoop, with sleeves and steel ring as designed, into captive nuts |
-| Dummy output | PETG, printed | 6 M4 on Ø24 into captive nuts and three Ø4 steel dowels. An M8 hex head sits in a pocket in the back, so torque can enter here. Stack in `../prints/test-pass-1/PRINT_ORDER.md` |
+| Dummy output | PETG, printed | 6 M4 on Ø24 into captive nuts that slide in from the rim, and three Ø4 steel dowels. An M8 hex head sits in a pocket behind the nuts, so torque can enter here. Stack in `../prints/test-pass-1/PRINT_ORDER.md` |
 | Real parts | | One 6808, the planned M3 and M4 screws, sleeves, washers and rings |
 
 Use the real screw types and lengths from the fixed design. Torque values come from CAD work, and are recorded for each joint.
@@ -129,6 +129,14 @@ Assemble the full order on the dummy parts with real tools.
 **Pass:** every screw can be driven and torqued in the documented order, and the joint can be taken apart again. Record the running gap at the cheek, which needs to stay clear through 0 to 124 degrees by hand, and check the contact patch at both stops with marking compound.
 
 ### Test 5: static stop
+
+**Two ways of loading.** The torque wrench is the main case for this test, because it puts torque in at the output the way the RS02 does. It loads the M4 and dowel joint, the outboard cheek and the crown, as well as the stop. The lever only loads the stub and finger, so use it for the external load, drop and side tests.
+
+- **Torque wrench:** 13 mm deep socket on both locked M8 nuts together, through the Ø30 stub bore from the inboard side. With the flats lined up, neither nut can turn against the other, so this works for both stops. Set them up as in the M8 stack in `../prints/test-pass-1/PRINT_ORDER.md`. Apply 17 N·m against each stop. **Check the paint line after every step.** If it has moved, that run doesn't count: relock the nuts and repeat.
+- **If the nuts won't hold:** use the wrench in the tightening direction only, and re-mount the fixture for the other stop.
+- **Wrench limit: 25 N·m.** Above that the class 10.9 bolt gets close to yield in torsion. Past 25 N·m use the lever, and note that the failure then loads only the stub and finger.
+- **Lever:** as below.
+
 
 Set the sector against the 0 degree stop, then the 124 degree stop (the mechanical travel is 123.4 to 124 degrees). Mount the dummy housing to a rigid vertical board so the elbow axis is horizontal, otherwise a hanging weight gives no elbow torque. Re-mount the board, or correct by the cosine of the lever angle, to load the far stop.
 

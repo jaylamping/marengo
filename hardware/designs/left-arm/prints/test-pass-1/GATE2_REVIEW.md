@@ -67,3 +67,26 @@
 4. Flip the carrier test article.
 5. Force a brim on every plate and re-slice.
 6. Ask the two reviewers to recheck the changed files only.
+
+## Recheck R2, 2026-11-06
+
+Opus about 15 minutes and Fable about 10 minutes, on the changed files only.
+
+| Plate | Verdict at R2 |
+| --- | --- |
+| 1 to 4, and the housing | GO |
+| Dummy output | GO with changes |
+| Fork sector | NO-GO until the slit is filled |
+
+What changed after R2:
+
+- **Fork sector, slit:** a 1.0 mm slit at Y 141 to 142 between the tube and the crown. Fill extended to Y 142.6.
+- **Fork, cheek slots:** a gap of up to 2 mm where the transition top meets the yoke, in both cheeks. It came from the live fork, so the same gap was in the real part. New feature `CHEEK_ROOT` in `marengo_forearm_left.SLDPRT` follows the transition outline from Y 149.9 to Y 152.6. Live part and exports updated, and the sector rebuilt from it.
+- **Fork sector, crown:** the transition cavity is now suppressed in the build script as well, so the sector rebuilds the same way.
+- **Dummy output, wall:** only 1.2 mm between the M8 head pocket and the M4 nut pockets. The disc is now 13.19 mm thick. The nuts slide in from the rim at X 189.7 to 193, and the head sits behind them at X 184 to 189.4, with 9.8 mm of wall round the corners. Dowel holes are 4.2 mm deep, to match the 4 mm in the fork. M4 holes go through, so the M4 × 16 tips have room.
+- **M8:** with the head moved 6 mm toward the housing, M8 × 55 now gives the thread length that M8 × 65 would have. Spacer 4.0 mm. Class 10.9, because 17 N·m is 320 MPa in shear at the thread root, and class 8.8 yields at about 370 MPa.
+- **Nuts:** no cross-pin, because a Ø3 hole through the thread would leave the bolt too weak at 17 N·m. Instead thread-locker, 30 N·m between the nuts, a socket on both nuts and a paint line, with tightening direction only as the fallback. Wrench limited to 25 N·m.
+- **Notes:** added cleaning of the strength carrier ledge, pockets and stop walls, scraping the carrier lip, drilling the fork dowel holes, sanding the stub cheek face and Ø32 seat floor before the feeler check, and retorquing the leg bolts.
+
+Plates 5 and 7 are re-sliced. The other five are unchanged. The fork strength numbers are still open, see the forearm notes.
+
