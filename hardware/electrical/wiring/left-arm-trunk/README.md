@@ -63,6 +63,7 @@ Fuse values are provisional until the board's limb meter gives measured current.
 
 - Drop splice: strip a window in each trunk conductor, wrap the drop conductor, solder, heat-shrink each, then an overall shrink. Stagger the four splices ~10 mm apart so the lump stays thin (~6 mm across).
 - Termination: 120 Ω ¼ W across CAN_H and CAN_L at the M15 splice, heat-shrunk; the other end is the board's switchable 120 Ω. Powered off with everything plugged in, CAN_H to CAN_L should read ~60 Ω.
+- **Accepted risk (pending Joey's sign-off): bus voltage onto CAN at the arm.** If a crushed or miswired trunk puts VBUS (up to 54.6 V) onto CAN_H or CAN_L, the only protection on the arm side is each drive's own CAN transceiver, and RobStride does not publish its fault rating. A cheap splice clamp cannot help: a 24 V-class CAN TVS dies at 54 V, and a 58 V-class one clamps above the bus anyway. Mitigations: CAN pair in its own sleeve inside the trunk, keyed and latching connectors only, plug and unplug with the E-stop open, abrasion protection at every edge and joint, and the continuity/short check before every first power-up after rework.
 - No TVS at the splices: a 24 V-class CAN TVS (NUP2105L) dies at 54 V. CAN surge protection is on the power board port (SMAJ58CA + 58 V-tolerant isolated transceivers).
 - Plug and unplug only with the E-stop open.
 
