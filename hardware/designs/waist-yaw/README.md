@@ -107,3 +107,15 @@ twist) do. This matches the arm rule: a cheap printed link breaks before a $500 
 Masses of the head, hands, legs and pelvis are placeholders. The fall model is a rigid rod, which is crude; the bending and
 twist numbers are order-of-magnitude. The RS03 output bearing rating is unknown (also asked of RobStride for the arm). The
 crossed-roller rating is from a size class, not a chosen part.
+
+## Frame-side constraints (frame thread, 2026-11-06 06:28Z)
+
+- Frame bottom is the 150 × 140 rectangle of 2020 at Y 155 to 175. Everything below Y 155 belongs to the hip stage.
+- Mount the bearing plate with M5 T-nuts in the free under-face slots of the four bottom rails. The plate may use the full
+  150 × 140 footprint and grow outboard, provided it stays below Y 155 outside |X| 75 / |Z| 70 (shell abdomen band on H6 at Y 165).
+- The battery pack bottom is at Y 183, about 8 mm above a plate at Y 149 to 155. If the plate heat-sinks the RS03, insulate or
+  shield the pack side (cells rated 60 °C).
+- OD 130 fits in plan with no clash in rev A.
+- Height: ring (16 to 20) + RS03 (57) needs about 73 to 77 mm against the 40 mm waist bay (pelvis draft top at Y 115). Either the
+  pelvis top drops or the frame rises (the +70 waist section). Joey's call, at the hip stage.
+- Still owed: photo of the built frame bottom showing how the current waist adapter bolts on.
