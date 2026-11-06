@@ -32,3 +32,5 @@ Techflex Flexo PET, sized from the [Techflex PET size table](https://www.jmesale
 | Torso battery / power-board runs | PTN0.75 (3/4", Joey's [Digi-Key PTN0.75BK250](https://www.digikey.com/en/products/detail/techflex/PTN0.75BK250/2502453)) | 12.7 to 31.8 mm |
 
 Do **not** sleeve the ribbon clock-springs (elbow, lower-arm yaw) or the flexing span at any joint: braid stiffens the bend and abrades the ribbon. Stop the sleeve at the clamp on each side.
+
+**Terminating the sleeve:** cut hot (hot knife or soldering iron) or flame-seal a cold cut; cut ~10% long; slide it on before soldering connectors (bunch it to open it, inchworm it along, tape the bundle end); cap every end with 15 to 20 mm of **adhesive-lined 3:1 heat-shrink** lapping half on the sleeve, half on the wire or boot. At a drop splice, end the trunk sleeve on both sides and let the splice heat-shrink lap over both ends. Add adhesive-lined 3:1 heat-shrink (assorted 3 to 12 mm) to the order.
