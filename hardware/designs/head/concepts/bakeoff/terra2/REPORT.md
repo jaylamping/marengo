@@ -1,0 +1,3 @@
+Updated [build_head.py](C:/Temp/head-polish/terra2/build_head.py) with a shorter, single-peak crest, a forward-shifted side-plate knee, a narrower jaw band and 30 mm eye openings. The rationale and reference ratios are in [NOTES.md](C:/Temp/head-polish/terra2/NOTES.md).
+
+**The model remains unverified:** Python was unavailable in this environment, so I could not generate the STL files or `parts.json`, measure the exported jaw, or inspect a render.

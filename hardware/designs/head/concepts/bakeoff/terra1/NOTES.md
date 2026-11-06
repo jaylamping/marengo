@@ -1,0 +1,10 @@
+# marengo head polish
+
+The three master images were not present in the packet; reference comparisons below use the measurements and descriptions in `packet/fable_r3/NOTES.md`. The approved raised head and ringed neck, general face, jaw shape, and material assignments are retained.
+
+1. **Single crest peak — MASTER_B side silhouette.** Ended the trailing ridge at 96 degrees instead of 110 and made the crest loft ruled, with explicit sections at the peak and the end of the drop. This removes the long trailing segment and limits spline overshoot that could create the second spike. The forehead blade and main peak remain in place.
+2. **Forward side-plate knee — MASTER_C barn side view.** Moved the knee from x = -26 to -6.5 mm. Measured from the face at x = 65 over a 130 mm head depth, that is 0.55 D rather than 0.70 D; the pivot stays in its original location.
+3. **Jaw width — MASTER_A from below and the size brief.** Reduced wall thickness from 5.5 to 4.5 mm, retaining the 1.5 mm gap. The nominal band width is 134 mm (122 mm nominal shell width), retaining a 6 mm projection per side (0.049 W), close to the recorded ~0.06 W reference while fitting the 125–135 mm width limit at the band. The raised ear pads and bosses extend beyond the band, as before. Actual exported bounds need checking.
+4. **Eye opening — display requirement and MASTER_A.** Increased the glowing disc diameter from 28 to 30 mm while retaining the 36 mm dark ring and 55 mm centre spacing. The recorded reference ratios are 0.21 W glow, 0.29 W ring and 0.44 W spacing; the larger glow prioritizes the brief's minimum display opening and preserves the wide-eyed expression.
+
+Suggestion only: assess the visible underside and neck opening in the organiser's from-below render before changing it. The supplied notes do not establish enough reference evidence for a geometry change there. The three master images and a build-capable build123d installation were unavailable in this environment, so the modified model and crest silhouette could not be rendered or verified here.

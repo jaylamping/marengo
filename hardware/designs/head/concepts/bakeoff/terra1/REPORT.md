@@ -1,0 +1,3 @@
+I made targeted changes to [build_head.py](C:/Temp/head-polish/terra1/build_head.py): shortened the crest’s trailing ridge, moved the side-plate knee forward, narrowed the jaw band, and increased the eye discs to the brief’s 30 mm minimum. The rationale and reference measurements are in [NOTES.md](C:/Temp/head-polish/terra1/NOTES.md).
+
+**The build remains unverified.** The script passes Python syntax checking, but I could not generate the STLs or inspect the revised silhouette: the available Python installation lacks build123d, and the environment blocked downloading its dependencies. The master reference images were also absent, so the changes use the recorded ratios.
