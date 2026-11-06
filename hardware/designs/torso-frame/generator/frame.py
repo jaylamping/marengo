@@ -238,7 +238,12 @@ for k, (xx, yy) in enumerate(((46, 194), (-46, 194), (46, 265), (-46, 265), (46,
     cyl(f'pdb_so_{k}', 16, 'M3 F-F standoff 6 mm', 'z', (xx, yy, PDB_Z0 + 7), 2.75, 6, '#c9b86a', 'fastener', (0, 0, 130), mass_g=1, material='brass')
     FAST['m3'] = FAST.get('m3', 0) + 2
 # brake resistor (board thread ask 3): 50 W aluminium-clad, 25 x 50 x 8, on the inner face of the front bottom rail, under the logic board's bottom edge, in the intake downdraft
-box('brake_res', 16, 'Brake resistor 50 W aluminium-clad 25 x 50 x 8 on the inner face of the -X bottom side rail (M3 T-nuts), below the pack tray rail, two-wire lead to the logic board bottom edge', (-55, 155, -25), (-47, 180, 25), '#9a9ea6', 'electronics', (-60, -40, 0), balloon=True, mass_g=40, material='TO-247 class 50 W, 2 x M3')
+# gate 2 + board thread a50269c3: Arcol HS50 real size 72.5 over the tags (49.1 body) x 29.7 x 14.8, must bolt flat to aluminium.
+# The -X side rail spot (25 x 50 x 8) cannot take it (it would run into the pack and tray rail). New spot: flat on the inner (-Z) face of the
+# FRONT bottom rail, long axis along X, |X| <= 36.3 of 55 available (room for a bigger part at the leg stage), Y 155-184.7, Z 35.2-50:
+# behind the logic board's bottom edge (Y 190), in front of the pack (Z <= 34), in the lower intake's air.
+box('brake_plate', 16, 'Brake resistor adapter plate, 3 mm 6061, 80 x 30, on the front bottom rail inner face', (-40, 155, 47), (40, 185, 50), '#b8bcc4', 'electronics', (0, -40, 60), mass_g=20, material='3 mm 6061')
+box('brake_res', 16, 'Brake resistor Arcol HS50 class (72.5 over the tags x 29.7 x 14.8) flat on the inner face of the FRONT bottom rail, long axis along X, 4 x M3 on 39.7 x 21.4 into a 3 mm aluminium adapter plate (the 21.4 hole pitch does not land in one 2020 slot), plate on 2 x M5 drop-in T-nuts; leads to the logic board bottom edge; 37 mm of rail left for a bigger leg-stage part. OPEN: its top front corner meets the pack bottom front edge by 1.7 x 1.8 mm (Y 183-184.7, Z 32.2-34)', (-36.25, 155, 32.2), (36.25, 184.7, 47), '#9a9ea6', 'electronics', (0, -40, 60), balloon=True, mass_g=60, material='Arcol HS50 class, 2 x M3')
 # harness trunks: Pi/PDB to each shoulder RS03 and down to the waist
 for sx in (1, -1):
     # gate 2: was X +-42..78 and ran through the Jetson (X +-51.5). Now stops at |X| 52 and turns behind the Jetson (Z -58, 12 mm of air behind its rear face)

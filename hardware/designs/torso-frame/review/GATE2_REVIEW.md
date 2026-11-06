@@ -46,15 +46,15 @@ bracket heads at the board corners, spine pads vs H2 and gusset heads), plus pla
 
 | # | Item (who) | Proposed |
 | --- | --- | --- |
-| A | **Pack retention.** Nothing holds the pack in a fall; the D2 door (magnets) is not a restraint; the tray rails have no load path to the frame (all six) | Printed cradle: flanges onto the post inner faces at Y 203 to 325 (clear of the corner brackets), bottom lip, front lip, top hold-down, and a removable rear bar or two thumbscrews. **Joey decision**; battery thread for case bosses |
+| A | **Pack retention.** Nothing holds the pack in a fall; the D2 door (magnets) is not a restraint; the tray rails have no load path to the frame (all six) | Printed cradle: flanges onto the post inner faces at Y 203 to 325 (clear of the corner brackets), bottom lip, front lip, top hold-down, and a removable rear bar or two thumbscrews. **Joey decision**; battery thread df11714: two M4 inserts on the pack rear face at X ±35, Y 205; keep clear of X 5 to 45, Y 300 to 345 |
 | B | **No cable passage from the lower box to the upper bay** (all six) | 10 × 10 notch in each front corner of the printed shelf (\|X\| 45 to 55, Z 40 to 50). **Joey decision** (the shelf cutout for connectors was withdrawn; this is a cable notch) |
 | C | **Step-level joints.** The 8 shelf and step-side brackets (br24 to br31) sit in the shelf plate; their heads too (Sol, Astra, Fable) | End-tap the shelf and step-side rails (M5 into the extrusion core) instead of brackets, or notch the shelf. **Joey decision** together with B |
 | D | Rear lower-box corner bracket heads protrude into the pack's slide path (Astra) | Rotate those brackets to the Z faces, or use end-tap anchors (same choice as C) |
-| E | **Lower box has no exhaust**: shelf and shared rails close it (Sol, Fable, Opus, Argon) | Exit via the V1 side grilles. Shell thread |
-| F | Pack self-heating about 133 W at 40 A (Sol, Argon) | Battery and shell threads: duty-cycle estimate, airflow over the pack |
-| G | Brake resistor: real HS50 class part is bigger than 25 × 50 × 8 (Astra, Opus) | Board thread to size and place |
-| H | Corner bracket heads (X ±46.5 to 51) reach 3.5 mm into the board corners at Y 175 to 203 and 325 to 353 once seated correctly (Astra; confirmed by the fix in 1) | Board thread: corner keep-outs or 93 mm boards |
-| I | 32 V MIDI fuse in the pack doc on a 54.6 V pack (Sol, Argon) | Battery thread: 58 V-rated part |
+| E | **Lower box has no exhaust**: shelf and shared rails close it (Sol, Fable, Opus, Argon) | Shell c73d348: sideways out the V1 side grilles (upper half louvred exhaust). Frame path: the Z 37.5 to 50 window each side (tray rails below, front posts above), shared with the cable band |
+| F | Pack self-heating about 133 W at 40 A (Sol, Argon) | **Answered** (battery df11714): 20 W steady, 36 W worst sustained; 40 A is a burst (under 1 K) |
+| G | Brake resistor: real HS50 class part is bigger than 25 × 50 × 8 (Astra, Opus) | **Placed** (board thread a50269c3 size): flat on a 3 mm plate on the front bottom rail inner face; 1.7 × 1.8 mm corner against the pack bottom front edge still open |
+| H | **Answered** (board a50269c3: corner keep-outs for parts over 5 mm, arm terminals inboard of \|X\| 44). Corner bracket heads (X ±46.5 to 51) reach 3.5 mm into the board corners at Y 175 to 203 and 325 to 353 once seated correctly (Astra; confirmed by the fix in 1) | Board thread: corner keep-outs or 93 mm boards |
+| I | 32 V MIDI fuse in the pack doc on a 54.6 V pack (Sol, Argon) | **Fixed** (battery df11714): ≥ 58 V; Class T 60 A preferred |
 | J | RS03 housing at GND makes the 1 MΩ ∥ 10 nF frame bond moot (Fable, Opus) | Measure housing-to-GND on a real RS03; board thread |
 | K | Pitch bracket envelope vs br3/9/15/21 and their heads; M5 vs M6 in the ears (Sol, Opus) | Arm thread: bracket STEP vs the upper corner brackets |
 | L | End anchors for the step joint (friction only along the slots) (Sol, Astra, Opus) | Design before ordering gussets (from gate 1) |
