@@ -2163,7 +2163,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "marengo:TPS56637_RPA_VQFN-HR-10"
 			(at 53.34 45.72 0)
 			(effects
 				(font
@@ -4838,7 +4838,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "marengo:TPS56637_RPA_VQFN-HR-10"
 			(at 53.34 119.38 0)
 			(effects
 				(font

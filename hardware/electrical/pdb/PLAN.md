@@ -61,12 +61,12 @@ trip point, not the pack.
 
 | Branch | Drives | All-peak | Sum of rated | Board port proposal |
 | --- | --- | --- | --- | --- |
-| Left arm | 2 RS03, 2 RS02, RS00 | 60 A | 16 A | 20 A electronic trip, **15 A fast fuse** (trunk thread's number) |
+| Left arm | 2 RS03, 2 RS02, RS00 | 60 A | 16 A | 15 A software trip, LM5069 limit 16.2 to 20.5 A, **20 A backstop fuse** (rev A schematic) |
 | Right arm | same | 60 A | 16 A | same |
-| Waist | RS03 | 17 A | 5.6 A | 20 A trip, 15 A fuse |
+| Waist | RS03 | 17 A | 5.6 A | same as arm |
 | Left leg (future) | 2 RS03, 2 RS04, 2 RS02 | 120 A | 37 A | 40 A trip, 40 A fuse |
 | Right leg (future) | same | 120 A | 37 A | same |
-| Aux 48 V (gripper, head) | | | | 10 A trip, 7.5 A fuse |
+| Aux 48 V (gripper, head) | | | | 10 A software trip default, arm hardware otherwise (shared sheet) |
 | Compute and peripherals | Pi 5, Jetson, third board, fans, sensors | about 90 W | about 40 W typical | internal, see 2.3 |
 
 Robot draw (estimate): arms plus waist at work, 100 to 300 W average with 1 to 1.5 kW spikes; with legs walking, 400 to
@@ -278,7 +278,7 @@ Leg ports are footprints on rev A; populate when the legs exist.
 
 **Future hands** (hand research, `hardware/designs/hand/RESEARCH.md` section 5.4, PR #275): each hand is a fused 48 V drop and
 a CAN node on its own **arm trunk** at the forearm, with its own 48 → 12 V DC-DC (about 60 W) and CAN bridge. No new board port:
-the arm port's 22 A trip and 20 A fuse (rev A schematic) already cover about 1.3 A more, and the hand node sits on that arm's CAN bus. The aux
+the arm port's 15 A software trip and 20 A backstop fuse (rev A schematic) already cover about 1.3 A more, and the hand node sits on that arm's CAN bus. The aux
 port and the spare CAN6 stay free in case a hand ever needs a separate feed.
 
 ### 3.6 CAN: on the board, isolated, one bus per limb

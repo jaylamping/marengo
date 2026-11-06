@@ -1443,7 +1443,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "marengo:TPS48100_DGX_VSSOP-19"
 			(at 58.42 63.5 0)
 			(effects
 				(font
@@ -3303,7 +3303,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "marengo:TPS48100_DGX_VSSOP-19"
 			(at 58.42 152.4 0)
 			(effects
 				(font
