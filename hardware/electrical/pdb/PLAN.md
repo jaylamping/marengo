@@ -339,7 +339,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 | Jetson Orin Nano input range (12 V vs 19 V rail) | this thread, datasheet |
 | RobStride drive input capacitance and inrush; whether the drives terminate CAN; anti-backdrive behaviour unpowered | measure on a drive (bench) |
 | Measured arm bus current to set port trip and trunk fuse values | shoulder wiring + arm trunk threads, after the board logs it; bench meanwhile |
-| Pack-to-board air gap, carrier and standoffs, frame bonding, brake-resistor location on a rail | frame thread |
+| ~~Pack-to-board air gap, carrier and standoffs, frame bonding, brake-resistor location~~ closed by the frame thread (main 0a31dda): 0.5 mm Nomex over the pack lid at Z 34, carrier rear face Z 37.5, component face Z 61.5; power PCB Y 245 to 340, logic PCB Y 190 to 243; 6 × M3 standoffs at X ±46, Y 194/265/336; brake resistor 25 × 50 × 8 on the front bottom rail inner face, X ±25, Y 153 to 178, Z 52 to 60; frame bonded at one carrier standoff via 1 MΩ ∥ 10 nF | done |
 | E-stop button and charge-port location on the shell; power button and LED location | shell manufacturing thread |
 | Bus-plan ADR (5 or 6 buses, interface names, IDs) | code project |
 | Third compute board identity and power | Joey |
@@ -349,4 +349,5 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.1 | 2026-11-06 | Frame thread placed the assembly (main 0a31dda); open item closed |
 | 0 | 2026-11-06 | First architecture plan. Takes over the board from the torso-frame thread (which keeps placement, mounting, cooling envelope) |
