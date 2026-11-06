@@ -20,5 +20,4 @@ Each plate 58 × 140 × 6 mm, about 38 g at 100 %.
 - After printing: run an M5 drill or 5.5 mm bit through each hole if it is tight.
 
 **Screws change with the thicker plate:** the 7 T-nut screws per plate are **M5 × 12** (not × 10); the 2 end-tap screws stay
-**M5 × 35** (9 mm of thread in the tapped rail end) or M5 × 40 if you have them. Which side is which: with the plate on the front
-face of the frame, the long arm goes UP the upper post and the R15 corner sits at the outside of the step.
+**M5 × 35** (9 mm of thread in the tapped rail end) or M5 × 40 if you have them. Orientation: all four plates are really the same part (a mirrored plate is just the other one flipped over), so any plate fits any corner. On the frame, the narrow arm runs UP the upper post (X ±93 to 113), the wide bottom sits on the lower post (X ±55 to 75), and the R15 rounded corner is at the outside of the step.
