@@ -35,7 +35,7 @@ LINK_PARTS = {
     "shoulder_roll_link": ("SPACER", "P2_L04B", "YAW_RS02"),
     "upper_arm_link": ("ELBOW_RS02", "marengo_upper_arm_left"),
     "forearm_link": ("FOREARM_RS00", "marengo_forearm_left"),
-    "hand_link": (),
+    "hand_link": ("marengo_forearm_distal_left",),
 }
 PLACEHOLDER_MASS = 0.001
 
@@ -78,14 +78,15 @@ def box_inertia(mass, size):
     return mass / 12 * np.diag([b * b + c * c, a * a + c * c, a * a + b * b])
 
 
-def hand_inertial(frames):
-    """Hand and pack placeholders in the hand link frame, each a solid box with its long side along the forearm."""
+def hand_inertial(frames, mass, com, inertia):
+    """Add the hand and pack placeholders to the turning tube, in the hand link frame. Each is a solid box with its long side along the forearm."""
     axis, flange = hand_axis(frames), robot_origin(frames, "F_L_LOWER_ARM_YAW")
     hand = robot_origin(frames, "F_L_HAND") - flange + axis * HAND_COM
     pack = robot_origin(frames, "F_L_ELBOW_PITCH") - flange + axis * PACK_COM
-    items = ((HAND_MASS, hand, box_inertia(HAND_MASS, (HAND_THICKNESS, HAND_WIDTH, L_HAND))),
+    items = ((mass, com, inertia),
+             (HAND_MASS, hand, box_inertia(HAND_MASS, (HAND_THICKNESS, HAND_WIDTH, L_HAND))),
              (PACK_MASS, pack, box_inertia(PACK_MASS, PACK_SIZE)))
-    total = HAND_MASS + PACK_MASS
+    total = mass + HAND_MASS + PACK_MASS
     center = sum(m * c for m, c, _ in items) / total
     inertia = np.zeros((3, 3))
     for m, c, moi in items:
@@ -128,10 +129,9 @@ def build(export, overrides):
     for (joint, frame, axis, limit, effort, velocity), link in zip(JOINTS, LINKS):
         origin = robot_origin(frames, frame)
         element = ET.SubElement(robot, "link", name=f"left_{link}")
+        mass, com, inertia = link_inertial(LINK_PARTS[link], parts, overrides, torso, origin)
         if link == "hand_link":
-            mass, com, inertia = hand_inertial(frames)
-        else:
-            mass, com, inertia = link_inertial(LINK_PARTS[link], parts, overrides, torso, origin)
+            mass, com, inertia = hand_inertial(frames, mass, com, inertia)
         inertial = ET.SubElement(element, "inertial")
         ET.SubElement(inertial, "origin", xyz=vec(com), rpy="0 0 0")
         ET.SubElement(inertial, "mass", value=f"{mass:.6f}")
