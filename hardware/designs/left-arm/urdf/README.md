@@ -20,6 +20,6 @@ Each whole actuator is carried on its stator side, since rotor mass isn't known.
 
 Limitations:
 
-- Upper-arm, forearm and hand structure don't exist yet, so links are actuator and shoulder mass only.
-- Joint limits are provisional. Elbow stops at 135°, inward roll at 15°, both hand calculations, not a sweep.
+- The upper arm is in upper_arm_link. The forearm fork and hand are not in the URDF yet, so forearm_link is RS00 mass only.
+- Joint limits are provisional. Elbow stops at 133° (see ../ELBOW_COMPACTION.md). Inward roll at 15° is a hand calculation, not a sweep.
 - `velocity` is the MIT protocol range, not rated speed.

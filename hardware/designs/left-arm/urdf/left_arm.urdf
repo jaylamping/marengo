@@ -30,9 +30,9 @@
   </joint>
   <link name="left_upper_arm_link">
     <inertial>
-      <origin xyz="-0.000111 -0.002109 -0.193763" rpy="0 0 0" />
-      <mass value="0.635210" />
-      <inertia ixx="0.001239939" ixy="-0.000000559" ixz="0.000003495" iyy="0.001344517" iyz="0.000130844" izz="0.000403700" />
+      <origin xyz="0.000072 0.000749 -0.192924" rpy="0 0 0" />
+      <mass value="0.647333" />
+      <inertia ixx="0.001290812" ixy="0.000002797" ixz="0.000003986" iyy="0.001404324" iyz="0.000150135" izz="0.000419108" />
     </inertial>
   </link>
   <joint name="left_upper_arm_yaw" type="revolute">
@@ -54,7 +54,7 @@
     <child link="left_forearm_link" />
     <origin xyz="0.000000 0.000000 -0.215000" rpy="0 0 0" />
     <axis xyz="0 -1 0" />
-    <limit lower="0.0" upper="2.356" effort="17" velocity="44" />
+    <limit lower="0.0" upper="2.321" effort="17" velocity="44" />
   </joint>
   <link name="left_hand_link">
     <inertial>
@@ -82,4 +82,4 @@
     <child link="left_hand_tip" />
     <origin xyz="0.000000 -0.000000 -0.141400" rpy="0 0 0" />
   </joint>
-</robot>
+</robot>

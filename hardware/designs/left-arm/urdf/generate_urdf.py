@@ -24,7 +24,7 @@ JOINTS = [
     ("shoulder_pitch", "F_L_SHOULDER_PITCH", (0, -1, 0), (-0.87, 3.14), 60, 20),
     ("shoulder_roll", "F_L_SHOULDER_ROLL", (1, 0, 0), (-0.26, 3.14), 60, 20),
     ("upper_arm_yaw", "F_L_UPPER_ARM_YAW", (0, 0, 1), (-1.57, 1.57), 17, 44),
-    ("elbow_pitch", "F_L_ELBOW_PITCH", (0, -1, 0), (0.0, 2.356), 17, 44),
+    ("elbow_pitch", "F_L_ELBOW_PITCH", (0, -1, 0), (0.0, 2.321), 17, 44),
     ("lower_arm_yaw", "F_L_LOWER_ARM_YAW", (0, 0, 1), (-1.05, 1.05), 14, 50),
 ]
 LINKS = ["shoulder_pitch_link", "shoulder_roll_link", "upper_arm_link", "forearm_link", "hand_link"]
