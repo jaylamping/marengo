@@ -195,3 +195,62 @@ fn a_wave_runs_at_its_own_speed_after_a_slowed_hold_at() {
     .expect("wave tick");
     assert_eq!(hold.speed_fraction(0), SpeedFraction::FULL);
 }
+
+/// Legacy-law hold short of `target` (planner parked at it, arm stuck at 0) ticked once at
+/// `speed`: the planner speed the residual lead-follow picks.
+fn lead_follow_speed(params: HoldJointParams, target: f64, speed: SpeedFraction) -> f64 {
+    let mut hold = PositionHold::new(1);
+    hold.set_joint_law(0, params.law.kind());
+    hold.arm(&[0.0], &[0.0], 0);
+    assert!(hold.apply_retarget(HoldRetarget {
+        joint_idx: 0,
+        clamped: target,
+        requested: target,
+        q: 0.0,
+        tick: 0,
+        dq_seed: Some(0.0),
+        downward_seed: None,
+        speed,
+    }));
+    hold.force_planner_hold_at(0, target).expect("armed");
+    let mut wave = None;
+    hold.tick(HoldWorld {
+        q: &[0.0],
+        dq_meas: &[0.0],
+        tau_g: &[0.0],
+        joints: &[params],
+        joint_names: &["j0".to_string()],
+        dt: PERIOD_S,
+        hz: HZ,
+        tick_count: 1,
+        reshaped: &[],
+        ff_last_sent: &[],
+        wave: &mut wave,
+    })
+    .expect("lead-follow tick");
+    let (q_traj, dq_traj) = hold.planner_state(0).expect("armed");
+    assert!(q_traj > 0.0, "the residual lead-follows toward the target");
+    dq_traj.abs()
+}
+
+#[test]
+fn the_residual_lead_follow_floor_scales_with_the_speed_fraction() {
+    let params = legacy_params();
+    let tiny = SpeedFraction::new(0.001).expect("valid fraction");
+    let scaled_slew = params.at_speed_fraction(tiny).slew_rad_s;
+    let v = lead_follow_speed(params.clone(), 0.02, tiny);
+    assert!(
+        v > 0.0 && v <= scaled_slew + 1e-12,
+        "lead-follow at {v} rad/s exceeds the scaled slew {scaled_slew} rad/s"
+    );
+    // Unscaled: the floor is unchanged, so a joint configured slower than it finishes at it.
+    let crawl = HoldJointParams {
+        slew_rad_s: 0.001,
+        ..params.clone()
+    };
+    assert_eq!(lead_follow_speed(crawl, 0.02, SpeedFraction::FULL), 0.005);
+    assert_eq!(
+        lead_follow_speed(params.clone(), 0.02, SpeedFraction::FULL),
+        params.slew_rad_s
+    );
+}

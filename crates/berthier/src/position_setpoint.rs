@@ -3,6 +3,7 @@
 use armee_kinematics::{clamp_position_in_envelope, effective_command_bounds, JointLimitPolicy};
 
 use crate::position_trajectory::JointPositionPlanner;
+use crate::SpeedFraction;
 
 pub(crate) const POSITION_SETTLE_TOLERANCE_RAD: f64 = 1e-4;
 /// Tighter settle band at `target == 0` — matches Layer 2 `--require-home-start`.
@@ -504,12 +505,18 @@ pub fn planner_should_lead_follow_hold_short(
 /// Open-loop tick stays frozen (caller). Non-zero `dq_traj` keeps trajectory-velocity friction
 /// engaged so the last ~20 mrad does not feel like a dead stop + P-creep. When remaining is
 /// below `max_lead`, `q_traj` equals `target` — that is geometrically required for full lead.
+///
+/// The cruise is `slew_rad_s` with a floor of [`POSITION_HOME_SETTLE_RAD`] per second, scaled
+/// by the move's speed fraction like the slew (ADR 0040 amendment): a slowed move never
+/// finishes faster than `speed ×` its configured speeds; at [`SpeedFraction::FULL`] the floor
+/// is unchanged.
 pub fn apply_lead_follow_hold_short(
     planner: &mut JointPositionPlanner,
     q: f64,
     target: f64,
     max_lead: f64,
     slew_rad_s: f64,
+    speed: SpeedFraction,
 ) {
     let dir = (target - q).signum();
     if dir == 0.0 {
@@ -523,7 +530,7 @@ pub fn apply_lead_follow_hold_short(
     }
     let lead = remaining.min(max_lead);
     let q_ref = q + dir * lead;
-    let v = slew_rad_s.max(POSITION_HOME_SETTLE_RAD);
+    let v = slew_rad_s.max(POSITION_HOME_SETTLE_RAD * speed.get());
     planner.resume_cruise_toward(q_ref, dir * v);
 }
 

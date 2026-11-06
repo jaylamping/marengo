@@ -1381,6 +1381,7 @@ impl PositionHold {
                     targets[i],
                     effective_max_lead,
                     jp.slew_rad_s,
+                    self.speeds[i],
                 );
             } else if planner_drifted_from_measurement(
                 &planners[i],

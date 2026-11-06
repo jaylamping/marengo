@@ -165,8 +165,9 @@ ran at `position_slew_rad_s` / `position_trajectory_velocity_rad_s`.
   planner reference and the move's fraction as they were. A `speed_fraction` on a wave entry or
   in a non-POSITION batch also refuses the batch.
 - **Only slows.** The fraction scales the joint's planner speeds for that move: slew, trajectory
-  cruise and the velocity cap (`HoldJointParams::at_speed_fraction`), and the downward-return
-  seed. Every speed the legacy planner or the scaled-PD reference governor picks is therefore
+  cruise and the velocity cap (`HoldJointParams::at_speed_fraction`), the downward-return
+  seed and the legacy residual lead-follow's minimum cruise (`f ×` 0.005 rad/s, so it never
+  lifts a slowed slew above `f ×` the configured one). Every speed the legacy planner or the scaled-PD reference governor picks is therefore
   `f ×` the configured one or less; the configured limits, the danger-zone descent cap and the
   envelope approach cap stay ceilings on top. The acceleration limit `a_max` is kept, like the
   ADR 0039 governor, which also scales speed only: the profile stays a valid trapezoid inside
@@ -184,7 +185,8 @@ ran at `position_slew_rad_s` / `position_trajectory_velocity_rad_s`.
   fraction.
 
 Verification: `quarter_speed_fraction_quarters_the_planned_peak_velocity` (legacy and scaled PD,
-peak cruise exactly ¼, launch acceleration still `a_max`) and `a_wave_runs_at_its_own_speed_after_a_slowed_hold_at`
+peak cruise exactly ¼, launch acceleration still `a_max`), `a_wave_runs_at_its_own_speed_after_a_slowed_hold_at`
+and `the_residual_lead_follow_floor_scales_with_the_speed_fraction`
 (`position_hold_tests/speed_fraction.rs`); `out_of_range_speed_fraction_*`,
 `hold_at_without_a_fraction_plans_exactly_the_old_move` and `the_fraction_is_latched_with_the_target`
 (`loop_speed_fraction_tests.rs`); the stdin, Testing-batch and gateway refusals

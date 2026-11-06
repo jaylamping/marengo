@@ -3748,7 +3748,7 @@ mod tests {
         assert!(!planner_should_lead_follow_hold_short(
             &planner, 0.148, 0.15, 0.0, 0.02
         ));
-        apply_lead_follow_hold_short(&mut planner, 0.13, 0.15, 0.12, 0.35);
+        apply_lead_follow_hold_short(&mut planner, 0.13, 0.15, 0.12, 0.35, SpeedFraction::FULL);
         assert!(
             (planner.q_traj - 0.15).abs() < 1e-12,
             "residual < max_lead ⇒ q_traj at target (full remaining lead)"
@@ -3775,7 +3775,7 @@ mod tests {
             planner_should_lead_follow_hold_short(&above, 0.018, 0.0, 0.0, 0.02),
             "home residual from above must lead-follow downward"
         );
-        apply_lead_follow_hold_short(&mut above, 0.018, 0.0, 0.12, 0.35);
+        apply_lead_follow_hold_short(&mut above, 0.018, 0.0, 0.12, 0.35, SpeedFraction::FULL);
         assert!(
             above.dq_traj < 0.0,
             "home residual cruise must be toward home (negative)"
