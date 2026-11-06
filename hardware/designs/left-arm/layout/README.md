@@ -18,7 +18,7 @@ The torque excludes links, hand, fasteners, cables, and payload.
 
 The arm is on robot left (+X in the torso STEP) and the elbow flexes forward (+Z). Forward comes from the
 right arm sitting on -X, the right-arm CAD flex direction, and the Pi ports facing -Z, and Joey confirmed it on
-the physical robot on 2026-11-05. The fixed pitch bracket names are swapped; go by coordinates, not those names.
+the physical robot on 2026-11-05. The fixed pitch bracket files were swapped and have been corrected in the CAD.
 
 **Elbow fold:** target 135°. With a 3 mm shell wall over the 78.5 mm actuators, the rear corner of the RS00 leaves
 about 2.8 mm of air at 135° and touches at about 137°. This is a hand calculation, not a motion sweep. It leaves
@@ -31,7 +31,7 @@ Open items:
 - P1 hole pattern: the 7.83 mm residual looks like a 30° clocking miss, but that is unmeasured.
 - Elbow output is one-sided, 22.7 mm outboard of the arm line, and its load is unchecked.
 - No upper-arm or forearm structure, motion sweep, or cable routing yet.
-- Rename the swapped fixed pitch brackets, `marengo_shoulder_pitch_mount_bracket_left` and `_right`, in CAD.
+- Re-export the torso STEP: the current export still has the old bracket names.
 
 Images: `LEFT_ARM_LAYOUT_FRONT.png`, `LEFT_ARM_LAYOUT_ISO.png`. The right arm shown is the old torso export,
 for comparison only.

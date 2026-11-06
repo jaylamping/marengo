@@ -92,7 +92,7 @@ Peak torque ratings from [ADR 0002](decisions/0002-robstride-protocol.md) (confi
 | **RS04** | 120 Nm | **4** | `left_hip_pitch`, `right_hip_pitch`, `left_knee`, `right_knee` |
 | **RS03** | 60 Nm | **9** | `left/right_hip_roll`, `left/right_hip_yaw`, `waist_yaw`, `left/right_shoulder_roll`, `left/right_shoulder_pitch` |
 | **RS02** | 17 Nm | **8** | `left/right_ankle_pitch`, `left/right_ankle_roll`, `left/right_upper_arm_yaw`, `left_elbow`, `right_elbow_pitch` |
-| **RS00** | 17 Nm | **2** | `left_wrist`, `right_lower_arm_yaw` |
+| **RS00** | 14 Nm | **2** | `left_wrist`, `right_lower_arm_yaw` |
 
 **Leg rationale:** RS04 on **inner hip pitch** (primary stance/swing load) and **knee** (single-support peaks, G1-class ~90 Nm knee). RS03 on **outer hip** roll/yaw. RS02 on ankles.
 
@@ -142,7 +142,7 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `left_shoulder_roll` | RS03 | pitch → left_shoulder_roll_link | X | -1.57 | 1.57 | 60 | Torso-mounted pitch; roll on arm sub-asm |
 | `left_upper_arm_yaw` | RS02 | roll → left_upper_arm | Z | -1.57 | 1.57 | 17 | |
 | `left_elbow` | RS02 | upper_arm → left_forearm | Y | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
-| `left_wrist` | RS00 | forearm → left_hand | Y | -1.6 | 1.6 | 17 | G1 wrist pitch band ~±92.5° |
+| `left_wrist` | RS00 | forearm → left_hand | Y | -1.6 | 1.6 | 14 | G1 wrist pitch band ~±92.5° |
 
 > **Open (2026-10-28): left/right arm naming and the fifth joint.** The left arm table still uses the older `left_elbow` / `left_wrist` (wrist pitch, axis Y) names, while the built right arm uses `right_elbow_pitch` / `right_lower_arm_yaw`, and its RS00 joint rotates about the forearm (a yaw/roll joint, ±3.24 rad hard), not a ±1.6 rad wrist pitch. Decide whether the left arm mirrors the built right arm, then rename the left joints here, in `config/robot.yaml` limbs, `config/*_humanoid.yaml` and the BOM together.
 
@@ -154,7 +154,7 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -0.05 | 3.14159 | 60 |
 | `right_upper_arm_yaw` | RS02 | roll → right_upper_arm | Z | -1.57 | 1.57 | 17 |
 | `right_elbow_pitch` | RS02 | upper_arm → right_forearm | Y | -0.50 | 1.2 | 17 | **Upright hazard** — verify G-comp sign |
-| `right_lower_arm_yaw` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
+| `right_lower_arm_yaw` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 14 |
 
 These are the design limits. The bench URDF carries the wider taught hard envelope ([ADR 0017](../../docs/decisions/0017-bench-set-limits-urdf-expand.md), listed below); Davout intersects it with the measured bounds in `config/motors.yaml`. URDF `safety_controller` soft limits are pitch `[-0.872665, 3.20]`, roll `[-0.05, 3.14159]`, yaw `[-1.57, 1.57]`, and elbow `[-0.50, 1.15]` rad per [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md); they are only a fallback, because `config/control.yaml` `position_soft_*_rad` set every live joint's runtime soft limits (see below).
 
@@ -176,7 +176,7 @@ This promoted subset of humanoid arm kinematics is the live master model in
 | `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -0.099415 | 3.22308 | 60 | URDF soft `[-0.05, 3.14159]` |
 | `right_upper_arm_yaw` | RS02 | roll → right_upper_arm_link | Z | -1.57 | 1.57 | 17 | URDF soft equals hard |
 | `right_elbow_pitch` | RS02 | upper_arm → right_forearm_link | Y | -1.63191 | 1.60728 | 17 | URDF soft `[-0.50, 1.15]`; **upright hazard** — verify G-comp sign |
-| `right_lower_arm_yaw` | RS00 | forearm → right_hand_link | Y (wrong, see above) | -3.24409 | 3.24409 | 17 | URDF soft `[-1.55, 1.55]`; CAN id **5** on `can0`; in CAD the RS00 axis runs along the forearm (Z at q = 0) |
+| `right_lower_arm_yaw` | RS00 | forearm → right_hand_link | Y (wrong, see above) | -3.24409 | 3.24409 | 14 | URDF soft `[-1.55, 1.55]`; CAN id **5** on `can0`; in CAD the RS00 axis runs along the forearm (Z at q = 0) |
 
 Hard limits are the taught envelope from the Pi URDF on 2026-10-03 ([ADR 0017](../../docs/decisions/0017-bench-set-limits-urdf-expand.md)). The "URDF soft" values are not what runs: Davout takes each joint's soft limits from `config/control.yaml` (`position_soft_lower_rad`/`position_soft_upper_rad`) and its hard limits as the URDF ∩ `config/motors.yaml` bench bounds. On 2026-10-28 control.yaml held, for example, upper-arm yaw `[-0.748, 1.263]` and lower-arm yaw `[-0.367, 3.217]`; read the file for current values. Geometry from CAD: the roll axis crosses the pitch axis 73.5 mm outboard of the pitch output face; the elbow axis is 230.4 mm below that point; the RS00 output face is 99.7 mm below the elbow axis. The bench base frame has the arm's front at −X and outboard at +Y ([derivation](../../docs/commissioning/right-arm-urdf-from-cad-2026-10-03.md)).
 
