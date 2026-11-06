@@ -4,6 +4,33 @@
 
 **Result:** the stack went from 78.5 to 75.5 mm, and the inboard face moved 5 mm toward the arm axis. Both bearings stay. The bearing now sits in the carrier instead of beside the fork, which removes the 9 mm air band. Section: `renders/elbow_compaction_study.png`.
 
+## Pass 3, stop and RS00 at 120 mm
+
+2026-11-06. Status: in progress, paused at a saved point. **Still do not print the full arm.** The upper arm body and carrier are saved with the gate fixes. The forearm below is a first redesign and misses its targets.
+
+- RS00 flange moved up to 120 mm below the elbow, Joey's choice. Elbow stop moved to 124 degrees. Gap at 124: 5.2 mm to the RS00, 5.9 mm to the fork crown. Interference, 32 poses with yaw, is clear apart from the old 0.04 mm³ cover overlap and the contact at the 0 degree stop.
+- New part `marengo_forearm_distal_left`: Ø64 tube on the RS00 output, 58.5 cm³. The fork keeps a static skirt to Y 74.26 for the ribbon clock-spring, and a 11 x 1.5 mm ribbon groove that leaves 1.5 mm of wall.
+- Stop rated at 17 N·m as a wear part for the validation pass. See the gate review.
+
+Static FEA, 2 mm mesh, PETG, loads include the placeholder hand, pack and tube. The hand and pack are placeholder estimates, not designs.
+
+| Case | SF | Layer SF, print direction | Target |
+| --- | --- | --- | --- |
+| Upper arm LC1A, 3 mm | 2.23 | 1.87 | 2.0 / 1.5 |
+| Upper arm LC1B, 3 mm | 2.23 | 2.33 | 2.0 / 1.5 |
+| Upper arm LC1C, 3 mm | 2.15 | 1.66 | 2.0 / 1.5 |
+| Upper arm LC2, 3 mm | 2.24 | 2.82 | 2.0 / 1.5 |
+| Carrier stop, 17 N·m, 0 / 124 degrees | 2.24 / 2.22 | 2.94 / 2.2 | 1.5 / 1.3 |
+| Fork stop, 17 N·m, 0 / 124 degrees, away from the contact band | 1.6 / 1.74 | 1.66 / 2.38 | 1.5 / 1.3 |
+| Fork, fore-aft | **1.27** | **1.27** | 2.0 / 1.5 |
+| Fork, twist | **1.32** | **0.9** | 2.0 / 1.5 |
+| Turning tube, fore-aft | 2.03 | 1.46 along the tube | 2.0 / 1.5 |
+| Turning tube, twist | 2.89 | 1.63 along the tube | 2.0 / 1.5 |
+
+The fork misses both twist and fore-aft targets now that the tube is shorter, at the gusset ends near Y 150. Before this move, the fork twist was SF 1.82, layer 1.48. It needs rework before any full forearm print. Local peaks right at the finger contact band are much higher and unresolved; the dummy test measures that.
+
+Not done yet: B1 carrier slot and its FEA, the ribbon fixed-end route past the stub end, hand connector keep-out, full upper arm fine-mesh rerun, and a real output bearing rating for the RS00.
+
 ## Pass 2, stack 4 mm outboard
 
 2026-11-06. The whole stack moved +4 mm along the elbow axis, keeping both bearings. Width stays 75.5 mm, now X 131.7 to 207.19. Upper arm tube and forearm tube stay on the arm axis. The stack centre is 1.0 mm inboard of the axis, down from 5.0.
