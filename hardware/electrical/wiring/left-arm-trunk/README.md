@@ -27,12 +27,12 @@ Buy list with links: [BUY_LIST.md](BUY_LIST.md).
 | S1 | M11 splice | M12 splice (P1, roll RS03 housing) | pitch, 230° | ~350 mm (crossing provisional) | 450 mm |
 | S2 | M12 splice | M13 splice (P2, yaw RS02 housing) | roll, 195° | ~300 mm (crossing provisional) | 400 mm |
 | S3 | M13 splice | M14 splice (upper arm, shoulder end of tube) | yaw ±90° twist (~185 mm free) + elbow slack loop (~130 mm stored) | ~400 mm | 500 mm |
-| S4 | M14 splice | M15 splice + 120 Ω (forearm) | elbow 0 to 133° (posterior route) | ~200 mm + coiled section | 4-core 22 AWG PUR coiled cord (collapsed ≤40 mm, OD ≤25, stretch +110 to 130 mm) + 300 mm straight |
+| S4 | M14 splice (+ 3 to 5 A segment fuse) | M15 splice + 120 Ω (forearm) | elbow 0 to 133° (posterior, over carrier rim) | ~200 mm + ~130 mm rolling loop | 10-way 28 AWG high-flex ribbon, cut 450 mm (pending CAD) |
 | Drops ×5 | splice | motor plug, fuse holder in line | — | ≤150 mm | 200 mm each |
 
 Totals per arm: about 2.0 m of trunk plus 1.0 m of drops per conductor. **Buy 3.5 m each of red and black 16 AWG and 3.5 m of 26 AWG twisted pair per arm** (7 m each for both arms), plus 0.5 m of 18 AWG red/black.
 
-**Elbow crossing (rev 1, after CAD found only 40 to 48 mm free in the upper-arm tube):** downstream of the elbow only the RS00 and the future hand draw power, so S4 is a 4-core 22 AWG PUR cable (2 power + CAN pair, OD ~5 mm) protected by a **3 to 5 A segment fuse at the M14 splice**. The ~110 to 130 mm path change across the posterior elbow (r 45 to 55 × 133°) is stored in a **retractile coiled section** in the upper-arm tube (or the forearm if the tube is too short), not in a rolling loop. The cable runs over a smooth printed guide on the carrier at a bend radius of 25 mm or more. CAD fit check pending.
+**Elbow crossing (rev 2, 2026-11-06 09:51Z, CAD fit pending):** CAD found no room for stored slack inside the upper-arm tube (40 to 48 mm free) or the forearm (RS00 fills it), and a coiled cord needs 150 to 170 mm stretched. A wrap on the carrier rim does not remove the r × θ path change. Lead option: S4 becomes a **high-flex 10-way 28 AWG flat ribbon** (3 conductors paralleled per power rail, ~4 A total, RS00 only; 2 for CAN; 2 spare), ~13 × 1 mm, bend radius 5 to 10 mm. It crosses the elbow on the posterior side over the Ø84 carrier rim, and stores its ~110 to 130 mm path change as a flat **rolling loop** in a thin printed cover on the posterior of the upper-arm tube (there is no shell on the upper arm): radial gap 12 to 20 mm, ~80 to 100 mm long, ~16 mm wide. It is protected by a 3 to 5 A segment fuse at the M14 splice. Fallback: a flat ribbon clock-spring at the elbow end face (~14 mm thick). A future hand needs its own sizing (wider ribbon or a separate feed).
 
 ## Drops and fuses
 
