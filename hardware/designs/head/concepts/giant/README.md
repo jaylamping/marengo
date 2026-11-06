@@ -62,3 +62,9 @@ Rounded-square (superellipse) head with straight sides and a full dome; thin 4 m
 with a small ledge, raked chin and side hinge boss; smooth lofted crest from a point just above the jaw to a spike
 at the crown; ear blocks at eye height; back of the head skirts down behind the hinge.
 Known nit: thin dark seam between the back skirt and the jaw's rear edge in side view.
+
+## Pass 5: chin
+
+`build_head3.py G2` -> `HEAD_GIANT_PASS5.png` (render `?stl=G2&hz=10`). Joey 11:34-11:35Z: lower the jaw about 2 in and make
+sure he has a chin; mohawk is good. The jaw front now hangs 34 mm below the hinge end and leans forward 16 mm to a
+bevelled chin, with a sloped floor back to the hinge; the head rides 16 mm higher on the neck so the chin clears the chest.

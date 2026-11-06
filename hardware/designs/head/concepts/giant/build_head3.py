@@ -39,7 +39,7 @@ def cranium(W, D, n, z0, zc, top, grow=0.0):
 def build(v):
     p = dict(W=64, D=66, n=3.4, top=212, zc=150, eye_z=146, eye_y=30, eye_ro=21, eye_r=14.5, eye_dep=6,
              jaw_top=93, jaw_bot=30, jaw_t=4, jaw_gap=1.5, jaw_ledge=3, chin_back=12, jaw_taper=5,
-             hinge_r=14, hinge_back=0.52, crest_tip=99, crest_h=13, crest_b=16, crest_end=100,
+             hinge_r=14, hinge_back=0.52, chin_drop=0, chin_fwd=6, chin_flat=0.35, chin_chamfer=0, crest_tip=99, crest_h=13, crest_b=16, crest_end=100,
              ear_z=150, ear_x=-4)
     p.update(v)
     W, D, n, top, zc = p['W'], p['D'], p['n'], p['top'], p['zc']
@@ -87,24 +87,30 @@ def build(v):
         poly = [(-b / 2, -sink * out), (b / 2, -sink * out), (b * 0.3, h * out), (-b * 0.3, h * out)]
         secs.append(pl * make_face(Polyline(*poly, close=True)))
     crest = loft(secs) - head
-    # jaw: thin plate wrapping the lower face; ledge at the top, chin raked back, narrows slightly at the bottom
+    # jaw: thin plate wrapping the lower face; ledge at the top. With chin_drop the front hangs lower than the hinge
+    # (in front of the neck, like the side poster) and the chin juts forward instead of raking back.
+    jbf = jb - p['chin_drop']                     # chin bottom (front); the hinge end keeps jb
     def jsec(z, off):
-        f = (jt - z) / (jt - jb)
-        fwd = p['jaw_ledge'] * (1 - f) - p['chin_back'] * f
+        f = (jt - z) / (jt - jbf)
+        fwd = p['jaw_ledge'] * (1 - f) + (p['chin_fwd'] if p['chin_drop'] else -p['chin_back']) * f
         tw = p['jaw_taper'] * f
         return sec(z, W + off - tw, D + off - tw, n, x0=fwd)
-    outer = loft([jsec(jb, gap + t), jsec(jt, gap + t)])
-    inner = loft([jsec(jb - 0.01, gap), jsec(jt + 0.01, gap)])
+    outer = loft([jsec(jbf, gap + t), jsec(jt, gap + t)])
+    inner = loft([jsec(jbf - 0.01, gap), jsec(jt + 0.01, gap)])
     inner = extrude(inner.faces().sort_by(Axis.Z)[-1], amount=2) + inner + extrude(inner.faces().sort_by(Axis.Z)[0], amount=-2)
-    plate = outer - inner
-    under = loft([jsec(jb, gap + t - 0.3), jsec(jb + t, gap + t - 0.3)])  # underside panel closes the jaw from below
     hr = p['hinge_r']; hx = -D * p['hinge_back'] + hr; hz = jb + hr + 2
-    prof = [(300, jt + 0.5), (hx - hr, jt + 0.5)]
-    for a in range(180, 271, 10):
-        prof.append((hx + hr * math.cos(math.radians(a)), hz + hr * math.sin(math.radians(a))))
-    prof += [(hx, jb - 1), (300, jb - 1)]
-    side = xz_prism(prof)
-    jaw = (plate + under) & side
+    def profile(lift):
+        pr = [(300, jt + 0.5), (hx - hr, jt + 0.5)]
+        for a in range(180, 271, 10):
+            pr.append((hx + hr * math.cos(math.radians(a)), hz + hr * math.sin(math.radians(a)) + lift))
+        xc = D * p['chin_flat']                   # flat chin underside from here forward
+        pr += [(hx, jb - 1 + lift), (xc, jbf - 1 + lift), (300, jbf - 1 + lift)]
+        return xz_prism(pr)
+    side = profile(0)
+    jaw = (outer & side) - (inner & profile(t))  # open at the back/top, closed underneath (sloped floor)
+    if p['chin_chamfer']:  # bevel the front-bottom edge of the chin
+        c = p['chin_chamfer']; xf = D + gap + t + p['chin_fwd'] + 2
+        jaw = jaw - xz_prism([(xf - c, jbf - 2), (xf + 30, jbf - 2), (xf + 30, jbf + c + 30)])
     ears = Part()
     for s in (1, -1):
         ys = se_x(hx, D, W, n)  # half-width at x = hx (swap roles: y as a function of x)
@@ -119,7 +125,7 @@ def build(v):
 
 
 MATS = dict(core='dark', head='white', crest='grey2', bezel='dark', glow='eye', jaw='grey1', ears='white', collar='white', neck='dark')
-VARIANTS = {'G1': dict()}
+VARIANTS = {'G1': dict(), 'G2': dict(chin_drop=34, chin_fwd=16, chin_chamfer=12, jaw_taper=6, chin_flat=0.5)}  # G2: chin dropped ~2 in and jutting forward (Joey 11:34Z)
 
 if __name__ == '__main__':
     for nm in (sys.argv[1:] or list(VARIANTS)):
