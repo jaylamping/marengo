@@ -148,10 +148,11 @@ section 1, as another swappable part.
 
 **Frame gate review 2 (8a15651) carried into the shell:**
 - D2 magnets sit inside |X| ≤ 52: the spine rail lip was narrowed to clear the rear gussets and their screw heads.
-- The lower box has no path up into the upper bay (shelf and shared rails). It exhausts sideways through the **V1 side grilles**:
-  the upper half of each V1 gets up-angled exhaust louvres, and the lower half stays intake. The two front fans pressurise the
-  lower box. Pack self-heating is ~133 W at a 40 A peak (reviewers). At the fans' ~4.8 L/s that is about a 23 K air rise at peak,
-  and much less at average current. Log pack and air temperatures in the first powered run.
+- The lower box has no path up into the upper bay (shelf and shared rails). It exhausts sideways through the **V1 side grilles**.
+  The only exit from the board zone is a ~12.5 mm window each side at torso Z 37.5–50, Y 180–348 (the pack tray rails block
+  Z −50 to 37.5; the cable band shares Z 42–50). So each V1 gets **up-angled exhaust louvres toward its front edge (torso Z
+  ~35–55)**, and the rest of V1 stays intake. The two front fans pressurise the lower box. Pack heat (battery thread) is ~20 W
+  steady and 36 W worst case; 133 W at 40 A is only a 10 s burst. Log pack and air temperatures in the first powered run.
 - Spine-pad standoffs start behind torso Z −82, so they clear the H2 brackets and the gusset screw heads (Z to −77.5).
   H2 moved to |X| 85 (0bfa66a), so the old overlap at |X| 45–75 is gone; the pads only have to clear the brackets' new footprint.
 - The D3 shoulder-hatch cut keeps ≥ 1 mm from the H2 boss (Z 1288–1299, |Y| 77–93).
