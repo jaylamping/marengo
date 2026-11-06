@@ -1,67 +1,65 @@
-# Entry "fable", round 2: marengo head after the Iron Giant
+# Entry "fable", round 3: marengo head after the Iron Giant (judged against MASTER_A / B / C only)
 
-`python3 build_head.py` -> `out/*.stl`, `out/parts.json`, `out/head.step` (build123d 0.13, ~20 s).
-Cranium 125 W x 130 D, jaw band 136 W (145 over the ear pads); chin z = 22, crown z = 196, spike z = 214; collar r = 75.
-Head (cranium + jaw) 136 W x 174 H. Materials: white head/collar, grey1 jaw + pivot bosses, grey2 crest,
-dark bezel/core/ribbed neck, eye glow (30.4 mm disc in a 41 mm socket).
+`python3 build_head.py` -> `out/*.stl`, `out/parts.json`, `out/head.step` (build123d 0.13, ~45 s).
+Cranium 124 W x 130 D; crown z = 236, fin tip z ~253; jaw band 141 W, chin (jaw bottom) **z = 50**; ringed neck
+z 12 to 50 above a collar lowered to 14 mm (r 75 / 68). Head crown-to-chin 186 mm. Materials: white head/collar,
+grey1 jaw + bosses, grey2 fin, dark bezel/seams/core/neck, eye glow.
 
-## Proportions measured from the references (W = cranium width at eye level)
+## The owner's four points and what changed
 
-| feature | reference | this entry |
+1. **Face "smushed".** Re-laid the vertical stack from MASTER_C (D = head depth) and MASTER_A: crown -> eye
+   0.63 D (82 mm), eye -> jaw top at the front 0.46 D (60 mm; the ledge now slopes 10 mm downhill from the knee
+   to the front as in C), jaw top -> chin 0.34 D (44 mm front, 54 mm at the sides). Straight walls now run 34 mm
+   above the eye centre before the arch. The eyes: glow **28 mm** (0.23 W; A measures 0.21 W), ring 36 mm
+   (0.29 W, A 0.29), spacing 55 mm (0.44 W, A 0.44). I used the smaller-display option (26-32 allowed): 28 mm
+   keeps A's eye-to-head ratio within 0.02 W while leaving a 2 mm margin for the bezel over a 1.1" class panel.
+2. **Mohawk.** Now a thin blade: 4.5 mm wide at the surface, sharp 0.7 mm edge; fine point 32 mm below the eye
+   line (A: 0.25 W below the eyes), only 4.5 mm tall up the whole forehead, rising (t^3) in the last stretch to a
+   21 mm peak at the top front of the dome (80 deg round the profile) that leans 40 deg back, so it stands ~0.14 W
+   above the silhouette as in A/B; then it drops to a 1 mm ridge and ends at 110 deg (B shows nothing behind the
+   peak, C shows only the brow curl).
+3. **Chin assembly.** Rebuilt as a deep helmet-like piece (MASTER_C, A): 5.5 mm wall with a 4 mm floor, front
+   face raked 12 mm forward to a crisp chin (r 6 at the chin, r 16 at the side corners), a dark horizontal seam
+   groove across the front at 42 % of the band depth (A, C), a vertical rear edge at x = -58 with a diagonal cut
+   to the chin (C), a wide side plate from the knee (x = -26) up to the pivot boss at eye height + 6 mm and
+   0.85 D back (C), outlined with a 1.2 mm dark groove so it reads as a plate, and concentric bosses
+   (r 8.5 / 5.5 / 2.8). The ear tabs are the plate's 4 mm-proud rounded ends (A).
+4. **Neck.** The head is raised: jaw bottom z = 50 (was 22). A dark neck tube r 36 with three r 41 rings sits
+   between the lowered collar (top z = 14) and the jaw floor (A: dark below the jaw; B: ring stack; C: tube).
+
+## Measured ratios versus the masters
+
+| feature | master | this entry |
 |---|---|---|
-| head height (crown to chin) / W | 1.34 (ref2) to 1.40 (ref6, ref9) | 1.39 |
-| eye centre below crown / H; ledge below crown / H | 0.47; 0.76 (ref2, ref9) | 0.47; 0.76 |
-| jaw band height (ledge to chin) / W | 0.31 to 0.32 | 0.34 |
-| straight walls end above eye centre / W | 0.19 to 0.25 (ref2) | 0.21 |
-| dome, front view | pointed arch, m ~ 1.6 (ref2, ref6, ref9) | m = 1.65; plan n 4.2 -> 2.3 at the apex |
-| dome, side view | flattish forehead, long rounder back curve (ref10, ref8) | m = 2.6 front / 1.8 back |
-| eye ring dia / W, glow dia / W, spacing / W | 0.27, 0.20, 0.45 | 0.33, 0.24 (32 mm display), 0.47 |
-| eye rim: bright bevel outside the dark ring | ref4, ref11 | 2.5 mm chamfer cone |
-| crest: tip above ledge, width at forehead, spike | 0.07 W, 0.13 W, 0.12 W (ref2) | 9 mm, 17 mm, 18 mm |
-| crest over / behind the crown | thin low ridge fading at ~140 deg (ref8, ref11) | h x w fade from 62 % of the way to the crown |
-| ledge proud of the face / W | 0.03 to 0.035 (ref2, ref4) | 0.044 (5.5 mm incl. 1.5 mm gap) |
-| band rear edge: vertical, then a diagonal cut to the chin | ref10, ref1, ref4 | rear edge x = -50, (-50, 50) -> (-6, 22) |
-| strap: plate from the band to the pivot, front edge meets the ledge in a knee | ref10, ref1 | knee at x = -26, boss at (-33, 119), r 13 |
-| pivot boss: disc + raised ring + recessed centre, at eye height, 55 % back | ref10, ref8, ref1 | r 9 / 6 / 3, z 119 (eye 114) |
-| ear = the strap's rounded end, proud of the head | ref9, ref2, ref3 | 5 mm pad, 26 mm tall |
-| head shell continues down behind the band into the collar | ref4, ref10, ref11 | skirt to z = 15 |
-| dark ribbed neck between band and collar | ref9, ref7 | r 38, three ribs |
+| crown -> eye / D (C) | 0.64 | 0.63 |
+| eye -> jaw top at front / D (C) | 0.47 | 0.46 |
+| jaw top (front) -> chin / D (C) | 0.33 | 0.34 |
+| head height / depth (C) | 1.43 | 1.43 |
+| chin forward of the face / D (C) | ~0.10 | 0.09 |
+| pivot boss: height above eye / D, back from front / D (C) | ~0.02, 0.85 | 0.05, 0.85 |
+| knee (plate front edge) back from front / D (C) | ~0.55 | 0.70 |
+| glow dia / W, ring dia / W, eye spacing / W (A) | 0.21, 0.29, 0.44 | 0.23, 0.29, 0.44 |
+| band proud of the cranium per side / W (A) | ~0.06 | 0.056 |
+| band depth at the front / W (A) | ~0.36 | 0.35 |
+| fin above the dome silhouette / W (A) | ~0.14 | ~0.14 |
+| fin width at the forehead / W (A) | ~0.04 | 0.036 |
+| neck dia / W (B) | ~0.6 | 0.66 (rings), 0.58 (tube) |
+| crown apex forward of plan centre / D (C) | ~0.08 | 0.08 |
 
-## Subtle features found in the round-2 references and changed
+Other shape choices from the masters: pointed-arch front profile (m 1.65) that is round-topped fore-aft
+(m 2.15 front); the back of the head starts curving 4 mm below the eye line and falls in one long curve
+(m 1.55) to the rear plate edge (C); plan rounds toward a circle at the apex.
 
-1. ref10 / ref1: the jaw's side plate is a back-leaning strap whose front edge meets the ledge in a concave knee,
-   not a vertical tab. Rebuilt as band + strap with the knee; the pivot sits at the strap's rounded top.
-2. ref10 / ref8 / ref1: the pivot boss is concentric (disc, raised ring, recessed centre) and sits at eye height,
-   about 55 % of the head depth back. Moved from z 51 to z 119 (round 1 had it in the jaw band).
-3. ref9 / ref2 / ref3: the "ears" are the strap ends standing proud at eye level. The separate stepped ear blocks
-   are gone; the strap end is a 5 mm pad carrying the boss.
-4. ref10 / ref4: the band's rear edge is vertical with a diagonal lower-rear cut down to the chin (round 1 was a
-   full hoop with a rising floor).
-5. ref4 / ref10 / ref11: the cranium shell continues down behind the band into the collar (skirt), so the head
-   does not float on the collar.
-6. ref10 / ref8: side profile is not fore-aft symmetric: flattish forehead, longer rounder curve at the back.
-7. ref8 / ref11: the crest is a thin low ridge over and behind the crown; height and width now shrink together
-   from 62 % of the way up the forehead (fixes the "heavy hood" flaw of round 1).
-8. ref4 / ref11: a bright bevelled rim outside the dark eye ring.
-9. ref9 / ref7: dark ribbed neck between the band and the collar; the band is a hoop around the dark cavity, so
-   the dark seen from below is the neck, not a void (round-1 flaw).
+## Character brief (inquisitive, brave, endearing)
 
-## How the face serves "Inquisitive, Brave, Endearing"
-
-- Inquisitive: eyes are the biggest feature, round, set high-middle (0.47 H) and wide (0.47 W), with a dark ring
-  and bright bevel so they read as open and looking, not slits; nothing else on the face competes with them.
-- Brave: solid, tall rounded-square cranium, straight sides, a crest that starts as a point between the eyes and
-  rises to a spike, and a jaw with a forward chin (11 mm rake) and a ledge, so the profile has resolve.
-- Endearing: no brow, no sharp corners anywhere the eye lands (arch dome, scoop-rounded jaw, soft ledge), eyes
-  a little larger than the film (display minimum) which tilts the read toward gentle rather than menacing;
-  proportions kept at the film's, not chibi (ref5 ignored except as a proportion check).
+Eyes dominate and sit high and wide with a dark ring and bright bevel (inquisitive); tall straight-sided head, a
+single sharp blade and a forward chin on a deep jaw (brave); no brow, arch dome, rounded jaw corners, eyes a
+touch larger than the film (endearing). Proportions are the film's, not chibi.
 
 ## Remaining flaws
 
-- The strap plate is only 5.5 mm proud of the head, so from the side it reads as a shadow line, not the crisp
-  outlined plate of the cel (ref10); a 1 mm dark groove around it would help.
-- From below, two dark wedges between the band's diagonal cut and the collar show the neck/core; consistent with
-  ref10 / ref9 but darker than the posters.
-- Eye glow is 24 % of W against 20 % in the film (32 mm display rule).
-- Overall jaw width over the ear pads is 145 mm (band 136, cranium 125), above the 125 to 135 band at that point.
-- A faint shading seam where the straight walls meet the arch (geometry is tangent, 0.04 mm).
+- Jaw band is 141 mm wide (cranium 124), above the brief's 125-135 at that one point; A shows the band clearly
+  wider than the cranium so I kept it. The ear tabs add 8 mm more.
+- The knee of the side plate is further back than in C (0.70 D vs 0.55 D).
+- From below the floor plate and neck hole are visible inside the band; the masters never show that angle.
+- Eye glow 28 mm needs a display smaller than the 1.28" panel.
