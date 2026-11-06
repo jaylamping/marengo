@@ -82,8 +82,8 @@
  {
   "item": 11,
   "name": "Corner bracket, 2028, with 2 x M5 T-nuts",
-  "qty": 24,
-  "mass_g": 432,
+  "qty": 20,
+  "mass_g": 360,
   "material": "Al bracket + M5 T-nuts",
   "group": "bracket"
  },
@@ -274,8 +274,8 @@
  {
   "item": 35,
   "name": "M5 x 10 button head + T-nut",
-  "qty": 64,
-  "mass_g": 128,
+  "qty": 56,
+  "mass_g": 112,
   "material": "M5 button head",
   "group": "fastener"
  },
@@ -305,7 +305,7 @@
  },
  {
   "item": 39,
-  "name": "M5 x 10 button head + T-nut, pitch bracket ears to the step side rail, top side rail and upper posts",
+  "name": "M5 x 10 button head + DIN 125 washer + T-nut, pitch bracket ears",
   "qty": 16,
   "mass_g": 40,
   "material": "M5 button head",

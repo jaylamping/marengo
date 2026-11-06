@@ -10,4 +10,4 @@
 | 8 | Rail, top front/rear, 186 | 2 | 186.00 | **new stock** |
 | 9 | Rail, top side, 100 | 2 | 100.00 | existing, reused as is |
 
-Total extrusion 3124 mm, of which 1024 mm is new stock. 32 corner brackets.
+Total extrusion 3124 mm, of which 1024 mm is new stock. 28 corner brackets.

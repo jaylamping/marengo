@@ -56,7 +56,7 @@ bracket heads at the board corners, spine pads vs H2 and gusset heads), plus pla
 | H | **Answered** (board a50269c3: corner keep-outs for parts over 5 mm, arm terminals inboard of \|X\| 44). Corner bracket heads (X ±46.5 to 51) reach 3.5 mm into the board corners at Y 175 to 203 and 325 to 353 once seated correctly (Astra; confirmed by the fix in 1) | Board thread: corner keep-outs or 93 mm boards |
 | I | 32 V MIDI fuse in the pack doc on a 54.6 V pack (Sol, Argon) | **Fixed** (battery df11714): ≥ 58 V; Class T 60 A preferred |
 | J | RS03 housing at GND makes the 1 MΩ ∥ 10 nF frame bond moot (Fable, Opus) | Measure housing-to-GND on a real RS03; board thread |
-| K | Pitch bracket envelope vs br3/9/15/21 and their heads; M5 vs M6 in the ears (Sol, Opus) | Arm thread: bracket STEP vs the upper corner brackets |
+| K | Pitch bracket vs the upper corner brackets; M5 vs M6 in the ears (Sol, Opus) | **Arm thread 11:47Z (bracket STL vs parts.json):** the four top Z-face brackets overlapped the as-built pitch bracket by about 4440 mm³ each: **deleted** (28 brackets, 120 M5). Ear slots 6.2 to 6.4: M5 + DIN 125 washers. Still open: br3/9/15/21, br4/10, br25/27 and the pitch screw heads touch at 0 mm, so check them on the real parts |
 | L | End anchors for the step joint (friction only along the slots) (Sol, Astra, Opus) | Design before ordering gussets (from gate 1) |
 | M | Nut map and build order: 16 bracket-nut pairs overlap at shared corners, plus gusset/hardpoint/pitch nuts in the same slots (Opus, Argon) | Slot-by-slot map before the build |
 | N | Upper spine pads overlap the H2 brackets and the rear gusset heads by up to 5 mm in Z (script check) | Shell thread: pad standoffs |

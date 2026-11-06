@@ -140,7 +140,7 @@ for sx in (1, -1):
         BX(sx, sz, Y_BOT + E, +1, 'x', (0, -140, 0)); BX(sx, sz, Y_BOT + E, +1, 'z', (0, -140, 0))      # bottom corners (8)
         BX(sx, sz, Y_STEP_LO, -1, 'x', (0, -70, 0))                                                                 # lower post top to shared rail (4)
         BX(sx, sz, Y_STEP_HI, +1, 'x', (0, 70, 0))                                                                  # upper post bottom to shared rail (4)
-        BX(sx, sz, Y_TOP - E, -1, 'x', (0, 140, 0), leg=20); BX(sx, sz, Y_TOP - E, -1, 'z', (0, 140, 0))          # top corners (8)
+        BX(sx, sz, Y_TOP - E, -1, 'x', (0, 140, 0), leg=20)          # top corners (4). Gate 2 / arm thread 11:47Z: the top 'z' brackets sat inside the as-built pitch bracket (4440 mm3 each); deleted, the pitch bracket carries that corner
 # step-tier horizontal rails to the shared rails: shelf rails (4) and step side rails (4)
 for sx in (1, -1):
     for sz in (1, -1):
@@ -209,7 +209,7 @@ for sx in (1, -1):
     # Bolt size not in CAD (slots fit M5/M6): M5 assumed, checked on the built robot.
     for k, (yy, zz) in enumerate(((363.69, 0), (485.0, 0), (424.7, 60), (424.7, -60))):
         FAST['m5'] += 1; FAST['tnut'] += 1
-        screw(f'pb{sx}_{k}', 39, 'M5 x 10 button head + T-nut, pitch bracket ears to the step side rail, top side rail and upper posts (8; real slot positions, bolt size assumed; gate 2: x12 bottomed in the slot)', 'x', [sx * 89, yy, zz], sx, (sx * 80, 70, 0), balloon=(sx > 0 and k == 0), length=10)
+        screw(f'pb{sx}_{k}', 39, 'M5 x 10 button head + DIN 125 washer + T-nut, pitch bracket ears (slots 6.2-6.4 wide, arm thread) to the step side rail, top side rail and upper posts (8; real slot positions, bolt size assumed; gate 2: x12 bottomed in the slot)', 'x', [sx * 89, yy, zz], sx, (sx * 80, 70, 0), balloon=(sx > 0 and k == 0), length=10)
         tnut(f'pbt{sx}_{k}', 39, 'M5 T-nut', 'x', [sx * 93, yy, zz], sx, (sx * 80, 70, 0), 'z' if zz == 0 else 'y')   # gate 2: these nuts were counted but not drawn
     for k in range(8):
         ang = math.radians(k * 45 + 22.5); FAST['m4'] += 1

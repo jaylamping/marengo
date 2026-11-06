@@ -102,7 +102,7 @@ sheet([(crop(im, (300, 100, 3700, 2900)), 'Exploded along the frame axis: upper 
 # 2. fastener detail
 im, m = load('hero_fast'); balloons(im, m, items={11, 34, 35, 36, 37, 38, 39, 19, 20, 21, 22, 23, 24}, dist=120)
 c1, _ = load('corner_asm'); c2, _ = load('corner_exp')
-ft = table([[35, 'M5 x 10 button head + T-nut, corner brackets', 64], [34, 'Corner bracket 2020, 20 mm legs (top inner-X corners)', 4], [11, 'Corner bracket 2028', 28],
+ft = table([[35, 'M5 x 10 button head + T-nut, corner brackets', 56], [34, 'Corner bracket 2020, 20 mm legs (top corners, step side rail ends)', 8], [11, 'Corner bracket 2028', 20],
             [36, 'M5 x 10 button head + T-nut, gussets', 36], [37, 'M5 x 18 button head + T-nut, shell hardpoint brackets', 20], [39, 'M5 x 10 button head + T-nut, pitch brackets to posts (assumption)', 8],
             ['', 'RS03 rear mounting screws (vendor pattern, as built)', '2 sets'], [38, 'M4 x 10 button head, shell collars on the RS03 outboard holes', 16],
             ['', 'M2.5 standoffs, Pi 5 and Jetson carrier', '8 + 4'], ['', 'M3 heat-set inserts + M3 x 8, shell panels to hardpoints (shell thread)', '~40']],
@@ -110,7 +110,7 @@ ft = table([[35, 'M5 x 10 button head + T-nut, corner brackets', 64], [34, 'Corn
 sheet([(crop(im, (300, 100, 3700, 2900), w=1900), 'Full exploded view with every screw, T-nut and shell hardpoint bracket (orange)'),
        (crop(c1, w=1000), 'Step corner, assembled: lower post, shared rail, upper post, gusset, brackets'), (crop(c2, w=1000), 'Step corner, exploded: screws and T-nuts pulled off their slots')],
       'Internal torso frame rev A: fasteners and joint detail', 'FRAME_EXPLODED_DETAIL.png', side=ft,
-      notes=['128 M5 screws + 128 M5 T-nuts in total (brackets 64, gussets 36, hardpoints 20, pitch brackets 8). T-nuts shown as grey blocks in the slot behind each screw. Screws are M5 button heads unless noted.',
+      notes=['120 M5 screws + 120 M5 T-nuts in total (brackets 56, gussets 36, hardpoints 20, pitch brackets 8). T-nuts shown as grey blocks in the slot behind each screw. Screws are M5 button heads unless noted.',
              'The four top inner-X brackets are 2020 (20 mm legs) because a 2028 there overlaps the pitch bracket wing at Y 447-450 (arm thread interference check).'])
 # 3. assembled
 a1, _ = load('asm_iso'); a2, _ = load('asm_rear')
