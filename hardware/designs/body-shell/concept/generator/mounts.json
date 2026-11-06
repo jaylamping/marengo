@@ -21,17 +21,17 @@
   },
   {
    "id": "H2",
-   "where": "upper box top rear rail, rear face",
+   "where": "upper box top rear rail, rear face, at Y +-85 (moved from +-60 on 2026-11-06: the boss sat on the D1 door edge |Y|<=60); also anchors the upper spine-pad standoffs",
    "face": "-X",
    "pts": [
     [
      -70,
-     60,
+     85,
      1295
     ],
     [
      -70,
-     -60,
+     -85,
      1295
     ]
    ],

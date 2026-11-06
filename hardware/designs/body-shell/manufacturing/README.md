@@ -97,7 +97,7 @@ is designed to tear out before the bracket does, so a crash breaks the cheap par
 | ID | On | Qty | Carries | Gap to shell, mm (with the fix) |
 | --- | --- | --- | --- | --- |
 | H1 | Upper box top front rail, front face | 2 | U1 top edge | 33 |
-| H2 | Upper box top rear rail, rear face | 2 | U2 top edge, D3 catch | 21 |
+| H2 | Upper box top rear rail, rear face, Y ±85 (clear of D1, |Y| ≤ 60) | 2 | U2 top edge, D3 catch, upper spine-pad posts | 15.3 (SolidWorks) |
 | H3 | Step shared rail, front and rear faces, between the gussets (Y ±35) | 4 | U1/U2 bottom, U3/U4 top, D1 frame | 43 front (54.7 along the panel normal at Y 35, SolidWorks pilot), 22 rear |
 | H4 | Lower box bottom rails, front and rear faces | 4 | U3/U4 bottom, D2 frame | 15 front, 19 rear |
 | H5 | Lower box corner posts, outer side faces | 4 | U3/U4 sides, V1 grilles | 25 to 32 |
