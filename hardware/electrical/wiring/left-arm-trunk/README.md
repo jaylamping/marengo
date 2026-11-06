@@ -38,6 +38,8 @@ Totals per arm: about 2.0 m of trunk plus 1.0 m of drops per conductor. **Buy 3.
 
 **Lower-arm yaw crossing (Joey 2026-11-06 ~10:30Z: the RS00 sits just below the elbow and rotates the whole forearm):** the RS00 drop stays on the static side; only the hand feed (fused 3 A on the static side, ~1.3 A load, plus CAN) crosses lower-arm yaw (±60°). Plan (CAD 10:44Z): 8-way 28 AWG high-flex ribbon (3 VBUS, 3 GND, 2 CAN, 10.2 mm wide) in a clock-spring just **below the RS00 flange**, r 9 to 29, 12 mm axial, inside a static skirt (outer anchor static, inner anchor on the output hub). It reaches the spring through an ~11 × 1.5 mm static groove in the skirt wall past the RS00 body (the radial gap there is 0.5 mm), and leaves through an ~11 × 1.5 mm exit by the hub into the rotating tube. Keeps the Ø64 outline. The twist-section fallback only fits if its free length runs on into the hand.
 
+**Ground (battery thread, 2026-11-06 22:48Z, pack-build-plan.md §3, d42e88f):** the BMS moved onto the pack (JK, low-side). The robot's only ground is the JK's P−. The trunk GND comes only from the power board's arm port and must never be tied to pack B− (no chassis or frame bonds to B−, no bench meter ground clipped to B− while the trunk is connected). Regen limits unchanged.
+
 ## Drops and fuses
 
 | Motor | Drive | CAN ID | Drop fuse (mini-blade, **58 V-rated** Littelfuse 997 on the pack; 32 V ATM OK on the 24 V bench only), inline holder on + | Motor plug |
