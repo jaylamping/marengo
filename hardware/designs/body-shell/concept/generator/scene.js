@@ -1,4 +1,5 @@
 import * as THREE from './node_modules/three/build/three.module.js';
+import { buildHead } from './heads.js';
 import { RoomEnvironment } from './node_modules/three/examples/jsm/environments/RoomEnvironment.js';
 
 // Robot frame (mm): X forward, Y left, Z up, Z measured from FLOOR.
@@ -274,6 +275,8 @@ const core = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 3, 48), accent);
 const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 58)); if (!EXPLODE) add(neck);
 const headRows = [[F1 + 70, 50, 60, 58, 3.4], [F1 + 96, 60, 76, 72, 3.6], [F1 + 190, 64, 82, 80, 3.6], [F1 + 252, 56, 70, 72, 3.2], [F1 + 276, 34, 44, 46, 2.6], [F1 + 284, 4, 4, 4, 2]];
 const SHOW_HEAD = false;
+// head concept line-up (2026-11-06): ?head=1..20, ?hs = head scale
+if (!EXPLODE && q.get('head')) buildHead(Number(q.get('head')), { THREE, loft, patch, add, P, interp, white, dark, F1, scale: Number(q.get('hs') ?? 1), setFacet: (b) => { FACET = b; }, setClamp: (f) => { CLAMP = f; } });
 if (!EXPLODE && SHOW_HEAD) loft(headRows, F1 + 70, F1 + 284, white, 60, 96, 6);
 if (!EXPLODE && SHOW_HEAD) { // visor: thin dark strip following head front
   const pos = [], idx = []; const nz = 8, nt = 48;
@@ -372,7 +375,7 @@ const tgtY = q.get('ty') ? ZS + Number(q.get('ty')) : (FULL ? 780 : (ZS - 120));
 let cam;
 const aspect = W / H;
 const ortho = (h) => { const c = new THREE.OrthographicCamera(-h * aspect / 2, h * aspect / 2, h / 2, -h / 2, 1, 10000); return c; };
-const span = FULL ? Number(q.get('span') ?? 1700) : 900;
+const span = Number(q.get('span') ?? (FULL ? 1700 : 900));
 if (VIEW === 'front') { cam = ortho(span); cam.position.set(Number(q.get('cx') ?? 0), tgtY, 3000); }
 else if (VIEW === 'side') { cam = ortho(span); cam.position.set(3000, tgtY, 0); }
 else if (VIEW === 'back') { cam = ortho(span); cam.position.set(0, tgtY, -3000); }
