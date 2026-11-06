@@ -138,6 +138,9 @@ trap - EXIT
 echo "==> daily audit: offline Python and runner contracts"
 python3 -m unittest discover -s "${ROOT}/scripts/daily-audit" -p 'test_*.py'
 
+echo "==> CAD folder layout checker (tools/cad)"
+python3 -m unittest discover -s "${ROOT}/tools/cad" -p 'test_*.py'
+
 echo "==> reference journal reader (offline, read-only SQLite)"
 python3 -m unittest "${ROOT}/scripts/test_reference_journal_tail.py"
 

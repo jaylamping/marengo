@@ -1,17 +1,23 @@
 # SolidWorks editor lock files
 ~$*
-# CAD binaries — local SolidWorks tree only (not in git). Manifests + README stay tracked.
-cad/assemblies/
-cad/parts/
-cad/exports/
-cad/vendor/**
+# CAD binaries — local SolidWorks tree only (not in git). See cad/README.md "Folder layout".
+# Everything under cad/ is ignored except the README, manifests and the vendor intake note.
+cad/*
+!cad/README.md
+!cad/.gitkeep
+!cad/manifests/
+!cad/vendor/
+cad/vendor/*
 !cad/vendor/incoming/
-cad/vendor/incoming/**
+cad/vendor/incoming/*
 !cad/vendor/incoming/README.md
-# CAD scratch copies (keep history in git, not duplicate assemblies)
-cad/**/*-OLD.*
-cad/**/*-OLD
-cad/**/*-BROKEN*
+# WIP, simulation and checkpoint output anywhere in the repo
+**/_wip/
+**/_sim/
+**/_archive/
+**/.checkpoints/
+*.CWR
+*.cwr
 /target/
 # Pi deploy staging artifacts written into ~/marengo by scripts/deploy-pi.sh
 /.deploy-rev

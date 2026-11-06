@@ -1,25 +1,62 @@
 # CAD (local only)
 
-SolidWorks models and vendor imports are **not stored in git**. Keep your working tree under `cad/` on your machine (or a separate `marengo-cad` clone at the same path). Joint names, axes, and limits live in [hardware/docs/kinematics.md](../hardware/docs/kinematics.md). After export, runtime reads [assets/urdf/marengo.urdf](../assets/urdf/marengo.urdf).
+SolidWorks models and vendor imports are **not stored in git**. Keep your working tree under `cad/` in the host checkout (`J:\code\marengo\cad`); see "Folder layout" below. Joint names, axes, and limits live in [hardware/docs/kinematics.md](../hardware/docs/kinematics.md). After export, runtime reads [assets/urdf/marengo.urdf](../assets/urdf/marengo.urdf).
 
-Root assembly: `assemblies/marengo.SLDASM` (local).
+Root assembly: `marengo.SLDASM` at the top of the local CAD tree.
 
 ## What stays in this repo
 
 | Path | Purpose |
 |------|---------|
-| `manifests/` | MCP conventions, vendor registry, design packages (text JSON) |
+| `README.md` | This file, including the layout rule below |
+| `manifests/` | MCP conventions, folder layout (`cad-layout.json`), vendor registry, design packages (text JSON) |
 | `vendor/incoming/README.md` | Vendor intake notes |
 
-## Local layout (gitignored)
+Everything else under `cad/` is gitignored. Near-final exports and renders that should be viewable anywhere are copied into `hardware/designs/<design>/` (STEP/STL/3MF via Git LFS, PNG in plain git).
 
-| Path | Purpose |
-|------|---------|
-| `assemblies/` | Root `marengo.SLDASM` and limb sub-assemblies |
-| `parts/` | Marengo-authored `.SLDPRT` by subsystem |
-| `vendor/` | Vendor STEP and imported `.SLDPRT` |
-| `vendor/incoming/` | Drop downloads here before promoting to `vendor/` |
-| `exports/` | Neutral STEP/STL from MCP `solidworks_export` |
+## Folder layout (rule)
+
+The single CAD home is **`J:\code\marengo\cad`** on Joey-PC. There is no other CAD root: no
+`marengo-cad`, no `codex`/`task`/tool-named folders, no loose files. Folders are split by **body
+region** (anatomy), with a few **function** folders beside them. Left/right goes in the file
+name, not the folder.
+
+```
+cad/
+  README.md, manifests/       tracked
+  marengo.SLDASM              root robot assembly
+  # body regions: native parts + that region's assemblies
+  torso/  waist/  shoulder/  upper-arm/  elbow/  forearm/  hand/
+  arm/                        whole-arm assemblies only (marengo_arm_left_asm, marengo_arm_right_asm)
+  shell/                      body shell panels
+  hip/  leg/  head/           created when that work starts
+  # function folders
+  vendor/                     robstride/<rs00|rs02|rs03|rs04>/, frame-hardware/, compute/, fasteners/, incoming/
+  reference/                  read-only references (torso STEP, datum reports)
+  exports/<region>/           STEP/STL exported from native CAD
+  prints/<region>/            3MF projects, G-code, exact-settings checklist
+  reviews/<region>/<YYYYMMDD>_<topic>/   review packets, views, briefs, reconciled findings
+  drawings/<region>/          SLDDRW / PDF drawings
+  scripts/                    CAD automation scripts
+  # scratch: never referenced by a kept assembly
+  _wip/<topic>/               in-progress studies, layout experiments, render copies
+  _sim/<region>/              .CWR and other simulation results
+  _archive/                   superseded versions, old copies, SolidWorks .checkpoints
+```
+
+Rules:
+
+1. Every native part or assembly sits in exactly one region folder, `vendor/`, or a scratch folder. Only `marengo.SLDASM` sits at the top.
+2. Names follow [manifests/cad-conventions.json](manifests/cad-conventions.json) (see Naming below).
+3. WIP, simulation and checkpoint output goes only in `_wip/`, `_sim/`, `_archive/`. Date-stamped folders are allowed only there and in `reviews/`.
+4. Move or rename native files **inside SolidWorks** (Pack and Go or SOLIDWORKS Explorer), never with a plain file move, so assembly references survive. Only one session drives SolidWorks at a time.
+5. Run the checker before and after CAD work; it must report 0 errors:
+
+```powershell
+python J:\code\marengo\tools\cad\check_cad_layout.py J:\code\marengo\cad
+```
+
+The allowed folders, extensions and forbidden names live in [manifests/cad-layout.json](manifests/cad-layout.json). Add a new region there (and here) before creating its folder.
 
 ## Setup
 
