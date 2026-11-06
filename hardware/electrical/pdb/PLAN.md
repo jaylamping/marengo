@@ -310,8 +310,10 @@ that can read thermistors (verify), but the 2 × 9 connector is full, so it cost
 
 **Per-motor current.** The board measures each limb exactly. Per motor it relies on the drives' own reports, and the
 supervisor reconciles the sum against the limb meter (the residual is wiring loss or error). If Joey wants measured current
-per motor as well, the trunk junction boards can carry a sense chip, which needs a small MCU on CAN at each one. That is the
-trunk thread's call, offered as an option.
+per motor as well, the trunk junction boards can carry a sense chip, which needs a small MCU on CAN at each one. The trunk thread
+took this on (07:31Z): each junction board gets an optional sense chip plus a small CAN MCU reporting drop current, bus voltage,
+temperature and fuse state at 10 to 50 Hz, node IDs 16 to 20 on each arm bus, standard 11-bit frames so they never collide with
+RobStride's 29-bit extended IDs. Reconciliation (sum of drops against the limb meter) runs on the host, which sees both.
 
 **Accuracy target:** ±1% current above 1 A, ±0.2% voltage, energy within 2% over a session. Calibrated against a bench meter
 at bring-up, with the calibration stored in the supervisor.

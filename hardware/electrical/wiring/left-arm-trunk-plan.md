@@ -59,6 +59,8 @@ Why a board rather than spliced wires with inline blade fuse holders:
 - Every board is the same part. Five per arm plus spares, so they are cheap to order and swap.
 - The termination resistor lives on the last board, on a jumper, so adding the wrist later means moving one jumper.
 
+**Per-motor telemetry (proposal, follows Joey's "know at all times how many amps/volts we are pulling and where"):** each junction board carries a current/voltage sense chip (INA-class, shunt after the drop fuse) and a small MCU with a CAN controller (STM32G0/G4-class). It reports drop current, bus voltage, board temperature and fuse state (voltage after the fuse, so a blown fuse is named rather than inferred) at a low rate (10 to 50 Hz) to keep bus load small; the power board's 1 kHz limb meter stays the fast measurement (pdb PLAN.md section 3.9, 79d1e88). Node IDs: the left-arm block 11 to 20 has room, so junction boards take **16 to 20** (JB-11 → 16 … JB-15 → 20), framed so they cannot collide with RobStride's extended-ID protocol. That framing and the bus-load budget go to the code project. The sense and MCU parts are optional fits: the board works as a plain fuse and clamp board without them.
+
 Rough size: 30 × 18 × 8 mm with connectors (**assumption**, to check against the link cavities with the arm thread). Splices with inline ATM holders stay as the fallback if a board cannot fit somewhere.
 
 ### 3.3 Joint jumpers: the wear part is a plug-in cable
