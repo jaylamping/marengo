@@ -113,3 +113,4 @@ __pycache__/
 _autosave-*
 hardware/designs/head/concepts/giant/out/
 hardware/designs/head/concepts/giant/*.step
+hardware/designs/head/concepts/bakeoff/**/out/
