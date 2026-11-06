@@ -275,9 +275,9 @@ the boss faces, 0.3 mm at each hinge.
 
 **D2 retention, as built:** magnets work vertically. Pads on U2 at Y ±30 (Z 1158–1163) hold magnets facing down onto door blocks
 (Z 1150–1157.7) facing up, 0.5 mm air. The door slides off them sideways as it opens, so hold is shear (~1/3 of axial): **test on the
-real door.** Locks: 2 × M2.5 × 8 plastite at Y ±50.5, Z 1153 into U2 side-flange pads (caps: 23 per robot). Nothing on U2 sits below
-Z 1158 in the pack column. The lock pads clear the pack by 0.3 mm at |Y| 47.8, so check them against the tray rails. The XT90S/fuse
-corner is not in the CAD yet; the door blocks reach X −77.8.
+real door.** Locks: 2 × M2.5 × 8 plastite at Y ±53 (pads start at |Y| 50, 2.5 mm clear of the pack's slide path), Z 1153 into U2 side-flange pads (caps: 23 per robot). Nothing on U2 sits below
+Z 1158 in the pack column. Rule agreed with the frame thread: the XT90S/fuse stays inside |X| ≤ 45, torso Z ≥ −68, so nothing on the pack reaches the door
+(22.8 mm from the door blocks to the pack sense board).
 
 ## 9. Open items
 
