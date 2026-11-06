@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const Q = new URLSearchParams(location.search);
-const DATA = window.__FRAME_DATA || await (await fetch('parts.json')).json();
+const DATA = window.__FRAME_DATA || await (await fetch(Q.get('src') || 'parts.json')).json();
 const VIEW = Q.get('view') || 'iso', EXPL = Number(Q.get('explode') || 0), SET = Q.get('data') || 'parts';
 const GROUPS = Q.get('groups') ? Q.get('groups').split(',') : null, GHOST = Q.get('ghost') ? Q.get('ghost').split(',') : [];
 const INTERACTIVE = !!window.__INTERACTIVE;
