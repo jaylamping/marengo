@@ -137,6 +137,17 @@ for s, nm in ((1, "L"), (-1, "R")):
 for s, nm in ((1, "L"), (-1, "R")):
     for h, hn in ((1, "front"), (-1, "back")):
         piece(f"collar_{nm}_{hn}", f"C collar {nm}", "collar", ring_half(43, 57, 2.0, s, h), "on 4 unused outboard M4 holes")
+# spine pack: TPU 95A crush pads standing 30 mm proud of the back (arm-thread tip-over recheck: ~30 mm beyond the shell),
+# flanking the doors so the doors open between them. Bolted through the shell to H2/H3/H4 rear on standoff posts.
+def pad(G, za, zb, ya, yb, name, unit):
+    i0, i1 = zi(G, za), zi(G, zb); ys = G[(i0 + i1) // 2, :, 1]
+    js = np.where((ys >= ya) & (ys <= yb))[0]
+    piece(name, unit, "pad", thicken(G[i0:i1 + 1, js.min():js.max() + 1], t=-30.0), "TPU 95A gyroid, 30 mm crush")
+for s_, nm in ((1, "L"), (-1, "R")):
+    lo, hi = sorted((s_ * 62, s_ * 135)); pad(UB, F0 + 215, F0 + 325, lo, hi, f"pad_upper_{nm}", "P spine pack")
+    lo, hi = sorted((s_ * 58, s_ * 95)); pad(LB, F0 + 15, F0 + 140, lo, hi, f"pad_lower_{nm}", "P spine pack")
+pad(LB, F0 + 145, F0 + 158, -60, 60, "pad_spine_lo", "P spine pack")
+pad(UB, F0 + 161, F0 + 200, -60, 60, "pad_spine_hi", "P spine pack")
 for b in (1, 2, 3):
     for h in ("front", "back"):
         piece(f"abdomen_{b}_{h}", f"A{b} abdomen band {b}", "band", thicken(grid(f"abdomen band {b} {h}"), x_axis=2.0))
@@ -204,23 +215,28 @@ for p in PIECES:
         sup_vol = sa * 1.0 * SUPPORT_FRAC
     else:
         ext, so, sa, sup_vol = m.extents, float("nan"), float("nan"), 0
-    g = (vol + sup_vol) * RHO
+    pad_ = p["kind"] == "pad"
+    dens = RHO * (0.25 if pad_ else 1.0)   # pads: TPU ~1.21 g/cm3, ~25% solid (2 walls + 10% gyroid; crush coupon C9 tunes it)
+    g = (vol + sup_vol) * dens
     hrs = ((vol + sup_vol) / RATE_HI / 3600, (vol + sup_vol) / RATE_LO / 3600)
+    if p["kind"] == "pad":                      # TPU 95A: ~2.5 to 4 mm^3/s, on the solid fraction only
+        hrs = (vol * 0.25 / 4.0 / 3600, vol * 0.25 / 2.5 / 3600)
     rows.append(dict(name=p["name"], unit=p["unit"], kind=p["kind"], note=p["note"], fits=fits,
                      watertight=bool(m.is_watertight), extents_robot=[round(float(x), 1) for x in m.extents],
                      print_xyz=[round(float(x), 1) for x in sorted(ext[:2], reverse=True)] + [round(float(ext[2]), 1)],
-                     part_g=round(vol * RHO, 1), support_g=round(sup_vol * RHO, 1),
+                     part_g=round(vol * dens, 1), support_g=round(sup_vol * RHO, 1),
                      outer_support_cm2=round(so / 100, 1) if fits else None,
                      hours=[round(h, 1) for h in hrs]))
 
 # doors and vent grilles fill openings cut from their parent panels (not cut in this study), so count them once
-cut = sum(r["part_g"] for r in rows if r["kind"] in ("door", "vent"))
+cut = sum(r["part_g"] for r in rows if r["kind"] in ("door", "vent", "pad"))
+pad_g = sum(r["part_g"] for r in rows if r["kind"] == "pad")
 tot_g = sum(r["part_g"] for r in rows) - cut; tot_s = sum(r["support_g"] for r in rows)
 tot_h = [round(sum(r["hours"][k] for r in rows), 1) for k in (0, 1)]
 json.dump(dict(wall_mm=WALL, usable_mm=USABLE, pieces=rows, total_part_g=round(tot_g), total_support_g=round(tot_s),
-               total_hours=tot_h), open(OUT / "split_report.json", "w"), indent=1)
+               total_hours=tot_h, spine_pack_g=round(pad_g)), open(OUT / "split_report.json", "w"), indent=1)
 print(f"{'piece':22s} {'unit':22s} fit  print XYxZ (mm)        part g  sup g  outer-sup cm2  hours")
 for r in rows:
     print(f"{r['name']:22s} {r['unit']:22s} {'yes' if r['fits'] else 'NO ':3s}  {str(r['print_xyz']):22s} {r['part_g']:7.1f} {r['support_g']:6.1f}  {str(r['outer_support_cm2']):>12s}  {r['hours'][0]}-{r['hours'][1]}")
 print("watertight:", all(r["watertight"] for r in rows), [r["name"] for r in rows if not r["watertight"]])
-print(f"TOTAL {len(rows)} pieces, {tot_g:.0f} g part (openings netted out) + {tot_s:.0f} g support, {tot_h[0]}-{tot_h[1]} h; all fit: {all(r['fits'] for r in rows)}")
+print(f"spine pack {pad_g:.0f} g TPU"); print(f"TOTAL {len(rows)} pieces, {tot_g:.0f} g part (openings netted out) + {tot_s:.0f} g support, {tot_h[0]}-{tot_h[1]} h; all fit: {all(r['fits'] for r in rows)}")

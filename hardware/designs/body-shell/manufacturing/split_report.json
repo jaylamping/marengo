@@ -453,6 +453,156 @@
    ]
   },
   {
+   "name": "pad_upper_L",
+   "unit": "P spine pack",
+   "kind": "pad",
+   "note": "TPU 95A gyroid, 30 mm crush",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    41.2,
+    89.0,
+    113.1
+   ],
+   "print_xyz": [
+    89.0,
+    41.2,
+    113.1
+   ],
+   "part_g": 83.1,
+   "support_g": 0.8,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    4.5,
+    7.3
+   ]
+  },
+  {
+   "name": "pad_lower_L",
+   "unit": "P spine pack",
+   "kind": "pad",
+   "note": "TPU 95A gyroid, 30 mm crush",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    44.3,
+    72.3,
+    129.2
+   ],
+   "print_xyz": [
+    129.6,
+    44.3,
+    122.6
+   ],
+   "part_g": 55.2,
+   "support_g": 0.2,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    3.0,
+    4.8
+   ]
+  },
+  {
+   "name": "pad_upper_R",
+   "unit": "P spine pack",
+   "kind": "pad",
+   "note": "TPU 95A gyroid, 30 mm crush",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    41.2,
+    89.0,
+    113.1
+   ],
+   "print_xyz": [
+    89.0,
+    41.2,
+    113.1
+   ],
+   "part_g": 83.1,
+   "support_g": 0.8,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    4.5,
+    7.3
+   ]
+  },
+  {
+   "name": "pad_lower_R",
+   "unit": "P spine pack",
+   "kind": "pad",
+   "note": "TPU 95A gyroid, 30 mm crush",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    44.3,
+    72.3,
+    129.2
+   ],
+   "print_xyz": [
+    129.6,
+    44.3,
+    122.6
+   ],
+   "part_g": 55.1,
+   "support_g": 0.2,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    3.0,
+    4.8
+   ]
+  },
+  {
+   "name": "pad_spine_lo",
+   "unit": "P spine pack",
+   "kind": "pad",
+   "note": "TPU 95A gyroid, 30 mm crush",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    30.8,
+    112.2,
+    13.5
+   ],
+   "print_xyz": [
+    112.2,
+    30.8,
+    13.5
+   ],
+   "part_g": 13.6,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    0.7,
+    1.2
+   ]
+  },
+  {
+   "name": "pad_spine_hi",
+   "unit": "P spine pack",
+   "kind": "pad",
+   "note": "TPU 95A gyroid, 30 mm crush",
+   "fits": true,
+   "watertight": true,
+   "extents_robot": [
+    31.9,
+    126.6,
+    39.4
+   ],
+   "print_xyz": [
+    126.6,
+    31.9,
+    39.4
+   ],
+   "part_g": 42.6,
+   "support_g": 0.0,
+   "outer_support_cm2": 0.0,
+   "hours": [
+    2.3,
+    3.7
+   ]
+  },
+  {
    "name": "abdomen_1_front",
    "unit": "A1 abdomen band 1",
    "kind": "band",
@@ -604,9 +754,10 @@
   }
  ],
  "total_part_g": 1228,
- "total_support_g": 22,
+ "total_support_g": 24,
  "total_hours": [
-  31.7,
-  53.2
- ]
+  49.7,
+  82.3
+ ],
+ "spine_pack_g": 333
 }

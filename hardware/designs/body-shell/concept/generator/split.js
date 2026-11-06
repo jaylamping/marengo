@@ -17,7 +17,7 @@ scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnviron
 const root = new THREE.Group(); scene.add(root);
 const add = (m) => { m.castShadow = m.receiveShadow = true; root.add(m); return m; };
 const XR = MODE === 'mounts' || MODE === 'air';
-const COL = { U1: 0xeef0f3, U2: 0xe4e7ec, U3: 0xeef0f3, U4: 0xe4e7ec, D1: 0x4f9de0, D2: 0x63c08a, D3: 0xb07fd6, V1: 0xe8a34a, C: 0xd96a8a, A1: 0x34383e, A2: 0x34383e, A3: 0x34383e };
+const COL = { U1: 0xeef0f3, U2: 0xe4e7ec, U3: 0xeef0f3, U4: 0xe4e7ec, D1: 0x4f9de0, D2: 0x63c08a, D3: 0xb07fd6, V1: 0xe8a34a, C: 0xd96a8a, P: 0x3a3f47, A1: 0x34383e, A2: 0x34383e, A3: 0x34383e };
 const SPLITCOL = { L: 0, R: 1 };
 const mat = (c, o = 1) => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.4, clearcoat: 0.5, side: THREE.DoubleSide,
   transparent: o < 1, opacity: o, depthWrite: o >= 1 });
@@ -62,14 +62,14 @@ async function pieces(opacity = 1, explode = false) {
     const g = await load(`out/pieces/${r.name}.stl`); g.computeVertexNormals();
     const u = unitOf(r); let c = COL[u] ?? 0xffffff;
     if (r.kind === 'panel' && r.name.endsWith('_R')) c = new THREE.Color(c).offsetHSL(0, 0, -0.07).getHex();
-    const m = new THREE.Mesh(g, mat(c, r.kind === 'panel' || r.kind === 'band' ? opacity : Math.max(opacity, 0.9)));
+    const m = new THREE.Mesh(g, mat(c, r.kind === 'panel' || r.kind === 'band' || r.kind === 'pad' ? opacity : Math.max(opacity, 0.9)));
     // robot -> three axes
     m.matrixAutoUpdate = false;
     const M = new THREE.Matrix4().set(0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1);
     if (explode) {
       g.computeBoundingBox(); const c0 = new THREE.Vector3(); g.boundingBox.getCenter(c0);
       const rad = new THREE.Vector3(c0.x - 4, c0.y, 0); rad.normalize();
-      const k = { door: 120, vent: 100, collar: 90, panel: 55, band: 45 }[r.kind];
+      const k = { door: 120, vent: 100, collar: 90, panel: 55, band: 45, pad: 150 }[r.kind];
       let dz = (c0.z - 1150) * 0.35 + (r.kind === 'door' ? 30 : 0);
       if (r.name.startsWith('hatch')) { dz += 40; }
       M.premultiply(new THREE.Matrix4().makeTranslation(rad.y * k, dz, rad.x * k));

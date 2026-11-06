@@ -9,10 +9,10 @@ sheet([(crop('sp_asm.png', C, w=900), 'Front: seams on the sternum and side'),
        (crop('sp_asm_back.png', C, w=900), 'Back: compute door (blue), power door (green)'),
        (crop('sp_explode.png', (500, 0, 2700, 2300), w=1150), 'Exploded: service units off the frame'),
        (crop('sp_explode_back.png', (500, 0, 2700, 2300), w=1150), 'Exploded, back')],
-      'Body shell split for the Bambu P2S: 24 prints, 15 service units', sub, 'SHELL_MFG_SPLIT.png',
+      f"Body shell split for the Bambu P2S: {len(rep['pieces'])} prints, {len({q['unit'] for q in rep['pieces']})} service units", sub, 'SHELL_MFG_SPLIT.png',
       notes=['White: chest panels, split L/R on the sternum and spine (print splits, bolted on inner splice plates). Purple: shoulder-top hatches.',
              'Orange: side vent grilles (swappable cooling variants). Pink: shoulder collars, split front/back so they come off with the arm on.',
-             'Dark: abdomen bands, front/back halves. Every piece fits 250 mm usable of the 256 mm cube (see SHELL_MFG_PLATES.png).'])
+             'Dark: abdomen bands, front/back halves; TPU spine pack pads on the back. Every piece fits 250 mm usable of the 256 mm cube (SHELL_MFG_PLATES.png).'])
 sheet([(crop('sp_mounts.png', C, w=900), 'Hardpoints, front'),
        (crop('sp_mounts_back.png', C, w=900), 'Hardpoints, back'),
        (crop('sp_air.png', C, w=900), 'Cooling: chimney flow')],
@@ -21,8 +21,8 @@ sheet([(crop('sp_mounts.png', C, w=900), 'Hardpoints, front'),
              'Brackets hold the M3 heat-set inserts; panels only carry clearance holes and two locating pins, so a reprinted panel needs no inserts.',
              'Air: cool air in through the side grilles and abdomen band gaps (blue), up past the PDB and Pi, out of the compute-door louvres and neck ring (red).'])
 sheet([(crop('sp_plates.png', (0, 0, 3200, 2400), w=2200), 'Each print in its chosen orientation inside a 256 mm P2S volume')],
-      'Print plates: all 24 pieces', sub, 'SHELL_MFG_PLATES.png',
-      notes=[f"Total about {rep['total_part_g']} g PETG plus {rep['total_support_g']} g support, {rep['total_hours'][0]} to {rep['total_hours'][1]} h of printing (estimate, not a slice).",
+      f"Print plates: all {len(rep['pieces'])} pieces", sub, 'SHELL_MFG_PLATES.png',
+      notes=[f"Shell about {rep['total_part_g']} g PETG, spine pack {rep['spine_pack_g']} g TPU, plus {rep['total_support_g']} g support, {rep['total_hours'][0]} to {rep['total_hours'][1]} h of printing (estimate, not a slice).",
              'Orientation picked by script: fits the bed, then least support under the visible outer face. Tallest print: upper back, 246 mm of 250.'])
 SC = (1000, 150, 2200, 1450)
 sheet([(crop('fix_side_base.png', SC, w=700), 'Locked baseline: back on the frame'),
@@ -33,3 +33,11 @@ sheet([(crop('fix_side_base.png', SC, w=700), 'Locked baseline: back on the fram
       notes=['Baseline: lower-box rear corners come through the wall by up to 11 mm at the frame bottom; under 1 mm at the gusset corners; under 8 mm across the back.',
              'Fix: back 10 mm deeper (20 mm at the frame bottom), bottom 4 mm wider per side and slightly squarer. Front, shoulders, socket and waist unchanged.',
              'Result: 5.6 mm at the very bottom corners, 7.8 mm at the gusset corners, 9 to 17 mm elsewhere (frame_clearance.py). Chest depth 212 -> 222 mm.'])
+
+sheet([(crop('pk_back.png', (600, 0, 2600, 2400), w=900), 'Back 3/4: pads flank the doors'),
+       (crop('pk_back_ortho.png', (900, 100, 2300, 2300), w=760), 'Back'),
+       (crop('pk_side.png', (900, 100, 2300, 2300), w=760), 'Side: 30 mm proud of the shell')],
+      'Spine pack: back crush pads (first pass, function only)', sub, 'SHELL_MFG_SPINEPACK.png',
+      notes=['The frame needs ~30 mm of crush behind the shell in a backward fall. TPU 95A, 2 walls + ~10% gyroid; crush coupon C9 tunes it.',
+             f"Six pieces, about {rep['spine_pack_g']} g. They bolt through the shell to the H2/H3/H4 rear brackets on standoff posts; D1 and D2 open between them.",
+             'Styling (armour plates, chamfers) comes in SolidWorks. Lighter option: EVA foam blocks in a thin TPU skin, about 60 g.'])

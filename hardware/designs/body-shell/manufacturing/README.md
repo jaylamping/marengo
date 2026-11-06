@@ -12,6 +12,7 @@ Evidence labels follow the project convention: **script check** (ran here, repro
 | `SHELL_MFG_PLATES.png` | All 24 prints, each in its chosen orientation inside a 256 mm P2S volume |
 | `SHELL_MFG_MOUNTS.png` | X-ray: the 20 hardpoint brackets on the frame, and the cooling airflow path |
 | `SHELL_MFG_BACKFIX.png` | The frame clash found in the baseline and the fix |
+| `SHELL_MFG_SPINEPACK.png` | Back crush pads (first pass) |
 | `split_report.json` | Per-piece print size, mass, support and time estimates |
 | `frame_clearance.json` | Frame-to-shell clearance, row by row |
 
@@ -178,13 +179,17 @@ Each stage is cheaper than the next. Nothing goes to a full panel until the earl
 | C6 | Door on a frame coupon, dropped 0.75 m onto plywood, 10 times | Door stays shut; magnets stay seated |
 | C7 | Wall coupons at 2.0, 2.4 and 3.0 mm, 1 kg drop weight | Pick the wall thickness |
 | C8 | Grille sample: free area and a finger probe | ≥ 50% open, slots ≤ 6 mm |
+| C9 | TPU pad crush: 60 × 60 × 30 blocks at 3 infills, weight drop or slow press | Absorbs the per-pad share of the back-fall energy within 25 mm |
 
 ## 9. Open items
 
 **Arm-thread tip-over recheck (main 022da44):** with only 10 mm of stop the frame yields (side 400 MPa, back 584, limit 145). It holds
 with about 30 mm of stop at the side and 40 mm at the back. The side gets there because the arm stands over 100 mm proud and crushes.
-The back does not: **the shell needs a back crush pad (or hip guard) giving about 30 mm of crush beyond the shell.** Plan: a swappable
-TPU 95A gyroid "spine pack" on the H2/H3/H4 rear hardpoints, styled as back armour, kept clear of the D1 and D2 doors. One-face
+The back does not: **the shell needs a back crush pad (or hip guard) giving about 30 mm of crush beyond the shell.** First pass modelled (`SHELL_MFG_SPINEPACK.png`): six TPU 95A pads standing 30 mm
+proud of the back, flanking D1 and D2 so the doors open between them, bolted through the shell to H2/H3/H4 rear on standoff posts so a
+fall loads the brackets, not the shell wall. About 333 g at 2 walls + ~10% gyroid (coupon C9 tunes it); EVA foam in a thin TPU
+skin is a ~60 g alternative. Extents in the torso frame: upper pads |X| 58–147, Y 368–481; lower pads |X| 54–127, Y 166–295;
+spine bridges |X| < 63, Y 298–355; all Z −77 to −124. Styling comes in SolidWorks. One-face
 loading is harsher than a real fall, but it is the sizing target.
 Hardpoints checked in CAD: H1, H2, H4, H5, C and H3 free. **H3 rear bracket stays below Y 374 (torso frame)**: the Pi sits above it and its
 rear ports need plug room in the gap behind D1. H6 needs a check on the robot (waist adapter not in CAD).
