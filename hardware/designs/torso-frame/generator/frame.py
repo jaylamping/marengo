@@ -317,6 +317,9 @@ box('pack', 32, '13S2P 21700 pack, 95 x 162 x 79, 2.2 kg: 26 x Molicel P45B/P50B
     note='46.8 V nominal, 54.6 V full, 421-468 Wh. 7.5 mm to the posts each side, 8 mm top and bottom, 25 mm inside the frame rear face. Fuse and XT90S at the top rear corner.')
 box('pack_sense', 32, 'Pack sense board 40 x 25 x 10 on the pack rear face, top corner by the XT90 (2 x 9 Micro-Fit to the power board; battery thread layout, board thread main 79d1e88)', (5, 318, PK_Z1 - PK_D - 10), (45, 343, PK_Z1 - PK_D), COL['pdb'], 'electronics', (0, 0, -90), mass_g=12, material='PCB 40 x 25 x 10', opacity=0.8,
     note='Rides on the pack, 15 mm inside the frame rear face, inside the D2 opening (|X| <= 60), so it slides out with the pack.')
+# battery thread 20:13Z (provisional until the case CAD): mated XT90S lying flat on the pack rear face, axis along X; Micro-Fit 2x10 sense connector beside it; fuse inside the case
+box('pack_xt90', 32, 'Mated XT90S pair on a printed saddle, flat on the pack rear face, axis along X (battery thread, provisional)', (-15, 323, -60), (43, 345, -45), '#e0c23a', 'electronics', (0, 0, -90), mass_g=30, material='XT90S', opacity=0.8)
+box('pack_sense_conn', 32, 'Micro-Fit 2x10 sense connector, mated, flat on the pack rear face (battery thread, provisional)', (-42, 325, -58), (-17, 345, -45), '#e0c23a', 'electronics', (0, 0, -90), mass_g=8, material='Micro-Fit', opacity=0.8)
 for sx in (1, -1):
     # Joey 16:32Z cradle, SolidWorks model main f9621274 (../cradle/): web |X| 48-51.5, feet over the bottom side rail and under the shelf rail,
     # ledge and front lip, thumbscrew boss at Y 252.6 Z -5. Envelope boxes here; the STEP is the source.

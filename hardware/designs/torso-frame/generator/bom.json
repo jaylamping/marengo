@@ -250,8 +250,8 @@
  {
   "item": 32,
   "name": "13S2P 21700 pack, 95 x 162 x 79, 2.2 kg: 26 x Molicel P45B/P50B in a 4 x 7 holder grid, cells along Z, balance leads to the bus board, slides out the back through D2",
-  "qty": 2,
-  "mass_g": 2212,
+  "qty": 4,
+  "mass_g": 2250,
   "material": "custom pack, hardware/electrical/power/custom-21700-pack.md",
   "group": "electronics"
  },
