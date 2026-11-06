@@ -145,6 +145,12 @@ Frame structure only (1 to 11): about **2.1 kg** including brackets and T-nuts. 
 
 ### Interference check against the real CAD (arm thread, 2026-11-06 04:46Z)
 
+Pitch-bracket fixing (from the original torso STEP, arm thread 06:09Z): 185 g per bracket; the RS03 hangs on 8 M4 SHCS counterbored
+from the inboard face (Y 379.6/406.1/443.6/470.1, Z ±18.8/±45.3); the bracket bolts to the frame through four slots in 4 mm ears at
+X ±89 to ±93, bolts along X onto the X ±93 member faces: step side rail (Y 363.69, Z 0), top side rail (Y 485, Z 0), front and rear
+upper posts (slot Y 416.6 to 432.8, Z ±60). Bolt size is not in the CAD (M5 or M6), read it off the built robot. Note the original
+assembly's instance names are swapped against the part files (instance bracket_right-1 is the file bracket_left, at +X).
+
 Jetson (26.9 mm per side), fans, Pi, IMU, PDB envelope and shelf all clear the real RS03s and pitch brackets. Fixed here: the four
 top inner-X corner brackets became 2020 (20 mm legs). **Unresolved:** which rear-boss connector flat each RS03 has (A high rear,
 Y 447 to 456, Z −31 to −23, or B low front, Y 394 to 402, Z 23 to 31; the real flat differs between left and right, Joey to look).
@@ -249,7 +255,7 @@ that would reopen the frame.
 `review/GATE_REVIEW.md`. Fixed in this revision: the four lower-post step brackets were generated 38 mm off their post; T-nuts
 were modelled 20 mm long; gusset mass; step side rail brackets ran into the shelf rails; hardpoint screws now M5 × 20; the Jetson
 cooler and the fan positions; the DXF with the R15 corner now exists here. Still open before any cut: the built-rail inventory photo,
-the real pitch-bracket hole heights (they may land on the top corner bracket nuts), a slot-by-slot nut map and build order, the
+a slot-by-slot nut map and build order, the
 step joint's capacity along the slots (friction only; reviewers want an end anchor), the back-fall crush path through the pads,
 and the battery decision above.
 
