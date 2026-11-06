@@ -165,3 +165,19 @@ From `body-shell/concept/generator/mounts.json`. Torso Y = robot Z - 810, torso 
 | C | Pitch RS03 outer ring | Free. Button heads are the P2 item in `../left-arm/upper-arm/README.md` |
 
 The PDB and harness clips are not in the CAD, so those cannot be checked yet. Keep them off these slots. Pi ports at the rear also need plug room inside the 8 to 17 mm shell gap.
+
+## Pitch RS03 connectors
+
+Both rear flats are used on each motor (Joey, 2026-11-06). Positions are the same on both sides of the torso.
+
+| Flat | Y | Z | Cable |
+| --- | --- | --- | --- |
+| Top rear | 447 to 456 | -31 to -23 | Out to the arm |
+| Low front | 394 to 402 | 23 to 31 | Feed from the power supply |
+
+Connector openings are about X ±83. Each flat has 11 to 12 mm of radial room to the pitch bracket, and cables leave inboard past X ±78.4. Keep both exits clear:
+
+| Keep-out | X | Y | Z |
+| --- | --- | --- | --- |
+| Top rear | ±52 to 78 | 445 to 460 | -45 to -15 |
+| Low front | ±50 to 78 | 385 to 410 | 15 to 40 |
