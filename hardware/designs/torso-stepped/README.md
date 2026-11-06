@@ -1,6 +1,6 @@
 # Stepped torso frame
 
-2026-11-06. **WIP.** Two-box 2020 frame: a wide upper box at the shoulders on the existing lower cage. Locked with the shell baseline. Master skeleton, URDF, cut list and the printed mid-tier option are still to come.
+2026-11-06. **WIP.** Two-box 2020 frame: a wide upper box at the shoulders on the existing lower cage. Locked with the shell baseline. Master skeleton and URDF are still to come.
 
 Coordinates: torso STEP frame, mm. X lateral, Y up, Z forward. Y is measured from the pelvis bottom.
 
@@ -81,3 +81,54 @@ One plate carrying the whole share, with no help from the shared rail. In-plane 
 Bolts in the tip-over: 4.3 kN per plate over 5 bolts is about 860 N each. Bearing is 17 MPa on 10 mm PETG and 57 MPa on 3 mm aluminium. Friction on an M5 T-nut is only about 1 kN, assumed, and clamping through PETG relaxes, so printed plates are likely to slip onto the bolts.
 
 **Printed plates survive but do not protect the frame.** 10 mm PETG has about 9% of the in-plane stiffness of 3 mm aluminium, so the frame still takes nearly the no-gusset load. Estimated side displacement is about 5 mm against 1.8 mm. **Recommendation: 3 mm 6061-T6 in the same outline**, with a larger radius at the X 113, Y 335 corner, where the 297 MPa peak sits.
+
+## Options for the mid-tier
+
+Joey's rule: aluminium 2020 at the shoulder box and the hip frame, printed in between if it costs little strength. Both options cover Y 175 to 353.62, with rigid ends and the same loads. PETG is printed upright.
+
+| | A: four 2020 posts | B: printed box |
+| --- | --- | --- |
+| Section | 2020 at X ±65, Z ±60 | 150 × 140, 6 mm wall, 80 × 120 windows front and rear |
+| Mass | 357 g | 616 g |
+| Peak use, displacement | 0.02 mm | 0.22 mm |
+| Peak use, safety factor | 23 | 15 (layer 9.4) |
+| Side tip-over, displacement | 1.3 mm | 5.8 mm |
+| Side tip-over, peak | 197 MPa, yield 145 | 73 MPa, yield 45 |
+| Side tip-over, layer safety factor | | **0.34 at window corners** |
+| Forward tip-over, displacement | 1.3 mm | 1.9 mm |
+| Forward tip-over, peak | 198 MPa | 24 MPa |
+| Forward tip-over, layer safety factor | | 0.75 at the joint edge, 1.4 away from it |
+
+**Stay with A.** B is 260 g heavier, 12 times softer in normal use, and cracks across the layers at the window corners in a side fall. Total shoulder deflection would go from about 0.08 to about 0.29 mm. A smaller window would help B but costs access. Printing stays better suited to brackets, covers and the shell.
+
+A's 99th percentile sits at yield in the fall (145 MPa) with bonded ends. Real corner brackets will slip before that, so check them after a fall.
+
+## Cut list
+
+Reuses the current frame wherever the length allows.
+
+| Member | Qty | Length, mm | Source |
+| --- | --- | --- | --- |
+| Lower posts, Y 155 to 353.62 | 4 | 198.62 | Cut from the 340 mm posts |
+| Upper posts, Y 373.62 to 495 | 4 | 121.38 | Offcuts of the same posts |
+| Shared rails, front and rear, Y 353.62 to 373.62 | 2 | **226** | **New** |
+| Top rails, front and rear | 2 | **186** | **New** |
+| Bottom rails, front and rear | 2 | 110 | Existing |
+| Top side rails, moved to X ±103 | 2 | 100 | Existing |
+| Step side rails, X ±103, Y 353.62 to 373.62 | 2 | 100 | Existing shelf side rails |
+| Shelf rails, X ±65, Y 353.62 to 373.62 | 2 | **100** | **New** |
+| Bottom side rails | 2 | 100 | Existing |
+| Gusset plates, 3 mm 6061-T6 | 4 | | **New**, 40 g total |
+
+Spare: two 110 mm rails and four 20 mm offcuts.
+
+New extrusion is 1024 mm. Total goes from 2460 to 3124 mm, about 332 g more, assuming 0.5 g/mm. Add 40 g for gussets plus 36 M5 T-nuts and bolts.
+
+## What lands where
+
+| Item | Result |
+| --- | --- |
+| Compute shelf and Pi | No change. New rails at X ±65 keep the 110 mm span |
+| Pitch brackets | Same parts, moved out 38 mm to the X ±103 rails |
+| Waist adapter | No change. The bottom rectangle stays ±75 |
+| Side room below the step | Frame steps in 38 mm per side below Y 353.62. The arm clears the shell, not the frame, so this frees the shell to taper at the waist. It adds no roll range by itself |
