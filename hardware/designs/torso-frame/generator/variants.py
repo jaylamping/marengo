@@ -74,5 +74,72 @@ box('Cpack', 'flat custom pack 180 x 90 x 40 (drill packs do not fit a 50 mm bay
 box('Cpsu', 'power board 100 x 90 x 28', (-50, 200, -48), (50, 290, -20), C['psu'], 0.85)
 cyl('rs03w', 'RS03 waist', 'y', (0, 85 - 6 - 28.5, 0), RS03_D / 2, 57, C['motor']); box('wad', 'waist adapter', (-113, 79, -HZ), (113, 85, HZ), C['printed'])
 out['C'] = P
+
+# ---- D family: two FlexVolt-class 60 V packs (Joey 2026-11-06 05:05Z, "spine" stack; 05:13Z backpack / partly proud) --------
+# Pack envelope 160 x 102 x 95, 1.5 kg (DeWalt DCB6112 class: 159 x 102 x ~95; any similar pack). Rail/insert axis along the 160.
+PK_L, PK_W, PK_H = 160.0, 102.0, 95.0
+PK_C = C['bat']; DOCK = '#c9a227'
+def pelvis_cells(box):
+    # Joey 05:11Z: a fixed, non-removable cell low in the groin for CoG. Pelvis is not designed; placeholder cells flank the waist RS03.
+    for sx in (1, -1): box(f'pelv{sx}', 'fixed pelvis cell (placeholder 60 x 80 x 90)', (min(sx * 55, sx * 115), 70, -45), (max(sx * 55, sx * 115), 150, 45), PK_C, 0.45)
+def shell_back(box, y0=160, y1=490):
+    box('shellback', 'shell back inner face (approx.)', (-95, y0, -99), (95, y1, -96), '#e8e8ec', 0.35)
+def stepped(box, P, y_bot):
+    rails_box(box, 75, y_bot, Y_S0 + E, C['alu'], C['alu'], 'Dlo'); rails_box(box, 113, Y_S1, Y_TOP, C['new'], C['alu'], 'Dup')
+    for sz in (1, -1): box(f'Dsh{sz}', 'shared rail 226', (-113, Y_S0, min(sz * HZ, sz * (HZ - E))), (113, Y_S1, max(sz * HZ, sz * (HZ - E))), C['new'])
+    for sx in (1, -1):
+        for sz in (1, -1):
+            pts = [(55, 285), (75, 285), (113, 335), (113, 425), (93, 425), (93, Y_S1), (55, Y_S1)]
+            P.append(dict(id=f'Dg{sx}{sz}', item=0, name='gusset', type='poly', pts=[(sx * x, y) for x, y in pts], radii=[8] * 7, holes=[], z0=HZ if sz > 0 else -HZ - 3, t=3, color=C['gusset'], group='v', explode=[0, 0, 0], balloon=False, opacity=1.0))
+def waist(box, cyl, y_bot, hx=75):
+    cyl('rs03w', 'RS03 waist', 'y', (0, y_bot - 6 - 28.5, 0), RS03_D / 2, 57, C['motor']); box('wad', 'waist adapter', (-hx, y_bot - 6, -HZ), (hx, y_bot, HZ), C['printed'])
+def psu(box, lo, hi, label='power board + fan'):
+    box('Dpsu', label, lo, hi, C['psu'], 0.85)
+def compute(box):
+    box('shelf', 'shelf', (-55, 354.6, -50), (55, 372.6, 50), C['shelf'])
+    box('pi', 'Pi 5 + HAT', (-37.5, 376, -71.8), (19.7, 397, 13.2), C['pi'])
+    box('jet', 'Jetson', (-51.5, 410, -45.5), (51.5, 445, 45), C['jet'], 0.8)
+    for sx in (1, -1): box(f'fanx{sx}', 'fan', (min(sx * 15, sx * 55), 448, -50), (max(sx * 15, sx * 55), 488, -40), C['fan'], 0.8)
+def motors(box, cyl, hx_up=113):
+    for sx in (1, -1):
+        cyl(f'rs03{sx}', 'RS03', 'x', (sx * (RS03_REAR + (RS03_FACE - RS03_REAR) / 2), Y_SH, 0), RS03_D / 2, RS03_FACE - RS03_REAR, C['motor'])
+        cyl(f'rs03o{sx}', 'flange', 'x', (sx * (RS03_FACE + 1.25), Y_SH, 0), 40, 2.5, '#9a9ea4')
+        box(f'pb{sx}', 'pitch bracket', (min(sx * RS03_REAR, sx * hx_up), Y_S1, -50), (max(sx * RS03_REAR, sx * hx_up), Y_TOP, 50), C['printed'], 0.85)
+
+# D1: inside the torso. Lower box widened to 226 (one straight box) and 20 mm taller (Y_BOT 135) so two packs stack flat across the back.
+YB = 135.0
+P, box, cyl = mk(); rails_box(box, 113, YB, Y_TOP, C['new'], C['alu'], 'D1')
+for sz in (1, -1): box(f'D1mid{sz}', 'mid rail 186 (new)', (-93, Y_S0, min(sz * HZ, sz * (HZ - E))), (93, Y_S1, max(sz * HZ, sz * (HZ - E))), C['new'])
+for sx in (1, -1): box(f'D1shelf{sx}', 'shelf rail 100 (new)', (min(sx * 75, sx * 55), Y_S0, -(HZ - E)), (max(sx * 75, sx * 55), Y_S1, HZ - E), C['new'])
+motors(box, cyl); compute(box); waist(box, cyl, YB, 113)
+for i, y0 in enumerate((YB + 24, YB + 24 + PK_H + 6)):
+    box(f'D1pk{i}', 'pack 160 x 102 x 95, slides in from the side', (-80, y0, -58), (80, y0 + PK_H, -58 + PK_W), PK_C, 0.9)
+    box(f'D1dk{i}', 'dock', (-93, y0 - 2, -60), (-80, y0 + PK_H + 2, 46), DOCK)
+psu(box, (-85, YB + 24, 46), (85, YB + 24 + 2 * PK_H + 6, 46 + 24), 'power board 170 x 196 x 24 standing in front of the packs, fan below')
+box('D1fan', 'intake fan 40', (-20, 250, 60), (20, 290, 70), C['fan'], 0.8)
+pelvis_cells(box); shell_back(box, YB + 25)
+out['D1'] = P
+
+# D2: lumbar backpack. Spec stepped frame unchanged. Both packs outside the frame behind the lower back in a printed cradle on H3/H4/H5 rear points.
+P, box, cyl = mk(); stepped(box, P, Y_BOT); motors(box, cyl); compute(box); waist(box, cyl, Y_BOT)
+for i, y0 in enumerate((178, 178 + PK_H + 6)):
+    box(f'D2pk{i}', 'pack 160 x 102 x 95, outside the frame', (-80, y0, -84 - PK_W), (80, y0 + PK_H, -84), PK_C, 0.9)
+    box(f'D2dk{i}', 'dock', (-93, y0 - 2, -84 - PK_W - 2), (-80, y0 + PK_H + 2, -82), DOCK)
+box('D2cr', 'printed cradle, 4 mm walls', (-96, 170, -84 - PK_W - 6), (96, 178 + 2 * PK_H + 10, -80), C['printed'], 0.35)
+psu(box, (-50, 180, -48), (50, 330, -20), 'power board 100 x 150 x 28 inside, rear')
+box('D2fan', 'intake fan 40', (-20, 250, 60), (20, 290, 70), C['fan'], 0.8)
+pelvis_cells(box); shell_back(box)
+out['D2'] = P
+
+# D3: through the back. Stepped frame, lower box 20 mm taller (Y_BOT 135). Packs lengthwise (160 along Z), stacked, 102 wide between the 110 mm posts,
+# slide in from the back onto docks at the front rail; about 65 mm of each pack stands proud of the frame rear face.
+P, box, cyl = mk(); stepped(box, P, YB); motors(box, cyl); compute(box); waist(box, cyl, YB)
+for i, y0 in enumerate((YB + 24, YB + 24 + PK_H + 6)):
+    box(f'D3pk{i}', 'pack 160 x 102 x 95, slides in from the back', (-51, y0, -115), (51, y0 + PK_H, -115 + PK_L), PK_C, 0.9)
+    box(f'D3dk{i}', 'dock on the front rail plane', (-54, y0 - 2, 45), (54, y0 + PK_H + 2, 58), DOCK)
+psu(box, (-52, 190, 60), (52, 340, 84), 'power board 104 x 150 x 24 on the front face, fan beside')
+box('D3fan', 'intake fan 40', (-20, 200, 62), (20, 240, 72), C['fan'], 0.8)
+pelvis_cells(box); shell_back(box, YB + 25)
+out['D3'] = P
 json.dump(dict(**out, dims={}, meta={}), open('parts_variants.json', 'w'))
 print({k: len(v) for k, v in out.items()})
