@@ -79,12 +79,12 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 ## CAD files & tools
 
-SolidWorks files are local to `J:\code\marengo\cad\` (gitignored), so this table records the last status written down, not a live check. The right-arm assembly `cad/assemblies/marengo_arm_right_asm` was the source of the 2026-10-03 URDF.
+SolidWorks files are local to `J:\code\marengo\cad\` (gitignored), so this table records the last status written down, not a live check. The right-arm assembly `cad/arm/marengo_arm_right_asm` was the source of the 2026-10-03 URDF.
 
 | Path | Status |
 |------|--------|
-| `cad/parts/marengo_torso_layout.SLDPRT` | Layout skeleton — mostly empty |
-| `cad/assemblies/marengo_torso_asm.SLDASM` | Sub-asm; layout part inserted |
+| `cad/torso/marengo_torso_layout.SLDPRT` | Layout skeleton — mostly empty |
+| `cad/torso/marengo_torso_asm.SLDASM` | Sub-asm; layout part inserted |
 | `hardware/docs/kinematics.md` | SSOT — joint names, limits, committed frame |
 | [cad/README.md](../../cad/README.md) | Naming, URDF ref geometry |
 | SolidWorks MCP | Audit tools; worker path fixed in `solidworks-mcp` |
