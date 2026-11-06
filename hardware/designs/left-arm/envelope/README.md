@@ -17,7 +17,13 @@ The envelope ignores collisions, so it passes through the torso. The hand reache
 
 **Provisional parts:** the forearm is a proxy (Ø63 mm shell plus a Ø60 mm hand stub), because neither is designed yet. Lower-arm yaw is not swept, since the proxy is round.
 
-## Gap to the shell
+## Current shell
+
+The tables below are for the first shell concept. For the wider frame (+38 mm per side, shell `fa63d48`) use [TORSO_WIDE_VARIANT.md](TORSO_WIDE_VARIANT.md), and `shell_gaps.json` for the full results.
+
+The P2 bracket sweeps out to 88 mm from the pitch axis, so a 62 mm socket does not clear it when the arm is raised. The shell needs a socket of about 93 mm radius.
+
+## Gap to the shell, first concept
 
 Wall used: X 108 down to 170 mm below the shoulder, tapering to X 82 at the frame bottom, Z -88 to 110, flat and stopping at shoulder height. This is the widest value given, so the result is conservative at the shoulder, and it ignores any corner rounding of the chest.
 
@@ -79,4 +85,4 @@ Do not use the 6 × M4 × 6 or the 3 × Ø4 pin holes on the Ø30.36 circle. The
 
 ## Regenerating
 
-`sweep.py` needs STL exports of the arm parts, `cad_export.json` and `component_boxes_mm.json` from the layout folder on Joey-PC. `gaps.json` has the full results by pitch.
+`sweep.py` and `shell_gap.py` need STL exports of the arm parts, `cad_export.json` and `component_boxes_mm.json` from the layout folder on Joey-PC. `gaps.json` has the full results by pitch.
