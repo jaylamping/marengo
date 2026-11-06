@@ -1,0 +1,314 @@
+[
+ {
+  "item": 1,
+  "name": "Post, lower box, 198.6",
+  "qty": 4,
+  "mass_g": 396,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 2,
+  "name": "Rail, bottom front/rear, 110",
+  "qty": 2,
+  "mass_g": 110,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 3,
+  "name": "Rail, bottom side, 100",
+  "qty": 2,
+  "mass_g": 100,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 4,
+  "name": "Rail, shared step, front/rear, 226",
+  "qty": 2,
+  "mass_g": 226,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 5,
+  "name": "Rail, step side, 100",
+  "qty": 2,
+  "mass_g": 100,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 6,
+  "name": "Rail, shelf, 100",
+  "qty": 2,
+  "mass_g": 100,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 7,
+  "name": "Post, upper box, 121.4",
+  "qty": 4,
+  "mass_g": 244,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 8,
+  "name": "Rail, top front/rear, 186",
+  "qty": 2,
+  "mass_g": 186,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 9,
+  "name": "Rail, top side, 100",
+  "qty": 2,
+  "mass_g": 100,
+  "material": "2020 6063-T5",
+  "group": "extrusion"
+ },
+ {
+  "item": 10,
+  "name": "Gusset plate, 3 mm 6061-T6",
+  "qty": 4,
+  "mass_g": 40,
+  "material": "6061-T6 sheet, 3 mm",
+  "group": "gusset"
+ },
+ {
+  "item": 11,
+  "name": "Corner bracket, 2028, with 2 x M5 T-nuts",
+  "qty": 28,
+  "mass_g": 504,
+  "material": "Al bracket + M5 T-nuts",
+  "group": "bracket"
+ },
+ {
+  "item": 12,
+  "name": "RS03, shoulder pitch",
+  "qty": 2,
+  "mass_g": 1760,
+  "material": "RobStride RS03",
+  "group": "actuator"
+ },
+ {
+  "item": 13,
+  "name": "Shoulder pitch bracket, PETG",
+  "qty": 2,
+  "mass_g": 240,
+  "material": "PETG print",
+  "group": "actuator"
+ },
+ {
+  "item": 14,
+  "name": "Compute shelf plate",
+  "qty": 1,
+  "mass_g": 60,
+  "material": "existing part",
+  "group": "electronics"
+ },
+ {
+  "item": 15,
+  "name": "Raspberry Pi 5 + 2-CH CAN HAT",
+  "qty": 1,
+  "mass_g": 110,
+  "material": "electronics",
+  "group": "electronics"
+ },
+ {
+  "item": 16,
+  "name": "PDB + E-stop/main switch envelope",
+  "qty": 1,
+  "mass_g": 150,
+  "material": "placeholder 100 x 90 x 28",
+  "group": "electronics"
+ },
+ {
+  "item": 17,
+  "name": "RS03, waist yaw",
+  "qty": 1,
+  "mass_g": 880,
+  "material": "RobStride RS03",
+  "group": "waist"
+ },
+ {
+  "item": 18,
+  "name": "Waist yaw adapter plate, PETG",
+  "qty": 1,
+  "mass_g": 120,
+  "material": "PETG print",
+  "group": "waist"
+ },
+ {
+  "item": 19,
+  "name": "Shell hardpoint bracket H1, PETG with M3 inserts, on M5 T-nut",
+  "qty": 2,
+  "mass_g": 16,
+  "material": "PETG print",
+  "group": "hardpoint"
+ },
+ {
+  "item": 20,
+  "name": "Shell hardpoint bracket H2, PETG with M3 inserts, on M5 T-nut",
+  "qty": 2,
+  "mass_g": 16,
+  "material": "PETG print",
+  "group": "hardpoint"
+ },
+ {
+  "item": 21,
+  "name": "Shell hardpoint bracket H3, PETG with M3 inserts, on M5 T-nut",
+  "qty": 4,
+  "mass_g": 32,
+  "material": "PETG print",
+  "group": "hardpoint"
+ },
+ {
+  "item": 22,
+  "name": "Shell hardpoint bracket H4, PETG with M3 inserts, on M5 T-nut",
+  "qty": 4,
+  "mass_g": 32,
+  "material": "PETG print",
+  "group": "hardpoint"
+ },
+ {
+  "item": 23,
+  "name": "Shell hardpoint bracket H5, PETG with M3 inserts, on M5 T-nut",
+  "qty": 4,
+  "mass_g": 32,
+  "material": "PETG print",
+  "group": "hardpoint"
+ },
+ {
+  "item": 24,
+  "name": "Shell hardpoint bracket H6, PETG with M3 inserts, on M5 T-nut",
+  "qty": 4,
+  "mass_g": 32,
+  "material": "PETG print",
+  "group": "hardpoint"
+ },
+ {
+  "item": 25,
+  "name": "Shell collar half-pair on the 8 outboard M4 holes",
+  "qty": 2,
+  "mass_g": 30,
+  "material": "PETG print",
+  "group": "shellpart"
+ },
+ {
+  "item": 26,
+  "name": "TPU spine pads",
+  "qty": 6,
+  "mass_g": 334,
+  "material": "TPU 95A gyroid",
+  "group": "shellpart"
+ },
+ {
+  "item": 27,
+  "name": "Harness trunks: shoulder RS03 connector runs",
+  "qty": 5,
+  "mass_g": 220,
+  "material": "silicone 14 AWG + CAN pair",
+  "group": "harness"
+ },
+ {
+  "item": 28,
+  "name": "Pelvis ring, DRAFT",
+  "qty": 1,
+  "mass_g": 0,
+  "material": "draft envelope 215 x 260 x 115",
+  "group": "future"
+ },
+ {
+  "item": 29,
+  "name": "Jetson Orin Nano dev kit envelope 103 x 90.5 x 35",
+  "qty": 1,
+  "mass_g": 250,
+  "material": "proposed",
+  "group": "proposed"
+ },
+ {
+  "item": 30,
+  "name": "Exhaust fans 40 x 40 x 10",
+  "qty": 3,
+  "mass_g": 60,
+  "material": "proposed",
+  "group": "proposed"
+ },
+ {
+  "item": 31,
+  "name": "Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing",
+  "qty": 1,
+  "mass_g": 60,
+  "material": "proposed",
+  "group": "proposed"
+ },
+ {
+  "item": 32,
+  "name": "OPTION: in-torso battery, 2 x 6S 5000 mAh",
+  "qty": 2,
+  "mass_g": 1500,
+  "material": "option",
+  "group": "option"
+ },
+ {
+  "item": 33,
+  "name": "Sensors: BNO085 IMU on the shelf",
+  "qty": 1,
+  "mass_g": 5,
+  "material": "proposed",
+  "group": "proposed"
+ },
+ {
+  "item": 34,
+  "name": "Corner bracket, 2020",
+  "qty": 4,
+  "mass_g": 56,
+  "material": "Al bracket + M5 T-nuts",
+  "group": "bracket"
+ },
+ {
+  "item": 35,
+  "name": "M5 x 10 button head + T-nut",
+  "qty": 64,
+  "mass_g": 128,
+  "material": "M5 button head",
+  "group": "fastener"
+ },
+ {
+  "item": 36,
+  "name": "M5 x 10 button head + T-nut",
+  "qty": 36,
+  "mass_g": 72,
+  "material": "M5 button head",
+  "group": "fastener"
+ },
+ {
+  "item": 37,
+  "name": "M5 x 16 button head + T-nut",
+  "qty": 20,
+  "mass_g": 40,
+  "material": "M5 button head",
+  "group": "fastener"
+ },
+ {
+  "item": 38,
+  "name": "M4 x 10 button head, collar on the RS03 outboard holes",
+  "qty": 16,
+  "mass_g": 32,
+  "material": "M4 button head",
+  "group": "fastener"
+ },
+ {
+  "item": 39,
+  "name": "M5 x 12 button head + T-nut, pitch bracket to the upper posts",
+  "qty": 8,
+  "mass_g": 16,
+  "material": "M5 button head",
+  "group": "fastener"
+ }
+]

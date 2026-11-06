@@ -1,0 +1,8 @@
+{"hero": [["hero_exp", "view=iso&explode=1&groups=extrusion,gusset,bracket,actuator,electronics,waist,proposed&margin=0.26"], ["hero_fast", "view=iso&explode=1&groups=extrusion,gusset,bracket,actuator,electronics,waist,proposed,fastener,hardpoint&margin=0.26"]],
+ "views": [["asm_iso", "view=iso&explode=0&groups=extrusion,gusset,bracket,actuator,electronics,waist,proposed,fastener,hardpoint"], ["asm_rear", "view=iso_rear&explode=0&groups=extrusion,gusset,bracket,actuator,electronics,waist,proposed,fastener,hardpoint"],
+  ["front", "view=front&explode=0&groups=extrusion,gusset,bracket,actuator,waist&margin=0.55"], ["side", "view=side&explode=0&groups=extrusion,gusset,bracket,actuator,waist&margin=0.5"], ["top", "view=top&explode=0&groups=extrusion,gusset,bracket,actuator&margin=0.5"],
+  ["corner_asm", "view=iso&explode=0&groups=extrusion,gusset,bracket,fastener&region=50,120,270,440,-80,80&center=85,355,30&scale=4.5"], ["corner_exp", "view=iso&explode=1&groups=extrusion,gusset,bracket,fastener&region=50,120,270,440,-80,80&center=85,355,50&scale=3.6"],
+  ["inside_exp", "view=iso&explode=1&groups=actuator,electronics,waist,proposed,harness&ghost=extrusion&margin=0.25"],
+  ["hp_front", "view=iso&explode=0&groups=hardpoint&ghost=extrusion,gusset&margin=0.3"], ["hp_rear", "view=iso_rear&explode=0&groups=hardpoint,shellpart&ghost=extrusion,gusset&margin=0.3"],
+  ["built", "data=built&view=iso&explode=0&scale=2.2"], ["new_frame", "view=iso&explode=0&groups=extrusion,gusset,bracket,actuator&scale=2.2"]],
+ "note": "hero at W=2000 H=1500 DPR=2; views at W=1600 H=1200 DPR=2"}
