@@ -18,16 +18,37 @@ high-side; regen to the pack first, clamp as backup (Joey 08:58Z); HP + LP board
 | Pi power stub | 30 × 20 mm | 2 layers | 12 V → 5.1 V 6 A buck at the Pi |
 | Pack sense | 40 × 25 mm | 2 layers | 14 tap fuses, 3 NTC, 2 × 10 Micro-Fit (battery thread spec) |
 
+## 1a. No plugs on the boards: everything leaves on pigtails (frame check 09:16Z)
+
+The frame thread measured the plug room around the carrier (main 733b9d0): 13.6 mm above the HP top edge before the shared
+front rail and shelf plate, 8.5 mm in front, the side edges blocked except a 10 mm band at Z 40 to 50, and 35 mm below the LP
+bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current connector on either board**:
+
+- **High-current exits are ring-lug pigtails on low-profile threaded board terminals** (Würth REDCUBE-class M4 press-fit or SMT
+  terminals, about 5 to 8 mm tall, 80 A class, verify). Serviceable with a screwdriver, no solder joint carrying the current,
+  and the cable leaves flat along the board.
+- **Pack power and pack sense mate at the back, at the D2 door,** not at the board. The HP top edge carries a 10 AWG pair and the
+  sense harness over the pack's top edge (8.6 mm headroom, fine for cable) to the pack's rear top corner, where they meet the
+  pack's XT90S and the battery thread's sense board (pack rear face, X 5 to 45, Y 318 to 343). Unplug at the door, slide the
+  pack out: no reaching into the torso, and no shelf cutout needed.
+- **Arm ports:** pigtails from the HP top corners run up the front corners with the trunk; the arm trunk's first XT30(2+2) joint
+  becomes an inline connector on that run.
+- **Waist, aux, leg ports and the charge input:** pigtails leave the HP side edges in the open Z 40 to 50 band and drop past
+  the LP board to inline connectors below Y 190 (35 mm of room), or straight to the shell charge port. The leg pigtails are
+  fitted when the legs exist.
+- **LP bottom edge** carries the small connectors (fans, rail outputs, USB, E-stop loop, sensors), mating downward.
+- The floorplan's connector boxes now read as terminal pads; the layout gate re-draws them as such.
+
 ## 2. High-power board
 
 ### 2.1 Main path parts
 
 | Block | Part (verify) | Qty | Why |
 | --- | --- | --- | --- |
-| Pack input | XT90 right-angle board-mount female (AMASS XT90PW-F class), top edge | 1 | 90 A class, mates the pack's XT90S pigtail. All connectors are edge-mounted on the component face: the board's rear face sits 3.5 mm off the pack lid |
-| Pack sense | Molex Micro-Fit 3.0 2 × 10 right-angle header (3.0 mm pitch, about 33 mm long), top edge beside the XT90 | 1 | 14 taps, 3 NTC, presence loop, spare |
+| Pack input | 2 × M4 threaded board terminals + 10 AWG ring-lug pigtail to an XT90 at the pack's rear top corner (section 1a) | 1 | the board's rear face sits 3.5 mm off the pack lid, so nothing mounts there |
+| Pack sense | low-profile locking board header (JST GH or Micro-Fit vertical, to fit 13.6 mm) + harness to the pack sense board's 2 × 10 at the rear | 1 | 14 taps, 3 NTC, presence loop, spare |
 | BMS AFE | TI BQ76952 on the HP board, next to the shunt and FET banks, so the gate drive and Kelvin sense stay short | 1 | 13 cells on VC0 to VC13, unused VC inputs tied per datasheet; 3 pack NTCs plus 1 board NTC; DFETOFF from the E-stop loop and the presence loop; I2C to the LP supervisor through the board-to-board connector |
-| Charge port | XT60 right-angle on the HP left edge, reverse-polarity FET, presence divider | 1 | 4 A, CV 53.9 V; joins PACK+ after the BMS FETs (common port) |
+| Charge port | M4 terminals + pigtail to the shell charge port (XT60), reverse-polarity FET, presence divider | 1 | 4 A, CV 53.9 V; joins PACK+ after the BMS FETs (common port) |
 | Pack shunt (low side, for the AFE) | 0.25 mΩ 4-terminal, 5 W, 3921 size (Vishay WSLP3921 or Bourns CSS4J-4026 class) | 1 | 80 A → 20 mV, 1.6 W |
 | BMS CHG bank, DSG bank (back-to-back) | Infineon IPT015N10N5 (100 V, 1.5 mΩ, TOLL) | 4 + 4 | see 2.2 |
 | BMS precharge FET + resistor | small 100 V P-FET + 100 Ω 3 W | 1 | AFE PCHG pin, charges VSYS bulk before DSG closes |
@@ -69,7 +90,7 @@ high-side; regen to the pack first, clamp as backup (Joey 08:58Z); HP + LP board
 | Fuse | 15 A blade, **58 V DC rated** (Littelfuse 997 MINI 58 V class) in a 58 V holder | 40 A, 58 V |
 | Load-side clamp | 59 V mini clamp, about 20 W (footprint, may stay unpopulated) | same |
 | CAN TVS | NUP2105L class at the connector | same |
-| Connector | AMASS XT30(2+2) female, CAN pins carried with power | XT60 + JST GH 4-pin |
+| Connector | M4 terminals + CAN header on the board; pigtail to an inline XT30(2+2) | M4 terminals + CAN header; pigtail to inline XT60 + JST GH |
 
 The LM5069 current limit is set by a 55 mV (typ, verify) sense threshold: 2.5 mΩ gives 22 A for the 20 A ports, 1.2 mΩ gives
 46 A for the 40 A legs. The circuit-breaker timer is set so the electronic trip always beats the blade fuse.
