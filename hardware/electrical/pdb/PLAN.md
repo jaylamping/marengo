@@ -212,6 +212,19 @@ homing before `READY`).
 - **Regen clamp:** an active shunt regulator on VMOT: comparator at 57.5 V switches a FET into an external brake resistor
   (aluminium-clad, 50 W, 10 Ω class, bolted to a 2020 rail so the frame is the heatsink; off-board, two-wire connector). Plus
   a TVS for fast edges. A TVS alone cannot do this job: a 58 V-standoff TVS clamps at about 90 V.
+- **Braking energy goes back into the pack through the BMS first** (Joey 08:58Z: "it should go back through the bms to charge
+  the batteries"). Path: drive → port FET (or its body diode) → VMOT → E-stop banks (or their body diodes when open) → VSYS →
+  BMS CHG/DSG FETs (both on while running) → cells. The AFE counts it as charge, so it shows up in the coulomb counter and the
+  energy telemetry as recovered Wh. The clamp is only the backup, for the cases where the pack must not take charge:
+  - pack at or near full (any cell at 4.15 V; the OV trip at 4.22 to 4.25 V with 1 s delay is the hard stop), the 0.7 V of
+    headroom between the 53.9 V charge end and the 57.5 V clamp is where regen lives;
+  - pack outside the 0 to 45 °C charge window (cold-weather regen goes to the resistor, by design);
+  - regen current above the charge over-current limit (AFE OCC: proposal 20 A for 1 s, pending the battery thread's cell
+    charge-pulse rating);
+  - BMS faulted or CHG FET open, or pack removed.
+  Host side: above 95% charge the host lowers braking aggressiveness so the clamp is rarely needed. Energy scale, for honesty: a
+  3 kg arm falling 0.5 m is about 15 J, a few milliwatt-hours, so arm regen is about protecting the 60 V drives, not range;
+  walking legs return more.
 - **Regen path in every state** (trunk thread question, 08:57Z). Rules: the port switches are single FETs (no back-to-back
   reverse blocking), so their body diodes always pass load-side current back to VMOT. The E-stop banks are also single-direction,
   with their body diodes pointing VMOT → VSYS. The clamp sits on VMOT itself and **powers itself from VMOT** (comparator and gate
@@ -483,6 +496,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.10 | 2026-11-06 | Regen routed through the BMS into the pack first, clamp as backup (Joey 08:58Z) |
 | 0.9 | 2026-11-06 | Regen path in every state, self-powered clamp, per-port load-side clamp (trunk thread question) |
 | 0.8 | 2026-11-06 | Port fuses and holders must be 58 V DC rated, not 32 V blades (trunk thread flag) |
 | 0.7 | 2026-11-06 | Junction boards ruled out (Joey 08:35Z): per-motor current from drive reports; port-side CAN TVS, 58 V-tolerant transceivers |
