@@ -95,7 +95,7 @@ Not wiring but needed before section 6: the shoulder fastener kit (M4 washers OD
 Run with Joey present. One motor at a time until step 5.
 
 1. **Before power.** Continuity on each lead. No short between + and −. CAN_H to CAN_L about 60 Ω (section 3). CAN_H and CAN_L to GND open.
-2. **Supply.** Set 24 V, current limit about 2 A. Close E-stop with only M11 plugged in. Expect a short inrush then a small idle draw; note it.
+2. **Supply.** The bench supply is a fixed 24 V / 1200 W unit (Joey, 2026-11-06), about 50 A with no adjustable current limit, so the fuse is the only limit. For first power-up, swap the 10 A trunk fuse for a **3 A** one, plug in only M11, close the E-stop and note the inrush and idle draw. Go back to 10 A once all three motors pass step 5.
 3. **Bus up.** `sudo ./scripts/can-up.sh can1` (or `ip link set can1 type can bitrate 1000000 && ip link set can1 up`). `ip -details link show can1` shows `clock 8000000` and state ERROR-ACTIVE.
 4. **Scan and ID.** Read M11's ID and firmware. Set ID 11 if needed, then set zero. Repeat for M12 (12) and M13 (13) one at a time. Record firmware strings for `firmware_version`.
 5. **All three on the bus.** 10 minute idle soak with feedback polling. Pass = no error frames, no RX overflow (both latch a transport fault, repo safety.md), TX/RX error counters stay 0.
@@ -110,7 +110,11 @@ Run with Joey present. One motor at a time until step 5.
 - A left-arm bench config on can1 (software side; `config/motors.yaml` is right-arm only and the humanoid template puts the left arm on can3 with ids 14+, which does not match this plan).
 - First powered motion supported by hand, torque caps at or below the right arm's, one joint at a time.
 
+## Supply notes
+
+- 24 V / 1200 W fixed supply (Joey, 2026-11-06): within the drives' 24 to 60 V range (vendor manual) and far more than the bench draw at the current torque caps.
+- Regeneration: when a motor is back-driven or brakes hard it pushes energy back onto the bus, and a switching supply cannot absorb it, so bus voltage rises. At slow bench speeds this is small. If fast moves ever trip the supply or lift the bus voltage noticeably, add a braking/discharge module (RobStride sells one; doc in the vendor repo).
+
 ## Open questions
 
-- Is the current right-arm supply 24 V, and what is its current limit? (Playbook baselines are quoted at 24 V.)
 - Does the left branch share the right arm's E-stop?
