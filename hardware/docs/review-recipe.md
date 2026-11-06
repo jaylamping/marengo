@@ -6,16 +6,27 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | --- | --- | --- | --- | --- |
 | Sol | Codex CLI | `-m gpt-6.1-sol` | `-s read-only` | 8.5 min |
 | Astra | Codex CLI | `-m gpt-6-astra` | `-s read-only` | 9 min |
-| Grok | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
+| Fable (replaces Grok from 2026-11-06, Joey) | Claude Code CLI, fresh session | `--model claude-fable-5-1` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | not yet timed |
+| ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
 
 Run times are from one run. Allow 20 minutes.
+
+Fable: run it as a fresh session with only the packet folder, never from the thread that wrote the packet, so it has no memory of the author's reasoning:
+
+```bash
+(claude -p --model claude-fable-5-1 --allowedTools "Read,Glob,Grep,Bash(sha256sum*)" \
+  --output-format text "$P" > reviews/claude-fable.md 2> reviews/claude-fable.log </dev/null
+ echo "fable exit $?" >> reviews/STATUS.txt) &
+```
+
+A thread may also run it from the cloud as a fresh (not forked) agent pointed at the packet path with the same prompt; record which way it ran.
 
 Always pass the model flag. Codex without `-m` did not give Sol. Grok 4.8 Fast was not available through cursor-agent, so use `grok-4.7-high-fast`. Check with `--list-models` if that changes.
 
 cursor-agent launched from Git Bash can be blocked by the repo's `.cursor` pre-tool hook (`impeccable-before-edit.js` dies with a bash syntax error, every file read rejected, exit still 0, 30 s). Launch it from PowerShell with the same flags (torso frame gate, 2026-11-06). Check that the review actually read files before trusting an exit 0.
 
-Antigravity (Argon) is not on Joey-PC. It may be on the Mac, but that is untested.
+Antigravity (Argon) is not on Joey-PC. It may be on the Mac, but that is untested and it has never produced a review; as of 2026-11-06 no gate has included it.
 
 ## 1. Build the packet
 
