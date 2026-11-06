@@ -6,30 +6,30 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | --- | --- | --- | --- | --- |
 | Sol | Codex CLI | `-m gpt-6.1-sol` | `-s read-only` | 8.5 min |
 | Astra | Codex CLI | `-m gpt-6-astra` | `-s read-only` | 9 min |
-| Fable xhigh (replaces Grok from 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort xhigh` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | not yet timed |
-| Opus xhigh (added 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-opus-5-5 --effort xhigh` | same as Fable | not yet timed |
+| Fable high (replaces Grok from 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort high` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | not yet timed |
+| Opus high (added 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-opus-5-5 --effort high` | same as Fable | not yet timed |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
 | Argon | Antigravity `agy` (MacBook only) | `--model gemini-4-argon-high` (always High effort, Joey 2026-11-06) | Prompt only, so check hashes after | not yet timed |
 
 Run times are from one run. Allow 20 minutes.
 
-Fable and Opus: run each as a fresh session with only the packet folder, never from the thread that wrote the packet, so it has no memory of the author's reasoning. Both run on the **API credits**, not the Claude subscription (Joey 2026-11-06 06:17Z: "an Extra High Fable and Extra High Opus review from the free api credits, as long as we have them available"). Claude Code bills the API account whenever `ANTHROPIC_API_KEY` is set in the shell, and the subscription when it is not, so set the key for these two commands only:
+Fable and Opus: run each as a fresh session with only the packet folder, never from the thread that wrote the packet, so it has no memory of the author's reasoning. Both run on the **API credits**, not the Claude subscription, at **high** effort (Joey 2026-11-06 06:33Z: "high effort for both", API route confirmed). Claude Code bills the API account whenever `ANTHROPIC_API_KEY` is set in the shell, and the subscription when it is not, so set the key for these two commands only:
 
 ```bash
 # key from https://platform.claude.com/settings/keys, kept in the shell profile on the machine, never in the repo or a packet
 export ANTHROPIC_API_KEY=sk-ant-...
 
-(claude -p --model claude-fable-5-1 --effort xhigh --allowedTools "Read,Glob,Grep,Bash(sha256sum*)" \
+(claude -p --model claude-fable-5-1 --effort high --allowedTools "Read,Glob,Grep,Bash(sha256sum*)" \
   --output-format text "$P" > reviews/claude-fable.md 2> reviews/claude-fable.log </dev/null
  echo "fable exit $?" >> reviews/STATUS.txt) &
 
-(claude -p --model claude-opus-5-5 --effort xhigh --allowedTools "Read,Glob,Grep,Bash(sha256sum*)" \
+(claude -p --model claude-opus-5-5 --effort high --allowedTools "Read,Glob,Grep,Bash(sha256sum*)" \
   --output-format text "$P" > reviews/claude-opus.md 2> reviews/claude-opus.log </dev/null
  echo "opus exit $?" >> reviews/STATUS.txt) &
 ```
 
-Cost per review, from the published API prices (2026-11-06; Fable 5.1 $10 in / $50 out per million tokens, Opus 5.5 $4 / $20) and a torso-frame-sized packet (about 200k tokens read, 30 to 60k tokens of thinking and review written at xhigh): **Fable about $3 to $6, Opus about $2 to $3**. Check the balance at https://platform.claude.com/settings/billing before a round; if the credits are gone, drop the key and the Fable run falls back to the subscription (Opus too). `claude -p` has no run-time cost print, so read the token usage from the console's usage page after the first round and correct these numbers here.
+Cost per review, from the published API prices (2026-11-06; Fable 5.1 $10 in / $50 out per million tokens, Opus 5.5 $4 / $20) and a torso-frame-sized packet (about 200k tokens read, 20 to 40k tokens of thinking and review written at high): **Fable about $3 to $4, Opus about $1.50 to $2**. Check the balance at https://platform.claude.com/settings/billing before a round; if the credits are gone, drop the key and the Fable run falls back to the subscription (Opus too). `claude -p` has no run-time cost print, so read the token usage from the console's usage page after the first round and correct these numbers here.
 
 A thread may also run it from the cloud as a fresh (not forked) agent pointed at the packet path with the same prompt; record which way it ran.
 
