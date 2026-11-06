@@ -78,6 +78,14 @@ Sources (datasheet): [P45B](https://www.imrbatteries.com/content/molicel_p45b.pd
 Vendor pages: [P50B, 18650BatteryStore](https://www.18650batterystore.com/products/molicel-21700-p50b-5000mah-50a-battery),
 [P45B, IMR Batteries](https://imrbatteries.com/products/molicel-p45b-21700-4500mah-45a-battery).
 
+**Preferred if obtainable (Joey's find, Battery Mooch's 21700 table updated 2026-10-13):** Mooch's independent tests
+put **Reliance RS60, Linkdata 60P and Great Power 60Q (CCC)** in his 30 A column at 16.9 to 18.7 Wh delivered per cell; the
+P50B is not on his list. At 2P behind a 60 A fuse each cell must handle 30 A, so the 30 A column is ours. 6 Ah cells give
+about 12 Ah / 560 Wh, about 20% more than P50B, in the same 21700 grid (check the bare-cell length is 70 to 71 mm). Avoid
+Tenpower 60XG (Mooch flags low cycle life). Linkdata 65P, BAK 65E, Vapcell F66 top the 5 to 20 A columns but are not rated
+for 30 A. On 2026-11-06 RS60 was out of stock at NKON and not listed at IMR Batteries; no trusted US vendor found for 60P or
+60Q. Buy one of these from a reputable vendor if possible; otherwise P50B. Tell the power board thread which cell is bought.
+
 **13S2P P50B:** 10.0 Ah, 46.8 V nominal, 468 Wh. That is 120 A continuous at the cells, so the 60 A fuse is the limit by a
 factor of two (datasheet × 2). Charging stops at 4.15 V, so usable energy is about 450 Wh (estimate).
 
