@@ -241,8 +241,8 @@ Leg ports are footprints on rev A; populate when the legs exist.
   actuator" fear is a crushed cable putting 54 V on CAN; with junction boards ruled out (08:35Z) the drives' transceivers rely on the
   trunk's discrete TVS at the splices, and isolation here protects the Pi, the Jetson and the board. Pick a transceiver whose bus
   pins survive a sustained 58 V fault (ISOW1044 class claims ±58 V; verify), and add a port-side CAN TVS on the board. The bus side of each transceiver references that limb's trunk GND at the port.
-- **Termination:** 120 Ω at the board end of each bus, switchable (solid-state or jumper), far end on the trunk's last junction
-  board as the trunk thread planned.
+- **Termination:** 120 Ω at the board end of each bus, switchable (solid-state or jumper), far end at the trunk's last drop
+  (a heat-shrunk resistor, trunk thread).
 - The supervisor MCU appears on the same USB hub as a CDC serial device for telemetry and the arm/disarm handshake. If USB drops,
   the drives' own CAN timeout (600, about 30 ms, ADR 0001) stops them; the supervisor also opens the motor switches if it loses
   the host heartbeat.
@@ -272,8 +272,7 @@ So fuse selectivity and CAN fault tests can run without risking real actuators:
   a small board of its own) drives step and short-circuit currents into a trunk segment, so drop fuses can be checked to blow
   before the port trips.
 - **CAN fault-injection header** on one bus (the spare CAN6): jumper positions to short CAN_H to CAN_L, CAN_H or CAN_L to GND,
-  and CAN_H to VBUS through a 100 ohm current-limit resistor, plus a removable terminator. This checks the trunk junction boards'
-  surge protection and the isolated transceivers before a real trunk sees it. Only usable in test mode with motors disarmed.
+  and CAN_H to VBUS through a 100 ohm current-limit resistor, plus a removable terminator. This checks the trunk's splice TVS diodes and the isolated transceivers before a real trunk sees it. Only usable in test mode with motors disarmed.
 - Test points on VSYS, VMOT and every port, sized for a scope probe ground spring.
 
 ### 3.9 Observability and telemetry (Joey 07:28Z: "know at all times how many amps/volts we are pulling and where")
@@ -310,10 +309,9 @@ non-volatile memory so it survives a pack swap. A third pack NTC by the pack fus
 that can read thermistors (verify), but the 2 × 9 connector is full, so it costs a 2 × 10 Micro-Fit. Recommended, cheap.
 
 **Per-motor current.** The board measures each limb exactly. Per motor it relies on the drives' own reports, and the
-supervisor reconciles the sum against the limb meter (the residual is wiring loss or error). If Joey wants measured current
-per motor as well, the trunk junction boards can carry a sense chip, which needs a small MCU on CAN at each one. Joey ruled out junction
-boards (08:35Z, trunk thread), so per-motor current comes from the drives' own CAN reports, reconciled on the host against the
-measured limb total; there are no per-motor sense nodes.
+host reconciles the sum against the limb meter (the residual is wiring loss or error). Joey ruled out junction boards
+(08:35Z, trunk thread), so there are no per-motor sense nodes: the limb meters are the only measured current below the pack,
+which makes their 1 kHz rate and 20 kHz fault capture the main tool for finding which motor misbehaved.
 
 **Accuracy target:** ±1% current above 1 A, ±0.2% voltage, energy within 2% over a session. Calibrated against a bench meter
 at bring-up, with the calibration stored in the supervisor.
