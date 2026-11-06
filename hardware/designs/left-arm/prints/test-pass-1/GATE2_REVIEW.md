@@ -101,3 +101,5 @@ Fable about 6 min, Opus about 10 min, same method. **Both plates GO.**
   - The bolt is now specified fully threaded (ISO 4017), so the first nut is on full thread.
   - Clean and test-fit the M4 nut slots, which the slicer fills with support.
   - Drill the fork dowel holes about 4.5 mm deep.
+
+**After R3:** the notch was the same cheek-root slot (x 134–138, z 7–10, both cheeks). It is now closed in the live fork by a second `CHEEK_ROOT` change. The pushed `fork_sector.3mf` (54b06c930b81, the R3 GO version) still has it and is kept as is. That makes the stop test slightly conservative. The next forearm export replaces it.
