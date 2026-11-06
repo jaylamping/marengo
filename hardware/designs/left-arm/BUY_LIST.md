@@ -8,14 +8,18 @@ Supplier names are starting points. No listing below has been checked for stock,
 
 ## Custom cut
 
-These need a DXF and a laser or waterjet shop. The hole positions are specific to this arm, so no catalog part will fit. **The DXFs are not made yet.**
+These go to a laser or waterjet shop, because the hole positions are specific to this arm and no catalog part will fit. The files are in `dxf/`: `elbow_ring_84x66x2.dxf` and `hub_ring_32x16x2.dxf`. They are 1:1 in millimetres, circles only, so set the units to mm on upload and order 1 and 2 off. The elbow ring pattern is mirror symmetric, so it can go in either way up.
 
 | Part | Qty | Spec | Where it goes |
 | --- | --- | --- | --- |
-| Elbow ring | 1 | Ø84 OD, Ø66 ID, 2 mm steel, 6 × M3 clearance holes on r 36.5 at 63.9, 103.9, 143.9, 223.9, 263.9 and 303.9 degrees | Between carrier and hoop, X 149.7 to 151.7 |
-| Hub ring | 2 | Ø32 OD, Ø16 ID, 2 mm steel, 6 × M4 clearance holes on the Ø24 circle | One on the flat at Y 298, one in the fork ring seat |
+| Elbow ring | 1 | Ø84 OD, Ø66 ID, 2 mm steel, 6 × Ø3.4 holes on r 36.5 at 63.9, 103.9, 143.9, 223.9, 263.9 and 303.9 degrees | Between carrier and hoop, X 149.7 to 151.7 |
+| Hub ring | 2 | Ø32 OD, Ø16 ID, 2 mm steel, 6 × Ø4.5 holes on the Ø24 circle, 60 degrees apart | One on the flat at Y 298, one in the fork ring seat |
 
-Search terms: "laser cut steel parts", "custom waterjet steel". SendCutSend and OSH Cut both take DXF uploads. Use plain or zinc-plated mild steel, and ask for the burrs to be removed. Check that 2 mm stock is offered.
+Search terms: "laser cut steel parts", "custom waterjet steel". SendCutSend and OSH Cut both take DXF uploads.
+
+**Material:** 2 mm A36 or 1018 mild steel, or 304 stainless if you want no rust. Inch stock near 2 mm is fine, for example 14 gauge, about 1.9 mm. I couldn't confirm SendCutSend's current stock list, so choose the nearest offered at upload. Ask for the burrs to be removed, or deburr them by hand, because the rings clamp against printed faces.
+
+**Cut rules:** SendCutSend's study guide gives 50 percent of thickness as the minimum hole and bridge width, so 1 mm here. All holes pass. The thinnest webs are 1.75 mm on the hub ring and 1.8 mm on the elbow ring. Those pass that minimum, but they are under SendCutSend's preferred bridge of 1 to 1.5 times thickness, and under the general advice of one hole diameter from an edge. Expect the quote check to accept them, and look at the hub ring webs for distortion when they arrive.
 
 A plain Ø32 × Ø16 × 2 washer can stand in for the hub ring if the holes are drilled by hand on a fixture. The elbow ring has no such stand-in.
 
@@ -59,6 +63,5 @@ Search terms: "6808-2RS", "ISO 7380 M3x25", "DIN 9021 M3". For the retainers, "t
 
 ## Still open
 
-- Elbow ring and hub ring DXFs.
 - Cover screw and RS00 screw lengths, and whether the cover uses heat-set inserts.
 - Elbow cable and fuse hardware, which are in `hardware/electrical/wiring/left-arm-trunk/README.md`.
