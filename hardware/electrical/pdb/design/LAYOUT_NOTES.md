@@ -53,7 +53,7 @@ Recommendation: 1 and 2, then rerun the fit, then 5 if it is still over 70 %. Al
 | Arm M4 terminals inboard of \|X\| 44 | Met: edge at \|X\| 42.4, centres ±35.8 and ±22.6 |
 | Pack lug envelope | Met: J1 and J3 at X ±9.4, Y 333, inside the X -35 to 30 run |
 | **Ceiling 12.4 mm** | **Not met.** The 23 HHXF 100 µF are 16.5 to 17 mm tall (log, and DigiKey's listing for sibling HHXF800ARA101MJH0G). About 15 mm for the 3568 mini fuse holders with a fuse in: inferred from a distributor size, not a drawing. Vertical Micro-Fit and 2 × 15 ribbon headers need their plug and cable height checked |
-| **LP connectors at \|X\| > 36** | **Not met.** 4 Micro-Fit-size positions per corner at best, with 11 Micro-Fit, 3 fan and 9 JST to place |
+| **LP connectors at \|X\| > 36** | **Not met.** That leaves two 14 mm edge strips, against 11 Micro-Fit at 8.2 mm wide and 3 fan headers at 11.2 mm, before the JST connectors |
 | **Side pigtail bands** | **Not met.** Charge, waist and R leg all leave at -X, aux, L leg and brake at +X. Section 1b fits one arm bundle in a band, and no arm plus leg together |
 | B0 to VSS return under 1 mΩ | **At risk off the board.** RS1 sits beside J3, so board copper is small. My estimate of 150 to 250 mm of 10 AWG at 3.28 mΩ/m is 0.5 to 0.8 mΩ, before the XT90 contact. Measure it, or take B0 at the board |
 | Kelvin shunts | RS1 placed. RS201 and RS401 landed on the rear, away from their FETs: not final |
