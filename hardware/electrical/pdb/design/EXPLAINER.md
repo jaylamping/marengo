@@ -2,7 +2,7 @@
 
 2026-11-06. A plain-language tour of the rev A schematic ([PDF](schematic-rev-A-wip.pdf), [BOM](bom-rev-A.csv)). The detail behind
 every choice (part, rejected options, datasheet page, calculation) is in [RATIONALE-log.md](RATIONALE-log.md). **Status:
-schematic captured, 27 pages, about 1,180 parts, KiCad's electrical rules check clean. Nothing is built, laid out or tested;
+schematic captured, 27 pages, 1,258 parts, KiCad's electrical rules check clean, every BOM line has a footprint. Nothing is built, laid out or tested;
 every value is calculated from datasheets.** It still has to pass the gate-3 review before any PCB layout.
 
 ## The one rule behind the whole design
@@ -49,7 +49,9 @@ supervisor chip dies, the motors go off and the computers stay up.
 - **Motor bus precharge added:** closing the E-stop banks straight onto the capacitors would exceed the transistors' safe area.
 - **Pack shunt is 0.3 mΩ** (0.25 mΩ doesn't exist), so the battery chip's trip points shift to about 67 A discharge, 47 A
   charge or braking, 200 A short circuit.
-- **Arm fuses are 20 A, not 15 A,** so the fuse never fights the faster electronic trip.
+- **Arm, waist and aux ports trip electronically:** a software trip at 15 A (adjustable down to 1 A; aux defaults to 10 A), a
+  hardware limit of about 18 A (3 mΩ shunt; 3.3 mΩ doesn't exist and would limit under 15 A), and the 20 A fuse only as a
+  backstop if the transistor fails shorted.
 - **CAN surge protection** uses a 58 V part on every bus, since the usual CAN protector would die if a crushed cable put 54 V on
   CAN.
 - **Telemetry:** the fast 1 kHz current comes from a dedicated amplifier per limb; the precision meters update at 100 Hz.
@@ -66,7 +68,9 @@ supervisor chip dies, the motors go off and the computers stay up.
 
 ## What is still owed before layout
 
-- The 150 mA cell-balancing switches (biggest gap; rev A wip only has the battery chip's internal balancing).
-- A handful of footprints and datasheets (listed in the rationale log), and bench measurements we can only get on real hardware
-  (drive input capacitance, timing on a scope).
+- Closed 2026-11-06 (commit c4250693): 13 cell-balancing switches (~160 mA per cell, 4 cells at once until a thermal check),
+  low hold-up capacitors that fit the 13 mm gap, the clamp sized for a 2 Ω resistor, the 12 V load-shed table, 5 V / 3.3 V
+  polyfuses, a leg fuse footprint, and the missing footprints.
+- A few datasheets are still read from distributor data only (listed in the rationale log), and bench measurements we can
+  only get on real hardware (drive input capacitance, timing on a scope). Port trip and load-shed firmware is owed.
 - Gate-3 review of the schematic with the reviewer roster, then PCB layout.
