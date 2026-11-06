@@ -110,6 +110,26 @@ Run with Joey present. One motor at a time until step 5.
 - A left-arm bench config on can1 (software side; `config/motors.yaml` is right-arm only and the humanoid template puts the left arm on can3 with ids 14+, which does not match this plan).
 - First powered motion supported by hand, torque caps at or below the right arm's, one joint at a time.
 
+## In-arm trunk: provisional cable spec (for the left-arm design)
+
+Provisional numbers so the structure can reserve channel space. **Assumptions** from typical high-strand silicone wire, not measured; replace with measured values once wire is in hand.
+
+| Item | Spec | OD (typ.) |
+|------|------|-----------|
+| Power + / − | 16 AWG high-strand silicone (≥ 250 strands), 600 V rated | ~2.8 mm each |
+| CAN pair | 24 AWG silicone, twisted ~1 turn / 25 mm | ~1.5 mm each, ~3.0 mm as a pair |
+| Trunk bundle (2 power + CAN pair) in thin braided sleeve | — | **~7 mm round, or ~3.2 × 9 mm laid flat** |
+
+- **Channel size to reserve:** at least **9 mm round or 5 × 11 mm** for the trunk, plus a 12.5 × 12 × 4.5 mm pocket where each XT30(2+2)-F plugs in (handoff envelope with 1 mm clearance on the 12.3 × 11.8 × 4.2 mm plug) and room for a GH1.25 2-pin plug (~5 × 4 × 6 mm) beside each RS03 XT30.
+- **Bend radius:** static (installed, not moving) ≥ **5 × OD ≈ 35 mm** bundle, ≥ 15 mm for a single wire. Dynamic (bends every time the joint moves) ≥ **10 × OD ≈ 70 mm** bundle; split the bundle into loose individual wires through tight joints to get ≥ **30 mm** (10 × single-wire OD).
+- **Torsion:** where the trunk crosses a yaw axis along its length, give it at least **150 mm** of free, unclamped length per ±90° of joint travel, routed close to the axis. Clamp at both ends of that length so the twist stays in it.
+- **Sizing for 48 V:** 16 AWG carries the whole arm (two RS03 + two RS02 + RS00) for normal use; the drives' phase current is much higher than their bus current. Revisit only if measured bus current at 48 V is sustained above ~15 A.
+
+## Drop placement (from the left-arm design, 2026-11-06)
+
+- On the new round upper arm (`hardware/designs/left-arm/upper-arm/`), the elbow RS02's lower XT30(2+2) port is enclosed, so its drop uses the **upper port**.
+- The upper-arm yaw RS02 and elbow RS02 drops both come off the **upper-arm segment** of the trunk.
+
 ## Supply notes
 
 - 24 V / 1200 W fixed supply (Joey, 2026-11-06): within the drives' 24 to 60 V range (vendor manual) and far more than the bench draw at the current torque caps.
