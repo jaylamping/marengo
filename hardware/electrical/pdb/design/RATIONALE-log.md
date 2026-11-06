@@ -425,7 +425,7 @@ R2007, R2014, C2005 and C2007 as logged above no longer exist in that form, and 
 | Item | Fix |
 |---|---|
 | Latch clear | Chatter filter moved ahead of the Schmitt input: 10 kΩ (was the 0R link) + 100 nF on INV, 0.6 to 0.9 ms. 1.5 to 2.0 V threshold assumed at 3.3 V; the datasheet's table is at 3 V. U2033, U2034 SN74LVC1G08 drive CLR with OUT AND WD_N, replacing the BAT54 and 10 kΩ. RC on CLR was 550 µs/V against the 10 ns/V limit, and C2005, C2007 discharged through WDO. TPS3431 holds WD_N low from VPOR until tRST after VDD(min), so the flops are cleared at power-up. Cat 1 option is about 302 ms with the 100 nF left in |
-| Bank B close | VMOT standing load is up to 9 mA: resistive 4.73 mA, LM5069 disabled 650 µA max each (SNVS452G), plus IC bias. That is a 0.9 V floor across R318, so 0.5 V was out of reach. Close when VMOT reads within 1.5 V of VSYS, timeout 1.5 s. MID, VMOT and VSYS dividers 0.1 %: true gap 1.2 to 1.8 V allowing 0.3 V of divider and ADC error. Time 0.81 s, worst case 1.12 s at +20 % C. Model: 1.8 V true gap, stack behind bulk, 50 nH assumed: 82 to 122 A over 10 to 3 mΩ loop, above 105 A for 4.4 µs at most, against the 10 µs timer. Loop resistance is a bench check |
+| Bank B close (numbers superseded by pass 4 below) | VMOT standing load is up to 9 mA: resistive 4.73 mA, LM5069 disabled 650 µA max each (SNVS452G), plus IC bias. That is a 0.9 V floor across R318, so 0.5 V was out of reach. Close when VMOT reads within 1.5 V of VSYS, timeout 1.5 s. MID, VMOT and VSYS dividers 0.1 %: true gap 1.2 to 1.8 V allowing 0.3 V of divider and ADC error. Time 0.81 s, worst case 1.12 s at +20 % C. Model: 1.8 V true gap, stack behind bulk, 50 nH assumed: 82 to 122 A over 10 to 3 mΩ loop, above 105 A for 4.4 µs at most, against the 10 µs timer. Loop resistance is a bench check |
 | Q211 | R222 15 Ω in the collector: 0.62 A peak from 11 V, under 800 mA. R215 set only the base current |
 | OTP | Mfg Status Init[FET_EN] = 1, default 0 is FET test mode and the board would never start. Enabled Protections C[SCDL] = 1, SCDL Latch Limit 2, Counter Dec Delay 60 s: a persistent VSYS short costs R209 30 J about every 65 s |
 | BUCK12_OFF | Firmware reads FET Status and asserts it only while DSG is off, at every predischarge. The boot-only rule dropped compute on an MCU reset, and missed later predischarges |
@@ -447,7 +447,7 @@ Model: 2 µH, 90 mΩ, 13 × 3 mΩ cells, hard short, FET off at 83 µs (the late
 
 Rev A's limit: VC0 stays inside its rating above about -14 °C on typical Vf. Below that a short exceeds the absolute maximum briefly, with R14 limiting the current to a few mA. So the OTP list gains UTD at -10 °C on the pack NTC: no discharge when cold. Margin is on typical curves and an assumed cell resistance, so it is thin, not guaranteed.
 
-The 1 mΩ return is a measured harness requirement, including any XT90 contact between B0 and VSS. At 1.5 mΩ the -40 °C figure is worse and 0 °C has no margin.
+The 1 mΩ return is a measured harness requirement, including any XT90 contact between B0 and VSS. At 1.5 mΩ the model gives -0.25 V at 25 °C and -0.36 V at -40 °C, 15 to 25 mV worse.
 
 ## Gate 3 pass 4 fixes (2026-11-06)
 
