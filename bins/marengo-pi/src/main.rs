@@ -234,6 +234,13 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                 }
                 None => None,
             };
+            // Any other `speed=` token is misplaced or repeated: refuse it rather than read
+            // it as a joint name (a one-joint session ignores the name and would run at
+            // full speed).
+            if tokens.iter().any(|t| t.starts_with("speed=")) {
+                say_err!("hold-at: speed=<f> must be the last token, given once");
+                return None;
+            }
             match tokens.as_slice() {
                 [rad] => {
                     let position_rad = parse_number::<f64>(rad, "hold-at", "position_rad").ok()?;
@@ -2631,6 +2638,11 @@ mod stdin_command_tests {
             "hold-at speed=0.5",
             "hold-at right_elbow_pitch speed=0.5 0.1",
             "hold-at right_elbow_pitch 0.1 speed=0.5 speed=0.5",
+            // A misplaced token must not pass as a joint name: a one-joint session ignores
+            // the name, so the move would otherwise run at full speed.
+            "hold-at speed=0.25 0.1",
+            "hold-at speed=NaN 0.1 speed=1",
+            "hold-at speed= 0.1",
         ] {
             assert!(parse_command(line).is_none(), "{line:?} must be refused");
         }

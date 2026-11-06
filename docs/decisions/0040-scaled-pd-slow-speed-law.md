@@ -155,8 +155,10 @@ ran at `position_slew_rad_s` / `position_trajectory_velocity_rad_s`.
   `optional double`); Berthier `ControlLoop::enter_position_hold_at_speed` and
   `set_joint_position_setpoint_at_speed`. Without `f` a hold-at is exactly the old one.
 - **Range, fail-closed.** `0 < f ≤ 1` (`marengo_config::SpeedFraction`, one rule for every
-  surface). Zero, negative, above one, NaN, ±∞ or unparseable text are refused, never clamped:
-  stdin prints the error and runs nothing; the gateway answers 400 and publishes nothing;
+  surface). Zero, negative, above one, NaN, ±∞ or unparseable text are refused, never clamped,
+  and so is a stdin `speed=` token anywhere but last or given twice (a one-joint session
+  ignores the joint name, so it must never pass as one): stdin prints the error and runs
+  nothing; the gateway answers 400 and publishes nothing;
   marengo-pi refuses the whole Testing batch (published `motion_refused`) before any enable,
   gravity preflight, mode or gain change; Berthier returns `LoopError::InvalidSpeedFraction`
   before it touches the drives or the hold. A refused hold-at leaves the latched targets, the
