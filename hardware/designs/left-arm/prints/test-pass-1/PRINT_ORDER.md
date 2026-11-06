@@ -13,6 +13,8 @@ These are test pieces, not load-bearing arm parts. Don't fit them to the robot, 
 
 Total: about 23 h 45 m and 786 g.
 
+**Gate 2 review, 2026-11-06 (`GATE2_REVIEW.md`):** plate 1 GO. Plate 2 GO with an outer 5 mm brim set by hand. Plate 3 GO as a fit-check piece only. **Plates 4, 5 and 6 are on hold** until the fixes listed there are made and the files re-sliced.
+
 **Stop after step 2 or 3 if something is off.** Weak coupons change every layer number, and a bad 6808 fit means the CAD changes before the bigger prints. Steps 5 and 6 take most of the plastic, so don't start them until steps 2 and 3 look right.
 
 Tests 5 and 6 break parts. If the first set goes well, print a second carrier and fork sector.

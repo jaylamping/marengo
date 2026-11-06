@@ -51,11 +51,13 @@ Load from a hanging weight on a lever:
 Everything here is meant to be possible at home.
 
 - Bench or heavy table with clamps, and a floor free of feet and pets under the load.
-- Lever: 25 mm square steel or aluminium tube, or a 2020 extrusion, 600 mm, with holes at 300 and 500 mm. Include its own weight in the torque.
+- Lever: 25 mm square steel or aluminium tube, or a 2020 extrusion, 600 mm, with holes at 300 and 500 mm **measured from the elbow axis, not from the end of the lever**. The socket floor is 100 mm from the axis, and the M5 holes are 10 and 30 mm from the inserted end of the lever. Include the lever's own weight in the torque.
 - Weights: dumbbell plates or water jugs in a bag, weighed first. A luggage scale is for pull tests and for checking, not for setting a static load, since it is hard to hold steady.
 - Dial indicator or calipers, phone camera, marking compound or a dry-erase marker for contact patches.
 - Angle reading: phone inclinometer on the lever.
-- Safety glasses for every load test. PETG can fail suddenly.
+- Face shield, or at least safety glasses, for every load test. PETG can fail suddenly.
+- A catch for every load test: a block or strap 20 to 30 mm under the weight bag, so a failure drops the load a short way instead of swinging it through the full arc. Nobody stands in the swing plane. Lower weights on with a jack or by hand from the side.
+- For the drop test, count the lever (about 0.3 kg) and the sector in the energy, not only the 2 kg.
 
 ## Test parts
 
@@ -124,11 +126,11 @@ Inspect the seat, bridge over the recess, pocket slivers and floor. Fit the 6808
 
 Assemble the full order on the dummy parts with real tools.
 
-**Pass:** every screw can be driven and torqued in the documented order, and the joint can be taken apart again. Record the running gap at the cheek, which needs to stay clear through 0 to 133 degrees by hand, and check the contact patch at both stops with marking compound.
+**Pass:** every screw can be driven and torqued in the documented order, and the joint can be taken apart again. Record the running gap at the cheek, which needs to stay clear through 0 to 124 degrees by hand, and check the contact patch at both stops with marking compound.
 
 ### Test 5: static stop
 
-Set the sector against the 0 degree stop, then the 133 degree stop. Mount the dummy housing rigidly to the bench.
+Set the sector against the 0 degree stop, then the 124 degree stop (the mechanical travel is 123.4 to 124 degrees). Mount the dummy housing to a rigid vertical board so the elbow axis is horizontal, otherwise a hanging weight gives no elbow torque. Re-mount the board, or correct by the cosine of the lever angle, to load the far stop.
 
 1. Load at 17 N·m for 30 seconds, unload, 10 times at each stop. Measure the stop angle before and after.
 2. On the second set, at the stop that looks weaker, add 2 N·m steps from 17 N·m, 30 seconds each, to failure. Record whether it passed 34 N·m.
@@ -162,9 +164,9 @@ Hold the dummy housing and pull the fork sector along the elbow axis through the
 
 Start at 100 N along the axis, and at a 19.5 N·m side moment, the load behind the 385 N couple. Increase by 25% steps.
 
-**Proposed pass:** both starting loads held for 30 seconds with no cracks. PETG fails or the screw pulls through before any thread strips in the aluminium. Record the failure load, and the matching forces at the 6808 and output face, using the 50.6 mm span. These are the numbers to compare with an RS02 limit.
+**Proposed pass:** both starting loads held for 30 seconds with no cracks. The printed parts fail, or a screw pulls through the PETG, before a steel nut or sleeve gives. The fixture has no aluminium thread, so this tests only the printed joint. Record the failure load, and the matching forces at the 6808 and output face, using the 50.6 mm span. These are the numbers to compare with an RS02 limit.
 
-Do not reuse an aluminium thread after a strip test.
+Replace any nut or sleeve that has been loaded to failure.
 
 ## Record
 

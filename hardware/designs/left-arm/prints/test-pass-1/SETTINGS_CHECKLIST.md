@@ -12,7 +12,7 @@ Check these in Bambu Studio before you press print. If anything differs, stop an
 | Plate | Textured PEI |
 | Layer height | 0.20 mm, first layer 0.20 mm |
 | Walls | 6 |
-| Infill | 100% Rectilinear |
+| Infill | 100%, pattern shows as Rectilinear in the GUI (`zig-zag` in the file) |
 | Top and bottom | 5 top layers, 3 bottom layers |
 | Supports | Normal, auto, 45 degree threshold, not limited to the build plate |
 | Support Z gap | 0.20 mm top and bottom |
@@ -21,7 +21,7 @@ Check these in Bambu Studio before you press print. If anything differs, stop an
 | Bed | 70 °C |
 | Flow ratio | 0.95 |
 | Max volumetric speed | 12 mm³/s |
-| Brim | Auto, 5 mm |
+| Brim | **Outer brim, 5 mm.** Auto brim added none on any plate, so set it by hand on plates 2, 5 and 6 |
 
 Before each print:
 
