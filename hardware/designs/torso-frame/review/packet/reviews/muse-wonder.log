@@ -1,0 +1,7 @@
+muse: workspace root: J:\code\marengo\hardware\designs\torso-frame\review\packet\. (explicit)
+muse: warning: rules file at \\?\J:\code\marengo\AGENTS.md exists, but the workspace is untrusted, so it is skipped for this session; restart with --trust-workspace to load project rules
+muse: Skills: 78 loaded · 2 warnings
+muse:   `skills_catalog` was trimmed to fit its size limit (32 KB): 21 descriptions compacted, 0 skill ids omitted
+muse:   poteto-mode: invalid skill package: skill file at C:\Users\joeyl\.agents\skills\poteto-mode\SKILL.md is malformed: invalid skill name `Poteto Mode`
+muse:   Run `muse skills list --source all` for full diagnostics.
+muse: Agent delegation: auto unavailable: workspace is untrusted.
