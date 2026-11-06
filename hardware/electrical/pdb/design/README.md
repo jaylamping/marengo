@@ -192,9 +192,11 @@ One locking 2 × 30 header, 2.0 mm pitch, along the HP bottom edge and the LP to
 - **Corner screw heads:** X ±46.5 to 51, Y 175 to 203 and 325 to 353, Z 55 to 65. Boards stay 100 mm wide. Each outer corner
   (|X| > 46, Y 190 to 203 and Y 325 to 340) is a keep-out for parts taller than 5 mm. The arm-port M4 terminals and their
   upward ring lugs move inboard of |X| 44, clear of the posts at Y 325 to 353.
-- **Brake resistor (Arcol HS50, datasheet maxima):** 72.5 mm long including tags, 49.1 mm body, 29.7 mm wide, 14.8 mm tall.
-  Mounting holes are 39.7 × 21.4 mm. The 50 W rating needs the frame as its heatsink. The leg stage (2 Ω, about 1.7 kW
-  pulses) may need a larger part, so leave room to grow.
+- **Brake resistor, rev A: Arcol HS25 10 Ω** (frame main 04983bb). It replaces the HS50 to clear the pack's bottom front edge.
+  Datasheet maxima: 28.0 wide, 51.0 over the tags, 14.6 tall, holes on 18.3 × 19.8 mm. It sits flat on a 2 mm aluminium plate on
+  the front bottom rail's inner face, at |X| ≤ 25.5, Y 154 to 182, Z 33.4 to 48. Arcol publishes no pulse rating, so ask Arcol
+  before the leg stage; the 2 Ω leg stage takes a bigger part in the 37 mm rail reserve. Leads go to the LP bottom edge.
+  Keep the LP bottom-edge connectors at |X| > 36 or above Y 190. BOM/schematic part value to change from HS50 after gate 3.
 - **Pigtail bundles, per port, flat:**
   - Arm: 2 × 16 AWG silicone (Ø about 2.9) plus a twisted CAN pair (about Ø2.5), about 8 × 3 mm.
   - Leg: 2 × 12 AWG silicone (Ø about 4) plus CAN, about 10.5 × 4 mm.
