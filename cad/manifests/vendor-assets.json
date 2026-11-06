@@ -13,7 +13,7 @@
       },
       "cad": {
         "stepPath": null,
-        "nativePath": "cad/vendor/vendor_robstride_rs00_vendor.SLDPRT",
+        "nativePath": "cad/vendor/robstride/rs00/vendor_robstride_rs00_vendor.SLDPRT",
         "units": "mm"
       },
       "status": "imported",
@@ -31,7 +31,7 @@
       },
       "cad": {
         "stepPath": null,
-        "nativePath": "cad/vendor/vendor_robstride_rs02_vendor.SLDPRT",
+        "nativePath": "cad/vendor/robstride/rs02/vendor_robstride_rs02_vendor.SLDPRT",
         "units": "mm"
       },
       "status": "imported",
@@ -67,7 +67,7 @@
       },
       "cad": {
         "stepPath": null,
-        "nativePath": "cad/vendor/vendor_robstride_rs04_vendor.SLDPRT",
+        "nativePath": "cad/vendor/robstride/rs04/vendor_robstride_rs04_vendor.SLDPRT",
         "units": "mm"
       },
       "status": "imported",
@@ -84,8 +84,8 @@
         "sha256": "35a143d7e04d84eeda8664591e33626a1802f614a5b76ac29f465620dec81792"
       },
       "cad": {
-        "stepPath": "cad/vendor/vendor_robstride_rs05_vendor.step",
-        "nativePath": "cad/vendor/vendor_robstride_rs05_vendor.SLDPRT",
+        "stepPath": "cad/vendor/robstride/rs05/vendor_robstride_rs05_vendor.step",
+        "nativePath": "cad/vendor/robstride/rs05/vendor_robstride_rs05_vendor.SLDPRT",
         "units": "mm"
       },
       "status": "imported",
@@ -104,7 +104,7 @@
       },
       "cad": {
         "stepPath": null,
-        "nativePath": "cad/vendor/vendor_2020_black_extrusion.SLDPRT",
+        "nativePath": "cad/vendor/frame-hardware/vendor_2020_black_extrusion.SLDPRT",
         "units": "mm"
       },
       "status": "imported",
@@ -123,7 +123,7 @@
       },
       "cad": {
         "stepPath": null,
-        "nativePath": "cad/vendor/vendor_2028_corner_bracket_vendor.SLDPRT",
+        "nativePath": "cad/vendor/frame-hardware/vendor_2028_corner_bracket_vendor.SLDPRT",
         "units": "mm"
       },
       "status": "imported",
