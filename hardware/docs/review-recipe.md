@@ -10,7 +10,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | Opus high (added 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-opus-5-5 --effort high` | same as Fable | not yet timed |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
-| Argon | Antigravity `agy` (MacBook only) | `--model gemini-4-argon-high` (always High effort, Joey 2026-11-06) | Prompt only, so check hashes after | not yet timed |
+| Argon | Antigravity `agy` (MacBook only) | `--model gemini-4-argon-high` (always High effort, Joey 2026-11-06) | Prompt plus a read-only `--settings` allow list, check hashes after | 26.5 min (left-arm rev C) |
 
 Run times are from one run. Allow 20 minutes.
 
@@ -40,10 +40,13 @@ cursor-agent launched from Git Bash can be blocked by the repo's `.cursor` pre-t
 Antigravity (Argon) is on the MacBook, not Joey-PC: `agy` 1.3.4 at `~/.local/bin/agy` (checked 2026-11-06 05:40Z, signed in, `agy models` lists `gemini-4-argon-high`, a one-word smoke test answered in 7 s). Run it from the Mac against the packet. Prompt must be attached to the flag (`-p='...'`), or `-p` swallows the next flag as the prompt:
 
 ```bash
+AGY_ALLOW='{"permissions":{"allow":["command(cat)","command(ls)","command(head)","command(tail)","command(wc)","command(find)","command(grep)","command(shasum)","command(sha256sum)","command(python3)","command(python)"]}}'
 (agy --model gemini-4-argon-high --disable-slash-commands --print-timeout 0 \
-  --add-dir "$PWD" -p="$P" > reviews/antigravity-argon.md 2> reviews/antigravity-argon.log </dev/null
+  --add-dir "$PWD" --settings "$AGY_ALLOW" -p="$P" > reviews/antigravity-argon.md 2> reviews/antigravity-argon.log </dev/null
  echo "argon exit $?" >> reviews/STATUS.txt) &
 ```
+
+agy 1.5.1 (2026-11-06) auto-denies its `command` tool in headless mode and exits 0 after ~20 s with an empty review and the log line "a tool required the command permission that headless mode cannot prompt for". The `--settings` allow list above (session only, never saved) lets it read and rerun scripts; do not use `--dangerously-skip-permissions`. Run it from a scratch `git worktree` of the packet branch, not the main clone, and check the hashes after. Left-arm rev C pass 2 run: 1587 s (26.5 min), 57 KB review.
 
 Read-only is by prompt only (like Muse); `--mode plan` is ignored with slash commands disabled, and there is no sandbox flag that forbids writes, so check the hashes after.
 
