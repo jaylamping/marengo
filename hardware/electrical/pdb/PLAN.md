@@ -404,6 +404,9 @@ short pigtails for the most-cycled ports (pack, charge). Revisit if a limb's con
 | Connectors | XT90 (pack), Micro-Fit 2 × 10 (balance + sense), XT30(2+2) (arm, waist, aux), XT60 + GH (legs), JST GH/XH for low-current |
 | Fab | KiCad (the existing empty `../schematics/marengo_pdu/` project), PCB and SMT assembly at JLCPCB or PCBWay; through-hole power connectors hand-soldered |
 
+Board-thread budget also carries (Joey, via the battery thread 08:10Z): the JK 13S bench BMS (about $60) and the trimmable
+4 A 13S charger (about $50), about $110. Board-side Micro-Fit leads are pre-crimped, so no crimper is needed.
+
 Rough cost for rev A (estimate): $150 to 250 for 5 power PCBs and 5 logic PCBs assembled (2 sets populated), $100 to 150 in
 parts not stocked by the assembler, and a current-limited 0 to 60 V lab supply (about $100) for bring-up, since the 24 V
 bench supply has no current limit.
