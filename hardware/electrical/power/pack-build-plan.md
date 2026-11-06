@@ -70,7 +70,7 @@ to put it on the pack instead and found two, neither strong enough:
 Both connectors mate at the **pack's rear top corner, behind the D2 door**. The board's leads (a ring-lugged 10 AWG pair and
 the sense harness) run over the pack's top edge, which has 8.6 mm of headroom, to an XT90 and a 2 × 10 plug. On the pack
 side: a short XT90S pigtail (about 60 mm, 10 AWG) from the fuse, and the sense board's header on the rear face at X 5 to 45,
-Y 318 to 343. Both are parked in a printed holder on the case so nothing hangs loose when the door is open.
+Y 295 to 322 (moved, see the rear-corner table). Both are parked in a printed holder on the case so nothing hangs loose when the door is open.
 
 ### Pack heat for the shell's airflow sizing (estimate, for frame gate review 2 item F)
 
@@ -111,6 +111,7 @@ goes through the tray rail into the case. The rear face stays free for a possibl
 | --- | --- | --- |
 | Pack fuse | inside the case, empty top-corner grid slot, about X +34, Y 333, Z −40 to +30, axis along Z | nothing behind the rear face |
 | Mated XT90S pair | flat on the rear face, axis along X: X −15 to +43, Y 323 to 345, Z −45 to −60 incl. a printed saddle | pack pigtail enters at the +X end; board pair comes over the top in X −5 to 25 and enters at the −X end |
+| Pack sense board (board BMS only) | X −45 to −5, Y 295 to 322, Z −55 to −45; header points up into the mated plug | moved from X 5 to 45 to clear the XT90S |
 | Sense Micro-Fit 2 × 10 (board BMS only) | flat: X −42 to −17, Y 325 to 345, Z −45 to −58 | goes away with an on-pack BMS |
 | On-pack BMS (if chosen) | rear face, Y 185 to 315, Z −45 to −65, \|X\| ≤ 45 | under the connectors |
 
