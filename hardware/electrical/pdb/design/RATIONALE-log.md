@@ -433,16 +433,32 @@ R2007, R2014, C2005 and C2007 as logged above no longer exist in that form, and 
 
 ### VC0 short (D15 closed)
 
-D15 is now Vishay SS14-E3/61T, doc 88746 Fig. 3: at 10 mA, typical, about 0.26 V at 25 °C and 0.38 V at -40 °C, read off the curve, which stops at 10 mA. C23 1 µF from VC0 to VSS is new: TI range 0.1 to 1 µF, and datasheet p70 asks for a capacitor to VSS on VC0. R14 is already at TI's 100 Ω maximum. The clamp current stays under 10 mA, so the 10 mA value is an upper bound. No maximum Vf is published at this current.
+D15 is Vishay SS14-E3/61T, doc 88746 Fig. 3: at 10 mA, typical, about 0.26 V at 25 °C and 0.38 V at -40 °C, read off the curve, which stops at 10 mA. No maximum Vf is published at this current. C23 1 µF from VC0 to VSS is new: TI range 0.1 to 1 µF, and datasheet p70 asks for a capacitor to VSS on VC0. R14 is already at TI's 100 Ω maximum.
 
-Model: 2 µH, 90 mΩ, a hard short, stack held near 0 V, FET off at 45 µs (threshold crossing, 30 µs delay, turn-off). Pack current peaks at 525 A, not 600 A, and runs on after turn-off into the stack. C13 couples 18 % of the step. Limit is VSS - 0.3 V.
+Pass 4 found the first model wrong. It held VC1 at a fixed offset from B0, but cell 1 sags in a short and couples through C13. With the full ladder at 3 mΩ per cell and C13 220 nF, VC0 reaches -0.41 V without D15 and -0.36 V at -40 °C with it. C13 is now 100 nF, TI's minimum, which halves that coupling. `tools/vc0_ladder.py` is the model.
 
-| B0 to VSS return | No C23, SS14 25 °C | C23, no diode | C23, SS14 25 °C | C23, SS14 -40 °C |
-|---|---|---|---|---|
-| 1.0 mΩ | -0.23 V | -0.22 V | -0.20 V | -0.22 V |
-| 1.5 mΩ | -0.25 V | -0.33 V | -0.24 V | -0.32 V |
+Model: 2 µH, 90 mΩ, 13 × 3 mΩ cells, hard short, FET off at 83 µs (the late case: SRP/SRN filter, 30 µs delay, turn-off), peak 525 A at 45 µs. Limit is VSS - 0.3 V. Return 1.0 mΩ.
 
-Margin at the 1.0 mΩ layout limit is 80 mV at any temperature, with no reliance on the diode. At the earlier 1.5 mΩ assumption it is 60 mV at 25 °C and -20 mV at -40 °C. A turn-off at 70 µs with 1.5 mΩ and -40 °C reaches -0.36 V. The 1 mΩ limit on the return is a harness and layout requirement, including the XT90 contact if it sits between B0 and VSS.
+| Temperature | VC0 | Margin | D15 current |
+|---|---|---|---|
+| 25 °C | -0.23 V | 66 mV | 3.6 mA |
+| 0 °C (Vf interpolated) | -0.28 V | 21 mV | 3.1 mA |
+| -40 °C | -0.34 V | -38 mV | 2.0 mA |
 
-Conduction at the normal -90 mV stays small but rises hot; cell 1 reading at 60 A is a bench check. C23 slows VC0 relative to VC1 by about 120 µs, well inside the cell scan.
+Rev A's limit: VC0 stays inside its rating above about -14 °C on typical Vf. Below that a short exceeds the absolute maximum briefly, with R14 limiting the current to a few mA. So the OTP list gains UTD at -10 °C on the pack NTC: no discharge when cold. Margin is on typical curves and an assumed cell resistance, so it is thin, not guaranteed.
 
+The 1 mΩ return is a measured harness requirement, including any XT90 contact between B0 and VSS. At 1.5 mΩ the -40 °C figure is worse and 0 °C has no margin.
+
+## Gate 3 pass 4 fixes (2026-11-06)
+
+All are value, OTP or note changes. None changes topology.
+
+| Item | Fix |
+|---|---|
+| VC0 | C13 100 nF, see above |
+| SCDL | Hard latch. A persistent short costs R209 two 30 J pulses, then latches. Recovery by unplugging the pack, or firmware `SCDL_RECOVER()` on an operator command. Two real SCDs within 60 s do the same. The earlier "every 65 s" was wrong: the counter only runs after recovery starts. Chosen over a timed retry so an unattended short is not hit forever |
+| Bank B close | Compare MID to VMOT: both dividers are on HP GND, so connector ground offset cancels. Error budget 0.45 V: dividers 0.2, ADC leakage at 53 kΩ 0.14, ADC 0.1. True gap 1.05 to 1.95 V before calibration. 0.81 s, worst 1.27 s, timeout 1.5 s. Lumped worst case 132 A, above 105 A for 5.3 µs, against a timer of 5.5 µs minimum, 9.2 µs nominal. Lumped overstates it, as C210 sits after RS201. Tight, so firmware calibrates the MID to VMOT offset with bank B closed |
+| WD_N | R2016 1 kΩ, TPS3431's minimum. Rising edge about 9 ns/V on the gates alone, more with routing. That edge only releases an already clear flop, and any glitch is low on CLR, so it can only clear |
+| OTP | FET Options[PDSG_EN] = 1 named. UTD at -10 °C added |
+| BUCK12_OFF | Keyed on FET Status[PDSG_FET], released on an I2C read failure |
+| Notes | Filter 0.5 to 1.0 ms. Cat 1 about 245 ms, 157 to 323 ms with tolerance: reselect the parts if Cat 1 is ever fitted |

@@ -7580,7 +7580,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "220nF"
+		(property "Value" "100nF"
 			(at 115.57 166.37 0)
 			(effects
 				(font
@@ -7782,7 +7782,7 @@
 		)
 		(uuid "2df9861e-6c53-5961-8160-2dc2bae19f12")
 	)
-	(text "Cell filter: 100R + 220nF, 20R on VC16 (SLUAA81 2.5, top cell IR drop)\n(datasheet p9: RC 20-100R, CC 0.1/0.22/1 uF). 100R gives the balance FET its gate drive."
+	(text "Cell filter: 100R + 220nF, C13 100nF (VC0 short, see log), 20R on VC16 (SLUAA81 2.5, top cell IR drop)\n(datasheet p9: RC 20-100R, CC 0.1/0.22/1 uF). 100R gives the balance FET its gate drive."
 		(exclude_from_sim no)
 		(at 88.9 175.26 0)
 		(effects
@@ -11587,7 +11587,7 @@
 		)
 		(uuid "4b72bfee-7a72-5ee4-b9e9-80818f6ab016")
 	)
-	(text "OPEN ON THIS SHEET\n1. Balance FETs are captured below (SLUAA81 Fig 2-2). OTP/data memory owed: Cell Balance Min Cell V 3900 mV, Max Cells 4.\n2. CP1 raised to 1 uF for the 4+4 FET gate load (p65 rule): worst case 1.69 uC droops 11 V by 1.7 V, pump start about 130 ms.\n3. OTP owed: DFETOFF Pin Config 0x42 (active high, BOTHOFF), CFETOFF and HDQ as thermistor inputs. Presence and DFETOFF logic are on HP_power_board.\n   Cell 1 Interconnect stays 0: VC0 reads the Kelvin B0 tab. VC0 sits below VSS by the 10 AWG return drop, about 90 mV at 60 A (abs max VSS - 0.3 V).\n4. RS1 land: CSS4J-4026 on the BVR4026 library footprint, check against the Bourns drawing."
+	(text "OPEN ON THIS SHEET\n1. Balance FETs are captured below (SLUAA81 Fig 2-2). OTP/data memory owed: Cell Balance Min Cell V 3900 mV, Max Cells 4.\n2. CP1 raised to 1 uF for the 4+4 FET gate load (p65 rule): worst case 1.69 uC droops 11 V by 1.7 V, pump start about 130 ms.\n3. OTP owed: DFETOFF Pin Config 0x42 (active high, BOTHOFF), CFETOFF and HDQ as thermistor inputs. Presence and DFETOFF logic are on HP_power_board.\n   Cell 1 Interconnect stays 0: VC0 reads the Kelvin B0 tab. VC0 sits below VSS by the return drop, 60 mV at 60 A at the 1 mOhm limit (abs max VSS - 0.3 V).\n4. RS1 land: CSS4J-4026 on the BVR4026 library footprint, check against the Bourns drawing."
 		(exclude_from_sim no)
 		(at 20.32 233.68 0)
 		(effects
@@ -11707,7 +11707,7 @@
 		)
 		(uuid "5af139ad-b541-5910-8ff6-7e642042ec17")
 	)
-	(text "Keeps VC0 defined with the harness out. 9 uA at 60 A.\nC23 1 uF to VSS (TI range 0.1 to 1 uF, 100R at its maximum) and D15\nhold VC0 through a short: 525 A peak with the 2 uH pack.\nB0 to VSS return 1.0 mOhm: -0.22 V, no diode needed.\n1.5 mOhm: -0.24 V at 25 C, -0.32 V at -40 C (limit -0.3 V).\nKeep the return at 1 mOhm or less."
+	(text "Keeps VC0 defined with the harness out. 9 uA at 60 A.\nC23 1 uF to VSS, C13 100 nF (TI range 0.1 to 1 uF, 100R at its maximum) and D15\nhold VC0 through a short: 525 A, 3 mOhm per cell, FET off at 83 us, return 1.0 mOhm.\n-0.23 V at 25 C, -0.28 V at 0 C, -0.34 V at -40 C (limit -0.3 V).\nKeep the return at 1 mOhm or less, measured. UTD at -10 C: see log."
 		(exclude_from_sim no)
 		(at 30.48 181.61 0)
 		(effects

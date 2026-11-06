@@ -11699,7 +11699,7 @@
 		)
 		(uuid "89c00f62-6b15-542f-8f01-6f9efa17a612")
 	)
-	(text "SUP_OPEN high: 2N7002 sinks EN. MCU dead or Hi-Z: pull-up opens the banks. The FET only sinks, so firmware cannot close an open loop.\nCat 1 option: remove the 10k filter, fit the four DNP parts, about 302 ms with the 100 nF left in (242-372 ms). DNP in rev A: Cat 0.\nRe-close latch: loop open, watchdog or power-up clears the flops. Re-arming needs a rising edge from the NO reset button with the loop closed. A held button does nothing. No firmware path.\n10k + 100 nF ahead of the Schmitt input rides through contact chatter, 0.6 to 0.9 ms added to a stop. \nCLR is OUT AND WD_N through a gate, a clean edge: TPS3431 clears the latch at power-up and on timeout, and no capacitor sits on WD_N.\nOne series loop still feeds both channels: a short across one contact pair defeats both. Not Cat 3."
+	(text "SUP_OPEN high: 2N7002 sinks EN. MCU dead or Hi-Z: pull-up opens the banks. The FET only sinks, so firmware cannot close an open loop.\nCat 1 option: remove the 10k filter, fit the four DNP parts, about 245 ms with the 100 nF left in (157-323 ms). DNP in rev A: Cat 0.\nRe-close latch: loop open, watchdog or power-up clears the flops. Re-arming needs a rising edge from the NO reset button with the loop closed. A held button does nothing. No firmware path.\n10k + 100 nF ahead of the Schmitt input rides through contact chatter, 0.5 to 1.0 ms added to a stop. \nCLR is OUT AND WD_N through a gate, a clean edge: TPS3431 clears the latch at power-up and on timeout, and no capacitor sits on WD_N.\nOne series loop still feeds both channels: a short across one contact pair defeats both. Not Cat 3."
 		(exclude_from_sim no)
 		(at 320.04 152.4 0)
 		(effects
@@ -12257,7 +12257,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "1k"
 			(at 261.62 161.29 0)
 			(effects
 				(font

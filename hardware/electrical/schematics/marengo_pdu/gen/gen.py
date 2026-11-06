@@ -211,10 +211,10 @@ for i in range(13,-1,-1):
     rh((101.6,y),'20R' if i==13 else '100R')
     P.wire((105.41,y),(111.76,y)); P.wire((111.76,y),(116.84,y)); P.label(NODE.get(i,f'VC{i}'),(116.84,y))
     if i>0:
-        a_,b_=cv((111.76,y+5.08),'220nF',refat=(115.57,y+3.81),valat=(115.57,y+6.35))
+        a_,b_=cv((111.76,y+5.08),'100nF' if i==1 else '220nF',refat=(115.57,y+3.81),valat=(115.57,y+6.35))
         P.wire((111.76,y),a_); P.wire(b_,(111.76,y+10.16))
     if 0<i<13: P.junc((111.76,y))
-P.text('Cell filter: 100R + 220nF, 20R on VC16 (SLUAA81 2.5, top cell IR drop)\n(datasheet p9: RC 20-100R, CC 0.1/0.22/1 uF). 100R gives the balance FET its gate drive.',(88.9,175.26))
+P.text('Cell filter: 100R + 220nF, C13 100nF (VC0 short, see log), 20R on VC16 (SLUAA81 2.5, top cell IR drop)\n(datasheet p9: RC 20-100R, CC 0.1/0.22/1 uF). 100R gives the balance FET its gate drive.',(88.9,175.26))
 # U1
 UC=(190.5,101.6)
 P.sym('marengo:BQ76952','U1','BQ76952PFBR',UC,0,'Package_QFP:TQFP-48_7x7mm_P0.5mm',refat=(UC[0]-3.81,UC[1]-36.83),valat=(UC[0]-3.81,UC[1]+37.846),ds='https://www.ti.com/lit/ds/symlink/bq76952.pdf')
@@ -296,14 +296,14 @@ NOTE2='''OPEN ON THIS SHEET
 1. Balance FETs are captured below (SLUAA81 Fig 2-2). OTP/data memory owed: Cell Balance Min Cell V 3900 mV, Max Cells 4.
 2. CP1 raised to 1 uF for the 4+4 FET gate load (p65 rule): worst case 1.69 uC droops 11 V by 1.7 V, pump start about 130 ms.
 3. OTP owed: DFETOFF Pin Config 0x42 (active high, BOTHOFF), CFETOFF and HDQ as thermistor inputs. Presence and DFETOFF logic are on HP_power_board.
-   Cell 1 Interconnect stays 0: VC0 reads the Kelvin B0 tab. VC0 sits below VSS by the 10 AWG return drop, about 90 mV at 60 A (abs max VSS - 0.3 V).
+   Cell 1 Interconnect stays 0: VC0 reads the Kelvin B0 tab. VC0 sits below VSS by the return drop, 60 mV at 60 A at the 1 mOhm limit (abs max VSS - 0.3 V).
 4. RS1 land: CSS4J-4026 on the BVR4026 library footprint, check against the Bourns drawing.'''
 P.text(NOTE1,(20.32,215.9),size=1.5)
 P.text(NOTE2,(20.32,233.68),size=1.5)
 _a,_b=(40.64,160.02),(55.88,160.02)
 P.sym('Device:R',Rr(),'10k',(48.26,160.02),90,R603,refat=(48.26,157.48),valat=(48.26,162.56))
 P.wire((44.45,160.02),_a); P.label('B0',_a,180); P.wire((52.07,160.02),_b); P.label('BAT-',_b)
-P.text('Keeps VC0 defined with the harness out. 9 uA at 60 A.\nC23 1 uF to VSS (TI range 0.1 to 1 uF, 100R at its maximum) and D15\nhold VC0 through a short: 525 A peak with the 2 uH pack.\nB0 to VSS return 1.0 mOhm: -0.22 V, no diode needed.\n1.5 mOhm: -0.24 V at 25 C, -0.32 V at -40 C (limit -0.3 V).\nKeep the return at 1 mOhm or less.',(30.48,181.61))
+P.text('Keeps VC0 defined with the harness out. 9 uA at 60 A.\nC23 1 uF to VSS, C13 100 nF (TI range 0.1 to 1 uF, 100R at its maximum) and D15\nhold VC0 through a short: 525 A, 3 mOhm per cell, FET off at 83 us, return 1.0 mOhm.\n-0.23 V at 25 C, -0.28 V at 0 C, -0.34 V at -40 C (limit -0.3 V).\nKeep the return at 1 mOhm or less, measured. UTD at -10 C: see log.',(30.48,181.61))
 P.wire((68.58,160.02),(73.66,160.02)); P.label('VC0',(73.66,160.02)); P.sym('Device:D','D15','SS14-E3/61T 40V 1A',(64.77,160.02),180,'Diode_SMD:D_SMA',refat=(64.77,157.48),valat=(64.77,154.94)); vss((60.96,160.02),270)
 P.sym('Device:C','C23','1uF 25V X7R',(86.36,165.1),0,'Capacitor_SMD:C_0603_1608Metric',refat=(88.9,163.83),valat=(88.9,166.37)); P.wire((86.36,161.29),(86.36,160.02)); P.wire((73.66,160.02),(86.36,160.02)); vss((86.36,168.91),180)
 # ---------- hierarchy ----------

@@ -261,5 +261,7 @@ for s_ in ('MID_DIV','VMOT_DIV','VSYS_DIV'):
 ok(val('D15').startswith('SS14') and sfx(n('D15',1),'VC0') and n('D15',2)=='VSS','D15 SS14 VC0 clamp')
 vc0=n('U1',16); cc=[c for c in comp if c.startswith('C') and {n(c,1),n(c,2)}=={vc0,'VSS'}]
 ok(len(cc)==1 and val(cc[0]).startswith('1uF'),'VC0 1 uF to VSS')
+ok(val('C13')=='100nF' and {n('C13',1),n('C13',2)}=={n('U1',15),n('U1',16)},'C13 100 nF across cell 1')
+ok(any(val(r)=='1k' and {n(r,1),n(r,2)}=={'WD_N','+3V3_AON'} for r in comp if r.startswith('R')),'WD_N 1k pull-up')
 print('audited',aud,'parts')
 print(sorted(nets)[:60]); print('FAILS',len(fail))

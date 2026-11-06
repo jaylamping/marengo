@@ -152,9 +152,9 @@ Reviewed commit `c0f24ea9`, the pass 2 fixes and the USE 2410 land only. Sol 509
 | FET_EN missing from the OTP list | Opus | Yes, TRM default 0 | Added |
 | SCD retry unbounded on a VSYS short | Opus (major), Fable (minor) | Yes, Latch Limit default 0 | SCDL on, limit 2, 60 s |
 
-### D15, closed after pass 3
+### D15
 
-Sol rated it major; Opus and Fable, minor. D15 is now SS14-E3/61T, with a readable curve, plus C23 1 µF to VSS. Margins are in the log: -0.22 V at a 1 mΩ return, no diode needed.
+Closed after pass 3 with SS14 and C23, reworked in pass 4 below.
 
 ### Minors left open
 
@@ -168,5 +168,53 @@ Sol rated it major; Opus and Fable, minor. D15 is now SS14-E3/61T, with a readab
 
 Fable: the physically consistent surge start peaks lower, 60 to 63 V, so the logged model is the pessimistic case. Opus: stack rating is crossed near 2.3 µH, so measure it.
 
-Fixes after pass 3 have ERC 0 and check.py FAILS 0 but no fourth model review. New since pass 3: U2033, U2034, R222, and the bank B close numbers.
+## Pass 4 (2026-11-06)
 
+Reviewed commit `3e26d897`, the pass 3 fixes and D15 only. Sol 452 s, Opus high 956 s. Hashes matched before and after. Both reran check.py: FAILS 0. Both found the fixes wired as logged. Pass 4's fixes are value, OTP and note changes with no topology change, so no fifth pass ran.
+
+| Finding | Source | Verified | Fix |
+|---|---|---|---|
+| VC0 model ignored cell sag: -0.41 V, -0.36 V at -40 °C | Sol (blocker) | Yes, reproduced at 3 mΩ per cell | C13 100 nF: -0.23 V at 25 °C, -0.28 V at 0 °C, -0.34 V at -40 °C. UTD at -10 °C |
+| SCDL has no recovery path, so "every 65 s" was false | Opus (major), Sol (minor) | Yes, TRM p39 | Hard latch, recovery written down |
+| Divider budget exceeds 0.3 V | Sol (major), Opus (minor, ground offset) | Yes | MID against VMOT, 0.45 V budget, 1.27 s, offset calibration |
+| WD_N edge too slow for the 1G08 | Sol (major), Opus (minor) | Rated minor: it only releases a clear flop, and a glitch can only clear | R2016 1 kΩ |
+| VC0 model turned off too early | Opus (minor) | Yes | Late 83 µs case used |
+| Filter part shorted leaves that channel blind | Opus (minor) | Yes | Firmware check below |
+| Cat 1 delay wrong, filter nominal only | Sol, Opus (minor) | Yes | Notes corrected |
+| BUCK12_OFF too broad, PDSG_EN unnamed | Opus (minor) | Yes | Corrected |
+
+After these fixes: ERC 0 errors and 0 warnings, check.py FAILS 0, pad audit 249 parts. These last value changes have no fifth model review.
+
+## Gate 3: PASSED (2026-11-06)
+
+No blocker or major from pass 4 stands unfixed. Passed on schematic and analysis only: no board exists. Layout may start. Joey's decision stands: a reset press at every power-up, no auto-arm.
+
+### Bench checks owed
+
+- B0 to VSS return, including the XT90: 1 mΩ or less, measured. Sets VC0's margin
+- VC0 and VC1 during a real short, cell resistance, cell 1 reading at 60 A hot
+- Stack inductance: 80 V is crossed near 2.3 µH on the log's model, 3 µH gives 85 V
+- Bank B close current and U301 timer, loop resistance, VMOT standing load
+- R209 at about 30 J, two pulses. FET sharing at turn-off, Q211 peak
+- 12 V load-step droop, real drive capacitance, XT90 plug-in inrush
+- CAN double-fault clearing time, F503 on ground shift, cell 1 reading with D15 hot
+- U1 CHG pin during the surge, about 88 V against VSS + 85 V through 5.1 kΩ
+
+### Firmware and OTP requirements
+
+- OTP: FET_EN, PDSG_EN, Predischarge Timeout 1.0 s, Stop Delta 2500 mV, SCDL on with Latch Limit 2 and Counter Dec Delay 60 s, UTD at -10 °C, plus the earlier DFETOFF and balance items in the log
+- Hold BUCK12_OFF high only while PDSG_FET is set; release on an I2C failure
+- Configure INA238's alert at boot; its default never trips
+- BANK_B_CLOSE: compare MID to VMOT at 1.5 V read, calibrate the offset, drop it on any open loop. Timeout 1.5 s, then open the loop: R318 has no hardware timer
+- Read FLT_A with ESTOP_ARMED. Bound U301 retries
+- Flag LOOP_SENSE open with ESTOP_ARMED still high after 2 ms and assert SUP_OPEN: a shorted filter part is otherwise silent
+- `SCDL_RECOVER()` only on an operator command
+- Check INA228 current with rails off: soft VSYS shorts do not end in SCD
+
+### Accepted residuals
+
+- Cat 0, not Cat 3: a short across one contact pair, or WL_12V to LOOP_TH, defeats the loop
+- With a hung supervisor, a reset press re-arms for up to 1.84 s
+- VC0 is outside its rating in a short below about -14 °C; UTD blocks discharge there
+- U301's 105 A minimum is below six ports at full limit, fine for rev A's three
+- The pass 3 minors above
