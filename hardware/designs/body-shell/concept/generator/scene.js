@@ -20,7 +20,9 @@ const PELVIS0 = 740, WAIST = 855;
 const F0 = PELVIS0 + 155 + EXT, F1 = PELVIS0 + 495 + EXT;
 const ZS = PELVIS0 + 424.9 + EXT;   // shoulder pitch axis
 const YSX = Number(q.get('ysx') ?? 0); // P1 lengthening per side (arm-thread option)
-const YS = 170.49 + YSX;             // pitch/roll joint, from left_arm.urdf
+const FW = Number(q.get('fw') ?? 0);  // frame widening per side (longer left-right 2020 rails; arm thread 2026-11-06)
+const FACE = 97.5 + FW;              // pitch RS03 output face |Y|
+const YS = 170.49 + YSX + FW;             // pitch/roll joint, from left_arm.urdf
 
 const scene = new THREE.Scene();
 const W = 1600, H = 1200;
@@ -126,7 +128,7 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 // Joey 2026-11-06 (in-between): from the shoulder point the side curves gently in, steeper below ~110 mm;
 // inboard of the hanging arm for 5 deg inward roll. Earlier: side runs almost straight down to ~65 mm below the
 // black P1 part (bottom at ZS-46), then tapers to the waist. Wall tracks the shoulder width (YSX).
-const WALL = 124 + YSX;
+const WALL = 124 + YSX + FW;
 const TAPER_Z = ZS - 46 - 65;
 const chest = [
   [F0 - 6, 79, 80, 76, 3.6],
@@ -147,13 +149,13 @@ const sstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a)
 // male chest plate: two pec masses with a sternum groove and a crisp lower edge
 const PEC_Z = ZS - 30;
 const pec = (x, y, z) => { if (x <= 0) return [x, y, z]; const ay = Math.abs(y); const dz = z - PEC_Z;
-  const g = sstep(3, 26, ay) * (1 - sstep(0.62 * (124 + YSX), 0.86 * (124 + YSX), ay));
+  const g = sstep(3, 26, ay) * (1 - sstep(0.62 * WALL, 0.86 * WALL, ay));
   const v = dz >= 0 ? 1 - sstep(10, 105, dz) : 1 - sstep(38, 50, -dz);
   const w = sstep(30, 85, x);
   return [x + 15 * g * v * w, y, z]; };
-const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); if (Math.abs(y) <= 97.5) return [x, y, z];
+const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); if (Math.abs(y) <= FACE) return [x, y, z];
   const t = Math.min(1, Math.max(0, (r - SOCK_R) / 7)); const k = t * t * (3 - 2 * t);
-  return [x, Math.sign(y) * (97.5 + (Math.abs(y) - 97.5) * k), z]; };
+  return [x, Math.sign(y) * (FACE + (Math.abs(y) - FACE) * k), z]; };
 const SEAM_Z = F0 + 160;
 CLAMP = (x, y, z) => { const p = pec(x, y, z); return socket(p[0], p[1], p[2]); };
 loft(chest, SEAM_Z, F1 + 48, white, 240, 200, 4, 0, Math.PI, 'chest upper front', [110, 0, 60]);
@@ -175,14 +177,14 @@ for (const s of [1, -1]) {
   const lip = new THREE.Mesh(new THREE.CylinderGeometry(57, 57, 4, 72, 1, true), collar.material); lip.rotation.x = Math.PI / 2; lip.position.z = -2; cg.add(lip);
   for (let k = 0; k < 8; k++) { const t = (k + 0.5) * Math.PI / 4; const bh = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 3, 16), actDark);
     bh.rotation.x = Math.PI / 2; bh.position.set(49 * Math.cos(t), 49 * Math.sin(t), 1.5); cg.add(bh); }
-  cg.rotation.y = s * Math.PI / 2; cg.position.copy(P(0, s * 97.5, ZS)); add(cg); cg.traverse(o => { o.castShadow = true; });
+  cg.rotation.y = s * Math.PI / 2; cg.position.copy(P(0, s * FACE, ZS)); add(cg); cg.traverse(o => { o.castShadow = true; });
   if (EXPLODE) cg.position.x += s * 70;
   if (!EXPLODE) parts.length < 99 && (s > 0) && parts.push({ tag: 'shoulder collar x2', Xdepth: 114, Ywidth: 6, Zheight: 114 });
   if (EXPLODE) continue;
   // rotating output flange + P1 + roll RS03 + P2/upper-arm-yaw RS02, all exposed
-  const out = new THREE.Mesh(new THREE.CylinderGeometry(42, 42, 6, 64), actDark); out.rotation.z = Math.PI / 2; out.position.copy(P(0, s * 100, ZS)); add(out);
-  const p1 = new THREE.Mesh(new THREE.CylinderGeometry(46, 46, 20, 64), P1mat); p1.rotation.z = Math.PI / 2; p1.position.copy(P(0, s * 113, ZS)); add(p1);
-  const p1b = new THREE.Mesh(new THREE.BoxGeometry(YS - 156.5, 92, 64), P1mat); p1b.position.copy(P(-2, s * (117 + YS - 40) / 2, ZS)); add(p1b);
+  const out = new THREE.Mesh(new THREE.CylinderGeometry(42, 42, 6, 64), actDark); out.rotation.z = Math.PI / 2; out.position.copy(P(0, s * (FACE + 2.5), ZS)); add(out);
+  const p1 = new THREE.Mesh(new THREE.CylinderGeometry(46, 46, 20, 64), P1mat); p1.rotation.z = Math.PI / 2; p1.position.copy(P(0, s * (FACE + 15.5), ZS)); add(p1);
+  const p1b = new THREE.Mesh(new THREE.BoxGeometry(YS - 156.5 - FW, 92, 64), P1mat); p1b.position.copy(P(-2, s * (117 + FW + YS - 40) / 2, ZS)); add(p1b);
   const roll = new THREE.Mesh(new THREE.CylinderGeometry(49.75, 49.75, 56.6, 64), act); roll.rotation.x = Math.PI / 2; roll.position.copy(P(-4, s * YS, ZS)); add(roll);
   for (const xf of [-32.6, 24.6]) { const rr = new THREE.Mesh(new THREE.TorusGeometry(46, 2.2, 10, 64), actDark); rr.position.copy(P(xf, s * YS, ZS)); add(rr); }
   const rface = new THREE.Mesh(new THREE.CylinderGeometry(22, 22, 4, 48), actDark); rface.rotation.x = Math.PI / 2; rface.position.copy(P(26, s * YS, ZS)); add(rface);
@@ -297,12 +299,12 @@ if (FULL) {
 // ---------- X-RAY: 2020 frame, pitch actuators, mount points ----------
 if (XRAY || EXPLODE) {
   const bar = (x, y, z, sx, sy, sz) => { const b = new THREE.Mesh(new THREE.BoxGeometry(sy, sz, sx), alu); b.position.copy(P(x, y, z)); add(b); };
-  for (const x of [-60, 60]) for (const y of [-65, 65]) bar(x, y, (F0 + F1) / 2, 20, 20, 340);
-  for (const z of [F0 + 10, F1 - 10]) { for (const x of [-60, 60]) bar(x, 0, z, 20, 110, 20); for (const y of [-65, 65]) bar(0, y, z, 100, 20, 20); }
-  for (const s of [1, -1]) { const a = new THREE.Mesh(new THREE.CylinderGeometry(49.75, 49.75, 56.6, 48), dark); a.rotation.z = Math.PI / 2; a.position.copy(P(0, s * (97 - 28.3), ZS)); add(a); }
+  for (const x of [-60, 60]) for (const y of [-65 - FW, 65 + FW]) bar(x, y, (F0 + F1) / 2, 20, 20, 340);
+  for (const z of [F0 + 10, F1 - 10]) { for (const x of [-60, 60]) bar(x, 0, z, 20, 110 + 2 * FW, 20); for (const y of [-65 - FW, 65 + FW]) bar(0, y, z, 100, 20, 20); }
+  for (const s of [1, -1]) { const a = new THREE.Mesh(new THREE.CylinderGeometry(49.75, 49.75, 56.6, 48), dark); a.rotation.z = Math.PI / 2; a.position.copy(P(0, s * (FACE - 0.5 - 28.3), ZS)); add(a); }
   // proposed mount bosses: printed standoffs into T-nuts on the outer slots
   const zs = [F0 + 40, F0 + 160, F1 - 40];
-  for (const z of zs) for (const x of [-70, 70]) for (const y of [-55, 55]) {
+  for (const z of zs) for (const x of [-70, 70]) for (const y of [-55 - FW, 55 + FW]) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12), mount); b.position.copy(P(x + Math.sign(x) * 6, y, z)); add(b); }
 }
 

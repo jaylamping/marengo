@@ -43,11 +43,11 @@ sheet([(crop('w0.png', (700, 300, 2500, 2300), w=900), 'Shoulders as built: roll
       'Body shell, concept B: chest plate and shoulder width', sub, 'SHELL_CONCEPT_WIDTH.png',
       ['Head removed until it is designed. Chest has pec masses, a sternum groove and a crisp lower edge; the black yoke panel is gone.',
        'The +25 mm option lengthens P1 (arm thread); the shell shoulder line widens with it. Shell upper panels then need a centre split for the P2S.'])
-sheet([(crop('m25a.png', (700, 300, 2500, 2300), w=800), 'Previous in-between'),
-       (crop('m25.png', (700, 300, 2500, 2300), w=800), 'Latest: lower shoulder +13 mm per side'),
-       (crop('m25iso.png', (700, 200, 2500, 2400), w=800), 'Latest, three-quarter'),
-       (crop('m25side.png', (900, 300, 2300, 2300), w=620), 'Side')],
-      'Body shell: in-between side line, fuller below the shoulder (P1 +25 mm)', sub, 'SHELL_CONCEPT_BLEND.png',
-      ['From the full-width shoulder point the side eases in about 5 mm by the shoulder axis and 7 mm at 55 mm below it,',
-       'then tapers to the 158 mm chest bottom. Rough check: about 7 mm to the upper arm at 5 deg inward roll (confirm on the arm envelope).',
-       'Upper panels 298 mm wide (centre split for the P2S); lower front 253 mm, just inside 256.'])
+sheet([(crop('m25.png', (600, 300, 2600, 2300), w=800), 'Previous: shoulders +25 mm per side'),
+       (crop('m38.png', (600, 300, 2600, 2300), w=800), 'Latest: +38 mm per side (frame 226 wide)'),
+       (crop('m38iso.png', (700, 200, 2500, 2400), w=800), 'Latest, three-quarter'),
+       (crop('m38x.png', (600, 300, 2600, 2300), w=800), 'Latest, x-ray: wider 2020 frame')],
+      'Body shell: broader again, by widening the frame', sub, 'SHELL_CONCEPT_BLEND.png',
+      ['Same side line as before, but the whole shoulder moves out another 13 mm per side: longer left-right 2020 rails (150 -> 226 mm),',
+       'pitch RS03 faces at Y +-110.5, P1 unchanged. Widening only the shell there would hit the hanging upper arm, so the arm moves out with it.',
+       'Upper panels 324 mm wide and lower front 279 mm: both split at the centre for the P2S.'])
