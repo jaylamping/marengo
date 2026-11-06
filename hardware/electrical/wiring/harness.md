@@ -9,3 +9,4 @@ Wire gauges, lengths, and routing between subsystems.
 ## Bench harnesses
 
 - [Left shoulder bench harness](left-shoulder-bench-harness.md) — left pitch RS03, roll RS03, upper-arm yaw RS02 on `can1` (plan, 2026-11-05)
+- [Left arm wiring trunk plan](left-arm-trunk-plan.md) — robot harness architecture for all five left-arm motors: junction boards, joint jumpers, fusing (planning draft, 2026-11-06)
