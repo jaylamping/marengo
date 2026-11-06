@@ -1,0 +1,80 @@
+{
+ "hp items": {
+  "front": 165,
+  "rear": 166
+ },
+ "hp: as captured": {
+  "area": 24662,
+  "parts": 649,
+  "unplaced": 318,
+  "unplaced_area": 11296,
+  "unplaced_big": [
+   "CP_Elec_10x14.3",
+   "D_SMC",
+   "Fuseholder_Blade_ATO_Litte",
+   "Fuseholder_Blade_Mini_Keys",
+   "Infineon_PG-HSOF-8-1",
+   "JST_GH_SM03B-GHS-TB_1x03-1",
+   "SOT-223-3_TabPin2",
+   "TO-263-2"
+  ]
+ },
+ "hp: no DNP parts": {
+  "area": 18787,
+  "parts": 517,
+  "unplaced": 142,
+  "unplaced_area": 4577,
+  "unplaced_big": [
+   "CP_Elec_10x14.3",
+   "D_SMC",
+   "Fuseholder_Blade_Mini_Keys",
+   "SOT-223-3_TabPin2",
+   "TO-263-2"
+  ]
+ },
+ "hp: no DNP, no bulk or hold-up caps": {
+  "area": 15372,
+  "parts": 494,
+  "unplaced": 125,
+  "unplaced_area": 1407,
+  "unplaced_big": [
+   "SOT-223-3_TabPin2",
+   "TO-263-2"
+  ]
+ },
+ "lp items": {
+  "front": 113,
+  "rear": 177
+ },
+ "lp: as captured": {
+  "area": 11242,
+  "parts": 607,
+  "unplaced": 317,
+  "unplaced_area": 3348,
+  "unplaced_big": [
+   "CP_Elec_10x10.5",
+   "JST_GH_SM02B-GHS-TB_1x02-1",
+   "JST_SH_SM04B-SRSS-TB_1x04-",
+   "Molex_Micro-Fit_3.0_43045-"
+  ]
+ },
+ "lp: no DNP parts": {
+  "area": 11202,
+  "parts": 599,
+  "unplaced": 308,
+  "unplaced_area": 3301,
+  "unplaced_big": [
+   "CP_Elec_10x10.5",
+   "JST_GH_SM02B-GHS-TB_1x02-1",
+   "JST_SH_SM04B-SRSS-TB_1x04-",
+   "Molex_Micro-Fit_3.0_43045-"
+  ]
+ },
+ "lp: no DNP, no bulk or hold-up caps": {
+  "area": 8232,
+  "parts": 579,
+  "unplaced": 262,
+  "unplaced_area": 998,
+  "unplaced_big": []
+ }
+}

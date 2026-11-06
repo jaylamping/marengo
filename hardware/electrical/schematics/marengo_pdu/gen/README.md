@@ -24,3 +24,5 @@ python3 -I gen/genfp.py marengo.pretty
 ```
 
 Needs macOS KiCad 10 at `/Applications/KiCad` and Python 3 with the standard library only. Output is deterministic: UUIDs come from uuid5 and the title date is fixed in `gen.py`, so an unchanged script gives identical bytes. Export the PDF and BOM after any change (`tools/bom.py` writes the BOM CSV from a netlist).
+
+Board files in `pcb/` come from the netlist, with KiCad's Python: `<kicad python> tools/pcb_place.py <net.net> pcb`. See [LAYOUT_NOTES.md](../../../pdb/design/LAYOUT_NOTES.md).
