@@ -4,37 +4,42 @@ from PIL import Image, ImageDraw, ImageFont
 F = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'; FB = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 f = lambda s, b=False: ImageFont.truetype(FB if b else F, s)
 BG = (201, 206, 214); INK = (30, 33, 38); DPR = 2
-BOM = json.load(open('bom.json'))
-NAMES = {b['item']: b for b in BOM}
+BOM = json.load(open('bom.json')); NAMES = {b['item']: b for b in BOM}
+SUB = 'Internal torso frame rev A, reconciled from the arm, shell and manufacturing threads. Torso coords: X lateral, Y up from the pelvis bottom, Z forward. 2026-11-06'
 
-def load(name):
-    return Image.open(f'out/{name}.png').convert('RGB'), json.load(open(f'out/{name}.json'))
+def load(name): return Image.open(f'out/{name}.png').convert('RGB'), json.load(open(f'out/{name}.json'))
+def crop(im, box=None, w=None):
+    if box: im = im.crop(box)
+    if w: im = im.resize((w, int(im.height * w / im.width)), Image.LANCZOS)
+    return im
 
-def balloons(im, meta, r=26, dist=150, items=None):
+def balloons(im, meta, r=26, dist=140, items=None, use_tag=False, size=30):
     d = ImageDraw.Draw(im); W, H = im.size; cx, cy = W / 2, H / 2
-    labs = [l for l in meta['labels'] if items is None or l['item'] in items]
-    pos = []
+    labs = [l for l in meta['labels'] if (items is None or l['item'] in items)]
+    seen = set(); pos = []
     for l in labs:
+        key = l['tag'] if use_tag else l['item']
+        if not use_tag and key in seen: continue
+        seen.add(key)
         x, y = l['xy'][0] * DPR, l['xy'][1] * DPR
-        bx0, by0 = l['bbox'][0]; bx1, by1 = l['bbox'][1]
-        half = max(abs(bx1 - bx0), abs(by1 - by0)) * DPR / 2
+        (bx0, by0), (bx1, by1) = l['bbox']; half = max(abs(bx1 - bx0), abs(by1 - by0)) * DPR / 2
         ang = math.atan2(y - cy, x - cx)
-        px, py = x + math.cos(ang) * (half * 0.6 + dist), y + math.sin(ang) * (half * 0.6 + dist)
-        pos.append([px, py, x, y, l['item']])
-    for _ in range(300):  # push apart overlapping balloons
+        pos.append([x + math.cos(ang) * (half * 0.5 + dist), y + math.sin(ang) * (half * 0.5 + dist), x, y, str(key)])
+    for _ in range(400):
         moved = False
         for i in range(len(pos)):
             for j in range(i + 1, len(pos)):
                 dx, dy = pos[j][0] - pos[i][0], pos[j][1] - pos[i][1]; dd = math.hypot(dx, dy)
-                if dd < 2.3 * r:
+                if dd < 2.4 * r:
                     if dd < 1e-3: dx, dy, dd = 1, 0, 1
-                    s = (2.3 * r - dd) / 2 / dd; pos[i][0] -= dx * s; pos[i][1] -= dy * s; pos[j][0] += dx * s; pos[j][1] += dy * s; moved = True
+                    s = (2.4 * r - dd) / 2 / dd; pos[i][0] -= dx * s; pos[i][1] -= dy * s; pos[j][0] += dx * s; pos[j][1] += dy * s; moved = True
         if not moved: break
-    for px, py, x, y, it in pos:
+    for px, py, x, y, t in pos:
         px = min(max(px, r + 4), W - r - 4); py = min(max(py, r + 4), H - r - 4)
         d.line((x, y, px, py), fill=INK, width=3); d.ellipse((x - 5, y - 5, x + 5, y + 5), fill=INK)
-        d.ellipse((px - r, py - r, px + r, py + r), fill=(255, 255, 255), outline=INK, width=3)
-        t = str(it); tw = d.textlength(t, font=f(30, True)); d.text((px - tw / 2, py - 19), t, font=f(30, True), fill=INK)
+        rr = r + 6 if len(t) > 2 else r
+        d.ellipse((px - rr, py - rr, px + rr, py + rr), fill=(255, 255, 255), outline=INK, width=3)
+        tw = d.textlength(t, font=f(size, True)); d.text((px - tw / 2, py - size * 0.62), t, font=f(size, True), fill=INK)
     return im
 
 def dimensions(im, meta):
@@ -51,8 +56,8 @@ def dimensions(im, meta):
             tmp = tmp.rotate(90, expand=True); im.paste(tmp, (int(mx) - 54, int(my - tmp.height / 2)), tmp)
     return im
 
-def table(rows, colw, size=26, head=None, rowh=None):
-    rowh = rowh or size + 14; h = rowh * (len(rows) + (1 if head else 0)) + 10; w = sum(colw) + 10
+def table(rows, colw, size=26, head=None):
+    rowh = size + 14; h = rowh * (len(rows) + (1 if head else 0)) + 10; w = sum(colw) + 10
     im = Image.new('RGB', (w, h), BG); d = ImageDraw.Draw(im); y = 5
     def line(cells, bold):
         nonlocal y; x = 5
@@ -65,7 +70,7 @@ def table(rows, colw, size=26, head=None, rowh=None):
     for r in rows: line(r, False)
     return im
 
-def sheet(panels, title, sub, out, notes=None, side=None):
+def sheet(panels, title, out, notes=None, side=None, sub=SUB):
     pad = 40; head = 160; ph = max(p[0].height for p in panels)
     tw = sum(p[0].width for p in panels) + pad * (len(panels) + 1) + (side.width + pad if side else 0)
     th = head + max(ph, side.height if side else 0) + 130 + (len(notes) * 42 + 30 if notes else 0)
@@ -82,55 +87,69 @@ def sheet(panels, title, sub, out, notes=None, side=None):
         for n in notes: d.text((pad, y), n, font=f(28), fill=(40, 44, 50)); y += 42
     S.save('../' + out, optimize=True); print(out, S.size)
 
-def crop(im, box=None, w=None):
-    if box: im = im.crop(box)
-    if w: im = im.resize((w, int(im.height * w / im.width)), Image.LANCZOS)
-    return im
+def bomtable(items):
+    rows = [[b['item'], b['name'], b['qty'], b['material'], ('%.0f' % b['mass_g']) if b['mass_g'] else '-'] for b in BOM if b['item'] in items]
+    return table(rows, [70, 760, 60, 330, 90], size=24, head=['#', 'Part', 'Qty', 'Material', 'g'])
 
-sub = 'Internal torso frame rev A, reconciled from the arm, shell and manufacturing threads. Torso coords: X lateral, Y up from the pelvis bottom, Z forward. 2026-11-06'
-bomrows = [[b['item'], b['name'], b['qty'], b['material'], ('%.0f' % b['mass_g']) if b['mass_g'] else '-'] for b in BOM]
-bomtab = table(bomrows, [70, 760, 60, 330, 90], size=24, head=['#', 'Part', 'Qty', 'Material', 'g'])
-
-# 1. hero exploded
-im, m = load('hero_exp'); balloons(im, m)
-sheet([(im, 'Full exploded view: every frame member, gusset, bracket, actuator, shelf, electronics envelope and shell hardpoint, numbered to the table. Cyan = proposed packaging envelopes, yellow blocks = in-torso battery option')],
-      'Marengo internal torso frame: exploded view', sub, 'FRAME_EXPLODED.png', side=bomtab,
-      notes=['Colours: grey 2020 = existing rails reused as is; gold = existing posts cut to length; blue = new 2020 stock; silver = 3 mm 6061-T6 gussets; dark grey = 2028 corner brackets and RS03s;',
-             'teal = printed PETG (pitch brackets, waist adapter); purple = compute shelf; green = Pi 5 + CAN HAT + IMU; magenta = PDB envelope (placeholder); orange = shell hardpoint brackets;',
-             'yellow = harness trunks; charcoal = TPU spine pads (outside the shell); white discs = shell collars on the RS03s. Masses are estimates; the extrusion uses 0.5 g/mm.'])
-# 2. assembled
-a1, m1 = load('asm_iso'); a2, m2 = load('asm_rear')
-sheet([(crop(a1, w=1700), 'Assembled, from the front left'), (crop(a2, w=1700), 'Assembled, from the back right (spine pads and PDB envelope behind the doors)')],
-      'Internal torso frame: assembled', sub, 'FRAME_ASSEMBLED.png',
-      notes=['Two-box 2020 frame: lower box 150 wide x 140 deep (Y 155 to 353.6), shared step rails (Y 353.6 to 373.6), upper box 226 wide x 140 deep (Y 373.6 to 495). Total height 340, unchanged from the built frame.',
-             'Shoulder pitch RS03s sit through the upper box sides, output faces at X +-135, axis at Y 424.86. Four 3 mm aluminium gussets bridge the step on the front and rear faces.'])
-# 3. dimensions
-fr, mf = load('front'); sd, ms = load('side'); tp, mt = load('top')
-dimensions(fr, mf); dimensions(sd, ms); dimensions(tp, mt)
+MAIN_ITEMS = set(range(1, 34)) - {19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 32}
+# 1. exploded
+im, m = load('hero_exp'); balloons(im, m, items=MAIN_ITEMS)
+sheet([(crop(im, (300, 100, 3700, 2900)), 'Exploded along the frame axis: upper box up, lower box down, gussets forward and back, shoulder actuators outward, electronics stacked above the shelf')],
+      'Marengo internal torso frame rev A: exploded view', 'FRAME_EXPLODED.png', side=bomtable(MAIN_ITEMS),
+      notes=['Grey 2020 = existing rails reused; gold = existing posts cut to length; blue = new 2020 stock; silver = 3 mm 6061-T6 gussets; dark grey = corner brackets and RS03s; teal = printed PETG;',
+             'purple = compute shelf; green = Pi 5 + CAN HAT; magenta = PDB envelope (placeholder); cyan = proposed envelopes for the Jetson, fans and a third board. Fasteners and shell parts are on the detail sheets.',
+             'Masses are estimates; the extrusion uses 0.5 g/mm. Corner brackets travel with the rail they bolt to.'])
+# 2. fastener detail
+im, m = load('hero_fast'); balloons(im, m, items={11, 34, 35, 36, 37, 38, 39, 19, 20, 21, 22, 23, 24}, dist=120)
+c1, _ = load('corner_asm'); c2, _ = load('corner_exp')
+ft = table([[35, 'M5 x 10 button head + T-nut, corner brackets', 64], [34, 'Corner bracket 2020, 20 mm legs (top inner-X corners)', 4], [11, 'Corner bracket 2028', 28],
+            [36, 'M5 x 10 button head + T-nut, gussets', 36], [37, 'M5 x 16 button head + T-nut, shell hardpoint brackets', 20], [39, 'M5 x 12 button head + T-nut, pitch brackets to posts (assumption)', 8],
+            ['', 'RS03 rear mounting screws (vendor pattern, as built)', '2 sets'], [38, 'M4 x 10 button head, shell collars on the RS03 outboard holes', 16],
+            ['', 'M2.5 standoffs, Pi 5 and Jetson carrier', '8 + 4'], ['', 'M3 heat-set inserts + M3 x 8, shell panels to hardpoints (shell thread)', '~40']],
+           [70, 900, 110], size=24, head=['#', 'Fastener', 'Qty'])
+sheet([(crop(im, (300, 100, 3700, 2900), w=1900), 'Full exploded view with every screw, T-nut and shell hardpoint bracket (orange)'),
+       (crop(c1, w=1000), 'Step corner, assembled: lower post, shared rail, upper post, gusset, brackets'), (crop(c2, w=1000), 'Step corner, exploded: screws and T-nuts pulled off their slots')],
+      'Internal torso frame rev A: fasteners and joint detail', 'FRAME_EXPLODED_DETAIL.png', side=ft,
+      notes=['128 M5 screws + 128 M5 T-nuts in total (brackets 64, gussets 36, hardpoints 20, pitch brackets 8). T-nuts shown as grey blocks in the slot behind each screw. Screws are M5 button heads unless noted.',
+             'The four top inner-X brackets are 2020 (20 mm legs) because a 2028 there overlaps the pitch bracket wing at Y 447-450 (arm thread interference check).'])
+# 3. assembled
+a1, _ = load('asm_iso'); a2, _ = load('asm_rear')
+sheet([(crop(a1, (200, 0, 3000, 2400), w=1600), 'Assembled, from the front left, with hardpoint brackets and fasteners'), (crop(a2, (200, 0, 3000, 2400), w=1600), 'Assembled, from the back right')],
+      'Internal torso frame rev A: assembled', 'FRAME_ASSEMBLED.png',
+      notes=['Lower box 150 x 140 (Y 155 to 353.6), shared step rails (Y 353.6 to 373.6), upper box 226 x 140 (Y 373.6 to 495). Height 340, unchanged. Pitch RS03 faces at X +-135, axis Y 424.86.'])
+# 4. dimensions
+fr, mf = load('front'); sd, ms = load('side'); tp, mt = load('top'); dimensions(fr, mf); dimensions(sd, ms); dimensions(tp, mt)
 sheet([(crop(fr, w=1500), 'Front (looking -Z)'), (crop(sd, w=1100), 'Left side (looking -X)'), (crop(tp, w=1100), 'Top (front of the robot at the top of the image)')],
-      'Internal torso frame: dimensions', sub, 'FRAME_DIMENSIONS.png',
-      notes=['All in mm. Inner clear: lower box 110 x 100, upper box 186 x 100 (2020 walls). Shoulder joint line (arm thread) at X +-208.49; gusset plates span Y 285 to 425.',
-             'Hardpoints and spine pads hidden for clarity. Full dimension table in README.md.'])
-# 4. subsystems
-s1, n1 = load('sub_frame'); s2, n2 = load('sub_inner'); s3, n3 = load('sub_shell')
-balloons(s1, n1, dist=110); balloons(s2, n2, dist=120); balloons(s3, n3, dist=120)
-sheet([(crop(s1, w=1300), 'A. Structure: 22 extrusions, 4 gussets, 32 corner brackets'), (crop(s2, w=1300), 'B. Inside: actuators, pitch brackets, shelf, Pi, PDB envelope, harness, waist'),
-       (crop(s3, w=1300), 'C. Shell interfaces: 20 hardpoint brackets, collars, TPU spine pads (from the back)')],
-      'Internal torso frame: exploded by subsystem', sub, 'FRAME_SUBSYSTEMS.png',
-      notes=['Numbers match the table on FRAME_EXPLODED.png. In B and C the frame is ghosted for reference.'])
-# 5. changes: built vs new, same scale
+      'Internal torso frame rev A: dimensions', 'FRAME_DIMENSIONS.png',
+      notes=['All in mm. Inner clear: lower box 110 x 100, upper box 186 x 100 (2020 walls). Shoulder joint line (arm thread) at X +-208.49; gusset plates span Y 285 to 425. Full table in README.md.'])
+# 5. inside, exploded
+im, m = load('inside_exp'); balloons(im, m, items={12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 31, 33}, dist=120)
+sheet([(crop(im, (300, 0, 2900, 2400), w=1800), 'Everything inside the frame, exploded up and down from the step: shoulder RS03s and pitch brackets outward, Pi and Jetson stack up, PDB and third board down, waist parts below')],
+      'Internal torso frame rev A: inside the frame', 'FRAME_INSIDE.png', side=bomtable({12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 31, 33}),
+      notes=['Frame ghosted. Harness (yellow): right-angle exits inboard from each RS03 rear-boss connector flat (which flat is fitted is unresolved, arm thread asked Joey), step bus to the PDB, two drops in the front corners to the waist.'])
+# 6. packaging 2D
+p1 = Image.open('out/pack2d_front.png').convert('RGB'); p2 = Image.open('out/pack2d_side.png').convert('RGB'); p3 = Image.open('out/pack2d_plan.png').convert('RGB')
+fits = table([['Pi 5 + CAN HAT', '85 x 56 x 21', 'upper bay, shelf', 'yes, as built'], ['Jetson Orin Nano dev kit', '103 x 90.5 x 35 (+10 fan)', 'upper bay, 2nd shelf Y 410', 'yes, 26.9 mm/side'],
+              ['Third board / USB hub', '90 x 60 x 20', 'lower box front', 'yes'], ['Pitch RS03 x 2', 'D99 x 57', 'through the upper sides', 'yes (0.5 mm to depth)'],
+              ['Waist RS03', 'D99 x 57', '40 mm waist bay', 'NO: 17 mm short (hip stage)'], ['PDB + E-stop + switch', '100 x 90 x 28 assumed', 'lower box rear, D2 door', 'yes, board not designed'],
+              ['Main 48 V battery', '185 x 165 x 90 draft', 'pelvis', 'not in the torso'], ['In-torso option', '2 x 6S 155 x 50 x 45', 'lower box centre', 'fits, raises CoM, card open'],
+              ['M18 HD12 aux bay', '168 x 98 x 112', 'upper back (handoff)', 'NO: shell has no room'], ['Fans', '3 x 40 x 40 x 10', '2 exhaust top rear, 1 intake low front', 'yes'],
+              ['Sensors', 'IMU; head cams later', 'shelf; top rails', 'yes'], ['Harness', '2 trunks + CAN', 'front corners, step bus', 'yes, off H1-H6 slots']],
+             [420, 420, 440, 420], size=24, head=['Component', 'Envelope, mm', 'Where', 'Fits?'])
+sheet([(crop(p1, w=1150), 'Front section at Z 0'), (crop(p2, w=935), 'Side section at X 0'), (crop(p3, w=1150), 'Plan section through the shoulder plane')],
+      'Internal torso frame rev A: internal packaging check', 'FRAME_PACKAGING.png', side=fits,
+      notes=['Red dashed boxes are the free bays. Upper bay 156.8 x 100 x 101.4 between the RS03 rear bosses; lower box 110 x 100 x 178.6 above the bottom rails; waist bay 150 x 140 x 40 under the frame.',
+             'The in-torso battery option is left off the drawings until Joey decides; two 6S packs would stand in the lower box centre, Y 175 to 330, where the PDB is now drawn against the rear.'])
+# 7. hardpoints
+h1, m1 = load('hp_front'); h2, m2 = load('hp_rear'); balloons(h1, m1, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24); balloons(h2, m2, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24)
+sheet([(crop(h1, w=1500), 'Shell hardpoint brackets H1-H6 on the frame, from the front left (frame ghosted)'), (crop(h2, w=1500), 'From the back right, with the six TPU spine pads and the collars (shell parts, outside the shell)')],
+      'Internal torso frame rev A: shell interfaces', 'FRAME_HARDPOINTS.png',
+      notes=['20 printed PETG brackets on M5 T-nuts carry the M3 inserts; panels only have holes and pins. H6 is on the outer faces of the bottom side rails (moved off the under-face, agreed with the shell thread).',
+             'H3 rear brackets stay below Y 374 for the Pi ports. Gussets are not mounts. Spine pads: |X| 58-147 x Y 368-481 and |X| 54-127 x Y 166-295 plus two bridges, Z -77 to -124, on standoffs to H2/H3/H4.'])
+# 8. changes
 b1, _ = load('built'); b2, _ = load('new_frame')
 sheet([(crop(b1, w=1500), 'As built: single 150 x 140 x 340 box, 12 rails + 2 shelf side rails, RS03 faces at X +-97'),
        (crop(b2, w=1500), 'Rev A: two-box frame, same height, upper box 226 wide, RS03 faces at X +-135. Blue = new stock, gold = recut posts')],
-      'Internal torso frame: what changes from the built frame', sub, 'FRAME_CHANGES.png',
+      'Internal torso frame rev A: what changes from the built frame', 'FRAME_CHANGES.png',
       notes=['Same scale. Cut the four 340 posts into 198.6 + 121.4; add 2 x 226, 2 x 186 and 2 x 100 rails (1024 mm new stock); move the pitch brackets and the top side rails out 38 mm;',
              'add four 3 mm 6061-T6 gussets and 16 more corner brackets. Compute shelf, Pi and waist adapter stay where they are. Everything else is reused.'])
-# 6. packaging
-p1, q1 = load('pack_top'); p2, q2 = load('pack_front'); p3, q3 = load('pack_side')
-sheet([(crop(p1, w=1300), 'Plan view at the shoulder plane: RS03s, Pi stack between them, harness to each shoulder'),
-       (crop(p2, w=1300), 'Front: free volumes above the Pi stack and in the lower box'),
-       (crop(p3, w=1300), 'Side: Pi ports at the rear face, PDB behind the D2 door, spine pads outside the shell')],
-      'Internal torso frame: internal packaging check', sub, 'FRAME_PACKAGING.png',
-      notes=['Upper bay (between the RS03 rears): 156.8 wide x 100 deep x 101.4 tall. Pi 5 + CAN HAT stack 85 x 56 x 21 on the shelf; Jetson Orin Nano dev kit 103 x 90.5 x 35 on a second shelf above it (Y 410-445);',
-             '30 mm left under the top rails for two 40 mm exhaust fans. Lower box: 110 x 100 x 198.6. PDB envelope 100 x 90 x 28 at the rear (D2 door), third board / USB hub at the front, harness trunks in the front corners,',
-             'intake fan low at the front. In-torso batteries: two 6S packs 155 x 50 x 45 fit standing in the lower box centre (yellow), but the baseline keeps the main 48 V pack in the pelvis. See README section 6.'])

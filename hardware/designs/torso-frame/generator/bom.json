@@ -82,9 +82,9 @@
  {
   "item": 11,
   "name": "Corner bracket, 2028, with 2 x M5 T-nuts",
-  "qty": 32,
-  "mass_g": 576,
-  "material": "Al 2028 bracket + M5 T-nuts",
+  "qty": 28,
+  "mass_g": 504,
+  "material": "Al bracket + M5 T-nuts",
   "group": "bracket"
  },
  {
@@ -114,8 +114,8 @@
  {
   "item": 15,
   "name": "Raspberry Pi 5 + 2-CH CAN HAT",
-  "qty": 2,
-  "mass_g": 115,
+  "qty": 1,
+  "mass_g": 110,
   "material": "electronics",
   "group": "electronics"
  },
@@ -149,7 +149,7 @@
   "qty": 2,
   "mass_g": 16,
   "material": "PETG print",
-  "group": "shell"
+  "group": "hardpoint"
  },
  {
   "item": 20,
@@ -157,7 +157,7 @@
   "qty": 2,
   "mass_g": 16,
   "material": "PETG print",
-  "group": "shell"
+  "group": "hardpoint"
  },
  {
   "item": 21,
@@ -165,7 +165,7 @@
   "qty": 4,
   "mass_g": 32,
   "material": "PETG print",
-  "group": "shell"
+  "group": "hardpoint"
  },
  {
   "item": 22,
@@ -173,7 +173,7 @@
   "qty": 4,
   "mass_g": 32,
   "material": "PETG print",
-  "group": "shell"
+  "group": "hardpoint"
  },
  {
   "item": 23,
@@ -181,7 +181,7 @@
   "qty": 4,
   "mass_g": 32,
   "material": "PETG print",
-  "group": "shell"
+  "group": "hardpoint"
  },
  {
   "item": 24,
@@ -189,7 +189,7 @@
   "qty": 4,
   "mass_g": 32,
   "material": "PETG print",
-  "group": "shell"
+  "group": "hardpoint"
  },
  {
   "item": 25,
@@ -197,19 +197,19 @@
   "qty": 2,
   "mass_g": 30,
   "material": "PETG print",
-  "group": "shell"
+  "group": "shellpart"
  },
  {
   "item": 26,
-  "name": "TPU spine pads, 30 mm rear crush, on standoffs to H2/H3/H4",
-  "qty": 5,
-  "mass_g": 410,
+  "name": "TPU spine pads",
+  "qty": 6,
+  "mass_g": 334,
   "material": "TPU 95A gyroid",
-  "group": "shell"
+  "group": "shellpart"
  },
  {
   "item": 27,
-  "name": "Harness trunk to the shoulder RS03 connectors",
+  "name": "Harness trunks: shoulder RS03 connector runs",
   "qty": 5,
   "mass_g": 220,
   "material": "silicone 14 AWG + CAN pair",
@@ -262,5 +262,53 @@
   "mass_g": 5,
   "material": "proposed",
   "group": "proposed"
+ },
+ {
+  "item": 34,
+  "name": "Corner bracket, 2020",
+  "qty": 4,
+  "mass_g": 56,
+  "material": "Al bracket + M5 T-nuts",
+  "group": "bracket"
+ },
+ {
+  "item": 35,
+  "name": "M5 x 10 button head + T-nut",
+  "qty": 64,
+  "mass_g": 128,
+  "material": "M5 button head",
+  "group": "fastener"
+ },
+ {
+  "item": 36,
+  "name": "M5 x 10 button head + T-nut",
+  "qty": 36,
+  "mass_g": 72,
+  "material": "M5 button head",
+  "group": "fastener"
+ },
+ {
+  "item": 37,
+  "name": "M5 x 16 button head + T-nut",
+  "qty": 20,
+  "mass_g": 40,
+  "material": "M5 button head",
+  "group": "fastener"
+ },
+ {
+  "item": 38,
+  "name": "M4 x 10 button head, collar on the RS03 outboard holes",
+  "qty": 16,
+  "mass_g": 32,
+  "material": "M4 button head",
+  "group": "fastener"
+ },
+ {
+  "item": 39,
+  "name": "M5 x 12 button head + T-nut, pitch bracket to the upper posts",
+  "qty": 8,
+  "mass_g": 16,
+  "material": "M5 button head",
+  "group": "fastener"
  }
 ]

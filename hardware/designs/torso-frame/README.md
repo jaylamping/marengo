@@ -9,12 +9,14 @@ torso Z, robot Y = torso X, robot Z = torso Y + 810.
 
 | Sheet | Shows |
 | --- | --- |
-| `FRAME_EXPLODED.png` | Full exploded view, every part numbered to the table (section 3) |
+| `FRAME_EXPLODED.png` | Exploded along the frame axis, every part numbered to the table (section 3) |
+| `FRAME_EXPLODED_DETAIL.png` | Same, with every screw, T-nut and hardpoint bracket, plus the step-corner joint detail; fastener table |
 | `FRAME_ASSEMBLED.png` | Assembled, front-left and back-right |
 | `FRAME_DIMENSIONS.png` | Front, side, top with dimensions |
-| `FRAME_SUBSYSTEMS.png` | Exploded by subsystem: structure, inside, shell interfaces |
+| `FRAME_INSIDE.png` | Everything inside the frame, exploded, frame ghosted |
+| `FRAME_PACKAGING.png` | 2D section drawings: internal packaging check (section 6) |
+| `FRAME_HARDPOINTS.png` | Shell hardpoint brackets H1-H6, spine pads and collars |
 | `FRAME_CHANGES.png` | Built frame vs rev A at the same scale |
-| `FRAME_PACKAGING.png` | Internal packaging check (section 6) |
 | `frame_viewer.html` | Interactive: orbit, explode slider, hover for part names (opens from disk, needs internet for three.js) |
 
 Evidence labels: **recorded CAD check** (arm thread, master torso 022da44), **script check** (ran here), **estimate**, **assumption**, **unresolved**.
@@ -58,9 +60,46 @@ Total extrusion 3124 mm, of which 1024 mm is new stock. 32 corner brackets.
 The four built 340 mm posts become 198.62 + 121.38 (kerf comes out of the 20 mm offcut). New stock: 2 × 226, 2 × 186, 2 × 100 =
 1024 mm; one more 4 × 500 mm pack (`B08Y8KCJW4`) covers it. Spare after the rebuild: 2 × 110 rails and four 20 mm offcuts.
 
-**Joint count:** 32 × 2028 corner brackets with 2 × M5 T-nuts each (bottom corners 8, lower post tops 4, upper post bottoms 4,
-top corners 8, shelf rail ends 4, step side rail ends 4). The built box uses 16, so 16 more. Optional +8 at the step if the post
-Z faces also get a bracket. The gussets add 36 × M5 × 10 + T-nuts.
+**Joint count:** 32 corner brackets with 2 × M5 T-nuts each (bottom corners 8, lower post tops 4, upper post bottoms 4,
+top corners 8, shelf rail ends 4, step side rail ends 4). 28 are 2028; the 4 top inner-X corners use 2020 brackets (20 mm legs)
+because a 2028 there overlaps the pitch bracket wing at Y 447 to 450 (arm thread interference check). The built box uses 16, so
+16 more. Optional +8 at the step if the post Z faces also get a bracket.
+
+**Fasteners (all on `FRAME_EXPLODED_DETAIL.png`):**
+
+| Fastener | Qty | For |
+| --- | --- | --- |
+| M5 × 10 button head + M5 T-nut | 64 | corner brackets |
+| M5 × 10 button head + M5 T-nut | 36 | gussets, 9 per plate |
+| M5 × 16 button head + M5 T-nut | 20 | shell hardpoint brackets (through 12 mm of PETG) |
+| M5 × 12 button head + M5 T-nut | 8 | pitch brackets to the upper posts (**assumption**: the built bracket's pattern decides) |
+| RS03 rear mounting screws | 2 sets | vendor pattern, as built |
+| M4 × 10 button head | 16 | shell collars on the RS03 outboard holes |
+| M2.5 standoffs and screws | 8 + 4 | Pi 5 stack, Jetson carrier |
+| M3 heat-set inserts + M3 × 8 | ~40 | shell panels to the hardpoint brackets (shell thread) |
+
+Total: **128 M5 screws and 128 M5 T-nuts** on the frame.
+
+## 2a. Shopping list
+
+What the BOM (`hardware/bom/master-bom.csv`) says Joey bought against what rev A needs. **Confirm the stock on hand before ordering.**
+
+| Item | Bought (BOM) | Needed for rev A | Buy |
+| --- | --- | --- | --- |
+| 2020 extrusion, 500 mm sticks | 2 × 4-pack = 4000 mm; 2400 mm cut for the built frame | 1024 mm new (2 × 226, 2 × 186, 2 × 100) | The leftovers are one full stick plus offcuts under 300 mm, which cannot yield both 226s and both 186s: **1 more 4-pack (`B08Y8KCJW4`)** |
+| 2028 corner brackets | kit of 30, 16 used | 28 | 14 spare on hand: **buy none**, or one kit if any are bent |
+| 2020 corner brackets, 20 mm legs | none | 4 | **1 pack** (any 2020-series inside corner bracket, 20 × 20) |
+| M5 T-nuts (slide-in or drop-in, 2020) | ~32 with the kit | 128 (+ spares) | **100-pack** |
+| M5 × 10 button head, stainless | some | 100 | **100-pack** |
+| M5 × 12 and M5 × 16 button head | none | 8 and 20 | **25-pack each** |
+| 3 mm 6061-T6 sheet | none | 4 plates 58 × 140 | **one 150 × 300 mm sheet**, or 4 plates laser-cut from `../torso-stepped/gusset_plate_left.dxf` (mirror two) |
+| M4 × 10 button head | arm stock | 16 | from the arm fastener stock |
+| M3 heat-set inserts (M3 × 5.7) + M3 × 8 | none | ~40 each | **50-pack each** (shell thread) |
+| PETG, TPU 95A | printer stock | ~0.5 kg brackets and adapters, ~0.35 kg pads | top up as needed |
+| 40 × 40 × 10 fans, 5 V or 12 V | none | 3 | **3** once the PDB voltage rails are fixed |
+| Jetson Orin Nano dev kit, M2.5 standoffs | Joey's list | 1 | **confirm whether already owned** |
+
+No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
 
 ## 3. Parts, numbered as on `FRAME_EXPLODED.png`
 
@@ -76,17 +115,18 @@ Z faces also get a bracket. The gussets add 36 × M5 × 10 + T-nuts.
 | 8 | Rail, top front/rear, 186 | 2 | 2020 | 186 | **new** |
 | 9 | Rail, top side, 100 | 2 | 2020 | 100 | reused, moved out 38 |
 | 10 | Gusset plate (`../torso-stepped/gusset_plate_left.dxf`, R15 at the X 113 / Y 335 corner) | 4 | 3 mm 6061-T6 | 40 | **new** |
-| 11 | Corner bracket 2028 + 2 M5 T-nuts | 32 | aluminium | 576 | 16 reused, 16 new |
-| 12 | RS03 shoulder pitch | 2 | RobStride | 1760 | existing |
-| 13 | Shoulder pitch bracket | 2 | PETG | 240 | existing part, moved out 38 (envelope shown) |
-| 14 | Compute shelf plate | 1 | existing | 60 | existing; footprint **unresolved** (section 9) |
+| 11 | Corner bracket 2028 + 2 M5 T-nuts | 28 | aluminium | 504 | 16 reused, 12 new |
+| 34 | Corner bracket 2020 (20 mm legs), top inner-X corners | 4 | aluminium | 56 | **new** |
+| 12 | RS03 shoulder pitch | 2 | RobStride | 1760 | existing; Ø80 rear boss X 78.4 to 92 with two connector flats, Ø99 body to 132.5, output face 135 |
+| 13 | Shoulder pitch bracket | 2 | PETG | 240 | existing part, moved out 38; envelope X 78.4 to 113, Y 353.6 to 495, Z ±50, wing to ±69 at Y 400 to 450 (recorded CAD check) |
+| 14 | Compute shelf plate | 1 | existing | 60 | existing; X ±55 between the shelf rails, Y 354.6 to 372.6 (recorded CAD check) |
 | 15 | Pi 5 + 2-CH CAN HAT, BNO085 | 1 | | 115 | existing; Y 376 to 397, X −37.5 to 19.7, ports to Z −71.8 (recorded CAD check) |
 | 16 | PDB + E-stop / main switch envelope 100 × 90 × 28 | 1 | placeholder | 150 | proposed: lower box rear, behind the D2 door |
 | 17 | RS03 waist yaw | 1 | RobStride | 880 | existing; 57 tall in a 40 bay (**unresolved**, hip stage) |
 | 18 | Waist yaw adapter plate | 1 | PETG | 120 | existing; bolt pattern **unresolved** |
 | 19–24 | Shell hardpoint brackets H1–H6, PETG with M3 inserts on M5 T-nuts | 20 | PETG | 160 | shell thread; H6 moved (section 5) |
 | 25 | Shell collar halves on the RS03 outboard M4 holes | 2 pairs | PETG | 30 | shell part |
-| 26 | TPU spine pads (2 upper, 2 lower, 1 bridge), 30 mm, outside the shell on H2/H3/H4 standoffs | 5 | TPU 95A | 410 | shell thread interim spec |
+| 26 | TPU spine pads (2 upper, 2 lower, 2 bridges), 30 mm proud of the shell back, on H2/H3/H4 standoffs | 6 | TPU 95A | 333 | shell thread, main 074cab4 |
 | 27 | Harness trunks: Pi/PDB to each shoulder RS03, two front-corner drops to the waist, step bus | 5 | 12–14 AWG + CAN pair | 220 | routing proposal |
 | 28 | Pelvis ring | 1 | draft | | hip stage, shown only in the viewer |
 | 29 | Jetson Orin Nano dev kit envelope 103 × 90.5 × 35 (+10 fan) | 1 | proposed | 250 | second shelf, Y 410 to 445, ports to the rear |
@@ -96,6 +136,15 @@ Z faces also get a bracket. The gussets add 36 × M5 × 10 + T-nuts.
 | 33 | Sensors: IMU on the shelf; head cameras/mics future on the top rails | | | | |
 
 Frame structure only (1 to 11): about **2.1 kg** including brackets and T-nuts. Everything shown: about 7 kg without the battery option.
+
+### Interference check against the real CAD (arm thread, 2026-11-06 04:46Z)
+
+Jetson (26.9 mm per side), fans, Pi, IMU, PDB envelope and shelf all clear the real RS03s and pitch brackets. Fixed here: the four
+top inner-X corner brackets became 2020 (20 mm legs). **Unresolved:** which rear-boss connector flat each RS03 has (A high rear,
+Y 447 to 456, Z −31 to −23, or B low front, Y 394 to 402, Z 23 to 31; the real flat differs between left and right, Joey to look).
+If A, keep X ±50 to 78, Y 440 to 460, Z −45 to −15 clear (2 mm above the Jetson top); if B, keep shelf supports out of
+X ±50 to 78, Y 385 to 410, Z 15 to 40. Plugs have 11 to 12 mm to the bracket, so the harness needs a right-angle or loose-wire
+exit going inboard past X ±78.4; a 35 mm bend radius does not fit.
 
 ## 4. Arm interfaces (fixed, from the arm thread)
 
@@ -133,7 +182,7 @@ Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 �
 | PDB + converters + E-stop + main switch | 100 × 90 × 28 assumed | lower box rear, behind D2 | yes; the board is not designed yet |
 | Battery, main 48 V pack | 185 × 165 × 90 draft | pelvis | **not in the torso frame**. The lower box can take two 6S 5000 mAh packs standing (155 × 50 × 45 each, ~1.5 kg) if Joey wants torso batteries, at the cost of the PDB depth and a higher centre of mass |
 | M18 HD12 aux bay (handoff draft) | 168 × 98 × 112 | upper back cantilever | **no**: the shell back has 10 to 17 mm to the frame and the spine pads sit there. Recommend dropping it or moving it to the pelvis |
-| Fans | 40 × 40 × 10 | 2 exhaust at the upper rear under the top rail (behind D1, now Y 360 to 492), 1 intake in the lower front panel at Y 250 to 295 | yes; 45 W chest heat estimate in the shell plan |
+| Fans | 40 × 40 × 10 | 2 exhaust at the upper rear under the top rail (behind D1, now Y 360 to 492), 1 intake in the lower front panel at Y 250 to 295 | yes; 45 W chest heat estimate in the shell plan, plus the Jetson's 7 to 15 W |
 | Sensors | IMU fitted; cameras/mics in the head later | shelf; top rails | yes |
 | Harness | two 12–14 AWG + CAN trunks | front inner corners of the lower box, step bus to the PDB, shoulder runs at Y 460 | yes, T-slot clips; keep off the H1–H6 slots |
 
@@ -147,7 +196,7 @@ that would reopen the frame.
 2. New rails: 2 × 226 shared step rails, 2 × 186 top rails, 2 × 100 shelf rails.
 3. Move the top side rails and the shelf side rails out 38 mm per side (they become the upper box and step side rails).
 4. Add four 3 mm 6061-T6 gusset plates (front and rear of each step corner), 9 × M5 each.
-5. Add 16 corner brackets (32 total).
+5. Add 16 corner brackets (32 total: 28 × 2028 + 4 × 2020 at the top inner-X corners).
 6. Move the two pitch brackets and RS03s out 38 mm with the upper box; output faces go from X ±97 to ±135.
 7. Add 20 printed shell hardpoint brackets on T-nuts (shell thread) and the H6 position change.
 8. Add a second compute shelf for the Jetson and reserve the PDB envelope behind the D2 door.
@@ -167,7 +216,8 @@ that would reopen the frame.
 
 ## 9. Open items (Joey)
 
-1. **Photo of the built frame bottom and compute shelf**: rail count, shelf footprint, how the waist adapter bolts on (H6 and the hip interface depend on it).
+1. **Photo of the built frame bottom**: how the waist adapter bolts on (the hip interface depends on it). Shelf footprint is now from the CAD.
+1a. **Which connector flat each pitch RS03 has** (A or B above), for the harness exit.
 2. **Main battery location**: pelvis (baseline) or torso (reopens the lower box width).
 3. **M18 aux bay**: drop, or move to the pelvis.
 4. Waist RS03 in the 40 mm bay and the +70 mm waist section: hip-stage decision, does not change this frame.
@@ -181,5 +231,5 @@ and a native exploded view configuration is saved from it.
 
 ## Reproduce
 
-In `generator/`: `npm install three@0.170.0`, `python3 frame.py`, `python3 -m http.server 8766`, then `node shoot.js '[...]'`
-(view list in the commit), `python3 compose.py`, `python3 build_viewer.py`.
+In `generator/`: `npm install three@0.170.0`, `python3 frame.py`, `python3 draw2d.py`, `python3 -m http.server 8766`, then `node shoot.js '[...]'`
+(view list in `generator/views.json`), `python3 compose.py`, `python3 build_viewer.py`.

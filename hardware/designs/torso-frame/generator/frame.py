@@ -7,7 +7,7 @@ robot X = torso Z, robot Y = torso X, robot Z = torso Y + 810 (shell generator c
 All numbers come from hardware/designs/torso-stepped/README.md (arm thread) and
 hardware/designs/body-shell/concept/generator/mounts.json (shell thread) unless marked here.
 """
-import json, math
+import json, math, re
 
 # ---- frame parameters -------------------------------------------------------------------------
 E = 20.0                 # 2020 extrusion
@@ -53,42 +53,42 @@ for sx in (1, -1):
     for sz in (1, -1):
         ext(f'post_lo_{sx}_{sz}', 1, 'Post, lower box, 198.6', (sx * (HX_LO - E) if sx > 0 else -HX_LO, Y_BOT, sz * (HZ - E) if sz > 0 else -HZ),
             (HX_LO if sx > 0 else -(HX_LO - E), Y_STEP_LO, HZ if sz > 0 else -(HZ - E)), 'cut',
-            (sx * 25, -60, sz * 25), 'post_lo', balloon=first); first = False
+            (0, -70, 0), 'post_lo', balloon=first); first = False
 first = True
 for sz in (1, -1):
     ext(f'rail_bot_{sz}', 2, 'Rail, bottom front/rear, 110', (-(HX_LO - E), Y_BOT, sz * (HZ - E) if sz > 0 else -HZ),
-        (HX_LO - E, Y_BOT + E, HZ if sz > 0 else -(HZ - E)), 'keep', (0, -120, sz * 50), 'rail_bot', balloon=first); first = False
+        (HX_LO - E, Y_BOT + E, HZ if sz > 0 else -(HZ - E)), 'keep', (0, -140, 0), 'rail_bot', balloon=first); first = False
 first = True
 for sx in (1, -1):
     ext(f'rail_botside_{sx}', 3, 'Rail, bottom side, 100', (sx * (HX_LO - E) if sx > 0 else -HX_LO, Y_BOT, -(HZ - E)),
-        (HX_LO if sx > 0 else -(HX_LO - E), Y_BOT + E, HZ - E), 'keep', (sx * 50, -120, 0), 'rail_botside', balloon=first); first = False
+        (HX_LO if sx > 0 else -(HX_LO - E), Y_BOT + E, HZ - E), 'keep', (0, -140, 0), 'rail_botside', balloon=first); first = False
 # ---- step tier -------------------------------------------------------------------------------
 first = True
 for sz in (1, -1):
     ext(f'rail_shared_{sz}', 4, 'Rail, shared step, front/rear, 226 (new)', (-HX_UP, Y_STEP_LO, sz * (HZ - E) if sz > 0 else -HZ),
-        (HX_UP, Y_STEP_HI, HZ if sz > 0 else -(HZ - E)), 'new', (0, 0, sz * 60), 'rail_shared', balloon=first); first = False
+        (HX_UP, Y_STEP_HI, HZ if sz > 0 else -(HZ - E)), 'new', (0, 0, 0), 'rail_shared', balloon=first); first = False
 first = True
 for sx in (1, -1):
     ext(f'rail_stepside_{sx}', 5, 'Rail, step side, 100', (sx * (HX_UP - E) if sx > 0 else -HX_UP, Y_STEP_LO, -(HZ - E)),
-        (HX_UP if sx > 0 else -(HX_UP - E), Y_STEP_HI, HZ - E), 'keep', (sx * 60, 0, 0), 'rail_stepside', balloon=first); first = False
+        (HX_UP if sx > 0 else -(HX_UP - E), Y_STEP_HI, HZ - E), 'keep', (0, 0, 0), 'rail_stepside', balloon=first); first = False
 first = True
 for sx in (1, -1):
     ext(f'rail_shelf_{sx}', 6, 'Rail, shelf, 100 (new)', (sx * (HX_SHELF - E) if sx > 0 else -HX_SHELF, Y_STEP_LO, -(HZ - E)),
-        (HX_SHELF if sx > 0 else -(HX_SHELF - E), Y_STEP_HI, HZ - E), 'new', (sx * 0, 0, 0), 'rail_shelf', balloon=first); first = False
+        (HX_SHELF if sx > 0 else -(HX_SHELF - E), Y_STEP_HI, HZ - E), 'new', (0, 0, 0), 'rail_shelf', balloon=first); first = False
 # ---- upper box -------------------------------------------------------------------------------
 first = True
 for sx in (1, -1):
     for sz in (1, -1):
         ext(f'post_up_{sx}_{sz}', 7, 'Post, upper box, 121.4', (sx * (HX_UP - E) if sx > 0 else -HX_UP, Y_STEP_HI, sz * (HZ - E) if sz > 0 else -HZ),
-            (HX_UP if sx > 0 else -(HX_UP - E), Y_TOP, HZ if sz > 0 else -(HZ - E)), 'cut', (sx * 25, 60, sz * 25), 'post_up', balloon=first); first = False
+            (HX_UP if sx > 0 else -(HX_UP - E), Y_TOP, HZ if sz > 0 else -(HZ - E)), 'cut', (0, 70, 0), 'post_up', balloon=first); first = False
 first = True
 for sz in (1, -1):
     ext(f'rail_top_{sz}', 8, 'Rail, top front/rear, 186 (new)', (-(HX_UP - E), Y_TOP - E, sz * (HZ - E) if sz > 0 else -HZ),
-        (HX_UP - E, Y_TOP, HZ if sz > 0 else -(HZ - E)), 'new', (0, 120, sz * 50), 'rail_top', balloon=first); first = False
+        (HX_UP - E, Y_TOP, HZ if sz > 0 else -(HZ - E)), 'new', (0, 140, 0), 'rail_top', balloon=first); first = False
 first = True
 for sx in (1, -1):
     ext(f'rail_topside_{sx}', 9, 'Rail, top side, 100', (sx * (HX_UP - E) if sx > 0 else -HX_UP, Y_TOP - E, -(HZ - E)),
-        (HX_UP if sx > 0 else -(HX_UP - E), Y_TOP, HZ - E), 'keep', (sx * 50, 120, 0), 'rail_topside', balloon=first); first = False
+        (HX_UP if sx > 0 else -(HX_UP - E), Y_TOP, HZ - E), 'keep', (0, 140, 0), 'rail_topside', balloon=first); first = False
 
 # ---- gusset plates, 3 mm 6061-T6, front and rear faces of each step corner -------------------
 GUSSET_PTS = [(55, 285), (75, 285), (113, 335), (113, 425), (93, 425), (93, Y_STEP_HI), (55, Y_STEP_HI)]
@@ -100,15 +100,15 @@ for sx in (1, -1):
         pts = [(sx * x, y) for x, y in GUSSET_PTS]
         add(id=f'gusset_{sx}_{sz}', item=10, name='Gusset plate, 3 mm 6061-T6', type='poly', pts=pts, radii=GUSSET_R,
             holes=[(sx * x, y, 2.75) for x, y in GUSSET_HOLES], z0=HZ if sz > 0 else -HZ - G_T, t=G_T,
-            color=COL['gusset'], group='gusset', explode=[0, 0, sz * 130], balloon=first, material='6061-T6 sheet, 3 mm',
+            color=COL['gusset'], group='gusset', explode=[0, 0, sz * 90], balloon=first, material='6061-T6 sheet, 3 mm',
             mass_g=10, note='4 off; the left-front plate is the drawing, mirror X for the right. 9 x 5.5 mm holes for M5 T-nuts.')
         first = False
 
 # ---- 2028 corner brackets --------------------------------------------------------------------
 BR_L, BR_W, BR_T = 28.0, 20.0, 4.0
-def bracket(id, corner, nA, nB, extent_axis, extent, explode, balloon=False):
+def bracket(id, corner, nA, nB, extent_axis, extent, explode, balloon=False, leg=None):
     """L bracket at corner point; legs run along +nA and +nB (unit axis vectors as (axis, sign))."""
-    legs = []
+    legs = []; BR_L = leg or 28.0
     for (ax, sg), (bx, bs) in ((nA, nB), (nB, nA)):
         lo = [0, 0, 0]; hi = [0, 0, 0]
         for i in range(3):
@@ -116,68 +116,121 @@ def bracket(id, corner, nA, nB, extent_axis, extent, explode, balloon=False):
             elif i == bx: lo[i], hi[i] = (corner[i], corner[i] + BR_T) if bs > 0 else (corner[i] - BR_T, corner[i])
             else: lo[i], hi[i] = corner[i] - extent / 2, corner[i] + extent / 2
         legs.append((lo, hi))
-    add(id=id, item=11, name='Corner bracket, 2028, with 2 x M5 T-nuts', type='multibox', boxes=legs, color=COL['bracket'],
-        group='bracket', explode=list(explode), balloon=balloon, material='Al 2028 bracket + M5 T-nuts', mass_g=18)
+    short = BR_L < 28
+    add(id=id, item=34 if short else 11, name='Corner bracket, 2020 (20 mm legs), top inner-X corners, clears the pitch bracket wing' if short else 'Corner bracket, 2028, with 2 x M5 T-nuts',
+        type='multibox', boxes=legs, color=COL['bracket'], group='bracket', explode=list(explode), balloon=balloon, material='Al bracket + M5 T-nuts', mass_g=14 if short else 18)
 
 nb = 0
-def BX(sx, sz, y, dy, which, explode):
+def BX(sx, sz, y, dy, which, explode, leg=None):
     """post corner brackets: which='x' = bracket between post X-inward face and a front/rear rail; 'z' = post Z-inward face and a side rail."""
     global nb
     hx = HX_LO if y < Y_STEP_LO else HX_UP
     cx = sx * (hx - E); cz = sz * (HZ - E)   # inner faces of the post
     if which == 'x':
-        bracket(f'br{nb}', (cx, y, sz * (HZ - E / 2)), (0, -sx), (1, dy), 2, E, explode, balloon=(nb == 0))
+        bracket(f'br{nb}', (cx, y, sz * (HZ - E / 2)), (0, -sx), (1, dy), 2, E, explode, balloon=(nb == 0 or leg is not None and nb == 16), leg=leg)
     else:
         bracket(f'br{nb}', (sx * (hx - E / 2), y, cz), (2, -sz), (1, dy), 0, E, explode, balloon=False)
     nb += 1
 for sx in (1, -1):
     for sz in (1, -1):
-        BX(sx, sz, Y_BOT + E, +1, 'x', (sx * 25, -60, sz * 25)); BX(sx, sz, Y_BOT + E, +1, 'z', (sx * 25, -60, sz * 25))      # bottom corners (8)
-        BX(sx, sz, Y_STEP_LO, -1, 'x', (sx * 25, -60, sz * 25))                                                                 # lower post top to shared rail (4)
-        BX(sx, sz, Y_STEP_HI, +1, 'x', (sx * 25, 60, sz * 25))                                                                  # upper post bottom to shared rail (4)
-        BX(sx, sz, Y_TOP - E, -1, 'x', (sx * 25, 60, sz * 25)); BX(sx, sz, Y_TOP - E, -1, 'z', (sx * 25, 60, sz * 25))          # top corners (8)
+        BX(sx, sz, Y_BOT + E, +1, 'x', (0, -140, 0)); BX(sx, sz, Y_BOT + E, +1, 'z', (0, -140, 0))      # bottom corners (8)
+        BX(sx, sz, Y_STEP_LO, -1, 'x', (0, -70, 0))                                                                 # lower post top to shared rail (4)
+        BX(sx, sz, Y_STEP_HI, +1, 'x', (0, 70, 0))                                                                  # upper post bottom to shared rail (4)
+        BX(sx, sz, Y_TOP - E, -1, 'x', (0, 140, 0), leg=20); BX(sx, sz, Y_TOP - E, -1, 'z', (0, 140, 0))          # top corners (8)
 # step-tier horizontal rails to the shared rails: shelf rails (4) and step side rails (4)
 for sx in (1, -1):
     for sz in (1, -1):
         for hx in (HX_SHELF, HX_UP):
             corner = (sx * (hx - E), Y_STEP_LO + E / 2, sz * (HZ - E))
-            bracket(f'br{nb}', corner, (0, -sx), (2, -sz), 1, E, (sx * 60 if hx == HX_UP else 0, 0, 0)); nb += 1
+            bracket(f'br{nb}', corner, (0, -sx), (2, -sz), 1, E, (0, 0, 0)); nb += 1
 N_BRACKETS = nb
+
+# ---- fasteners: M5 button heads + T-nuts on every bracket, gusset and hardpoint ---------------------
+FAST = {'m5': 0, 'tnut': 0, 'm4': 0}
+def screw(id, item, name, axis, head_pt, sign, explode, balloon=False, dia=5, head_d=8.5, head_h=4.5, length=10, color='#d8c56a'):
+    """Button head screw: head sits on head_pt, shank goes along axis in direction sign (into the part)."""
+    a = 'xyz'.index(axis); c = list(head_pt)
+    ch = c.copy(); ch[a] += -sign * head_h / 2
+    cs = c.copy(); cs[a] += sign * length / 2
+    cyl(id + '_h', item, name, axis, ch, head_d / 2, head_h, color, 'fastener', explode, balloon=balloon, mass_g=2, material='M%d button head' % dia)
+    cyl(id + '_s', item, name, axis, cs, dia / 2, length, color, 'fastener', explode, mass_g=0, material='')
+def tnut(id, item, name, axis, pt, sign, explode, slot_axis):
+    """T-nut 10 x 6 x 20 in the slot behind face point pt (face normal = axis*sign)."""
+    a = 'xyz'.index(axis); sa = 'xyz'.index(slot_axis)
+    lo = [pt[k] - 5 for k in range(3)]; hi = [pt[k] + 5 for k in range(3)]
+    lo[a], hi[a] = (pt[a] + sign * 1.5, pt[a] + sign * 7.5) if sign > 0 else (pt[a] + sign * 7.5, pt[a] + sign * 1.5)
+    lo[sa], hi[sa] = pt[sa] - 10, pt[sa] + 10
+    box(id, item, name, lo, hi, '#8a8d93', 'fastener', explode, mass_g=3, material='M5 T-nut')
+def bolt_bracket(p, idx):
+    """Two M5 + T-nuts for an L bracket (multibox): one through each leg into the member behind it."""
+    for li, (lo, hi) in enumerate(p['boxes']):
+        # the leg's thin axis is the bracket thickness axis; the screw goes along it, from the open side into the member
+        t_ax = min(range(3), key=lambda k: hi[k] - lo[k]); L = max(range(3), key=lambda k: hi[k] - lo[k])
+        cen = [(lo[k] + hi[k]) / 2 for k in range(3)]
+        # the member is on the side of the leg that is away from the bracket corner: the corner lies at the start of the long leg direction
+        other = p['boxes'][1 - li]; ocen = [(other[0][k] + other[1][k]) / 2 for k in range(3)]
+        sign = 1 if ocen[t_ax] < cen[t_ax] else -1      # member is opposite to the other leg
+        head = cen.copy(); head[t_ax] = hi[t_ax] if sign > 0 else lo[t_ax]
+        head[L] = cen[L] + (0 if True else 0)
+        FAST['m5'] += 1; FAST['tnut'] += 1
+        screw(f"f{idx}_{li}", 35, 'M5 x 10 button head + T-nut (brackets)', 'xyz'[t_ax], head, sign, p['explode'], balloon=(idx == 0 and li == 0))
+        slot_ax = [k for k in range(3) if k not in (t_ax, L)][0]
+        tn = cen.copy(); tn[t_ax] = lo[t_ax] if sign > 0 else hi[t_ax]
+        tnut(f"t{idx}_{li}", 35, 'M5 T-nut', 'xyz'[t_ax], tn, sign, p['explode'], 'xyz'[L] if abs(cen[L]) < 1e9 else 'xyz'[slot_ax])
+for idx, p in enumerate([q for q in parts if q['group'] == 'bracket']):
+    bolt_bracket(p, idx)
+# gusset bolts: 9 per plate, screws along Z into the frame, heads on the plate outer face
+for p in [q for q in parts if q['group'] == 'gusset']:
+    sz = 1 if p['z0'] > 0 else -1
+    for k, (x, y, r) in enumerate(p['holes']):
+        head = [x, y, p['z0'] + (p['t'] if sz > 0 else 0)]
+        screw(f"g{p['id']}_{k}", 36, 'M5 x 10 button head + T-nut (gussets, 36)', 'z', head, -sz, p['explode'], balloon=(k == 0 and p['id'] == 'gusset_1_1'))
+        tnut(f"gt{p['id']}_{k}", 36, 'M5 T-nut', 'z', [x, y, p['z0'] if sz > 0 else p['z0'] + p['t']], -sz, p['explode'], 'y' if abs(y - 363.62) > 1 else 'x')
+        FAST['m5'] += 1; FAST['tnut'] += 1
 
 # ---- shoulder pitch actuators and brackets -----------------------------------------------------
 for sx in (1, -1):
-    cyl(f'rs03_pitch_{sx}', 12, 'RS03, shoulder pitch (existing)', 'x', (sx * (RS03_REAR + RS03_L / 2), Y_SHOULDER, 0), RS03_D / 2, RS03_L,
-        COL['motor'], 'actuator', (sx * 170, 60, 0), balloon=(sx > 0), mass_g=880, material='RobStride RS03')
+    cyl(f'rs03_boss_{sx}', 12, 'RS03 rear boss, D80 with two connector flats', 'x', (sx * (RS03_REAR + 6.8), Y_SHOULDER, 0), 40, 13.6, COL['motor'], 'actuator', (sx * 150, 70, 0))
+    cyl(f'rs03_pitch_{sx}', 12, 'RS03, shoulder pitch (existing)', 'x', (sx * (92 + (RS03_FACE - 92) / 2), Y_SHOULDER, 0), RS03_D / 2, RS03_FACE - 92,
+        COL['motor'], 'actuator', (sx * 150, 70, 0), balloon=(sx > 0), mass_g=880, material='RobStride RS03')
     cyl(f'rs03_pitch_out_{sx}', 12, 'RS03 output flange', 'x', (sx * (RS03_FACE + (RS03_OUT - RS03_FACE) / 2), Y_SHOULDER, 0), 40, RS03_OUT - RS03_FACE,
-        '#9a9ea4', 'actuator', (sx * 170, 60, 0))
-    box(f'pitch_bracket_{sx}', 13, 'Shoulder pitch bracket, PETG (existing, moved out 38 mm)',
-        (min(sx * RS03_REAR, sx * (HX_UP - E)), Y_SHOULDER - 49, -HZ + E), (max(sx * RS03_REAR, sx * (HX_UP - E)), Y_SHOULDER + 49, HZ - E),
-        COL['printed'], 'actuator', (sx * 100, 60, 0), balloon=(sx > 0), mass_g=120, material='PETG print',
-        note='Captures the RS03 against the inner X faces of the upper posts; shown as its envelope, not the real part')
+        '#9a9ea4', 'actuator', (sx * 150, 70, 0))
+    xin, xout = sorted((sx * RS03_REAR, sx * HX_UP))
+    box(f'pitch_bracket_{sx}', 13, 'Shoulder pitch bracket, PETG (existing part, moved out 38 mm; envelope from the arm thread CAD check)', (xin, Y_STEP_HI, -50), (xout, Y_TOP, 50),
+        COL['printed'], 'actuator', (sx * 80, 70, 0), balloon=(sx > 0), mass_g=120, material='PETG print', opacity=0.85)
+    xw0, xw1 = sorted((sx * RS03_REAR, sx * (HX_UP - E)))
+    box(f'pitch_wing_{sx}', 13, 'pitch bracket wing', (xw0, 400, -69), (xw1, 450, 69), COL['printed'], 'actuator', (sx * 80, 70, 0), mass_g=0, material='PETG print', opacity=0.85)
+    for sz in (1, -1):
+        for yy in (390, 470):
+            FAST['m5'] += 1; FAST['tnut'] += 1
+            screw(f'pb{sx}_{sz}_{yy}', 39, 'M5 x 12 button head + T-nut, pitch bracket to the upper posts (8, assumption)', 'x', [sx * RS03_REAR, yy, sz * 60], sx, (sx * 80, 70, 0), balloon=(sx > 0 and sz > 0 and yy == 390), length=12)
+    for k in range(8):
+        ang = math.radians(k * 45 + 22.5); FAST['m4'] += 1
+        screw(f'c{sx}_{k}', 38, 'M4 x 10 button head, collar on the RS03 outboard holes (16)', 'x', [sx * (RS03_OUT + 3), Y_SHOULDER + 49 * math.cos(ang), 49 * math.sin(ang)], -sx, (sx * 200, 70, 0), balloon=(k == 0 and sx > 0), dia=4, head_d=7.5, head_h=4, length=10, color='#cfae4a')
     cyl(f'collar_{sx}', 25, 'Shell collar half-pair on the 8 outboard M4 holes (shell part)', 'x', (sx * (RS03_OUT + 1), Y_SHOULDER, 0), 60, 2,
-        COL['collar'], 'shell', (sx * 240, 60, 0), balloon=(sx > 0), mass_g=15, material='PETG print', opacity=0.9)
+        COL['collar'], 'shellpart', (sx * 200, 70, 0), balloon=(sx > 0), mass_g=15, material='PETG print', opacity=0.9)
 
 # ---- compute shelf, Pi, PDB, IMU -------------------------------------------------------------
-box('shelf', 14, 'Compute shelf plate (existing, 110 mm span on the shelf rails)', (-65, Y_STEP_HI, -50), (65, Y_STEP_HI + 3, 50), COL['shelf'], 'electronics',
-    (0, 45, 0), balloon=True, mass_g=60, material='existing part', note='Assumption: 130 x 100 x 3 plate bolted to the X +-65 shelf rails. Confirm on the robot.')
-box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, Y_STEP_HI + 2.4, -71.8), (19.7, 397, 13.2), COL['pi'], 'electronics',
-    (0, 100, 0), balloon=True, mass_g=110, material='electronics', note='Position from the arm thread CAD check; ports face the rear (-Z) and reach Z -71.8')
+box('shelf', 14, 'Compute shelf plate (existing: X +-55 between the shelf rails, Y 354.6 to 372.6; arm thread CAD check)', (-55, 354.6, -50), (55, 372.6, 50), COL['shelf'], 'electronics',
+    (0, 40, 0), balloon=True, mass_g=60, material='existing part')
+box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, 376, -71.8), (19.7, 397, 13.2), COL['pi'], 'electronics',
+    (0, 70, 0), balloon=True, mass_g=110, material='electronics', note='Position from the arm thread CAD check; ports face the rear (-Z) and reach Z -71.8')
 box('pdb', 16, 'PDB + E-stop/main switch envelope (proposed: lower box, behind the D2 power door)', (-50, 200, -48), (50, 290, -24), COL['pdb'], 'electronics',
-    (0, -60, -110), balloon=True, mass_g=150, material='placeholder 100 x 90 x 28', opacity=0.6,
+    (0, -70, -90), balloon=True, mass_g=150, material='placeholder 100 x 90 x 28', opacity=0.6,
     note='Not designed yet (KiCad stub). Envelope reserved on standoffs to the rear lower posts, faces the D2 door (|X| < 58, Y 167-295).')
 # harness trunks: Pi/PDB to each shoulder RS03 and down to the waist
 for sx in (1, -1):
-    cyl(f'harness_shoulder_{sx}', 27, 'Harness trunk to the shoulder RS03 connectors (XT30 + GH1.25), 24 V and CAN', 'x', (sx * 55, 460, 30), 5, 70, '#d8b84a', 'harness', (sx * 120, 60, 0), balloon=(sx > 0), mass_g=40, material='silicone 14 AWG + CAN pair', opacity=0.95)
-    cyl(f'harness_down_{sx}', 27, 'Harness trunk down the inner front corner to the waist and legs', 'y', (sx * 45, 275, 40), 5, 210, '#d8b84a', 'harness', (sx * 0, -60, -110), mass_g=60, material='silicone 12-14 AWG + CAN pair', opacity=0.95)
-cyl('harness_bus', 27, 'Harness bus along the step rail, Pi to PDB', 'x', (0, 345, -40), 5, 110, '#d8b84a', 'harness', (0, 0, -110), mass_g=20, material='', opacity=0.95)
-box('imu_old', 15, 'BNO085 IMU (existing)', (30, Y_STEP_HI + 3, -10), (50, Y_STEP_HI + 9, 10), '#8fd36b', 'electronics', (0, 100, 0), mass_g=5, material='electronics')
+    cyl(f'harness_shoulder_{sx}', 27, 'Harness trunks: shoulder RS03 connector runs (right-angle exit inboard from the rear-boss flat, flat A assumed), step bus, two front-corner drops', 'x', (sx * 60, 452, -27), 5, 36, '#d8b84a', 'harness', (0, 70, 0), balloon=(sx > 0), mass_g=40, material='silicone 14 AWG + CAN pair', opacity=0.95)
+    cyl(f'harness_down_{sx}', 27, 'Harness trunk down the inner front corner to the waist and legs', 'y', (sx * 45, 275, 40), 5, 210, '#d8b84a', 'harness', (0, -70, 0), mass_g=60, material='silicone 12-14 AWG + CAN pair', opacity=0.95)
+cyl('harness_bus', 27, 'Harness bus along the step rail, Pi to PDB', 'x', (0, 345, -40), 5, 110, '#d8b84a', 'harness', (0, 0, 0), mass_g=20, material='', opacity=0.95)
+box('imu_old', 15, 'BNO085 IMU (existing)', (30, Y_STEP_HI + 3, -10), (50, Y_STEP_HI + 9, 10), '#8fd36b', 'electronics', (0, 70, 0), mass_g=5, material='electronics')
 
 # ---- waist interface ---------------------------------------------------------------------------
 box('waist_adapter', 18, 'Waist yaw adapter plate, PETG (existing; bolts to the bottom rectangle, pattern unverified)', (-HX_LO, Y_BOT - 6, -HZ), (HX_LO, Y_BOT, HZ),
-    COL['adapter'], 'waist', (0, -170, 0), balloon=True, mass_g=120, material='PETG print', opacity=0.9,
+    COL['adapter'], 'waist', (0, -190, 0), balloon=True, mass_g=120, material='PETG print', opacity=0.9,
     note='Placeholder 150 x 140 x 6 plate under the bottom rectangle. Joey to confirm how it bolts on.')
 cyl('rs03_waist', 17, 'RS03, waist yaw (existing; sits in the 40 mm bay, 57 mm tall: open item)', 'y', (0, Y_BOT - 6 - 28.5, 0), RS03_D / 2, 57,
-    COL['motor'], 'waist', (0, -240, 0), balloon=True, mass_g=880, material='RobStride RS03')
+    COL['motor'], 'waist', (0, -250, 0), balloon=True, mass_g=880, material='RobStride RS03')
 
 # ---- shell hardpoints (torso coords; from mounts.json: torso X = robot Y, torso Y = robot Z - 810, torso Z = robot X) ----
 HP = {
@@ -197,29 +250,33 @@ for hid, h in HP.items():
         for a in range(3):
             if n[a] > 0: lo[a] = [x, y, z][a]; hi[a] = [x, y, z][a] + t
             if n[a] < 0: hi[a] = [x, y, z][a]; lo[a] = [x, y, z][a] - t
-        tier = 60 if y > Y_STEP_HI else (-60 if y < Y_STEP_LO else 0)
-        box(f'{hid}_{i}', h['item'], f'Shell hardpoint bracket {hid}, PETG with M3 inserts, on M5 T-nut', lo, hi, COL['hard'], 'shell',
-            (n[0] * 90, tier, n[2] * 90), balloon=(i == 0), mass_g=8, material='PETG print', carries=h['carries'])
+        tier = 0
+        FAST['m5'] += 1; FAST['tnut'] += 1
+        hp = [x, y, z]; hp['xyz'.index('xyz'[[k for k in range(3) if n[k]][0]])] += (t if n[[k for k in range(3) if n[k]][0]] > 0 else -t)
+        screw(f'hf_{hid}_{i}', 37, 'M5 x 16 button head + T-nut (shell hardpoints, 20)', 'xyz'[[k for k in range(3) if n[k]][0]], hp, -[v for v in n if v][0], (n[0] * 40, 0, n[2] * 40), balloon=(hid == 'H1' and i == 0), length=16)
+        box(f'{hid}_{i}', h['item'], f'Shell hardpoint bracket {hid}, PETG with M3 inserts, on M5 T-nut', lo, hi, COL['hard'], 'hardpoint',
+            (n[0] * 40, 0, n[2] * 40), balloon=True, tag=hid, mass_g=8, material='PETG print', carries=h['carries'])
 
 # ---- packaging envelopes for Joey's component list (2026-11-06): proposed positions, not designed parts ----
 PRO = '#26b3c9'
-box('jetson', 29, 'Jetson Orin Nano dev kit envelope 103 x 90.5 x 35 (+10 fan), second shelf above the Pi, ports to the rear', (-51.5, 410, -45.5), (51.5, 445, 45), PRO, 'proposed', (0, 150, 0), balloon=True, mass_g=250, material='proposed', opacity=0.75,
+box('jetson', 29, 'Jetson Orin Nano dev kit envelope 103 x 90.5 x 35 (+10 fan), second shelf above the Pi, ports to the rear', (-51.5, 410, -45.5), (51.5, 445, 45), PRO, 'proposed', (0, 110, 0), balloon=True, mass_g=250, material='proposed', opacity=0.75,
     note='Fits the upper bay between the RS03 rears (156.8 wide); 30 mm left above it under the top rails for a fan.')
-box('fan_exhaust_1', 30, 'Exhaust fans 40 x 40 x 10 (2), upper rear under the top rail, blowing out through the D1 door louvres', (-55, 448, -50), (-15, 488, -40), PRO, 'proposed', (0, 150, -60), balloon=True, mass_g=20, material='proposed', opacity=0.75)
-box('fan_exhaust_2', 30, 'Exhaust fan', (15, 448, -50), (55, 488, -40), PRO, 'proposed', (0, 150, -60), mass_g=20, material='proposed', opacity=0.75)
-box('fan_intake', 30, 'Intake fan 40 x 40 x 10, lower front panel grille (Y 250-295)', (-20, 250, 40), (20, 295, 50), PRO, 'proposed', (0, -60, 90), mass_g=20, material='proposed', opacity=0.75)
-box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing', (-45, 190, 18), (45, 280, 38), PRO, 'proposed', (0, -60, 90), balloon=True, mass_g=60, material='proposed', opacity=0.75)
+box('fan_exhaust_1', 30, 'Exhaust fans 40 x 40 x 10 (2), upper rear under the top rail, blowing out through the D1 door louvres', (-55, 448, -50), (-15, 488, -40), PRO, 'proposed', (0, 150, 0), balloon=True, mass_g=20, material='proposed', opacity=0.75)
+box('fan_exhaust_2', 30, 'Exhaust fan', (15, 448, -50), (55, 488, -40), PRO, 'proposed', (0, 150, 0), mass_g=20, material='proposed', opacity=0.75)
+box('fan_intake', 30, 'Intake fan 40 x 40 x 10, lower front panel grille (Y 250-295)', (-20, 250, 40), (20, 295, 50), PRO, 'proposed', (0, -70, 90), mass_g=20, material='proposed', opacity=0.75)
+box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing', (-45, 190, 18), (45, 280, 38), PRO, 'proposed', (0, -70, 90), balloon=True, mass_g=60, material='proposed', opacity=0.75)
 for sx in (1, -1):
     box(f'battery_{sx}', 32, 'OPTION: in-torso battery, 2 x 6S 5000 mAh (155 x 50 x 45 each) standing in the lower box. Baseline keeps the main 48 V pack in the pelvis.',
         (min(sx * 2, sx * 52), 175, -20), (max(sx * 2, sx * 52), 330, 25), '#e0c23a', 'option', (0, -60, 0), balloon=(sx > 0), mass_g=750, material='option', opacity=0.6)
-box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 100, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
-# ---- spine pack (rear crush pads, outside the shell; interim spec from the shell manufacturing thread 2026-11-06) ----
+box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 70, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
+# ---- spine pack (rear crush pads, outside the shell; shell manufacturing thread geometry, main 074cab4) ----
 first = True
 for sx in (1, -1):
-    for (x0, x1, y0, y1, nm) in ((62, 135, 370, 480, 'upper'), (58, 110, 170, 295, 'lower')):
-        box(f'spine_{nm}_{sx}', 26, 'TPU spine pads, 30 mm rear crush, on standoffs to H2/H3/H4 (shell part, outside the shell)', (min(sx * x0, sx * x1), y0, -125), (max(sx * x0, sx * x1), y1, -95),
-            COL['tpu'], 'shell', (0, 0, -160), balloon=first, mass_g=90, material='TPU 95A gyroid', opacity=0.7); first = False
-box('spine_bridge', 26, 'TPU spine bridge between the doors', (-60, 300, -125), (60, 355, -95), COL['tpu'], 'shell', (0, 0, -160), mass_g=50, material='TPU 95A gyroid', opacity=0.7)
+    for (x0, x1, y0, y1, nm) in ((58, 147, 368, 481, 'upper'), (54, 127, 166, 295, 'lower')):
+        box(f'spine_{nm}_{sx}', 26, 'TPU spine pads (6), 30 mm proud of the shell back, on standoffs to H2/H3/H4 (shell part, outside the shell)', (min(sx * x0, sx * x1), y0, -124), (max(sx * x0, sx * x1), y1, -77),
+            COL['tpu'], 'shellpart', (0, 0, -120), balloon=first, mass_g=70, material='TPU 95A gyroid', opacity=0.7); first = False
+for (y0, y1) in ((298, 312), (316, 355)):
+    box(f'spine_bridge_{y0}', 26, 'TPU spine bridge', (-63, y0, -124), (63, y1, -77), COL['tpu'], 'shellpart', (0, 0, -120), mass_g=27, material='TPU 95A gyroid', opacity=0.7)
 # pelvis ring (draft, hip stage) and the shoulder joint line markers
 box('pelvis_ghost', 28, 'Pelvis ring, DRAFT (hip stage, not this release)', (-107.5, 0, -130), (107.5, 115, 130), '#b9bec8', 'future', (0, -330, 0), balloon=True, mass_g=0, material='draft envelope 215 x 260 x 115', opacity=0.25)
 
@@ -267,7 +324,8 @@ dims = {
  ],
 }
 
-json.dump(dict(parts=parts, built=built, dims=dims, meta=dict(n_brackets=N_BRACKETS)), open('parts.json', 'w'))
+json.dump(dict(parts=parts, built=built, dims=dims, meta=dict(n_brackets=N_BRACKETS, fasteners=FAST)), open('parts.json', 'w'))
+print('fasteners', FAST)
 
 # ---- cut list and BOM ---------------------------------------------------------------------------
 rows = sorted(EXT.values(), key=lambda d: d['item'])
@@ -282,9 +340,10 @@ with open('cutlist.md', 'w') as f:
 bom = {}
 for p in parts:
     if p['item'] == 0: continue
+    if p['id'].startswith(('rs03_pitch_out', 'rs03_boss', 'pitch_wing', 'imu_old', 'pitch_flange')) or p['id'].endswith('_s') or re.match(r'^(t\d|gt)', p['id']): continue
     b = bom.setdefault(p['item'], dict(item=p['item'], name=p['name'].split(' (')[0] if p['group'] != 'extrusion' else p['name'].replace(' (new)', ''),
                                      qty=0, mass_g=0, material=p.get('material', ''), group=p['group']))
-    if p['id'].startswith('rs03_pitch_out'): continue
+    if p['id'].startswith(('rs03_pitch_out', 'rs03_boss', 'pitch_wing', 'imu_old', 'pitch_flange')) or p['id'].endswith('_s'): continue
     b['qty'] += 1; b['mass_g'] += p.get('mass_g', 0)
 json.dump(sorted(bom.values(), key=lambda b: b['item']), open('bom.json', 'w'), indent=1)
 print(len(parts), 'parts;', N_BRACKETS, 'brackets; extrusion', total, 'mm, new', total_new)

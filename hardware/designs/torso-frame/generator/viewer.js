@@ -55,8 +55,11 @@ function geomFor(p) {
 }
 const root = new THREE.Group(); scene.add(root);
 const items = [];
+const REGION = Q.get('region') ? Q.get('region').split(',').map(Number) : null;
+function partBox(p) { const b = new THREE.Box3(); for (const g of geomFor(p)) { g.computeBoundingBox(); b.union(g.boundingBox); } return b; }
 for (const p of DATA[SET]) {
   if (GROUPS && !GROUPS.includes(p.group) && !GHOST.includes(p.group)) continue;
+  if (REGION) { const b = partBox(p); if (b.max.x < REGION[0] || b.min.x > REGION[1] || b.max.y < REGION[2] || b.min.y > REGION[3] || b.max.z < REGION[4] || b.min.z > REGION[5]) continue; }
   const ghost = GHOST.includes(p.group) && !(GROUPS && GROUPS.includes(p.group));
   const op = ghost ? 0.12 : p.opacity;
   const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.55, metalness: 0.15, transparent: op < 1, opacity: op, depthWrite: op >= 1 });
@@ -74,7 +77,7 @@ const d = new THREE.Vector3(...dirs[VIEW]).normalize();
 const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -5000, 5000);
 cam.up.set(0, 1, 0); if (VIEW === 'top') cam.up.set(0, 0, -1);
 const bb = new THREE.Box3(); for (const g of items) bb.expandByObject(g);
-const ctr = bb.getCenter(new THREE.Vector3());
+const ctr = Q.get('center') ? new THREE.Vector3(...Q.get('center').split(',').map(Number)) : bb.getCenter(new THREE.Vector3());
 cam.position.copy(ctr).add(d.clone().multiplyScalar(2000)); cam.lookAt(ctr); cam.updateMatrixWorld();
 function fit(margin) {
   const inv = cam.matrixWorldInverse; let minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
@@ -93,7 +96,7 @@ render();
 // labels and dimensions for the composer
 const labels = [];
 for (const g of items) { const p = g.userData; if (!p.balloon) continue; const b = new THREE.Box3().setFromObject(g); const c = b.getCenter(new THREE.Vector3());
-  labels.push({ item: p.item, id: p.id, name: p.name, xy: proj([c.x, c.y, c.z]), bbox: [proj([b.min.x, b.min.y, b.min.z]), proj([b.max.x, b.max.y, b.max.z])] }); }
+  labels.push({ item: p.item, id: p.id, name: p.name, tag: p.tag || null, xy: proj([c.x, c.y, c.z]), bbox: [proj([b.min.x, b.min.y, b.min.z]), proj([b.max.x, b.max.y, b.max.z])] }); }
 const dims = [];
 for (const [p1, p2, ax, off, text] of (DATA.dims[VIEW] || [])) { const o = [0, 0, 0]; o['xyz'.indexOf(ax)] = off; const a = p1.map((v, i) => v + o[i]), b = p2.map((v, i) => v + o[i]);
   dims.push({ text, p1: proj(p1), p2: proj(p2), a: proj(a), b: proj(b) }); }
