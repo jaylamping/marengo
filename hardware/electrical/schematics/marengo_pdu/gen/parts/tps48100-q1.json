@@ -1,0 +1,207 @@
+{
+ "part": "TPS48100QDGXRQ1",
+ "datasheet": {
+  "doc": "SLUSEW1",
+  "rev": "C (Jun 2026)",
+  "url": "https://www.ti.com/lit/ds/symlink/tps4810-q1.pdf"
+ },
+ "package": "VSSOP-19 DGX 5.1 x 3.0 mm",
+ "kicad_footprint": null,
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "EN/UVLO",
+   "etype": "input"
+  },
+  {
+   "num": 2,
+   "name": "INP2",
+   "etype": "input"
+  },
+  {
+   "num": 3,
+   "name": "INP1",
+   "etype": "input"
+  },
+  {
+   "num": 4,
+   "name": "N.C",
+   "etype": "no_connect"
+  },
+  {
+   "num": 5,
+   "name": "FLT",
+   "etype": "open_collector"
+  },
+  {
+   "num": 6,
+   "name": "GND",
+   "etype": "power_in"
+  },
+  {
+   "num": 7,
+   "name": "CS_SEL",
+   "etype": "input"
+  },
+  {
+   "num": 8,
+   "name": "ISCP",
+   "etype": "input"
+  },
+  {
+   "num": 9,
+   "name": "TMR",
+   "etype": "input"
+  },
+  {
+   "num": 10,
+   "name": "SCP_TEST",
+   "etype": "input"
+  },
+  {
+   "num": 11,
+   "name": "G2",
+   "etype": "output"
+  },
+  {
+   "num": 12,
+   "name": "BST",
+   "etype": "power_out"
+  },
+  {
+   "num": 13,
+   "name": "SRC",
+   "etype": "passive"
+  },
+  {
+   "num": 14,
+   "name": "G1PD",
+   "etype": "output"
+  },
+  {
+   "num": 15,
+   "name": "G1PU",
+   "etype": "output"
+  },
+  {
+   "num": 17,
+   "name": "CS-",
+   "etype": "input"
+  },
+  {
+   "num": 18,
+   "name": "CS+",
+   "etype": "input"
+  },
+  {
+   "num": 19,
+   "name": "N.C",
+   "etype": "no_connect"
+  },
+  {
+   "num": 20,
+   "name": "VS",
+   "etype": "power_in"
+  }
+ ],
+ "ref_circuit": [
+  {
+   "ref": "CBST",
+   "value": "1 uF >=25 V X7R, BST to SRC",
+   "page": "p17 eq4"
+  },
+  {
+   "ref": "RVS/CVS",
+   "value": "100 Ohm / 0.1 uF",
+   "page": "p26-27"
+  },
+  {
+   "ref": "VS-SRC-GND cap",
+   "value": ">=22 nF per rec conditions",
+   "page": "p6"
+  },
+  {
+   "ref": "Simple-driver mode",
+   "value": "VS, CS+, CS- tied to VBATT rail; SCP_TEST, ISCP, CS_SEL, TMR all to GND; FLT pulled up with R1; G2 has common source with G1 at SRC",
+   "page": "Fig 7-11 p21"
+  },
+  {
+   "ref": "FLT",
+   "value": "pull-up, <=15 V",
+   "page": "p6"
+  },
+  {
+   "ref": "G1PD",
+   "value": "direct to gates via 0 to 2.2 Ohm per FET (designer choice)",
+   "page": "-"
+  }
+ ],
+ "calcs": [
+  {
+   "f": "CBST=Qg/dV+10*C1 (eq4)",
+   "in": "3 x 211 nC max, dV 1 V, C1 none",
+   "result": ">=0.68 uF -> 1 uF"
+  },
+  {
+   "f": "TDRV_EN=CBST*9.5 V/345 uA (eq1)",
+   "in": "1 uF",
+   "result": "27.5 ms typ, 50 ms at 190 uA"
+  },
+  {
+   "f": "Turn-off",
+   "in": "INP1 0.29/0.91 us; EN 2.2/4.6/6.5 us; gate discharge 633 nC at 2 A = 0.32 us",
+   "result": "INP1 path about 1.2 us, EN path about 6.8 us: meets 10 us"
+  }
+ ],
+ "abs_max": {
+  "VS,CS+,CS-,SRC": "-65 to 100 V",
+  "G1PU,G1PD,G2,BST to SRC": "-0.3 to 19 V",
+  "EN/UVLO,INPx,CS_SEL": "-1 to 70 V (rec 0 to 65 V)",
+  "FLT": "-1 to 20 V",
+  "ISCP,TMR,SCP_TEST": "-0.3 to 5.5 V"
+ },
+ "gotchas": [
+  "Drive both INP1 and EN/UVLO from the 12 V loop: two independent off paths; EN off also kills G2.",
+  "Turn-on after loop closure takes 27 to 50 ms for the charge pump.",
+  "12 V loop node must be fast: keep RC under about 2 us.",
+  "DGX pin 16 absent: footprint must be custom.",
+  "VGS only monitored when CS_SEL low (p18).",
+  "EN low = 1.5 uA shutdown, charge pump off (p21), so restart needs the full TDRV_EN."
+ ],
+ "doc_deviations": [
+  {
+   "claim": "PLAN 3.3 80 V; README 2.1 100 V",
+   "finding": "100 V abs max, 95 V operating. 80 V is TPS4811-Q1 operating. Docs should say 100 V.",
+   "page": 6
+  },
+  {
+   "claim": "Drain-source sense for status output",
+   "finding": "No VDS status output. FLT covers SC, CP UV, UVLO only. Use analog MID, VMOT, VSYS dividers. README's 2 status lines change.",
+   "page": "5-9"
+  },
+  {
+   "claim": "PLAN 3.4 banks close onto bulk, no precharge",
+   "finding": "IPT015N10N5 at 54 V 10 ms SOA is 0.7 A; bulk cannot be soft-started in SOA and hard close gives kA inrush. Add VMOT precharge across bank B.",
+   "page": "FET p6"
+  }
+ ],
+ "unverified": [
+  "KiCad has no DGX footprint: build from the datasheet land pattern"
+ ],
+ "bank_wiring": {
+  "bank_A": "3 FET: drains VSYS, sources MID. U1 VS=VSYS, SRC=MID, GND=GND.",
+  "bank_B": "3 FET: drains MID, sources VMOT. U2 VS must be VSYS (not MID: it floats when A is off), SRC=VMOT.",
+  "fit": "Source toward VMOT means body diode VMOT->VSYS, as required, single direction per bank. G2 of U2 drives the VMOT precharge switch."
+ },
+ "electrical": {
+  "operating VS": "3.5 to 95 V",
+  "INP H/L": "2.02 V / 0.787 V",
+  "EN rising/falling": "1.03 / 0.292 V",
+  "UVLO rising/falling": "1.23 / 1.138 V",
+  "BST UVLO": "8/9/9.93 V rising",
+  "G1PU/G1PD": "1.62 A / 2 A",
+  "Vgs drive": "up to 13 V (p24)",
+  "IQ": "35/49 uA"
+ }
+}

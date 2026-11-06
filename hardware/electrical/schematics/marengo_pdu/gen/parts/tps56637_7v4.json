@@ -1,0 +1,239 @@
+{
+ "part": "TPS56637RPAR",
+ "datasheet": {
+  "doc": "SLVSEG1A",
+  "rev": "A, revised Sep 2019",
+  "url": "https://www.ti.com/lit/ds/symlink/tps56637.pdf"
+ },
+ "package": "VQFN-HR 10 RPA 3x3 mm",
+ "kicad_footprint": null,
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "EN",
+   "etype": "input"
+  },
+  {
+   "num": 2,
+   "name": "FB",
+   "etype": "input"
+  },
+  {
+   "num": 3,
+   "name": "AGND",
+   "etype": "power_in"
+  },
+  {
+   "num": 4,
+   "name": "PG",
+   "etype": "open_collector"
+  },
+  {
+   "num": 5,
+   "name": "NC",
+   "etype": "no_connect"
+  },
+  {
+   "num": 6,
+   "name": "SW",
+   "etype": "power_out"
+  },
+  {
+   "num": 7,
+   "name": "BOOT",
+   "etype": "input"
+  },
+  {
+   "num": 8,
+   "name": "VIN",
+   "etype": "power_in"
+  },
+  {
+   "num": 9,
+   "name": "PGND",
+   "etype": "power_in"
+  },
+  {
+   "num": 10,
+   "name": "MODE",
+   "etype": "input"
+  }
+ ],
+ "ref_circuit": [
+  {
+   "role": "L",
+   "value": "5.6 uH",
+   "voltage": "",
+   "pn": "Coilcraft XAL6060-562MEC (15.9 mOhm max, Isat 9.9 A, Irms 7.5 A, 6.56x6.36x6.1 mm; KiCad Inductor_SMD:L_Coilcraft_XAL6060-XXX)",
+   "datasheet_page": "p19",
+   "connects": "SW to VOUT"
+  },
+  {
+   "role": "R6",
+   "value": "113 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p19",
+   "connects": "VOUT to FB"
+  },
+  {
+   "role": "R7",
+   "value": "10 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p19",
+   "connects": "FB to AGND"
+  },
+  {
+   "role": "R8",
+   "value": "20 kOhm",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p19",
+   "connects": "in series with C9, across R6"
+  },
+  {
+   "role": "C9",
+   "value": "220 pF C0G",
+   "voltage": "50 V",
+   "pn": "generic 0402",
+   "datasheet_page": "p19",
+   "connects": "with R8 across R6"
+  },
+  {
+   "role": "C1,C2",
+   "value": "2x 10 uF",
+   "voltage": "50 V",
+   "pn": "TDK CGA5L1X7R1H106K160AC (10 uF 50 V X7R 1206; cited in TPS62933 ds)",
+   "datasheet_page": "p18",
+   "connects": "VIN to PGND"
+  },
+  {
+   "role": "C3",
+   "value": "0.1 uF X7R",
+   "voltage": "25 V+",
+   "pn": "generic 0402",
+   "datasheet_page": "p18",
+   "connects": "VIN to PGND at pin"
+  },
+  {
+   "role": "CBOOT",
+   "value": "0.1 uF X5R",
+   "voltage": "10 V+",
+   "pn": "generic 0402",
+   "datasheet_page": "p18",
+   "connects": "BOOT to SW (R4 0 Ohm optional in series)"
+  },
+  {
+   "role": "COUT",
+   "value": "3x 22 uF",
+   "voltage": "25 V",
+   "pn": "Murata GRM32ER71E226KE15L (22 uF 25 V X7R 1210; LM5145 ds p44, TPS56637 ds)",
+   "datasheet_page": "p21",
+   "connects": "VOUT to PGND"
+  },
+  {
+   "role": "R1",
+   "value": "169 kOhm",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p18",
+   "connects": "VIN to EN"
+  },
+  {
+   "role": "R2",
+   "value": "36.1 kOhm",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p18",
+   "connects": "EN to AGND"
+  },
+  {
+   "role": "R9",
+   "value": "100 kOhm",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p18",
+   "connects": "PG to 3.3 V; supply must be under 5.5 V"
+  },
+  {
+   "role": "MODE",
+   "value": "open",
+   "voltage": "",
+   "pn": null,
+   "datasheet_page": "p3",
+   "connects": "MODE floating: FCCM"
+  }
+ ],
+ "calcs": [
+  {
+   "formula": "Eq5 VOUT=0.6(1+R6/R7)",
+   "inputs": "R7 10k, R6 113k",
+   "result": "7.380 V",
+   "page": "p19"
+  },
+  {
+   "formula": "Eq7 DeltaI=VOUT/VINmax*(VINmax-VOUT)/(L*fSW)",
+   "inputs": "VIN 12.4 V, L 5.6 uH, 500 kHz",
+   "result": "1.07 A",
+   "page": "p20"
+  },
+  {
+   "formula": "Eq8 Ipk=IOUT+DeltaI/2; OCL peak=valley 8.6 A max+DeltaI",
+   "inputs": "IOUT 5 A",
+   "result": "operating 5.5 A, at limit 9.7 A",
+   "page": "p20"
+  },
+  {
+   "formula": "Eq12 ICIN=IOUT*sqrt(VOUT/VIN*(VIN-VOUT)/VIN)",
+   "inputs": "11.76 V",
+   "result": "2.42 A rms",
+   "page": "p20"
+  },
+  {
+   "formula": "Eq11 DVin=IOUT*0.25/(CIN*fSW)",
+   "inputs": "2x 10 uF, Ceff 12 uF at 12 V (estimate)",
+   "result": "208 mV",
+   "page": "p20"
+  },
+  {
+   "formula": "Output ripple DV=DeltaI/(8*fSW*Ceff)",
+   "inputs": "3x 22 uF, Ceff 42 uF (TI: 31 uF for two at 5 V)",
+   "result": "6.4 mV",
+   "page": "p21"
+  },
+  {
+   "formula": "Table 4 row",
+   "inputs": "12 V row (footnote: use next higher rail): L 5.6, COUT 25/30/100 uF",
+   "result": "COUT 42 uF effective fitted",
+   "page": "p19"
+  }
+ ],
+ "abs_max": {
+  "VIN": "32 V",
+  "SW": "32 V",
+  "BOOT_SW": "6 V",
+  "EN_FB_MODE": "6 V",
+  "PG": "6 V",
+  "TJ": "150 C",
+  "ROC": "VIN 4.5-28 V, VOUT 0.6-13 V, 6 A"
+ },
+ "gotchas": [
+  "Adjust: R6 90.9k=6.05 V, 113k=7.38 V, 130k=8.40 V.",
+  "FB resistor change only; L/COUT row stays valid over 6-8.4 V.",
+  "No external compensation: D-CAP3, fixed 500 kHz (fsw not resistor set).",
+  "MODE float FCCM; GND (<=10k) Eco mode.",
+  "EN floating enables (internal pull-up).",
+  "KiCad has neither symbol nor RPA10 footprint; both must be drawn from ds mechanical pages. Texas_RPU0010A is a different 2x2 package."
+ ],
+ "doc_deviations": [
+  "TPS22965 class cannot switch this rail (6 V abs): uses TPS26631."
+ ],
+ "unverified": [
+  "Ceramic Ceff at bias estimated.",
+  "EN UVLO divider copied from Figure 17 (about 7 V on), its threshold not recomputed.",
+  "C9 value is the row range top.",
+  "XAL suffix MEC from distributor listing."
+ ]
+}

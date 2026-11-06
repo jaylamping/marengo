@@ -1,0 +1,470 @@
+{
+ "part": "LM5145RGYR",
+ "datasheet": {
+  "doc": "SNVSAI4B",
+  "rev": "B, revised Nov 2020",
+  "url": "https://www.ti.com/lit/ds/symlink/lm5145.pdf"
+ },
+ "package": "VQFN-20 RGY0020B 4.5x3.5 mm wettable flank",
+ "kicad_footprint": "Package_DFN_QFN:Texas_RGY_R-PVQFN-N20_EP2.05x3.05mm",
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "EN/UVLO",
+   "etype": "input"
+  },
+  {
+   "num": 2,
+   "name": "RT",
+   "etype": "input"
+  },
+  {
+   "num": 3,
+   "name": "SS/TRK",
+   "etype": "input"
+  },
+  {
+   "num": 4,
+   "name": "COMP",
+   "etype": "output"
+  },
+  {
+   "num": 5,
+   "name": "FB",
+   "etype": "input"
+  },
+  {
+   "num": 6,
+   "name": "AGND",
+   "etype": "power_in"
+  },
+  {
+   "num": 7,
+   "name": "SYNCOUT",
+   "etype": "output"
+  },
+  {
+   "num": 8,
+   "name": "SYNCIN",
+   "etype": "input"
+  },
+  {
+   "num": 9,
+   "name": "NC",
+   "etype": "no_connect"
+  },
+  {
+   "num": 10,
+   "name": "PGOOD",
+   "etype": "open_collector"
+  },
+  {
+   "num": 11,
+   "name": "ILIM",
+   "etype": "input"
+  },
+  {
+   "num": 12,
+   "name": "PGND",
+   "etype": "power_in"
+  },
+  {
+   "num": 13,
+   "name": "LO",
+   "etype": "output"
+  },
+  {
+   "num": 14,
+   "name": "VCC",
+   "etype": "power_out"
+  },
+  {
+   "num": 15,
+   "name": "EP(pin 15, tied internally to exposed pad, isolated)",
+   "etype": "passive"
+  },
+  {
+   "num": 16,
+   "name": "NC",
+   "etype": "no_connect"
+  },
+  {
+   "num": 17,
+   "name": "BST",
+   "etype": "passive"
+  },
+  {
+   "num": 18,
+   "name": "HO",
+   "etype": "output"
+  },
+  {
+   "num": 19,
+   "name": "SW",
+   "etype": "passive"
+  },
+  {
+   "num": 20,
+   "name": "VIN",
+   "etype": "power_in"
+  },
+  {
+   "num": 21,
+   "name": "EP (exposed pad, stencil p66 labels it 21)",
+   "etype": "passive"
+  }
+ ],
+ "ref_circuit": [
+  {
+   "role": "Q1 high side",
+   "value": "100 V",
+   "voltage": "100 V",
+   "pn": "CSD19534Q5A (100 V, 15.1/17.6 mOhm max at 10/6 V, Qg 17 nC, Qgd 3.2 nC; SLPS483; KiCad Transistor_FET:CSD19534Q5A, Package_TO_SOT_SMD:TDSON-8-1)",
+   "datasheet_page": "p47 (100 V SON5x6 class)",
+   "connects": "D:VIN, G:HO, S:SW"
+  },
+  {
+   "role": "Q2 low side",
+   "value": "100 V",
+   "voltage": "100 V",
+   "pn": "BSC040N10NS5ATMA1 (Infineon 100 V, 4.0 mOhm max at 10 V, Qg 58 nC, Qrr 90 nC typ; datasheet Rev 2.2 values read via distributor copy; PG-TDSON-8; use KiCad symbol Transistor_FET:CSD19532Q5B pinout S123 G4 D5-8 and footprint Package_TO_SOT_SMD:TDSON-8-1)",
+   "datasheet_page": "p29-30 (selection)",
+   "connects": "D:SW, G:LO, S:PGND"
+  },
+  {
+   "role": "LF output inductor",
+   "value": "6.8 uH",
+   "voltage": "Isat per PN",
+   "pn": "Coilcraft XAL1510-682MED (6.8 uH, 4.6 mOhm max, Isat 36 A at 30% drop, Irms 19 A 20C rise, 15.2x16.2x10 mm)",
+   "datasheet_page": "p27, KiCad Inductor_SMD:L_Coilcraft_XAL1510-682",
+   "connects": "SW to VOUT node"
+  },
+  {
+   "role": "RRT",
+   "value": "33.2 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p20",
+   "connects": "RT to AGND"
+  },
+  {
+   "role": "RFB1",
+   "value": "33.2 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p33",
+   "connects": "VOUT to FB"
+  },
+  {
+   "role": "RFB2",
+   "value": "2.37 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p33",
+   "connects": "FB to AGND"
+  },
+  {
+   "role": "RC1",
+   "value": "6.04 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p31",
+   "connects": "COMP to CC1"
+  },
+  {
+   "role": "CC1",
+   "value": "10 nF X7R",
+   "voltage": "16 V+",
+   "pn": "generic 0402",
+   "datasheet_page": "p31",
+   "connects": "RC1 to FB"
+  },
+  {
+   "role": "CC2",
+   "value": "33 pF C0G",
+   "voltage": "16 V+",
+   "pn": "generic 0402",
+   "datasheet_page": "p31",
+   "connects": "COMP to FB"
+  },
+  {
+   "role": "RC2",
+   "value": "100 Ohm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p31",
+   "connects": "VOUT to CC3"
+  },
+  {
+   "role": "CC3",
+   "value": "1000 pF C0G",
+   "voltage": "50 V+",
+   "pn": "generic 0402",
+   "datasheet_page": "p31",
+   "connects": "RC2 to FB"
+  },
+  {
+   "role": "CSS",
+   "value": "33 nF X7R",
+   "voltage": "16 V+",
+   "pn": "generic 0402",
+   "datasheet_page": "p21",
+   "connects": "SS/TRK to AGND"
+  },
+  {
+   "role": "CBST",
+   "value": "0.1 uF X7R",
+   "voltage": "25 V+",
+   "pn": "generic 0402",
+   "datasheet_page": "p23",
+   "connects": "BST to RBST to SW"
+  },
+  {
+   "role": "RBST",
+   "value": "2.2 Ohm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p44",
+   "connects": "series with CBST, slows Q1 turn-on"
+  },
+  {
+   "role": "CVCC",
+   "value": "2.2 uF X7R",
+   "voltage": "25 V",
+   "pn": "generic 0603",
+   "datasheet_page": "p17",
+   "connects": "VCC to PGND"
+  },
+  {
+   "role": "RILIM",
+   "value": "348 Ohm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p23",
+   "connects": "ILIM to SW"
+  },
+  {
+   "role": "CILIM",
+   "value": "18 pF C0G",
+   "voltage": "100 V",
+   "pn": "generic 0603",
+   "datasheet_page": "p24",
+   "connects": "ILIM to PGND"
+  },
+  {
+   "role": "RUV1",
+   "value": "1210 kOhm 1%",
+   "voltage": "100 V rated string",
+   "pn": "generic 0805 or two in series",
+   "datasheet_page": "p18",
+   "connects": "VIN to EN/UVLO"
+  },
+  {
+   "role": "RUV2",
+   "value": "49.9 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p18",
+   "connects": "EN/UVLO to AGND"
+  },
+  {
+   "role": "CVIN",
+   "value": "0.1 uF X7R",
+   "voltage": "100 V",
+   "pn": "generic 0603",
+   "datasheet_page": "p17",
+   "connects": "VIN to AGND/PGND, at pin"
+  },
+  {
+   "role": "CIN",
+   "value": "5x 4.7 uF",
+   "voltage": "100 V",
+   "pn": "TDK C3225X7S2A475M (4.7 uF 100 V X7S 1210; LM5145 ds p44 BOM; full suffix e.g. C3225X7S2A475M200AB to confirm)",
+   "datasheet_page": "p44",
+   "connects": "VIN node to PGND, tight loop with Q1,Q2"
+  },
+  {
+   "role": "COUT",
+   "value": "7x 22 uF 25 V X7R 1210",
+   "voltage": "see PN",
+   "pn": "Murata GRM32ER71E226KE15L (22 uF 25 V X7R 1210; LM5145 ds p44, TPS56637 ds)",
+   "datasheet_page": "p44/p48",
+   "connects": "VOUT to PGND"
+  },
+  {
+   "role": "RPG",
+   "value": "20 kOhm",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p48",
+   "connects": "PGOOD to 3.3 V always-on"
+  },
+  {
+   "role": "Sync link",
+   "value": "net",
+   "voltage": "",
+   "pn": null,
+   "datasheet_page": "p5",
+   "connects": "master SYNCOUT (pin 7) to 24 V LM5145 SYNCIN (pin 8): 180 deg interleave"
+  },
+  {
+   "role": "SYNCIN tie",
+   "value": "to VCC",
+   "voltage": "",
+   "pn": null,
+   "datasheet_page": "p5",
+   "connects": "SYNCIN (pin 8) to VCC for FPWM on the master"
+  },
+  {
+   "role": "D_VCC ext bias",
+   "value": "Schottky 30 V+ 100 mA",
+   "voltage": "",
+   "pn": "BAT54 class (generic)",
+   "datasheet_page": "p43 fig 9-20",
+   "connects": "VOUT 12 V anode to VCC cathode"
+  }
+ ],
+ "calcs": [
+  {
+   "formula": "Eq3 RRT[kOhm]=10^4/Fsw[kHz] (table: 300 kHz->33.2k)",
+   "inputs": "Fsw 300 kHz",
+   "result": "RRT 33.2 kOhm -> 301.2 kHz",
+   "page": "p20"
+  },
+  {
+   "formula": "VOUT=VREF(1+RFB1/RFB2); RFB2=RFB1/(VOUT/VREF-1) (p31-34)",
+   "inputs": "VREF 0.8 V; RFB1 33.2k; RFB2 2.37k",
+   "result": "VOUT 12.007 V (+0.06%), plus VREF +/-1%",
+   "page": "p8,p33"
+  },
+  {
+   "formula": "Eq7 DeltaIL=VOUT/VIN*(VIN-VOUT)/(L*Fsw) (solved for ripple; target 30-40%)",
+   "inputs": "L 6.8 uH",
+   "result": "37 V: 3.97 A (32%); 46.8 V: 4.37 A (35%); 58 V: 4.67 A (37%)",
+   "page": "p27"
+  },
+  {
+   "formula": "Eq8 Ipk=IOUT+DeltaIL/2",
+   "inputs": "IOUT 12.5 A, DeltaIL(58 V) 4.67 A",
+   "result": "14.8 A",
+   "page": "p27"
+  },
+  {
+   "formula": "Eq11 ICIN,rms=sqrt(D*(IOUT^2*(1-D)+DeltaIL^2/12))",
+   "inputs": "D 0.324 at 37 V",
+   "result": "5.89 A rms",
+   "page": "p29"
+  },
+  {
+   "formula": "Eq12/13 DeltaVIN=D(1-D)IOUT/(Fsw*CIN) (ESR ignored)",
+   "inputs": "5x 4.7 uF 100 V, derated 2.2 uF each at 48 V (estimate)",
+   "result": "0.83 V p-p",
+   "page": "p29"
+  },
+  {
+   "formula": "Table 9-1 Pcond=D(IOUT^2+DeltaI^2/12)RDS; Psw=VIN*Fsw/2*[(IOUT-DeltaIL/2)tR+(IOUT+DeltaIL/2)tF]; PRR=VIN*Fsw*QRR; Pgate=VCC*Fsw*QG",
+   "inputs": "VIN 46.8 V; RDS hot Q1 24.6 mOhm, Q2 7.8 mOhm; QRR 90 nC; tR/tF 8/3 ns (estimates)",
+   "result": "Pcond_hs 1.00 W, Pcond_ls 0.92 W, Psw_hs 0.89 W, Prr 1.26 W, Pgate 0.17 W, inductor DCR 0.72 W; total 5.0 W, eff about 96.8%",
+   "page": "p30"
+  },
+  {
+   "formula": "Table 9-1 Pcond=D(IOUT^2+DeltaI^2/12)RDS; Psw=VIN*Fsw/2*[(IOUT-DeltaIL/2)tR+(IOUT+DeltaIL/2)tF]; PRR=VIN*Fsw*QRR; Pgate=VCC*Fsw*QG",
+   "inputs": "VIN 58 V; RDS hot Q1 24.6 mOhm, Q2 7.8 mOhm; QRR 90 nC; tR/tF 8/3 ns (estimates)",
+   "result": "Pcond_hs 0.81 W, Pcond_ls 0.98 W, Psw_hs 1.09 W, Prr 1.57 W, Pgate 0.17 W, inductor DCR 0.72 W; total 5.3 W, eff about 96.6%",
+   "page": "p30"
+  },
+  {
+   "formula": "Numeric Bode: T(s)=kFF*H(s)*Zf/Zi*exp(-s*0.5/Fsw); H=LC filter with DCR/ESR/load; Zf=(RC1+1/sCC1)||1/sCC2; Zi=RFB1||(RC2+1/sCC3); kFF=15 independent of VIN (line feedforward) (p31-34). tools script lp_calc.py",
+   "inputs": "Ceff [55, 77, 110, 160] uF; Rload (0.96, 24) Ohm",
+   "result": "worst PM 52 deg, worst GM 10.3 dB, fc 15.5-40.7 kHz; f0 at nominal Ceff 7.0 kHz. Target PM 50-70 deg (p34)",
+   "page": "p31-34"
+  },
+  {
+   "formula": "Eq16 Kmid=(fc/f0)/kFF=RC1/RFB1 and table: CC1=2/(w0*RC1), CC2=1/(wp1*RC1), CC3=1/(wz2*RFB1), RC2=1/(wp2*CC3): used as start, then swept for min PM over Ceff",
+   "inputs": "see Bode",
+   "result": "RC1 6.04k, CC1 10 nF, CC2 33 pF, RC2 100 Ohm, CC3 1000 pF",
+   "page": "p33"
+  },
+  {
+   "formula": "Eq6 RILIM=(IOUT-DeltaIL/2)/IRDSON*RDS(on)Q2, extended with IRDSON 180-220 uA and VILIM-TH -8..+3.5 mV (sign convention of the threshold not stated, both taken adverse); IRDSON +4500 ppm/C tracks RDS so 25 C RDS used",
+   "inputs": "RILIM 348 Ohm; Q2 RDS at VCC 7.5 V 4.0/4.4/5.0 mOhm",
+   "result": "valley trip min 11.8 / typ 16.3 / max 21.1 A -> DC limit about 14.2 / 18.5 / 23.1 A; peak max 25.8 A against inductor Isat",
+   "page": "p23"
+  },
+  {
+   "formula": "RILIM*CILIM approx 6 ns",
+   "inputs": "348 Ohm",
+   "result": "CILIM 18 pF (6.3 ns)",
+   "page": "p24"
+  },
+  {
+   "formula": "Eq1 RUV1=(VON-VOFF)/IHYS; Eq2 RUV2=RUV1*VEN/(VON-VEN)",
+   "inputs": "VEN 1.2 V, IHYS 10 uA, RUV1 1210k, RUV2 49.9k",
+   "result": "VIN on 30.3 V, off 18.2 V",
+   "page": "p18"
+  },
+  {
+   "formula": "Eq5 CSS[nF]=12.5*tSS[ms]; min 2.2 nF",
+   "inputs": "CSS 33 nF",
+   "result": "tSS 2.6 ms",
+   "page": "p21"
+  },
+  {
+   "formula": "Eq10 COUT>=L*DeltaIOUT^2/((VOUT+DVOS)^2-VOUT^2)",
+   "inputs": "50% step 6.25 A, DVOS 3%",
+   "result": "30.3 uF required; 77 uF effective fitted (estimate)",
+   "page": "p28"
+  },
+  {
+   "formula": "Eq9 COUT>=DeltaIL/(8*Fsw*sqrt(DVOUT^2-(RESR*DeltaIL)^2))",
+   "inputs": "DVOUT 50 mV, DeltaIL 4.67 A",
+   "result": "38.9 uF",
+   "page": "p28"
+  },
+  {
+   "formula": "Eq17 |ZIN|=VINmin^2/PIN: filter output impedance must stay below this",
+   "inputs": "158 W",
+   "result": "8.7 Ohm at 37 V, 2.5 Ohm at 20 V",
+   "page": "p34"
+  }
+ ],
+ "abs_max": {
+  "VIN": "-0.3..105 V",
+  "SW": "-1..105 V (-5 V 20 ns)",
+  "ILIM": "-1..105 V",
+  "EN_UVLO": "-0.3..105 V",
+  "VCC": "-0.3..14 V",
+  "FB_COMP_SS_RT": "-0.3..6 V",
+  "SYNCIN": "-0.3..14 V",
+  "BST": "-0.3..115 V",
+  "BST_SW": "-0.3..14 V",
+  "PGOOD": "-0.3..14 V",
+  "TJ": "150 C",
+  "ROC": "VIN 6-75 V; ext VCC 8-13 V; TJ -40..125 C (p6-7)"
+ },
+ "gotchas": [
+  "QRR is the dominant Q1 heating term; CSD19532Q5B (249 nC) would add about 2.2 W at 46.8 V, hence BSC040N10NS5 as Q2.",
+  "MLCC Ceff taken as 55-160 uF. All eFuse-gated downstream ceramics add Ceff; Bode swept to 160 uF.",
+  "Hold-up: UVLO off must stay at or below 20 V or the hold-up calc fails; set 18.2 V here.",
+  "Q1 total about 3.2 W at 46.8 V, Q2 about 0.9 W. SLPS483 RthJA 40 C/W on 1 in2 2 oz: Q1 needs copper spreading on the 6-layer stack or airflow; thermal not simulated.",
+  "TI Design 2 (48 V to 12 V 10 A, 400 kHz, p43-44) is the base; this design moves to 300 kHz for efficiency with a larger L.",
+  "MOSFET gate charge taken at 10 V as a conservative stand-in for VCC 7.5 V.",
+  "VCC bias from 12 V VOUT via D_VCC cuts LDO loss (58-7.5 V)*14 mA=0.7 W; ext VCC must be 8-13 V and below VIN (p7, p43).",
+  "Pin 15 and EP are internally connected and electrically isolated; connect EP to AGND and PGND plane (p5).",
+  "SYNCIN high or VCC forces FPWM; low or floating gives diode emulation at light load (p5, p26).",
+  "KiCad footprint pad positions checked against RGY0020B stencil p66 (1/20 at x=+/-0.75, y=-2.15; 2-9/12-19 at x=+/-1.65, 0.5 pitch). EP dims in the land drawing not numerically confirmed; stencil 4X 0.95x1.21 is consistent with 2.05x3.05. No KiCad symbol: must be drawn."
+ ],
+ "doc_deviations": [
+  "PLAN 2.3 says 12 A; docs say 150 W: 12.5 A used.",
+  "PLAN 2.3 rail table 12 A of direct 12 V loads plus stage 2 (see lp_power_summary.md) sums to about 22 A; the 12.5 A converter only covers non-coincident load. RILIM holds DC limit near 19 A typ.",
+  "PLAN section 7 still says 12 V 100 W and eighth brick; stale against 150 W LM5145."
+ ],
+ "unverified": [
+  "Ceramic Ceff at bias is an estimate (about 50%), confirm with Murata SimSurfing.",
+  "tR/tF, hot RDS multiplier 1.4 and BSC040N10NS5 VGS=6 V RDS (5.6 mOhm, distributor) are estimates.",
+  "Bode is an averaged model, no bench data. 400 kHz 4.7 uH XAL1060-472ME (TI Design 2) is the smaller fallback.",
+  "VILIM-TH sign convention.",
+  "XAL1510 suffix MED from distributor listing."
+ ]
+}

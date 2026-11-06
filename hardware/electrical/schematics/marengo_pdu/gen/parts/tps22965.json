@@ -1,0 +1,137 @@
+{
+ "part": "TPS22965DSGR",
+ "datasheet": {
+  "doc": "SLVSBJ0F",
+  "rev": "F, revised Aug 2016",
+  "url": "https://www.ti.com/lit/ds/symlink/tps22965.pdf"
+ },
+ "package": "WSON-8 DSG 2x2 mm",
+ "kicad_footprint": "Package_SON:Texas_DSG0008A_WSON-8-1EP_2x2mm_P0.5mm_EP0.9x1.6mm",
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "VIN",
+   "etype": "power_in"
+  },
+  {
+   "num": 2,
+   "name": "VIN",
+   "etype": "power_in"
+  },
+  {
+   "num": 3,
+   "name": "ON",
+   "etype": "input"
+  },
+  {
+   "num": 4,
+   "name": "VBIAS",
+   "etype": "power_in"
+  },
+  {
+   "num": 5,
+   "name": "GND",
+   "etype": "power_in"
+  },
+  {
+   "num": 6,
+   "name": "CT",
+   "etype": "output"
+  },
+  {
+   "num": 7,
+   "name": "VOUT",
+   "etype": "power_out"
+  },
+  {
+   "num": 8,
+   "name": "VOUT",
+   "etype": "power_out"
+  },
+  {
+   "num": 9,
+   "name": "Thermal pad",
+   "etype": "passive"
+  }
+ ],
+ "ref_circuit": [
+  {
+   "role": "CIN",
+   "value": "1 uF X7R min",
+   "voltage": "10 V",
+   "pn": "generic 0603",
+   "datasheet_page": "p6",
+   "connects": "VIN to GND"
+  },
+  {
+   "role": "CT",
+   "value": "1000 pF X7R",
+   "voltage": "25 V",
+   "pn": "generic 0402",
+   "datasheet_page": "p17",
+   "connects": "CT to GND: 1983 us at 5 V, 1330 us at 3.3 V"
+  },
+  {
+   "role": "CL",
+   "value": "10 uF X7R",
+   "voltage": "10 V",
+   "pn": "generic 0603",
+   "datasheet_page": "p17",
+   "connects": "VOUT to GND (ON pull-down below)"
+  },
+  {
+   "role": "RON",
+   "value": "100 kOhm",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p4",
+   "connects": "ON to GND; never float"
+  },
+  {
+   "role": "VBIAS",
+   "value": "net",
+   "voltage": "",
+   "pn": null,
+   "datasheet_page": "p6",
+   "connects": "5 V instance: VBIAS to its own VIN; 3.3 V instance: VBIAS to 5 V peripheral (higher, RON spec point)"
+  }
+ ],
+ "calcs": [
+  {
+   "formula": "PD=I^2*RON",
+   "inputs": "4 A, 25 mOhm max at 105 C; thetaJA 72.3",
+   "result": "0.40 W, +29 K",
+   "page": "p6"
+  },
+  {
+   "formula": "2 A on 3.3 V rail",
+   "inputs": "same",
+   "result": "0.10 W",
+   "page": "p6"
+  },
+  {
+   "formula": "SR=0.38*CT+34; rise=SR*VIN",
+   "inputs": "1000 pF",
+   "result": "SR 414 us/V; 5 V 2070 us (Table 1: 1983)",
+   "page": "p17"
+  }
+ ],
+ "abs_max": {
+  "VIN_VOUT_VBIAS_VON": "6 V",
+  "I": "6 A continuous, 8 A pulse",
+  "ROC": "VIN 0.8 V..VBIAS; VBIAS 2.5-5.7 V; VIH 1.1 V; VIL 0.5 V; TA -40..105 C"
+ },
+ "gotchas": [
+  "No current limit: buck OCL is 8.6 A valley, above the 6 A switch. PLAN 2.3 asks for a limit: add polyfuse, or use TPS26631 here (works from 4.5 V).",
+  "VIN must not exceed VBIAS.",
+  "QOD 225 Ohm discharges load when off; use NDSGR to avoid it."
+ ],
+ "doc_deviations": [
+  "Instances: OUT_5V_PERIPH, OUT_3V3_PERIPH only. 7.4 V and Pi 5.1 V not switched here: 7.4 V exceeds 5.7/6 V, Pi switched at 12 V feed."
+ ],
+ "unverified": [
+  "CT pad NC vs left open not tried.",
+  "KiCad symbol absent: draw it; footprint name matches DSG0008A, pad compared by name only."
+ ]
+}

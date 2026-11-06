@@ -1,0 +1,203 @@
+{
+ "part": "LMR38010SDDAR",
+ "datasheet": {
+  "doc": "SNVSC73B",
+  "rev": "B, revised Sep 2023",
+  "url": "https://www.ti.com/lit/ds/symlink/lmr38010.pdf"
+ },
+ "package": "HSOIC-8 PowerPAD DDA0008B",
+ "kicad_footprint": "Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.95x4.9mm_Mask2.71x3.4mm",
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "GND",
+   "etype": "power_in"
+  },
+  {
+   "num": 2,
+   "name": "EN",
+   "etype": "input"
+  },
+  {
+   "num": 3,
+   "name": "VIN",
+   "etype": "power_in"
+  },
+  {
+   "num": 4,
+   "name": "RT/SYNC",
+   "etype": "input"
+  },
+  {
+   "num": 5,
+   "name": "FB",
+   "etype": "input"
+  },
+  {
+   "num": 6,
+   "name": "PG",
+   "etype": "open_collector"
+  },
+  {
+   "num": 7,
+   "name": "BOOT",
+   "etype": "passive"
+  },
+  {
+   "num": 8,
+   "name": "SW",
+   "etype": "power_out"
+  },
+  {
+   "num": 9,
+   "name": "EP (thermal pad)",
+   "etype": "passive"
+  }
+ ],
+ "ref_circuit": [
+  {
+   "role": "L",
+   "value": "22 uH",
+   "voltage": "",
+   "pn": "Coilcraft XAL6060-223MEC (60.63 mOhm max, Isat 5.6 A, 6.56x6.36x6.1 mm; KiCad Inductor_SMD:L_Coilcraft_XAL6060-XXX)",
+   "datasheet_page": "p20",
+   "connects": "SW to VOUT"
+  },
+  {
+   "role": "RFBT",
+   "value": "100 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p20",
+   "connects": "VOUT to FB"
+  },
+  {
+   "role": "RFBB",
+   "value": "43.2 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p20",
+   "connects": "FB to GND"
+  },
+  {
+   "role": "RT",
+   "value": "64.9 kOhm 1%",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p12",
+   "connects": "RT/SYNC to GND"
+  },
+  {
+   "role": "CIN",
+   "value": "4.7 uF X7S",
+   "voltage": "100 V",
+   "pn": "TDK C3225X7S2A475M (4.7 uF 100 V X7S 1210; LM5145 ds p44 BOM; full suffix e.g. C3225X7S2A475M200AB to confirm)",
+   "datasheet_page": "p21",
+   "connects": "VIN to GND"
+  },
+  {
+   "role": "CHF",
+   "value": "100 nF X7R",
+   "voltage": "100 V",
+   "pn": "generic 0805",
+   "datasheet_page": "p21",
+   "connects": "VIN to GND at pin"
+  },
+  {
+   "role": "CBOOT",
+   "value": "100 nF X7R",
+   "voltage": "16 V+",
+   "pn": "generic 0402",
+   "datasheet_page": "p21",
+   "connects": "BOOT to SW"
+  },
+  {
+   "role": "COUT",
+   "value": "3x 22 uF",
+   "voltage": "25 V",
+   "pn": "Murata GRM32ER71E226KE15L (22 uF 25 V X7R 1210; LM5145 ds p44, TPS56637 ds)",
+   "datasheet_page": "p19 (5 V row closest)",
+   "connects": "VOUT to GND"
+  },
+  {
+   "role": "RPG",
+   "value": "100 kOhm",
+   "voltage": "",
+   "pn": "generic 0402",
+   "datasheet_page": "p22",
+   "connects": "PG to VOUT"
+  },
+  {
+   "role": "EN tie",
+   "value": "direct",
+   "voltage": "",
+   "pn": null,
+   "datasheet_page": "p4",
+   "connects": "EN to VIN (EN abs is VIN+0.3): always on"
+  }
+ ],
+ "calcs": [
+  {
+   "formula": "Eq9 RFBB=RFBT/(VOUT/VREF-1)",
+   "inputs": "RFBT 100k, VOUT 3.3, VREF 1.0",
+   "result": "43.48k -> 43.2k: VOUT 3.315 V",
+   "page": "p20"
+  },
+  {
+   "formula": "Eq2 RT[k]=30970*fsw[kHz]^-1.027; Table 8-1 400 kHz -> 64.9k",
+   "inputs": "400 kHz",
+   "result": "eq 65.9k; table 64.9k used",
+   "page": "p11-12"
+  },
+  {
+   "formula": "Eq10 K=(VIN-VOUT)/(fSW*L*IOUTmax)*VOUT/VIN, K 0.2-0.4",
+   "inputs": "58 V, 22 uH, 1 A",
+   "result": "K 0.354",
+   "page": "p20"
+  },
+  {
+   "formula": "Eq11 LMIN>=0.25*VOUT/fSW",
+   "inputs": "3.3 V",
+   "result": "2.06 uH",
+   "page": "p21"
+  },
+  {
+   "formula": "tON=VOUT/(VIN*fSW)>=tON-MIN 131 ns; Eq8 VIN<=VOUT/(tON*fSW)",
+   "inputs": "3.3 V",
+   "result": "tON at 58 V 142 ns; foldback above 63 V",
+   "page": "p17"
+  },
+  {
+   "formula": "Peak current",
+   "inputs": "1.9 A HS limit max",
+   "result": "22 uH part Isat 5.6 A > 1.9 A",
+   "page": "p5,p21"
+  }
+ ],
+ "abs_max": {
+  "VIN": "-0.3..85 V",
+  "EN": "to VIN+0.3 V",
+  "FB": "5.5 V",
+  "RT": "5.5 V",
+  "BOOT_SW": "5.5 V",
+  "SW": "85 V (-5/85.3 V under 10 ns)",
+  "PG": "20 V",
+  "TJ": "150 C",
+  "ROC": "VIN 4.2-80 V; 200-2200 kHz"
+ },
+ "gotchas": [
+  "No TVS with snap-back on this input (p26).",
+  "Input is on VSYS before the ideal diode: load stays up across all converter faults.",
+  "Damping electrolytic 22-68 uF suggested at long input (p26).",
+  "S variant: PFM, spread spectrum, IQ 40 uA. PFM VFB regulation -1.5/+2.5%."
+ ],
+ "doc_deviations": [
+  "Meets the 75 V claim: VIN 80 V operate, 85 V abs. Above 63 V frequency folds back (tON min)."
+ ],
+ "unverified": [
+  "Table 9-1 has no 3.3 V row; COUT taken from the 5 V row, stability not simulated.",
+  "KiCad has no LMR38010 symbol (LMR36510ADDA pinout differs): draw one.",
+  "EN divider eqns (p22) unused."
+ ]
+}

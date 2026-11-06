@@ -1,0 +1,87 @@
+{
+ "part": "TLV1805DBVR",
+ "datasheet": {
+  "doc": "SNOSD50",
+  "rev": "A (Jan 2020)",
+  "url": "https://www.ti.com/lit/ds/symlink/tlv1805.pdf"
+ },
+ "package": "SOT-23-6 DBV",
+ "kicad_footprint": "Package_TO_SOT_SMD:SOT-23-6",
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "OUT",
+   "etype": "output"
+  },
+  {
+   "num": 2,
+   "name": "V-",
+   "etype": "power_in"
+  },
+  {
+   "num": 3,
+   "name": "IN-",
+   "etype": "input"
+  },
+  {
+   "num": 4,
+   "name": "IN+",
+   "etype": "input"
+  },
+  {
+   "num": 5,
+   "name": "SHDN",
+   "etype": "input"
+  },
+  {
+   "num": 6,
+   "name": "V+",
+   "etype": "power_in"
+  }
+ ],
+ "ref_circuit": [
+  {
+   "ref": "V+ decoupling",
+   "value": "100 nF",
+   "page": "not read"
+  },
+  {
+   "ref": "SHDN",
+   "value": "tie to V- (active high; 0 to 5.5 V only)",
+   "page": "p3, p5"
+  }
+ ],
+ "calcs": [
+  {
+   "f": "Threshold",
+   "in": "see hp_summary.md section 3",
+   "result": "Hysteresis 14 mV internal, split +/-7 mV assumed"
+  }
+ ],
+ "abs_max": {
+  "VS": "42 V",
+  "SHDN": "(V-)-0.3 to (V-)+5.5 V"
+ },
+ "gotchas": [
+  "Pin order IN- 3, IN+ 4 is reversed from the common pinout, datasheet says so (p3).",
+  "SHDN is not to be tied to V+: max 5.5 V above V-."
+ ],
+ "doc_deviations": [
+  {
+   "claim": "Task suggested LMV331/TLV3201",
+   "finding": "Both are about 5.5 V rails: replaced by this 40 V part on the 12 V rail."
+  }
+ ],
+ "unverified": [],
+ "electrical": {
+  "VS": "3.3 to 40 V",
+  "VIO": "+/-0.5/4.5 mV, 6.5 mV hot",
+  "VHYS": "14 mV",
+  "IQ": "135/200 uA, 400 uA hot",
+  "Isc": "100 mA",
+  "tpd": "about 250 ns",
+  "VOH": "V+ minus 300 mV at 5 mA, VS 5 V",
+  "IB": "0.05 pA"
+ }
+}

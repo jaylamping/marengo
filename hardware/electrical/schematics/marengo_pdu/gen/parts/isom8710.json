@@ -1,0 +1,58 @@
+{
+ "part": "ISOM8710DFFR",
+ "datasheet": {
+  "doc": "ISOM8710 datasheet",
+  "rev": "E",
+  "url": "https://www.ti.com/lit/ds/symlink/isom8710.pdf"
+ },
+ "package": "SOIC-5 DFF",
+ "kicad_footprint": null,
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "AN",
+   "etype": "input"
+  },
+  {
+   "num": 2,
+   "name": "CAT",
+   "etype": "output"
+  },
+  {
+   "num": 3,
+   "name": "GND",
+   "etype": "power_in"
+  },
+  {
+   "num": 4,
+   "name": "OUT",
+   "etype": "output"
+  },
+  {
+   "num": 5,
+   "name": "VCC",
+   "etype": "power_in"
+  }
+ ],
+ "pin_plan": [],
+ "ref_circuit": [
+  "VCC pin 5 3V3: 100 nF.",
+  "Two in series per loop, see estop_loop.json."
+ ],
+ "calcs": [
+  "IF(ON) 2-20 mA, threshold 0.6/1/2 mA, VF 1.3/1.5/1.8 V at 6 mA, tPHL/tPLH 52 ns max, ICC 2 mA."
+ ],
+ "abs_max": [
+  "IF 25 mA",
+  "Reverse 5 V",
+  "VCC 2.7-5.5 V operate"
+ ],
+ "gotchas": [
+  "Inverting: IF 0 gives OUT high, IF 6 mA gives OUT low. Fail-safe polarity holds."
+ ],
+ "doc_deviations": [],
+ "unverified": [
+  "No KiCad symbol or footprint; DFF land pattern from TI drawing required."
+ ]
+}

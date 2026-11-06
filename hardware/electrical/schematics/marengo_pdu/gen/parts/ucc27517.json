@@ -1,0 +1,77 @@
+{
+ "part": "UCC27517DBVR",
+ "datasheet": {
+  "doc": "SLUSAY6 family UCC27516/7",
+  "rev": "2014 copy",
+  "url": "https://www.ti.com/lit/ds/symlink/ucc27517.pdf"
+ },
+ "package": "SOT-23-5 DBV",
+ "kicad_footprint": "Package_TO_SOT_SMD:SOT-23-5",
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "VDD",
+   "etype": "power_in"
+  },
+  {
+   "num": 2,
+   "name": "GND",
+   "etype": "power_in"
+  },
+  {
+   "num": 3,
+   "name": "IN+",
+   "etype": "input"
+  },
+  {
+   "num": 4,
+   "name": "IN-",
+   "etype": "input"
+  },
+  {
+   "num": 5,
+   "name": "OUT",
+   "etype": "output"
+  }
+ ],
+ "ref_circuit": [
+  {
+   "ref": "VDD cap",
+   "value": "1 uF",
+   "page": "p6 test condition"
+  },
+  {
+   "ref": "IN-",
+   "value": "GND for noninverting",
+   "page": "p4"
+  },
+  {
+   "ref": "Rg",
+   "value": "4.7 Ohm (design choice)",
+   "page": "-"
+  },
+  {
+   "ref": "Rgs",
+   "value": "100 k (design choice)",
+   "page": "-"
+  }
+ ],
+ "calcs": [],
+ "abs_max": {},
+ "gotchas": [
+  "Output held low during UVLO and with IN+ floating (p4, p6). Good for clamp fail-safe.",
+  "KiCad's Driver_FET:UCC27511ADBV is a different pinout; do not reuse it."
+ ],
+ "doc_deviations": [],
+ "unverified": [
+  "SLUS doc number"
+ ],
+ "electrical": {
+  "VON": "3.70/4.20/4.65 V",
+  "VOFF": "3.45/3.9/4.35 V",
+  "peak": "+/-4 A",
+  "VIN_H": "2.2/2.4 V",
+  "VIN_L": "1.0/1.2 V"
+ }
+}

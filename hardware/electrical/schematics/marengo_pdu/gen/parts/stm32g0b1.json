@@ -1,0 +1,555 @@
+{
+ "part": "STM32G0B1VET6",
+ "datasheet": {
+  "doc": "DS13564 (STM32G0C1xx sibling; DS13560 STM32G0B1 not obtainable, st.com unreachable)",
+  "rev": "3, Jan 2022",
+  "url": "https://cdn.components.ru/media/PDF/2281974.pdf"
+ },
+ "package": "LQFP-100 14x14 mm 0.5 mm; 512 KB flash, 144 KB RAM",
+ "kicad_footprint": "Package_QFP:LQFP-100_14x14mm_P0.5mm",
+ "kicad_symbol": "MCU_ST_STM32G0:STM32G0B1VETx",
+ "pins": [],
+ "pin_plan": [
+  {
+   "signal": "USB_DM",
+   "pin": 70,
+   "af": null,
+   "note": "analog, no AF; KiCad pin name PA9/PA11, set SYSCFG remap default for PA11",
+   "pin_name": "PA11",
+   "function": "USB_DM"
+  },
+  {
+   "signal": "USB_DP",
+   "pin": 71,
+   "af": null,
+   "note": "KiCad pin name PA10/PA12",
+   "pin_name": "PA12",
+   "function": "USB_DP"
+  },
+  {
+   "signal": "SWDIO",
+   "pin": 73,
+   "af": "AF0",
+   "pin_name": "PA13",
+   "function": "SYS_SWDIO"
+  },
+  {
+   "signal": "SWCLK",
+   "pin": 74,
+   "af": "AF0",
+   "note": "shared with BOOT0, see gotchas",
+   "pin_name": "PA14",
+   "function": "SYS_SWCLK"
+  },
+  {
+   "signal": "NRST",
+   "pin": 17,
+   "af": null,
+   "note": "PF2-NRST; 100 nF to GND",
+   "pin_name": "PF2",
+   "function": null
+  },
+  {
+   "signal": "IMON1",
+   "pin": 25,
+   "af": null,
+   "note": "INA241 port current",
+   "pin_name": "PA0",
+   "function": "ADC1_IN0"
+  },
+  {
+   "signal": "IMON2",
+   "pin": 26,
+   "af": null,
+   "note": "INA241 port current",
+   "pin_name": "PA1",
+   "function": "ADC1_IN1"
+  },
+  {
+   "signal": "IMON3",
+   "pin": 27,
+   "af": null,
+   "note": "INA241 port current",
+   "pin_name": "PA2",
+   "function": "ADC1_IN2"
+  },
+  {
+   "signal": "IMON4",
+   "pin": 28,
+   "af": null,
+   "note": "INA241 port current",
+   "pin_name": "PA3",
+   "function": "ADC1_IN3"
+  },
+  {
+   "signal": "IMON5",
+   "pin": 29,
+   "af": null,
+   "note": "INA241 port current",
+   "pin_name": "PA4",
+   "function": "ADC1_IN4"
+  },
+  {
+   "signal": "IMON6",
+   "pin": 30,
+   "af": null,
+   "note": "INA241 port current",
+   "pin_name": "PA5",
+   "function": "ADC1_IN5"
+  },
+  {
+   "signal": "VSYS_SENSE",
+   "pin": 31,
+   "af": null,
+   "pin_name": "PA6",
+   "function": "ADC1_IN6"
+  },
+  {
+   "signal": "VMOT_SENSE",
+   "pin": 32,
+   "af": null,
+   "pin_name": "PA7",
+   "function": "ADC1_IN7"
+  },
+  {
+   "signal": "NTC_BOARD1",
+   "pin": 35,
+   "af": null,
+   "pin_name": "PB0",
+   "function": "ADC1_IN8"
+  },
+  {
+   "signal": "NTC_BOARD2",
+   "pin": 36,
+   "af": null,
+   "pin_name": "PB1",
+   "function": "ADC1_IN9"
+  },
+  {
+   "signal": "NTC_BOARD3",
+   "pin": 37,
+   "af": null,
+   "pin_name": "PB2",
+   "function": "ADC1_IN10"
+  },
+  {
+   "signal": "NTC_BRAKE",
+   "pin": 49,
+   "af": null,
+   "pin_name": "PB10",
+   "function": "ADC1_IN11"
+  },
+  {
+   "signal": "ESTOP_A_STAT",
+   "pin": 33,
+   "af": null,
+   "note": "PLAN GPIO or ADC; ADC gives divider diagnostics",
+   "pin_name": "PC4",
+   "function": "ADC1_IN17"
+  },
+  {
+   "signal": "ESTOP_B_STAT",
+   "pin": 34,
+   "af": null,
+   "pin_name": "PC5",
+   "function": "ADC1_IN18"
+  },
+  {
+   "signal": "ADC_SPARE1",
+   "pin": 50,
+   "af": null,
+   "pin_name": "PB11",
+   "function": "ADC1_IN15"
+  },
+  {
+   "signal": "ADC_SPARE2",
+   "pin": 51,
+   "af": null,
+   "pin_name": "PB12",
+   "function": "ADC1_IN16"
+  },
+  {
+   "signal": "I2C_HP_SCL",
+   "pin": 98,
+   "af": "AF6",
+   "note": "HP board meters, Fm+ capable",
+   "pin_name": "PB6",
+   "function": "I2C1_SCL"
+  },
+  {
+   "signal": "I2C_HP_SDA",
+   "pin": 99,
+   "af": "AF6",
+   "pin_name": "PB7",
+   "function": "I2C1_SDA"
+  },
+  {
+   "signal": "I2C_AFE_SCL",
+   "pin": 52,
+   "af": "AF6",
+   "note": "BQ76952 alone on this bus",
+   "pin_name": "PB13",
+   "function": "I2C2_SCL"
+  },
+  {
+   "signal": "I2C_AFE_SDA",
+   "pin": 53,
+   "af": "AF6",
+   "pin_name": "PB14",
+   "function": "I2C2_SDA"
+  },
+  {
+   "signal": "I2C_MUX_SCL",
+   "pin": 21,
+   "af": "AF6",
+   "note": "to TCA9546A; not an _f pin, 400 kHz",
+   "pin_name": "PC0",
+   "function": "I2C3_SCL"
+  },
+  {
+   "signal": "I2C_MUX_SDA",
+   "pin": 22,
+   "af": "AF6",
+   "pin_name": "PC1",
+   "function": "I2C3_SDA"
+  },
+  {
+   "signal": "AFE_ALERT",
+   "pin": 93,
+   "af": null,
+   "note": "EXTI5, also WKUP6",
+   "pin_name": "PB5",
+   "function": null
+  },
+  {
+   "signal": "AFE_RST_SHUT",
+   "pin": 91,
+   "af": null,
+   "note": "push-pull, default low; 10k pull-down",
+   "pin_name": "PB3",
+   "function": null
+  },
+  {
+   "signal": "AFE_DFETOFF_SUP",
+   "pin": 92,
+   "af": null,
+   "note": "push-pull, default low; 100k pull-down on HP",
+   "pin_name": "PB4",
+   "function": null
+  },
+  {
+   "signal": "FAN1_PWM",
+   "pin": 42,
+   "af": "AF1",
+   "pin_name": "PE9",
+   "function": "TIM1_CH1"
+  },
+  {
+   "signal": "FAN2_PWM",
+   "pin": 44,
+   "af": "AF1",
+   "pin_name": "PE11",
+   "function": "TIM1_CH2"
+  },
+  {
+   "signal": "FAN3_PWM",
+   "pin": 46,
+   "af": "AF1",
+   "pin_name": "PE13",
+   "function": "TIM1_CH3"
+  },
+  {
+   "signal": "FAN1_TACH",
+   "pin": 65,
+   "af": "AF2",
+   "pin_name": "PD12",
+   "function": "TIM4_CH1"
+  },
+  {
+   "signal": "FAN2_TACH",
+   "pin": 66,
+   "af": "AF2",
+   "pin_name": "PD13",
+   "function": "TIM4_CH2"
+  },
+  {
+   "signal": "FAN3_TACH",
+   "pin": 67,
+   "af": "AF2",
+   "pin_name": "PD14",
+   "function": "TIM4_CH3"
+  },
+  {
+   "signal": "LED_R",
+   "pin": 57,
+   "af": "AF1",
+   "pin_name": "PC6",
+   "function": "TIM3_CH1"
+  },
+  {
+   "signal": "LED_G",
+   "pin": 58,
+   "af": "AF1",
+   "pin_name": "PC7",
+   "function": "TIM3_CH2"
+  },
+  {
+   "signal": "LED_B",
+   "pin": 76,
+   "af": "AF1",
+   "pin_name": "PC8",
+   "function": "TIM3_CH3"
+  },
+  {
+   "signal": "BUZZER",
+   "pin": 79,
+   "af": "AF2",
+   "pin_name": "PD1",
+   "function": "TIM17_CH1"
+  },
+  {
+   "signal": "CHARGE_LED",
+   "pin": 78,
+   "af": "AF2",
+   "pin_name": "PD0",
+   "function": "TIM16_CH1"
+  },
+  {
+   "signal": "POWER_BTN",
+   "pin": 8,
+   "af": null,
+   "note": "WKUP2",
+   "pin_name": "PC13",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN1",
+   "pin": 96,
+   "af": null,
+   "pin_name": "PE2",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN2",
+   "pin": 97,
+   "af": null,
+   "pin_name": "PE3",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN3",
+   "pin": 4,
+   "af": null,
+   "pin_name": "PE4",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN4",
+   "pin": 5,
+   "af": null,
+   "pin_name": "PE5",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN5",
+   "pin": 6,
+   "af": null,
+   "pin_name": "PE6",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN6",
+   "pin": 40,
+   "af": null,
+   "pin_name": "PE7",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN7",
+   "pin": 41,
+   "af": null,
+   "pin_name": "PE8",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN8",
+   "pin": 43,
+   "af": null,
+   "pin_name": "PE10",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN9",
+   "pin": 45,
+   "af": null,
+   "pin_name": "PE12",
+   "function": null
+  },
+  {
+   "signal": "RAIL_EN10",
+   "pin": 47,
+   "af": null,
+   "pin_name": "PE14",
+   "function": null
+  },
+  {
+   "signal": "PORT_EN1",
+   "pin": 59,
+   "af": null,
+   "pin_name": "PD8",
+   "function": null
+  },
+  {
+   "signal": "PORT_EN2",
+   "pin": 60,
+   "af": null,
+   "pin_name": "PD9",
+   "function": null
+  },
+  {
+   "signal": "PORT_EN3",
+   "pin": 61,
+   "af": null,
+   "pin_name": "PD10",
+   "function": null
+  },
+  {
+   "signal": "PORT_EN4",
+   "pin": 62,
+   "af": null,
+   "pin_name": "PD11",
+   "function": null
+  },
+  {
+   "signal": "PORT_EN5",
+   "pin": 68,
+   "af": null,
+   "pin_name": "PD15",
+   "function": null
+  },
+  {
+   "signal": "PORT_EN6",
+   "pin": 80,
+   "af": null,
+   "pin_name": "PD2",
+   "function": null
+  },
+  {
+   "signal": "SUP_OPEN_A_N",
+   "pin": 81,
+   "af": null,
+   "note": "low = permit; see estop_loop.json",
+   "pin_name": "PD3",
+   "function": null
+  },
+  {
+   "signal": "SUP_OPEN_B_N",
+   "pin": 82,
+   "af": null,
+   "pin_name": "PD4",
+   "function": null
+  },
+  {
+   "signal": "LOOP_SENSE_A",
+   "pin": 83,
+   "af": null,
+   "pin_name": "PD5",
+   "function": null
+  },
+  {
+   "signal": "LOOP_SENSE_B",
+   "pin": 84,
+   "af": null,
+   "pin_name": "PD6",
+   "function": null
+  },
+  {
+   "signal": "CLAMP_STATUS",
+   "pin": 85,
+   "af": null,
+   "pin_name": "PD7",
+   "function": null
+  },
+  {
+   "signal": "CHARGER_PRESENT",
+   "pin": 86,
+   "af": null,
+   "pin_name": "PF9",
+   "function": null
+  },
+  {
+   "signal": "BOARD_PRESENT",
+   "pin": 87,
+   "af": null,
+   "pin_name": "PF10",
+   "function": null
+  },
+  {
+   "signal": "BENCH_JUMPER",
+   "pin": 88,
+   "af": null,
+   "pin_name": "PF11",
+   "function": null
+  },
+  {
+   "signal": "HUB_RST_N",
+   "pin": 89,
+   "af": null,
+   "pin_name": "PF12",
+   "function": null,
+   "note": "open-drain output; hub also self-releases by RC"
+  },
+  {
+   "signal": "TCA_RST_N",
+   "pin": 90,
+   "af": null,
+   "pin_name": "PF13",
+   "function": null
+  }
+ ],
+ "ref_circuit": [
+  "Pin 13 VDD/VDDA: 100 nF + 4.7 uF (DS13564 Fig 15 p66). There is no separate VDDA pin on this package.",
+  "Pin 12 VREF+: 100 nF + 1 uF; tie to 3V3 (or filtered 3V3 through a bead for ADC noise; or internal VREFBUF output).",
+  "Pin 64 VDDIO2: 100 nF + 4.7 uF, tie to 3V3. Also feeds PB13/PB14 and the USB domain (see gotchas). KiCad labels it VDD.",
+  "Pin 11 VBAT: tie to 3V3 with 100 nF; no RTC battery planned.",
+  "Pins 14, 63 VSS: ground.",
+  "Pin 17 PF2-NRST: 100 nF to GND; drive from SWD header.",
+  "PB5/AFE_ALERT: 10k pull-up to 3V3 if ALERT is configured open-drain on the AFE.",
+  "PB6/7, PB13/14, PC0/1: pull-ups per bus; see tca9546a.json for the branch side.",
+  "Each IMON/VSENSE ADC input: series R plus C to GND at the pin; total source impedance under 8.2 kOhm at 19.5 cycles sampling (Table 62).",
+  "USB: no crystal, HSI48 with CRS sync from USB SOF."
+ ],
+ "calcs": [
+  "Pin count: 68 assigned of 94 I/O (LQFP100). LQFP64 has 60 I/O and 48-pin far fewer, so VET6 is the smallest single-chip fit.",
+  "ADC: one 12-bit SAR, 2.5 MSps, 16 external channels. 12 channels x 20 kHz = 240 kSps = 9.6% of max.",
+  "ADC scan: 12 x (19.5 + 12.5) cycles at 35 MHz = 11 us per scan against 50 us period. Passes, channels are sequential: about 0.9 us skew per rank, not simultaneous.",
+  "Black box: 8 ch x 20 kHz x 2 B x 0.4 s = 64 kB, fits in 144 KB RAM with DMA.",
+  "I2C load, 7 meters on 1 MHz bus: one 24-bit read about 58 us. V and I both at 1 kHz = 812 us per ms (84%); at 400 kHz infeasible. Current only at 1 kHz = 41% at 1 MHz."
+ ],
+ "abs_max": [
+  "VDD, VDDA, VDDIO2 max per ST family 4.0 V (from memory for sibling; verify in DS13560)",
+  "FT pins tolerate 5.5 V only when the supply is present (verify per pin)"
+ ],
+ "gotchas": [
+  "PA14 shares BOOT0. With SWD attached and boot pin enabled by option byte, boot mode can shift. Set nBOOT_SEL so boot uses option bits (name from memory, verify in RM0444).",
+  "PA9/PA10 pins 56 and 69 are UCPD dead-battery pads; leave unconnected. USB is on pins 70 and 71 with no remap: PA11/PA12 are the defaults there, confirmed in ST pin XML (variant entries list USB_DM/USB_DP).",
+  "PB3/PB4 used as plain GPIO. PB3 and PB4 default to GPIO on G0, not JTAG.",
+  "Sequencer: ranks in fixed order unless fully configurable mode (8 ranks max, from memory). 12+ channels must run in scan order, so assign IMON1..6 lowest. Verify in RM0444.",
+  "I2C2 and I2C3 lack SMBus and independent clock (DS Table 8 column).",
+  "PC0/PC1 are FT_a, not Fm+ capable: 400 kHz on the mux bus.",
+  "If the supervisor resets, GPIO go Hi-Z: every enable must have a pull-down (rails, ports) and SUP_OPEN needs a pull-up (estop_loop.json).",
+  "Rail enable default state per rail must be set: 3V3 AON path must never depend on firmware.",
+  "KiCad labels pin 64 VDD; ST pin data and DS call it VDDIO2. Do not assume it is shorted internally to pin 13."
+ ],
+ "doc_deviations": [
+  "G0B1 has only 3 I2C peripherals (I2C1,2,3). PLAN wants 5 buses: AFE, HP, LP A, LP B, Qwiic. Fix: I2C3 into TCA9546A for LP A, LP B, Qwiic, spare.",
+  "LQFP64 cannot carry the signal list. VET6 chosen. Alternative RET6 + GPIO expander for rails rejected: rail enables would depend on an I2C bus.",
+  "PLAN 3.9 V and I at 1 kHz on all meters not achievable on a shared 400 kHz mux bus. Read current fast, voltage at 10 to 100 Hz.",
+  "Request assumed separate VDDA and VDDUSB pins: neither exists on LQFP100. VDDA is common with VDD; USB supply is VDDIO2 on this device per DS note (verify)."
+ ],
+ "unverified": [
+  "DS13560 itself not read; sibling DS13564 Rev 3 used, current G0B1 rev reportedly 6. All pin numbers and AFs were cross-checked by script against ST open pin data and KiCad alternates (68 of 68), so risk is confined to electrical limits.",
+  "Sequencer rank limit and option-byte naming from memory.",
+  "FM+ on INA228/238 from memory."
+ ]
+}
