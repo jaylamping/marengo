@@ -1,0 +1,33 @@
+# Test pass 1 settings checklist
+
+Open each file as a complete project, not a geometry import. Each 3MF is already sliced. The settings were compared key by key with the left P2 L04B project and every one matches.
+
+Check these in Bambu Studio before you press print. If anything differs, stop and fix it before printing, because presets can reset values.
+
+| Setting | Value |
+| --- | --- |
+| Printer | Bambu Lab P2S |
+| Nozzle | 0.4 mm High Flow |
+| Filament | Generic PETG @BBL P2S |
+| Plate | Textured PEI |
+| Layer height | 0.20 mm, first layer 0.20 mm |
+| Walls | 6 |
+| Infill | 100% Rectilinear |
+| Top and bottom | 5 top layers, 3 bottom layers |
+| Supports | Normal, auto, 45 degree threshold, not limited to the build plate |
+| Support Z gap | 0.20 mm top and bottom |
+| Interface layers | 2 top, 2 bottom |
+| Nozzle | 255 °C |
+| Bed | 70 °C |
+| Flow ratio | 0.95 |
+| Max volumetric speed | 12 mm³/s |
+| Brim | Auto, 5 mm |
+
+Before each print:
+
+1. Dry the filament the same way for every part, and use the same spool if you can.
+2. Keep the plate clean. Glue is your call, but use the same for every part.
+3. Don't rotate, move or auto-orient a part. The orientation is part of the test.
+4. Write down the spool for each print.
+
+No slicer warnings on any file. Times and weights are slicer estimates.

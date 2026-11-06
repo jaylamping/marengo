@@ -2,7 +2,7 @@
 
 2026-11-06. Draft. Joey chose to keep the compact, centred elbow and measure what fails first before printing the full arm (`../upper-arm/REVC_GATE_REVIEW.md`). No real RS02 is loaded in any test.
 
-The fixtures and coupon parts are not designed yet, so print times are not known. Pass levels marked **proposed** need Joey's agreement before the first test.
+Print files, times and the print order are in `../prints/test-pass-1/`. Pass levels marked **proposed** need Joey's agreement before the first test.
 
 ## What this answers
 
@@ -65,8 +65,8 @@ Everything here is meant to be possible at home.
 | Fit coupon | PETG | Ø52 seat and Ø40 stub with the floor bore, one real 6808 |
 | Carrier | PETG | Real part after the CAD fixes |
 | Fork sector | PETG | Fork cut across the tube near Y 120, keeping both cheeks, gussets, stub, finger and a clamp face for the lever. Print direction +X |
-| Dummy housing | PETG or aluminium, stiff and over-built | RS02 stator stand-in: 6 M3 at r 36.5 on the real Ø73 circle, using the same hole clock as the hoop, with sleeves and steel ring as designed |
-| Dummy output | 6061 aluminium plate, 10 mm or more | 6 M4 on Ø24, tapped to 7 mm, and the three Ø4 pin positions. Turns on a plain pin in the dummy housing, so the outboard cheek is carried but no real output bearing is implied |
+| Dummy housing | PETG, printed, over-built | RS02 stator stand-in: 6 M3 at r 36.5 on the real Ø73 circle, using the same hole clock as the hoop, with sleeves and steel ring as designed, into captive nuts |
+| Dummy output | PETG, printed | 6 M4 on Ø24 into captive nuts, and the three Ø4 pins. Turns on an M8 bolt in the dummy housing, so the outboard cheek is carried but no real output bearing is implied |
 | Real parts | | One 6808, the planned M3 and M4 screws, sleeves, washers and rings |
 
 Use the real screw types and lengths from the fixed design. Torque values come from CAD work, and are recorded for each joint.
