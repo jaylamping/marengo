@@ -27,10 +27,12 @@ Buy list with links: [BUY_LIST.md](BUY_LIST.md).
 | S1 | M11 splice | M12 splice (P1, roll RS03 housing) | pitch, 230° | ~350 mm (crossing provisional) | 450 mm |
 | S2 | M12 splice | M13 splice (P2, yaw RS02 housing) | roll, 195° | ~300 mm (crossing provisional) | 400 mm |
 | S3 | M13 splice | M14 splice (upper arm, shoulder end of tube) | yaw ±90° twist (~185 mm free) + elbow slack loop (~130 mm stored) | ~400 mm | 500 mm |
-| S4 | M14 splice | M15 splice + 120 Ω (forearm) | elbow 0 to 133° (posterior route) | ~200 mm | 280 mm |
+| S4 | M14 splice | M15 splice + 120 Ω (forearm) | elbow 0 to 133° (posterior route) | ~200 mm + coiled section | 4-core 22 AWG PUR coiled cord (collapsed ≤40 mm, OD ≤25, stretch +110 to 130 mm) + 300 mm straight |
 | Drops ×5 | splice | motor plug, fuse holder in line | — | ≤150 mm | 200 mm each |
 
 Totals per arm: about 2.0 m of trunk plus 1.0 m of drops per conductor. **Buy 3.5 m each of red and black 16 AWG and 3.5 m of 26 AWG twisted pair per arm** (7 m each for both arms), plus 0.5 m of 18 AWG red/black.
+
+**Elbow crossing (rev 1, after CAD found only 40 to 48 mm free in the upper-arm tube):** downstream of the elbow only the RS00 and the future hand draw power, so S4 is a 4-core 22 AWG PUR cable (2 power + CAN pair, OD ~5 mm) protected by a **3 to 5 A segment fuse at the M14 splice**. The ~110 to 130 mm path change across the posterior elbow (r 45 to 55 × 133°) is stored in a **retractile coiled section** in the upper-arm tube (or the forearm if the tube is too short), not in a rolling loop. The cable runs over a smooth printed guide on the carrier at a bend radius of 25 mm or more. CAD fit check pending.
 
 ## Drops and fuses
 
