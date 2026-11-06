@@ -23,7 +23,7 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
 
 ## 2. Topology
 
-**Trunk with drops** (Joey, 2026-11-05): one harness runs from the torso down the arm, inside it where the parts allow, with a short pigtail at each actuator. Connectors differ by motor (Joey, 2026-11-05): the RS02 has XT30(2+2) (power + CAN in one plug); the RS03 has a regular 2-pin XT30 for power, so its CAN goes on a separate signal connector (part **to measure**). Each motor has two ports; the harness uses one. No daisy-chaining through the motors' second ports.
+**Trunk with drops** (Joey, 2026-11-05): one harness runs from the torso down the arm, inside it where the parts allow, with a short pigtail at each actuator. Connectors differ by motor (Joey, 2026-11-05): the RS02 has XT30(2+2) (power + CAN in one plug); the RS03 has a regular 2-pin XT30 for power and a separate GH1.25 2-pin connector for CAN (vendor manual, [../../docs/robstride/](../../docs/robstride/README.md)). Each motor has two ports; the harness uses one. No daisy-chaining through the motors' second ports.
 
 ```
  24 V bench PSU (current-limited)            Pi 5 + Waveshare 2-CH CAN HAT can1
@@ -48,7 +48,7 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
 
 ## 3. Termination and ground
 
-- 120 Ω at each end only: the HAT end and after M13 (repo, ADR 0001).
+- 120 Ω at each end only: the HAT end and after M13 (repo, ADR 0001). The RobStride manuals do not say the drives carry a terminator (they mention one only on the vendor USB-CAN module), so measure before leaving the resistor out.
 - Check the HAT's can1 termination jumper/switch is ON (**to measure**). Fit a 120 Ω 1/4 W resistor across H/L at the far end, heat-shrunk.
 - Power off, all three motors plugged in: measure CAN_H to CAN_L. Expect about **60 Ω**. About 120 Ω means one terminator is missing; about 40 Ω means a motor or the HAT adds a third.
 - Tie Pi/HAT GND to PSU negative at one point only. No ground loop through a second path.
@@ -65,7 +65,7 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
 
 Lengths are bench **assumptions**, sized long. Record the actual cut lengths here once built; they are the starting point for the fixed-length harness (work package 4).
 
-**Mating connectors:** RS02: AMASS XT30(2+2)-F.G.B (90° exit) (handoff, header XT30PB(2+2)-M.G.B). RS03: regular 2-pin XT30 female for power plus a separate CAN plug; identify the RS03 CAN connector part from the motor or the right-arm leads (**to measure**). Pin order of power and signal: read it off the motor's datasheet or the right-arm leads before crimping/soldering; do not assume.
+**Mating connectors:** RS02: AMASS XT30(2+2)-F.G.B (90° exit) (handoff, header XT30PB(2+2)-M.G.B). RS03: AMASS XT30UW-F for power (board end XT30APW-M) plus a GH1.25-T 2-pin housing for CAN (board end GH1.25-2PWT) (vendor manual). Pinouts and diagrams are in [../../docs/robstride/README.md](../../docs/robstride/README.md); confirm them against the drive in hand before soldering.
 
 Plug and unplug only with the E-stop open. The drives have input capacitance and XT30 contacts arc on hot-plug at 24 V (assumption, typical for these drives).
 
@@ -74,8 +74,8 @@ Plug and unplug only with the E-stop open. The drives have input capacitance and
 | Qty | Part | Note |
 |-----|------|------|
 | 1 + 2 spare | AMASS XT30(2+2)-F.G.B female | RS02 drop |
-| 2 + 2 spare | XT30 female (2-pin) | RS03 power drops |
-| 2 + 2 spare | RS03 CAN mating plug (part TBD) | RS03 CAN drops |
+| 2 + 2 spare | AMASS XT30UW-F | RS03 power drops |
+| 2 + 4 spare | GH1.25 2-pin housing + crimp contacts (or pre-crimped GH1.25 2-pin leads) | RS03 CAN drops; pre-crimped leads avoid needing a GH crimper |
 | 1 + spare | 10 A ATO fuse + inline holder | Trunk, at the source |
 | — | Solder sleeves or inline splices for the drops | One power + one CAN splice per drop |
 | 2 m each | 14 AWG silicone, red + black | Trunk |
@@ -112,7 +112,5 @@ Run with Joey present. One motor at a time until step 5.
 
 ## Open questions
 
-- Does each RS03/RS02 have one XT30(2+2) port or two? This decides splice versus pass-through CAN.
-- XT30(2+2) pin assignment for power and CAN on these drives.
 - Is the current right-arm supply 24 V, and what is its current limit? (Playbook baselines are quoted at 24 V.)
 - Does the left branch share the right arm's E-stop?

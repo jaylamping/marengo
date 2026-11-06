@@ -10,7 +10,7 @@ Physical robot design for Marengo: CAD, electrical, prints, and BOM. Mechanics a
 | [`electrical/`](electrical/) | PDB (KiCad stub), harness and CAN documentation |
 | [`prints/`](prints/) | STL sources and slicer notes |
 | [`bom/`](bom/) | Master BOM and sourcing |
-| [`docs/`](docs/) | Kinematics (joint SSOT), torso design, assembly, homing sensors, CAD standards, hardware ADRs |
+| [`docs/`](docs/) | Kinematics (joint SSOT), torso design, assembly, homing sensors, CAD standards, hardware ADRs, [RobStride manuals](docs/robstride/README.md) |
 
 ## Active design
 
