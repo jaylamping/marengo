@@ -81,7 +81,7 @@ A second, fixed cell in the pelvis later (Joey's groin idea) is the same recipe 
 | Pure nickel strip 0.15 × 8 mm, and 0.2 × 10 for the series links | 2 m each | $15 | pure nickel, not nickel-plated steel |
 | 21700 cell holders 4 × 7 (snap-together) | 2 sheets | $12 | they set the 1 mm gap |
 | Fish paper rings and sheet, Kapton | | $10 | ring on every positive end |
-| Fuse, MIDI 60 A, holder | 1 | $8 | on the pack, before the connector |
+| Fuse, 60 A, **rated ≥ 58 V DC** (Class T 160 V DC preferred; never a 32 V MIDI/ANL), DC-rated holder | 1 | $15 to 40 | on the pack, before the connector. See pack-build-plan.md section 1 |
 | XT90S pair, 10 AWG silicone, balance-lead JST | | $15 | |
 | 13S charger, 54.6 V 5 A | 1 | $40 to 60 | through the BMS, attended |
 | Case: printed in ABS or PC, or a folded 1 mm aluminium box with a printed liner | | $10 to 30 | not PETG next to cells |
