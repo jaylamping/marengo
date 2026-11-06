@@ -263,7 +263,7 @@ cyl('rs03_waist', 17, 'RS03, waist yaw (existing; 57 + 6 mm adapter in a 40 mm b
 # ---- shell hardpoints (torso coords; from mounts.json: torso X = robot Y, torso Y = robot Z - 810, torso Z = robot X) ----
 HP = {
  'H1': dict(item=19, face='+Z', pts=[(60, 485, 70), (-60, 485, 70)], carries='U1 upper front, top edge'),
- 'H2': dict(item=20, face='-Z', pts=[(60, 485, -70), (-60, 485, -70)], carries='U2 upper back top edge, D1 catch, spine pads'),
+ 'H2': dict(item=20, face='-Z', pts=[(85, 485, -70), (-85, 485, -70)], carries='U2 upper back top edge, D1 catch, spine pads'),
  'H3': dict(item=21, face='+-Z', pts=[(35, 364, 70), (-35, 364, 70), (35, 364, -70), (-35, 364, -70)], carries='U1/U2 bottom, U3/U4 top, D1 frame (Y 374-492), rear: spine rail lip for the D2 magnets (Y 355-372), spine pads'),
  'H4': dict(item=22, face='+-Z', pts=[(40, Y_BOT + 10, 70), (-40, Y_BOT + 10, 70), (40, Y_BOT + 10, -70), (-40, Y_BOT + 10, -70)], carries='U3/U4 bottom, D2 battery door bottom hinge (D2 |X| <= 60, Y 175-352), spine pads'),
  'H5': dict(item=23, face='+-X', pts=[(75, 255, 60), (75, 255, -60), (-75, 255, 60), (-75, 255, -60)], carries='U3/U4 sides, V1 grilles'),

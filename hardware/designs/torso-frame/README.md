@@ -166,7 +166,7 @@ the inward roll limit (15°); that is between the arm and the shell.
 | Point | On (torso coords) | Qty | Carries | Status |
 | --- | --- | --- | --- | --- |
 | H1 | Top front rail, front face, X ±60, Y 485 | 2 | U1 top | free |
-| H2 | Top rear rail, rear face, X ±60, Y 485 | 2 | U2 top, D1 catch, spine pads | free |
+| H2 | Top rear rail, rear face, X ±85, Y 485 (shell main 0bfa66a: at ±60 the boss sat on the D1 door edge) | 2 | U2 top, D1 catch, spine pads | free; its T-nut shares the top rear rail slot with the corner-bracket nuts (nut map) |
 | H3 | Shared rail front and rear faces, X ±35, Y 364 | 4 | U1/U2 bottom, U3/U4 top, D1 frame; the two rear brackets also carry the **spine rail lip** (\|X\| ≤ 52, Y 355 to 372, 12 mm proud; gate 2: ±60 hit the rear gussets) that the D2 battery door closes onto with magnets | free; **rear brackets stay below Y 374** (Pi ports); the lip tops out at 372 |
 | H4 | Bottom rails front and rear faces, X ±40, Y 165 | 4 | U3/U4 bottom, D2 battery door bottom hinge, spine pads | free |
 | H5 | Lower post outer side faces, X ±75, Y 255, Z ±60 | 4 | U3/U4 sides, V1 grilles | free (gusset starts at Y 285) |
