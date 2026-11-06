@@ -44,9 +44,9 @@
   </joint>
   <link name="left_forearm_link">
     <inertial>
-      <origin xyz="-0.001357 -0.000125 -0.095483" rpy="0 0 0" />
-      <mass value="0.481033" />
-      <inertia ixx="0.001107820" ixy="0.000003612" ixz="0.000026865" iyy="0.001028425" iyz="0.000003256" izz="0.000320086" />
+      <origin xyz="-0.000836 -0.000077 -0.112582" rpy="0 0 0" />
+      <mass value="0.781033" />
+      <inertia ixx="0.001696485" ixy="0.000003581" ixz="0.000038031" iyy="0.001617428" iyz="0.000004281" izz="0.000445430" />
     </inertial>
   </link>
   <joint name="left_elbow_pitch" type="revolute">
@@ -58,9 +58,9 @@
   </joint>
   <link name="left_hand_link">
     <inertial>
-      <origin xyz="0.000000 0.000000 0.000000" rpy="0 0 0" />
-      <mass value="0.001000" />
-      <inertia ixx="0.000000100" ixy="0.000000000" ixz="0.000000000" iyy="0.000000100" iyz="0.000000000" izz="0.000000100" />
+      <origin xyz="0.000000 0.000000 -0.090000" rpy="0 0 0" />
+      <mass value="0.200000" />
+      <inertia ixx="0.000708333" ixy="0.000000000" ixz="0.000000000" iyy="0.000616667" iyz="0.000000000" izz="0.000121667" />
     </inertial>
   </link>
   <joint name="left_lower_arm_yaw" type="revolute">
@@ -80,6 +80,6 @@
   <joint name="left_hand_tip_fixed" type="fixed">
     <parent link="left_hand_link" />
     <child link="left_hand_tip" />
-    <origin xyz="0.000000 -0.000000 -0.141400" rpy="0 0 0" />
+    <origin xyz="0.000000 0.000000 -0.190000" rpy="0 0 0" />
   </joint>
 </robot>

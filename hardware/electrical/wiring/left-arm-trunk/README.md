@@ -52,6 +52,7 @@ Fuse values are provisional until the board's limb meter gives measured current.
 
 ## Connectors and pinout
 
+- **Board port protection (rev A schematic):** electronic trip requested at 15 A (the real overload limit for XT30 contacts and 16 AWG), with a 20 A 58 V fuse as the backstop if the switch fails short.
 - **Board port:** the board has no room for a plug, so each arm port is a short pigtail (ring lugs + CAN header on the board) ending in an inline XT30(2+2)-F; the trunk starts with XT30(2+2)-M (power board design README 1a, main 9ce67a0).
 - **Joint breaks (recommended):** XT30 pair for power with the **female on the upstream (live) side**, plus a JST-GH 2-pin latching pair for CAN. Four breaks: J1 to J4.
 - **RS02 / RS00 plug:** AMASS XT30(2+2)-F.G.B. VBAT+ and GND on the blades; CAN-L and CAN-H on the signal pins (vendor diagram: CAN-L above CAN-H, beside GND).
@@ -62,7 +63,8 @@ Fuse values are provisional until the board's limb meter gives measured current.
 
 - Drop splice: strip a window in each trunk conductor, wrap the drop conductor, solder, heat-shrink each, then an overall shrink. Stagger the four splices ~10 mm apart so the lump stays thin (~6 mm across).
 - Termination: 120 Ω ¼ W across CAN_H and CAN_L at the M15 splice, heat-shrunk; the other end is the board's switchable 120 Ω. Powered off with everything plugged in, CAN_H to CAN_L should read ~60 Ω.
-- Optional: a NUP2105L-class dual CAN TVS (verify part) dead-bugged at each drop splice as a sacrificial clamp. The board ports have their own TVS and 58 V-tolerant isolated transceivers.
+- **Accepted risk (pending Joey's sign-off): bus voltage onto CAN at the arm.** If a crushed or miswired trunk puts VBUS (up to 54.6 V) onto CAN_H or CAN_L, the only protection on the arm side is each drive's own CAN transceiver, and RobStride does not publish its fault rating. A cheap splice clamp cannot help: a 24 V-class CAN TVS dies at 54 V, and a 58 V-class one clamps above the bus anyway. Mitigations: CAN pair in its own sleeve inside the trunk, keyed and latching connectors only, plug and unplug with the E-stop open, abrasion protection at every edge and joint, and the continuity/short check before every first power-up after rework.
+- No TVS at the splices: a 24 V-class CAN TVS (NUP2105L) dies at 54 V. CAN surge protection is on the power board port (SMAJ58CA + 58 V-tolerant isolated transceivers).
 - Plug and unplug only with the E-stop open.
 
 ## Checks after building
