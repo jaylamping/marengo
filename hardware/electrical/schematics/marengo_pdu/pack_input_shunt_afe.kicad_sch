@@ -3528,7 +3528,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, REDCUBE class"
+		(property "Value" "M4 terminal, REDCUBE 74651194R"
 			(at 63.5 96.52 0)
 			(effects
 				(font
@@ -3537,7 +3537,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "TerminalBlock_Wuerth:Wuerth_REDCUBE-THR_WP-THRSH_74651194_THR"
 			(at 58.42 96.52 0)
 			(effects
 				(font
@@ -3597,7 +3597,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, REDCUBE class"
+		(property "Value" "M4 terminal, REDCUBE 74651194R"
 			(at 63.5 104.14 0)
 			(effects
 				(font
@@ -3606,7 +3606,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "TerminalBlock_Wuerth:Wuerth_REDCUBE-THR_WP-THRSH_74651194_THR"
 			(at 58.42 104.14 0)
 			(effects
 				(font
@@ -3699,7 +3699,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.25mR 4T 5W 3921"
+		(property "Value" "0.3mR CSS4J-4026 5W"
 			(at 52.07 130.81 0)
 			(effects
 				(font
@@ -3708,7 +3708,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_SMD:R_Shunt_Isabellenhuette_BVR4026"
 			(at 45.72 121.92 0)
 			(effects
 				(font
@@ -4251,7 +4251,7 @@
 			)
 		)
 	)
-	(text "Pack negative -> shunt -> system GND. SRP is the cell side:\ncharge current makes SRP positive (datasheet p5).\nAFE VSS ties at BAT-, so VSS sits above GND by I x 0.25 mR\nin discharge: 40 mV at the 160 A SCD point."
+	(text "Pack negative -> shunt -> system GND. SRP is the cell side:\ncharge current makes SRP positive (datasheet p5).\nAFE VSS ties at BAT-, so VSS sits above GND by I x 0.3 mR\nin discharge: 60 mV at the 200 A SCD point."
 		(exclude_from_sim no)
 		(at 25.4 137.16 0)
 		(effects
@@ -11030,7 +11030,7 @@
 		)
 		(uuid "4b72bfee-7a72-5ee4-b9e9-80818f6ab016")
 	)
-	(text "SIZING (design/README 2.2, shunt 0.25 mOhm; datasheet p22 steps)\nOCD1 16 mV = 64 A (hardware comparator, up to 425 ms)    OCD3 60 A for 1 s (current-based, inside the AFE, the agreed 60 A ceiling)\nOCC 12 mV = 48 A at 425 ms    SCD 40 mV = 160 A, +/-15% = 136-184 A, delay 15-450 us in 15 us steps\nOCD and OCC are set in 2 mV steps. Accuracy below 20 mV is -2/+2.65 mV (p22), about -8/+10.6 A on this shunt."
+	(text "SIZING (shunt 0.3 mOhm: no 0.25 mOhm 4-terminal part exists; datasheet p22 steps)\nOCD1 20 mV = 66.7 A (hardware comparator, up to 425 ms)    OCD3 60 A for 1 s (current-based, inside the AFE, the agreed 60 A ceiling)\nOCC 14 mV = 46.7 A at 425 ms    SCD 60 mV = 200 A, +/-15% = 170-230 A, delay 15-450 us in 15 us steps (keeps the 150 A, 100 ms path rating)\nOCD and OCC are set in 2 mV steps. Accuracy below 20 mV is -2/+2.65 mV (p22), about -6.7/+8.8 A on this shunt."
 		(exclude_from_sim no)
 		(at 20.32 215.9 0)
 		(effects
@@ -11041,7 +11041,7 @@
 		)
 		(uuid "047c5a2f-b028-523c-9927-0f334d6c49b3")
 	)
-	(text "OPEN ON THIS SHEET\n1. PACK_PRESENT_N: loop pulled low through BAT- when J2 is mated. PLAN says it opens DSG directly; the logic joining it to DFETOFF is not captured here.\n2. External balance FETs (PLAN 3.1, 150 mA per cell) are not captured. They change the cell RC network: revisit 20R.\n3. CP1 raised to 1 uF for the 4+4 FET gate load (p65 rule): worst case 1.69 uC droops 11 V by 1.7 V, pump start about 130 ms.\n4. I2C pull-ups, ALERT pull-up and the DFETOFF/CFETOFF polarity go with the LP sheets and OTP settings.\n5. No footprints yet for J1, J3 (M4 terminal part not chosen) or RS1 (no 3921 4-terminal in the library). J2 footprint assumes Micro-Fit vertical."
+	(text "OPEN ON THIS SHEET\n1. External balance FETs (PLAN 3.1, 150 mA per cell) are not captured. They change the cell RC network: revisit 20R.\n2. CP1 raised to 1 uF for the 4+4 FET gate load (p65 rule): worst case 1.69 uC droops 11 V by 1.7 V, pump start about 130 ms.\n3. OTP owed: DFETOFF active high (0x02), CFETOFF and HDQ as thermistor inputs. Presence and DFETOFF logic are on HP_power_board.\n4. RS1 land: CSS4J-4026 on the BVR4026 library footprint, check against the Bourns drawing."
 		(exclude_from_sim no)
 		(at 20.32 233.68 0)
 		(effects
