@@ -43,10 +43,20 @@ Final harness lengths wait on the routing studies (L05 to L11 unresolved, handof
 - **Bus:** `can1`. `can0` keeps the right arm (ids 1 to 5) so the two arms never share one MCP2515 and its 2-frame receive buffer (repo, ADR 0001). `can1` is already wired to the HAT and unused (repo, pi-commissioning.md).
 - **IDs (proposal):** left arm block is 11 to 20 (repo, ADR 0001). Pitch **11**, roll **12**, upper-arm yaw **13**. An earlier left pitch used **12** on can1 and an earlier left 4-DOF used **11 to 14** on can0 (repo), so the drives may already hold old IDs: scan first, set IDs in firmware one motor at a time, then set zero.
 - **CAN on a trunk:** at 1 Mbit/s stubs should stay short (ISO 11898, roughly 0.3 m or less), so keep each drop at 15 cm or less and the pair twisted to the splice. That keeps the bus a proper line with the terminator at the far end of the trunk.
-- **Power on a trunk:** the trunk carries all three motors' current, so it is sized for the sum and fused once at the source. Per-motor fusing is dropped for the bench (simpler, fewer parts in the arm). Add drop fuses later only if a fault case needs them.
+- **Power on a trunk:** the trunk carries all three motors' current, so it is sized for the sum and fused at the source, with a small fuse in each drop (see Fusing principle).
 - **Extendable:** later actuators (elbow RS02, lower-arm yaw RS00) become more drops on the same trunk, and the terminator moves to the new end.
 - **Crossing joints:** the trunk passes the roll and upper-yaw joints, so it bends and twists with them. This is the open routing problem from the handoff (L05 to L11: slack at pitch, turn at yaw). On the bench, leave visible service loops at each joint and note how much each one uses through the range; that measurement feeds the fixed-length harness.
 - **Unused second port:** it is probably paralleled with the used one inside the drive, so treat its pins as live at bus voltage (**to measure** with a multimeter once powered). Cap or tape it so it cannot short against tools, screws or the printed parts.
+
+## Fusing principle
+
+> "i'd rather we blow fuses in a cheap wiring trunk than in a $500 actuator" (Joey, 2026-11-06)
+
+- **One fused trunk per arm** from the power board (bench: from the PSU through the E-stop). The left and right arms never share a fuse or a trunk.
+- **Nothing passes through an actuator.** Every motor is a drop off the trunk on one port; second ports are capped. No arm current flows through any drive's board or second connector.
+- **Fuse opens before anything else is stressed.** Trunk fuse is fast-blow and below every rating it protects: XT30 contacts 20 A at 16 AWG (handoff), 16 AWG silicone about 20 A+ in a bundle (assumption). Bench: **10 A** (3 A for first power-up). Final 48 V pack: **≤ 15 A** fast-blow, confirmed against measured arm bus current.
+- **Drop fuses in the trunk (recommended):** a mini-blade (ATM) holder spliced into the + lead of each drop, inside the trunk segment, so a fault at one motor opens a cheap fuse in the harness and the rest of the arm keeps running. Starting values: **7.5 A** per RS03, **5 A** per RS02, **3 A** for the RS00. These limit damage from a wiring fault or a shorted drop; no fuse can save a drive from its own internal failure.
+- Fuses live where they can be reached: trunk fuse at the power board, drop fuses at segment ends near a service opening, not buried in a link.
 
 ## 3. Termination and ground
 
@@ -78,7 +88,8 @@ Plug and unplug only with the E-stop open. The drives have input capacitance and
 | 1 + 2 spare | AMASS XT30(2+2)-F.G.B female | RS02 drop |
 | 2 + 2 spare | AMASS XT30UW-F | RS03 power drops |
 | 2 + 4 spare | GH1.25 2-pin housing + crimp contacts (or pre-crimped GH1.25 2-pin leads) | RS03 CAN drops; pre-crimped leads avoid needing a GH crimper |
-| 1 + spare | 10 A ATO fuse + inline holder | Trunk, at the source |
+| 1 + spare | 10 A ATO fuse + inline holder (plus a 3 A for first power-up) | Trunk, at the source |
+| 3 + spares | Inline mini-blade (ATM) holders; 7.5 A ×2, 5 A ×1 | Drop fuses in the trunk |
 | — | Solder sleeves or inline splices for the drops | One power + one CAN splice per drop |
 | 2 m each | 14 AWG silicone, red + black | Trunk |
 | 2 m each | 16 AWG silicone, red + black | Trunk power and drops |
