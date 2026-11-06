@@ -241,9 +241,9 @@ cyl('rs03_waist', 17, 'RS03, waist yaw (existing; 57 + 6 mm adapter in a 40 mm b
 # ---- shell hardpoints (torso coords; from mounts.json: torso X = robot Y, torso Y = robot Z - 810, torso Z = robot X) ----
 HP = {
  'H1': dict(item=19, face='+Z', pts=[(60, 485, 70), (-60, 485, 70)], carries='U1 upper front, top edge'),
- 'H2': dict(item=20, face='-Z', pts=[(60, 485, -70), (-60, 485, -70)], carries='U2 upper back top edge, D3 catch, spine pack'),
- 'H3': dict(item=21, face='+-Z', pts=[(35, 364, 70), (-35, 364, 70), (35, 364, -70), (-35, 364, -70)], carries='U1/U2 bottom, U3/U4 top, D1 frame, spine pack'),
- 'H4': dict(item=22, face='+-Z', pts=[(40, Y_BOT + 10, 70), (-40, Y_BOT + 10, 70), (40, Y_BOT + 10, -70), (-40, Y_BOT + 10, -70)], carries='U3/U4 bottom, D2 frame, spine pack'),
+ 'H2': dict(item=20, face='-Z', pts=[(60, 485, -70), (-60, 485, -70)], carries='U2 upper back top edge, D1 catch, spine pads'),
+ 'H3': dict(item=21, face='+-Z', pts=[(35, 364, 70), (-35, 364, 70), (35, 364, -70), (-35, 364, -70)], carries='U1/U2 bottom, U3/U4 top, D1 frame (Y 374-492), rear: spine rail lip for the D2 magnets (Y 355-372), spine pads'),
+ 'H4': dict(item=22, face='+-Z', pts=[(40, Y_BOT + 10, 70), (-40, Y_BOT + 10, 70), (40, Y_BOT + 10, -70), (-40, Y_BOT + 10, -70)], carries='U3/U4 bottom, D2 battery door bottom hinge (D2 |X| <= 60, Y 175-352), spine pads'),
  'H5': dict(item=23, face='+-X', pts=[(75, 255, 60), (75, 255, -60), (-75, 255, 60), (-75, 255, -60)], carries='U3/U4 sides, V1 grilles'),
  'H6': dict(item=24, face='+-X', pts=[(75, Y_BOT + 10, 35), (75, Y_BOT + 10, -35), (-75, Y_BOT + 10, 35), (-75, Y_BOT + 10, -35)], carries='abdomen band carrier (PROPOSED: outer side faces of the bottom side rails, was the under-face)'),
 }
@@ -263,6 +263,9 @@ for hid, h in HP.items():
         box(f'{hid}_{i}', h['item'], f'Shell hardpoint bracket {hid}, PETG with M3 inserts, on M5 T-nut', lo, hi, COL['hard'], 'hardpoint',
             (n[0] * 40, 0, n[2] * 40), balloon=True, tag=hid, mass_g=8, material='PETG print', carries=h['carries'])
 
+# spine rail lip: bridges the two rear H3 brackets; the D2 battery door's magnets close onto it (shell thread, main 761c62b). Stays below Y 374 (Pi ports).
+box('spine_rail', 21, 'Spine rail lip on the H3 rear brackets, |X| <= 60, Y 355-372, 12 mm proud of the frame rear face: magnet catch for the D2 battery door (shell thread, main 761c62b)', (-60, 355, -82), (60, 372, -70), COL['hard'], 'hardpoint',
+    (0, 0, -40), balloon=True, tag='H3 rail', mass_g=12, material='PETG print, part of H3 rear', carries='D2 door magnets (3), joins the two H3 rear brackets')
 # ---- packaging envelopes for Joey's component list (2026-11-06): proposed positions, not designed parts ----
 PRO = '#26b3c9'
 box('jetson', 29, 'Jetson Orin Nano dev kit envelope 103 x 90.5 x 45 including its fan, second shelf above the Pi, ports to the rear', (-51.5, 410, -45.5), (51.5, 455, 45), PRO, 'proposed', (0, 110, 0), balloon=True, mass_g=250, material='proposed', opacity=0.75,
@@ -277,14 +280,12 @@ box('pack', 32, '13S2P 21700 pack, 95 x 162 x 79, 2.2 kg: 26 x Molicel P45B/P50B
 for sx in (1, -1):
     box(f'packrail_{sx}', 40, 'Pack tray rails, printed, on the lower post inner faces (2)', (min(sx * 47.5, sx * 55), 180, -50), (max(sx * 47.5, sx * 55), 348, 40), COL['printed'], 'electronics', (0, 0, -60), balloon=(sx > 0), mass_g=40, material='PETG print', opacity=0.8)
 box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 70, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
-# ---- spine pack (rear crush pads, outside the shell; shell manufacturing thread geometry, main 074cab4) ----
+# ---- spine pads (rear crush pads, outside the shell; shell manufacturing thread geometry, main 761c62b: four pads, bridges removed for the D2 battery door) ----
 first = True
 for sx in (1, -1):
-    for (x0, x1, y0, y1, nm) in ((58, 147, 368, 481, 'upper'), (54, 127, 166, 295, 'lower')):
-        box(f'spine_{nm}_{sx}', 26, 'TPU spine pads (6), 30 mm proud of the shell back, on standoffs to H2/H3/H4 (shell part, outside the shell)', (min(sx * x0, sx * x1), y0, -124), (max(sx * x0, sx * x1), y1, -77),
-            COL['tpu'], 'shellpart', (0, 0, -120), balloon=first, mass_g=70, material='TPU 95A gyroid', opacity=0.7); first = False
-for (y0, y1) in ((298, 312), (316, 355)):
-    box(f'spine_bridge_{y0}', 26, 'TPU spine bridge', (-63, y0, -124), (63, y1, -77), COL['tpu'], 'shellpart', (0, 0, -120), mass_g=27, material='TPU 95A gyroid', opacity=0.7)
+    for (x0, x1, y0, y1, nm) in ((68, 147, 368, 481, 'upper'), (64, 116, 166, 295, 'lower')):
+        box(f'spine_{nm}_{sx}', 26, 'TPU spine pads (4), 30 mm proud of the shell back, on standoffs to H2/H3/H4 (shell part, outside the shell); inner edges 6 mm clear of D1/D2', (min(sx * x0, sx * x1), y0, -124), (max(sx * x0, sx * x1), y1, -77),
+            COL['tpu'], 'shellpart', (0, 0, -120), balloon=first, mass_g=65, material='TPU 95A gyroid', opacity=0.7); first = False
 # pelvis ring (draft, hip stage) and the shoulder joint line markers
 box('pelvis_ghost', 28, 'Pelvis ring, DRAFT (hip stage, not this release)', (-107.5, 0, -130), (107.5, 115, 130), '#b9bec8', 'future', (0, -330, 0), balloon=True, mass_g=0, material='draft envelope 215 x 260 x 115', opacity=0.25)
 

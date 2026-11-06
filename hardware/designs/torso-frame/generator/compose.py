@@ -143,10 +143,11 @@ sheet([(crop(p1, w=1150), 'Front section at Z 0'), (crop(p2, w=935), 'Side secti
              'The 13S2P pack (yellow) fills the rear 79 mm of the lower box on printed tray rails and slides out the back through D2; the power and bus board stands in front of it inside the frame, with the intake fan in the front panel.'])
 # 7. hardpoints
 h1, m1 = load('hp_front'); h2, m2 = load('hp_rear'); balloons(h1, m1, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24); balloons(h2, m2, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24)
-sheet([(crop(h1, w=1500), 'Shell hardpoint brackets H1-H6 on the frame, from the front left (frame ghosted)'), (crop(h2, w=1500), 'From the back right, with the six TPU spine pads and the collars (shell parts, outside the shell)')],
+sheet([(crop(h1, w=1500), 'Shell hardpoint brackets H1-H6 on the frame, from the front left (frame ghosted)'), (crop(h2, w=1500), 'From the back right, with the four TPU spine pads, the H3 spine rail lip and the collars')],
       'Internal torso frame rev A: shell interfaces', 'FRAME_HARDPOINTS.png',
       notes=['20 printed PETG brackets on M5 T-nuts carry the M3 inserts; panels only have holes and pins. H6 is on the outer faces of the bottom side rails (moved off the under-face, agreed with the shell thread).',
-             'H3 rear brackets stay below Y 374 for the Pi ports. Gussets are not mounts. Spine pads: |X| 58-147 x Y 368-481 and |X| 54-127 x Y 166-295 plus two bridges, Z -77 to -124, on standoffs to H2/H3/H4.'])
+             'H3 rear brackets stay below Y 374 for the Pi ports and carry the spine rail lip (|X| <= 60, Y 355-372) that the D2 battery door (|X| <= 60, Y 175-352, bottom hinge on H4) closes onto with magnets. D1 is Y 374-492.',
+             'Gussets are not mounts. Spine pads (4): |X| 68-147 x Y 368-481 and |X| 64-116 x Y 166-295, Z -77 to -124, on standoffs to H2/H3/H4 (shell thread, main 761c62b).'])
 # 8. changes
 b1, _ = load('built'); b2, _ = load('new_frame')
 sheet([(crop(b1, w=1500), 'As built: single 150 x 140 x 340 box, 12 rails + 2 shelf side rails, RS03 faces at X +-97'),

@@ -129,7 +129,7 @@ No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
 | 18 | Waist yaw adapter plate | 1 | PETG | 120 | existing; bolt pattern **unresolved** |
 | 19–24 | Shell hardpoint brackets H1–H6, PETG with M3 inserts on M5 T-nuts | 20 | PETG | 160 | shell thread; H6 moved (section 5) |
 | 25 | Shell collar halves on the RS03 outboard M4 holes | 2 pairs | PETG | 30 | shell part |
-| 26 | TPU spine pads (2 upper, 2 lower, 2 bridges), 30 mm proud of the shell back, on H2/H3/H4 standoffs | 6 | TPU 95A | 333 | shell thread, main 074cab4 |
+| 26 | TPU spine pads (2 upper, 2 lower), 30 mm proud of the shell back, on H2/H3/H4 standoffs | 4 | TPU 95A | 260 | shell thread, main 761c62b (bridges removed for the D2 battery door) |
 | 27 | Harness trunks: Pi/PDB to each shoulder RS03, two front-corner drops to the waist, step bus | 5 | 12–14 AWG + CAN pair | 220 | routing proposal |
 | 28 | Pelvis ring | 1 | draft | | hip stage, shown only in the viewer |
 | 29 | Jetson Orin Nano dev kit envelope 103 × 90.5 × 45 including its fan | 1 | proposed | 250 | second shelf, Y 410 to 455, ports to the rear; 20 mm to the top rails |
@@ -166,16 +166,16 @@ the inward roll limit (15°); that is between the arm and the shell.
 | Point | On (torso coords) | Qty | Carries | Status |
 | --- | --- | --- | --- | --- |
 | H1 | Top front rail, front face, X ±60, Y 485 | 2 | U1 top | free |
-| H2 | Top rear rail, rear face, X ±60, Y 485 | 2 | U2 top, D3 catch, spine pads | free |
-| H3 | Shared rail front and rear faces, X ±35, Y 364 | 4 | U1/U2 bottom, U3/U4 top, D1 frame, spine pads | free; **rear brackets stay below Y 374** (Pi ports) |
-| H4 | Bottom rails front and rear faces, X ±40, Y 165 | 4 | U3/U4 bottom, D2 frame, spine pads | free |
+| H2 | Top rear rail, rear face, X ±60, Y 485 | 2 | U2 top, D1 catch, spine pads | free |
+| H3 | Shared rail front and rear faces, X ±35, Y 364 | 4 | U1/U2 bottom, U3/U4 top, D1 frame; the two rear brackets also carry the **spine rail lip** (\|X\| ≤ 60, Y 355 to 372, 12 mm proud) that the D2 battery door closes onto with magnets | free; **rear brackets stay below Y 374** (Pi ports); the lip tops out at 372 |
+| H4 | Bottom rails front and rear faces, X ±40, Y 165 | 4 | U3/U4 bottom, D2 battery door bottom hinge, spine pads | free |
 | H5 | Lower post outer side faces, X ±75, Y 255, Z ±60 | 4 | U3/U4 sides, V1 grilles | free (gusset starts at Y 285) |
 | H6 | **Moved:** bottom side rail outer faces, X ±75, Y 165, Z ±35 | 4 | abdomen band carrier | agreed; the under-face stays free for the hip interface |
 | C | Pitch RS03 outboard M4 holes | 2 | collars | free |
 
-Gussets are not mounts. Doors: D1 at |X| < 62, Y 360 to 492 (rear, the shell thread's current extent); D2 at |X| < 58, Y 167 to 295 (rear). The spine pads (30 mm
-TPU, Z −94 to −125) flank the doors: upper |X| 62 to 135, Y 370 to 480; lower |X| 58 to 110, Y 170 to 295; bridge |X| < 60,
-Y 300 to 355. They give the 30 to 40 mm of rear crush the tip-over FEA needs (`../torso-stepped/README.md`).
+Gussets are not mounts. Doors (shell thread, main 761c62b): D1 at |X| < 62, Y 374 to 492 (rear); D2 is the battery door at |X| ≤ 60, Y 175 to 352 (rear), bottom hinge on H4,
+magnets onto the H3 spine rail lip, M3 lock screw for runs. The four spine pads (30 mm TPU, Z −77 to −124) flank the doors: upper |X| 68 to 147, Y 368 to 481; lower |X| 64 to 116,
+Y 166 to 295; the bridges are gone (the door is there now). They give the 30 to 40 mm of rear crush the tip-over FEA needs (`../torso-stepped/README.md`).
 
 ## 6. Internal packaging check (Joey's list, 2026-11-06)
 
@@ -183,7 +183,7 @@ Y 300 to 355. They give the 30 to 40 mm of rear crush the tip-over FEA needs (`.
 `hardware/electrical/power/custom-21700-pack.md`. Pack box 95 × 162 × 79 (26 Molicel P45B/P50B in a 4 × 7 holder grid, cells along Z),
 2.2 kg, 46.8 V nominal, 54.6 V full, 421 to 468 Wh. It sits at |X| ≤ 47.5, Y 183 to 345, Z −45 to +34 on two printed tray rails on the
 lower post inner faces, 7.5 mm to the posts, 8 mm to the bottom and shared rails, 25 mm inside the frame rear face, and slides out the
-back through D2 (D2 must grow to about Y 175 to 350 and stay ≥ 100 wide: shell thread). The **power and bus board** (Joey 06:14Z: one
+back through D2 (now the battery door, |X| ≤ 60, Y 175 to 352: shell thread, main 761c62b). The **power and bus board** (Joey 06:14Z: one
 board with the 13S BMS on it, not designed yet; envelope 100 × 150 × 24) stands between the pack and the front rail plane at Z 34 to 58,
 X ±50, Y 190 to 340, flush with the frame front face; the intake fan sits in the front panel grille in front of it at Y 250 to 290. The
 board carries the 13 balance leads, precharge, E-stop or contactor, the pack fuse, the 48 V motor bus to the two shoulders and the waist,

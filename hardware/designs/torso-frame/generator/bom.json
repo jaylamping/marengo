@@ -162,8 +162,8 @@
  {
   "item": 21,
   "name": "Shell hardpoint bracket H3, PETG with M3 inserts, on M5 T-nut",
-  "qty": 4,
-  "mass_g": 32,
+  "qty": 5,
+  "mass_g": 44,
   "material": "PETG print",
   "group": "hardpoint"
  },
@@ -202,8 +202,8 @@
  {
   "item": 26,
   "name": "TPU spine pads",
-  "qty": 6,
-  "mass_g": 334,
+  "qty": 4,
+  "mass_g": 260,
   "material": "TPU 95A gyroid",
   "group": "shellpart"
  },
