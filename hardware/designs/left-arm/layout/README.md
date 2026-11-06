@@ -31,6 +31,7 @@ Open items:
 - P1 hole pattern: the 7.83 mm residual looks like a 30° clocking miss, but that is unmeasured.
 - Elbow output is one-sided, 22.7 mm outboard of the arm line, and its load is unchecked.
 - No upper-arm or forearm structure, motion sweep, or cable routing yet.
+- Rename the swapped fixed pitch brackets, `marengo_shoulder_pitch_mount_bracket_left` and `_right`, in CAD.
 
 Images: `LEFT_ARM_LAYOUT_FRONT.png`, `LEFT_ARM_LAYOUT_ISO.png`. The right arm shown is the old torso export,
 for comparison only.
