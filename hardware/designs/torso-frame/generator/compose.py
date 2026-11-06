@@ -123,24 +123,24 @@ sheet([(crop(fr, w=1500), 'Front (looking -Z)'), (crop(sd, w=1100), 'Left side (
       'Internal torso frame rev A: dimensions', 'FRAME_DIMENSIONS.png',
       notes=['All in mm. Inner clear: lower box 110 x 100, upper box 186 x 100 (2020 walls). Shoulder joint line (arm thread) at X +-208.49; gusset plates span Y 285 to 425. Full table in README.md.'])
 # 5. inside, exploded
-im, m = load('inside_exp'); balloons(im, m, items={12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 32, 33, 35}, dist=120)
-sheet([(crop(im, (300, 0, 2900, 2400), w=1800), 'Everything inside the frame (D3): shoulder RS03s and pitch brackets outward, Pi and Jetson stack up, the two packs slide out the back, docks and power board forward, waist parts below')],
-      'Internal torso frame rev A: inside the frame', 'FRAME_INSIDE.png', side=bomtable({12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 32, 33, 35}),
-      notes=['Frame ghosted. Harness (yellow): exits inboard from each RS03 top-rear connector flat (Joey: one port per motor, low-front capped), step bus to the power board, two drops in the front corners to the waist.'])
+im, m = load('inside_exp'); balloons(im, m, items={12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 32, 33, 40}, dist=120)
+sheet([(crop(im, (300, 0, 2900, 2400), w=1800), 'Everything inside the frame: shoulder RS03s and pitch brackets outward, Pi and Jetson stack up, the 13S2P pack slides out the back, power and bus board forward, waist parts below')],
+      'Internal torso frame rev A: inside the frame', 'FRAME_INSIDE.png', side=bomtable({12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 32, 33, 40}),
+      notes=['Frame ghosted. Harness (yellow): exits inboard from each RS03 top-rear connector flat (Joey: one port per motor, low-front capped), step bus to the power and bus board, two drops in the front corners to the waist.'])
 # 6. packaging 2D
 p1 = Image.open('out/pack2d_front.png').convert('RGB'); p2 = Image.open('out/pack2d_side.png').convert('RGB'); p3 = Image.open('out/pack2d_plan.png').convert('RGB')
 fits = table([['Pi 5 + CAN HAT', '85 x 56 x 21', 'upper bay, shelf', 'yes, as built'], ['Jetson Orin Nano dev kit', '103 x 90.5 x 45 incl. fan', 'upper bay, 2nd shelf Y 410', 'yes, 26.9 mm/side, 20 above'],
-              ['FlexVolt-class packs x 2', '160 x 102 x 95, 1.5 kg each', 'lower box, end-on, stacked (D3)', 'yes, 4 mm/side; 44 mm proud at the back'],
-              ['Pack docks x 2', 'plate + rail adapter, 12 thick', 'front rail plane, Z 46-58', 'yes'], ['Power board', '100 x 150 x 24 assumed', 'front face, Z 58-82, in front of the docks', 'yes, 12 mm proud; shell gap to confirm'],
-              ['Pitch RS03 x 2', 'D99 x 57', 'through the upper sides', 'yes (0.5 mm to depth)'], ['Waist RS03', 'D99 x 57', '20 mm waist bay (D3)', 'NO: 43 mm into the draft pelvis (hip stage)'],
-              ['Third board / USB hub', '90 x 60 x 20', 'none in D3', 'NO: pelvis or over the Pi'], ['Fixed pelvis cell (Joey)', 'placeholder', 'pelvis', 'hip stage'],
+              ['13S2P 21700 pack', '95 x 162 x 79, 2.2 kg', 'lower box, Z -45 to 34, out through D2', 'yes, 7.5 mm/side, 8 top/bottom'],
+              ['Power and bus board (BMS on it)', '100 x 150 x 24 assumed', 'in front of the pack, Z 34-58, inside the frame', 'yes, flush with the front face'],
+              ['Pitch RS03 x 2', 'D99 x 57', 'through the upper sides', 'yes (0.5 mm to depth)'], ['Waist RS03', 'D99 x 57 + 6 adapter', '40 mm waist bay', 'NO: 23 mm short (hip stage)'],
+              ['Third board / USB hub', '90 x 60 x 20', 'no home yet', 'NO: pelvis or over the Pi'], ['Fixed pelvis cell (Joey)', 'placeholder', 'pelvis', 'hip stage'],
               ['Fans', '3 x 40 x 40 x 10', '2 exhaust in the D1 door plane, 1 intake on the power board', 'provisional'],
               ['Sensors', 'IMU; head cams later', 'shelf; top rails', 'yes'], ['Harness', '2 trunks + CAN', 'front corners beside the packs, step bus', 'yes, off H1-H6 slots']],
              [420, 420, 440, 420], size=24, head=['Component', 'Envelope, mm', 'Where', 'Fits?'])
 sheet([(crop(p1, w=1150), 'Front section at Z 0'), (crop(p2, w=935), 'Side section at X 0'), (crop(p3, w=1150), 'Plan section through the shoulder plane')],
       'Internal torso frame rev A: internal packaging check', 'FRAME_PACKAGING.png', side=fits,
-      notes=['Red dashed boxes are the bays. Upper bay 156.8 x 100 x 101.4 between the RS03 rear bosses; lower box 110 x 100 x 198.6 above the bottom rails (D3 bottom Y 135); waist bay 150 x 140 x 20 under the frame.',
-             'D3: the two packs fill the lower box and slide out the back; their terminal ends sit on docks at the front rail plane with the power board standing in front, 12 mm proud of the frame face.'])
+      notes=['Red dashed boxes are the bays. Upper bay 156.8 x 100 x 101.4 between the RS03 rear bosses; lower box 110 x 100 x 178.6 above the bottom rails; waist bay 150 x 140 x 40 under the frame.',
+             'The 13S2P pack (yellow) fills the rear 79 mm of the lower box on printed tray rails and slides out the back through D2; the power and bus board stands in front of it inside the frame, with the intake fan in the front panel.'])
 # 7. hardpoints
 h1, m1 = load('hp_front'); h2, m2 = load('hp_rear'); balloons(h1, m1, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24); balloons(h2, m2, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24)
 sheet([(crop(h1, w=1500), 'Shell hardpoint brackets H1-H6 on the frame, from the front left (frame ghosted)'), (crop(h2, w=1500), 'From the back right, with the six TPU spine pads and the collars (shell parts, outside the shell)')],

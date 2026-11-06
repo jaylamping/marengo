@@ -57,12 +57,9 @@ Two-box 2020 frame, 6063-T5 T-slot, 6 mm slots. Same 340 mm height as the built 
 
 Total extrusion 3124 mm, of which 1024 mm is new stock. 32 corner brackets.
 
-**D3 cut plan (2026-11-06 05:45Z).** The lower box is 20 mm taller (bottom Y 135), so a lower post is 218.62 and 218.62 + 121.38 = 340 leaves
-nothing for a kerf. The four lower posts are therefore NEW (4 × 218.62), and the four upper posts (121.38) come out of TWO of the built
-340 mm posts, two cuts each, 94 mm scrap per post. Two built 340s stay spare. New stock: 4 × 218.62 + 2 × 226 + 2 × 186 + 2 × 100 =
-1898 mm; one more 4 × 500 mm pack (`B08Y8KCJW4`) nests it as 218.62 + 226, 218.62 + 226, 218.62 + 186, 218.62 + 186 (444.6 and 404.6
-per stick, kerf included) with the two 100 mm shelf rails cut from the two spare 110 mm top rails. Spare after the rebuild: two 340 mm
-posts, 2 × ~95 mm stick ends and 2 × 94 mm post offcuts.
+The four built 340 mm posts become 198.62 + 121.38, two cuts each, the upper post measured to 121.38 (the 20 mm remainder absorbs the
+kerfs). New stock: 2 × 226, 2 × 186, 2 × 100 = 1024 mm; one more 4 × 500 mm pack (`B08Y8KCJW4`) covers it, and the two spare 110 mm
+top rails can become the two 100 mm shelf rails instead (then 824 mm new). Spare after the rebuild: four post offcuts.
 
 **Joint count:** 32 corner brackets with 2 × M5 T-nuts each (bottom corners 8, lower post tops 4, upper post bottoms 4,
 top corners 8, shelf rail ends 4, step side rail ends 4). 24 are 2028; 8 are 2020 brackets (20 mm legs): the 4 top inner-X corners,
@@ -171,9 +168,9 @@ the inward roll limit (15°); that is between the arm and the shell.
 | H1 | Top front rail, front face, X ±60, Y 485 | 2 | U1 top | free |
 | H2 | Top rear rail, rear face, X ±60, Y 485 | 2 | U2 top, D3 catch, spine pads | free |
 | H3 | Shared rail front and rear faces, X ±35, Y 364 | 4 | U1/U2 bottom, U3/U4 top, D1 frame, spine pads | free; **rear brackets stay below Y 374** (Pi ports) |
-| H4 | Bottom rails front and rear faces, X ±40, Y 145 (D3) | 4 | U3/U4 bottom, D2 frame, spine pads | free |
+| H4 | Bottom rails front and rear faces, X ±40, Y 165 | 4 | U3/U4 bottom, D2 frame, spine pads | free |
 | H5 | Lower post outer side faces, X ±75, Y 255, Z ±60 | 4 | U3/U4 sides, V1 grilles | free (gusset starts at Y 285) |
-| H6 | **Moved:** bottom side rail outer faces, X ±75, Y 145 (D3), Z ±35 | 4 | abdomen band carrier | agreed; the under-face stays free for the hip interface |
+| H6 | **Moved:** bottom side rail outer faces, X ±75, Y 165, Z ±35 | 4 | abdomen band carrier | agreed; the under-face stays free for the hip interface |
 | C | Pitch RS03 outboard M4 holes | 2 | collars | free |
 
 Gussets are not mounts. Doors: D1 at |X| < 62, Y 360 to 492 (rear, the shell thread's current extent); D2 at |X| < 58, Y 167 to 295 (rear). The spine pads (30 mm
@@ -182,17 +179,17 @@ Y 300 to 355. They give the 30 to 40 mm of rear crush the tip-over FEA needs (`.
 
 ## 6. Internal packaging check (Joey's list, 2026-11-06)
 
-**D3 layout (Joey 05:45Z): two FlexVolt-class 60 V packs end-on through the back.** Pack envelope 160 × 102 × 95, 1.5 kg each (DeWalt
-DCB6112 class; Joey to confirm the pack). Both stack in the lower box at |X| ≤ 51 (4 mm to the posts), Y 158 to 253 and 257 to 352,
-Z −114 to +46: the terminal end faces forward onto a dock on the front rail plane (Z 46 to 58, a printed plate with a DeWalt-pattern
-rail adapter), the rear face stands 44 mm proud of the frame rear face (Z −70), which is 7 to 17 mm past the present shell back line.
-A pack slides straight out the back; nothing in the frame is behind it. The power board (100 × 150 × 24, not designed) stands in front
-of the docks at Z 58 to 82, X ±50, Y 180 to 330, 12 mm proud of the frame front face, with the intake fan on it at Y 235 to 275 in the
-front panel grille. Electrical: a 15S pack is 63 V full, over the RS03 60 V limit, so the two packs run in 20 V mode in series (10S,
-36 V nominal, 42 V full, 432 Wh); the power board does low-voltage cutoff, per-pack fuse, precharge, ideal-diode OR-ing for hot swap
-and the 48/12/5 V rails. The fixed pelvis cell Joey asked for is a hip-stage item. Total pack mass 3.0 kg plus docks.
+**Power (Joey 2026-11-06 06:13Z): a custom 13S2P 21700 pack in the lower box, frame geometry unchanged.** Study:
+`hardware/electrical/power/custom-21700-pack.md`. Pack box 95 × 162 × 79 (26 Molicel P45B/P50B in a 4 × 7 holder grid, cells along Z),
+2.2 kg, 46.8 V nominal, 54.6 V full, 421 to 468 Wh. It sits at |X| ≤ 47.5, Y 183 to 345, Z −45 to +34 on two printed tray rails on the
+lower post inner faces, 7.5 mm to the posts, 8 mm to the bottom and shared rails, 25 mm inside the frame rear face, and slides out the
+back through D2 (D2 must grow to about Y 175 to 350 and stay ≥ 100 wide: shell thread). The **power and bus board** (Joey 06:14Z: one
+board with the 13S BMS on it, not designed yet; envelope 100 × 150 × 24) stands between the pack and the front rail plane at Z 34 to 58,
+X ±50, Y 190 to 340, flush with the frame front face; the intake fan sits in the front panel grille in front of it at Y 250 to 290. The
+board carries the 13 balance leads, precharge, E-stop or contactor, the pack fuse, the 48 V motor bus to the two shoulders and the waist,
+12 and 5 V rails and CAN. The FlexVolt options (D1 to D3) stay in `generator/variants.py` as the record of what was rejected.
 
-Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 × 100 × 198.6 between the bottom rails and the shared rails (D3, bottom Y 135); waist bay 150 × 140 × 40 below the frame.
+Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 × 100 × 178.6 between the bottom rails and the shared rails; waist bay 150 × 140 × 40 below the frame.
 
 | Component | Envelope | Where | Fits? |
 | --- | --- | --- | --- |
@@ -200,7 +197,7 @@ Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 �
 | Jetson Orin Nano dev kit | 103 × 90.5 × 35, +10 for its fan | upper bay, second shelf at Y 410, ports rear | **yes**, 30 mm left under the top rails. Needs a shelf bracket on the shelf rails or the posts |
 | Third compute board / USB hub | up to 90 × 60 × 20 | lower box front, standing | yes |
 | Shoulder pitch RS03 × 2 | Ø99 × 57 | through the upper box sides | yes (0.5 mm per side to the 100 inner depth, as built) |
-| Waist yaw RS03 | Ø99 × 57 | 40 mm waist bay | **no**: with the D3 bottom at Y 135 the waist bay is 20 mm and the motor (Y 72 to 129) sits 43 mm into the draft pelvis. Hip stage: the pelvis is being redesigned anyway for Joey's fixed cell |
+| Waist yaw RS03 | Ø99 × 57 | 40 mm waist bay | **no**, 23 mm short including the 6 mm adapter plate (motor Y 92 to 149). Hip stage: pocket the adapter, add the +70 waist section, or redesign the pelvis around Joey's fixed cell |
 | PDB + converters + E-stop + main switch | 100 × 90 × 28 assumed | lower box rear, behind D2 | yes; the board is not designed yet |
 | Battery, main 48 V pack | 185 × 165 × 90 draft | pelvis | **not in the torso frame**. The lower box can take two 6S 5000 mAh packs standing (155 × 50 × 45 each, ~1.5 kg) if Joey wants torso batteries, at the cost of the PDB depth and a higher centre of mass |
 | M18 HD12 aux bay (handoff draft) | 168 × 98 × 112 | upper back cantilever | **no**: the shell back has 10 to 17 mm to the frame and the spine pads sit there. Recommend dropping it or moving it to the pelvis |
@@ -214,7 +211,7 @@ that would reopen the frame.
 
 ## 7. What changes from the built frame
 
-0. (D3) Frame bottom moves from Y 155 to Y 135: the torso is 360 tall, the shoulder axis 289.9 above the frame bottom. Four new 218.6 lower posts; upper posts cut from two built posts. Two FlexVolt-class packs in the lower box, docks on the front rail plane, power board on the front face. H4 and H6 move down 20 (Y 145).
+0. (Power) No geometry change. The 13S2P pack and the power and bus board live in the lower box; two printed tray rails on the lower post inner faces are the only new parts.
 
 1. Cut the four 340 mm posts into 198.6 (lower) + 121.4 (upper).
 2. New rails: 2 × 226 shared step rails, 2 × 186 top rails, 2 × 100 shelf rails.
@@ -240,7 +237,7 @@ that would reopen the frame.
 
 ## 9. Open items (Joey)
 
-0. **Battery**: D3 chosen (`FRAME_OPTIONS_D.png`, Joey 05:45Z). Confirm the pack model (height especially) so the dock and the bay are sized to it. The third compute board has no home in D3 (packs fill the lower box): pelvis, or a second layer over the Pi.
+0. **Power**: 13S2P custom pack locked (Joey 06:13Z). Next: the power and bus board design (KiCad), the pack build, and D2 sized to pass the pack. The third compute board has no home (pack and board fill the lower box): pelvis, or a second layer over the Pi.
 
 1. **Photo of the built frame bottom**: how the waist adapter bolts on (the hip interface depends on it). Shelf footprint is now from the CAD.
 1a. **Which connector flat each pitch RS03 has** (A or B above), for the harness exit.
@@ -257,7 +254,7 @@ were modelled 20 mm long; gusset mass; step side rail brackets ran into the shel
 cooler and the fan positions; the DXF with the R15 corner now exists here. Still open before any cut: the built-rail inventory photo,
 a slot-by-slot nut map and build order, the
 step joint's capacity along the slots (friction only; reviewers want an end anchor), the back-fall crush path through the pads,
-and the battery decision above.
+and the pack and bus board designs.
 
 Gate review packet (reviewer CLIs, per the project rule): this README, `generator/parts.json`, the sheets, the cut list, the
 torso-stepped FEA. Then the SolidWorks master on Joey-PC gets the shelf rails, second shelf, PDB envelope and hardpoint brackets,
