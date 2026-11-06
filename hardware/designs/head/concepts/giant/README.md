@@ -74,3 +74,10 @@ bevelled chin, with a sloped floor back to the hinge; the head rides 16 mm highe
 Pass 5 (G2) was rejected: the jaw got bigger. Joey meant the jaw's TOP edge should come down. `build_head3.py G3` ->
 `HEAD_GIANT_PASS6.png` (render `?stl=G3&hz=-6`): jaw top 68 (was 93), crest tip 74, jaw 44 mm tall, small hinge boss,
 slight forward lean to a small bevelled chin.
+
+## Pass 7 (current): proportions from the Funko front and the collar poster
+
+`build_head3.py G4` -> `HEAD_GIANT_PASS7.png` (render `?stl=G4&hz=-6`). Joey 11:46Z sent a Funko front (proportions
+only, do NOT copy its chibi style) and a 3/4 poster crop. Head 128 W x 154 H with a flatter crown (dome_m 2.6), eyes
+near mid-height and wider apart, mohawk tip just above the jaw, short jaw band (44 mm) with a flat front and angled
+corner facets (jaw_facet), wide stepped collar (r74).
