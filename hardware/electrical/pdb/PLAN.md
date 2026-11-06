@@ -212,6 +212,22 @@ homing before `READY`).
 - **Regen clamp:** an active shunt regulator on VMOT: comparator at 57.5 V switches a FET into an external brake resistor
   (aluminium-clad, 50 W, 10 Ω class, bolted to a 2020 rail so the frame is the heatsink; off-board, two-wire connector). Plus
   a TVS for fast edges. A TVS alone cannot do this job: a 58 V-standoff TVS clamps at about 90 V.
+- **Regen path in every state** (trunk thread question, 08:57Z). Rules: the port switches are single FETs (no back-to-back
+  reverse blocking), so their body diodes always pass load-side current back to VMOT. The E-stop banks are also single-direction,
+  with their body diodes pointing VMOT → VSYS. The clamp sits on VMOT itself and **powers itself from VMOT** (comparator and gate
+  drive fed by the voltage they clamp), so it works with the supervisor, the BMS and the pack all off.
+
+  | State | Where a backdriven arm's energy goes |
+  | --- | --- |
+  | Port on | port FET → VMOT → pack (if CHG on) or clamp |
+  | Port off or tripped | port FET body diode → VMOT → clamp |
+  | E-stop open | port → VMOT → clamp; also E-stop body diodes → VSYS → pack if the BMS allows |
+  | Board unpowered, pack connected | as E-stop open; clamp self-powered |
+  | Pack removed | port → VMOT → self-powered clamp |
+  | **Port fuse blown** | **isolated from the board.** Covered by a small per-port active clamp on the load side, after the fuse (59 V, about 20 W, sized for a hand-pushed or falling arm, not a full leg). A plain TVS can't do it: one that stays off at 54.6 V clamps near 80 V |
+
+  Bench check before relying on any of this: backdrive an unpowered RS03 by hand and scope its bus voltage. The drives'
+  anti-backdrive feature (RS03 manual 4.2.5) may short the phases when unpowered and make the energy small.
 - **Bulk:** about 2 mF of low-ESR polymer or low-profile electrolytics on VMOT. Standard 63 V cans are 25 mm tall and break the
   24 mm envelope, so they lie down or are replaced by arrays of shorter ones.
 
@@ -467,6 +483,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.9 | 2026-11-06 | Regen path in every state, self-powered clamp, per-port load-side clamp (trunk thread question) |
 | 0.8 | 2026-11-06 | Port fuses and holders must be 58 V DC rated, not 32 V blades (trunk thread flag) |
 | 0.7 | 2026-11-06 | Junction boards ruled out (Joey 08:35Z): per-motor current from drive reports; port-side CAN TVS, 58 V-tolerant transceivers |
 | 0.6 | 2026-11-06 | Board family (6a): HP, LP, Pi power stub, pack sense board; no XT breakouts; per-motor sensing on junction boards |
