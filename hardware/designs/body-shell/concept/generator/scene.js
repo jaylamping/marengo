@@ -138,8 +138,8 @@ const WX = Number(q.get('wx') ?? 10); // waist widening per side (Joey 2026-11-0
 const TAPER_Z = ZS - 46 - 65;
 // Manufacturing thread 2026-11-06: frame_clearance.py found the back too shallow for the 2020 frame (rear corners
 // through the wall at the frame bottom, <1 mm at the gusset corners, <8 mm across the back). bd deepens the back
-// everywhere, bdlo adds more toward the frame bottom. Defaults 0 = locked baseline.
-const BD = Number(q.get('bd') ?? 0), BDLO = Number(q.get('bdlo') ?? 0);
+// everywhere, bdlo adds more toward the frame bottom. Joey approved 2026-11-06: defaults bd=10 bdlo=10 nlo=1 wlo=4; pass 0s for the old baseline.
+const BD = Number(q.get('bd') ?? 10), BDLO = Number(q.get('bdlo') ?? 10);
 const bdz = (z) => BD + BDLO * (1 - Math.min(1, Math.max(0, (z - (F0 - 6)) / 170)));
 const chest = [
   [F0 - 6, 79 + WX, 80, 76, 3.6],
@@ -159,7 +159,7 @@ const chest = [
   [F1 + 41, 68, 55, 58, 2.7],
   [F1 + 48, 42, 44, 46, 2.4],
 ];
-const NLO = Number(q.get('nlo') ?? 0), WLO = Number(q.get('wlo') ?? 0);   // squarer / wider section at the frame bottom (clears the lower-box corners)
+const NLO = Number(q.get('nlo') ?? 1.0), WLO = Number(q.get('wlo') ?? 4);   // squarer / wider section at the frame bottom (clears the lower-box corners)
 for (const r of chest) { r[3] += bdz(r[0]); const lo = 1 - Math.min(1, Math.max(0, (r[0] - (F0 - 6)) / 170)); r[4] += NLO * lo; r[1] += WLO * lo; r[2] += WLO * 0.5 * lo; }
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
 // so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it

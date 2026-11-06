@@ -1,7 +1,7 @@
 # Body shell: manufacture, mounting and assembly plan
 
 2026-11-06. Thread "Manufacture and assemble the body shell". **Study, not a released part.** The geometry is the locked
-concept baseline (`../concept/`) made solid with a 2.4 mm wall, plus one clearance fix that is waiting for Joey's OK (section 1).
+concept baseline (`../concept/`) made solid with a 2.4 mm wall, plus the back clearance fix Joey approved on 2026-11-06 (section 1).
 Nothing here is cleared to print: gate-2 review comes first (section 9).
 
 Evidence labels follow the project convention: **script check** (ran here, reproducible), **estimate**, **assumption**, **unresolved**.
@@ -31,7 +31,7 @@ The earlier x-ray check reported 15 mm or more to the gusset plates. This row-by
 
 **Fix (generator params `bd=10&bdlo=10&nlo=1.0&wlo=4`):** back 10 mm deeper, 20 mm deeper at the frame bottom; bottom of the chest
 4 mm wider per side and slightly squarer. The front, shoulders, socket, collar and waist bands are untouched. Chest depth goes from
-212 to 222 mm. All renders and numbers in this folder use the fix. Defaults stay at the baseline so it can still be reproduced.
+212 to 222 mm. All renders and numbers in this folder use the fix. **Approved by Joey 2026-11-06** and now the generator default; pass `bd=0&bdlo=0&nlo=0&wlo=0` for the old baseline.
 
 **Cross-thread consequence:** the arm thread's tip-over FEA assumes 40 mm of shell and link crush. The shell has 8 to 17 mm of gap to the
 frame at the back and sides (14 to 55 mm at the front). A backward fall onto the shell alone gives far less crush than assumed, so
@@ -188,7 +188,7 @@ loading is harsher than a real fall, but it is the sizing target.
 Hardpoints checked in CAD: H1, H2, H4, H5, C and H3 free. **H3 rear bracket stays below Y 374 (torso frame)**: the Pi sits above it and its
 rear ports need plug room in the gap behind D1. H6 needs a check on the robot (waist adapter not in CAD).
 
-1. **Joey:** OK the back clearance fix (section 1).
+1. ~~Joey: OK the back clearance fix~~ approved 2026-11-06.
 2. Arm thread: keep hardpoint slots free (section 4), and update the tip-over crush distance (section 1).
 3. Model the chest shield over the sternum seam; seat the D1 louvres.
 4. SolidWorks panel modelling on Joey-PC (stage 1), then FEA and slicing.
@@ -197,6 +197,6 @@ rear ports need plug room in the gap behind D1. H6 needs a check on the robot (w
 ## Reproduce
 
 In `../concept/generator/`: `npm install three@0.170.0`, serve on 8765 (`python3 -m http.server 8765`), then
-`node dump.js "bd=10&bdlo=10&nlo=1.0&wlo=4" out/grids.json`, `python3 split_check.py`, `python3 frame_clearance.py`,
+`node dump.js "" out/grids.json`, `python3 split_check.py`, `python3 frame_clearance.py`,
 renders with `node shoot.js` (`split:` prefix for the `split.html` modes: assembled, explode, mounts, air, plates; `DPR=2`) and
 `python3 compose_mfg.py`. Needs `pip install trimesh manifold3d shapely scipy`.
