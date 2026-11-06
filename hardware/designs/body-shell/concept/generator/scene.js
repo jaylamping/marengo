@@ -45,7 +45,12 @@ const add = (m) => { m.castShadow = true; m.receiveShadow = true; root.add(m); r
 
 // ---------- lofted superellipse shell ----------
 function sgnpow(v, e) { return Math.sign(v) * Math.pow(Math.abs(v), e); }
-function interp(rows, z) { // monotone cubic (Fritsch-Carlson) per column: smooth, no overshoot
+function interp(rows, z) {
+  if (rows.lin) { const n0 = rows.length; if (z <= rows[0][0]) return rows[0].slice(1); if (z >= rows[n0 - 1][0]) return rows[n0 - 1].slice(1);
+    let i0 = 0; while (z > rows[i0 + 1][0]) i0++; const t = (z - rows[i0][0]) / (rows[i0 + 1][0] - rows[i0][0]); return rows[i0].slice(1).map((v, k) => v + (rows[i0 + 1][k + 1] - v) * t); }
+  return interpCubic(rows, z);
+}
+function interpCubic(rows, z) { // monotone cubic (Fritsch-Carlson) per column: smooth, no overshoot
   const n = rows.length; if (z <= rows[0][0]) return rows[0].slice(1); if (z >= rows[n - 1][0]) return rows[n - 1].slice(1);
   let i = 0; while (z > rows[i + 1][0]) i++;
   const out = [];
@@ -60,7 +65,22 @@ function interp(rows, z) { // monotone cubic (Fritsch-Carlson) per column: smoot
   }
   return out;
 }
+// Faceted section (Joey 2026-11-06: less boxy/soft, more masculine): flat pec planes meeting at a sternum
+// crease, chamfered corners, flat back with shoulder-blade planes. th: 0 = +Y side, pi/2 = front, pi = -Y, 3pi/2 = back.
+const QF = [[0, 1], [0.35, 1], [0.82, 0.86], [1.0, 0.42], [0.94, 0]];
+const QB = [[0, 1], [-0.42, 1], [-0.88, 0.8], [-1.0, 0.34], [-1.0, 0]];
+let FACET = false;
+function facetPt(hw, df, db, th, x0) {
+  let t = ((th % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); const q = Math.floor(t / (Math.PI / 2)); let f = (t - q * Math.PI / 2) / (Math.PI / 2);
+  const front = q === 0 || q === 1; const Q = front ? QF : QB; const d = front ? df : db;
+  if (q === 1 || q === 3) f = 1 - f; // mirror toward the other side
+  const sy = (q === 0 || q === 3) ? 1 : -1;
+  const k = Math.min(3, Math.floor(f * 4)); const u = f * 4 - k;
+  const ax = Q[k][0] + (Q[k + 1][0] - Q[k][0]) * u, ay = Q[k][1] + (Q[k + 1][1] - Q[k][1]) * u;
+  return [ax * d + x0, sy * ay * hw];
+}
 function ringPt(hw, df, db, n, th, x0 = 0) {
+  if (FACET) return facetPt(hw, df, db, th, x0);
   const c = Math.cos(th), s = Math.sin(th);
   const y = hw * sgnpow(c, 2 / n);
   const x = (s >= 0 ? df : db) * sgnpow(s, 2 / n);
@@ -103,56 +123,32 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 // rows: [z, half-width Y, front depth +X, back depth -X, squareness n]
 // frame is +-75 Y, +-70 X. Arm hangs at Y=170 with 15 deg inward roll -> keep side <= ~100 below shoulder.
 const chest = [
-  [F0 - 6, 81, 78, 76, 3.4],
-  [F0 + 90, 88, 88, 80, 3.4],
-  [F0 + 170, 101, 100, 85, 3.6],
-  [ZS - 95, 114, 106, 88, 4.0],
-  [ZS - 40, 118, 108, 88, 4.6],
-  [ZS + 40, 119, 98, 86, 4.8],
-  [ZS + 76, 121, 90, 84, 4.2],
-  [F1 + 20, 118, 84, 80, 3.6],
-  [F1 + 38, 94, 66, 68, 3.0],
-  [F1 + 52, 42, 42, 46, 2.4],
+  [F0 - 6, 79, 80, 76, 3.6],
+  [ZS - 200, 84, 92, 80, 3.6],
+  [ZS - 100, 90, 104, 85, 3.8],   // arm-tube band (100-200 mm below the shoulder axis): sides <= +-90
+  [ZS - 55, 108, 108, 88, 4.2],
+  [ZS + 10, 120, 108, 88, 4.6],
+  [F1 + 12, 121, 100, 88, 4.8],   // square shoulder line
+  [F1 + 28, 106, 88, 82, 4.2],
+  [F1 + 38, 64, 60, 64, 3.0],
+  [F1 + 48, 42, 44, 46, 2.4],
 ];
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
 // so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it
 const SOCK_R = 62;
-const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); return (r < SOCK_R && Math.abs(y) > 97.5) ? [x, Math.sign(y) * 97.5, z] : [x, y, z]; };
+const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); if (Math.abs(y) <= 97.5) return [x, y, z];
+  const t = Math.min(1, Math.max(0, (r - SOCK_R) / 7)); const k = t * t * (3 - 2 * t);
+  return [x, Math.sign(y) * (97.5 + (Math.abs(y) - 97.5) * k), z]; };
 const SEAM_Z = F0 + 160;
 CLAMP = socket;
-loft(chest, SEAM_Z, F1 + 52, white, 240, 200, 4, 0, Math.PI, 'chest upper front', [110, 0, 60]);
-loft(chest, SEAM_Z, F1 + 52, white, 240, 200, 4, Math.PI, 2 * Math.PI, 'chest upper back', [-110, 0, 60]);
+loft(chest, SEAM_Z, F1 + 48, white, 240, 200, 4, 0, Math.PI, 'chest upper front', [110, 0, 60]);
+loft(chest, SEAM_Z, F1 + 48, white, 240, 200, 4, Math.PI, 2 * Math.PI, 'chest upper back', [-110, 0, 60]);
 loft(chest, F0 - 6, SEAM_Z, white, 50, 80, 4, 0, Math.PI, 'chest lower front', [110, 0, -40]);
 loft(chest, F0 - 6, SEAM_Z, white, 50, 80, 4, Math.PI, 2 * Math.PI, 'chest lower back (service hatch)', [-110, 0, -40]);
 CLAMP = null;
 if (!EXPLODE) { seamRing(chest, SEAM_Z, 4);
 seamRing(chest, F0 - 6 + 0.5, 4);
 seamVert(chest, 0, F0 - 6, F1 + 40, 4); seamVert(chest, Math.PI, F0 - 6, F1 + 40, 4); }
-// raised chest shield (separate panel) on the front only
-{
-  const rows = chest.map(r => [r[0], r[1] + 6, r[2] + 7, r[3], r[4]]);
-  const z0 = F0 + 165, z1 = ZS + 46; const nz = 70, nt = 90; const pos = [], idx = [];
-  for (let i = 0; i <= nz; i++) { const z = z0 + (z1 - z0) * i / nz; const [hw, df, db, n] = interp(rows, z);
-    const u = (z - z0) / (z1 - z0); const span = 0.16 + 0.10 * Math.pow(1 - u, 2); // shield narrows toward the bottom edge
-    for (let j = 0; j <= nt; j++) { const th = Math.PI * (span + (1 - 2 * span) * j / nt); const [x, y] = ringPt(hw, df, db, n, th, 4);
-      const v = P(x, y, z); pos.push(v.x, v.y, v.z); } }
-  for (let i = 0; i < nz; i++) for (let j = 0; j < nt; j++) { const a = i * (nt + 1) + j, b = a + nt + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  g.computeBoundingBox(); { const bb = g.boundingBox; parts.push({ tag: 'chest shield', Xdepth: +(bb.max.z - bb.min.z).toFixed(0), Ywidth: +(bb.max.x - bb.min.x).toFixed(0), Zheight: +(bb.max.y - bb.min.y).toFixed(0) }); }
-  const sm = add(new THREE.Mesh(g, EXPLODE ? new THREE.MeshPhysicalMaterial({ color: 0xbfe0ff, roughness: 0.4, side: THREE.DoubleSide }) : white));
-  if (EXPLODE) { sm.position.z += 230; sm.position.y += 40; }
-  if (!EXPLODE) {
-  // shadow-gap outline around the shield
-  const edge = []; const rowsE = chest.map(r => [r[0], r[1] + 2, r[2] + 2.5, r[3], r[4]]);
-  const spanAt = (z) => { const u = (z - z0) / (z1 - z0); return 0.16 + 0.10 * Math.pow(1 - u, 2); };
-  const ptAt = (z, f) => { const [hw, df, db, n] = interp(rowsE, z); const sp = spanAt(z); const [x, y] = ringPt(hw, df, db, n, Math.PI * (sp + (1 - 2 * sp) * f), 4); return P(x, y, z); };
-  for (let i = 0; i <= 40; i++) edge.push(ptAt(z0 + (z1 - z0) * i / 40, 0));
-  for (let j = 1; j <= 40; j++) edge.push(ptAt(z1, j / 40));
-  for (let i = 39; i >= 0; i--) edge.push(ptAt(z0 + (z1 - z0) * i / 40, 1));
-  for (let j = 39; j >= 1; j--) edge.push(ptAt(z0, j / 40));
-  add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edge, true, 'centripetal'), 400, 2.2, 6, true), dark));
-  }
-}
 // shoulder: shell side ends flush with the pitch RS03 face (Y = +-97). A printed collar clamps under the
 // RS03 outer-ring bolts; the rotating output and everything outboard stays exposed.
 const act = new THREE.MeshStandardMaterial({ color: 0x5b6068, roughness: 0.35, metalness: 0.75 });
@@ -179,13 +175,47 @@ for (const s of [1, -1]) {
   const yaw = new THREE.Mesh(new THREE.CylinderGeometry(39.25, 39.25, 45.5, 64), act); yaw.position.copy(P(0, s * YS, ZS - 100)); add(yaw);
   const yr = new THREE.Mesh(new THREE.TorusGeometry(37, 2, 10, 64), actDark); yr.rotation.x = Math.PI / 2; yr.position.copy(P(0, s * YS, ZS - 122)); add(yr);
 }
+// ---- details from Joey's references: socket bezel, dark yoke panel, side lattice vents ----
+const darkGloss = new THREE.MeshPhysicalMaterial({ color: 0x1d2024, roughness: 0.25, metalness: 0.2, clearcoat: 0.8, side: THREE.DoubleSide });
+function patch(rows, z0, z1, thA, thB, grow, mat, x0 = 4, clamp = null) {
+  const nz = 60, nt = 60, pos = [], idx = [];
+  for (let i = 0; i <= nz; i++) { const z = z0 + (z1 - z0) * i / nz; const [hw, df, db, n] = interp(rows, z);
+    for (let j = 0; j <= nt; j++) { const th = thA(z) + (thB(z) - thA(z)) * j / nt; let [x, y] = ringPt(hw + grow, df + grow, db + grow, n, th, x0); let zz = z;
+      if (clamp) [x, y, zz] = clamp(x, y, z); const v = P(x, y, zz); pos.push(v.x, v.y, v.z); } }
+  for (let i = 0; i < nz; i++) for (let j = 0; j < nt; j++) { const a2 = i * (nt + 1) + j, b2 = a2 + nt + 1; idx.push(a2, b2, a2 + 1, b2, b2 + 1, a2 + 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return add(new THREE.Mesh(g, mat));
+}
+if (!EXPLODE && !XRAY) {
+  // dark yoke panel across the upper chest under the neck (front), tapering to a point toward the chest
+  patch(chest, ZS + 34, F1 + 44, z => Math.PI * (0.5 - 0.13 - 0.12 * (z - ZS - 34) / (F1 + 10 - ZS)), z => Math.PI * (0.5 + 0.13 + 0.12 * (z - ZS - 34) / (F1 + 10 - ZS)), 1.2, darkGloss);
+  // socket bezel: raised white ring around each shoulder opening + dark shadow gap
+  for (const sd of [1, -1]) {
+    const bz = new THREE.Mesh(new THREE.TorusGeometry(SOCK_R + 3, 3.2, 14, 96), white); bz.rotation.y = Math.PI / 2; bz.position.copy(P(0, sd * 116, ZS)); add(bz);
+    const gap = new THREE.Mesh(new THREE.TorusGeometry(SOCK_R - 1, 1.6, 10, 96), darkGloss); gap.rotation.y = Math.PI / 2; gap.position.copy(P(0, sd * 108, ZS)); add(gap);
+  }
+  // side lattice vents on the lower chest: dark opening + white diamond ribs
+  for (const sd of [0, Math.PI]) {
+    const zA = F0 + 25, zB = F0 + 140, w = 0.15 * Math.PI;
+    patch(chest, zA, zB, () => sd - w, () => sd + w, 0.8, darkGloss);
+    const rib = (f0, f1) => { const pts = []; const ua = Math.max(0, Math.min((0 - f0) / (f1 - f0), (1 - f0) / (f1 - f0))), ub = Math.min(1, Math.max((0 - f0) / (f1 - f0), (1 - f0) / (f1 - f0))); if (ub - ua < 0.05) return;
+      for (let i = 0; i <= 30; i++) { const u = ua + (ub - ua) * i / 30; const z = zA + (zB - zA) * u; const f = f0 + (f1 - f0) * u;
+      const [hw, df, db, n] = interp(chest, z); const [x, y] = ringPt(hw + 1.8, df + 1.8, db + 1.8, n, sd - w + 2 * w * f, 4); pts.push(P(x, y, z)); }
+      add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 2.4, 8), white)); };
+    for (let k = -3; k <= 3; k++) { rib(k / 3, k / 3 + 1); rib(k / 3 + 1, k / 3); }
+    // frame the vent with a rim
+    for (const f of [0, 1]) { const pts = []; for (let i = 0; i <= 30; i++) { const z = zA + (zB - zA) * i / 30; const [hw, df, db, n] = interp(chest, z);
+      const [x, y] = ringPt(hw + 1.8, df + 1.8, db + 1.8, n, sd - w + 2 * w * f, 4); pts.push(P(x, y, z)); }
+      add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 2.6, 8), white)); }
+  }
+}
 // chest "core" light: subtle accent, original detail
 const core = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 3, 48), accent);
-core.rotation.x = Math.PI / 2; core.position.copy(P(113.5, 0, ZS - 40)); if (!XRAY) add(core);
+
 
 // neck collar + head placeholder
 const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 58)); if (!EXPLODE) add(neck);
-const headRows = [[F1 + 70, 40, 52, 52, 2.2], [F1 + 105, 62, 78, 76, 2.4], [F1 + 190, 66, 84, 80, 2.6], [F1 + 250, 54, 68, 68, 2.4], [F1 + 274, 36, 46, 46, 2.2], [F1 + 284, 4, 4, 4, 2]];
+const headRows = [[F1 + 70, 50, 60, 58, 3.4], [F1 + 96, 60, 76, 72, 3.6], [F1 + 190, 64, 82, 80, 3.6], [F1 + 252, 56, 70, 72, 3.2], [F1 + 276, 34, 44, 46, 2.6], [F1 + 284, 4, 4, 4, 2]];
 if (!EXPLODE) loft(headRows, F1 + 70, F1 + 284, white, 60, 96, 6);
 if (!EXPLODE) { // visor: thin dark strip following head front
   const pos = [], idx = []; const nz = 8, nt = 48;
@@ -198,17 +228,18 @@ if (!EXPLODE) { // visor: thin dark strip following head front
 }
 
 // ---------- ABDOMEN (longer stomach): segmented bands over waist bay + extension ----------
-const abTop = F0 - 10, abBot = WAIST + 8;
+const abMatDef = 1; const abdMat = new THREE.MeshPhysicalMaterial({ color: 0x23262b, roughness: 0.4, metalness: 0.3, clearcoat: 0.5 });
+const abTop = F0 - 8, abBot = WAIST + 8;
 const nb = EXT >= 50 ? 3 : 2; const gap = 5; const bh = (abTop - abBot - gap * (nb - 1)) / nb;
 for (let b = 0; b < nb; b++) {
   const zt = abTop - b * (bh + gap), zb = zt - bh;
   const t = b / Math.max(1, nb - 1);
-  const hw = 80 - 6 * t, df = 80 - 4 * t, db = 76 - 4 * t;
+  const hw = 68 - 3 * t, df = 66 - 2 * t, db = 64 - 2 * t;
   const rows = [[zb, hw - 4, df - 4, db - 4, 3.2], [zb + 6, hw, df, db, 3.2], [zt - 6, hw, df, db, 3.2], [zt, hw - 4, df - 4, db - 4, 3.2]];
-  loft(rows, zb, zt, white, 16, 64, 2, 0, Math.PI, `abdomen band ${b + 1} front`, [90, 0, -40 - 30 * b]);
-  loft(rows, zb, zt, white, 16, 64, 2, Math.PI, 2 * Math.PI, `abdomen band ${b + 1} back`, [-90, 0, -40 - 30 * b]);
+  loft(rows, zb, zt, EXPLODE ? white : abdMat, 16, 64, 2, 0, Math.PI, `abdomen band ${b + 1} front`, [90, 0, -40 - 30 * b]);
+  loft(rows, zb, zt, EXPLODE ? white : abdMat, 16, 64, 2, Math.PI, 2 * Math.PI, `abdomen band ${b + 1} back`, [-90, 0, -40 - 30 * b]);
 }
-const spine = new THREE.Mesh(new THREE.CylinderGeometry(58, 58, abTop - abBot + 10, 48), dark);
+const spine = new THREE.Mesh(new THREE.CylinderGeometry(54, 54, abTop - abBot + 10, 48), alu);
 spine.position.copy(P(0, 0, (abTop + abBot) / 2)); add(spine);
 
 // ---------- PELVIS placeholder (draft 215 x 260 x 115) ----------

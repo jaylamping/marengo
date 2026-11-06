@@ -21,7 +21,7 @@ def sheet(panels, title, sub, out, notes=None):
         for n in notes: d.text((pad, y), n, font=f(30), fill=(40, 44, 50)); y += 44
     S.save('final/' + out, optimize=True); print(out, S.size)
 sub = 'Concept only, not a part. Original design; shell bolts to the 2020 torso frame. 2026-11-06'
-sheet([(crop('hero.png', (560, 0, 2640, 2400)), 'Broad shoulders wrap the pitch joint; arm mechanics exposed')], 'Marengo body shell, concept B', sub, 'SHELL_CONCEPT_HERO.png')
+sheet([(crop('hero.png', (560, 0, 2640, 2400)), 'Square shoulders, V-taper, slim dark waist; arm mechanics exposed')], 'Marengo body shell, concept B', sub, 'SHELL_CONCEPT_HERO.png')
 sheet([(crop(n + '.png', (900, 0, 2300, 2400), w=900), l) for n, l in [('front', 'Front'), ('side', 'Side (robot left)'), ('back', 'Back')]],
       'Body shell, concept B: front, side, back', sub, 'SHELL_CONCEPT_VIEWS.png')
 sheet([(crop('fullA.png', (1100, 0, 2100, 2400), w=760), 'Frame as built: shoulder 1165 mm'),
@@ -33,7 +33,7 @@ sheet([(crop('fullA.png', (1100, 0, 2100, 2400), w=760), 'Frame as built: should
 sheet([(crop('shoulder.png', (0, 0, 3200, 2400), w=1300), 'Shoulder socket: shell steps in to the RS03 face around the joint'),
        (crop('explode.png', (600, 350, 2600, 2250), w=1000), 'Print panels, exploded')],
       'Body shell, concept B: shoulder interface and P2S panel split', sub, 'SHELL_CONCEPT_PANELS.png',
-      ['Shoulders 242 mm across, tapering to 162 mm at the waist. Around the pitch joint the shell steps in to the RS03 face (Y +-97) inside a 62 mm',
+      ['Shoulders 242 mm across, sides pulled to +-90 where the arm hangs, 158 mm at the chest bottom, 136 mm dark waist. Around the pitch joint the shell steps in to the RS03 face (Y +-97) inside a 62 mm',
        'radius socket, clear of the ~57 mm P1/roll sweep. The collar (114 mm OD) sits in the socket under the RS03 outer-ring bolts; those bolts also',
        'hold the motor to its bracket, so the collar waits on the arm thread. Socket edge is jagged only in this mock-up render.',
-       '13 panels, largest 242 x 232 x 108 mm (chest upper front), all inside the P2S 256 mm cube. Shoulder parts shown are stand-ins.'])
+       '13 panels, largest 242 x 228 x 108 mm (chest upper front), all inside the P2S 256 mm cube. Shoulder parts shown are stand-ins.'])
