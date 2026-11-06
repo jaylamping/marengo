@@ -168,6 +168,7 @@ A rolling-loop groove with round wire (the "wrap groove" in rev 0 of this plan) 
 ## 8. Software touchpoints (flag only, code project owns them)
 
 - `config/motors.yaml` is right-arm only; the humanoid template puts the left arm on `can3` with IDs 14+, which does not match `can1` with 11 to 15.
+- **Junction-board telemetry frame (proposal, with the power board thread; code project owns the final spec):** standard 11-bit IDs so they cannot collide with RobStride's 29-bit extended frames. One 8-byte frame per node at 50 Hz: int16 drop current (mA), uint16 bus voltage after the fuse (10 mV), int16 temperature (0.1 °C), uint8 flags (bit0 fuse open, bit1 sense fault, bit2 over-temperature), uint8 rolling sequence counter (host spots dropped frames and stale nodes). Plus a 1 Hz status frame with firmware version and uptime. Timestamps come from the CAN bridge, not the node. Reconciliation against the 1 kHz limb meter runs on the host.
 - A drop fuse blowing looks to software like one motor dropping off the bus. The controller should treat that as a fault and hold the rest of the arm safe, not keep commanding.
 
 ## 9. Validation plan
