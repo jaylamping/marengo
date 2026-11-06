@@ -20,3 +20,15 @@ Rev 0, 2026-11-06. Quantities are per arm, with the spares in brackets. Links we
 | 12 | 120 Ω ¼ W resistor | 1 (+2) | any (Digi-Key, Amazon assortment) | Across CAN_H and CAN_L at the M15 splice |
 
 Rough total per arm, excluding wire you already have: about $40 to $70, mostly connectors and 58 V fuses.
+
+## Sleeving (Joey 2026-11-06: sleeve all wiring)
+
+Techflex Flexo PET, sized from the [Techflex PET size table](https://www.jmesales.com/content/docs/Techflex/pet-specs.pdf):
+
+| Where | Size | Fits |
+|-------|------|------|
+| Trunk (4 conductors, ~7 mm) | PTN0.25 (1/4") | 3.2 to 11.1 mm |
+| Drops, CAN pair on its own | PTN0.13 (1/8") | 2.4 to 6.4 mm |
+| Torso battery / power-board runs | PTN0.75 (3/4", Joey's [Digi-Key PTN0.75BK250](https://www.digikey.com/en/products/detail/techflex/PTN0.75BK250/2502453)) | 12.7 to 31.8 mm |
+
+Do **not** sleeve the ribbon clock-springs (elbow, lower-arm yaw) or the flexing span at any joint: braid stiffens the bend and abrades the ribbon. Stop the sleeve at the clamp on each side.
