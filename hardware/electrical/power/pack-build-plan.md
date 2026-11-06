@@ -15,31 +15,32 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
 - **Cells: Molicel P50B, not P45B.** It is 60 A continuous against 45 A, 12.8 mΩ DC resistance against 15 mΩ, and 10% more
   energy in the same can (datasheet). It is in stock today at $10.50 each for 10 or more; P45B is sold out at the cheaper
   vendor (vendor page). 28 cells (26 plus 2 spares) is about $295.
-- **The BMS stays on the power board, high-side (agreed).** The pack itself has no BMS. It is cells, a 60 A MIDI fuse, an
-  XT90S, 3 NTCs, and a small **pack sense board** that fuses the 14 cell taps and brings them out on one locking Micro-Fit
-  connector. A cheap 13S JK BMS is the bench tool for grading, first charges and discharge tests before the power board exists.
+- **BMS: an off-the-shelf JK smart BMS on the pack, JK-BD6A17S8P (Joey's decision, 2026-11-06 22:44Z).** It is 80 A
+  continuous / 150 A peak, common port, 0.6 A active balance, Bluetooth, RS485/CAN through add-on modules, and
+  133 × 81 × 18 mm, so it fits the 170 × 90 × 20 mm rear-face envelope. It switches the low side, so **nothing may touch
+  pack B− except the JK**. It has no precharge and no hardware remote-off input (section 3). The pack sense board and the
+  2 × 10 connector are dropped. The pack is cells, Class T fuse, JK, XT90S, and a charge XT60.
 - **Charge to 4.15 V per cell (53.9 V), not 4.2 (agreed).** This leaves room for regen in a full pack and adds cycle life
   for about 3% of capacity. Use an adjustable-voltage charger at 4 A, ending in an XT60.
 - **Busbars are wide plates, not 10 mm strip.** A 10 mm nickel strip cannot carry 60 A. The pack doc's nickel line is
   replaced (section 4).
 - **Tools to buy: a ~$40 handheld spot welder.** Joey has the meter; pre-crimped leads replace a crimper.
-- **Pack total about $505 including the welder** (section 9). The BMS and charger (about $110) count against the power board.
+- **Pack total about $480 including the welder** (section 9). The JK BMS and charger (about $145) count against the power board.
 
 ## 1. What the pack is, and what it is not
 
 ```
  cells 13S2P (26 x P50B, wide Ni plates)
-   B13+ ── 60 A MIDI fuse ── 10 AWG ── XT90S male (anti-spark) ──┐
-   B0−  ─────────────────── 10 AWG ── XT90S ─────────────────────┤──► power board top edge, rear face (Y ≈ 335)
-   B0..B13 taps (14) ─┐                                          │
-   NTC1..NTC3 ────────┴─ pack sense board (fuse per tap) ── Micro-Fit 3.0 2x10 ─► board AFE (BQ76952 class)
+   B13+ ── 60 A Class T fuse ── 10 AWG ─────────────────────── P+ ──┬── XT90S ──► power board (rear top corner, D2)
+   B0−  ── JK B− │JK-BD6A17S8P│ C−/P− ── 10 AWG ─────────────── P− ──┤
+   B0..B13 taps ─┘ (JK balance plug)  2 NTC on the cells         └── XT60 charge pigtail (charger, 53.9 V CC/CV)
 ```
 
-- **On the pack:** cells, plates, fuse, XT90S, sense board, three 10 kΩ NTCs (103AT curve, B = 3435, the BQ76952 default; board thread verifies),
-  printed case, foam, wrap.
-- **Not on the pack:** charge and discharge FETs, balancing, coulomb counting, shunt. They live on the power board.
-- **Consequence (agreed):** the pack charges in the robot through the board's charge port. A second swap-and-charge pack
-  would need its own BMS. That is not planned; removing the pack is a service job.
+- **On the pack:** cells, plates, Class T fuse, the JK BMS on the rear face, XT90S, XT60 charge pigtail, the JK's two NTC
+  probes, printed case, foam, wrap.
+- **Ground rule (low-side BMS):** the robot's only ground is P− (the JK's C−). Nothing touches B−: not the charger, not
+  the regen clamp, not the bench supply, not a laptop. Charger, board and robot all connect at P+/P−.
+- **Consequence:** the pack protects itself out of the robot and can charge anywhere (on the bench or in the robot).
 
 ### Pack fuse voltage rating (flag from the trunk and board threads)
 
@@ -54,23 +55,17 @@ regen clamp). The pack fuse and its holder must carry a DC rating above that:
 - **Interrupt rating check (estimate):** a dead short at the pack is about 54.6 V ÷ 90 mΩ ≈ 600 A. Both options are rated
   far above that (verify on the datasheet).
 
-### Why the BMS stays on the board (checked from the pack side)
+### History
 
-The power board thread's reason is ground. A high-side BMS keeps pack negative as system ground, so a BMS trip can't lift
-every CAN transceiver, the Pi and the drives by up to 54 V. The cheap JK/JBD boards switch the low side. I looked for a reason
-to put it on the pack instead and found two, neither strong enough:
-
-1. *A pack out of the robot has no protection.* Its only exposure is a short across the XT90 or the sense connector. The fuse
-   covers the XT90. The sense board fuses cover the taps. Over-discharge from self-discharge takes years. The handling rules
-   in section 7 cover the rest.
-2. *Swap-and-charge.* Not needed for a robot that runs about 2 hours per charge on the bench (estimate, pack doc section 2).
+Until 2026-11-06 22:44Z the BMS was planned on the power board (BQ76952, high-side) with a fused sense board and a 2 × 10
+Micro-Fit to the pack. Joey's minimal-board restart (pdb/REV_B_CLEAN_SHEET.md, REV_B_PARTS.md) moved it to an
+off-the-shelf JK on the pack. Git history keeps the old design.
 
 ### Where the pack mates (board thread, main 9ce67a0)
 
-Both connectors mate at the **pack's rear top corner, behind the D2 door**. The board's leads (a ring-lugged 10 AWG pair and
-the sense harness) run over the pack's top edge, which has 8.6 mm of headroom, to an XT90 and a 2 × 10 plug. On the pack
-side: a short XT90S pigtail (about 60 mm, 10 AWG) from the fuse, and the sense board's header on the rear face at X −45 to −5,
-Y 295 to 322 (moved, see the rear-corner table). Both are parked in a printed holder on the case so nothing hangs loose when the door is open.
+The power connector mates at the **pack's rear top corner, behind the D2 door**. The board's ring-lugged 10 AWG pair runs
+over the pack's top edge (inside the strap window, X −5 to +25) to an XT90. The pack side has a short XT90S pigtail
+(about 60 mm, 10 AWG) from P+/P−, parked in a printed saddle so nothing hangs loose when the door is open.
 
 ### Pack heat for the shell's airflow sizing (estimate, for frame gate review 2 item F)
 
@@ -111,18 +106,16 @@ goes through the tray rail into the case. The rear face stays free for a possibl
 | --- | --- | --- |
 | Pack fuse | inside the case, empty top-corner grid slot, about X +34, Y 333, Z −40 to +30, axis along Z | nothing behind the rear face |
 | Mated XT90S pair | flat on the rear face, axis along X: X −15 to +43, Y 323 to 345, Z −45 to −60 incl. a printed saddle | pack pigtail enters at the +X end; board pair comes over the top in X −5 to 25 and enters at the −X end |
-| Pack sense board (board BMS only) | X −45 to −5, Y 295 to 322, Z −55 to −45; header points up into the mated plug | moved from X 5 to 45 to clear the XT90S |
-| Sense Micro-Fit 2 × 10 (board BMS only) | flat: X −42 to −17, Y 325 to 345, Z −45 to −58 | goes away with an on-pack BMS |
-| On-pack BMS (if chosen) | rear face, Y 185 to 315, Z −45 to −65, \|X\| ≤ 45 | under the connectors |
+| JK-BD6A17S8P BMS | rear face, long axis along Y: X −40.5 to +40.5, Y 186 to 319, Z −45 to −65 (18 mm board + about 2 mm standoffs) | FET heatsink faces rearward toward D2 |
+| XT60 charge pigtail | parked flat at X −42 to −17, Y 325 to 345, Z −45 to −58 | reached through D2 |
 
 XT90 sizes are from memory (verify): about 22 × 12 mm section, about 45 mm mated length.
 
-### Connector mating rule (agreed)
+### Connector rule
 
-**Sense connector in first, XT90 last. XT90 out first, sense connector last.** The board thread is checking the BQ76952's
-random cell attach claim and how fast it detects an open wire. The datasheet (section 16.3) tolerates random cell attach as long as
-each tap lands on its own ascending VC pin. **The sense connector is a 20-pin Micro-Fit (2 × 10), agreed:** 14 taps,
-3 NTCs, 2 pins for a connector-present loop that opens DSG directly if the sense connector is pulled, 1 spare.
+Only one power connector now: the XT90S (anti-spark) mates last and comes off first. The JK's balance plug stays inside the
+pack and is never unplugged in service. When building, plug the JK's balance harness in **only after checking every tap
+voltage in order with the meter**. Then connect B−, then the NTCs. Follow the JK manual's order (verify).
 
 ## 2. Cells
 
@@ -167,39 +160,49 @@ warm the pack. That is what the two NTCs are for. The measured number replaces t
   3.4 to 3.6 V). Any cell under 3.0 V or more than 30 mV from the median goes back.
 - Cells ship ground-only as UN3480 dangerous goods. Expect a hazmat fee and no air shipping.
 
-## 3. BMS: the board AFE for the robot, a JK for the bench
+## 3. BMS: JK-BD6A17S8P on the pack
 
-### 3.1 Robot settings (agreed with the power board thread)
+### 3.1 Model choice
 
-| Function | Setting | Where |
+| Model | Rating | Size | Comms | Fits 170 × 90 × 20? |
+| --- | --- | --- | --- | --- |
+| **JK-BD6A17S8P** | 80 A cont / 150 A peak, 8 to 17S, 0.6 A active balance, common port, 3 temperature sensors | **133 × 81 × 18 mm** | Bluetooth; RS485 or CAN via optional module | **yes** |
+| JK-BD6A17S6P / BD6A20S6P | 60 A / 100 A, charge OC 10 to 60 A | 115 × 78 × 17.6 mm | Bluetooth; comms port shared with BT module (verify RS485) | yes, but no headroom over the 60 A fuse |
+| JK-BD6A20S10P | 100 A / 200 A | 162 × 102 × 20.4 mm | RS485, CAN via P5 | no: 12 mm too wide |
+| JK-B2A24S15P and up | 150 to 200 A, 2 A balance | 162 × 102 × 20.4 mm | RS485/CAN | no |
+
+Sources (vendor and manual, verify on the unit): [evlithium JK-BD6A17S8P](https://evlithium.com/Battery-Management-System/jk-bd6a17s8p.html),
+[18650BatteryStore listing](https://www.18650batterystore.com/products/jk-bd6a17s8p-bms) ($85, sold out 2026-11-06),
+[NKON listing](https://nkon.nl/en/jk-bms-bd6a17s8p.html), [JK active-balance BMS manual](https://cdn.shopify.com/s/files/1/0007/0824/7615/files/JK-Smart-BMS-with-Active-Balancer-Instruction-EN.pdf).
+**Order the RS485 (or CAN) add-on module with it**, because the Pi needs the telemetry. A USB-RS485 adapter is about $10.
+
+**What it doesn't have (manual, forum check):**
+- **No precharge.** The power board keeps every bulk capacitor behind its soft-start E-stop bank, so the JK's output only
+  sees a soft load (agreed). Nothing with large input capacitance may connect straight to P+/P−.
+- **No hardware remote-off input.** The manual says the board has no power-on control switch; charge and discharge are
+  switched from the app or over the comms port. So **the JK cannot be the E-stop's second break.** A software command over
+  RS485 is fine as a "soft off", but not as a safety function. The board's hardware E-stop bank is the safety path.
+- **Short-circuit protection** is built in. The trip delay is not stated (verify on the unit). Recovery defaults to 60 s.
+- Wakes when a charger is connected that is at least 5 V above the pack.
+
+### 3.2 Settings (program over Bluetooth, then record the screen in pack-test-log.md)
+
+| Function | Setting | Why |
 | --- | --- | --- |
-| Normal end of charge | 4.15 V per cell. The supervisor stops at the first cell to reach it; the charger's CV is 53.9 V | supervisor + charger |
-| Cell over-voltage trip | 4.22 to 4.25 V, about 1 s delay (so braking into a full pack doesn't trip) | AFE |
-| Cell under-voltage, soft | 3.0 V: the host warns, then disarms the motors | supervisor |
-| Cell under-voltage, hard | 2.8 V trip (datasheet floor is 2.5 V) | AFE |
-| Discharge over-current | 60 A for 1 s (AFE OCD3), plus a 64 A hardware comparator (board thread, main d9a7339) | AFE |
-| Short circuit | about 150 A in 200 µs (board thread checks FET SOA) | AFE |
-| Over-temperature | 60 °C discharge cutoff; charge allowed only 0 to 45 °C (P50B is rated −20 to 60 °C; we stay conservative) | AFE |
-| Balancing | passive, about 150 mA, during charge above 3.9 V, cells more than 15 mV apart | AFE |
-| Regen charging (Joey wants regen back into the cells, agreed 2026-11-06) | through the BMS FETs, counted as charge. Charge OC trip 48 A at 425 ms (12 mV on the 0.25 mΩ shunt; the BQ76952's longest delay; board thread, main d9a7339). P50B max charge is 25 A per cell. Host caps braking at 30 A from 0 to 95% charge, and at 5 A above 95% or below 5 °C. Clamp energy logged | AFE + host |
-| Regen backstop | clamp at 57.5 V (4.42 V per cell) into the brake resistor | power board |
+| Cell count / chemistry | 13S, Li-ion (NCM) | |
+| Normal end of charge | charger CV 53.9 V (4.15 V per cell) | regen headroom, cycle life |
+| Cell over-voltage protection | 4.22 V, release 4.10 V, delay as long as the app allows (about 1 s+) | braking into a full pack shouldn't trip it |
+| Cell under-voltage protection | 2.8 V, release 3.0 V | host disarms motors at 3.0 V from telemetry |
+| Discharge over-current | 80 A, longest delay | above the limb fuses, so a limb fault blows its own fuse first and the Pi stays up |
+| Charge over-current (regen + charger) | 50 A, about 1 s delay | P50B max charge is 25 A per cell. Host caps braking at 30 A (5 A above 95% charge or below 5 °C) |
+| Short circuit | on (default) | |
+| Charge temperature | 0 to 45 °C | |
+| Discharge temperature | up to 60 °C | |
+| Balancing | start 3.9 V, trigger 10 mV | 0.6 A active |
+| Regen backstop | power board clamp at 57.5 V (4.42 V per cell) into the brake resistor | when the JK opens its charge FET or the pack is full |
 
-The board thread notes that 20 A of braking raises a full pack's terminal voltage to about 4.30 V per cell, which is why the
-over-voltage trip has a delay. If it still trips, the host caps braking current above 95% charge.
-
-### 3.2 Bench BMS (buy now)
-
-A **JK 13S smart BMS** with Bluetooth: JK B2A20S15P class (verify the model, 8 to 20S, 2 A active balance, 150 A) or a JBD
-SP15S 13S 60 A. About $50 to $90. Use it for:
-- watching per-cell voltage during the first charge,
-- the discharge and DCIR tests,
-- the fallback if power board rev A has a problem.
-
-It plugs into the pack through a **bench adapter harness**: Micro-Fit 2 × 10 to the JK's balance plug and NTC leads. So the
-pack is built exactly the same way whether the board exists yet or not.
-
-**Fallback-only rule (agreed):** the JK switches the low side. If it ever goes into the robot, nothing may reference pack B−
-except the JK itself. Ask the board and trunk threads before doing it.
+If the JK opens its charge FET, discharge still flows through the FET body diode (common-port BMS behaviour, verify), so the
+robot stays up and regen goes to the clamp.
 
 ## 4. Busbars: plates, not strip
 
@@ -224,8 +227,7 @@ it is about 2 W. That's fine for arms and waist. A leg-rated pack needs copper b
   tab before welding it on, so the soldering heat stays off the can.
 - Taps: weld a small 0.15 mm nickel tab to each plate, then solder the 22 AWG tap wire to the tab, away from the can.
 - **B0 and B13 taps are their own tabs (Kelvin sense)**, welded to the end plates apart from the 10 AWG power tabs, so no
-  pack current flows in a sense wire (board gate-3 review, main 3c1dab91). Tap fuses on the sense board must interrupt
-  at least 150 A (a harness short at the cells draws about 146 A).
+  pack current flows in a sense wire (board gate-3 review, main 3c1dab91). These two taps go to the JK's B0/B13 balance pins.
 - Spot-weld the cells. Never solder them.
 
 ## 5. Charging
@@ -233,8 +235,8 @@ it is about 2 W. That's fine for arms and waist. A leg-rated pack needs copper b
 - **Voltage:** 53.9 V CV (4.15 V per cell), set and measured with a meter before the first use.
 - **Current:** 4 A. That is 0.4 C. A full charge takes about 2.5 to 3 hours, and it stays inside the P50B's 5 A standard
   charge current with margin for the robot's compute load running at the same time.
-- **Connector:** XT60 into the board's charge port (rated 5 A continuous, reverse-polarity protected, presence detected by
-  voltage; a charger present blocks motor arming). Agreed with the board thread.
+- **Connector:** the pack's own XT60 charge pigtail on P+/P− (through the JK, common port). It works in or out of the robot.
+  The host blocks motor arming while JK telemetry shows charge current.
 
 **Charger options** (verify each before buying; prices move):
 
@@ -244,11 +246,10 @@ it is about 2 W. That's fine for arms and waist. A leg-rated pack needs copper b
 | Adjustable 13S Li-ion charger, 54.6 V nominal, with an internal voltage trimmer | Cheap; trim to 53.9 V, verify on a meter, seal the trimmer | about $40 to 70 |
 | Riden RD6024 lab supply (60 V, 24 A) + a 65 to 70 V input supply | Has a battery-charge mode. **Also a 48 V bench supply** for testing the arms at rated voltage without the pack. But it can't absorb regen, so it needs the brake resistor clamp in line | about $200 to 280 total |
 
-**My recommendation:** the cheap trimmable charger to start, because the board's supervisor and the AFE both stop the charge
-independently. Add the Riden later if the arm work wants a 48 V bench supply.
+**My recommendation:** the cheap trimmable charger to start. The charger's CV stops the charge and the JK's 4.22 V cell
+protection is the backstop. Add the Riden later if the arm work wants a 48 V bench supply.
 
-**Before the board exists:** charge through the JK at 2 A on the bench, attended. The JK's charge FET and per-cell display
-are the protection.
+**First charges:** at 2 A on the bench, attended, watching per-cell voltages in the JK app.
 
 ## 6. Tools and consumables
 
@@ -268,9 +269,9 @@ are the protection.
 | Silicone wire: 10 AWG red/black, 22 AWG in several colours | leads, taps | $20 |
 | PVC heat-shrink wrap, about 200 mm flat width (or a printed lid only) | outer skin under the case | $10 |
 | EVA foam, 2 mm | cushion between pack and case | $5 |
-| Micro-Fit 3.0 housings + **pre-crimped leads** (Molex 2145xx series, verify part), JST-XH balance plug | sense harness and JK bench adapter, no crimper needed | $25 |
+| XT60 pair for the charge pigtail, JK balance harness (comes with the BMS) | charge lead | $5 |
 
-No crimper: Molex sells Micro-Fit contacts pre-crimped on wire (about $1 each, verify). Joey already owns a multimeter.
+No crimper needed. Joey already owns a multimeter.
 
 ## 7. Safety rules
 
@@ -301,12 +302,12 @@ Each step has a pass/fail check. A failure stops the build until it is understoo
 | 3. Match | Sort into 13 pairs so that pair IRs (parallel) are as even as possible; the 2 spares are the outliers | pair IRs within ±5% |
 | 4. Dry fit | Holders, fish-paper rings on every positive end, polarity marked with a paint pen on the holder, series path drawn on the holder face | photo, matches the layout drawing |
 | 5. Weld | Pull-test scrap first (the weld should tear the nickel, not peel). Parallel pairs first, then series plates. 4 welds per cell end | every weld passes a gentle pry with a plastic spudger; each pair reads the same voltage |
-| 6. Sense and measure | Weld tap tabs, wire the sense board, connect the JK through the bench harness. **Measure pack DCIR**: ΔV between a 1 A and a 5 A load step, 10 s each | all 13 cell voltages within 10 mV; DCIR 70 to 110 mΩ. **Send the number to the board thread** |
+| 6. BMS and measure | Weld tap tabs, check every tap voltage in order, then plug in the JK balance harness. **Measure pack DCIR**: ΔV between a 1 A and a 5 A load step, 10 s each | all 13 cell voltages within 10 mV in the JK app; DCIR 70 to 110 mΩ. **Send the number to the board thread** |
 | 7. Close | Fuse, XT90S, NTCs (one in the middle of the stack, one at a stack edge, one next to the fuse), foam, wrap, printed case | insulation check: no continuity from any plate to the case's outside |
 | 8. First charge | JK at 2 A to 53.9 V, attended, logging every 15 min | cells stay within 20 mV; pack under 35 °C |
 | 9. Capacity | Electronic load at 3 A (C/3) to 3.0 V per cell | at least 9.4 Ah (94% of 10 Ah); cells within 50 mV at the end |
 | 10. Recharge and rest | Charge to 53.9 V, rest 7 days, measure | self-discharge under 20 mV per cell over 7 days |
-| 11. Onto the robot | Only through the power board (or the JK fallback) with E-stop and pack fuse in place. Arms on first; legs need the 3P or second-pack decision | board reads the same cell voltages as the JK within 10 mV |
+| 11. Onto the robot | Through the power board's soft-start E-stop bank, pack fuse in place, nothing on B−. Arms on first; legs need the 3P or second-pack decision | JK telemetry reaches the Pi over RS485/CAN |
 
 Record the results (cell IRs, pair sorting, DCIR, capacity, charge logs) in `hardware/electrical/power/pack-test-log.md`
 when the build happens. Per the review gates, a review packet with these results goes out **before the pack is first
@@ -324,35 +325,25 @@ handheld welder, needs no crimper (pre-crimped leads), and skips the extinguishe
 | Cell holders, fish paper, Kapton, foam, wrap | $45 | |
 | 60 A pack fuse **rated ≥ 58 V DC (never a 32 V automotive part)** + matching holder, spare fuse | $15 to 40 | see section 1 fuse note |
 | XT90S, XT60, 10 AWG + 22 AWG silicone wire | $35 | |
-| Micro-Fit 2 × 10 housings + pre-crimped leads, 3 NTCs, sense board (in the power board's PCB order) | $30 | |
+| XT60 charge pigtail parts | $5 | |
 | Printed case (PC FR or ASA) | $15 | filament |
 | Handheld spot welder | $40 | Joey's pick |
-| **Total, pack** | **about $505** | |
-| *On the power board budget:* JK 13S bench BMS $60, trimmable 4 A charger $50 | *$110* | |
+| **Total, pack** | **about $480** | |
+| *On the power board budget (Joey):* JK-BD6A17S8P + RS485/CAN module about $95, trimmable 4 A charger $50 | *about $145* | |
 
 Optional later: a 150 W electronic load ($40) for a controlled capacity test (otherwise the board's coulomb counter measures
 capacity); a stronger welder for a copper-busbar leg pack; a cell IR meter ($35) if the multimeter can't grade cells (a DC
 meter can't read 6 mΩ, so grading falls back to matching resting voltage plus the vendor's batch).
 
-## 10. Pack sense board (new part, handed to the power board thread)
+## 10. Pack sense board
 
-A small PCB (about 40 × 25 mm, estimate) sitting in the two spare grid positions at the top corner, next to the fuse.
-
-- 14 tap inputs (B0 to B13) on solder pads, each through a **0.5 to 1 A fast fuse** (0603/0805 SMD, rated at least 63 V DC,
-  verify) or a fusible PCB trace. The AFE's own input resistors stay on the main board.
-- 3 NTC inputs, plus the 2-pin connector-present loop.
-- One **Molex Micro-Fit 3.0, 2 × 10 right-angle header** (agreed with the board thread, which builds the board in its PCB order).
-- Conformal coat, Kapton over the back.
-- Tap order on the 2 × 10 header is a **zigzag**: adjacent pins across a column are one cell apart (4.2 V), and pins along
-  a row are two cells apart (8.4 V). Never put B0 next to B13. A bent pin then shorts at most 8.4 V, and always through a tap fuse.
-
-The power board thread designs it into the same PCB order; this thread owns its placement in the pack.
+Dropped 2026-11-06 22:44Z with the move to the on-pack JK. The JK's own balance harness connects straight to the taps.
 
 ## 11. Open items
 
 | Item | Owner | Status |
 | --- | --- | --- |
-| BQ76952 open-wire detection timing (section 12.11) | power board thread | checking; connector settled at 2 × 10 |
+| JK-BD6A17S8P: buy with the RS485 or CAN module; verify size, short-circuit delay and body-diode behaviour on the unit | this thread | when the pack is bought |
 | Measured pack DCIR | this thread | after build step 6 |
 | Measured per-arm bus current | arm trunk thread | after the bench shoulder runs |
 | Legs: 13S3P (39 cells, about 3.3 kg) or a pelvis pack in parallel | this thread + frame | later, when the leg loads are known |
