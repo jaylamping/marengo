@@ -290,6 +290,7 @@ port and the spare CAN6 stay free in case a hand ever needs a separate feed.
   hardware FIFOs, so the 2-frame limit goes away, and one USB cable replaces the HAT. **This touches the code project** (bus
   names, Davout pacing, `config/motors*.yaml`, the bus-plan ADR that ADR 0001 says is still owed), so it is a proposal to them,
   not a decision made here.
+- **Rev A update (gate 3, default Joey can veto):** non-isolated TCAN1462V-Q1 transceivers. The drives reference CAN to their power GND and the RS03 housings are at GND, so isolation bought little. See `design/RATIONALE-log.md`. The rest of this bullet is the earlier plan.
 - **Isolated transceivers** (ISOW1044-class, integrated isolated supply, verify) on every bus. The trunk thread's real "$500
   actuator" fear is a crushed cable putting 54 V on CAN; with junction boards ruled out (08:35Z) the drives' transceivers rely on the
   trunk's discrete TVS at the splices, and isolation here protects the Pi, the Jetson and the board. Pick a transceiver whose bus
@@ -451,7 +452,7 @@ short pigtails for the most-cycled ports (pack, charge). Revisit if a limb's con
 | 5.1 V converter | 60 V-in synchronous buck, 6 A, or a 12 V → 5 V buck off the 12 V rail (simpler, a little less efficient) |
 | Supervisor MCU | STM32G0/G4 or RP2350; separate from the CAN bridges so a bridge crash cannot touch power control |
 | CAN bridges | 2 × STM32G4 (3 FDCAN each), USB FS, behind a USB2514-class hub |
-| CAN transceivers | ISOW1044-class isolated CAN FD with integrated power |
+| CAN transceivers | TCAN1462V-Q1 non-isolated CAN FD (was ISOW1044-class until gate 3) |
 | Connectors | XT90 (pack), Micro-Fit 2 × 10 (balance + sense), XT30(2+2) (arm, waist, aux), XT60 + GH (legs), JST GH/XH for low-current |
 | Fab | KiCad (the existing empty `../schematics/marengo_pdu/` project), PCB and SMT assembly at JLCPCB or PCBWay; through-hole power connectors hand-soldered |
 

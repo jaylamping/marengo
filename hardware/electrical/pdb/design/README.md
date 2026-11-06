@@ -14,7 +14,7 @@ high-side; regen to the pack first, clamp as backup (Joey 08:58Z); HP + LP board
 | Board | Size | Stack-up | Content |
 | --- | --- | --- | --- |
 | HP (high power) | 100 × 95 mm | 4 layers, 2 oz outer and inner (verify the fab's heavy-copper option and price) | pack in, pack sense connector, BMS AFE, shunt, BMS FET banks, charge port, E-stop banks, VMOT bulk, regen clamp, 6 port channels, port fuses and connectors, fast current amps |
-| LP (low power) | 100 × 53 mm | 6 layers, 1 oz | supervisor, 2 CAN bridges, USB hub, 6 isolated CAN, 12 V and 24 V front ends, point-of-load rails, rail switches and meters, I/O |
+| LP (low power) | 100 × 53 mm | 6 layers, 1 oz | supervisor, 2 CAN bridges, USB hub, 6 CAN transceivers, 12 V and 24 V front ends, point-of-load rails, rail switches and meters, I/O |
 | Pi power stub | 30 × 20 mm | 2 layers | 12 V → 5.1 V 6 A buck at the Pi |
 | Pack sense | 40 × 25 mm | 2 layers | 14 tap fuses, 3 NTC, 2 × 10 Micro-Fit (battery thread spec) |
 
@@ -64,7 +64,7 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 | E-stop gate drivers | TI TPS4810-Q1 class 100 V smart high-side driver, one per bank, enable from the loop | 2 | hardware path, short-circuit protection built in |
 | VMOT bulk | 8 × 220 µF 80 V polymer-hybrid, Ø10 × 12.5 mm, laid flat if needed | 8 | about 1.8 mF, under the 24 mm height |
 | VMOT TVS | SMDJ58A class | 2 | fast edges only |
-| Regen clamp | comparator + 100 V FET (IPT015N10N5) self-powered from VMOT; external 10 Ω 50 W aluminium-clad resistor (Arcol HS50 class) on the front bottom rail | 1 | see 2.3 |
+| Regen clamp | comparator + 100 V FET (IPT015N10N5) self-powered from VMOT; external Arcol HS25 10 Ω 25 W aluminium-clad resistor on the front bottom rail, NC thermostat in the E-stop loop | 1 | see 2.3 |
 
 ### 2.2 FET bank sizing
 
@@ -76,7 +76,7 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 - Short circuit: the pack can push about 54.6 V / 0.09 Ω ≈ 600 A prospective. AFE SCD at 40 mV on 0.25 mΩ = **160 A, delay set
   to the minimum (about 15 µs, verify)**. In practice the Class T pack fuse, the port eFuses (faster, lower) and the FET pulse
   rating all share this; the schematic gate must show the FET SOA covers 600 A for about 50 µs.
-- AFE thresholds on 0.25 mΩ, corrected against the BQ76952 datasheet SLUSE13B (p22: OCD/OCC in 2 mV steps, OCC delay max
+- Superseded at gate 3 by [RATIONALE-log](RATIONALE-log.md) (0.3 mΩ, OCD1 24 mV, OCC 12 mV, SCD 60 mV). AFE thresholds on 0.25 mΩ, corrected against the BQ76952 datasheet SLUSE13B (p22: OCD/OCC in 2 mV steps, OCC delay max
   425 ms): **OCD1 16 mV = 64 A** (hardware comparator, ≤ 425 ms), **OCD3 60 A for 1 s** (current-based, firmware level inside the
   AFE) as the agreed 60 A ceiling, **OCC 12 mV = 48 A at 425 ms** (stays under the P50B's 50 A pack charge limit), **SCD 40 mV =
   160 A** (valid step).
@@ -86,10 +86,10 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 
 ### 2.3 Regen clamp sizing
 
-- Threshold 57.5 V on, 56.5 V off (1 V hysteresis), self-powered from VMOT.
-- Resistor 10 Ω: 57.5² / 10 = 330 W while on, 5.75 A, which matches the host's 5 A braking cap when the pack is full (PLAN
-  3.4). The 50 W clad part takes about 5× overload for a few seconds; the supervisor logs on-time and the resistor's NTC and
-  raises a fault if the average passes 40 W.
+- Threshold 56.77 V on, 55.77 V off (1 V hysteresis, gate 3), self-powered from VMOT.
+- Resistor 10 Ω: 56.77² / 10 = 322 W while on, 5.7 A, which matches the host's 5 A braking cap when the pack is full (PLAN
+  3.4). The HS25 has no published pulse rating (see below); the supervisor logs on-time and the resistor's NTC, and an NC
+  thermostat on its plate opens the E-stop loop in hardware.
 - Arm drop for scale: about 15 J, under 0.1 s of clamp on-time.
 
 ### 2.4 Port channels
@@ -118,7 +118,7 @@ The LM5069 current limit is set by a 55 mV (typ, verify) sense threshold: 2.5 m�
 | Supervisor MCU | ST STM32G0B1 (USB, plenty of I2C, low power) | separate from the CAN bridges |
 | CAN bridges | 2 × ST STM32G474 (3 FDCAN each), candleLight/gs_usb firmware | 6 buses |
 | USB hub | Microchip USB2514B (4 port) | supervisor + 2 bridges + service port; one USB-C up to the Pi |
-| Isolated CAN | 6 × TI ISOW1044 (integrated isolated supply) | bus pins rated for a 58 V fault (verify) |
+| CAN | 6 × TI TCAN1462V-Q1, non-isolated (gate 3 default) | bus pins ±58 V, ±45 V differential |
 | 12 V intermediate, 150 W | TI LM5145 (6 to 75 V sync buck controller) + 100 V FETs | from VSYS through the ideal diode |
 | 24 V, 75 W | second LM5145 | from VSYS |
 | Ideal diode + hold-up | TI LM74700-Q1 + 1 mF at VSYS (rides 10 ms at 90 W down to 20 V) | |
@@ -146,7 +146,7 @@ marengo_pdu (root)
 ├── LP_logic_board
 │   ├── supervisor_mcu
 │   ├── can_bridges_usb_hub
-│   ├── isolated_can ×6        (instanced)
+│   ├── can_phy ×6             (instanced)
 │   ├── front_end_12v_24v
 │   ├── pol_rails
 │   ├── rail_switches_meters
@@ -173,7 +173,7 @@ One locking 2 × 30 header, 2.0 mm pitch, along the HP bottom edge and the LP to
 | 3 | AFE I2C (SDA, SCL) and AFE ALERT |
 | 2 | HP meter I2C (port INA228s, HP NTCs) |
 | 2 | AFE DFETOFF (loop) and RST_SHUT |
-| 12 | CAN_H / CAN_L for the six ports, from the isolated transceivers on LP to the port connectors on HP |
+| 12 | CAN_H / CAN_L for the six ports, from the transceivers on LP to the port connectors on HP |
 | 2 | charger present, board present |
 | 9 | spare and extra GND between CAN pairs |
 
@@ -196,7 +196,7 @@ One locking 2 × 30 header, 2.0 mm pitch, along the HP bottom edge and the LP to
   Datasheet maxima: 28.0 wide, 51.0 over the tags, 14.6 tall, holes on 18.3 × 19.8 mm. It sits flat on a 2 mm aluminium plate on
   the front bottom rail's inner face, at |X| ≤ 25.5, Y 154 to 182, Z 33.4 to 48. Arcol publishes no pulse rating, so ask Arcol
   before the leg stage; the 2 Ω leg stage takes a bigger part in the 37 mm rail reserve. Leads go to the LP bottom edge.
-  Keep the LP bottom-edge connectors at |X| > 36 or above Y 190. BOM/schematic part value to change from HS50 after gate 3.
+  Keep the LP bottom-edge connectors at |X| > 36 or above Y 190. BOM and schematic now carry the HS25.
 - **Pigtail bundles, per port, flat:**
   - Arm: 2 × 16 AWG silicone (Ø about 2.9) plus a twisted CAN pair (about Ø2.5), about 8 × 3 mm.
   - Leg: 2 × 12 AWG silicone (Ø about 4) plus CAN, about 10.5 × 4 mm.

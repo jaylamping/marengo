@@ -749,7 +749,7 @@
 							)
 						)
 					)
-					(number "EP"
+					(number "9"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -7043,8 +7043,8 @@
 		(pin "8"
 			(uuid "4ecde0f1-a363-5dbc-8bfc-2fba3435ae65")
 		)
-		(pin "EP"
-			(uuid "d9dd9efb-b2a9-57ed-94d3-f0528d82a799")
+		(pin "9"
+			(uuid "01e14e72-2058-575e-8a78-fd83baec988f")
 		)
 		(pin "1"
 			(uuid "98b732aa-4eab-573c-bce7-447e582880a8")
@@ -8777,7 +8777,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "619k 0.1%"
+		(property "Value" "604k 0.1%"
 			(at 132.08 191.77 0)
 			(effects
 				(font
@@ -12047,7 +12047,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, brake R +"
+		(property "Value" "M4 terminal, Arcol HS25 10R +"
 			(at 375.92 209.55 0)
 			(effects
 				(font
@@ -12148,7 +12148,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, brake R -"
+		(property "Value" "M4 terminal, Arcol HS25 10R -"
 			(at 375.92 224.79 0)
 			(effects
 				(font
@@ -12400,7 +12400,7 @@
 			)
 		)
 	)
-	(text "Clamp: 57.50 V on, 56.50 V off (VOH 11.7 V, 19.1M hysteresis). Spread 56.82-58.19 V full temperature, 56.99-58.02 V 0-60 C. 10 Ohm 50 W clad external: 330 W, 5.75 A.\nFET, 2 mOhm shunt (INA228 SHUNT_CAL 2000, ADCRANGE 0), 30 A Schottky and M4 terminals are sized for the leg stage 2 Ohm resistor, 29 A, 1.7 kW short time: only the\nexternal resistor swaps.\nINA228 0x4D: clamp power and energy on its own accumulator. Budget about 5 mA, 0.23 W in the LDO.\nFailure: stuck-on 330 W caught by brake NTC and opening the E-stop banks. SMDJ58A stays off under 64.4 V, spike protection only.\nRegen decision (coordinator 11-06): 10 Ohm in rev A. 30 A regen against 5.75 A clamp: BMS opening mid-brake rises 13.5 V/ms, drives stop at 60 V in about 185 us, torque drops. Leg stage fits 2 Ohm."
+	(text "Clamp: 56.77 V on, 55.77 V off (VOH 11.7 V, 19.1M hysteresis). Spread 56.08-57.46 V full temperature. Arcol HS25 10 Ohm 25 W clad, external on 2 mm plate: 322 W, 5.7 A.\nFET, 2 mOhm shunt (INA228 SHUNT_CAL 2000, ADCRANGE 0), 30 A Schottky and M4 terminals are sized for the leg stage 2 Ohm resistor, 29 A, 1.7 kW short time: only the\nexternal resistor swaps.\nINA228 0x4D: clamp power and energy on its own accumulator. Budget about 5 mA, 0.23 W in the LDO.\nFailure: stuck-on 322 W: NC thermostat on the HS25 plate sits in the E-stop loop, so it opens the banks in hardware, supervisor hung or not. NTC warns first. SMDJ58A stays off under 64.4 V, spike protection only.\nRegen decision (coordinator 11-06): 10 Ohm in rev A. 30 A regen against 5.75 A clamp: BMS opening mid-brake rises 13.5 V/ms, drives stop at 60 V in about 185 us, torque drops. Leg stage fits 2 Ohm."
 		(exclude_from_sim no)
 		(at 279.4 124.46 0)
 		(effects

@@ -9,7 +9,7 @@
 		(date "2026-11-06")
 		(rev "A-wip")
 		(company "marengo")
-		(comment 1 "TPS26631 eFuse / TPS22965 switch + INA238 per output. 2 I2C buses, 5 meters each.")
+		(comment 1 "TPS26631 eFuse / TPS22965 switch + INA238 per output. 2 I2C buses, 11 meters. Hardware 12 V shed.")
 	)
 	(lib_symbols
 		(symbol "Power_Management:TPS26631PWP"
@@ -1576,6 +1576,549 @@
 						)
 					)
 					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "74xGxx:74LVC1G14"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "74LVC1G14"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.ti.com/lit/sg/scyt129e/scyt129e.pdf"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Description" "Single Schmitt NOT Gate, Low-Voltage CMOS"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "Single Gate NOT Schmitt LVC CMOS"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "SOT?23* SOT?553*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "74LVC1G14_0_1"
+				(polyline
+					(pts
+						(xy -7.62 6.35)
+						(xy -7.62 -6.35)
+						(xy 5.08 0)
+						(xy -7.62 6.35)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "74LVC1G14_1_1"
+				(polyline
+					(pts
+						(xy -3.81 -1.27)
+						(xy -1.27 -1.27)
+						(xy -1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 -1.27)
+						(xy -2.54 1.27)
+						(xy 0 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin no_connect line
+					(at -7.62 5.08 180)
+					(length 5.08)
+					(hide yes)
+					(name "NC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -15.24 0 0)
+					(length 7.62)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -5.08 -10.16 90)
+					(length 5.08)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output inverted
+					(at 12.7 0 180)
+					(length 7.62)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -5.08 10.16 270)
+					(length 5.08)
+					(name "VCC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "Transistor_FET:Q_NMOS_GSD"
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "Q"
+				(at 5.08 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "Q_NMOS_GSD"
+				(at 5.08 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 5.08 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "N-MOSFET transistor, gate/source/drain"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "transistor NMOS N-MOS N-MOSFET"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "Q_NMOS_GSD_0_1"
+				(polyline
+					(pts
+						(xy 0.254 1.905)
+						(xy 0.254 -1.905)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.254 0)
+						(xy -2.54 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 2.286)
+						(xy 0.762 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 0.508)
+						(xy 0.762 -0.508)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.27)
+						(xy 0.762 -2.286)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.778)
+						(xy 3.302 -1.778)
+						(xy 3.302 1.778)
+						(xy 0.762 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.016 0)
+						(xy 2.032 0.381)
+						(xy 2.032 -0.381)
+						(xy 1.016 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 1.651 0)
+					(radius 2.794)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 2.54)
+						(xy 2.54 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 2.54 1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 2.54 -1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 -2.54)
+						(xy 2.54 0)
+						(xy 0.762 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.921 0.381)
+						(xy 3.683 0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 3.302 0.381)
+						(xy 2.921 -0.254)
+						(xy 3.683 -0.254)
+						(xy 3.302 0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "Q_NMOS_GSD_1_1"
+				(pin input line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "G"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 -5.08 90)
+					(length 2.54)
+					(name "S"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 5.08 270)
+					(length 2.54)
+					(name "D"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -29603,6 +30146,2097 @@
 		)
 		(uuid "1b87fb03-7362-5482-b7b9-08994d2ca98d")
 	)
+	(text "+12V total: converter output to rail, bus A, straps VS,VS.\nALERT at 12.0 A, latched, 150 us conversion, sheds third board,\naux, spare in hardware. Firmware clears the latch."
+		(exclude_from_sim no)
+		(at 251.46 33.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left top)
+		)
+		(uuid "fe38face-604f-540d-a06c-4acf093db49f")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 251.46 63.5 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "30053ee0-ad50-5c62-99f7-e629622a643a")
+		(property "Reference" "R1368"
+			(at 254 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "2mR 3W"
+			(at 254 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 251.46 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 251.46 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 251.46 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "34a63291-5502-5657-ac3b-c9c99505bc06")
+		)
+		(pin "2"
+			(uuid "1bea75c3-74e9-5280-9332-df5793cf015e")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "R1368")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 251.46 59.69)
+			(xy 251.46 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "251552a5-1bf9-5b1b-a588-19450d62d4db")
+	)
+	(global_label "L12_OUT"
+		(shape passive)
+		(at 251.46 57.15 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "8d968057-1fee-506a-92ea-8fdc1e0832cd")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 251.46 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 251.46 67.31)
+			(xy 251.46 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "366370aa-0d12-5ad1-8051-ff3629e2cdbd")
+	)
+	(global_label "+12V"
+		(shape passive)
+		(at 251.46 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1b00470e-19fa-5655-882d-bf8a6dcb8bea")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 251.46 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 265.43 63.5 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ed26e2ba-a5b6-5d43-a984-ded44e5059e2")
+		(property "Reference" "R1369"
+			(at 267.97 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10R"
+			(at 267.97 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 265.43 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 265.43 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 265.43 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2b5eb93b-a0d3-5c48-8adc-9a8c3ec9a140")
+		)
+		(pin "2"
+			(uuid "f4ace742-d922-5778-b781-3d0ce8a241c9")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "R1369")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 265.43 59.69)
+			(xy 265.43 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e2531932-25ab-58ad-8671-cb9a16eaeab5")
+	)
+	(global_label "L12_OUT"
+		(shape passive)
+		(at 265.43 57.15 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "06380f8a-f64f-5201-867a-cd00147b07e6")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 265.43 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 265.43 67.31)
+			(xy 265.43 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7944b62c-3d61-52fd-89d1-ecdb85655ac2")
+	)
+	(label "SP_T12"
+		(at 265.43 69.85 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "704d5877-3288-5776-a3fa-4058ee1cd4c9")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 279.4 63.5 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "1b1dd5b5-0a84-5e8d-8d8a-a859307ce594")
+		(property "Reference" "R1370"
+			(at 281.94 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10R"
+			(at 281.94 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 279.4 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 279.4 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 279.4 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "da439448-d74b-5f0a-aebe-deb1fed776a6")
+		)
+		(pin "2"
+			(uuid "72e51316-5dea-5a41-b9e2-89d5e6a247dc")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "R1370")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 279.4 59.69)
+			(xy 279.4 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "505f5f70-ee7f-5d83-824f-2485fbb2ad2b")
+	)
+	(global_label "+12V"
+		(shape passive)
+		(at 279.4 57.15 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "8b62b948-7035-5240-91ed-a84503ee989e")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 279.4 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 279.4 67.31)
+			(xy 279.4 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "88f11158-a815-50be-a43a-bfdc7961e714")
+	)
+	(label "SN_T12"
+		(at 279.4 69.85 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c9004a84-af05-5a4f-ae15-dd648e69bee4")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 293.37 63.5 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4e6135f3-6a28-5a28-ac16-be4204c90c0d")
+		(property "Reference" "C1355"
+			(at 295.91 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 295.91 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 293.37 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 293.37 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 293.37 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a1023b5b-9b76-5616-87e3-6ffd79bd57b0")
+		)
+		(pin "2"
+			(uuid "fdbffa86-76cd-5c71-824a-111aa2069ee2")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "C1355")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 293.37 59.69)
+			(xy 293.37 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a89c03bc-78e5-594a-ba11-5f70bf4eaed0")
+	)
+	(label "SP_T12"
+		(at 293.37 57.15 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a9aeb73c-41c4-5696-9f89-839704044e6e")
+	)
+	(wire
+		(pts
+			(xy 293.37 67.31)
+			(xy 293.37 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "77811aa1-b5b7-523e-8d11-7a45d490f84f")
+	)
+	(label "SN_T12"
+		(at 293.37 69.85 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "979c801e-60c5-5d43-85ba-33ca39fc3038")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 307.34 63.5 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "9ae00232-a8c4-5ca5-b0c1-8c2a3a052f40")
+		(property "Reference" "C1356"
+			(at 309.88 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 309.88 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 307.34 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 307.34 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 307.34 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e33bb86e-6f2a-5c53-92be-f46444825864")
+		)
+		(pin "2"
+			(uuid "bc068ed3-a772-5ca3-8f1f-0de008a383ed")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "C1356")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 307.34 59.69)
+			(xy 307.34 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dabf88c2-7abc-52ca-ad35-32a6b9e17fc2")
+	)
+	(global_label "+3V3_AON"
+		(shape passive)
+		(at 307.34 57.15 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "8ea47302-a870-55c8-8db2-a2fb21b5bd22")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 307.34 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 307.34 67.31)
+			(xy 307.34 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "46c1b65a-2bda-56ef-81d8-d399366ed57c")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 307.34 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "14aa4dda-2bb5-5b6a-8626-1b0eea24ca60")
+		(property "Reference" "#PWR5108"
+			(at 311.15 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 311.15 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 307.34 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 307.34 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 307.34 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ed296513-c07f-5cb8-bff4-4410856e84e2")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "#PWR5108")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 321.31 63.5 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "827dfdd7-ab3d-5db2-9d9d-7966150ef39d")
+		(property "Reference" "R1371"
+			(at 323.85 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10k"
+			(at 323.85 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 321.31 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 321.31 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 321.31 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a3f33016-5928-51f7-955c-919a2d95c36a")
+		)
+		(pin "2"
+			(uuid "38e4ca41-323f-5fb9-8565-6bf110917fe1")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "R1371")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 321.31 59.69)
+			(xy 321.31 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "31a24d04-064e-57a0-a811-5ed71ec6e04c")
+	)
+	(label "SHED_N"
+		(at 321.31 57.15 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "362e70a0-cb66-55b7-a82d-b940de1c1577")
+	)
+	(wire
+		(pts
+			(xy 321.31 67.31)
+			(xy 321.31 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9d6b7eec-5789-5352-a17e-84556bce2d5d")
+	)
+	(global_label "+3V3_AON"
+		(shape passive)
+		(at 321.31 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "b2b77d23-a203-5ca8-9093-4d2b6ae7618f")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 321.31 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Sensor_Energy:INA238")
+		(at 274.32 121.92 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "26538f49-2700-578e-a734-3034a2aae60d")
+		(property "Reference" "U1321"
+			(at 269.24 97.79 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "INA238AIDGSR"
+			(at 269.24 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_SO:TSSOP-10_3x3mm_P0.5mm"
+			(at 274.32 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina238.pdf"
+			(at 274.32 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 274.32 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "196103d4-9fed-577f-8d64-8acf123eedbf")
+		)
+		(pin "2"
+			(uuid "166a1e44-8a7f-5e30-8ce8-2f5db5ef32dd")
+		)
+		(pin "3"
+			(uuid "8c0f54aa-8903-5570-994f-4c684f23725c")
+		)
+		(pin "4"
+			(uuid "b5e29dd5-a084-5571-96e4-3396f292348d")
+		)
+		(pin "5"
+			(uuid "e898c96a-a59d-5df1-a5db-25bba500fcad")
+		)
+		(pin "6"
+			(uuid "bdb50a3c-4d5a-55e9-a2b6-66d445bd2c42")
+		)
+		(pin "7"
+			(uuid "616852f3-6967-57b2-90e0-91fee19a995d")
+		)
+		(pin "8"
+			(uuid "40a94e87-39a3-5da8-915a-e381a0a1284d")
+		)
+		(pin "9"
+			(uuid "67addf97-feef-5851-88f4-06ca6ad5c8bd")
+		)
+		(pin "10"
+			(uuid "716107e7-9eeb-5aba-adb0-fc1b4eba559e")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "U1321")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 284.48 114.3)
+			(xy 289.56 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "28153ec6-9f16-54e3-ab15-e390928118e7")
+	)
+	(global_label "+3V3_AON"
+		(shape passive)
+		(at 289.56 114.3 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "71af1e0d-5c92-5240-a8d7-9a46a78afbfc")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 289.56 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 284.48 116.84)
+			(xy 289.56 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a684e920-b624-518a-8852-4ad41cb0c91e")
+	)
+	(global_label "+3V3_AON"
+		(shape passive)
+		(at 289.56 116.84 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "94613014-5ecf-5a6e-85d7-39a2ef2ccf8c")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 289.56 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 284.48 129.54)
+			(xy 289.56 129.54)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "39903459-f92f-5808-8ee6-e1919fbe96d3")
+	)
+	(label "SHED_N"
+		(at 289.56 129.54 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "52e752f3-1443-5e6f-85ba-13380027442a")
+	)
+	(wire
+		(pts
+			(xy 284.48 121.92)
+			(xy 289.56 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "34720099-a3f9-5183-af22-d8be075a48da")
+	)
+	(global_label "I2C_A_SDA"
+		(shape passive)
+		(at 289.56 121.92 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "82731c98-9c24-5602-a19c-639c4605e6a2")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 289.56 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 284.48 124.46)
+			(xy 289.56 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e9e8e087-0fd4-53f0-8a0b-36d1ccaa14b0")
+	)
+	(global_label "I2C_A_SCL"
+		(shape passive)
+		(at 289.56 124.46 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "738ed850-3a15-515d-9cf6-dbe25c969602")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 289.56 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 274.32 109.22)
+			(xy 274.32 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b109ccab-43bb-5497-8ab4-32e9e4ad44d7")
+	)
+	(global_label "+3V3_AON"
+		(shape passive)
+		(at 274.32 104.14 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6dc9211d-c7a2-5a49-9a87-c93f233f6a12")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 274.32 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 274.32 134.62)
+			(xy 274.32 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6b4152c2-15d8-5b45-8d3c-211fd75dfe8d")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 274.32 139.7 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "86e0de8a-671c-51b2-a7f8-9a3ee8979f35")
+		(property "Reference" "#PWR5109"
+			(at 278.13 138.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 278.13 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 274.32 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 274.32 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 274.32 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d919a7ac-e9fe-5107-bb5a-ce33da15874a")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "#PWR5109")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 264.16 114.3)
+			(xy 259.08 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ae7f84ae-65df-55d2-a227-65db5ee5e8f5")
+	)
+	(global_label "+12V"
+		(shape passive)
+		(at 259.08 114.3 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9154227c-2637-582b-a7b0-b2ec007d5032")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 259.08 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 264.16 127)
+			(xy 259.08 127)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7755ad96-22e8-5d07-b128-b9b358211953")
+	)
+	(label "SN_T12"
+		(at 259.08 127 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "4cb66ee5-e8b4-501d-a73b-a5d5c67e9041")
+	)
+	(wire
+		(pts
+			(xy 264.16 124.46)
+			(xy 259.08 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "970f5d5c-cb6e-55da-82e0-cb2f61bcb922")
+	)
+	(label "SP_T12"
+		(at 259.08 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "8cd0f217-4d7c-5618-8e16-b0fc4243a0b4")
+	)
+	(symbol
+		(lib_id "74xGxx:74LVC1G14")
+		(at 340.36 121.92 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "47379e45-9650-5536-88a6-fe34ea01a2d6")
+		(property "Reference" "U1322"
+			(at 335.28 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SN74LVC1G14DBV"
+			(at 335.28 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
+			(at 340.36 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 340.36 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 340.36 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "95f1d494-209e-5611-ae5f-b6d1a9ca785a")
+		)
+		(pin "2"
+			(uuid "90395db4-b148-5c0b-853d-05b8ed32813b")
+		)
+		(pin "3"
+			(uuid "6b0afff3-ab18-56c1-b5c8-496b302584e8")
+		)
+		(pin "4"
+			(uuid "14cc203e-6d70-519d-a17b-69cb64cd3f2b")
+		)
+		(pin "5"
+			(uuid "0da72b9e-c2b2-57ed-b141-350b05e67183")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "U1322")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(no_connect
+		(at 332.74 116.84)
+		(uuid "f899405b-29b6-5eac-9298-581e440da5e4")
+	)
+	(wire
+		(pts
+			(xy 325.12 121.92)
+			(xy 320.04 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8a72155a-4308-5747-b581-bd4a0909ea32")
+	)
+	(label "SHED_N"
+		(at 320.04 121.92 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "bb7c0633-95a5-575b-98d0-69ab9f4bb6ca")
+	)
+	(wire
+		(pts
+			(xy 335.28 132.08)
+			(xy 335.28 137.16)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2862dd53-e9b0-5e80-bea1-98ecceb6c7ae")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 335.28 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "98627004-1e90-5492-b6de-06fe59124fd8")
+		(property "Reference" "#PWR5110"
+			(at 339.09 135.89 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 339.09 138.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 335.28 137.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 335.28 137.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 335.28 137.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2c4401c6-a652-520b-92d5-6e41bec14456")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "#PWR5110")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 353.06 121.92)
+			(xy 358.14 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a34f017f-b4f6-5c33-b395-fcb80a6f5fca")
+	)
+	(label "SHED_12V"
+		(at 358.14 121.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "289689d8-2fa2-5fd9-bbf8-2b11af421e55")
+	)
+	(wire
+		(pts
+			(xy 335.28 111.76)
+			(xy 335.28 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ea4624ea-9c7b-5404-8a04-aefaab019e0d")
+	)
+	(global_label "+3V3_AON"
+		(shape passive)
+		(at 335.28 106.68 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6f793e7c-82a2-58a5-99d3-a9a213cd41e5")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 335.28 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 264.16 167.64 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b9caf2b6-3947-5dde-87d4-e621cb38bafe")
+		(property "Reference" "Q1301"
+			(at 259.08 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "2N7002"
+			(at 259.08 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 264.16 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 264.16 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 264.16 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b76a0de8-fde0-55c7-bd8b-c4249ec1c5db")
+		)
+		(pin "2"
+			(uuid "cb6348ed-8da7-5c74-b96f-ae27915d1dfa")
+		)
+		(pin "3"
+			(uuid "d11b4740-6d01-5210-9aea-9d5610e7ab2a")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "Q1301")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 259.08 167.64)
+			(xy 254 167.64)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f35fc724-15f6-5c95-b6ed-54c32f7ae39a")
+	)
+	(label "SHED_12V"
+		(at 254 167.64 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "70a8ddca-d7cb-5029-a5cd-e80e4a45ed54")
+	)
+	(wire
+		(pts
+			(xy 266.7 172.72)
+			(xy 266.7 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c67f8c85-adb4-57bf-8667-833eb1a392d8")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 266.7 177.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "67e5d942-8c97-5ee9-95a5-a425e3da88b1")
+		(property "Reference" "#PWR5111"
+			(at 270.51 176.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 270.51 179.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 266.7 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 266.7 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 266.7 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "792c0ee9-a76f-50bd-88cc-e0045637c962")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "#PWR5111")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 266.7 162.56)
+			(xy 266.7 157.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c9e234bf-db78-519f-888f-b48877039406")
+	)
+	(global_label "EN_12V_THIRD"
+		(shape passive)
+		(at 266.7 157.48 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "faa49ab1-ea94-5418-9164-f8ad63cc5ad1")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 266.7 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 304.8 167.64 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "dc68fcc0-71b3-5cdb-8be9-e3806731dcdb")
+		(property "Reference" "Q1302"
+			(at 299.72 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "2N7002"
+			(at 299.72 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 304.8 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 304.8 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 304.8 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ae3bf03f-0bfd-5d6f-a38d-6895ce0059dd")
+		)
+		(pin "2"
+			(uuid "91fc421c-a4cf-5aee-9f4f-9174832a48fb")
+		)
+		(pin "3"
+			(uuid "a62b65aa-bbd0-5929-9994-e5988706d558")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "Q1302")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 299.72 167.64)
+			(xy 294.64 167.64)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c738ea7f-8ba9-5156-a179-b0e6431de0a4")
+	)
+	(label "SHED_12V"
+		(at 294.64 167.64 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "9153cc79-28b2-5752-bc74-f98223bb3c07")
+	)
+	(wire
+		(pts
+			(xy 307.34 172.72)
+			(xy 307.34 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "45daa7e7-0ce2-5d0d-a51e-94f6482460ec")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 307.34 177.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "f3fc7f53-1f98-589b-950f-065477c9dcef")
+		(property "Reference" "#PWR5112"
+			(at 311.15 176.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 311.15 179.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 307.34 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 307.34 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 307.34 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a050a9e5-afb2-5dc8-b6f6-dc2911aef713")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "#PWR5112")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 307.34 162.56)
+			(xy 307.34 157.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c8c68a0d-da87-5bf2-8e32-14247b8b6730")
+	)
+	(global_label "EN_12V_AUX"
+		(shape passive)
+		(at 307.34 157.48 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "92396e76-75e8-537c-82f1-0e103ee89c28")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 307.34 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 345.44 167.64 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "55717cc2-4845-5d86-9e53-b4fc1b07b19e")
+		(property "Reference" "Q1303"
+			(at 340.36 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "2N7002"
+			(at 340.36 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 345.44 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 345.44 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 345.44 167.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b115ad76-0b83-5aa4-ae3d-0c70292eba7b")
+		)
+		(pin "2"
+			(uuid "88d396ef-c2da-52ff-9d5e-afc6dc983823")
+		)
+		(pin "3"
+			(uuid "8c1914a6-d3ab-549a-8392-6166a1038d0f")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "Q1303")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 340.36 167.64)
+			(xy 335.28 167.64)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "30667098-57b3-546d-8f7b-353ac3c98683")
+	)
+	(label "SHED_12V"
+		(at 335.28 167.64 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a82e834b-a3e4-5173-8086-f33167a56b97")
+	)
+	(wire
+		(pts
+			(xy 347.98 172.72)
+			(xy 347.98 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b10806d5-d5e7-51ec-84ab-324cecf95517")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 347.98 177.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "6b3d2d2c-e1b5-5529-bcb3-9172b5605f08")
+		(property "Reference" "#PWR5113"
+			(at 351.79 176.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 351.79 179.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 347.98 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 347.98 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 347.98 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d0ddfaa2-9b81-51ae-9863-6774ef2bc726")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
+					(reference "#PWR5113")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 347.98 162.56)
+			(xy 347.98 157.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "35459901-bff5-5ce8-a198-d08101760a67")
+	)
+	(global_label "EN_SPARE"
+		(shape passive)
+		(at 347.98 157.48 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "e04c5163-89bf-5aee-acfe-34d092398a1b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 347.98 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
 	(symbol
 		(lib_id "Device:R")
 		(at 25.4 590.55 0)
@@ -29611,8 +32245,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "30053ee0-ad50-5c62-99f7-e629622a643a")
-		(property "Reference" "R1368"
+		(uuid "0c72f935-e65f-5e3c-80e4-c3a1d38ad5ad")
+		(property "Reference" "R1372"
 			(at 27.94 589.28 0)
 			(effects
 				(font
@@ -29661,15 +32295,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "34a63291-5502-5657-ac3b-c9c99505bc06")
+			(uuid "a6590292-31dd-5b63-aabf-2b766fef52ff")
 		)
 		(pin "2"
-			(uuid "1bea75c3-74e9-5280-9332-df5793cf015e")
+			(uuid "8a721c48-915d-56ff-9d4c-dae7c45e34f2")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
-					(reference "R1368")
+					(reference "R1372")
 					(unit 1)
 				)
 			)
@@ -29684,7 +32318,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "fe38face-604f-540d-a06c-4acf093db49f")
+		(uuid "989da767-6eb7-53bd-b22f-0a39de828475")
 	)
 	(global_label "RAIL_FLT"
 		(shape passive)
@@ -29696,7 +32330,7 @@
 			)
 			(justify left)
 		)
-		(uuid "251552a5-1bf9-5b1b-a588-19450d62d4db")
+		(uuid "80846822-3ad1-5e0b-a19b-ba3dfc9b2f38")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 25.4 584.2 0)
 			(effects
@@ -29716,7 +32350,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "8d968057-1fee-506a-92ea-8fdc1e0832cd")
+		(uuid "d9af5884-0c0d-5e9e-ba71-396210cd8d94")
 	)
 	(global_label "+3V3_AON"
 		(shape passive)
@@ -29728,7 +32362,7 @@
 			)
 			(justify right)
 		)
-		(uuid "366370aa-0d12-5ad1-8051-ff3629e2cdbd")
+		(uuid "41d72535-3aba-5584-8b20-e2fd35fddec6")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 25.4 596.9 0)
 			(effects
@@ -29747,8 +32381,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "ed26e2ba-a5b6-5d43-a984-ded44e5059e2")
-		(property "Reference" "R1369"
+		(uuid "f5f71628-a954-5cee-b70c-e110d7e409c0")
+		(property "Reference" "R1373"
 			(at 41.91 589.28 0)
 			(effects
 				(font
@@ -29797,15 +32431,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "2b5eb93b-a0d3-5c48-8adc-9a8c3ec9a140")
+			(uuid "69388838-4870-5796-ac2d-bb6ed4eba902")
 		)
 		(pin "2"
-			(uuid "f4ace742-d922-5778-b781-3d0ce8a241c9")
+			(uuid "8a294282-2eba-5aa6-9fa0-2a4ffc8da3f5")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
-					(reference "R1369")
+					(reference "R1373")
 					(unit 1)
 				)
 			)
@@ -29820,7 +32454,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "1b00470e-19fa-5655-882d-bf8a6dcb8bea")
+		(uuid "e4e6c584-0b82-5c37-be8f-5ba14890a04e")
 	)
 	(global_label "RAIL_ALERT_A"
 		(shape passive)
@@ -29832,7 +32466,7 @@
 			)
 			(justify left)
 		)
-		(uuid "e2531932-25ab-58ad-8671-cb9a16eaeab5")
+		(uuid "c8393c20-0d67-513d-9a95-bc6035132752")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 39.37 584.2 0)
 			(effects
@@ -29852,7 +32486,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "06380f8a-f64f-5201-867a-cd00147b07e6")
+		(uuid "df481d9c-8b5e-5147-b7a0-204b99b38d29")
 	)
 	(global_label "+3V3_AON"
 		(shape passive)
@@ -29864,7 +32498,7 @@
 			)
 			(justify right)
 		)
-		(uuid "7944b62c-3d61-52fd-89d1-ecdb85655ac2")
+		(uuid "8e3dd7e7-0918-570a-83ad-0cd774bb89c1")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 39.37 596.9 0)
 			(effects
@@ -29883,8 +32517,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "1b1dd5b5-0a84-5e8d-8d8a-a859307ce594")
-		(property "Reference" "R1370"
+		(uuid "a7a3e172-fe33-50f7-942e-dcdd5caaa26d")
+		(property "Reference" "R1374"
 			(at 55.88 589.28 0)
 			(effects
 				(font
@@ -29933,15 +32567,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "da439448-d74b-5f0a-aebe-deb1fed776a6")
+			(uuid "56cb213b-058f-5b5b-96a7-c75da545d632")
 		)
 		(pin "2"
-			(uuid "72e51316-5dea-5a41-b9e2-89d5e6a247dc")
+			(uuid "775f7a81-f383-5128-ac04-6c86e073e59d")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/cb892ff5-299e-5458-8f55-49d6108f545c/fefb82fc-ad0c-51e7-aadf-fc3f3de498ce"
-					(reference "R1370")
+					(reference "R1374")
 					(unit 1)
 				)
 			)
@@ -29956,7 +32590,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "704d5877-3288-5776-a3fa-4058ee1cd4c9")
+		(uuid "acecc3a6-4bea-5a83-a6ac-9918f85f668c")
 	)
 	(global_label "RAIL_ALERT_B"
 		(shape passive)
@@ -29968,7 +32602,7 @@
 			)
 			(justify left)
 		)
-		(uuid "505f5f70-ee7f-5d83-824f-2485fbb2ad2b")
+		(uuid "8292c26e-f885-50ee-b1b8-3c4c683caafc")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 53.34 584.2 0)
 			(effects
@@ -29988,7 +32622,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "8b62b948-7035-5240-91ed-a84503ee989e")
+		(uuid "bfe8f24b-b7b7-5eca-9955-308e3db8938b")
 	)
 	(global_label "+3V3_AON"
 		(shape passive)
@@ -30000,7 +32634,7 @@
 			)
 			(justify right)
 		)
-		(uuid "88f11158-a815-50be-a43a-bfdc7961e714")
+		(uuid "0d76ecca-104f-5836-ab7e-3f7348de6bd9")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 53.34 596.9 0)
 			(effects
@@ -30020,7 +32654,7 @@
 			)
 			(justify left top)
 		)
-		(uuid "c9004a84-af05-5a4f-ae15-dd648e69bee4")
+		(uuid "a00828af-185e-5270-bc56-d5877f75b978")
 	)
 	(embedded_fonts no)
 )

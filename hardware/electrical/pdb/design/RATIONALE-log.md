@@ -45,7 +45,7 @@ C30/C31 VSYS to GND. TI's E3 spark gap omitted: no external connector on the boa
 PREDISCHARGE mode, charges the *load* before DSG closes. VSYS bulk is the load, so PDSG (sheet 1 pin 39 now wired, pin 40 PCHG floating
 as p75). Fig 16-1 has the PDSG FET **source on the mid node CD** and bypassing DSG only, so its body diode does not add a path past the
 CHG FET. The brief's "PACK+ to VSYS" would have made one: VSYS → 100 Ω → body diode → stack, with CHG open. Followed Fig 16-1.
-Gate-source 1 MΩ (p45: driver sinks 30 µA). Vgs on = −7.5 to −9.7 V (p12). Peak in the 100 Ω: 298 W at 54.6 V. Energy: ½ × 1.1 mF ×
+Gate-source 1 MΩ (p45: driver sinks 30 µA). Vgs on = −7.5 to −9.7 V (p12). Peak in the 100 Ω: 29.8 W at 54.6 V (gate 3: was misprinted 298 W, and the real load is 1.46 mF, 2.2 J, see Gate 3 fixes). Energy: ½ × 1.1 mF ×
 54.6² = 1.64 J per start, τ 0.11 s, 5τ = 0.55 s. **OTP:** enable PREDISCHARGE, timeout > 0.6 s.
 
 **Naming, deviation 4.** The brief's "PACK+" means the stack; sheet 1's hierarchical PACK+ meant the post-FET port. Renamed sheet 1's
@@ -58,7 +58,7 @@ The 40 mV shunt offset between DSG_OUT and VSYS is negligible for LD. Pack + ter
 **Charge input, deviation 5.** PLAN 3.7 said reverse-polarity protected; the brief said FET. Common port is the normal BQ76952 layout
 (charger reaches the PACK pin, p44 to p45) and the charger wakes the AFE through LD. But with a reversed charger and a live pack the
 blocker sees 54.6 + 54 ≈ 108 V: over the 100 V FET and over LM74700 CATHODE-ANODE 75 V abs max (SNOSD17G section 6.1). Rejected: LM74700 +
-FET; P-FET with gate to GND (it conducts VSYS back onto the port). Chosen: D220, 200 V 15 A Schottky (V15PM20 class, verify), 0.7 V drop,
+FET; P-FET with gate to GND (it conducts VSYS back onto the port). Chosen: D220, Vishay V10PM15-M3/I 150 V 10 A Schottky (gate 3: the V15PM20 could not be confirmed), 0.6 V at 5 A,
 about 3 W at 4 A. Side effects: the port is not live, and a port short does not draw on VSYS. Cost: pack end voltage is 0.7 V under the
 charger, so use the 54.6 V charger; the supervisor stops at 4.15 V/cell (53.9 V). SMDJ58CA at the port, bidirectional for the reversed case.
 **Recommendation stands unless Joey wants the lower loss of a 150 V FET with an isolated gate drive.**
@@ -82,15 +82,15 @@ CSS4J-4026 5 W on both. Rejected 0.2 mΩ: the AFE reads less, and its accuracy b
 
 | Protection | Setting | Current | Note |
 |---|---|---|---|
-| OCD1 | 20 mV | 66.7 A | hardware comparator, up to 425 ms |
+| OCD1 | 24 mV | 80 A (66.7 to 93.3 A) | hardware comparator, delay 100 ms |
 | OCD3 | current based | 60 A for 1 s | the agreed 60 A ceiling |
-| OCC | 14 mV | 46.7 A | 425 ms |
-| SCD | 60 mV | 200 A (170 to 230 A at ±15 %) | 15 to 450 µs in 15 µs steps |
+| OCC | 12 mV | 40 A (33.3 to 48.8 A) | 425 ms |
+| SCD | 60 mV | 200 A (170 to 230 A at ±15 %) | 30 µs, so bank A acts first |
 
 SCD was 40 mV on paper. On 0.3 mΩ that would trip at 133 A and break the 150 A, 100 ms path rating, so SCD went up to 60 mV.
 
 **Open.** CSS4J
-land on the BVR4026 library footprint is to be checked against the Bourns drawing. OTP owed: DFETOFF active high (0x02), CFETOFF and
+land on the BVR4026 library footprint is to be checked against the Bourns drawing. OTP owed: DFETOFF active high with BOTHOFF (0x42), CFETOFF and
 HDQ as thermistor inputs.
 
 ## HP_power_board top sheet
@@ -99,8 +99,8 @@ HDQ as thermistor inputs.
 all 60 pins used. Each signal keeps one global net across both boards. `check.py` asserts every HP and LP pin pair against
 `CONN_A` and `CONN_B`.
 
-Changes from README section 5: BOARD_PRESENT dropped (NTC_BOARD1 reads open when the HP board is missing; PF10 goes to PRECHG_EN),
-FLT lines not routed. Added TS2_WAKE, PRECHG_EN, GND2 × 6, +3V3_HP, NTC_BOARD1, NTC_BRAKE, MID_SENSE. VSYS gets 6 pins because LP
+Changes from README section 5: BOARD_PRESENT dropped (NTC_BOARD1 reads open when the HP board is missing; PF10 goes to BANK_B_CLOSE, called PRECHG_EN before gate 3),
+FLT lines not routed. Added TS2_WAKE, BANK_B_CLOSE, FLT_A (gate 3, in place of GND2 × 6, now GND), +3V3_HP, NTC_BOARD1, NTC_BRAKE, MID_SENSE. VSYS gets 6 pins because LP
 draws up to 6.7 A at minimum pack, not README's 5 A.
 
 Port order everywhere: 1 L arm, 2 R arm, 3 waist, 4 L leg, 5 R leg, 6 aux. CAN numbers match. J103 is CAN fault injection on CAN6.
@@ -108,7 +108,7 @@ Port order everywhere: 1 L arm, 2 R arm, 3 waist, 4 L leg, 5 R leg, 6 aux. CAN n
 **DFETOFF, deviation.** PLAN drives DFETOFF from the E-stop loop. That deadlocks: 12 V comes from VSYS after DSG, so the loop reads
 open before 12 V exists; it would also drop compute on E-stop, against PLAN 3.1 and 3.2. Used instead: PACK_PRESENT_N (1 MΩ from
 PACK_TOP, 3.3 V zener to VSS, pulled low by the pack sense harness when mated, 54 µA) diode-ORed by BAT54C with AFE_DFETOFF_SUP
-into DFETOFF, 100 kΩ to VSS. Active high, config 0x02. The README's hardware loop link was not fitted: no pin left for it.
+into DFETOFF, 100 kΩ to VSS. Active high, config 0x42 (BOTHOFF, gate 3). The README's hardware loop link was not fitted: no pin left for it.
 
 **Addresses.** Port INA228 straps A1,A0 give 0x40, 0x41, 0x44, 0x43, 0x47, 0x45 for ports 1 to 6. VSYS meter 0x4C, clamp 0x4D.
 
@@ -120,8 +120,8 @@ VS, CS+, CS- at VSYS through 100 Ω; SCP_TEST, ISCP, CS_SEL, TMR grounded; CBST 
 INP1, 6.8 µs by EN. Turn on 27 to 50 ms. Part is 100 V abs, 95 V operate (docs said 80 V). Gate 2.2 Ω per FET, 1 MΩ gate-source.
 
 **VMOT precharge, deviation (reverses PLAN 3.4).** IPT015N10N5 SOA is 0.7 A at 54 V, 10 ms, so closing a bank onto 1.8 mF is out.
-Q307 and 100 Ω PWR263S-35-1000F across bank B, gated by U302 G2 from PRECHG_EN. Close A, raise PRECHG_EN, wait for VMOT within 2 V
-of VSYS, close B, timeout 0.5 s. EN low kills G2, so the loop gates precharge in hardware.
+Q307 and 100 Ω PWR263S-35-1000F across bank B, gated by U302 G2. Gate 3 corrected the wiring: G2 follows INP2, so INP2 and EN sit on ESTOP_EN_B and INP1 takes BANK_B_CLOSE.
+Loop closed and latch armed: precharge runs in hardware. Firmware closes B once VMOT is within 2 V of VSYS, timeout 0.85 s (0.595 s nominal, 0.71 s at +20 % C). EN low kills G1 and G2.
 
 - Peak 54.6² / 100 = 29.8 W (the brief's 298 W was a tenfold slip). PWR263S-35-1000F passes; W21 3 W does not.
 - Energy ½ × 1.8 mF × 54.6² = 2.68 J. τ = 100 Ω × 1.8 mF = 180 ms.
@@ -129,7 +129,7 @@ of VSYS, close B, timeout 0.5 s. EN low kills G2, so the loop gates precharge in
 **Status, deviation.** TPS48100 has no VDS output. MID and VMOT dividers 1 MΩ / 56 kΩ (3.3 V = 62 V), 49.9 Ω to ADC, plus VSYS on LP. Bank A
 short reads MID near VSYS with both open and VMOT low. FLT to test point only.
 
-**Links.** ESTOP_EN_A/B and PRECHG_EN from LP over J101; MID_SENSE, VMOT_SENSE over J102; VMOT to vmot_bulk_clamp and every port.
+**Links.** ESTOP_EN_A/B and BANK_B_CLOSE from LP over J101; MID_SENSE, VMOT_SENSE over J102; VMOT to vmot_bulk_clamp and every port.
 
 **Open.** No KiCad footprint for TPS48100 DGX. Check U302 G2 drive against Q307 Qg.
 
@@ -142,7 +142,7 @@ Rejected 10 × 63 V 180 µF: the caps would sit below the SMDJ58A's 64.4 V condu
 IPT015N10N5, 2 mΩ shunt, MBRB30H100CT freewheel, INA228 0x4D. Divider 499 kΩ + 619 kΩ over 51.1 kΩ, hysteresis 19.1 MΩ. The series pair is there
 because E96 pairs step 0.7 V.
 
-- On 57.50 V, off 56.50 V (VOH 11.7 V). Spread 56.82 to 58.19 V full temperature, 56.99 to 58.02 V at 0 to 60 °C.
+- Gate 3: on 56.77 V, off 55.77 V (VOH 11.7 V, top resistor 604 kΩ). Spread 56.08 to 57.46 V full temperature, off no lower than 55.1 V. See the window table in Gate 3 fixes.
 - Works with the supervisor dead. Budget 5 mA, 0.23 W in the LDO. Stuck on is 330 W, caught by resistor NTC and opening the E-stop.
 
 **Regen, decided (see follow-ups below).** 10 Ω passes 5.75 A against a 30 A host regen limit. With the BMS open mid-brake the excess 24 A raises VMOT at 13.5 V/ms
@@ -182,9 +182,9 @@ the supervisor ADC; INA228 at 100 Hz for V, P, E. ADCRANGE 0 (61.5 mV exceeds 40
 **Mini clamp.** TL431 + BSS123 cascode + DMP10H400SE + 150 Ω PWR263S-35-1500F, load side of the fuse, so a blown fuse with a backdriven arm is covered. On 59.19 V, off 58.20 V,
 0.39 A, 23 W. On spread 58.33 to 59.73 V touches main clamp top only at extremes.
 
-**CAN TVS, deviation.** NUP2105L VBR is 26 to 32 V: sustained 54 V kills it. SMAJ58CA per line. Clamp exceeds ISOW1044's 58 V and capacitance is unchecked. Scope the bus.
+**CAN TVS, deviation.** NUP2105L VBR is 26 to 32 V: sustained 54 V kills it. SMAJ58CA per line, to GND. It is an ESD part here, not a ±58 V clamp. Capacitance unchecked. Scope the bus.
 
-**GND2.** Bus reference ties to port return via 0 Ω. Isolation then separates logic from motor return; it does not block a CAN-to-VBUS fault.
+**GND2, corrected.** There is no GND2 any more. The earlier claim here, that isolation separates logic from motor return, was false: the drives reference CAN to their power GND, the RS03 housings are at GND, and R503 bonded GND2 to GND anyway. The board is non-isolated. See Gate 3 fixes.
 
 **Deviations minor.** PGD unused (INA228 reads the state). Per-port Z1 omitted, 2 shared VMOT TVS cover it. REDCUBE press-fit M4 not found: THR 74651194R, rating unverified.
 
@@ -240,9 +240,9 @@ Two STM32G474 bridges, 3 channels each, on USB2514B-I/M2 (AEZG is not orderable)
 
 **Deviations.** FDCAN1_RX lands on PB8-BOOT0 because USB takes PA11/12: option byte must ignore the pin. candleLight has no G474 support: budgetcan_fw, new board config and a 3-channel build test owed. Service USB-C is host side, so a laptop cannot reach the board: an upstream mux is needed if that is wanted. VBUS through TPS22965 + 0.5 A polyfuse (not TPS2051, unverified).
 
-## isolated_can (6 instances)
+## can_phy (6 instances, was isolated_can)
 
-ISOW1044 on RAW_5V: VDD must be 5 V, 6 ports draw up to 0.74 A. Bus pins ±58 V abs, ±45 V differential, so TVS is on the port. 120 Ω termination by jumper per port.
+Gate 3 replaced ISOW1044 with TCAN1462V-Q1 on RAW_5V (VIO 3.3 V). Bus pins ±58 V abs, ±45 V differential. 0.42 A for six in dominant, against 0.74 A before. Termination and TVS at the port connector on HP.
 
 ## io_fans_estop_loop
 
@@ -300,7 +300,7 @@ Energy basis: 1.7 kW for the time the drives keep regenerating with the BMS open
 
 **Hold-up.** 20 × TDK B40950B0686M100, 68 µF 80 V hybrid, 10 × 10.8 mm, 33 mΩ, 10000 h at 105 °C. Fits the 13 mm board gap with 2.2 mm clear. Total 1.36 mF: 12.6 ms from 46.8 V, 6.8 ms from 37 V, at 90 W and 0.93. At -20 %: 10 ms and 5.5 ms. Rejected B40950A0686M000: 12.8 mm tall. Cost is about 21 cm² of land against 4 cans' 10 cm², for layout to fit. Dimensions from DigiKey listings; TDK datasheet not read. Footprint CP_Elec_10x10.5, listed land 10.3 × 10.3 mm matches its class.
 
-**Load shed.** Table on supervisor_mcu: fans at reduced duty above 11 A, third board 11.5 A, cameras and spare 12 A (EN_12V_AUX, EN_SPARE), Pi stub and Jetson last at 13 A or PG_12V falling. Thresholds are starting values, firmware owed. No 12 V total meter exists: estimate is the sum of meters. Fans and the E-stop loop sit on +12V directly, so step 3 drops neither.
+**Load shed.** Reworked at gate 3, see Gate 3 fixes M16. Table on supervisor_mcu. Thresholds are starting values, firmware owed. No 12 V total meter exists: estimate is the sum of meters. Fans and the E-stop loop sit on +12V directly, so step 3 drops neither.
 
 **Output limits.** TPS26631 per rail section above. Added after the TPS22965s: MF-MSMF250/16X-2 2.5 A on 5 V (1.8 A budget) and MF-MSMF110/16-2 1.1 A on 3.3 V (0.6 A budget), both ahead of the meter so the meter reads through them. Hold is at 23 °C: hot derating to check, 5 V margin is the thin one. Distributor data, Bourns datasheet not read. MF-MSMF200-2 rejected: last time buy, 8 V.
 
@@ -309,3 +309,102 @@ Energy basis: 1.7 kW for the time the drives keep regenerating with the BMS open
 **Footprints.** New project library `marengo.pretty`, loaded through `fp-lib-table`. TI lands from the datasheet drawings: TPS48100 DGX0019A (SLUSEW1C p35, no pad 16), TPS56637 RPA0010A (SLVSEG1A p29), ISOM8710 DFF0005A (SLLSFO4E p34, HV option, keeps the >5 mm rating). WSLP3921_Kelvin: Vishay current lands (doc 30176 p2), sense pads 2 and 3 sized by me as copper tabs with a net tie, position accuracy unmeasured. Vishay's Kelvin part is WSLP2726, unused. Wire_Pads_2_NTC: 1 mm drill, 103AT lead size unchecked. All parse and pass a DRC on a test board; none fabricated.
 
 **C206.** Placeholder replaced by the same 100 µF 80 V hybrid as VMOT bulk.
+
+## Gate 3 fixes (2026-11-06)
+
+All 4 blockers and 18 majors from [GATE3_REVIEW.md](GATE3_REVIEW.md) are in. Part facts below come from manufacturer documents read this session, except where marked from memory.
+
+### Three defaults, Joey can veto each
+
+**Default 1, ports.** Keep the 15 A wiring. Add an independent hardware watchdog, TPS3431S (U2031). It starts itself at power-up: SET1 high, CWD open gives 1.6 s (1.36 to 1.84 s). No firmware can start or stop it. WDO and ENOUT on WD_N, which clears both E-stop latches. Latch A's Q̄ drives the OE̅ pins of SN74LVC244A U2032, which sits between PORT_REQ1-6 and PORT_EN1-6, so every port enable tri-states and its 100 kΩ on HP pulls it off. Both E-stop enables drop with the latches. Compute rails are untouched. Firmware kicks WD_KICK from the main loop only, after the port and pack checks ran. A shorted port FET still ends at the blade fuse; that was accepted.
+
+**Default 2, CAN.** Replace isolated transceivers with non-isolated TCAN1462V-Q1 (VIO on pin 5, SOIC-8, TCAN1462VDRQ1 listed in SLLSFF2B). Reason: the motors reference CAN to their power GND and the RS03 housings are at GND, so isolation bought little. Pins ±58 V to GND, ±45 V differential.
+
+**Default 3, E-stop.** Stay Cat 0. Add a hardware re-close latch. Move +12 V off the E-stop connectors. A reset needs a press of a separate NO button after the loop is restored; a held button does nothing. A press is needed on every power-up too, because power-up clears the flops: veto this if you want power-on arming.
+
+### Correction: the isolation claim
+
+The log said isolation "separates logic from motor return". That was false. R503 bonded GND2 to GND on the same board, and the drives and frame bond CAN reference to power GND. Nothing on this board is isolated now. CAN_REF goes to GND through a 60 V 0.14 A PTC (MF-MSMF014/60X), so a lost motor return cannot pull drive current through the signal wire.
+
+### CAN short at 54.6 V
+
+Termination is split at the port connector: 56 Ω + 56 Ω PWR263S-35-56R0F, TERM_M 4.7 nF to GND, MF-MSMF010/60X (0.70 to 15 Ω), jumper to CANL. Total 113 to 127 Ω.
+
+| Fault | Result |
+|---|---|
+| H or L alone to 54.6 V | The other line follows through the termination. Dominant current about 115 mA gives about 14 V across the termination, inside ±45 V. Pins inside ±58 V unless V_PORT is above 58 V (regen, mini clamp up to 59.4 V: double fault, accepted) |
+| H at 54.6 V, L hard to GND | 24.8 W, 12.4 W each. PTC opens in about 2 s (0.5 A in 1.5 s max), about 25 J each. Within the 35 W part on HP copper. Differential exceeds ±45 V, so the transceiver may need replacing. No fire |
+
+The old 0402 took 24.8 W at the same fault. The SMAJ58CA stays off at 54.6 V and is for ESD only.
+
+### Blockers
+
+| # | Fix |
+|---|---|
+| B1 | U302 EN and INP2 on ESTOP_EN_B, INP1 on BANK_B_CLOSE with 100 kΩ down. Text and check.py corrected |
+| B2 | D220 V10PM15-M3/I, 3-pin symbol, TO-277A. Vishay doc 87432: pads 1, 2 anode, tab cathode. Reversed charger 109 V is under 150 V. TVS surge plus reversal is a double fault |
+| B3 | Custom PWR263S symbol: terminals on pads 1, 3, tab pad 2 no-connect. Bourns PWR263S-35: "electrically isolated from the backplate", 5.08 mm pitch. R209, precharge, mini clamp, termination. Pulse chart about 10 J at 100 ms against 2.68 J and 2.2 J. 35 W at 25 °C case; 3.5 W at ambient on a small FR4 test board, so copper matters |
+| B4 | F2201 to F2214: Schurter 3-148-693 USE 2410, 1 A, 200 A at 86 VDC (τ under 0.05 ms), 79 mΩ, against 146 A prospective. Balance error 24 mV at 150 mA. Footprint is a 2010 stand-in; the 2410 land is owed before layout |
+
+### Majors
+
+| # | Fix |
+|---|---|
+| M1 | U1104 and its input caps on VSYS_OR, so 3V3_AON rides the hold-up bank |
+| M2 | BUCK12_OFF 100 kΩ to GND: default on, a hung supervisor leaves 12 V up. BUCK24_OFF stays pulled up |
+| M3 | EN_INV pulled from VMOT through 1 MΩ with a 12 V zener. Losing VCLAMP12 or PORT_EN leaves Q2 on and the port off |
+| M4 | Default 1 |
+| M5 | R209 PWR263S. Load 1.46 mF, 2.2 J, tau 0.146 s, peak 29.8 W. OTP Predischarge Timeout 0, Stop Delta 2500 mV |
+| M6 | DFETOFF 0x42 |
+| M7 | J2.4 is B0, a Kelvin tab net, 10 kΩ to BAT-. J2.3 is VSS (NTC and presence return). Cell 1 balance source B0. VC0 below VSS by the return drop, about 90 mV at 60 A with 1.5 mΩ assumed, inside the -0.3 V limit. Deviation from datasheet p70, which ties VC0 to VSS. Cell 1 Interconnect 0 |
+| M8 | J2201.3 NTC_RET, J2201.13 PRES, J2202 1 × 16 with pins 15, 16 looped in the tap plug. Either plug out opens DSG and CHG |
+| M9 | Q211 MMBT2907A local turn-off (ratings from memory; PBSS5240T data could not be fetched). 844 nC max in about 1.5 µs. FET sharing to scope |
+| M10 | OCD1 24 mV, OCC 12 mV, table above. V(OC_ACC) -2/+2.65 mV under 20 mV, ±4 mV 20 to 56 mV, ±5 mV 56 to 100 mV |
+| M11 | U301 uses SCP: CS on RS201 (Kelvin, high side), ISCP 10.5 kΩ = 31.6 to 49.5 mV = 105 to 165 A on 0.3 mΩ. That sits above OCD1 max 93 A and below SCD min 170 A. TMR 100 kΩ + 680 pF, about 10 µs, latch-off. Bank A opens, compute stays up. Reset by E-stop cycle. FLT_A to MCU PE15. Monitored after G1 is good, so a close does not false-trip |
+| M12 | Default 3. Loop GH4s are signal, GND, signal, GND, so pin-to-pin shorts land on GND and open the loop. Wireless receiver power has its own GH2 with a 0.5 A polyfuse. Residual: a cable short across one contact pair still defeats the series loop; one series loop feeds both channels. Not Cat 3 |
+| M13 | NC thermostat on the brake plate, in the E-stop loop (off-board, part and placement owed from the frame thread, about 100 °C class). Stuck-on 322 W into the HS25 opens the banks in hardware |
+| M14 | Clamp top 604 kΩ, window below |
+| M15 | 3 × 100 µF 80 V hybrid PACK_TOP to GND. Surge table below |
+| M16 | U1321 INA238 on a 2 mΩ shunt between L12_OUT and +12V. ALERT latched at 12.0 A, about 150 µs conversion, U1322 and three 2N7002 sink EN_12V_THIRD, AUX, SPARE through the supervisor's 1 kΩ series resistors. Firmware steps: fans above 10.5 A, third board above 11.0 A, 500 ms. Pi stub and Jetson only above 12.4 A for 1 s after hardware shed, and after telling the host. PG_12V falling alone logs only |
+| M17 | Default 2 |
+| M18 | Passes, no change, below |
+
+Brake resistor is now Arcol HS25 10 Ω 25 W on all sheets (frame main 04983bb). 56.77² / 10 = 322 W while on.
+
+### VMOT window (M14)
+
+| Level | Value |
+|---|---|
+| Pack full | 54.6 V |
+| Clamp off, min | 55.1 V |
+| Clamp on, nominal | 56.77 V (off 55.77 V) |
+| Clamp on, max | 57.45 V, under the 58 V fuse rating |
+| OVLO, min | 57.9 V (nominal 60.3 V, max 62.7 V) |
+| Mini clamp on | 59.42 V, off 58.43 V |
+| Drive OV fault | 60 V |
+
+### Stack surge (M15)
+
+0.36 J at 2 µH, 600 A. Limits: caps 80 V, INA228 85 V, FET 100 V, TPS7A4001 100 V, LM5069 100 V, LM5145 105 V abs max.
+
+C = 3 × 100 µF. LC peak √(54.6² + 2 × 0.36 / C): 73 V nominal, 77 V at -20 %. ESR sits at the start of the pulse, when C is at 54.6 V, so it does not stack with the peak. The FET stays out of avalanche and D206 (from 64.4 V) stays a backstop, so the earlier claim that the TVS kept the FET out of avalanche no longer applies. Leakage up to 240 µA in ship mode before ageing. Plug-in inrush into 300 µF at the XT90 is ESR-limited: check the connector on the bench. 2 µH is an assumed harness inductance.
+
+### M18, start-up SOA
+
+Checked against Infineon IPB017N10N5LF Rev 2.3, Diagram 3 (Tc 25 °C), read from the curves. C = 3.6 mF, 5.37 J.
+
+| Case | Peak | Against SOA |
+|---|---|---|
+| T = 117 ms | 1.68 A, 92 W at 54.6 V | DC line about 4 A at 54 V, 2.06 A at Tc 85 °C. 1.2× margin. Tj rise 92 W × 0.37 K/W = 34 K |
+| T = 257 ms | 0.76 A, 42 W | Passes |
+| Fault limit 200 W | 3.66 A for up to 9 ms | 10 ms curve about 12 A, 6.2 A at 85 °C. Passes |
+
+Inrush is set by dV/dt, not C, so more capacitance only extends the time. No timer or dV/dt change.
+
+### Minors picked up
+
+C14 1 µF 100 V 1206. D1 BAV19W. U401 thermal pad on pad 9. U201 address text 0x4C. INA228 range ±136.5 A. Mini clamp text 59.42 V. RS1 6.75 W at 150 A, brief only. SSM3K56FS text: 1.5 V is rated at 50 mA only, so Rds at 150 mA and 2.35 V is a bench check. J101/J102: GND is now about 0.55 A per conductor; VSYS 1.1 A per pin needs its Milli-Grid rating checked.
+
+### Tools
+
+check.py now audits every footprint with 3 or more pads, pad against symbol pin, both ways (241 parts). Run on the pre-fix netlist it fails 10 times, on D220, all the PWR263S parts and U401. On this netlist it passes.
