@@ -180,6 +180,14 @@ Each stage is cheaper than the next. Nothing goes to a full panel until the earl
 
 ## 9. Open items
 
+**Arm-thread tip-over recheck (main 022da44):** with only 10 mm of stop the frame yields (side 400 MPa, back 584, limit 145). It holds
+with about 30 mm of stop at the side and 40 mm at the back. The side gets there because the arm stands over 100 mm proud and crushes.
+The back does not: **the shell needs a back crush pad (or hip guard) giving about 30 mm of crush beyond the shell.** Plan: a swappable
+TPU 95A gyroid "spine pack" on the H2/H3/H4 rear hardpoints, styled as back armour, kept clear of the D1 and D2 doors. One-face
+loading is harsher than a real fall, but it is the sizing target.
+Hardpoints checked in CAD: H1, H2, H4, H5, C and H3 free. **H3 rear bracket stays below Y 374 (torso frame)**: the Pi sits above it and its
+rear ports need plug room in the gap behind D1. H6 needs a check on the robot (waist adapter not in CAD).
+
 1. **Joey:** OK the back clearance fix (section 1).
 2. Arm thread: keep hardpoint slots free (section 4), and update the tip-over crush distance (section 1).
 3. Model the chest shield over the sternum seam; seat the D1 louvres.
