@@ -135,7 +135,7 @@ def back_patch(za, zb, ymax, nz=80, ny=60):
             x1 = np.interp(y, r1[:, 1][::-1] if r1[0, 1] > r1[-1, 1] else r1[:, 1], (r1[:, 0][::-1] if r1[0, 1] > r1[-1, 1] else r1[:, 0]))
             out[a, b] = [x0 + (x1 - x0) * t, y, z]
     return out
-D2 = back_patch(F0 + 20, F0 + 197, 60)
+D2 = back_patch(F0 + 20, F0 + 197, 60); D2[..., 0] -= 0.6   # sit just proud of the (uncut) parent panels in renders
 piece("door_battery", "D2 battery door", "door", thicken(D2), "13S2P pack slides out the back; PDB/ports moved to the front power board")
 # side vent grilles: straddle the front/back seam at the sides of the lower chest (cooling variants)
 for s, nm in ((1, "L"), (-1, "R")):
