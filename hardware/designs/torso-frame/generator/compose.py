@@ -149,7 +149,7 @@ sheet([(crop(h1, w=1500), 'Shell hardpoint brackets H1-H6 on the frame, from the
       'Internal torso frame rev A: shell interfaces', 'FRAME_HARDPOINTS.png',
       notes=['20 printed PETG brackets on M5 T-nuts carry the M3 inserts; panels only have holes and pins. H6 is on the outer faces of the bottom side rails (moved off the under-face, agreed with the shell thread).',
              'H3 rear brackets stay below Y 374 for the Pi ports and carry the spine rail lip (|X| <= 60, Y 355-372) that the D2 battery door (|X| <= 60, Y 175-352, bottom hinge on H4) closes onto with magnets. D1 is Y 374-492.',
-             'Gussets are not mounts. Spine pads (4): |X| 68-147 x Y 368-481 and |X| 64-116 x Y 166-295, Z -77 to -124, on standoffs to H2/H3/H4 (shell thread, main 761c62b).'])
+             'Gussets are not mounts. Spine pads (4): |X| 68-147 x Y 368-481 and |X| 73-129 x Y 166-295, Z -77 to -124, on standoffs to H2/H3/H4 (shell rev B, main c38d83e).'])
 # 8. changes
 b1, _ = load('built'); b2, _ = load('new_frame')
 sheet([(crop(b1, w=1500), 'As built: single 150 x 140 x 340 box, 12 rails + 2 shelf side rails, RS03 faces at X +-97'),

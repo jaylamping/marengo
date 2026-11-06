@@ -174,7 +174,7 @@ the inward roll limit (15°); that is between the arm and the shell.
 | C | Pitch RS03 outboard M4 holes | 2 | collars | free |
 
 Gussets are not mounts. Doors (shell thread, main 761c62b): D1 at |X| < 62, Y 374 to 492 (rear); D2 is the battery door at |X| ≤ 60, Y 175 to 352 (rear), bottom hinge on H4,
-magnets onto the H3 spine rail lip, M3 lock screw for runs. The four spine pads (30 mm TPU, Z −77 to −124) flank the doors: upper |X| 68 to 147, Y 368 to 481; lower |X| 64 to 116,
+magnets onto the H3 spine rail lip, M3 lock screw for runs. The four spine pads (30 mm TPU, Z −77 to −124) flank the doors: upper |X| 68 to 147, Y 368 to 481; lower |X| 73 to 129 (shell rev B, 193 waist, main c38d83e),
 Y 166 to 295; the bridges are gone (the door is there now). They give the 30 to 40 mm of rear crush the tip-over FEA needs (`../torso-stepped/README.md`).
 
 ## 6. Internal packaging check (Joey's list, 2026-11-06)

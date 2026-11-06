@@ -292,10 +292,10 @@ box('pack', 32, '13S2P 21700 pack, 95 x 162 x 79, 2.2 kg: 26 x Molicel P45B/P50B
 for sx in (1, -1):
     box(f'packrail_{sx}', 40, 'Pack tray rails, printed, on the lower post inner faces (2)', (min(sx * 47.5, sx * 55), 180, -50), (max(sx * 47.5, sx * 55), 348, 40), COL['printed'], 'electronics', (0, 0, -60), balloon=(sx > 0), mass_g=40, material='PETG print', opacity=0.8)
 box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 70, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
-# ---- spine pads (rear crush pads, outside the shell; shell manufacturing thread geometry, main 761c62b: four pads, bridges removed for the D2 battery door) ----
+# ---- spine pads (rear crush pads, outside the shell; shell manufacturing thread geometry, main c38d83e shell rev B: four pads, bridges removed for the D2 battery door) ----
 first = True
 for sx in (1, -1):
-    for (x0, x1, y0, y1, nm) in ((68, 147, 368, 481, 'upper'), (64, 116, 166, 295, 'lower')):
+    for (x0, x1, y0, y1, nm) in ((68, 147, 368, 481, 'upper'), (73, 129, 166, 295, 'lower')):
         box(f'spine_{nm}_{sx}', 26, 'TPU spine pads (4), 30 mm proud of the shell back, on standoffs to H2/H3/H4 (shell part, outside the shell); inner edges 6 mm clear of D1/D2', (min(sx * x0, sx * x1), y0, -124), (max(sx * x0, sx * x1), y1, -77),
             COL['tpu'], 'shellpart', (0, 0, -120), balloon=first, mass_g=65, material='TPU 95A gyroid', opacity=0.7); first = False
 # pelvis ring (draft, hip stage) and the shoulder joint line markers
