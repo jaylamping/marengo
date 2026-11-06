@@ -18,36 +18,39 @@ def xz_prism(pts, half=150):
     return extrude(make_face(Plane.XZ * Polyline(*pts, close=True)), amount=half, both=True)
 
 def build(v):
-    p = dict(bands=3, jaw_taper_w=8, jaw_taper_d=8, chin_slope=0.3, W=60, D=64, z0=26, zc=150, top=214, eye_r=21, eye_y=31, eye_z=136, crest_k=0.55, crest_h=14, crest_t=6, crest_base=13,
+    p = dict(crest_back=0.55, skirt=0, crest_n=6, jaw_solid=0, louvres=1, eye_ro=21, eye_dep=8, tip_dz=23, ear_x=-4, ear_z=140, bands=3, jaw_taper_w=8, jaw_taper_d=8, chin_slope=0.3, W=60, D=64, z0=26, zc=150, top=214, eye_r=21, eye_y=31, eye_z=136, crest_k=0.55, crest_h=14, crest_t=6, crest_base=13,
              jaw_top=104, jaw_bot=26, jaw_t=8, jaw_fwd=14, hinge_x=-26, hinge_z=80, hinge_r=21, ear=0)
     p.update(v)
     W, D = p['W'], p['D']
     head = cranium(W, D, p['jaw_top'] - 6, p['zc'], p['top'])
     core = ell(W - 12, D - 18, p['z0'], p['jaw_top'] - 5)
+    if p['skirt']:  # the cranium carries on down at the back, behind the jaw hinge, to the collar
+        head = head + (ell(W, D, p['z0'] + 4, p['jaw_top']) & Box(200, 300, 300, align=(Align.MAX, Align.CENTER, Align.CENTER)).move(Location((p['hinge_x'] - p['hinge_r'] - 2, 0, 100))))
     # eye sockets: round pocket with a bevelled (conical) lip
     sockets = Part(); bez = Part(); lens = Part(); glow = Part()
+    ro, ri, dep = p['eye_ro'], p['eye_r'], p['eye_dep']
     for s in (1, -1):
         y = s * p['eye_y']; xf = D * (1 - (y / W) ** 2) ** 0.5
-        loc = Location((xf - 12, y, p['eye_z']), (0, 90, 0))
-        sockets += loc * Cylinder(p['eye_r'] + 2, 40, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        sockets += Location((xf - 4, y, p['eye_z']), (0, 90, 0)) * Cone(p['eye_r'] + 2, p['eye_r'] + 9, 30, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        bez += loc * (Cylinder(p['eye_r'] + 2.2, 7, align=(Align.CENTER, Align.CENTER, Align.MIN)) - Cylinder(p['eye_r'] - 1, 8, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-        lens += Location((xf - 12.5, y, p['eye_z']), (0, 90, 0)) * Cylinder(p['eye_r'] + 2, 1.5)
-        disc = scale(Sphere(1), by=(4, p['eye_r'] - 1.5, p['eye_r'] - 1.5)) & Box(10, 100, 100, align=(Align.MIN, Align.CENTER, Align.CENTER))
-        glow += disc.move(Location((xf - 11.8, y, p['eye_z'])))
+        ax = lambda x_: Location((x_, y, p['eye_z']), (0, 90, 0))
+        sockets += ax(xf - dep) * Cylinder(ro, 40, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        bez += ax(xf - dep - 1) * (Cylinder(ro + 0.01, 4, align=(Align.CENTER, Align.CENTER, Align.MIN)) - Cylinder(ri, 5, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+        bez += (ax(xf - dep) * (Cylinder(ro + 0.4, dep + 6, align=(Align.CENTER, Align.CENTER, Align.MIN)) - Cylinder(ro - 0.6, dep + 7, align=(Align.CENTER, Align.CENTER, Align.MIN)))) & cranium(W, D, p['z0'], p['zc'], p['top'])
+        disc = scale(Sphere(1), by=(3, ri, ri)) & Box(10, 100, 100, align=(Align.MIN, Align.CENTER, Align.CENTER))
+        glow += disc.move(Location((xf - dep + 1.5, y, p['eye_z'])))
     head = head - sockets
     # crest: blade on the centre line, pointed tip between the eyes, growing taller over the forehead, fading at the back
-    tip = p['eye_z'] - p['eye_r'] - 2
+    tip = p['eye_z'] - p['tip_dz']
     k, h = p['crest_k'], p['crest_h']
     wedge = xz_prism([(-300, -100), (D, -100), (D, tip), (D + k * 400, tip + 400), (-300, tip + 400)])
     def blade(grow, t):
         g = cranium(W + 0.01, D + grow, p['z0'], p['zc'], p['top'] + grow)
         return g & Box(400, t, 600).move(Location((0, 0, 0))) & wedge & Box(400, 50, 600, align=(Align.MIN, Align.CENTER, Align.MIN)).move(Location((-D * 0.6, 0, tip)))
     crest = Part()
-    for i in range(6):  # stack of blades approximating a tapered wedge cross-section
-        f = i / 5
+    for i in range(p['crest_n']):  # stack of blades approximating a tapered wedge cross-section
+        f = i / (p['crest_n'] - 1)
         crest += blade(h * (0.25 + 0.75 * f), p['crest_base'] + (p['crest_t'] - p['crest_base']) * f)
     crest = crest - head
+    crest = crest & Box(400, 60, 600, align=(Align.MIN, Align.CENTER, Align.MIN)).move(Location((-D * p['crest_back'], 0, 0)))
     # jaw: scoop plate over the lower face and sides, flat front, pivots on a round side boss
     jt, jb, t = p['jaw_top'], p['jaw_bot'], p['jaw_t']
     tw, td = p['jaw_taper_w'], p['jaw_taper_d']   # jaw narrows and recedes toward the bottom
@@ -66,7 +69,7 @@ def build(v):
     for a in range(90, 271, 15):  # round end around the hinge boss
         prof.append((hx + hr * math.cos(math.radians(a)), hz + hr * math.sin(math.radians(a))))
     prof += [(hx + 10, jb), (200, jb)]
-    jaw = shellj & xz_prism(prof)
+    jaw = (outer if p['jaw_solid'] else shellj) & xz_prism(prof)
     xg = D + t + p['jaw_fwd'] * 0.9
     chin = xz_prism([(-300, jb - 50), (xg - p['chin_slope'] * (jt - jb + 50), jb - 50), (xg, jt), (xg, jt + 50), (-300, jt + 50)])
     jaw = jaw & chin  # flat chin plane, raked back toward the bottom
@@ -86,7 +89,7 @@ def build(v):
     # cheek louvres: stepped slats in a recessed pocket behind each eye, framed by a chrome arc (cooling exhaust)
     louv = Part(); trim = Part()
     import math as _m
-    for s_ in (1, -1):
+    for s_ in ((1, -1) if p['louvres'] else ()):
         pocket = Box(30, 30, 40).move(Location((-2, s_ * (W + 9), p['eye_z'] - 2)))
         head = head - pocket
         for kk in range(5):
@@ -105,21 +108,27 @@ def build(v):
     for s in (1, -1):
         ears += Location((hx, s * (W + t), hz), (90, 0, 0)) * Cylinder(hr - 7, 6)
         ears += Location((hx, s * (W + t + 2), hz), (90, 0, 0)) * Cylinder(7, 6)
-        if p['ear']:  # small ear block at eye height
-            eb = Box(16, 10, 22)
-            ears += eb.move(Location((-4, s * (W + 3), p['eye_z'] + 4)))
+        if p['ear']:  # small ear block at the top of the eyes: a base plate and a narrower stepped tab
+            ye = W * (1 - (p['ear_x'] / D) ** 2) ** 0.5
+            ears += Box(16, 10, 26).move(Location((p['ear_x'], s * (ye + 2), p['ear_z'])))
+            ears += Box(10, 8, 18).move(Location((p['ear_x'], s * (ye + 8), p['ear_z'])))
     # collar: stepped ring the head sits on (the neck yaw bearing lives inside)
     collar = Cylinder(56, 8, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, 14))) + Cylinder(46, 10, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, 4)))
     neck = Cylinder(34, 30, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, -20)))
     return dict(core=core, speed=speed, louv=louv, trim=trim, head=head, crest=crest, bezel=bez, lens=lens, glow=glow, jaw=jaw, grille=grille, ears=ears, collar=collar, neck=neck)
 
 MATS = dict(core='dark', speed='chrome', louv='dark', trim='chrome', head='white', crest='white', jaw='white', bezel='chrome', lens='lens', glow='eye', grille='dark', ears='gun', collar='gun', neck='dark')
-VARIANTS = {'A3': dict()}
+VARIANTS = {'A3': dict(eye_r=21, eye_ro=30),
+            # pass 3: as close as possible to Joey's two Giant reference images, one colour + dark accents
+            'A4': dict(crest_n=14, jaw_solid=1, louvres=0, bands=0, eye_r=15.5, eye_ro=21.5, eye_dep=6, eye_y=29, eye_z=140, tip_dz=8, crest_h=15, crest_back=0.15, skirt=1, crest_k=0.75,
+                       crest_t=3, crest_base=14, ear=1, ear_x=-6, ear_z=150, jaw_top=108, jaw_t=9, jaw_fwd=14, chin_slope=0.32,
+                       jaw_taper_w=4, jaw_taper_d=6, top=222)}
+MATS_V = {'A4': dict(bezel='dark', ears='white', collar='white', jaw='white', grille='dark')}
 if __name__ == '__main__':
     for n in (sys.argv[1:] or list(VARIANTS)):
         parts = build(VARIANTS[n]); os.makedirs(f'out/{n}', exist_ok=True); man = []
         for k_, sol in parts.items():
             if sol is None or sol.volume < 1: print('empty', k_); continue
-            export_stl(sol, f'out/{n}/{k_}.stl', tolerance=0.02, angular_tolerance=0.04); man.append(dict(file=f'{n}/{k_}.stl', mat=MATS[k_]))
-        export_step(Compound(list(parts.values())), f'out/{n}/head.step')
+            export_stl(sol, f'out/{n}/{k_}.stl', tolerance=0.02, angular_tolerance=0.04); man.append(dict(file=f'{n}/{k_}.stl', mat=MATS_V.get(n, {}).get(k_, MATS[k_])))
+        export_step(Compound([v_ for v_ in parts.values() if v_.volume >= 1]), f'out/{n}/head.step')
         json.dump(man, open(f'out/{n}/parts.json', 'w'), indent=1); print(n, [m['file'] for m in man])

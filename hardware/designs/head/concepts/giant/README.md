@@ -41,3 +41,14 @@ Files: `build_head.py` (build123d, writes STL per part + `parts.json` to `out/`,
 Render: symlink `out/` as `giantout` in `hardware/designs/body-shell/concept/generator/`, then
 `DPR=2 node shoot.js '[["gA_rounded","stl=A_rounded&hz=-12&ty=180&d=1350&az=32&el=8"], ...]'` and `python3 compose_giant.py`.
 Concept only: the chosen variant gets rebuilt natively in SolidWorks on Joey-PC (cad/head/).
+
+## Pass 3 (current): as close to the Giant references as possible
+
+`build_head2.py A4` -> `HEAD_GIANT_PASS3.png`. One colour (white) with dark accents only; locomotive chrome dropped.
+Domed bucket, crest blade starting as a point between the eyes, big round eyes (dark ring + glow), scoop jaw on side
+hinge bosses with a raked chin, small ear blocks at eye height, head sitting low in a collar cup.
+Known nits: dark gap behind the jaw hinge in side view; slight stepping on the crest.
+
+`eye_states.py` -> `HEAD_EYE_STATES.png`: mock-up of how the round eye displays show what he is "thinking"
+(idle, looking, focus, happy, sceptical, thinking, asleep, keep back). Animated on the real displays, combined with
+head tilt/nod and the jaw.
