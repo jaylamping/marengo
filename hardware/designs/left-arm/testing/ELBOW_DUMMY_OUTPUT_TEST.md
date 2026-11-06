@@ -66,9 +66,9 @@ Everything here is meant to be possible at home.
 | Layer coupons | PETG, P2S process | Bend bars, 80 × 12 × 6 mm |
 | Fit coupon | PETG | Ø52 seat and Ø40 stub with the floor bore, one real 6808 |
 | Carrier | PETG | Real part after the CAD fixes |
-| Fork sector | PETG | Fork cut across the tube near Y 120, keeping both cheeks, gussets, stub, finger and a clamp face for the lever. Print direction +X |
+| Fork sector | PETG | Fork cut across the tube near Y 118, keeping both cheeks, gussets, stub and finger, with a solid crown and a socket for the lever. Printed with the outboard cheek down |
 | Dummy housing | PETG, printed, over-built | RS02 stator stand-in: 6 M3 at r 36.5 on the real Ø73 circle, using the same hole clock as the hoop, with sleeves and steel ring as designed, into captive nuts |
-| Dummy output | PETG, printed | 6 M4 on Ø24 into captive nuts, and the three Ø4 pins. Turns on an M8 bolt in the dummy housing, so the outboard cheek is carried but no real output bearing is implied |
+| Dummy output | PETG, printed | 6 M4 on Ø24 into captive nuts and three Ø4 steel dowels. An M8 hex head sits in a pocket in the back, so torque can enter here. Stack in `../prints/test-pass-1/PRINT_ORDER.md` |
 | Real parts | | One 6808, the planned M3 and M4 screws, sleeves, washers and rings |
 
 Use the real screw types and lengths from the fixed design. Torque values come from CAD work, and are recorded for each joint.

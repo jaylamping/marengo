@@ -50,10 +50,23 @@ JOBS = {
     'PF03_roll_spacer': lambda: read_stl(TASK / 'FINAL_PRINT_REVIEW_20261104_HOLD/spacer-process/SPACER_PF03_AXIS_VERTICAL_HOLD_mm.stl'),
     'layer_coupons': coupons,
     'elbow_carrier': lambda: DOWN_X(read_stl(PARTS / 'test_carrier.STL')),
+    'elbow_carrier_strength': lambda: UP_X(read_stl(PARTS / 'test_carrier.STL')),
     'dummy_housing': lambda: UP_X(read_stl(PARTS / 'test_dummy_housing.STL')),
-    'dummy_output': lambda: UP_X(read_stl(PARTS / 'test_dummy_output.STL')),
-    'fork_sector': lambda: UP_X(read_stl(PARTS / 'test_fork_sector.STL')),
+    'dummy_output': lambda: output_plate(),
+    'fork_sector': lambda: DOWN_X(read_stl(PARTS / 'test_fork_sector.STL')),
 }
+# settings that differ from the P2 project, on purpose
+BRIM = {'brim_type': 'outer_only', 'brim_width': '5'}
+EXTRA = {'dummy_housing': {'sparse_infill_density': '40%'}}
+
+
+def output_plate():
+    """Dummy output with its cheek face on the bed, and the M8 spacer beside it."""
+    o = DOWN_X(read_stl(PARTS / 'test_dummy_output.STL'))
+    s = UP_X(read_stl(PARTS / 'test_m8_spacer.STL'))
+    o = o - [o[:, 0].min(), o[:, 1].min(), o[:, 2].min()]
+    s = s - [s[:, 0].min(), s[:, 1].min(), s[:, 2].min()] + [45.0, 6.0, 0]
+    return np.vstack([o, s])
 
 
 def project(name, tri, out):
@@ -80,6 +93,9 @@ def project(name, tri, out):
     cfg = cfg.replace('174726', str(len(faces)))
     cfg = cfg.replace('value="1 0 0 0 0 1 0 0 0 0 1 51 0 0 0 1"', f'value="1 0 0 0 0 1 0 0 0 0 1 {h:.5f} 0 0 0 1"')
     cfg = cfg.replace('key="source_offset_z" value="51"', f'key="source_offset_z" value="{h:.5f}"')
+    ps = json.loads(z.read('Metadata/project_settings.config'))
+    ps.update(BRIM)
+    ps.update(EXTRA.get(name, {}))
     src = out / f'{name}_input.3mf'
     with zipfile.ZipFile(src, 'w', zipfile.ZIP_DEFLATED) as o:
         for i in z.infolist():
@@ -90,6 +106,8 @@ def project(name, tri, out):
                 d = mdl.encode()
             elif i.filename == 'Metadata/model_settings.config':
                 d = cfg.encode()
+            elif i.filename == 'Metadata/project_settings.config':
+                d = json.dumps(ps, indent=4).encode()
             elif i.filename == 'Metadata/plate_1.json' or i.filename.endswith('.png'):
                 continue
             o.writestr(i.filename, d)
