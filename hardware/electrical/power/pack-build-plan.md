@@ -101,6 +101,9 @@ goes through the tray rail into the case. The rear face stays free for a possibl
 - **The thumbscrew must bottom on a shoulder or be length-limited,** so its tip never reaches more than 6 mm in from the
   outer side face. Any further reaches a cell can.
 - Keep tap wires and NTC leads out of those two cusps.
+- **Top-edge lead window (frame cradle, main bc03e22):** the top strap has a 30 mm gap at X −5 to +25 with 8.6 mm of height
+  (Y 345 to 353.6). The 10 AWG power pair crosses the pack top only inside that window. The sense lead may run under the strap
+  hooks. Keep the case top flat there, with no bosses or labels proud of Y 345.
 
 ### Connector mating rule (agreed)
 
