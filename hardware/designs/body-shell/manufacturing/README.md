@@ -133,7 +133,7 @@ about **75 cm² net free area** at each end (about 150 cm² gross with a 50% ope
 
 - **Intake (low):** V1 side grilles, 2 × ~130 cm² gross, louvres angled down; abdomen band gaps.
 - **Exhaust (high):** the two 40 mm fans blow out through D1's louvres (louvre free area at least the fans' 2 × 12.5 cm²; fan guard 6 mm max); neck ring gap.
-- **Front intake fan:** needs a front grille. At torso Y 300–340 it straddles the U1/U3 seam (Y 315), so the frame thread was asked to move it to Y 250–295, fully inside U3.
+- **Front intake fan:** needs a front grille. Frame spec 6ba6c61 puts it at torso Y 250–295, X ±20, fully inside U3, which gets a front grille (≤ 6 mm slots) over it.
 - **Variants:** D1 plain, louvred, or with a 40 × 10 mm fan (each ~2.4 L/s; two fans move ~4.8 L/s, enough for 70 W at a 12 K rise). V1 lattice
   or open mesh. The swap interface stays fixed.
 - Slots no wider than 6 mm (fingers, cable snags). The shoulder RS03s also shed heat through their exposed output faces.
