@@ -255,6 +255,16 @@ counterbores over Ø12 inner pads. H5 bosses sit on the panel normal (37° front
 Upper backs now carry the D1 opening and flange (~145 g each). D1's top flange touches the Z 1310 splice pad at Y 6–18: the splice
 plate must clear it. Not yet checked: D1 against the fans, Pi and Jetson behind it.
 
+**Shoulder hatches, socket hole and collars (evening 2026-11-06):**
+- D3 hatches are finished: opening + 0.3 mm gap + 1.6 × 6 flange frame on U2, front tongue, and magnet-to-magnet retention (10 × 3
+  magnets in Ø10.2 × 3.1 pockets on hatch pads and two U2 flange tabs, 0.5 mm air). The hatch is 11.4 g and prints in 1 h 06 m.
+- Socket hole r 53.5 in the upper panels (the M4 button heads reach r 52.85). Collar: ID 86 / OD 114, split at X 0, stepped section
+  (flange Y 132.5–134.5 out to r 53.2, outer ring Y 130.6–132.6 out to r 57), so the panel floor laps r 53.5–57 with ≥ 0.27 mm clearance.
+  Holes are clocked at 22.5° + 45k. One part, print 4: 5.9 g, 18 min.
+- Upper panels with all cuts: front 147 g / 12 h 03 m, back 115 g / 11 h 02 m (left; right matches).
+- **Check on a real RS03 before torquing the collar screws:** the vendor drawing gives the 8 housing M4 holes 8 mm deep on a 98 mm
+  BC (r 49), but in the CAD model their Ø3.3 tap drills break the r 50.25 housing wall. The model is probably simplified there.
+
 ## 9. Open items
 
 **Arm-thread tip-over recheck (main 022da44):** with only 10 mm of stop the frame yields (side 400 MPa, back 584, limit 145). It holds
