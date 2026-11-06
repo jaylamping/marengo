@@ -1,0 +1,64 @@
+MARENGO TORSO STEP - READ-ONLY GEOMETRY/DATUM REPORT
+Source: C:\Users\joeyl\Documents\Codex\2026-10-29\task\marengo-reference\marengo_torso_asm.STEP
+Source SHA-256: E1300221AAD16A99690272DA743844A64DC28CA91736DF0A9B6045FB8B55AD57
+Source export: SolidWorks 2026 STEP AP214, 2026-10-29 21:10:59 (header); Desktop modified 21:11:01 UTC.
+Method: OCCT 7.9.3 STEPCAF assembly import, composed instance transforms, analytic surfaces/circles, nontriangulated BRepBndLib.AddOptimal bounds. All lengths millimetres. Reported values rounded to 0.001 mm, not manufacturing tolerances.
+No SolidWorks document opened, edited or saved; no hardware operations. Isolated reader packages installed only in this task folder. Original and copied STEP remain unchanged.
+
+COORDINATES AND CONTENT
+Use unchanged STEP coordinates: +Y is up; X is lateral; Z is depth. Absolute forward direction is not established from this export. Do not silently adopt the repository +Z-up URDF convention.
+Root marengo_torso_asm contains frame, waist motor, two fixed shoulder pitch motors, compute shelf/Pi and ONE existing right-arm assembly. No left arm or hand geometry appears in the component inventory.
+59 instance-tree nodes: 4 assembly nodes and 55 leaf occurrences, including one marengo_torso_layout reference occurrence. Thus 54 physical leaf occurrences after excluding layout. Imported solid occurrences: 679 including 14 layout solids and 591 Pi solids. These are not part counts.
+Four RS03 instances (nodes 2,38,39,51) imported with analytic faces but zero volumetric solids. Their surface geometry supplies the datums; volume/mass and solid boolean collision conclusions are not supported by those bodies.
+Three instances share the misleading product name actuator_rs03_waist_yaw: node 2 at waist, nodes 38/39 at opposite shoulders. Roles of 38/39 are inferred from placement and brackets, not the product name.
+The physical arm labeled right is on negative STEP X, alongside a fixed bracket named left. Opposite fixed bracket is named right. Use coordinate-side and node ID to avoid this naming inconsistency.
+
+MEASURED ENVELOPES (MIN XYZ TO MAX XYZ)
+Extrusion cage: (-75.000, 155.000, -70.000) to (75.000, 495.000, 70.000); spans (150.000, 340.000, 140.000) mm
+Torso without arm/layout: (-97.000, 133.000, -71.789) to (97.000, 495.000, 70.000); spans (194.000, 362.000, 141.789) mm
+Existing arm subassembly: (-228.284, -21.974, -57.448) to (-94.750, 480.655, 39.427); spans (133.534, 502.629, 96.875) mm
+Entire physical assembly without layout: (-228.284, -21.974, -71.789) to (97.000, 495.000, 70.000); spans (325.284, 516.974, 141.789) mm
+Extrusions: 4 vertical 20x20x340, 6 depthwise 20x20x100, 4 widthwise 20x20x110. 20 corner bracket occurrences. Cage rail interior is X=-55..55 and Z=-50..50 (110x100 clear between extrusion faces only, not empty usable space).
+Frame top Y=495, bottom Y=155. Upper horizontal rail underside Y=475. Mid-height shoulder-support rail top Y=373.623. The 2020 rail envelope differs from repository nominal 125x150x380; this report follows actual exported geometry.
+
+FIXED PITCH DATUMS - KEEP THESE MOTOR PLACEMENTS
+Negative-X face center: (-97.000, 424.860668, -0.014125), outward normal (-1,0,0), node 38.
+Positive-X face center: (+97.000, 424.860668, -0.014125), outward normal (+1,0,0), node 39.
+Output interface planes are 194.000 mm apart. Motor axial envelope on negative side X=-97..-40.4; positive side X=40.4..97 (56.600 mm axial length). Motor rear faces are 80.800 mm apart.
+Central holed disk (negative-X node 38 face 353) has outer diameter 47.000 mm and central circular opening diameter 20.200 mm. Six modeled face openings diameter 4.500 mm and three diameter 4.600 mm are on radius 15.180 mm. These are measured edge diameters, not certified thread/tap specifications. Exact hole centers are in shoulder_datums.json.
+A separate concentric front annulus at the same X has diameters 70.000 and 59.000 mm (face 75). Do not mistake this annulus for the holed output disk.
+The output plane stands 22.000 mm outboard of the X=+/-75 extrusion outer plane; housing front reference plane X=+/-94.5 stands 19.500 mm outboard. These are plane offsets, not free cable or swept-volume clearance.
+Shoulder axis lies 50.139 mm below upper-rail underside and 51.238 mm above mid-rail top; depth axis is 49.986/50.014 mm from Z=-50/+50 inner rail faces. Pitch motor overall Y bounds 375.574..474.148 leave only 2D envelope gaps 1.951 mm above mid rail and 0.852 mm below upper rail. These are bounding-envelope gaps, not a general fit guarantee.
+
+EXISTING ARM / ALIGNMENT FINDING
+Existing pitch bracket node 50 recess center at plane X=-97: (-97.000, 425.560, -8.559).
+Difference from fixed pitch motor center: (0.000, 0.700, -8.545); transverse mismatch 8.573488 mm. Both circle axes are parallel to STEP X. This is directly measured from circular edges, not an image estimate.
+This existing exported arm placement cannot be treated as a coaxially assembled baseline for a motion check. No correction has been applied. Keep torso motor datum fixed and register any new shoulder to it.
+Existing bracket recess diameter 47.000 mm with six 4.800 mm modeled openings; raw edge centers retained. Hole alignment/clocking needs revalidation independently of center alignment.
+Existing roll RS03 front/output plane center: (-170.494012,425.654933,19.790817); normal approximately (0,0.003340335,0.999994421). Axis is 0.19139 degrees from STEP +Z.
+Upper-arm yaw RS02 axis reference at local origin: (-172.985336,327.226158,-9.380560); local +Z direction (-0.025438930,-0.999670801,0.003339254). Opposite-sign axis describes same line. Four-hole planar face center is (-171.932165,368.612529,-9.518805), normal (0.025438930,0.999670801,-0.003339254). Output-side role of this RS02 face is not established here.
+Remaining exported arm includes RS02 elbow, RS00 distal yaw, upper arm, elbow bracket and lower arm. Full 4x4 transforms and bounds for every occurrence are in component_inventory.csv and geometry_audit.json.
+
+BOUNDED STATIC CLEARANCE CHECKS
+OCCT minimum surface distances, current exported pose only; exclude intended motor contacts. These are selected pairs, not a full assembly collision audit:
+  nodes 50 / 5: 19.750000 mm (marengo_shoulder_pitch_bracket_right / frame_vertical_BL_L340).
+  nodes 50 / 6: 24.656500 mm (marengo_shoulder_pitch_bracket_right / frame_vertical_BL_L340).
+  nodes 50 / 14: 20.591815 mm (marengo_shoulder_pitch_bracket_right / frame_horizontal_BL_L100).
+  nodes 50 / 32: 21.411220 mm (marengo_shoulder_pitch_bracket_right / frame_horizontal_BL_L100).
+  nodes 52 / 5: 56.265595 mm (marengo_shoulder_roll_bracket_right / frame_vertical_BL_L340).
+  nodes 52 / 6: 64.235013 mm (marengo_shoulder_roll_bracket_right / frame_vertical_BL_L340).
+  nodes 53 / 5: 66.448441 mm (vendor_robstride_rs02 / frame_vertical_BL_L340).
+  nodes 53 / 6: 75.147141 mm (vendor_robstride_rs02 / frame_vertical_BL_L340).
+
+LIMITS / NEXT COMPARISON
+No full motion sweep, cable/connector route verification, strength, fatigue, thermal or payload assessment performed. Imported surface-only motors and the measured existing pitch-axis mismatch need explicit handling in subsequent collision checks.
+Provide the new shoulder CAD to this local executor and use the fixed pitch centers/normals above to register it. The old arm transform must not silently define the new shoulder attachment.
+
+DELIVERABLES
+geometry_audit.json: full occurrence tree, transforms, bounds, actuator/bracket analytic face records.
+component_inventory.csv: compact occurrence table with all transforms.
+shoulder_datums.json: curated interfaces, circular edges, envelope/clearance data and mismatch.
+assembly_isometric.png, assembly_along_X.png, assembly_along_Z.png: rendered imported physical geometry; layout excluded.
+torso_shoulder_isometric.png: torso-only shoulder close-up with arm omitted.
+pitch_interface_alignment.png: measured circular-edge overlay showing existing mismatch.
+shape_NNN.brep: derived local world-coordinate geometry per leaf; source untouched.
