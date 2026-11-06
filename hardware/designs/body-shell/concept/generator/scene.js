@@ -123,14 +123,18 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 // ---------- CHEST shell (torso-fixed, bolts to 2020 frame) ----------
 // rows: [z, half-width Y, front depth +X, back depth -X, squareness n]
 // frame is +-75 Y, +-70 X. Arm hangs at Y=170 with 15 deg inward roll -> keep side <= ~100 below shoulder.
+// Joey 2026-11-06: from the shoulder point the side runs almost straight down to ~65 mm below the
+// black P1 part (bottom at ZS-46), then tapers to the waist. Wall tracks the shoulder width (YSX).
+const WALL = 124 + YSX;
+const TAPER_Z = ZS - 46 - 65;
 const chest = [
   [F0 - 6, 79, 80, 76, 3.6],
-  [ZS - 200, 84, 92, 80, 3.6],
-  [ZS - 100, 90, 104, 85, 3.8],   // arm-tube band (100-200 mm below the shoulder axis): sides <= +-90
-  [ZS - 55, 108, 108, 88, 4.2],
-  [ZS + 10, 124 + 0.3 * YSX, 108, 88, 4.6],
-  [F1 + 12, 134 + 0.6 * YSX, 100, 88, 4.8],   // square shoulder line, overhangs the pitch joint
-  [F1 + 28, 118, 88, 82, 4.2],
+  [F0 + 60, 90, 90, 80, 3.6],
+  [TAPER_Z - 45, WALL - 14, 104, 86, 4.0],
+  [TAPER_Z, WALL - 2, 108, 88, 4.4],
+  [ZS + 10, WALL, 108, 88, 4.8],
+  [F1 + 12, WALL, 100, 88, 4.8],   // shoulder point
+  [F1 + 28, WALL - 10, 88, 82, 4.2],
   [F1 + 38, 64, 60, 64, 3.0],
   [F1 + 48, 42, 44, 46, 2.4],
 ];
@@ -141,7 +145,7 @@ const sstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a)
 // male chest plate: two pec masses with a sternum groove and a crisp lower edge
 const PEC_Z = ZS - 30;
 const pec = (x, y, z) => { if (x <= 0) return [x, y, z]; const ay = Math.abs(y); const dz = z - PEC_Z;
-  const g = sstep(3, 26, ay) * (1 - sstep(78, 104, ay));
+  const g = sstep(3, 26, ay) * (1 - sstep(0.62 * (124 + YSX), 0.86 * (124 + YSX), ay));
   const v = dz >= 0 ? 1 - sstep(10, 105, dz) : 1 - sstep(38, 50, -dz);
   const w = sstep(30, 85, x);
   return [x + 15 * g * v * w, y, z]; };
