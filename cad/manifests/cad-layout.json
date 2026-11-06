@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "description": "Folder layout rule for the local CAD tree (J:\\code\\marengo\\cad). Checked by tools/cad/check_cad_layout.py. See cad/README.md.",
+  "cadRoot": "cad",
+  "rootFiles": ["README.md", ".gitkeep", "marengo.SLDASM"],
+  "regionFolders": [
+    "torso",
+    "waist",
+    "shoulder",
+    "upper-arm",
+    "elbow",
+    "forearm",
+    "hand",
+    "arm",
+    "shell",
+    "hip",
+    "leg",
+    "head"
+  ],
+  "functionFolders": {
+    "manifests": { "extensions": [".json"] },
+    "vendor": { "extensions": [".sldprt", ".sldasm", ".step", ".stp", ".pdf", ".md", ".identifier", ".png"] },
+    "reference": { "extensions": [".step", ".stp", ".stl", ".txt", ".md", ".json", ".csv", ".png"] },
+    "exports": { "extensions": [".step", ".stp", ".stl", ".png", ".json", ".md", ".txt", ".csv"], "regionSubfolders": true },
+    "prints": { "extensions": [".3mf", ".gcode", ".stl", ".step", ".txt", ".md", ".json", ".png", ".csv"], "regionSubfolders": true },
+    "reviews": { "extensions": null, "regionSubfolders": true, "datedSubfolders": true },
+    "drawings": { "extensions": [".slddrw", ".pdf", ".dxf", ".png"], "regionSubfolders": true },
+    "scripts": { "extensions": [".py", ".ps1", ".sh", ".json", ".md", ".txt", ".vbs", ".swp"] }
+  },
+  "scratchFolders": ["_wip", "_sim", "_archive"],
+  "nativeExtensions": [".sldprt", ".sldasm"],
+  "simExtensions": [".cwr"],
+  "forbiddenFolderPatterns": [
+    "^codex$",
+    "^task(-\\d+)?$",
+    "^claude$",
+    "^cursor$",
+    "^_import.*$",
+    "^old$",
+    "^solver_results$"
+  ],
+  "warnFolderPatterns": ["^\\.checkpoints$"],
+  "datedFolderPattern": "(19|20)\\d{6}",
+  "datedFoldersAllowedUnder": ["reviews", "_wip", "_sim", "_archive"],
+  "ignoreFilePatterns": ["^~\\$", "^\\.gitkeep$", "^desktop\\.ini$", "^Thumbs\\.db$"]
+}

@@ -1,0 +1,93 @@
+{
+ "basis": "Rigid arm swung so its COM is horizontal from the axis; no payload, no links, hand, fasteners, cables",
+ "rows": [
+  {
+   "item": "roll RS03",
+   "mass_g": 880,
+   "source": "task supplied",
+   "com_step_mm": [
+    170.54,
+    424.92,
+    4.02
+   ]
+  },
+  {
+   "item": "upper-arm yaw RS02",
+   "mass_g": 405,
+   "source": "task supplied",
+   "com_step_mm": [
+    170.51,
+    342.54,
+    5.99
+   ]
+  },
+  {
+   "item": "elbow RS02",
+   "mass_g": 405,
+   "source": "task supplied",
+   "com_step_mm": [
+    170.52,
+    209.84,
+    5.99
+   ]
+  },
+  {
+   "item": "lower-arm yaw RS00",
+   "mass_g": 310,
+   "source": "task supplied",
+   "com_step_mm": [
+    170.49,
+    96.37,
+    5.99
+   ]
+  },
+  {
+   "item": "P1 L01",
+   "mass_g": 169.8,
+   "source": "CAD volume x PETG 1.27",
+   "com_step_mm": [
+    144.34,
+    424.66,
+    19.09
+   ]
+  },
+  {
+   "item": "P2 L04B",
+   "mass_g": 178.3,
+   "source": "CAD volume x PETG 1.27",
+   "com_step_mm": [
+    167.15,
+    384.06,
+    38.46
+   ]
+  },
+  {
+   "item": "spacer",
+   "mass_g": 24.9,
+   "source": "CAD volume x PETG 1.27",
+   "com_step_mm": [
+    170.49,
+    424.86,
+    40.64
+   ]
+  }
+ ],
+ "actuators_plus_shoulder": {
+  "mass_g": 2373.113554,
+  "com_mm": [
+   168.39,
+   328.15,
+   9.0
+  ],
+  "pitch_Nm": 2.2604919617628667,
+  "roll_Nm": 2.2512711797160856,
+  "pitch_lever_mm": 97.13232216935366
+ },
+ "sensitivity_Nm_per_100g": {
+  "mid_upper_link": 0.10542148750000001,
+  "mid_forearm": 0.30645781250000004,
+  "hand_stub_mid": 0.446202575,
+  "hand_end": 0.4903325
+ },
+ "repo_RS03_peak_Nm": 60
+}

@@ -6,7 +6,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | --- | --- | --- | --- | --- |
 | Sol | Codex CLI | `-m gpt-6.1-sol` | `-s read-only` | 8.5 min |
 | Astra | Codex CLI | `-m gpt-6-astra` | `-s read-only` | 9 min |
-| Fable high (replaces Grok from 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort high` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | not yet timed |
+| Fable high (replaces Grok from 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort high` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | 25 min on the subscription, rev C |
 | Opus high (added 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-opus-5-5 --effort high` | same as Fable | not yet timed |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |

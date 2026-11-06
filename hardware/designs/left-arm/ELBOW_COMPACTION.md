@@ -1,6 +1,6 @@
 # Elbow compaction
 
-2026-11-06. Joey asked for a less bulky elbow, then left the choice to us with all validation passes kept. Implemented in upper arm rev C and forearm draft 3. Status: pass 2 is current. FEA, fold and roll checks done on pass 2, gate review pending. Sections below "Pass 2" record pass 1.
+2026-11-06. Joey asked for a less bulky elbow, then left the choice to us with all validation passes kept. Implemented in upper arm rev C and forearm draft 3. Status: pass 2 is current. **Gate review not passed, do not print the full parts:** see `upper-arm/REVC_GATE_REVIEW.md`. Sections below "Pass 2" record pass 1.
 
 **Result:** the stack went from 78.5 to 75.5 mm, and the inboard face moved 5 mm toward the arm axis. Both bearings stay. The bearing now sits in the carrier instead of beside the fork, which removes the 9 mm air band. Section: `renders/elbow_compaction_study.png`.
 
@@ -35,7 +35,7 @@ Same cases, material and 3 mm mesh as `upper-arm/BASELINE.md`, build direction +
 | LC1C | 2.14 | 2.06 | 2.17 | 2.02 |
 | LC2 | 2.57 | 2.61 | 2.60 | 2.56 |
 
-Worst layer SF now clears the 1.5 target, without the steel-ring tie (not rerun). LC1B, LC1C and LC2 layer figures fell, LC1B most, but all stay above 2. Peaks are still at M3 holes under a rigid bolt model, so the mesh limits in `upper-arm/GATE2_REVIEW.md` still apply, and no mesh convergence was run on pass 2. Deflection 0.96 mm fore-aft, 1.25 mm lateral.
+Worst layer SF clears the 1.5 target at this 3 mm mesh only, which is not converged, and without the steel-ring tie (not rerun). LC1B, LC1C and LC2 layer figures fell, LC1B most, but all stay above 2. Peaks are still at M3 holes under a rigid bolt model, so the mesh limits in `upper-arm/GATE2_REVIEW.md` still apply, and no mesh convergence was run on pass 2. Deflection 0.96 mm fore-aft, 1.25 mm lateral.
 
 ### Fork FEA
 
@@ -92,7 +92,7 @@ The fork is not a component in the master layout. It is in the URDF `forearm_lin
 - URDF regenerated from it, with the elbow limit at 133 degrees, 2.321 rad. Weighed masses unchanged. The elbow axis does not move along the arm, so only the link inertials and the limit change. `generate_urdf.py --check` passed, total 2.751 kg with the fork.
 - Solid interference, SolidWorks, upper arm, carrier, cover, elbow ring and sleeves, RS02, fork and RS00: elbow 0 to 130 every 5 degrees and at 133, and RS00 at ±60 degrees of lower-arm yaw at elbow 0, 90 and 133. **No part-to-part interference**, except a 0.04 mm³ cover to upper arm overlap at every pose, unchanged and negligible, and a zero-volume carrier to fork touch at elbow 0, the rest stop.
 - Control: the same sweep reports fork and RS00 into the upper arm at 150 and 170 degrees, and fork into carrier at -10 degrees, so the check does detect collisions.
-- Lower-arm yaw moves only the hand, which is not modelled, so the yaw cases cover RS00 turned as a whole, which is conservative. Not included: screws, washers, the 6808 and the hand.
+- Lower-arm yaw moves only the hand, which is not modelled, so the yaw cases cover RS00 turned as a whole. That is not a stand-in for the hand. Not included: screws, washers, the 6808 and the hand.
 
 ## Stack along the elbow axis, arm coordinates
 
