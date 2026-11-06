@@ -231,6 +231,20 @@ Leg ports are footprints on rev A; populate when the legs exist.
 
 The BNO085 IMU stays on the Pi shelf (rigid, close to the host); the board does not need to carry it.
 
+### 3.8 Test mode and fault injection (trunk thread ask, 07:24Z)
+
+So fuse selectivity and CAN fault tests can run without risking real actuators:
+
+- **Bench test mode** (supervisor command + a physical jumper, both needed): ports can be enabled with no host heartbeat, the
+  trip point of each port is programmable from 1 A upward, and every trip is logged with peak current and time to open.
+- **Dummy-load port:** the aux port doubles as the test port. A plug-in load box (power resistors plus a MOSFET pulse load on
+  a small board of its own) drives step and short-circuit currents into a trunk segment, so drop fuses can be checked to blow
+  before the port trips.
+- **CAN fault-injection header** on one bus (the spare CAN6): jumper positions to short CAN_H to CAN_L, CAN_H or CAN_L to GND,
+  and CAN_H to VBUS through a 100 ohm current-limit resistor, plus a removable terminator. This checks the trunk junction boards'
+  surge protection and the isolated transceivers before a real trunk sees it. Only usable in test mode with motors disarmed.
+- Test points on VSYS, VMOT and every port, sized for a scope probe ground spring.
+
 ## 4. Grounding
 
 - Pack negative is the single system ground; the low-side BMS shunt sits between the cell stack and that node, everything else
@@ -349,5 +363,6 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.2 | 2026-11-06 | Test mode, dummy-load port, CAN fault-injection header (3.8) |
 | 0.1 | 2026-11-06 | Frame thread placed the assembly (main 0a31dda); open item closed |
 | 0 | 2026-11-06 | First architecture plan. Takes over the board from the torso-frame thread (which keeps placement, mounting, cooling envelope) |
