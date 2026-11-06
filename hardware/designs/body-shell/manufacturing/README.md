@@ -105,7 +105,7 @@ is designed to tear out before the bracket does, so a crash breaks the cheap par
 The gusset plates are not used as mounts, so they carry only frame load. The arm thread needs to keep these slot positions free
 (**unresolved**: compute shelf, PDB and harness clips may already use some).
 
-**Fasteners (estimate):** 40 × M5×10 + T-nuts for brackets; about 40 × M3 heat-set inserts (M3×5.7) with M3×8 button heads and
+**Fasteners (estimate):** 40 × M5×20 + T-nuts for brackets (frame gate review: M5×16 left ~2 mm of thread through a 12 mm PETG foot); about 40 × M3 heat-set inserts (M3×5.7) with M3×8 button heads and
 nylon washers; 8 × 6×3 mm N52 magnets per door; the existing collar M4×10 button heads.
 
 **Assembly order:** frame and actuators in, harness dressed → hardpoints → collars (halves) → U3/U4 lower units (each assembled on
@@ -187,9 +187,13 @@ Each stage is cheaper than the next. Nothing goes to a full panel until the earl
 with about 30 mm of stop at the side and 40 mm at the back. The side gets there because the arm stands over 100 mm proud and crushes.
 The back does not: **the shell needs a back crush pad (or hip guard) giving about 30 mm of crush beyond the shell.** First pass modelled (`SHELL_MFG_SPINEPACK.png`): six TPU 95A pads standing 30 mm
 proud of the back, flanking D1 and D2 so the doors open between them, bolted through the shell to H2/H3/H4 rear on standoff posts so a
-fall loads the brackets, not the shell wall. About 333 g at 2 walls + ~10% gyroid (coupon C9 tunes it); EVA foam in a thin TPU
-skin is a ~60 g alternative. Extents in the torso frame: upper pads |X| 58–147, Y 368–481; lower pads |X| 54–127, Y 166–295;
-spine bridges |X| < 63, Y 298–355; all Z −77 to −124. Styling comes in SolidWorks. One-face
+fall loads the brackets, not the shell wall. About 258 g at 2 walls + ~10% gyroid (coupon C9 tunes it); EVA foam in a thin TPU
+skin is a ~60 g alternative. Extents in the torso frame: upper pads |X| 68–147, Y 368–481; lower pads |X| 64–116, Y 166–295 (inner edges 6 mm clear of the D1/D2 openings, frame gate review);
+spine bridges |X| < 63, Y 298–355; all Z −77 to −124. Styling comes in SolidWorks.
+**Frame gate review (main 6ab5703):** pad standoffs need a metal load path, clamped through to the rail (aluminium standoff on an M5
+through the PETG bracket into the T-nut), not just the PETG bracket. The back needs **40 mm** of stop; the pads give 30, so either 40 mm
+pads or pad plus standoff crush. No back-fall survival claim until coupon C9 gives a force-travel curve. If Joey picks battery option D2
+(lumbar backpack) or D3 (packs end-on through the back), the pack housing replaces these pads as the rear crush element and they get redrawn. One-face
 loading is harsher than a real fall, but it is the sizing target.
 Hardpoints checked in CAD: H1, H2, H4, H5, C and H3 free. **H3 rear bracket stays below Y 374 (torso frame)**: the Pi sits above it and its
 rear ports need plug room in the gap behind D1. H6 needs a check on the robot (waist adapter not in CAD).

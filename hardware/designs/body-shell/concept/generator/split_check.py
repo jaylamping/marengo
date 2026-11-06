@@ -144,8 +144,8 @@ def pad(G, za, zb, ya, yb, name, unit):
     js = np.where((ys >= ya) & (ys <= yb))[0]
     piece(name, unit, "pad", thicken(G[i0:i1 + 1, js.min():js.max() + 1], t=-30.0), "TPU 95A gyroid, 30 mm crush")
 for s_, nm in ((1, "L"), (-1, "R")):
-    lo, hi = sorted((s_ * 62, s_ * 135)); pad(UB, F0 + 215, F0 + 325, lo, hi, f"pad_upper_{nm}", "P spine pack")
-    lo, hi = sorted((s_ * 58, s_ * 95)); pad(LB, F0 + 15, F0 + 140, lo, hi, f"pad_lower_{nm}", "P spine pack")
+    lo, hi = sorted((s_ * 72, s_ * 135)); pad(UB, F0 + 215, F0 + 325, lo, hi, f"pad_upper_{nm}", "P spine pack")
+    lo, hi = sorted((s_ * 70, s_ * 90)); pad(LB, F0 + 15, F0 + 140, lo, hi, f"pad_lower_{nm}", "P spine pack")
 pad(LB, F0 + 145, F0 + 158, -60, 60, "pad_spine_lo", "P spine pack")
 pad(UB, F0 + 161, F0 + 200, -60, 60, "pad_spine_hi", "P spine pack")
 for b in (1, 2, 3):
