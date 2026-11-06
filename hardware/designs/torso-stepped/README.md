@@ -168,14 +168,14 @@ The PDB and harness clips are not in the CAD, so those cannot be checked yet. Ke
 
 ## Pitch RS03 connectors
 
-Both rear flats are used on each motor (Joey, 2026-11-06). Positions are the same on both sides of the torso.
+Each motor has a plug position on both rear flats, the same on both sides of the torso. This is how they are wired today, but both do not have to stay in use (Joey, 2026-11-06).
 
 | Flat | Y | Z | Cable |
 | --- | --- | --- | --- |
 | Top rear | 447 to 456 | -31 to -23 | Out to the arm |
 | Low front | 394 to 402 | 23 to 31 | Feed from the power supply |
 
-Connector openings are about X ±83. Each flat has 11 to 12 mm of radial room to the pitch bracket, and cables leave inboard past X ±78.4. Keep both exits clear:
+Connector openings are about X ±83. Each flat has 11 to 12 mm of radial room to the pitch bracket, and cables leave inboard past X ±78.4. Keep both exits clear until the harness is designed, then release whichever goes unused:
 
 | Keep-out | X | Y | Z |
 | --- | --- | --- | --- |
