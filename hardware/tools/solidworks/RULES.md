@@ -16,6 +16,8 @@ with launch() as inst:          # new SLDWORKS.exe, attached by PID
 
 `inst.pid` is the session's PID. If `inst.no_auto_recover` is True, that instance has no Auto Recover.
 
+To reuse one instance across separate script runs, use `session(state_file)` with a PID file the session owns, and call `inst.close()` when finished.
+
 ## Rules
 
 1. Each session starts its own instance with `launch()` and uses that handle.
@@ -25,7 +27,7 @@ with launch() as inst:          # new SLDWORKS.exe, attached by PID
 5. Save after each step. A third instance has no Auto Recover, and an instance can crash.
 6. Concurrent Simulation solves are allowed, up to the two tested so far. Keep large solves to one at a time until a larger pair is tested.
 7. Exit the instance when the work is done. Each one holds about 1 GB idle and about 1.6 GB after a solve.
-8. The solidworks-mcp tools and the old `swlib.app()` helper attach to the running SolidWorks, so they break rule 2. Do not use them alongside other sessions until they attach by PID.
+8. solidworks-mcp follows these rules from branch `feat/owned-instance`: each MCP server launches and owns one instance, attached by PID. **A server started before that build still attaches to the running SolidWorks until it restarts**, so do not use its tools alongside other sessions. Running servers are not restarted for you.
 
 ## What was tested
 
@@ -46,6 +48,6 @@ Two startup problems came up. `launch()` handles both:
 - Two SolidWorks processes starting at the same moment can stall, so launches queue on a lock file.
 - A third process stops at a modal prompt, "A journal file could not be created. Auto recover will not work". `launch()` clicks OK on exactly that prompt, in its own PID only, and sets `no_auto_recover`.
 
-More than three instances at once have not been tested for use.
+Four instances ran at once in the solidworks-mcp test, each in its own PID, with no modeling load on all four.
 
 `ExitApp` can leave a half-closed process with no documents and no Simulation license, so `close()` force-stops its own PID if it has not gone after 60 seconds.

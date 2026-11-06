@@ -188,3 +188,29 @@ def launch(timeout=300, visible=True):
     inst = Instance(pid, sw)
     inst.no_auto_recover = journal
     return inst
+
+
+def attach(pid):
+    """Attach to an instance this session already launched, for example from an earlier script run."""
+    pythoncom.CoInitialize()
+    disp = _attach_by_pid(pid)
+    if disp is None:
+        raise RuntimeError(f"no SolidWorks PID {pid} in the ROT")
+    sw = wc.dynamic.Dispatch(disp)
+    got = int(sw.GetProcessID)
+    if got != pid:
+        raise RuntimeError(f"attached to PID {got}, expected {pid}")
+    return Instance(pid, sw)
+
+
+def session(state_file):
+    """Reuse this session's instance across script runs, keyed by a PID file the session owns."""
+    state = str(state_file)
+    if os.path.exists(state):
+        pid = int(open(state).read().strip())
+        if psutil.pid_exists(pid) and psutil.Process(pid).name().lower() == "sldworks.exe":
+            return attach(pid)
+    inst = launch()
+    with open(state, "w") as f:
+        f.write(str(inst.pid))
+    return inst
