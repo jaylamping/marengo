@@ -58,3 +58,10 @@ sheet([(crop('c38.png', (600, 200, 2600, 2300), w=760), 'r 62: P2 hits at every 
       'Body shell: shoulder cavity size vs arm clearance', sub, 'SHELL_CONCEPT_CLEARANCE.png',
       ['Arm-thread sweep, pitch -50..180 at 0 and 5 deg inward roll, 2 mm collar. r 76 is the smallest cavity with >= 3 mm everywhere; r 78 gives 3.2 / 3.8 mm.',
        'r 70 and below fail in bands a pitch stop cannot avoid. Collar button heads stand 2.2 mm proud; P2 gets a local relief in its next rev.'])
+sheet([(crop('x1.png', (600, 200, 2600, 2300), w=860), 'Front, x-ray'),
+       (crop('x2.png', (600, 200, 2600, 2300), w=860), 'Three-quarter, x-ray'),
+       (crop('x3.png', (700, 200, 2500, 2300), w=760), 'Side, x-ray')],
+      'Body shell over the two-box frame', sub, 'SHELL_CONCEPT_FRAME.png',
+      ['Frame from the arm thread (hardware/designs/torso-stepped/, de5a006): upper box half-width 113 from 71 mm below the shoulder axis to the top,',
+       'lower box 75; 3 mm aluminium gusset plates (outline simplified here) bridge the step down to 140 mm below the axis, outer faces at X +-73.',
+       'Shell clearance to the frame: about 40 mm at the sides of the step, 35 mm in front and 15 mm behind the plates. Orange dots: proposed panel mounts.'])

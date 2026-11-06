@@ -315,12 +315,23 @@ if (FULL) {
 // ---------- X-RAY: 2020 frame, pitch actuators, mount points ----------
 if (XRAY || EXPLODE) {
   const bar = (x, y, z, sx, sy, sz) => { const b = new THREE.Mesh(new THREE.BoxGeometry(sy, sz, sx), alu); b.position.copy(P(x, y, z)); add(b); };
-  for (const x of [-60, 60]) for (const y of [-65 - FW, 65 + FW]) bar(x, y, (F0 + F1) / 2, 20, 20, 340);
-  for (const z of [F0 + 10, F1 - 10]) { for (const x of [-60, 60]) bar(x, 0, z, 20, 110 + 2 * FW, 20); for (const y of [-65 - FW, 65 + FW]) bar(0, y, z, 100, 20, 20); }
+  // two-box frame (arm thread, torso-stepped de5a006): wide upper box from ZS-71.24 to F1, existing lower box below,
+  // 3 mm aluminium gusset plates front and back (outer face X +-73) bridging the step down to ZS-139.86
+  const ZB = ZS - 71.24, ZG = ZS - 139.86;
+  for (const x of [-60, 60]) for (const y of [-65, 65]) bar(x, y, (F0 + ZB) / 2, 20, 20, ZB - F0);
+  for (const x of [-60, 60]) for (const y of [-65 - FW, 65 + FW]) bar(x, y, (ZB + F1) / 2, 20, 20, F1 - ZB);
+  for (const x of [-60, 60]) { bar(x, 0, F0 + 10, 20, 110, 20); bar(x, 0, F1 - 10, 20, 110 + 2 * FW, 20); bar(x, 0, ZB + 10, 20, 110 + 2 * FW, 20); }
+  for (const y of [-65, 65]) bar(0, y, F0 + 10, 100, 20, 20);
+  for (const y of [-65 - FW, 65 + FW]) { bar(0, y, F1 - 10, 100, 20, 20); bar(0, y, ZB + 10, 100, 20, 20); }
+  const gshape = new THREE.Shape(); const gw = 75 + FW;
+  gshape.moveTo(-gw, F1); gshape.lineTo(gw, F1); gshape.lineTo(gw, ZB); gshape.lineTo(75, ZG); gshape.lineTo(-75, ZG); gshape.lineTo(-gw, ZB); gshape.closePath();
+  const ghole = new THREE.Path(); ghole.moveTo(-gw + 20, F1 - 20); ghole.lineTo(gw - 20, F1 - 20); ghole.lineTo(gw - 20, ZB + 20); ghole.lineTo(-gw + 20, ZB + 20); ghole.closePath(); gshape.holes.push(ghole);
+  for (const sx of [1, -1]) { const g = new THREE.Mesh(new THREE.ExtrudeGeometry(gshape, { depth: 3, bevelEnabled: false }), alu);
+    g.position.set(OFFX, 0, sx > 0 ? 70 : -73); add(g); }
   for (const s of [1, -1]) { const a = new THREE.Mesh(new THREE.CylinderGeometry(49.75, 49.75, 56.6, 48), dark); a.rotation.z = Math.PI / 2; a.position.copy(P(0, s * (FACE - 0.5 - 28.3), ZS)); add(a); }
   // proposed mount bosses: printed standoffs into T-nuts on the outer slots
   const zs = [F0 + 40, F0 + 160, F1 - 40];
-  for (const z of zs) for (const x of [-70, 70]) for (const y of [-55 - FW, 55 + FW]) {
+  for (const z of zs) for (const x of [-70, 70]) for (const y of [-55, 55]) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12), mount); b.position.copy(P(x + Math.sign(x) * 6, y, z)); add(b); }
 }
 

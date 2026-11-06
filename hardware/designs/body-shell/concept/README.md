@@ -19,6 +19,7 @@ mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look i
 | `SHELL_CONCEPT_PANELS.png` | Shoulder close-up of the collar; exploded print panels |
 | `SHELL_CONCEPT_WIDTH.png` | Pec chest plate, no head, shoulders as built vs P1 +25 mm per side |
 | `SHELL_CONCEPT_BLEND.png` | Latest: in-between side line, shoulders +38 mm per side via a wider 2020 frame (226 mm), waist +10 mm per side, rounded shoulder top and chest front |
+| `SHELL_CONCEPT_FRAME.png` | X-ray of the shell over the two-box frame and gusset plates |
 | `PROPORTIONS.md` | Proportion check of the baseline against ANSUR II men scaled to 5 ft |
 | `SHELL_CONCEPT_CLEARANCE.png` | Baseline vs the arm-thread clearance fixes (socket r 93, shoulder half-width ≤155); Joey kept the baseline |
 
@@ -51,7 +52,7 @@ the outer frame slots, M3 heat-set inserts in the panel bosses, lapped seams.
 
 ## Open points
 
-- Shell geometry has to follow the two-box frame once the arm thread fixes the step height and gusset outline.
+- Shell fits the two-box frame (de5a006) with 15 mm or more to the gusset plates; panel mounts still to be placed on the new frame members.
 - Upper-arm length card (240/200, 215/195 or 250/210) is open with Joey on the arm thread; the renders use 215/195.
 - Collar M4 button heads stand 2.2 mm proud; the arm thread adds a local relief to P2's inner edge.
 - Panels are sacrificial crash covers (load case: a trip-level fall from standing or a bench tip). Keep one fixed mounting interface per panel so variants (colour, shape, cooling and vents) can swap without frame changes.
