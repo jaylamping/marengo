@@ -20,7 +20,7 @@
   "functionFolders": {
     "manifests": { "extensions": [".json"] },
     "vendor": { "extensions": [".sldprt", ".sldasm", ".step", ".stp", ".pdf", ".md", ".identifier", ".png"] },
-    "reference": { "extensions": [".step", ".stp", ".txt", ".md", ".json", ".csv", ".png"] },
+    "reference": { "extensions": [".step", ".stp", ".stl", ".txt", ".md", ".json", ".csv", ".png"] },
     "exports": { "extensions": [".step", ".stp", ".stl", ".png", ".json", ".md", ".txt", ".csv"], "regionSubfolders": true },
     "prints": { "extensions": [".3mf", ".gcode", ".stl", ".step", ".txt", ".md", ".json", ".png", ".csv"], "regionSubfolders": true },
     "reviews": { "extensions": null, "regionSubfolders": true, "datedSubfolders": true },
