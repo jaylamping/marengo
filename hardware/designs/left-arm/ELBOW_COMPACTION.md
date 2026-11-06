@@ -55,22 +55,9 @@ Simply shifting the stack dropped the twist case to SF 1.94, under the 2.0 targe
 | Overhang, 45 degrees, +X up | 11511 mm², 4112 mm² of it flat down-facing; +Y up is 2315 mm² |
 | Footprint, height | 176.2 × 69.0 mm, 75.5 mm tall, fits the P2S bed |
 | Walls | 0.29% of surface under 1.2 mm; median 5.0 mm. Thin spots are feather edges at the finger tip (0.06 mm) and gusset tips (0.07 to 0.35 mm), not load-carrying walls |
-| Slice, Bambu Studio CLI | 377 layers, 7 h 23 min, 197.7 g with supports |
+| Slice, Bambu Studio CLI | 7 h 40 min, 264 g with supports |
 
-Slice settings: Joey's P2S 0.4 machine preset and Joe PETG HF filament preset, on Textured PEI. The filament preset's first-slot values were applied over the system preset, because the CLI refuses its other slots. There is no saved process preset for these parts, so the process is an assumption: 0.20mm Standard, 100% infill, 4 walls, tree supports. The slice proves the orientation slices, not print quality.
-
-### Mass
-
-Solid, at 1.19 g/cm³. These parts are not weighed.
-
-| Part | Pass 1 | Pass 2 |
-| --- | --- | --- |
-| Upper arm body | | 204.8 g |
-| Carrier | 34.5 g | 34.5 g |
-| Cable cover | | 3.0 g |
-| Fork with disc and finger | 170.1 g | 171.1 g |
-
-Pass 1 figures here are its volumes at 1.19. The pass 1 tables below used 1.27.
+Slice settings are the process used for P1 and P2: P2S, Generic PETG, Textured PEI, 0.20 mm layers, 6 walls, 100% rectilinear infill, normal supports at 45 degrees, Z gap 0.20, interface 2/2, 255 °C nozzle, 70 °C bed. The CLI run used the Standard nozzle flow setting, not High Flow, so the time is an estimate for that setting. A first slice with 4 walls and tree supports gave 7 h 23 min and 197.7 g, so this process uses about 66 g more filament, most of it support. The slice proves the orientation slices, not print quality.
 
 ### Wiring reservations, provisional
 
@@ -89,14 +76,20 @@ From the trunk plan draft `hardware/electrical/wiring/left-arm-trunk-plan.md`, n
   No clash at any width, by sampled points at 1 to 2 mm spacing, with the band as a full ring. The jumper is not modelled as a solid, and its entry from the upper arm, exit into the forearm and clamp points are not placed.
 - **Next P2 rev:** 30 x 18 x 8 mm junction pocket near the RS02 housing on the trunk-entry side, jumpers 3 x 9 mm flat with a 30 mm radius. No P2 work now.
 
+### Next CAD check: elbow cable route
+
+Proposed by the trunk thread, not approved, and it replaces the inboard band above. The jumper crosses the elbow on the posterior side at whatever free radius the fork allows, expected r 45 to 55 around the RS02 and carrier, and wraps onto a printed guide surface during flexion. The 120 to 130 mm of path change is stored as a guided rolling loop inside the upper arm tube: legs of about 3 x 8 mm on opposite walls, a U-turn 50 to 55 mm across (25 mm bend radius), about 70 mm of clear axial travel, a smooth lining or rails, JB-14 moved to the shoulder end of the tube, and clamps at the tube window and forearm entry. Fallback is a clock-spring between the RS02 end face and the fork cheek.
+
+To check when SolidWorks is free: posterior free radius and axial span through 0 to 133 degrees, and whether the tube has the 70 mm travel and 55 mm section free.
+
 ### Still to update
 
-The fork is not yet a component in the master layout or the URDF, so `forearm_link` carries RS00 only and is about 171 g light.
+The fork is not a component in the master layout. It is in the URDF `forearm_link`, with mass properties from the exported STL at 1.19 g/cm³, 171.0 g. STL volume is 143.73 cm³ against 143.82 in SolidWorks.
 
 ### Layout, URDF and interference
 
 - Master layout: elbow RS02 output plane moved to X 231.19, so the RS02 sits at X 189.74 to 235.19 in layout coordinates. Saved, reopened through the export. The layout still reports the needs-rebuild flag it had before this change.
-- URDF regenerated from it, with the elbow limit at 133 degrees, 2.321 rad. Weighed masses unchanged. The elbow axis does not move along the arm, so only `upper_arm_link` inertials and the limit change. `generate_urdf.py --check` passed, total 2.580 kg.
+- URDF regenerated from it, with the elbow limit at 133 degrees, 2.321 rad. Weighed masses unchanged. The elbow axis does not move along the arm, so only the link inertials and the limit change. `generate_urdf.py --check` passed, total 2.751 kg with the fork.
 - Solid interference, SolidWorks, upper arm, carrier, cover, elbow ring and sleeves, RS02, fork and RS00: elbow 0 to 130 every 5 degrees and at 133, and RS00 at ±60 degrees of lower-arm yaw at elbow 0, 90 and 133. **No part-to-part interference**, except a 0.04 mm³ cover to upper arm overlap at every pose, unchanged and negligible, and a zero-volume carrier to fork touch at elbow 0, the rest stop.
 - Control: the same sweep reports fork and RS00 into the upper arm at 150 and 170 degrees, and fork into carrier at -10 degrees, so the check does detect collisions.
 - Lower-arm yaw moves only the hand, which is not modelled, so the yaw cases cover RS00 turned as a whole, which is conservative. Not included: screws, washers, the 6808 and the hand.
