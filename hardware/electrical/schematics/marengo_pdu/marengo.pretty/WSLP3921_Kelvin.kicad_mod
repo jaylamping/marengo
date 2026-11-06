@@ -1,0 +1,135 @@
+(footprint "WSLP3921_Kelvin"
+	(version 20260206)
+	(generator "marengo-footprints")
+	(layer "F.Cu")
+	(descr "Vishay WSLP3921 3921 shunt, L10.0 W5.2 T2.0 mm, 0.2 to 4 mOhm. Current pads d=2.70 b=6.20 gap l=5.60 mm per doc 30176 rev 29-Aug-2025 p.2 solder pad table. Pads 2 and 3 are derived Kelvin tap pads on the inner pad edge at mid width, following the p.2 Typical sensing traces figure, which has no dimensions. Copper only, no paste, no mask opening, net tied to the current pad.")
+	(tags "WSLP3921 shunt Kelvin 3921 current sense")
+	(property "Reference" "REF**"
+		(at 0 -4.6 0)
+		(layer "F.SilkS")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "WSLP3921_Kelvin"
+		(at 0 4.6 0)
+		(layer "F.Fab")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(net_tie_pad_groups "1,2" "3,4")
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_poly
+		(pts
+			(xy -4.25 -2.6)
+			(xy 5 -2.6)
+			(xy 5 2.6)
+			(xy -5 2.6)
+			(xy -5 -1.85)
+		)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+	)
+	(fp_line
+		(start -3 -2.6)
+		(end -3 2.6)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+	)
+	(fp_line
+		(start 3 -2.6)
+		(end 3 2.6)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+	)
+	(fp_line
+		(start -2.54 -2.71)
+		(end 2.54 -2.71)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+	)
+	(fp_line
+		(start -2.54 2.71)
+		(end 2.54 2.71)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+	)
+	(fp_poly
+		(pts
+			(xy -4.15 -3.32)
+			(xy -4.35 -3.6)
+			(xy -3.95 -3.6)
+		)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(fill yes)
+		(layer "F.SilkS")
+	)
+	(fp_rect
+		(start -5.75 -3.75)
+		(end 5.75 3.75)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd rect
+		(at -4.15 0)
+		(size 2.7 6.2)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "2" smd rect
+		(at -2.55 0)
+		(size 1 0.6)
+		(layers "F.Cu")
+	)
+	(pad "3" smd rect
+		(at 2.55 0)
+		(size 1 0.6)
+		(layers "F.Cu")
+	)
+	(pad "4" smd rect
+		(at 4.15 0)
+		(size 2.7 6.2)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(embedded_fonts no)
+)

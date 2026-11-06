@@ -3,7 +3,7 @@
 	(generator "eeschema")
 	(generator_version "10.0")
 	(uuid "8455cd9f-cd13-58e2-b2c9-7f3a0368dac7")
-	(paper "A3")
+	(paper "A2")
 	(title_block
 		(title "pack_input_shunt_afe")
 		(date "2026-11-06")
@@ -2965,6 +2965,497 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Transistor_FET:Q_NMOS_GSD"
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "Q"
+				(at 5.08 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "Q_NMOS_GSD"
+				(at 5.08 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 5.08 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "N-MOSFET transistor, gate/source/drain"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "transistor NMOS N-MOS N-MOSFET"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "Q_NMOS_GSD_0_1"
+				(polyline
+					(pts
+						(xy 0.254 1.905)
+						(xy 0.254 -1.905)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.254 0)
+						(xy -2.54 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 2.286)
+						(xy 0.762 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 0.508)
+						(xy 0.762 -0.508)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.27)
+						(xy 0.762 -2.286)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.778)
+						(xy 3.302 -1.778)
+						(xy 3.302 1.778)
+						(xy 0.762 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.016 0)
+						(xy 2.032 0.381)
+						(xy 2.032 -0.381)
+						(xy 1.016 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 1.651 0)
+					(radius 2.794)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 2.54)
+						(xy 2.54 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 2.54 1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 2.54 -1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 -2.54)
+						(xy 2.54 0)
+						(xy 0.762 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.921 0.381)
+						(xy 3.683 0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 3.302 0.381)
+						(xy 2.921 -0.254)
+						(xy 3.683 -0.254)
+						(xy 3.302 0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "Q_NMOS_GSD_1_1"
+				(pin input line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "G"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 -5.08 90)
+					(length 2.54)
+					(name "S"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 5.08 270)
+					(length 2.54)
+					(name "D"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "Device:D_Zener"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "D_Zener"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Zener diode"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "diode"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "TO-???* *_Diode_* *SingleDiode* D_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "D_Zener_0_1"
+				(polyline
+					(pts
+						(xy -1.27 -1.27)
+						(xy -1.27 1.27)
+						(xy -0.762 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0)
+						(xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 -1.27)
+						(xy 1.27 1.27)
+						(xy -1.27 0)
+						(xy 1.27 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "D_Zener_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_02x10_Top_Bottom")
@@ -4514,7 +5005,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 50.8 90)
 			(effects
 				(font
@@ -4734,7 +5225,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 60.96 90)
 			(effects
 				(font
@@ -4954,7 +5445,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 71.12 90)
 			(effects
 				(font
@@ -5174,7 +5665,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 81.28 90)
 			(effects
 				(font
@@ -5394,7 +5885,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 91.44 90)
 			(effects
 				(font
@@ -5614,7 +6105,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 101.6 90)
 			(effects
 				(font
@@ -5834,7 +6325,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 111.76 90)
 			(effects
 				(font
@@ -6054,7 +6545,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 121.92 90)
 			(effects
 				(font
@@ -6274,7 +6765,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 132.08 90)
 			(effects
 				(font
@@ -6494,7 +6985,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 142.24 90)
 			(effects
 				(font
@@ -6714,7 +7205,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 152.4 90)
 			(effects
 				(font
@@ -6934,7 +7425,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 162.56 90)
 			(effects
 				(font
@@ -7154,7 +7645,7 @@
 				)
 			)
 		)
-		(property "Value" "20R"
+		(property "Value" "100R"
 			(at 101.6 172.72 90)
 			(effects
 				(font
@@ -7236,7 +7727,7 @@
 		)
 		(uuid "de14a09c-200c-5389-8cf7-5525254085ad")
 	)
-	(text "Cell filter: 20R + 220nF on every used input\n(datasheet p9: RC 20-100R, CC 0.1/0.22/1 uF; p67 Fig 16-2)."
+	(text "Cell filter: 100R + 220nF, 20R on VC16 (SLUAA81 2.5, top cell IR drop)\n(datasheet p9: RC 20-100R, CC 0.1/0.22/1 uF). 100R gives the balance FET its gate drive."
 		(exclude_from_sim no)
 		(at 88.9 175.26 0)
 		(effects
@@ -11041,7 +11532,7 @@
 		)
 		(uuid "047c5a2f-b028-523c-9927-0f334d6c49b3")
 	)
-	(text "OPEN ON THIS SHEET\n1. External balance FETs (PLAN 3.1, 150 mA per cell) are not captured. They change the cell RC network: revisit 20R.\n2. CP1 raised to 1 uF for the 4+4 FET gate load (p65 rule): worst case 1.69 uC droops 11 V by 1.7 V, pump start about 130 ms.\n3. OTP owed: DFETOFF active high (0x02), CFETOFF and HDQ as thermistor inputs. Presence and DFETOFF logic are on HP_power_board.\n4. RS1 land: CSS4J-4026 on the BVR4026 library footprint, check against the Bourns drawing."
+	(text "OPEN ON THIS SHEET\n1. Balance FETs are captured below (SLUAA81 Fig 2-2). OTP/data memory owed: Cell Balance Min Cell V 3900 mV, Max Cells 4.\n2. CP1 raised to 1 uF for the 4+4 FET gate load (p65 rule): worst case 1.69 uC droops 11 V by 1.7 V, pump start about 130 ms.\n3. OTP owed: DFETOFF active high (0x02), CFETOFF and HDQ as thermistor inputs. Presence and DFETOFF logic are on HP_power_board.\n4. RS1 land: CSS4J-4026 on the BVR4026 library footprint, check against the Bourns drawing."
 		(exclude_from_sim no)
 		(at 20.32 233.68 0)
 		(effects
@@ -11051,6 +11542,6193 @@
 			(justify left top)
 		)
 		(uuid "a4a21d95-a899-5630-b77d-08f5e5facd2b")
+	)
+	(text "External balance, SLUAA81A Fig 2-2: internal FET current through VC(n-1) input resistor gives Vgs. 3.9 V: 1.59 V min (RCB 46 R), FET rated at 1.5 V.\nRbal 27R: 140-150 mA external at 3.9-4.2 V, plus 17-19 mA internal. Cell Balance Max Cells 4: about 2.5 W total."
+		(exclude_from_sim no)
+		(at 25.4 288 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left top)
+		)
+		(uuid "307061ca-11ae-5271-8199-25a33a5be4da")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 38.1 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5b9da93a-2ccf-5bb3-b944-5b7f99925606")
+		(property "Reference" "R24"
+			(at 40.64 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 40.64 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 38.1 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 38.1 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 38.1 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ffda4b8c-9996-5dc0-b5f6-ffe826bc7725")
+		)
+		(pin "2"
+			(uuid "a5be6030-5ee1-5e1c-965d-3b06b94a7b2a")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R24")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 38.1 316.23)
+			(xy 38.1 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e5158e49-8a98-59f1-81c4-1b19826d47dd")
+	)
+	(label "B1"
+		(at 38.1 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5af139ad-b541-5910-8ff6-7e642042ec17")
+	)
+	(wire
+		(pts
+			(xy 38.1 323.85)
+			(xy 38.1 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "00291640-6bdd-5694-9438-e1cb2ce9cdee")
+	)
+	(label "BD1"
+		(at 38.1 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "1e1cf3bb-f516-5ae6-8e86-43c59ecfce0d")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 62.23 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "41dec5ac-8d12-564e-8848-7144edbd16d3")
+		(property "Reference" "Q1"
+			(at 57.15 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 57.15 336.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 62.23 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 62.23 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d7386cda-3264-5cd2-aa37-c7494f44b3dc")
+		)
+		(pin "2"
+			(uuid "0c8f3cc3-2106-5b17-8f44-3f8e6faeb6d4")
+		)
+		(pin "3"
+			(uuid "ac37bbc6-3b8e-504f-9452-37b4e10d1e68")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 57.15 320.04)
+			(xy 52.07 320.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "974a9f6e-ff9b-5440-8047-41ba4b973759")
+	)
+	(label "BG1"
+		(at 52.07 320.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "579a539d-8e52-51f8-8c63-93a1df8d5c4b")
+	)
+	(wire
+		(pts
+			(xy 64.77 325.12)
+			(xy 64.77 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5d2f78cd-72da-5b54-b489-54671e913ffc")
+	)
+	(label "BAT-"
+		(at 64.77 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "f14229d1-d4da-5990-beb0-7b09ed0963fd")
+	)
+	(wire
+		(pts
+			(xy 64.77 314.96)
+			(xy 64.77 309.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9b516c20-29d3-5a87-b54e-c917c0864367")
+	)
+	(label "BD1"
+		(at 64.77 309.88 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "2fecd139-dd46-5546-bb62-fe59c18795ff")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 76.2 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5edc7d4f-5261-5bce-8d54-73376a29d487")
+		(property "Reference" "R25"
+			(at 78.74 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 78.74 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 76.2 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 76.2 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 76.2 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "6145b90a-b63f-511e-837e-aaf677df3a2b")
+		)
+		(pin "2"
+			(uuid "3a012f8e-3a8c-5a03-b444-3183c912668e")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R25")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 76.2 316.23)
+			(xy 76.2 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8159cd87-0772-567f-8241-e0602e176ef7")
+	)
+	(label "BG1"
+		(at 76.2 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "80a900ba-9cc8-5f22-a9db-5d9e823fd0f4")
+	)
+	(wire
+		(pts
+			(xy 76.2 323.85)
+			(xy 76.2 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "67d19b20-b2cc-5bcc-b2d3-0da5dc5f2ee1")
+	)
+	(label "VC0"
+		(at 76.2 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "439009fd-bc99-5f50-b468-a73e6b9f6755")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 93.98 320.04 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "0b254e00-4ce3-568c-9a76-6b6864dc9be0")
+		(property "Reference" "D2"
+			(at 96.52 318.77 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 96.52 321.31 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 93.98 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 93.98 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 93.98 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b6f269fa-9357-5d89-b656-0023e61dd47c")
+		)
+		(pin "2"
+			(uuid "2c40b3f1-8d60-53a5-9798-71007506b5aa")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 93.98 316.23)
+			(xy 93.98 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bf9b56ac-2d6c-512d-90bd-3673f659bef7")
+	)
+	(label "BG1"
+		(at 93.98 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "43cfa960-ec33-598a-8c05-0af84c82b351")
+	)
+	(wire
+		(pts
+			(xy 93.98 323.85)
+			(xy 93.98 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3154ead5-91db-5260-8fef-3782133d9a98")
+	)
+	(label "BAT-"
+		(at 93.98 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "f074f943-7bf2-533a-adcd-e1ed22b674a4")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 115.57 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "978de7f3-1f33-596a-95d7-039384866f1a")
+		(property "Reference" "R26"
+			(at 118.11 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 118.11 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 115.57 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 115.57 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 115.57 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3fc5411b-ece0-59a3-bdaf-b4135bcd41bc")
+		)
+		(pin "2"
+			(uuid "ebc9099c-d77a-5380-bab1-92f54bccc75e")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R26")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 115.57 316.23)
+			(xy 115.57 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6f98a2d3-48e4-5adb-960c-1b784ad6d5ea")
+	)
+	(label "B2"
+		(at 115.57 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "12652f77-d96c-57d6-80c1-d78ca73bb74f")
+	)
+	(wire
+		(pts
+			(xy 115.57 323.85)
+			(xy 115.57 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f25adabe-ab42-534d-afe0-43acde8a5ea0")
+	)
+	(label "BD2"
+		(at 115.57 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d1818be0-1438-5166-a363-18d1b173444f")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 139.7 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7e022d2c-7670-55e9-99d6-4849f8bae803")
+		(property "Reference" "Q2"
+			(at 134.62 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 134.62 336.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 139.7 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 139.7 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 139.7 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "81b6a36f-9c6f-5aa4-8b98-52f1ae9852ea")
+		)
+		(pin "2"
+			(uuid "3712b722-1564-5155-8a40-300add5abadc")
+		)
+		(pin "3"
+			(uuid "4243f0f0-a6ca-58b1-b6d8-cbf9e308ac26")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 134.62 320.04)
+			(xy 129.54 320.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8dcd68cb-095e-5af4-a743-a5999307f943")
+	)
+	(label "BG2"
+		(at 129.54 320.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a73c59db-e6a8-5027-8af2-d523fdc882e1")
+	)
+	(wire
+		(pts
+			(xy 142.24 325.12)
+			(xy 142.24 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "37c1bdf8-e1b0-59db-b4ab-0b2993942d28")
+	)
+	(label "B1"
+		(at 142.24 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "4acc6227-2e52-5ba0-af95-cb8822df4f41")
+	)
+	(wire
+		(pts
+			(xy 142.24 314.96)
+			(xy 142.24 309.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a57dbc80-4f51-5448-9a66-329b67e1e850")
+	)
+	(label "BD2"
+		(at 142.24 309.88 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c8ad277c-6684-512c-9810-8ce34be78a6e")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 153.67 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e9f50ecd-3085-5577-a252-f950f3dacb9a")
+		(property "Reference" "R27"
+			(at 156.21 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 156.21 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 153.67 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 153.67 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 153.67 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "69008941-5c1d-57c9-974d-bc54feabf2f8")
+		)
+		(pin "2"
+			(uuid "ed1dee46-dfe0-5991-beae-14b6f888c91b")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R27")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 153.67 316.23)
+			(xy 153.67 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "58b2b52e-e001-5035-8d73-81497a030240")
+	)
+	(label "BG2"
+		(at 153.67 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "46131a87-b176-5b2b-b88c-86069fe414b4")
+	)
+	(wire
+		(pts
+			(xy 153.67 323.85)
+			(xy 153.67 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b560df13-4faa-5ac6-a46b-943bd8ad0c9e")
+	)
+	(label "VC1"
+		(at 153.67 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "21f0c6c3-71ec-53ca-8ffd-95ca2552ada2")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 171.45 320.04 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b1bbc9ce-8052-5db8-89f3-e6ebc797dec9")
+		(property "Reference" "D3"
+			(at 173.99 318.77 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 173.99 321.31 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 171.45 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 171.45 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 171.45 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fb2c2ca1-75ca-511d-8a8a-ebddd0b5c5f1")
+		)
+		(pin "2"
+			(uuid "1243f273-9f0c-59a8-abab-e9e4aae96bc3")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 171.45 316.23)
+			(xy 171.45 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "82b27b28-b4cc-5225-964a-c97bf538522c")
+	)
+	(label "BG2"
+		(at 171.45 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ce02cb51-d369-5e08-933f-aabc0b8276f4")
+	)
+	(wire
+		(pts
+			(xy 171.45 323.85)
+			(xy 171.45 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0f466ab6-dc2b-521c-9894-052482cfed0a")
+	)
+	(label "B1"
+		(at 171.45 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a72fbaff-e52f-523b-8b12-76909763e5fb")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 194.31 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c311a280-785e-5dbb-9215-613c009dcd03")
+		(property "Reference" "R28"
+			(at 196.85 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 196.85 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 194.31 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 194.31 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 194.31 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "cd7f4ef2-a6f6-5810-8614-49065fbae0e6")
+		)
+		(pin "2"
+			(uuid "e92605c3-44c2-59ba-bd66-4706fd5cd008")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R28")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 194.31 316.23)
+			(xy 194.31 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d3842ce9-785e-5a5a-b21b-0bfaa1162f8f")
+	)
+	(label "B3"
+		(at 194.31 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "607b0b01-f044-5d2f-89d9-390dde51699b")
+	)
+	(wire
+		(pts
+			(xy 194.31 323.85)
+			(xy 194.31 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "41bec914-9989-575b-9212-7504e4172b15")
+	)
+	(label "BD3"
+		(at 194.31 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "3295efe3-1b98-5112-8457-fa4497a8e8e3")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 218.44 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "615a4190-819d-5add-8b42-eb8ad9c9127c")
+		(property "Reference" "Q3"
+			(at 213.36 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 213.36 336.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 218.44 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 218.44 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 218.44 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "12a30e8d-b9f9-5fd5-86c2-fd3fb27fa9a2")
+		)
+		(pin "2"
+			(uuid "30d7cac3-9773-5869-9e36-3295ec70c66f")
+		)
+		(pin "3"
+			(uuid "7129cd35-ded7-5bb3-95b4-de015ee1f08e")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 213.36 320.04)
+			(xy 208.28 320.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7ae7c52b-36f6-5e69-bd5d-6b9f0637d388")
+	)
+	(label "BG3"
+		(at 208.28 320.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "bfd3a5ee-346c-594c-9316-5d94e8804376")
+	)
+	(wire
+		(pts
+			(xy 220.98 325.12)
+			(xy 220.98 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3a58fc14-3a1a-5974-90c6-6966594893cc")
+	)
+	(label "B2"
+		(at 220.98 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "bdb06f8e-c845-5b07-b247-0de843e94b33")
+	)
+	(wire
+		(pts
+			(xy 220.98 314.96)
+			(xy 220.98 309.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7144c70b-6c6c-54bb-8643-072b973e6dab")
+	)
+	(label "BD3"
+		(at 220.98 309.88 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4e3bce10-12f9-5c8c-b3a0-91a67b083f26")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 232.41 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ac7e75e2-9ba6-5d07-8ade-f991619a0adc")
+		(property "Reference" "R29"
+			(at 234.95 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 234.95 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 232.41 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 232.41 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 232.41 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "011d6d1f-172c-51bb-b001-f501cd1e6ec8")
+		)
+		(pin "2"
+			(uuid "a726af84-cd35-5f52-91de-dfddcbf88a6b")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R29")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 232.41 316.23)
+			(xy 232.41 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "151a81b8-4dd6-5514-8ca4-f5f69edbdf6f")
+	)
+	(label "BG3"
+		(at 232.41 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "db40256b-797d-503f-ae96-7ee5b5e0a7f4")
+	)
+	(wire
+		(pts
+			(xy 232.41 323.85)
+			(xy 232.41 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "20e270d3-c203-585f-9f64-33f3e4718256")
+	)
+	(label "VC2"
+		(at 232.41 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "b28b3112-9149-525e-81d3-d2ee27212ed3")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 250.19 320.04 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e0d4e47c-94a5-5ffa-860f-0cc7da6010f5")
+		(property "Reference" "D4"
+			(at 252.73 318.77 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 252.73 321.31 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 250.19 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 250.19 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 250.19 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b4c2d958-0342-5f96-b66d-756bf2a724b6")
+		)
+		(pin "2"
+			(uuid "5915ee65-a4c3-54a8-89cc-77012054d34b")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 250.19 316.23)
+			(xy 250.19 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7483269a-d87e-5086-b817-0ba5b181ce82")
+	)
+	(label "BG3"
+		(at 250.19 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "005d8e1e-cefd-5b32-9626-3c2c9cb897aa")
+	)
+	(wire
+		(pts
+			(xy 250.19 323.85)
+			(xy 250.19 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "01bd19b9-5180-5b19-958b-81031df28b04")
+	)
+	(label "B2"
+		(at 250.19 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "9ab82ab4-7cef-5de0-8ad4-7d312de5a43f")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 271.78 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2e91ecf9-c722-59d4-8386-bf9cf07939db")
+		(property "Reference" "R30"
+			(at 274.32 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 274.32 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 271.78 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 271.78 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 271.78 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "f0ea0ae6-2676-5ec7-adae-8c04968dce55")
+		)
+		(pin "2"
+			(uuid "bd45f029-b42a-5cf1-89d3-ff7b57bf846c")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R30")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 271.78 316.23)
+			(xy 271.78 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "14c92192-51c8-5e0e-bff3-4d6436009ad8")
+	)
+	(label "B4"
+		(at 271.78 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "55f90128-39ce-5bec-b2ac-e983e5271bf2")
+	)
+	(wire
+		(pts
+			(xy 271.78 323.85)
+			(xy 271.78 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9e9a7cbf-040d-5b36-a6ba-fb01262ca6f2")
+	)
+	(label "BD4"
+		(at 271.78 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d97ae909-5122-5416-bf27-5682c9bfa2d6")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 295.91 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ac6eb541-dd73-5c4c-b75d-bd948b1b098a")
+		(property "Reference" "Q4"
+			(at 290.83 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 290.83 336.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 295.91 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 295.91 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 295.91 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "c43b285a-2470-5933-87b1-65bc22674b9e")
+		)
+		(pin "2"
+			(uuid "69773caf-50c4-5b3d-a266-f230d62b8dbf")
+		)
+		(pin "3"
+			(uuid "e68555d9-bc80-5663-9bef-601d1cfc26cd")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 290.83 320.04)
+			(xy 285.75 320.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dd344648-2dbe-5e97-804d-a425ad7ade43")
+	)
+	(label "BG4"
+		(at 285.75 320.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "bfaa9afc-7ede-503d-ae57-d202707208fa")
+	)
+	(wire
+		(pts
+			(xy 298.45 325.12)
+			(xy 298.45 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "204838fb-e3d0-5079-aedc-b060b43b0c77")
+	)
+	(label "B3"
+		(at 298.45 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c9763eb1-6b3a-56ef-89ac-6a49e70fc926")
+	)
+	(wire
+		(pts
+			(xy 298.45 314.96)
+			(xy 298.45 309.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "777a5fc5-29cb-5502-b0fa-63232ac10746")
+	)
+	(label "BD4"
+		(at 298.45 309.88 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ef666912-75ff-5b01-bd1b-b8ae8a8d3d69")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 309.88 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e53beb88-f482-5256-b221-bb7d0740d82b")
+		(property "Reference" "R31"
+			(at 312.42 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 312.42 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 309.88 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 309.88 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 309.88 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "0176d548-25e0-51c3-831c-04fc02c1a30b")
+		)
+		(pin "2"
+			(uuid "f3bdbbcb-9f79-57cc-bf75-c2fda0cc86aa")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R31")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 309.88 316.23)
+			(xy 309.88 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8ca25df7-92c9-5ea1-8980-7bff9518acec")
+	)
+	(label "BG4"
+		(at 309.88 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "95128216-c7f1-5be0-bde3-b3dd81888880")
+	)
+	(wire
+		(pts
+			(xy 309.88 323.85)
+			(xy 309.88 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "98876702-7386-5aa1-8865-4a3ebfc53ad6")
+	)
+	(label "VC3"
+		(at 309.88 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "7ec4a773-142f-5710-9740-00fb4f021b4a")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 327.66 320.04 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2e568ad2-73b6-5c3c-a259-dd777aa9326a")
+		(property "Reference" "D5"
+			(at 330.2 318.77 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 330.2 321.31 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 327.66 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 327.66 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 327.66 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a4ad6cf5-9a33-5a47-9a2c-c2fb35412e9b")
+		)
+		(pin "2"
+			(uuid "3d84a2e0-2a0e-5dcf-88e7-5696e4b0575f")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 327.66 316.23)
+			(xy 327.66 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1811dbc3-07f0-5ffe-8183-e2f34ed79235")
+	)
+	(label "BG4"
+		(at 327.66 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0f274b1f-7e8b-5d32-bc95-6abcd4700ff2")
+	)
+	(wire
+		(pts
+			(xy 327.66 323.85)
+			(xy 327.66 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d57d272-8657-5e94-b193-081002b70fa8")
+	)
+	(label "B3"
+		(at 327.66 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "0fab7d22-9d0e-5a50-9609-3a3ee7ef16f2")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 350.52 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "bf990d82-5666-5b9e-a6bd-a04aaf42978c")
+		(property "Reference" "R32"
+			(at 353.06 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 353.06 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 350.52 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 350.52 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 350.52 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "42b55e6e-adf0-533a-b7e4-dfe8e80fdb59")
+		)
+		(pin "2"
+			(uuid "c9b8d306-42a5-536f-b6d8-7c6b0068055c")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R32")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 350.52 316.23)
+			(xy 350.52 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "36ec42b8-9289-5e2e-b3f6-bd7d64e81cc5")
+	)
+	(label "B5"
+		(at 350.52 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d4549409-02c1-5a64-a2cd-5d04c1e77908")
+	)
+	(wire
+		(pts
+			(xy 350.52 323.85)
+			(xy 350.52 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c93289eb-2930-55db-8fc5-384be959fba4")
+	)
+	(label "BD5"
+		(at 350.52 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "50c8b915-174c-5f45-bc79-bce2527c843e")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 373.38 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "1fe8db6b-7d3c-5fe4-8820-3b23823062b9")
+		(property "Reference" "Q5"
+			(at 368.3 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 368.3 336.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 373.38 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 373.38 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 373.38 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "7b5c01f5-c4d2-52cd-b158-d08e32d2f14a")
+		)
+		(pin "2"
+			(uuid "f82a4e11-5600-52a8-a384-ab2d15a5124e")
+		)
+		(pin "3"
+			(uuid "8dbfaae6-7e9e-5802-ad84-79a20b1dcd21")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 368.3 320.04)
+			(xy 363.22 320.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a31c4127-59bc-56df-b65c-e8f22cbf6ab1")
+	)
+	(label "BG5"
+		(at 363.22 320.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "f2dca67c-d0e9-573a-89b4-ec30d89ca017")
+	)
+	(wire
+		(pts
+			(xy 375.92 325.12)
+			(xy 375.92 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "27bc9bff-63f1-506b-8e4b-a062625372bc")
+	)
+	(label "B4"
+		(at 375.92 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d09b04f5-7ce0-54dc-a1c9-e2f9b452064b")
+	)
+	(wire
+		(pts
+			(xy 375.92 314.96)
+			(xy 375.92 309.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "638b282c-fe42-51d4-b76e-45c0d66cd950")
+	)
+	(label "BD5"
+		(at 375.92 309.88 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "704c42ae-0681-5eba-a631-a4aca48c98c3")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 388.62 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "71e288bb-fbd4-55ce-83bf-fd276a0bb08a")
+		(property "Reference" "R33"
+			(at 391.16 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 391.16 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 388.62 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 388.62 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 388.62 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "8dcf1eed-2fac-550f-ae29-0cb6a8f55750")
+		)
+		(pin "2"
+			(uuid "d6434603-9486-545a-bb86-2c66c189228c")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R33")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 388.62 316.23)
+			(xy 388.62 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c63f01a7-a2c2-5317-a466-64115f220c6f")
+	)
+	(label "BG5"
+		(at 388.62 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a3146a37-a72d-506e-89be-11e8b9affdcc")
+	)
+	(wire
+		(pts
+			(xy 388.62 323.85)
+			(xy 388.62 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e34a5df3-a813-54ae-a064-75dc0b035cfa")
+	)
+	(label "VC4"
+		(at 388.62 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "2f3626c0-231a-5601-ac8c-49f1d02c4fd6")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 406.4 320.04 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f4b1dfe5-9c27-5e3a-aa17-a367cc1206a2")
+		(property "Reference" "D6"
+			(at 408.94 318.77 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 408.94 321.31 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 406.4 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 406.4 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 406.4 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "adf32f2d-900b-50f3-847b-b7cc50df6933")
+		)
+		(pin "2"
+			(uuid "52e1a200-efce-5603-a567-1bd4ccfbb71e")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 406.4 316.23)
+			(xy 406.4 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e0dc3eab-c4f9-5aad-9e0e-9733afdd9f7a")
+	)
+	(label "BG5"
+		(at 406.4 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0cca409d-c9a7-564e-b32f-db4cd47391c3")
+	)
+	(wire
+		(pts
+			(xy 406.4 323.85)
+			(xy 406.4 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d8bca51c-5642-5849-966a-0960b4c3e8a3")
+	)
+	(label "B4"
+		(at 406.4 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "81972689-64c5-52c9-96bb-979fe5cf23b1")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 427.99 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7f73bce0-f5f3-5ab8-a6b1-a0ad08483ba1")
+		(property "Reference" "R34"
+			(at 430.53 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 430.53 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 427.99 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 427.99 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 427.99 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "5b972b12-d591-5d87-91bd-ba34a1c0cbef")
+		)
+		(pin "2"
+			(uuid "087af71a-093f-5504-8c2f-3d88289c187d")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R34")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 427.99 316.23)
+			(xy 427.99 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "695fa9d5-faf5-570e-958a-2ebb74842328")
+	)
+	(label "B6"
+		(at 427.99 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "7f2dbaa6-a401-545e-8081-58d711e66e9a")
+	)
+	(wire
+		(pts
+			(xy 427.99 323.85)
+			(xy 427.99 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5e767f5b-2412-5e4a-9880-4ff1c2fa5894")
+	)
+	(label "BD6"
+		(at 427.99 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "052f0272-d8dc-592f-b8a1-93bfbf8acfcc")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 452.12 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "aec55f5e-5ff1-504c-ba17-f67b757f1552")
+		(property "Reference" "Q6"
+			(at 447.04 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 447.04 336.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 452.12 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 452.12 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 452.12 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d2431c36-18f4-59c8-b3c1-c516838af862")
+		)
+		(pin "2"
+			(uuid "29d1230d-a8a3-55bd-bdc7-66ee2608e55a")
+		)
+		(pin "3"
+			(uuid "44b3325f-6a59-5689-b125-bacfd8702a62")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 447.04 320.04)
+			(xy 441.96 320.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ceafc59b-472a-5210-8d60-d1c452ced574")
+	)
+	(label "BG6"
+		(at 441.96 320.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "105364ee-8aeb-5ed9-849a-bef544c4a0ff")
+	)
+	(wire
+		(pts
+			(xy 454.66 325.12)
+			(xy 454.66 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "62d0a5bb-f026-5755-88f6-c8bff2d44db9")
+	)
+	(label "B5"
+		(at 454.66 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "0fdce5ad-69c8-5434-b839-0b2497be356c")
+	)
+	(wire
+		(pts
+			(xy 454.66 314.96)
+			(xy 454.66 309.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f301d44d-b9f6-5ef2-90a6-d91f4e4e591f")
+	)
+	(label "BD6"
+		(at 454.66 309.88 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "bfd046b4-8b14-5759-b6d9-59474d37c126")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 466.09 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b2fe4ac1-3ddb-5d31-b5da-54f4252f41a9")
+		(property "Reference" "R35"
+			(at 468.63 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 468.63 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 466.09 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 466.09 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 466.09 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "f488f419-c7f8-5e35-a39b-72d87c5e0677")
+		)
+		(pin "2"
+			(uuid "7abe921c-1392-58e0-b01d-70316eee5808")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R35")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 466.09 316.23)
+			(xy 466.09 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "67203d98-5126-54ac-9382-e3df36cc084f")
+	)
+	(label "BG6"
+		(at 466.09 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "2060df30-e0d9-5452-9e3f-988270c0a500")
+	)
+	(wire
+		(pts
+			(xy 466.09 323.85)
+			(xy 466.09 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c20a7704-2609-5652-a716-fa0186635260")
+	)
+	(label "VC5"
+		(at 466.09 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "6e6176b8-7d32-5344-abc3-77528fb42ca4")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 483.87 320.04 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f3881df5-0c68-550b-a21b-399b5bf85292")
+		(property "Reference" "D7"
+			(at 486.41 318.77 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 486.41 321.31 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 483.87 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 483.87 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 483.87 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e3f14a85-df18-5968-93f3-be852b0b9d01")
+		)
+		(pin "2"
+			(uuid "de43d4c3-4d6d-50b7-89f5-60b4cfb2e5bd")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 483.87 316.23)
+			(xy 483.87 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9cbddce6-19c1-5442-9be9-f111341aa22f")
+	)
+	(label "BG6"
+		(at 483.87 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "da95927f-7ebf-5424-8d45-bda7a399a882")
+	)
+	(wire
+		(pts
+			(xy 483.87 323.85)
+			(xy 483.87 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3f238b14-c9c5-5041-8979-b2fc55eccb3c")
+	)
+	(label "B5"
+		(at 483.87 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "4c71543b-6475-50ab-b7b5-4755abac9122")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 505.46 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c31e88f5-f0c4-5123-a6b6-0889811f09f1")
+		(property "Reference" "R36"
+			(at 508 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 508 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 505.46 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 505.46 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 505.46 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "4135e1d1-0c8b-5e45-96b1-4636458e6009")
+		)
+		(pin "2"
+			(uuid "c26db893-eda0-5d4a-aec6-39ef21403e1e")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R36")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 505.46 316.23)
+			(xy 505.46 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e3c51ce4-d091-574a-a870-e9324eb55c29")
+	)
+	(label "B7"
+		(at 505.46 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5694f3cc-d905-5492-abe6-b0cee7381772")
+	)
+	(wire
+		(pts
+			(xy 505.46 323.85)
+			(xy 505.46 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1a15d015-973f-5230-ac42-30928ffbb4f5")
+	)
+	(label "BD7"
+		(at 505.46 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "13c6123b-a3a4-5f7d-b513-91f9fd1dc595")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 529.59 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "92bf6a45-5c9a-5f99-98ca-7febf15c0b37")
+		(property "Reference" "Q7"
+			(at 524.51 303.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 524.51 336.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 529.59 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 529.59 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 529.59 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "74613845-3af9-5a58-b594-60d73588fd0a")
+		)
+		(pin "2"
+			(uuid "b1a38d36-c0c9-5598-9dd3-6bf2ae65b73d")
+		)
+		(pin "3"
+			(uuid "1f85715e-02e6-5294-acd2-46fe829133f6")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 524.51 320.04)
+			(xy 519.43 320.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a36b4830-440c-595c-83bf-2af7a7b15609")
+	)
+	(label "BG7"
+		(at 519.43 320.04 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "55bd7522-5c5d-55d9-b4fc-6abb614f9559")
+	)
+	(wire
+		(pts
+			(xy 532.13 325.12)
+			(xy 532.13 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "624bdbd2-9210-5e33-b5c1-e88ab7d6eb20")
+	)
+	(label "B6"
+		(at 532.13 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "ad41ed85-9e25-5cb0-9e1f-8be42ff3d111")
+	)
+	(wire
+		(pts
+			(xy 532.13 314.96)
+			(xy 532.13 309.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "239237c1-2d55-57e8-ba05-35a99864b75e")
+	)
+	(label "BD7"
+		(at 532.13 309.88 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "074de3bf-4005-5652-8391-9071f3d669d5")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 543.56 320.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2aeec904-3e03-5110-9a3e-9fa0eb256fd7")
+		(property "Reference" "R37"
+			(at 546.1 318.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 546.1 321.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 543.56 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 543.56 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 543.56 320.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "709b1dc7-db7e-50ab-a258-2c89cc163376")
+		)
+		(pin "2"
+			(uuid "3f47ec38-5cb4-53a0-84a3-d74bd2376cdd")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R37")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 543.56 316.23)
+			(xy 543.56 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9e247bb2-3b8e-59ce-8e5b-fbe6f4115218")
+	)
+	(label "BG7"
+		(at 543.56 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8eb5b051-31af-554a-afe0-9cce09a327bd")
+	)
+	(wire
+		(pts
+			(xy 543.56 323.85)
+			(xy 543.56 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3f493b73-c3e2-5545-beb9-03c4c60366b3")
+	)
+	(label "VC6"
+		(at 543.56 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a9c83631-6a5f-5f6e-b4c4-192b8604a671")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 561.34 320.04 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7faec15c-bc90-539d-a342-673b01db6c14")
+		(property "Reference" "D8"
+			(at 563.88 318.77 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 563.88 321.31 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 561.34 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 561.34 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 561.34 320.04 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "1bb0e901-94f6-5774-9c33-1072f1ab2b23")
+		)
+		(pin "2"
+			(uuid "e33e0659-535b-57e6-9998-cc7d458962d3")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 561.34 316.23)
+			(xy 561.34 313.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bea9e45f-2a75-508b-8618-b0674e43fce0")
+	)
+	(label "BG7"
+		(at 561.34 313.69 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "85d28c11-d6e8-5fd8-97fa-e8ade50c6e02")
+	)
+	(wire
+		(pts
+			(xy 561.34 323.85)
+			(xy 561.34 326.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a4017050-ad64-5fd3-96e2-b55202958f41")
+	)
+	(label "B6"
+		(at 561.34 326.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "8e64e2e8-f9cc-5cdd-b477-5ae6c23f8ee4")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 38.1 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "974a56a7-c930-512e-8f50-96133cada288")
+		(property "Reference" "R38"
+			(at 40.64 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 40.64 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 38.1 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 38.1 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 38.1 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a57f44f9-0359-55e4-be4f-1596782a6962")
+		)
+		(pin "2"
+			(uuid "68ff7036-7ede-5506-b0c4-398e7d8f3259")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R38")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 38.1 365.76)
+			(xy 38.1 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7842f399-dd97-5e98-81c1-e1d3f8d35ca1")
+	)
+	(label "B8"
+		(at 38.1 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "119009e3-efb9-504d-b194-a74ba5323bf7")
+	)
+	(wire
+		(pts
+			(xy 38.1 373.38)
+			(xy 38.1 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4e83292d-f39a-5063-857a-27672789230e")
+	)
+	(label "BD8"
+		(at 38.1 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "7e5e9ac9-5e36-55d6-807d-d89994a9ea2f")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 62.23 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c8d061de-ae36-532f-a1e9-46abf986a704")
+		(property "Reference" "Q8"
+			(at 57.15 353.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 57.15 386.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 62.23 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 62.23 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "72bbd300-3ff8-5026-83b4-3fa31625e7eb")
+		)
+		(pin "2"
+			(uuid "84ae48d1-bda0-5c63-a9c7-683bf6847a0b")
+		)
+		(pin "3"
+			(uuid "2ce854a2-c52a-5b2b-8289-42f7460023b1")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 57.15 369.57)
+			(xy 52.07 369.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d899d711-b41c-5736-ab1d-c5a2aa0ec57e")
+	)
+	(label "BG8"
+		(at 52.07 369.57 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c1d58177-909f-52f9-be62-932fe1871adf")
+	)
+	(wire
+		(pts
+			(xy 64.77 374.65)
+			(xy 64.77 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "987290aa-72dd-5222-9b35-51dda8614d6b")
+	)
+	(label "B7"
+		(at 64.77 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "90712084-a07e-572c-a710-82b71dbbf721")
+	)
+	(wire
+		(pts
+			(xy 64.77 364.49)
+			(xy 64.77 359.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fbeee563-4d9d-5116-b66f-9442b877163d")
+	)
+	(label "BD8"
+		(at 64.77 359.41 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "844c4957-46fb-5c77-8338-3159742f6201")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 76.2 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b8e51769-eb04-56c6-9ebb-357b1e72a464")
+		(property "Reference" "R39"
+			(at 78.74 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 78.74 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 76.2 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 76.2 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 76.2 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "49dffc85-22c7-5d70-b123-737a8a96471b")
+		)
+		(pin "2"
+			(uuid "47b2fbec-5b16-5f06-8c94-3dd44dd6fa6b")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R39")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 76.2 365.76)
+			(xy 76.2 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1e5c6407-487a-5e56-bcbe-ae351e1c409d")
+	)
+	(label "BG8"
+		(at 76.2 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0a486f69-fe95-51af-837e-3d0cf987cf51")
+	)
+	(wire
+		(pts
+			(xy 76.2 373.38)
+			(xy 76.2 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c130abb9-89c3-5b6f-a256-5367c49264f5")
+	)
+	(label "VC7"
+		(at 76.2 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "364f630d-22b6-5afe-a453-35e94743f3bb")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 93.98 369.57 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8b9965b4-ab31-5403-9821-311c7f77b36b")
+		(property "Reference" "D9"
+			(at 96.52 368.3 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 96.52 370.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 93.98 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 93.98 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 93.98 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "00be57bf-5424-5805-abf6-9e3ab434034b")
+		)
+		(pin "2"
+			(uuid "a9c512f2-aa78-5070-a650-70cb400752c7")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D9")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 93.98 365.76)
+			(xy 93.98 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5dbc1747-6bc5-51d3-8590-b10c90053d91")
+	)
+	(label "BG8"
+		(at 93.98 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "2d69f625-6b35-5fb7-a089-cce083f4e76b")
+	)
+	(wire
+		(pts
+			(xy 93.98 373.38)
+			(xy 93.98 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bffd6ad9-5b23-5727-97c7-045062513bb1")
+	)
+	(label "B7"
+		(at 93.98 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "8c16b72f-6498-55b1-ac97-98c032de9d41")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 115.57 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "61c4c320-b93d-5f4e-98e0-54822622de18")
+		(property "Reference" "R40"
+			(at 118.11 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 118.11 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 115.57 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 115.57 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 115.57 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "15d53dc2-c240-523f-8d7b-d3af19f40b4e")
+		)
+		(pin "2"
+			(uuid "b1f82e9e-5c7f-5338-a1bd-686c6f9051c3")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R40")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 115.57 365.76)
+			(xy 115.57 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "744de7a1-205c-59eb-8618-b48d5fe96b31")
+	)
+	(label "B9"
+		(at 115.57 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "287a3434-4a6a-5c33-85f7-f1be45ea44fd")
+	)
+	(wire
+		(pts
+			(xy 115.57 373.38)
+			(xy 115.57 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fb926d2b-e5e2-5ec6-9115-a62db614d7da")
+	)
+	(label "BD9"
+		(at 115.57 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "441f3ac8-6989-5299-a1e2-d7f6e921f6de")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 139.7 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5b4cff6d-ef39-5eaf-93d4-45cfbbb779c9")
+		(property "Reference" "Q9"
+			(at 134.62 353.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 134.62 386.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 139.7 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 139.7 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 139.7 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "31ec4aaf-005f-52b9-9435-8b44d868306a")
+		)
+		(pin "2"
+			(uuid "9b61dc82-ed15-5d30-b65f-89098a35b115")
+		)
+		(pin "3"
+			(uuid "66c9cfbf-7530-5a03-acbe-4678a36031cb")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q9")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 134.62 369.57)
+			(xy 129.54 369.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4d75f3d2-23f5-5a14-b84b-1fc36a1ed9d0")
+	)
+	(label "BG9"
+		(at 129.54 369.57 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "73fdb628-512b-5703-94ac-389d9c412130")
+	)
+	(wire
+		(pts
+			(xy 142.24 374.65)
+			(xy 142.24 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "43b5c45d-8a70-566c-beab-5775f64917d9")
+	)
+	(label "B8"
+		(at 142.24 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a3530540-853c-52a2-8ef9-68fd57f3ef64")
+	)
+	(wire
+		(pts
+			(xy 142.24 364.49)
+			(xy 142.24 359.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "60c8d506-174d-50db-946d-12c23bd351ba")
+	)
+	(label "BD9"
+		(at 142.24 359.41 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0218c1e4-46ca-5de0-a2d6-0bd277df2de9")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 153.67 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "872f4e79-7e4b-5889-9446-20999bd18884")
+		(property "Reference" "R41"
+			(at 156.21 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 156.21 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 153.67 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 153.67 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 153.67 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d507715b-6dd3-55df-a55a-ee857187dc42")
+		)
+		(pin "2"
+			(uuid "48208c9e-7eb8-569b-bc1c-e552e41ee68a")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R41")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 153.67 365.76)
+			(xy 153.67 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9fc2a186-46ab-5fc8-ae05-311c3132c08f")
+	)
+	(label "BG9"
+		(at 153.67 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "242e27ca-9d4d-599b-84f1-086075484275")
+	)
+	(wire
+		(pts
+			(xy 153.67 373.38)
+			(xy 153.67 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "158de33c-9f12-5626-a133-637efe226dbc")
+	)
+	(label "VC8"
+		(at 153.67 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "2823038c-38c9-5c14-90b4-6c666a84acf5")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 171.45 369.57 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "05fd7e89-efe1-51e1-bc6d-a09baacbd995")
+		(property "Reference" "D10"
+			(at 173.99 368.3 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 173.99 370.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 171.45 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 171.45 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 171.45 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "0e6d8066-ac33-5608-a0c8-70977007c334")
+		)
+		(pin "2"
+			(uuid "456a335a-388f-5d76-8bae-ae1516ae0c45")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 171.45 365.76)
+			(xy 171.45 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "12f7ba27-456f-5307-9fb1-e35c08b28f77")
+	)
+	(label "BG9"
+		(at 171.45 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "029140f4-de0e-5c33-85bf-c8433ee479d1")
+	)
+	(wire
+		(pts
+			(xy 171.45 373.38)
+			(xy 171.45 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "042ba3b0-ceb1-5891-a98d-82c386d7ce9d")
+	)
+	(label "B8"
+		(at 171.45 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "ea3a89c4-a4a9-52ab-8190-931985626374")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 194.31 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f2f08698-e9f7-5463-b284-7c43139f8ec9")
+		(property "Reference" "R42"
+			(at 196.85 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 196.85 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 194.31 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 194.31 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 194.31 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "048d35fa-e42a-500f-95fa-886c4a235501")
+		)
+		(pin "2"
+			(uuid "110368ef-b7a3-5b53-8547-f7c8056c3428")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R42")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 194.31 365.76)
+			(xy 194.31 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6a49d463-0139-5266-a22e-6033cbccb59d")
+	)
+	(label "B10"
+		(at 194.31 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c5935a6b-5a8a-5665-9f90-0e274d8fd56d")
+	)
+	(wire
+		(pts
+			(xy 194.31 373.38)
+			(xy 194.31 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "67515a7f-afd7-5466-b33c-12739d1502ef")
+	)
+	(label "BD10"
+		(at 194.31 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "5c00d984-5b74-5f76-979c-8ee7ae00dc34")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 218.44 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "cae706f2-238e-58d9-ac8e-64227da9ec0b")
+		(property "Reference" "Q10"
+			(at 213.36 353.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 213.36 386.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 218.44 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 218.44 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 218.44 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "9798c96b-e7c3-51f0-95d4-1e7d22d9c889")
+		)
+		(pin "2"
+			(uuid "0501bc7f-7818-5c4d-97f6-b0350960e461")
+		)
+		(pin "3"
+			(uuid "96d32c1c-f016-5d15-a811-6750c6347539")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 213.36 369.57)
+			(xy 208.28 369.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6e9dce18-c417-5b97-b6aa-abe7cf581c73")
+	)
+	(label "BG10"
+		(at 208.28 369.57 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "f2f1a680-dbad-539b-b9e7-deb09f42fb10")
+	)
+	(wire
+		(pts
+			(xy 220.98 374.65)
+			(xy 220.98 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "523e2ace-8097-52f6-9d13-874eef133b38")
+	)
+	(label "B9"
+		(at 220.98 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a85a3108-b9ac-5a39-9023-84525acb03fe")
+	)
+	(wire
+		(pts
+			(xy 220.98 364.49)
+			(xy 220.98 359.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "774a5c3f-5639-561d-8f8f-327f4e8887d4")
+	)
+	(label "BD10"
+		(at 220.98 359.41 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "671ec60a-718a-5718-91e3-6e322e3f748a")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 232.41 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "6ebf6a8e-56fa-556b-9b1a-7540ce2b82ad")
+		(property "Reference" "R43"
+			(at 234.95 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 234.95 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 232.41 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 232.41 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 232.41 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "bac6fc07-f2ab-5180-8807-b9477a0bc833")
+		)
+		(pin "2"
+			(uuid "51b89883-dcb3-54a8-9711-9826f8fdf69c")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R43")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 232.41 365.76)
+			(xy 232.41 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6cc8a4d0-3515-56cf-a1f9-58c6a7a2cd86")
+	)
+	(label "BG10"
+		(at 232.41 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1c05c88f-d696-5429-8a9c-dc2d5f2c8d96")
+	)
+	(wire
+		(pts
+			(xy 232.41 373.38)
+			(xy 232.41 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9594d265-0f5a-5387-80e9-d23fe4d1d9aa")
+	)
+	(label "VC9"
+		(at 232.41 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "5b6a3de8-5692-5b10-bec8-3ad490082e12")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 250.19 369.57 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "9bb3fc70-7e38-51f3-a658-c7d69cbf375c")
+		(property "Reference" "D11"
+			(at 252.73 368.3 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 252.73 370.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 250.19 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 250.19 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 250.19 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "173ff5fc-4d62-5010-a756-9c4c18ac144f")
+		)
+		(pin "2"
+			(uuid "6ef46e68-7ffb-50fd-b283-ab633ff93065")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 250.19 365.76)
+			(xy 250.19 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "df55310d-0e9c-5400-bb1a-dd50cba86ff1")
+	)
+	(label "BG10"
+		(at 250.19 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "181370e2-b071-536a-ab72-ad0c1e4680ba")
+	)
+	(wire
+		(pts
+			(xy 250.19 373.38)
+			(xy 250.19 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "004515be-04e4-594c-b9e6-53e7ee55fe66")
+	)
+	(label "B9"
+		(at 250.19 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "eb6036ef-1ea1-5723-a002-0da05eef6f99")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 271.78 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "fbb383de-4bbe-5af7-929d-f682dd635238")
+		(property "Reference" "R44"
+			(at 274.32 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 274.32 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 271.78 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 271.78 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 271.78 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "6cb27713-11a6-5537-bcba-2546b218e078")
+		)
+		(pin "2"
+			(uuid "339731e7-c69f-54a3-acf0-6f11a8de0f58")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R44")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 271.78 365.76)
+			(xy 271.78 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f7638058-3cfc-52d6-9138-bf1645966c03")
+	)
+	(label "B11"
+		(at 271.78 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d771062e-767c-50cc-a035-fdd56b0b7584")
+	)
+	(wire
+		(pts
+			(xy 271.78 373.38)
+			(xy 271.78 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "68fc2cb7-9176-5d0b-afad-9c90ea8d2a41")
+	)
+	(label "BD11"
+		(at 271.78 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "f0719f38-2d08-541a-858c-9e77379aa847")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 295.91 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "9413a3b7-a78f-53fa-adf7-5c761d378f28")
+		(property "Reference" "Q11"
+			(at 290.83 353.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 290.83 386.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 295.91 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 295.91 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 295.91 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "420c1869-2457-5c1e-bb47-8e8d59a11203")
+		)
+		(pin "2"
+			(uuid "51823b47-531e-573a-b690-10c14e5c44f6")
+		)
+		(pin "3"
+			(uuid "e5a53de4-1d4e-5019-ac62-d45ba3a02cd3")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 290.83 369.57)
+			(xy 285.75 369.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3c5b7019-9319-56fd-bba0-2da0ef6bc8e3")
+	)
+	(label "BG11"
+		(at 285.75 369.57 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "3fe1963a-7665-5112-b5d8-edd0c69fc4e6")
+	)
+	(wire
+		(pts
+			(xy 298.45 374.65)
+			(xy 298.45 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e77d8a32-b522-5732-9462-111b1b03073d")
+	)
+	(label "B10"
+		(at 298.45 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "677dfa37-98a9-5035-a91c-1af28b85a950")
+	)
+	(wire
+		(pts
+			(xy 298.45 364.49)
+			(xy 298.45 359.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "15080f02-5e85-5cd5-b252-bf74e01ceae0")
+	)
+	(label "BD11"
+		(at 298.45 359.41 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e8b9a270-3505-55c2-b2d3-ddfa9abac1aa")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 309.88 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "a0f8184b-7adf-58db-9148-60a023a65ca2")
+		(property "Reference" "R45"
+			(at 312.42 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 312.42 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 309.88 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 309.88 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 309.88 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "cbdeb8b8-2552-549f-9df9-88c06733ffe0")
+		)
+		(pin "2"
+			(uuid "aa52a0e8-92e7-564e-b3b0-52e2706323fe")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R45")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 309.88 365.76)
+			(xy 309.88 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "45ebe3c8-fc10-52ca-b246-9a6ba6d3a54a")
+	)
+	(label "BG11"
+		(at 309.88 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "042c090b-5a2d-5666-b986-40a8d5d1bb92")
+	)
+	(wire
+		(pts
+			(xy 309.88 373.38)
+			(xy 309.88 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f45e15ad-c0f5-5ce5-a7d5-65fb2e19b88e")
+	)
+	(label "VC10"
+		(at 309.88 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "3888ac23-37f0-57fb-bf11-bc2c2fdc6e4c")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 327.66 369.57 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4ab898cb-876d-5096-b520-665791448204")
+		(property "Reference" "D12"
+			(at 330.2 368.3 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 330.2 370.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 327.66 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 327.66 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 327.66 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "252565e1-236c-53d3-a9f9-9d0925d05c69")
+		)
+		(pin "2"
+			(uuid "bf9786a8-f4c7-5b29-9284-dbec89c4f4a3")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 327.66 365.76)
+			(xy 327.66 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1eca13c8-992f-501c-be77-9f125ba45e6d")
+	)
+	(label "BG11"
+		(at 327.66 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "45ed9868-e6c7-5d42-9e0e-895cb520ab73")
+	)
+	(wire
+		(pts
+			(xy 327.66 373.38)
+			(xy 327.66 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b816ac62-3865-58c1-9d91-64e565add241")
+	)
+	(label "B10"
+		(at 327.66 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d929b009-0edf-552a-b005-c17f61f9da26")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 350.52 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "3685f0ae-880b-56af-a151-eed557749c64")
+		(property "Reference" "R46"
+			(at 353.06 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 353.06 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 350.52 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 350.52 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 350.52 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2d9d4a2a-c5fa-5b29-ad3d-4582f88dded6")
+		)
+		(pin "2"
+			(uuid "828d0175-876b-5aa6-a50b-1802f48bb069")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R46")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 350.52 365.76)
+			(xy 350.52 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e066c888-0aba-55cd-ad58-b27d7df33b9c")
+	)
+	(label "B12"
+		(at 350.52 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a4aac658-03c3-5a10-8ea3-2d8c833d83e9")
+	)
+	(wire
+		(pts
+			(xy 350.52 373.38)
+			(xy 350.52 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1845f87a-395b-5bd7-8521-137cc0192687")
+	)
+	(label "BD12"
+		(at 350.52 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "9fd79167-a87a-590d-8d08-e900fd000cb4")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 373.38 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "fdfc846b-0ca7-524a-9a7f-f23cc8450102")
+		(property "Reference" "Q12"
+			(at 368.3 353.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 368.3 386.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 373.38 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 373.38 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 373.38 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "8543983e-533f-551f-81bb-d9f8dee94934")
+		)
+		(pin "2"
+			(uuid "ce9d6109-bd21-5b57-8df7-667869d39ff1")
+		)
+		(pin "3"
+			(uuid "581566de-7069-58ef-97bd-d23ec8fc171e")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 368.3 369.57)
+			(xy 363.22 369.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1201079a-3d78-52d6-b61e-5c46d7c2a078")
+	)
+	(label "BG12"
+		(at 363.22 369.57 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "b0f03f39-2e60-576b-bf68-aab8b4f72af3")
+	)
+	(wire
+		(pts
+			(xy 375.92 374.65)
+			(xy 375.92 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8d933eb9-4e89-5201-8652-354f32277ea4")
+	)
+	(label "B11"
+		(at 375.92 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "2fcbb7b4-c045-5483-b53a-95bd7005f2ff")
+	)
+	(wire
+		(pts
+			(xy 375.92 364.49)
+			(xy 375.92 359.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e96f377a-3530-5d71-9e16-f9dd4a265626")
+	)
+	(label "BD12"
+		(at 375.92 359.41 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3aca1c73-168f-50c6-bd14-24c6ad4359dd")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 388.62 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "127c755c-c1fc-50ca-a78c-0dff8b84f2b4")
+		(property "Reference" "R47"
+			(at 391.16 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 391.16 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 388.62 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 388.62 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 388.62 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "49314ddb-cae7-543a-b362-0da76b59e0ea")
+		)
+		(pin "2"
+			(uuid "e7388f9c-6a0e-50c1-9745-799d2ddba107")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R47")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 388.62 365.76)
+			(xy 388.62 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4e1db789-1cfa-52c9-81d2-79bff928ec2d")
+	)
+	(label "BG12"
+		(at 388.62 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8192aa32-510c-58de-9919-3757b281b30b")
+	)
+	(wire
+		(pts
+			(xy 388.62 373.38)
+			(xy 388.62 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "03931381-8984-5fc9-bc66-edfa3a4ac3e8")
+	)
+	(label "VC11"
+		(at 388.62 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "417f7844-1ad8-56a6-84b7-0f18be9a15af")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 406.4 369.57 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b2d048f5-d1d1-53e3-ab37-76aff25986c1")
+		(property "Reference" "D13"
+			(at 408.94 368.3 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 408.94 370.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 406.4 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 406.4 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 406.4 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3bcd663a-f596-5917-b617-6a61325b69a8")
+		)
+		(pin "2"
+			(uuid "41bc8343-24c4-58da-8c73-97bdd3a11216")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 406.4 365.76)
+			(xy 406.4 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7cd56132-2851-556d-b8eb-110d2d883ac2")
+	)
+	(label "BG12"
+		(at 406.4 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1cbbcf16-e537-502e-88a8-e3ccc537418e")
+	)
+	(wire
+		(pts
+			(xy 406.4 373.38)
+			(xy 406.4 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4e0a4849-7f1d-533e-9ada-03654660bbcc")
+	)
+	(label "B11"
+		(at 406.4 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "bf2aae63-32e0-5941-b3c7-bafa02570f1b")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 427.99 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2d6ef9f2-8ac5-5b48-9b70-e43ce153c164")
+		(property "Reference" "R48"
+			(at 430.53 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "27R 1W 2512"
+			(at 430.53 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+			(at 427.99 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 427.99 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 427.99 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "34e04791-850a-5e15-93c2-4c5afd593eea")
+		)
+		(pin "2"
+			(uuid "0124a765-97c8-5d2c-925d-b6c7aff6577a")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R48")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 427.99 365.76)
+			(xy 427.99 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3b62a598-af1b-58ef-b05a-bb2c0e007262")
+	)
+	(label "B13"
+		(at 427.99 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "18539696-2bdd-5cd3-b3dd-be8c036e4d2e")
+	)
+	(wire
+		(pts
+			(xy 427.99 373.38)
+			(xy 427.99 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "aff41b3c-6ae6-5ac6-bc1a-91c17a5c1465")
+	)
+	(label "BD13"
+		(at 427.99 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "7c28bc29-b742-57ce-aaf0-fe2a70b2530b")
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GSD")
+		(at 452.12 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "69ae1c0e-28aa-5186-8739-6fc014e7cc8d")
+		(property "Reference" "Q13"
+			(at 447.04 353.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SSM3K56FS"
+			(at 447.04 386.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+			(at 452.12 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 452.12 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 452.12 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "bcd26268-07bd-5d1e-a8f7-bd105e55a161")
+		)
+		(pin "2"
+			(uuid "59801b47-c15a-5198-8444-3d6505fa3114")
+		)
+		(pin "3"
+			(uuid "2d3bb87e-fc11-5307-9c6b-e7cd7bfcb756")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "Q13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 447.04 369.57)
+			(xy 441.96 369.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "aef39fd5-20c7-5900-85e0-876c672f103d")
+	)
+	(label "BG13"
+		(at 441.96 369.57 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d96f495c-105c-59d3-acf6-ca7a328b6593")
+	)
+	(wire
+		(pts
+			(xy 454.66 374.65)
+			(xy 454.66 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6b9b9479-5db2-5e22-a485-7abb52f8ce2d")
+	)
+	(label "B12"
+		(at 454.66 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "378c90a9-ca9a-5f27-b5a6-87a02f1da21a")
+	)
+	(wire
+		(pts
+			(xy 454.66 364.49)
+			(xy 454.66 359.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "89667bec-13f4-5a31-b99c-cdd11ff5b4eb")
+	)
+	(label "BD13"
+		(at 454.66 359.41 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "052a4c5e-1f6a-55e1-8fc1-cbef0d912dfc")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 466.09 369.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "852fcf37-655a-5d4e-82ce-e36a334d3e06")
+		(property "Reference" "R49"
+			(at 468.63 368.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 468.63 370.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 466.09 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 466.09 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 466.09 369.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "99999699-e7b9-5e0d-aaa4-de97ac03e305")
+		)
+		(pin "2"
+			(uuid "edafb5e9-4883-51c1-ae6d-a704641c8367")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "R49")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 466.09 365.76)
+			(xy 466.09 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0cf27fb6-d251-5ab8-b38c-309af036d0d5")
+	)
+	(label "BG13"
+		(at 466.09 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "7898fbb5-da48-58df-bb00-7706381b2bf9")
+	)
+	(wire
+		(pts
+			(xy 466.09 373.38)
+			(xy 466.09 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "27f4ca8c-ed7b-5be7-a84e-9238c56b6da5")
+	)
+	(label "VC12"
+		(at 466.09 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "97e8b7b8-d175-55a4-8537-65ccb8116e8d")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 483.87 369.57 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8eb4dc37-fc52-54da-a44b-3940336ed75d")
+		(property "Reference" "D14"
+			(at 486.41 368.3 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 486.41 370.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 483.87 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 483.87 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 483.87 369.57 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fac6a64a-1621-5974-b566-e54a28ed364d")
+		)
+		(pin "2"
+			(uuid "2fc70169-c202-5b48-8c95-118d80d42bb8")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 483.87 365.76)
+			(xy 483.87 363.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b08741f4-21f3-5767-9b60-1527093456bc")
+	)
+	(label "BG13"
+		(at 483.87 363.22 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e144c7f5-5218-520d-b78d-410cb11e9ab1")
+	)
+	(wire
+		(pts
+			(xy 483.87 373.38)
+			(xy 483.87 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f6bdbcc4-b835-5104-b8ef-54c084578588")
+	)
+	(label "B12"
+		(at 483.87 375.92 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "5a360a68-4ff4-56e2-abc5-82b6954c73db")
 	)
 	(embedded_fonts no)
 )

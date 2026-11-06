@@ -8071,7 +8071,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100uF 80V placeholder"
+		(property "Value" "100uF 80V HHXF800GRA101MJH0G"
 			(at 374.65 102.87 0)
 			(effects
 				(font
@@ -8080,7 +8080,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x14.3"
 			(at 373.38 93.98 0)
 			(effects
 				(font

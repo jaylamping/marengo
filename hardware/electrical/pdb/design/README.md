@@ -106,6 +106,8 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 | CAN TVS | NUP2105L class at the connector | same |
 | Connector | M4 terminals + CAN header on the board; pigtail to an inline XT30(2+2) | M4 terminals + CAN header; pigtail to inline XT60 + JST GH |
 
+> Port values in this table are superseded: arm, waist, aux now use 3 mΩ, limit 16.2 to 20.5 A, software trip 15 A, 20 A fuse. See [RATIONALE-log.md](RATIONALE-log.md), follow-ups.
+
 The LM5069 current limit is set by a 55 mV (typ, verify) sense threshold: 2.5 mΩ gives 22 A for the 20 A ports, 1.2 mΩ gives
 46 A for the 40 A legs. The circuit-breaker timer is set so the electronic trip always beats the blade fuse.
 

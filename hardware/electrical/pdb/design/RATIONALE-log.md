@@ -89,8 +89,7 @@ CSS4J-4026 5 W on both. Rejected 0.2 mΩ: the AFE reads less, and its accuracy b
 
 SCD was 40 mV on paper. On 0.3 mΩ that would trip at 133 A and break the 150 A, 100 ms path rating, so SCD went up to 60 mV.
 
-**Open.** External balance FETs (PLAN 3.1, 150 mA per cell) are not captured on this sheet: rev A wip has only the AFE's internal
-balancing. They change the cell RC network, so revisit the 20 Ω. CSS4J
+**Open.** CSS4J
 land on the BVR4026 library footprint is to be checked against the Bourns drawing. OTP owed: DFETOFF active high (0x02), CFETOFF and
 HDQ as thermistor inputs.
 
@@ -140,15 +139,15 @@ short reads MID near VSYS with both open and VMOT low. FLT to test point only.
 Rejected 10 × 63 V 180 µF: the caps would sit below the SMDJ58A's 64.4 V conduction point, so the TVS would not protect them. Footprint is CP_Elec_10x14.3 placeholder, land owed.
 
 **Clamp, analog, self-powered from VMOT.** TPS7A4001 12.08 V (464 kΩ / 49.9 kΩ), LM4040A 2.5 V reference, TLV1805 comparator, UCC27517 driver,
-IPT015N10N5, 20 mΩ shunt, MBRS3100T3G freewheel, INA228 0x4D. Divider 499 kΩ + 619 kΩ over 51.1 kΩ, hysteresis 19.1 MΩ. The series pair is there
+IPT015N10N5, 2 mΩ shunt, MBRB30H100CT freewheel, INA228 0x4D. Divider 499 kΩ + 619 kΩ over 51.1 kΩ, hysteresis 19.1 MΩ. The series pair is there
 because E96 pairs step 0.7 V.
 
 - On 57.50 V, off 56.50 V (VOH 11.7 V). Spread 56.82 to 58.19 V full temperature, 56.99 to 58.02 V at 0 to 60 °C.
 - Works with the supervisor dead. Budget 5 mA, 0.23 W in the LDO. Stuck on is 330 W, caught by resistor NTC and opening the E-stop.
 
-**Regen, decision needed.** 10 Ω passes 5.75 A against a 30 A host regen limit. With the BMS open mid-brake the excess 24 A raises VMOT at 13.5 V/ms
-on 1.8 mF: 2.5 V headroom lasts 185 µs, then drives trip on OV at 60 V. Kept 10 Ω and accepted the drive OV stop for now. That stop
-drops torque on the braking limb, so it is not free. Alternative is about 2 Ω, 30 A, 1.7 kW peak. Joey to decide.
+**Regen, decided (see follow-ups below).** 10 Ω passes 5.75 A against a 30 A host regen limit. With the BMS open mid-brake the excess 24 A raises VMOT at 13.5 V/ms
+on 1.8 mF: 2.5 V headroom lasts 185 µs, then drives trip on OV at 60 V. Rev A keeps 10 Ω and accepts the drive OV stop, which
+drops torque on the braking limb. The clamp stage is sized so the leg stage swaps in 2 Ω.
 
 SMDJ58A stays as spike protection: it does not conduct under 64.4 V. Its 93.6 V clamp exceeds INA228's 85 V, so sense lines take 10 Ω on IN± and 100 Ω on VBUS.
 
@@ -158,26 +157,25 @@ SMDJ58A stays as spike protection: it does not conduct under 64.4 V. Its 93.6 V 
 
 **LM5069-1 latched hot swap.** Per channel: 1 × IPB017N10N5LF (legs 2 ×), shunt, LM5069, INA228, INA241, fuse, load-side mini clamp.
 
-| Value | 22 A channel | Calculation or source |
+| Value | Arm, waist, aux channel | Calculation or source |
 |---|---|---|
-| Rs | 2.5 mΩ WSLP3921 | ILIM window 19.4 to 24.6 A, breaker 32 to 52 A |
-| RPWR | 56.2 kΩ | 200 W limit |
+| Rs | 3 mΩ WSLP3921 | ILIM window 16.2 to 20.5 A, breaker 26.7 to 43.3 A |
+| RPWR | 69.8 kΩ | 200 W limit |
 | CT | 100 nF | 4.7 ms typ, 2.8 to 9.0 ms |
 | Cdv/dt | 47 nF C0G | Cdv ≥ Cload × 12.9e-6, covers 3.6 mF at 1.7 A |
 | UVLO | 191 kΩ / 18.7 kΩ | on 32.0 V, off 28.0 V |
 | OVLO | 95.3 kΩ / 4.12 kΩ | off 60.3 V (57.9 to 62.7 V) |
 
 **FET, deviation.** IPT015N10N5 has 0.8 A SOA at 50 V 10 ms; the docs' 10 A is wrong for it. IPB017N10N5LF (Linear FET, D2PAK-7) has 12 A.
-Timer check at 9 ms, 58 V: 10.6 A × 0.64 (70 °C) / 1.3 = 5.2 A against 4.3 A worst case limit.
+Timer check at 9 ms, 58 V: 10.6 A × 0.64 (70 °C) / 1.3 = 5.2 A against 4.3 A worst case limit (200 W, +24 %).
 
 **Shunts, deviation.** WSLP3921 is 2-terminal, so Kelvin sense must come from the land; RS501 footprint is blank until that land exists. No 1.2 mΩ
 part: legs use 1 mΩ (48.5 to 61.5 A, RPWR 23.7 kΩ) or 1.5 mΩ (32 to 41 A). Recommendation 1 mΩ.
 
-**Fuse, deviation.** 20 A 0997020.WXN, not 15 A: a 15 A fuse opens at 20 A in 0.75 to 600 s, so it overlaps the 19.4 to 24.6 A trip. Fuse adds 1.47 W per
-channel; the docs' 1.5 mΩ path ignored it. 997 MINI stops at 30 A: leg fuse needs another format, PN open.
+**Fuse, deviation.** 20 A 0997020.WXN, not 15 A: a 15 A fuse opens at 20 A in 0.75 to 600 s, so it overlaps the 19.4 to 24.6 A trip. The docs' 1.5 mΩ path ignored the fuse. 997 MINI stops at 30 A: leg fuse needs another format, PN open.
 
-**Telemetry, deviation.** INA228 cannot give 1 kHz on six devices (one register 0.85 ms at 400 kHz). 1 kHz current comes from INA241A1 (1.65 V + 10 × Vsense, ±58 A at 2.5 mΩ, sees regen) into
-the supervisor ADC; INA228 at 100 Hz for V, P, E. ADCRANGE 0 (55 mV exceeds 40.96 mV). SHUNT_CAL 3750 at 60 A FS.
+**Telemetry, deviation.** INA228 cannot give 1 kHz on six devices (one register 0.85 ms at 400 kHz). 1 kHz current comes from INA241A1 (1.65 V + 10 × Vsense, ±48 A at 3 mΩ, sees regen) into
+the supervisor ADC; INA228 at 100 Hz for V, P, E. ADCRANGE 0 (61.5 mV exceeds 40.96 mV). SHUNT_CAL 4500 at the 60 A LSB.
 
 **Enable.** PORT_EN (100 kΩ down) drives Q503, which holds Q504 off. Supervisor dead: Q504 on, UVLO low, port off. Latch reset: drop PORT_EN, 148 ms, raise.
 
@@ -194,8 +192,7 @@ the supervisor ADC; INA228 at 100 Hz for V, P, E. ADCRANGE 0 (55 mV exceeds 40.9
 
 ## front_end_12v_24v
 
-**Deviations.** Hold-up: README's "1 mF rides 10 ms at 90 W down to 20 V" gives only 5.0 ms from 37 V. 4 × EEV-FK1K331M, 1.32 mF:
-½ × 1.32 mF × (46.8² − 20²) × 0.93 / 90 W = 12 ms; 6.6 ms from 37 V. These are 16 × 17 mm and break the 13 mm stack: board-area or height decision owed.
+**Deviations.** Hold-up: README's "1 mF rides 10 ms at 90 W down to 20 V" gives only 5.0 ms from 37 V. Fitted 20 × 68 µF, see follow-ups below.
 24 V is tapped upstream of the ideal diode, or 75 W more drains the bank. LM5050-1 replaces LM74700 (LM74700 is 65 V abs against PLAN's 75 V survive; LM5050-1 is 75 V operate, 100 V abs, but has no reverse-polarity function).
 
 | Block | Values |
@@ -204,7 +201,7 @@ the supervisor ADC; INA228 at 100 Hz for V, P, E. ADCRANGE 0 (55 mV exceeds 40.9
 | LM5145 24 V 3.1 A | 300 kHz slave 180°, 33 µH, CSD19534Q5A × 2, RFB 80.6 kΩ / 2.80 kΩ = 23.83 V, RILIM 301 Ω, PM 62° min, UVLO 34.1 / 29.1 V |
 | LMR38010 3.3 V AON | 400 kHz, 22 µH, 100 kΩ / 43.2 kΩ = 3.31 V |
 
-**12 V budget, open.** Sum of maxima about 22 A on a 12.5 A converter (DC limit 14.2 A min). Relies on non-coincident load; PLAN needs an agreed budget or shedding.
+**12 V budget.** Sum of maxima about 22 A on a 12.5 A converter (DC limit 14.2 A min). Handled by load shedding, see follow-ups below.
 
 ## pol_rails
 
@@ -227,7 +224,7 @@ Metered, switched outputs. Bus A: 24 V 0x40, Jetson 0x41, third 0x42, aux 0x43, 
 
 TPS26631 settings (RILIM, IOL): 24 V 4.99 kΩ 3.61 A; Jetson and third 6.04 kΩ 2.98 A; aux 4.53 kΩ 3.97 A; Pi stub 4.99 kΩ 3.61 A; 7.4 V 3.01 kΩ 5.98 A; spare 4.99 kΩ 3.61 A. UV and OV from each three-resistor chain: 20.2 / 27.4 V, 9.66 / 14.7 V, 5.04 / 9.3 V, 4.55 / 6.1 V.
 
-**Deviations.** INA238 has no energy registers: PLAN 3.9's 2 % energy needs 100 Hz firmware integration. 1 % shunts use up the ±1 % budget: use 0.5 % or one-point calibration. TPS22965 has no current limit, and buck OCL 8.6 A exceeds its 6 A rating: polyfuse owed on 5 V and 3.3 V. It also cannot switch 7.4 V, so 7.4 V uses TPS26631. TPS2663 family UVLO defaults to 15.46 V, so every channel has a divider.
+**Deviations.** INA238 has no energy registers: PLAN 3.9's 2 % energy needs 100 Hz firmware integration. 1 % shunts use up the ±1 % budget: use 0.5 % or one-point calibration. TPS22965 has no current limit, and buck OCL 8.6 A exceeds its 6 A rating: polyfuse after each switch. It also cannot switch 7.4 V, so 7.4 V uses TPS26631. TPS2663 family UVLO defaults to 15.46 V, so every channel has a divider.
 
 ## supervisor_mcu
 
@@ -251,7 +248,7 @@ ISOW1044 on RAW_5V: VDD must be 5 V, 6 ports draw up to 0.74 A. Bus pins ±58 V 
 
 **E-stop.** +12 V, 680 Ω, NC contacts, opto A, opto B, 620 Ω, GND: 6.9 mA. Open loop, lost 12 V or lost 3V3 all give EN low. ISOM8710 to 74LVC1G14 to ESTOP_EN. SUP_OPEN 2N7002 only sinks, so firmware cannot close an open loop. Latency under 2 µs. Tether is a series contact with a shorting dummy.
 
-**Deviation.** Not Cat 3: one series loop feeds both channels and a short across it defeats both. Dual-contact fix needs 2 more pins. Cat 1 costs five parts per channel, fitted DNP (289 ms, 232 to 356 ms).
+**Deviation.** Not Cat 3: one series loop feeds both channels and a short across it defeats both. Dual-contact fix needs 2 more pins. Decided: stays Cat 0, with Cat 1's five parts per channel DNP (289 ms, 232 to 356 ms).
 
 Fans 12 V, 25 kHz open drain. TS2 wake: POWER_BTN pulls TS2 to VSS through 10 kΩ + BAT54. Shell cable is 6-pin; 4 cannot carry RGB + button.
 
@@ -264,3 +261,51 @@ Remote TPS56637 5.1 V (R6 75 kΩ, 5.6 µH), fed from OUT_12V_PI_STUB. Output thr
 ## pack_sense_board
 
 Fuse at the cell, one per tap. 1 A tap fuse: 0.1455 Ω, 63 V, 50 A interrupt, 1206 (63 V parts are not 0603 or 0805). 50 A interrupt is below pack prospective short current: rely on wire impedance or find a higher breaking part, open. 14 fuses; pins 3, 4, 13 on B0_F. Presence: pin 13 tied to the B0 return.
+
+## Follow-ups, 2026-11-06: decisions applied
+
+Recorded in [EXPLAINER.md](EXPLAINER.md). Sheets changed: pack_input_shunt_afe, vmot_bulk_clamp, port_channel, front_end_12v_24v, rail_switches_meters, supervisor_mcu.
+
+**External balance (closes the biggest gap).** SLUAA81A Fig 2-2 p4, N-channel, on pack_input_shunt_afe, 13 channels: Rbal from tap n to the drain, source on tap n-1, gate through Rg 1 kΩ to pin VC(n-1), 5.1 V zener gate to source. Internal FET current through the lower input resistor makes Vgs.
+
+- Tap resistors: 20 Ω cannot work. Vgs at 3.9 V = 3.9 × 20 / (20 + 20 + 28) = 1.15 V. Changed to 100 Ω, the note's advised value and the datasheet p9 maximum. VC16 stays 20 Ω (SLUAA81A 2.5), or top cell reads low by 35 µA × R × cells: 2.8 mV at 20 Ω and 4 cells.
+- Gate drive: 3.9 × 100 / (100 + 100 + RCB). RCB 15 / 28 / 46 Ω (datasheet 7.20): 1.82 / 1.71 / 1.59 V. Top cell is higher at 2.63 V.
+- FET: SSM3K56FS, 20 V, ±8 V gate, 840 mΩ max at 1.5 V, so it is rated below the 1.59 V worst case. AO3420-class parts are rated only to 1.8 V: rejected. Loss 0.15² × 0.84 = 19 mW.
+- Rbal 27 Ω 1 W 2512. External current with about 0.9 Ω in series (FET plus two tap fuses and wire): 140 mA at 3.9 V, 150 mA at 4.2 V. Internal path adds 17 to 19 mA, well under 100 mA abs (top cell 28 mA). Total about 157 to 169 mA, DC while switched on. Measurement pauses cut the average; CB_SLOW helps. Rbal 0.61 W at 4.2 V.
+- Heat: Cell Balance Max Cells 4 gives about 2.5 W. Autonomous mode allows up to 7 non-adjacent cells, 4.3 W: raise only after a thermal check. Cell Balance Min Cell V 3900 mV.
+- Accuracy: AFE stops balancing on the measured and adjacent cells, so the 1 A tap fuse drop (about 25 mV each) is not read. RC 100 Ω × 220 nF = 22 µs against a 3 ms window: no settling issue (SLUAA81A 2.5).
+- Open: FET figures are from a datasheet excerpt, original PDF not read. SOT-416 land and pin order G, S, D to confirm against Toshiba. Zener leakage at 1.7 V unchecked.
+
+**Arm, waist, aux trip (agreed with the arm trunk thread).** XT30 contacts and enclosed 16 AWG are treated as 15 A continuous, so the old 22 A limit no longer protected them. Software trip is the real overload limit. Aux shares the same sheet and connector, so it takes the same hardware, with a 10 A software default to keep PLAN's aux limit; its 7.5 A fuse becomes the shared 20 A. Leg numbers unchanged.
+
+- Shunt: 3 mΩ WSLP39213L000FEA, not the requested 3.3 mΩ. WSLP3921 has 2, 2.5, 3, 4 mΩ. 3.3 mΩ would also give 48.5 / 3.3 = 14.7 A minimum, under the 15 A software limit, so a low part would current-limit at normal peak. 4 mΩ is 12.1 to 15.4 A: fails too.
+- Limit: VCL 48.5 / 55 / 61.5 mV (LM5069 p5-6) gives 16.2 / 18.3 / 20.5 A. Breaker VCB 80 / 105 / 130 mV gives 26.7 / 35 / 43.3 A.
+- RPWR: 1.30e5 × 3 mΩ × (200 − 1.18 mV × 58 V / 3 mΩ) = 69.1 kΩ, fitted 69.8 kΩ, 201.8 W. PLIM minimum 96.7 W is met.
+- SOA: unchanged. 3.48 A at 58 V, 4.3 A at +24 %, against 5.2 A allowed at 9 ms and 70 °C. At the top of the limit, 20.5 A meets 248 W at 12 V: well inside the same 9 ms curve by extrapolation, not a printed line.
+- Fuse: stays 20 A 58 V, backstop for a shorted FET only. Hardware maximum 20.5 A is 102.5 % of rating, so it is not strictly above tolerance, but the 997 needs 110 % for 100 h to matter and 135 % to open, and 20.5 A lasts at most 9 ms: 3.8 A²s against 380 A²s. Coordination holds. Blade fuse hot rerating is unverified; at 15 A it runs at 75 %.
+- Dissipation: shunt 0.68 W at 15 A, 1.0 W at 18.3 A, 1.26 W at 20.5 A, rated 5 W. At 15 A: fuse 0.72 W cold, FET about 0.65 W, about 2 W port path.
+- Software trip: INA241 gives 30 mV/A, so 1 A is 37 ADC counts. Firmware filter owed, adjustable 1 to 15 A, default 15 A. Between the software limit and 16.2 to 20.5 A only firmware protects the connector: a hung supervisor needs its watchdog to drop PORT_EN.
+- PLAN's port table and hand note updated to match.
+
+**Regen clamp sized for the 2 Ω leg stage.** 10 Ω fitted. 57.5 V / 2 Ω = 28.75 A, 1.65 kW; 30 A at 60 V.
+
+| Part | Was | Now | Basis |
+|---|---|---|---|
+| FET | IPT015N10N5 | same | 29² × 1.5 mΩ × 1.7 hot = 2.1 W at 100 % duty. Edges about 100 ns inside the 10 µs SOA (about 300 A at 54 V, sheet 2). Stays in saturation, so no linear SOA question |
+| Shunt | 20 mΩ, 17 W at 29 A: fails | 2 mΩ CSS4J-4026K-2L00F 6 W | 1.7 W, 58 mV. At 10 Ω: 11.5 mV, 66 mW. INA228 ADCRANGE 0, SHUNT_CAL 2000 at 40 A |
+| Freewheel | MBRS3100T3G 3 A: fails | MBRB30H100CT-E3/81 | 100 V, 30 A total, 275 A surge. Carries lead inductance current for L/R, about 5 µs per 10 µH |
+| Terminals, wiring | M4, 74651194R | same | M4 terminals are on the VMOT and CL_D paths. Pour and lead for 30 A owed in layout; REDCUBE rating unverified |
+
+Energy basis: 1.7 kW for the time the drives keep regenerating with the BMS open. At 1 s that is 1.7 kJ into the external resistor and about 2 J in the FET, so the resistor sets the limit. The leg stage must pick 2 Ω by its pulse curve; no continuous rating near 1.7 kW is needed. Regen duration is an assumption until legs exist.
+
+**Hold-up.** 20 × TDK B40950B0686M100, 68 µF 80 V hybrid, 10 × 10.8 mm, 33 mΩ, 10000 h at 105 °C. Fits the 13 mm board gap with 2.2 mm clear. Total 1.36 mF: 12.6 ms from 46.8 V, 6.8 ms from 37 V, at 90 W and 0.93. At -20 %: 10 ms and 5.5 ms. Rejected B40950A0686M000: 12.8 mm tall. Cost is about 21 cm² of land against 4 cans' 10 cm², for layout to fit. Dimensions from DigiKey listings; TDK datasheet not read. Footprint CP_Elec_10x10.5, listed land 10.3 × 10.3 mm matches its class.
+
+**Load shed.** Table on supervisor_mcu: fans at reduced duty above 11 A, third board 11.5 A, cameras and spare 12 A (EN_12V_AUX, EN_SPARE), Pi stub and Jetson last at 13 A or PG_12V falling. Thresholds are starting values, firmware owed. No 12 V total meter exists: estimate is the sum of meters. Fans and the E-stop loop sit on +12V directly, so step 3 drops neither.
+
+**Output limits.** TPS26631 per rail section above. Added after the TPS22965s: MF-MSMF250/16X-2 2.5 A on 5 V (1.8 A budget) and MF-MSMF110/16-2 1.1 A on 3.3 V (0.6 A budget), both ahead of the meter so the meter reads through them. Hold is at 23 °C: hot derating to check, 5 V margin is the thin one. Distributor data, Bourns datasheet not read. MF-MSMF200-2 rejected: last time buy, 8 V.
+
+**Leg.** 1 mΩ shunt approved, RPWR 23.7 kΩ. Fuse format stays open: F on an ATO holder footprint, DNP, beside F501, position only. E-stop stays Cat 0.
+
+**Footprints.** New project library `marengo.pretty`, loaded through `fp-lib-table`. TI lands from the datasheet drawings: TPS48100 DGX0019A (SLUSEW1C p35, no pad 16), TPS56637 RPA0010A (SLVSEG1A p29), ISOM8710 DFF0005A (SLLSFO4E p34, HV option, keeps the >5 mm rating). WSLP3921_Kelvin: Vishay current lands (doc 30176 p2), sense pads 2 and 3 sized by me as copper tabs with a net tie, position accuracy unmeasured. Vishay's Kelvin part is WSLP2726, unused. Wire_Pads_2_NTC: 1 mm drill, 103AT lead size unchecked. All parse and pass a DRC on a test board; none fabricated.
+
+**C206.** Placeholder replaced by the same 100 µF 80 V hybrid as VMOT bulk.

@@ -18960,5 +18960,16 @@
 		)
 		(uuid "093508c9-397d-5539-9784-f7176522272e")
 	)
+	(text "12 V LOAD SHED (firmware; budget sums to 22 A on a 12.5 A converter, DC limit 14.2 A min). Estimate: sum of 12 V rail meters and POL meters. Start values, tune on the bench, 500 ms hold, 1 A hysteresis.\n1. Above 11.0 A: fans to reduced duty (FANx_PWM).\n2. Above 11.5 A: third board off (EN_12V_THIRD).\n3. Above 12.0 A: cameras and spare off (EN_12V_AUX, EN_SPARE).\n4. Above 13.0 A, or PG_12V falling: Pi stub and Jetson last (EN_12V_PI, EN_12V_JETSON), after telling the host.\nPORT SOFTWARE TRIP (firmware): each ADC_IMx, 1-15 A per port, default 15 A on arm and waist, 10 A on aux. Over the limit drops PORT_ENx, then reset needs the 148 ms latch sequence."
+		(exclude_from_sim no)
+		(at 190.5 270 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+			)
+			(justify left top)
+		)
+		(uuid "696d2ad8-7010-51ce-ad8b-52a7aa240346")
+	)
 	(embedded_fonts no)
 )
