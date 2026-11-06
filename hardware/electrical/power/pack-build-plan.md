@@ -22,10 +22,10 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
   for about 3% of capacity. Use an adjustable-voltage charger at 4 A, ending in an XT60.
 - **Busbars are wide plates, not 10 mm strip.** A 10 mm nickel strip cannot carry 60 A. The pack doc's nickel line is
   replaced (section 4).
-- **Tools to buy: about $360 to $840**, depending on the welder and crimper. A spot welder (Glitter 811H class or kWeld), a cell internal-resistance meter, a
+- **Tools to buy: about $285** in the lean build. A spot welder (Glitter 811H class or kWeld), a cell internal-resistance meter, a
   150 to 200 W electronic load, a lithium fire extinguisher, and small consumables. The welder is reusable for the pelvis and
   leg packs.
-- **Total first pack with tools: about $910 to $1,490** (table in section 9). The pack and charger alone are about $550 to $650.
+- **Total first pack with tools: about $850** in the lean build (section 9). The pack and charger alone are about $570. Upgrades are optional and listed separately.
 
 ## 1. What the pack is, and what it is not
 
@@ -241,25 +241,38 @@ connected to the robot** (gate 3: load-bearing or powered).
 
 ## 9. Shopping list and cost
 
-| Item | Qty | Cost (verify) |
+Default is the **lean build**: the cheapest choice on each line that is still safe. Upgrades are listed separately and none
+of them are needed for the first pack. (Rev 1 of this table summed the most expensive option on every line and showed
+$910 to $1,490; that was the ceiling, not the plan.)
+
+| Item | Lean (default) | Note |
 | --- | --- | --- |
-| Molicel P50B | 28 | $294 (vendor page, $10.50 at 10+) |
-| Nickel plate stock 0.2 mm + 0.15 mm tab strip | | $35 |
-| Cell holders, fish paper, Kapton, foam, wrap | | $45 |
-| MIDI 60 A fuse + holder (Littelfuse 498 series class) | 1 + spare fuse | $15 |
-| Amass XT90S pair, XT60 pair, 10 AWG and 22 AWG silicone wire | | $35 |
-| Pack sense board (with the power board's PCB order) + Micro-Fit 2 × 10 parts | | $15 |
-| 3 × 10 kΩ NTC (103AT) | | $5 |
-| Printed case (PC FR or ASA, never PETG next to cells) | | $15 in filament |
-| JK 13S bench BMS | 1 | $50 to 90 |
-| 13S charger (trimmable 4 A), or Grin Satiator | 1 | $40 to 70, or $300 to 350 |
-| **Pack and charger** | | **about $550 to 650** |
-| Spot welder | 1 | $150 to 300 |
-| IR meter, electronic load | | $70 to 130 |
-| Fire extinguisher, sand bucket, steel tray, insulated tools | | $100 to 160 |
-| Micro-Fit crimper | 1 | $40 to 250 |
-| **Tools** | | **about $360 to 840** |
-| **Total, first pack** | | **about $910 to 1,490** (low end with the cheap charger and crimper) |
+| Molicel P50B × 28 | $294 | vendor page, $10.50 at 10+. P45B at about $6, if back in stock, saves about $120 |
+| Nickel plate 0.2 mm + 0.15 mm tab strip | $35 | |
+| Cell holders, fish paper, Kapton, foam, wrap | $45 | |
+| MIDI 60 A fuse + holder, spare fuse | $15 | |
+| XT90S, XT60, 10 AWG + 22 AWG silicone wire | $35 | |
+| Sense board (in the power board's PCB order), Micro-Fit 2 × 10 parts, 3 NTCs | $20 | |
+| Printed case (PC FR or ASA) | $15 | filament |
+| JK 13S bench BMS | $60 | |
+| 13S charger, trimmable, 4 A | $50 | |
+| **Pack and charger** | **about $570** | |
+| Spot welder, Glitter 811H class | $150 | reusable for later packs |
+| Cell IR meter, YR1035+ class | $35 | |
+| Micro-Fit ratchet crimper | $40 | the board thread can share it |
+| Lithium-ion extinguisher + sand bucket | $60 | not optional |
+| **Tools** | **about $285** | |
+| **Total, first pack** | **about $850** | about $285 of it is reusable tools |
+
+Optional upgrades, only if wanted:
+
+| Upgrade | Adds | Why you might |
+| --- | --- | --- |
+| 150 W electronic load (DL24P class) | $40 | controlled capacity test (step 9). Without it, capacity is measured later by the board's coulomb counter |
+| kWeld instead of the 811H | +$100 to 150 | better-measured welds, needed for a copper-busbar leg pack |
+| Grin Satiator instead of the trimmable charger | +$250 to 300 | exact programmable voltage and current |
+| Molex factory crimp tool | +$210 | only if the ratchet crimps fail pull tests |
+| Riden RD6024 + 70 V supply | $200 to 280 | doubles as a 48 V bench supply for the arms |
 
 ## 10. Pack sense board (new part, handed to the power board thread)
 
