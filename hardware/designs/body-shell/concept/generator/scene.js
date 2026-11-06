@@ -66,12 +66,14 @@ function ringPt(hw, df, db, n, th, x0 = 0) {
   const x = (s >= 0 ? df : db) * sgnpow(s, 2 / n);
   return [x + x0, y];
 }
+let CLAMP = null;
 function loft(rows, z0, z1, mat, nz = 90, nt = 128, x0 = 0, th0 = 0, th1 = 2 * Math.PI, tag = null, ex = [0, 0, 0]) {
   const pos = [], idx = [];
   for (let i = 0; i <= nz; i++) {
     const z = z0 + (z1 - z0) * i / nz; const [hw, df, db, n] = interp(rows, z);
-    for (let j = 0; j <= nt; j++) { const th = th0 + (th1 - th0) * j / nt; const [x, y] = ringPt(hw, df, db, n, th, x0);
-      const v = P(x, y, z); pos.push(v.x, v.y, v.z); }
+    for (let j = 0; j <= nt; j++) { const th = th0 + (th1 - th0) * j / nt; let [x, y] = ringPt(hw, df, db, n, th, x0); let zz = z;
+      if (CLAMP) [x, y, zz] = CLAMP(x, y, z);
+      const v = P(x, y, zz); pos.push(v.x, v.y, v.z); }
   }
   for (let i = 0; i < nz; i++) for (let j = 0; j < nt; j++) {
     const a = i * (nt + 1) + j, b = a + nt + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
@@ -102,23 +104,30 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 // frame is +-75 Y, +-70 X. Arm hangs at Y=170 with 15 deg inward roll -> keep side <= ~100 below shoulder.
 const chest = [
   [F0 - 6, 81, 78, 76, 3.4],
-  [F0 + 80, 83, 82, 78, 3.4],
-  [F0 + 170, 92, 98, 84, 3.2],
-  [ZS - 62, 96.5, 108, 88, 3.8],
-  [ZS, 97, 106, 88, 4.2],
-  [ZS + 48, 96.5, 94, 84, 4.2],
-  [F1 + 4, 88, 76, 78, 3.6],
-  [F1 + 26, 62, 56, 62, 2.8],
-  [F1 + 44, 40, 40, 46, 2.4],
+  [F0 + 90, 88, 88, 80, 3.4],
+  [F0 + 170, 101, 100, 85, 3.6],
+  [ZS - 95, 114, 106, 88, 4.0],
+  [ZS - 40, 118, 108, 88, 4.6],
+  [ZS + 40, 119, 98, 86, 4.8],
+  [ZS + 76, 121, 90, 84, 4.2],
+  [F1 + 20, 118, 84, 80, 3.6],
+  [F1 + 38, 94, 66, 68, 3.0],
+  [F1 + 52, 42, 42, 46, 2.4],
 ];
+// shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
+// so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it
+const SOCK_R = 62;
+const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); return (r < SOCK_R && Math.abs(y) > 97.5) ? [x, Math.sign(y) * 97.5, z] : [x, y, z]; };
 const SEAM_Z = F0 + 160;
-loft(chest, SEAM_Z, F1 + 44, white, 80, 80, 4, 0, Math.PI, 'chest upper front', [110, 0, 60]);
-loft(chest, SEAM_Z, F1 + 44, white, 80, 80, 4, Math.PI, 2 * Math.PI, 'chest upper back', [-110, 0, 60]);
+CLAMP = socket;
+loft(chest, SEAM_Z, F1 + 52, white, 240, 200, 4, 0, Math.PI, 'chest upper front', [110, 0, 60]);
+loft(chest, SEAM_Z, F1 + 52, white, 240, 200, 4, Math.PI, 2 * Math.PI, 'chest upper back', [-110, 0, 60]);
 loft(chest, F0 - 6, SEAM_Z, white, 50, 80, 4, 0, Math.PI, 'chest lower front', [110, 0, -40]);
 loft(chest, F0 - 6, SEAM_Z, white, 50, 80, 4, Math.PI, 2 * Math.PI, 'chest lower back (service hatch)', [-110, 0, -40]);
+CLAMP = null;
 if (!EXPLODE) { seamRing(chest, SEAM_Z, 4);
 seamRing(chest, F0 - 6 + 0.5, 4);
-seamVert(chest, 0, F0 - 6, F1 + 30, 4); seamVert(chest, Math.PI, F0 - 6, F1 + 30, 4); }
+seamVert(chest, 0, F0 - 6, F1 + 40, 4); seamVert(chest, Math.PI, F0 - 6, F1 + 40, 4); }
 // raised chest shield (separate panel) on the front only
 {
   const rows = chest.map(r => [r[0], r[1] + 6, r[2] + 7, r[3], r[4]]);
@@ -175,7 +184,7 @@ const core = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 3, 48), accent);
 core.rotation.x = Math.PI / 2; core.position.copy(P(113.5, 0, ZS - 40)); if (!XRAY) add(core);
 
 // neck collar + head placeholder
-const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 50)); if (!EXPLODE) add(neck);
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 58)); if (!EXPLODE) add(neck);
 const headRows = [[F1 + 70, 40, 52, 52, 2.2], [F1 + 105, 62, 78, 76, 2.4], [F1 + 190, 66, 84, 80, 2.6], [F1 + 250, 54, 68, 68, 2.4], [F1 + 274, 36, 46, 46, 2.2], [F1 + 284, 4, 4, 4, 2]];
 if (!EXPLODE) loft(headRows, F1 + 70, F1 + 284, white, 60, 96, 6);
 if (!EXPLODE) { // visor: thin dark strip following head front

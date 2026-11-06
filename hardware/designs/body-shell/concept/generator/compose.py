@@ -21,7 +21,7 @@ def sheet(panels, title, sub, out, notes=None):
         for n in notes: d.text((pad, y), n, font=f(30), fill=(40, 44, 50)); y += 44
     S.save('final/' + out, optimize=True); print(out, S.size)
 sub = 'Concept only, not a part. Original design; shell bolts to the 2020 torso frame. 2026-11-06'
-sheet([(crop('hero.png', (560, 0, 2640, 2400)), 'Shoulders exposed; shell ends at the pitch RS03 faces')], 'Marengo body shell, concept B', sub, 'SHELL_CONCEPT_HERO.png')
+sheet([(crop('hero.png', (560, 0, 2640, 2400)), 'Broad shoulders wrap the pitch joint; arm mechanics exposed')], 'Marengo body shell, concept B', sub, 'SHELL_CONCEPT_HERO.png')
 sheet([(crop(n + '.png', (900, 0, 2300, 2400), w=900), l) for n, l in [('front', 'Front'), ('side', 'Side (robot left)'), ('back', 'Back')]],
       'Body shell, concept B: front, side, back', sub, 'SHELL_CONCEPT_VIEWS.png')
 sheet([(crop('fullA.png', (1100, 0, 2100, 2400), w=760), 'Frame as built: shoulder 1165 mm'),
@@ -30,10 +30,10 @@ sheet([(crop('fullA.png', (1100, 0, 2100, 2400), w=760), 'Frame as built: should
       'Longer stomach: +70 mm waist section', sub, 'SHELL_CONCEPT_PROPORTIONS.png',
       ['Legs are grey placeholders at the draft lengths in kinematics.md (5 ft total). The extension goes between the waist yaw and the frame,',
        'which closes the ~70 mm shoulder-height shortfall and gives the longer belly. Arms at 215 + 195 + 90 mm read short against a 5 ft body.'])
-sheet([(crop('shoulder.png', (0, 0, 3200, 2400), w=1300), 'Shoulder: shell side flush with the RS03 face, collar under the outer-ring bolts'),
+sheet([(crop('shoulder.png', (0, 0, 3200, 2400), w=1300), 'Shoulder socket: shell steps in to the RS03 face around the joint'),
        (crop('explode.png', (600, 350, 2600, 2250), w=1000), 'Print panels, exploded')],
       'Body shell, concept B: shoulder interface and P2S panel split', sub, 'SHELL_CONCEPT_PANELS.png',
-      ['Upper chest spans RS03 face to RS03 face (194 mm). Shoulder collar: 114 mm OD ring, about 3 mm thick, clamped under the RS03 outer-ring bolts.',
-       'Those bolts also hold the motor to its bracket, so the collar is not final until the arm thread confirms screw length and grip.',
-       '13 panels, largest 194 x 224 x 108 mm, all inside the P2S 256 mm cube: chest upper/lower front and back, chest shield, 2 collars, 3 abdomen bands x2.',
-       'Exposed shoulder parts (P1, roll RS03, P2, upper-arm yaw RS02) are simple stand-ins here; the real ones come from the arm CAD.'])
+      ['Shoulders 242 mm across, tapering to 162 mm at the waist. Around the pitch joint the shell steps in to the RS03 face (Y +-97) inside a 62 mm',
+       'radius socket, clear of the ~57 mm P1/roll sweep. The collar (114 mm OD) sits in the socket under the RS03 outer-ring bolts; those bolts also',
+       'hold the motor to its bracket, so the collar waits on the arm thread. Socket edge is jagged only in this mock-up render.',
+       '13 panels, largest 242 x 232 x 108 mm (chest upper front), all inside the P2S 256 mm cube. Shoulder parts shown are stand-ins.'])

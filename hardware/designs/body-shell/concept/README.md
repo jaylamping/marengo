@@ -3,9 +3,10 @@
 2026-11-06. Concept renders only. This is not a part and is not released for printing.
 
 A white shell over the 2020 torso frame, from Joey's silhouette sketch: a broad chest, a taper to the waist,
-and a longer stomach. Concept B (Joey, 2026-11-06): no shell on the shoulders. At shoulder height the torso shell
-spans from one pitch RS03 face to the other (Y ±97) and mounts by a collar under each RS03's outer-ring bolts;
-P1, the roll RS03, P2 and everything outboard stay exposed. Concept A (deltoid caps) is in git history. The look takes cues from the film reference Joey
+and a longer stomach. Concept B (Joey, 2026-11-06): no shell on the arm's shoulder parts. The torso is broad at the shoulders and
+tapers to the waist (from Joey's markup). Around each pitch joint the shell steps in to the RS03 face (Y ±97)
+inside a 62 mm radius socket and mounts by a collar under the RS03's outer-ring bolts; P1, the roll RS03, P2
+and everything outboard stay exposed. Concept A (deltoid caps) is in git history. The look takes cues from the film reference Joey
 gave (white chest over darker mechanics) but the shapes are original. The renders are a parametric
 mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look is agreed.
 
@@ -23,14 +24,15 @@ mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look i
 | Frame | 140 deep x 150 wide x 340 tall | `docs/kinematics.md` |
 | Shoulder pitch axis | 424.9 mm above pelvis bottom; output faces at Y ±97 | `docs/kinematics.md` |
 | Arm line | Y ±170.5 | `designs/left-arm/urdf/left_arm.urdf` |
-| Chest shell, widest | 194 mm at the shoulders (RS03 face to face), 82 mm waist half-width | this concept |
+| Chest shell, widest | 242 mm at the shoulders, 162 mm at the waist | this concept |
+| Shoulder socket | 62 mm radius around the pitch axis, floor at the RS03 face (Y ±97.5); P1/roll sweep is ~57 mm | this concept |
 | Chest depth | 108 mm front + 88 mm back of frame centre (196 mm) | this concept |
 | Shoulder collar | 114 mm OD, 86 mm ID, about 3 mm, under the RS03 outer-ring bolts | this concept |
 | Waist extension (option) | +70 mm between waist yaw and frame | closes the shoulder-height shortfall |
 
 ## Panels (Bambu P2S, 256 x 256 x 256 mm)
 
-13 panels, all inside the build volume. The largest is the chest upper front at 194 x 224 x 108 mm.
+13 panels, all inside the build volume. The largest is the chest upper front at 242 x 232 x 108 mm (14 mm margin).
 
 - Chest: upper front, upper back, lower front, lower back (magnet-held service hatch for the Pi).
 - Chest shield: separate raised front plate, so it can be printed in a different finish.
@@ -46,7 +48,8 @@ the outer frame slots, M3 heat-set inserts in the panel bosses, lapped seams.
   envelope README (`designs/left-arm/envelope/`) confirms which bolts, screw length, thread engagement, and the extra
   grip a 2–3 mm printed flange needs. Printed plastic under a structural bolt can creep; check that it is acceptable.
 - P1 and the roll RS03 must never sweep into a plane about 3 mm outboard of the pitch housing face.
-- The chest side is at Y ±97 near the shoulder. Check the upper arm at 15° inward roll against it with the swept envelope.
+- The chest side reaches Y ±114–118 just below the shoulder; the hanging upper arm's inner face is about Y 126. That leaves
+  roughly 8–12 mm at zero roll, so inward roll is close to 0° with this shape. Check against the arm swept envelope.
 - The exposed shoulder parts in these renders are simple stand-ins, not the real P1/P2 geometry.
 - At 215 + 195 + 90 mm the arms read short against a 5 ft body in the proportion view.
 - The +70 mm waist section changes the URDF torso height and needs a structural spacer, not just shell.
