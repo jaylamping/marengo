@@ -37,7 +37,7 @@ sheet([(crop('fix_side_base.png', SC, w=700), 'Locked baseline: back on the fram
 sheet([(crop('pk_back.png', (600, 0, 2600, 2400), w=900), 'Back 3/4: pads flank the doors'),
        (crop('pk_back_ortho.png', (900, 100, 2300, 2300), w=760), 'Back'),
        (crop('pk_side.png', (900, 100, 2300, 2300), w=760), 'Side: 30 mm proud of the shell')],
-      'Spine pack: back crush pads (first pass, function only)', sub, 'SHELL_MFG_SPINEPACK.png',
-      notes=['The frame needs ~30 mm of crush behind the shell in a backward fall. TPU 95A, 2 walls + ~10% gyroid; crush coupon C9 tunes it.',
+      'Spine pack: back crush pads (first pass, function only; battery door between)', sub, 'SHELL_MFG_SPINEPACK.png',
+      notes=['A backward fall needs ~40 mm of stop; these give 30 (more pad or standoff crush to come). TPU 95A, ~10% gyroid; coupon C9 decides.',
              f"Four pads, about {rep['spine_pack_g']} g. They bolt through the shell to the H2/H3/H4 rear brackets on standoff posts; D1 and the D2 battery door open between them.",
              'Styling (armour plates, chamfers) comes in SolidWorks. Lighter option: EVA foam blocks in a thin TPU skin, about 60 g.'])
