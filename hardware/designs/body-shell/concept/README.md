@@ -54,7 +54,7 @@ the outer frame slots, M3 heat-set inserts in the panel bosses, lapped seams.
 - Shell geometry has to follow the two-box frame once the arm thread fixes the step height and gusset outline.
 - Upper-arm length card (240/200, 215/195 or 250/210) is open with Joey on the arm thread; the renders use 215/195.
 - Collar M4 button heads stand 2.2 mm proud; the arm thread adds a local relief to P2's inner edge.
-- Panels are sacrificial crash covers (load case: a fall down the stairs). Keep one fixed mounting interface per panel so variants (colour, shape, cooling and vents) can swap without frame changes.
+- Panels are sacrificial crash covers (load case: a trip-level fall from standing or a bench tip). Keep one fixed mounting interface per panel so variants (colour, shape, cooling and vents) can swap without frame changes.
 - Exposed shoulder parts and the exploded-view frame are stand-ins.
 - Armor-plate breakup and the real panels are SolidWorks work on Joey-PC.
 
