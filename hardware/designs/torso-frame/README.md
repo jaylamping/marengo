@@ -271,6 +271,10 @@ that would reopen the frame.
    bracket count describe the new frame, not the built one; the built printed corner pieces are reused or replaced by the 2028 set
    at the rebuild, Joey's call; (b) the foot tabs are bench fixtures and come off for the hip interface; (c) the rail count still
    cannot be read from these two photos (posts at the front corners look doubled in the side view), so the nut map keeps it open.
+   Three more photos 10:42Z (read by eye): the posts are single 2020 (the doubled look is the post's slot lips); the rear post-to-rail
+   joints use metal angle brackets (silver edge visible), the front ones printed gussets; the front and side bottom rails look like
+   **two 2020s stacked (about 40 mm tall)**, with the foot tabs on the lower one. If so, the built bottom ring is 20 mm taller than the
+   generator's single Y 155-175 ring. Asked Joey to confirm.
 1a. **Which connector flat each pitch RS03 has** (A or B above), for the harness exit.
 2. **Main battery location**: pelvis (baseline) or torso (reopens the lower box width).
 3. **M18 aux bay**: drop, or move to the pelvis.
