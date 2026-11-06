@@ -37,3 +37,9 @@ sheet([(crop('shoulder.png', (0, 0, 3200, 2400), w=1300), 'Shoulder socket: shel
        'radius socket, clear of the ~57 mm P1/roll sweep. The collar (114 mm OD) sits in the socket under the RS03 outer-ring bolts; those bolts also',
        'hold the motor to its bracket, so the collar waits on the arm thread. Socket edge is jagged only in this mock-up render.',
        '13 panels, largest 242 x 228 x 108 mm (chest upper front), all inside the P2S 256 mm cube. Shoulder parts shown are stand-ins.'])
+sheet([(crop('w0.png', (700, 300, 2500, 2300), w=900), 'Shoulders as built: roll axes 341 mm apart'),
+       (crop('w25.png', (700, 300, 2500, 2300), w=900), 'P1 +25 mm per side: 391 mm apart'),
+       (crop('w25iso.png', (700, 200, 2500, 2400), w=900), '+25 mm, three-quarter')],
+      'Body shell, concept B: chest plate and shoulder width', sub, 'SHELL_CONCEPT_WIDTH.png',
+      ['Head removed until it is designed. Chest has pec masses, a sternum groove and a crisp lower edge; the black yoke panel is gone.',
+       'The +25 mm option lengthens P1 (arm thread); the shell shoulder line widens with it. Shell upper panels then need a centre split for the P2S.'])

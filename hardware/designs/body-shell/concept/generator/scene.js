@@ -19,7 +19,8 @@ const P = (x, y, z) => new THREE.Vector3(y + OFFX, z, x);
 const PELVIS0 = 740, WAIST = 855;
 const F0 = PELVIS0 + 155 + EXT, F1 = PELVIS0 + 495 + EXT;
 const ZS = PELVIS0 + 424.9 + EXT;   // shoulder pitch axis
-const YS = 170.49;                   // pitch/roll joint, from left_arm.urdf
+const YSX = Number(q.get('ysx') ?? 0); // P1 lengthening per side (arm-thread option)
+const YS = 170.49 + YSX;             // pitch/roll joint, from left_arm.urdf
 
 const scene = new THREE.Scene();
 const W = 1600, H = 1200;
@@ -127,20 +128,28 @@ const chest = [
   [ZS - 200, 84, 92, 80, 3.6],
   [ZS - 100, 90, 104, 85, 3.8],   // arm-tube band (100-200 mm below the shoulder axis): sides <= +-90
   [ZS - 55, 108, 108, 88, 4.2],
-  [ZS + 10, 120, 108, 88, 4.6],
-  [F1 + 12, 121, 100, 88, 4.8],   // square shoulder line
-  [F1 + 28, 106, 88, 82, 4.2],
+  [ZS + 10, 124 + 0.3 * YSX, 108, 88, 4.6],
+  [F1 + 12, 134 + 0.6 * YSX, 100, 88, 4.8],   // square shoulder line, overhangs the pitch joint
+  [F1 + 28, 118, 88, 82, 4.2],
   [F1 + 38, 64, 60, 64, 3.0],
   [F1 + 48, 42, 44, 46, 2.4],
 ];
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
 // so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it
 const SOCK_R = 62;
+const sstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+// male chest plate: two pec masses with a sternum groove and a crisp lower edge
+const PEC_Z = ZS - 30;
+const pec = (x, y, z) => { if (x <= 0) return [x, y, z]; const ay = Math.abs(y); const dz = z - PEC_Z;
+  const g = sstep(3, 26, ay) * (1 - sstep(78, 104, ay));
+  const v = dz >= 0 ? 1 - sstep(10, 105, dz) : 1 - sstep(38, 50, -dz);
+  const w = sstep(30, 85, x);
+  return [x + 15 * g * v * w, y, z]; };
 const socket = (x, y, z) => { const r = Math.hypot(x, z - ZS); if (Math.abs(y) <= 97.5) return [x, y, z];
   const t = Math.min(1, Math.max(0, (r - SOCK_R) / 7)); const k = t * t * (3 - 2 * t);
   return [x, Math.sign(y) * (97.5 + (Math.abs(y) - 97.5) * k), z]; };
 const SEAM_Z = F0 + 160;
-CLAMP = socket;
+CLAMP = (x, y, z) => { const p = pec(x, y, z); return socket(p[0], p[1], p[2]); };
 loft(chest, SEAM_Z, F1 + 48, white, 240, 200, 4, 0, Math.PI, 'chest upper front', [110, 0, 60]);
 loft(chest, SEAM_Z, F1 + 48, white, 240, 200, 4, Math.PI, 2 * Math.PI, 'chest upper back', [-110, 0, 60]);
 loft(chest, F0 - 6, SEAM_Z, white, 50, 80, 4, 0, Math.PI, 'chest lower front', [110, 0, -40]);
@@ -167,7 +176,7 @@ for (const s of [1, -1]) {
   // rotating output flange + P1 + roll RS03 + P2/upper-arm-yaw RS02, all exposed
   const out = new THREE.Mesh(new THREE.CylinderGeometry(42, 42, 6, 64), actDark); out.rotation.z = Math.PI / 2; out.position.copy(P(0, s * 100, ZS)); add(out);
   const p1 = new THREE.Mesh(new THREE.CylinderGeometry(46, 46, 20, 64), P1mat); p1.rotation.z = Math.PI / 2; p1.position.copy(P(0, s * 113, ZS)); add(p1);
-  const p1b = new THREE.Mesh(new THREE.BoxGeometry(14, 92, 64), P1mat); p1b.position.copy(P(-2, s * 124, ZS)); add(p1b);
+  const p1b = new THREE.Mesh(new THREE.BoxGeometry(YS - 156.5, 92, 64), P1mat); p1b.position.copy(P(-2, s * (117 + YS - 40) / 2, ZS)); add(p1b);
   const roll = new THREE.Mesh(new THREE.CylinderGeometry(49.75, 49.75, 56.6, 64), act); roll.rotation.x = Math.PI / 2; roll.position.copy(P(-4, s * YS, ZS)); add(roll);
   for (const xf of [-32.6, 24.6]) { const rr = new THREE.Mesh(new THREE.TorusGeometry(46, 2.2, 10, 64), actDark); rr.position.copy(P(xf, s * YS, ZS)); add(rr); }
   const rface = new THREE.Mesh(new THREE.CylinderGeometry(22, 22, 4, 48), actDark); rface.rotation.x = Math.PI / 2; rface.position.copy(P(26, s * YS, ZS)); add(rface);
@@ -187,8 +196,6 @@ function patch(rows, z0, z1, thA, thB, grow, mat, x0 = 4, clamp = null) {
   return add(new THREE.Mesh(g, mat));
 }
 if (!EXPLODE && !XRAY) {
-  // dark yoke panel across the upper chest under the neck (front), tapering to a point toward the chest
-  patch(chest, ZS + 34, F1 + 44, z => Math.PI * (0.5 - 0.13 - 0.12 * (z - ZS - 34) / (F1 + 10 - ZS)), z => Math.PI * (0.5 + 0.13 + 0.12 * (z - ZS - 34) / (F1 + 10 - ZS)), 1.2, darkGloss);
   // socket bezel: raised white ring around each shoulder opening + dark shadow gap
   for (const sd of [1, -1]) {
     const bz = new THREE.Mesh(new THREE.TorusGeometry(SOCK_R + 3, 3.2, 14, 96), white); bz.rotation.y = Math.PI / 2; bz.position.copy(P(0, sd * 116, ZS)); add(bz);
@@ -216,8 +223,9 @@ const core = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 3, 48), accent);
 // neck collar + head placeholder
 const neck = new THREE.Mesh(new THREE.CylinderGeometry(30, 34, 50, 48), dark); neck.position.copy(P(0, 0, F1 + 58)); if (!EXPLODE) add(neck);
 const headRows = [[F1 + 70, 50, 60, 58, 3.4], [F1 + 96, 60, 76, 72, 3.6], [F1 + 190, 64, 82, 80, 3.6], [F1 + 252, 56, 70, 72, 3.2], [F1 + 276, 34, 44, 46, 2.6], [F1 + 284, 4, 4, 4, 2]];
-if (!EXPLODE) loft(headRows, F1 + 70, F1 + 284, white, 60, 96, 6);
-if (!EXPLODE) { // visor: thin dark strip following head front
+const SHOW_HEAD = false;
+if (!EXPLODE && SHOW_HEAD) loft(headRows, F1 + 70, F1 + 284, white, 60, 96, 6);
+if (!EXPLODE && SHOW_HEAD) { // visor: thin dark strip following head front
   const pos = [], idx = []; const nz = 8, nt = 48;
   for (let i = 0; i <= nz; i++) { const z = F1 + 150 + 26 * i / nz; const [hw, df, db, n] = interp(headRows, z);
     for (let j = 0; j <= nt; j++) { const th = Math.PI * (0.18 + 0.64 * j / nt); const [x, y] = ringPt(hw + 1.2, df + 1.2, db, n, th, 6);

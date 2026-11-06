@@ -17,6 +17,7 @@ mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look i
 | `SHELL_CONCEPT_VIEWS.png` | Front, side, back |
 | `SHELL_CONCEPT_PROPORTIONS.png` | Full 5 ft figure: frame as built vs a +70 mm waist section |
 | `SHELL_CONCEPT_PANELS.png` | Shoulder close-up of the collar; exploded print panels |
+| `SHELL_CONCEPT_WIDTH.png` | Latest: pec chest plate, no head, shoulders as built vs P1 +25 mm per side (the other sheets predate it) |
 
 ## Key dimensions (robot frame, X forward, Y left, Z up)
 
