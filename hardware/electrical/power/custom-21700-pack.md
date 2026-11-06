@@ -112,13 +112,29 @@ Half a day for a first pack once the parts are on the bench.
 - Insurance and the household: a 470 Wh home-built lithium pack is a real fire source. Keep a sand bucket or a lithium
   extinguisher where it charges. This is the honest cost of the custom route.
 
-## 7. Comparison
+## 7. Weight
+
+Joey asked for weight to count. Pack-level figures, as they would be mounted:
+
+| | Mass on the robot | Energy | Specific energy | Where the mass sits |
+| --- | --- | --- | --- | --- |
+| Two DCB6112 + two docks | 2.98 + 0.12 = **3.1 kg** | 432 Wh | 140 Wh/kg | Lower box, Y 88 to 348 (D3 tall) or the pelvis |
+| 13S2P P45B, holders, nickel, BMS, case | 1.82 + 0.08 + 0.05 + 0.25 = **2.2 kg** | 421 Wh | 190 Wh/kg | Lower box, centre Y 264, inside the frame |
+| 13S2P P50B, same build | **2.2 kg** | 468 Wh | 210 Wh/kg | same |
+| 13S e-bike brick | 2.8 to 3.5 kg | 500 to 700 Wh | 170 to 200 Wh/kg | Does not fit the torso |
+
+The custom pack saves about 0.9 kg against the FlexVolts for the same energy, and the saving is in the torso, above the hips,
+which is where mass hurts balance and the tip-over case most. The torso frame rev A estimate was 2.3 kg of extrusion, brackets
+and gussets; the pack is nearly a frame's worth of mass either way, so the 0.9 kg matters. The arm thread's tip-over numbers
+scale with total mass, so every kilogram in the torso costs crush distance.
+
+## 8. Comparison
 
 | | Two DCB6112 (20 V mode, series) | 13S2P custom, P45B | 13S e-bike brick (500 Wh, Hailong or bare) |
 | --- | --- | --- | --- |
 | Bus voltage | 36 V nominal | 46.8 V nominal | 46.8 V nominal |
 | Energy | 432 Wh | 421 to 468 Wh | 500 to 700 Wh |
-| Mass | 3.0 kg + docks | 2.2 kg | 2.8 to 3.5 kg |
+| Mass | 3.1 kg with docks | 2.2 kg | 2.8 to 3.5 kg |
 | Fits the rev A frame | No: 190 wide or +90 tall | **Yes, unchanged** | No: 370 × 90 × 110 class |
 | Hot swap | Yes, built in | With a second pack and OR-ing | No |
 | Safety | UL, moulded, BMS in the tool path | Yours to build | Unknown cells, usually no vendor you can reach |
