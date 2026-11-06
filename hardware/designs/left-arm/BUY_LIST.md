@@ -30,7 +30,6 @@ No catalog length matches. Buy the next size up and cut, or order a cut-to-lengt
 | Part | Qty | Spec | Where it goes |
 | --- | --- | --- | --- |
 | Hoop sleeve | 6 | Ø5 OD, 3.2 ID, 13.5 long, steel | In the hoop, X 151.7 to 165.2 |
-| Carrier sleeve | 6 | Ø5 OD, 3.2 ID, 2.5 long, steel | In the carrier, X 147.2 to 149.7, on the elbow ring |
 | Hub sleeve | 6 | Ø6 OD, 4.3 ID, 21.86 long, steel | In the top hub |
 
 Search terms: "unthreaded spacer 5 mm OD M3", "unthreaded spacer 6 mm OD M4" at McMaster-Carr. At Misumi look for collars or spacers with a configurable length, which avoids cutting. All sleeve ends must be square, because they carry the screw clamp load instead of the PETG.
@@ -40,8 +39,9 @@ Search terms: "unthreaded spacer 5 mm OD M3", "unthreaded spacer 6 mm OD M4" at 
 | Part | Qty | Spec | Where it goes |
 | --- | --- | --- | --- |
 | Bearing | 1 | 6808-2RS, 40 × 52 × 7 mm | Carrier seat on the fork stub |
-| Hoop screw | 6 | ISO 7380 button head, M3 × 25, steel | Carrier into the RS02 elbow housing |
+| Hoop screw | 6 | Button head, M3 × 22, steel. Gives 5.0 mm in the RS02 thread. ISO 7380 doesn't usually list a 22, so if none is sold use M3 × 25 cut to 24, which gives 7.0 mm against the 8 mm depth | Carrier into the RS02 elbow housing |
 | Hoop washer | 6 | DIN 125 M3, Ø7 × 0.5, steel | Under the hoop screw heads |
+| Carrier spacer washer | 12 | DIN 433 M3, Ø6 × 0.5, steel | Two per screw in the Ø6.4 carrier hole, standing in for a 1 mm sleeve on the elbow ring |
 | Retainer screw | 3 | Button head, M3 × 6, thread-forming for plastic | Holds the 6808 outer race, Ø2.7 pilot |
 | Retainer washer | 3 | DIN 9021 M3, Ø9 × 0.8, steel | Under the retainer heads, clamps the race |
 | Top hub screw | 6 | DIN 912 socket cap, M4 × 30, steel | Top hub into the RS02 yaw output |
