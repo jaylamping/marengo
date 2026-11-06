@@ -126,7 +126,8 @@ sheet([(crop(fr, w=1500), 'Front (looking -Z)'), (crop(sd, w=1100), 'Left side (
 im, m = load('inside_exp'); balloons(im, m, items={12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 32, 33, 40}, dist=120)
 sheet([(crop(im, (300, 0, 2900, 2400), w=1800), 'Everything inside the frame: shoulder RS03s and pitch brackets outward, Pi and Jetson stack up, the 13S2P pack slides out the back, power and bus board forward, waist parts below')],
       'Internal torso frame rev A: inside the frame', 'FRAME_INSIDE.png', side=bomtable({12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 32, 33, 40}),
-      notes=['Frame ghosted. Harness (yellow): exits inboard from each RS03 top-rear connector flat (Joey: one port per motor, low-front capped), pack power and sense over the pack top edge to the pack rear corner, side-band pigtails at Z 40-50, two front-corner trunks.'])
+      notes=['Frame ghosted. Harness (yellow): exits inboard from each RS03 top-rear connector flat (Joey: one port per motor, low-front capped), ',
+             'pack power and sense over the pack top edge to the pack rear corner, side-band pigtails at Z 40-50 (waist, legs, charge), two front-corner trunks; no high-current plugs on the boards (board thread 9ce67a0).'])
 # 6. packaging 2D
 p1 = Image.open('out/pack2d_front.png').convert('RGB'); p2 = Image.open('out/pack2d_side.png').convert('RGB'); p3 = Image.open('out/pack2d_plan.png').convert('RGB')
 fits = table([['Pi 5 + CAN HAT', '85 x 56 x 21', 'upper bay, shelf', 'yes, as built'], ['Jetson Orin Nano dev kit', '103 x 90.5 x 45 incl. fan', 'upper bay, 2nd shelf Y 410', 'yes, 26.9 mm/side, 20 above'],

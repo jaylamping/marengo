@@ -121,10 +121,10 @@
  },
  {
   "item": 16,
-  "name": "Insulating sheet 0.5 mm",
+  "name": "Power and logic boards on one carrier",
   "qty": 12,
   "mass_g": 377,
-  "material": "Nomex 410 0.5 mm",
+  "material": "PCB + parts, 100 x 95 x 18",
   "group": "electronics"
  },
  {
@@ -233,7 +233,7 @@
  },
  {
   "item": 30,
-  "name": "Exhaust fans 40 x 40 x 10",
+  "name": "Fans 40 x 40 x 10: 2 exhaust",
   "qty": 4,
   "mass_g": 80,
   "material": "proposed",

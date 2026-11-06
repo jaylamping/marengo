@@ -224,13 +224,13 @@ box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, 376, -71.8), 
 # power and peripheral board (board thread, main 0b6a6ef, hardware/electrical/pdb/PLAN.md s.5-6): two PCBs coplanar on one carrier, 6 x M3 at X +-46, Y 194/265/336.
 # Rear face moved from Z 34 to 37.5: 3 mm air plus a 0.5 mm insulating sheet over the pack lid (board thread ask 1). Front face Z 61.5, 8.5 mm to the front rail plane.
 PDB_Z0 = PK_Z1 + 3.5
-box('pdb_sheet', 16, 'Insulating sheet 0.5 mm (Nomex or FR4) over the pack lid, 3 mm air gap to the board', (-50, 190, PK_Z1), (50, 340, PK_Z1 + 0.5), '#e8e2c0', 'electronics', (0, 0, 90), mass_g=5, material='Nomex 410 0.5 mm', opacity=0.8)
-box('pdb_carrier', 16, 'Board carrier, printed, on the lower post inner faces; holds the two PCBs coplanar on M3 standoffs', (-50, 190, PDB_Z0), (50, 340, PDB_Z0 + 4), COL['printed'], 'electronics', (0, 0, 100), mass_g=60, material='PETG print 100 x 150 x 4', opacity=0.8)
-box('pdb', 16, 'Power board ~100 x 95 (13S BMS, fuse, precharge, contactor, motor ports, DC-DC at Y 250-290 in the intake jet) on 6 mm standoffs', (-50, 245, PDB_Z0 + 6), (50, 340, PDB_Z0 + PSU_T), COL['pdb'], 'electronics',
+box('pdb', 16, 'Power and logic boards on one carrier (BMS onboard): power board ~100 x 95 (13S BMS, fuse, precharge, contactor, motor ports, DC-DC at Y 250-290 in the intake jet) on 6 mm standoffs', (-50, 245, PDB_Z0 + 6), (50, 340, PDB_Z0 + PSU_T), COL['pdb'], 'electronics',
     (0, 0, 120), balloon=True, mass_g=180, material='PCB + parts, 100 x 95 x 18', opacity=0.7,
     note='Board thread plan main 0b6a6ef. Top edge: pack XT90 + 16-pin balance (rear face), both arm ports, USB to the Pi, fan leads. Sides: E-stop loop, charge port, sensors.')
 box('pdb_logic', 16, 'Logic / peripheral board ~100 x 55 below the power board, same carrier', (-50, 190, PDB_Z0 + 6), (50, 243, PDB_Z0 + PSU_T), COL['pdb'], 'electronics', (0, 0, 120), mass_g=70, material='PCB + parts, 100 x 55 x 18', opacity=0.7,
     note='Bottom edge: waist and leg ports, brake resistor lead.')
+box('pdb_sheet', 16, 'Insulating sheet 0.5 mm (Nomex or FR4) over the pack lid, 3 mm air gap to the board', (-50, 190, PK_Z1), (50, 340, PK_Z1 + 0.5), '#e8e2c0', 'electronics', (0, 0, 90), mass_g=5, material='Nomex 410 0.5 mm', opacity=0.8)
+box('pdb_carrier', 16, 'Board carrier, printed, on the lower post inner faces; holds the two PCBs coplanar on M3 standoffs', (-50, 190, PDB_Z0), (50, 340, PDB_Z0 + 4), COL['printed'], 'electronics', (0, 0, 100), mass_g=60, material='PETG print 100 x 150 x 4', opacity=0.8)
 for k, (xx, yy) in enumerate(((46, 194), (-46, 194), (46, 265), (-46, 265), (46, 336), (-46, 336))):
     screw(f'pdb_m3_{k}', 16, 'M3 x 8 + 6 mm standoff, board to carrier (6, 6 mm keep-out pads at X +-46, Y 194/265/336)', 'z', [xx, yy, PDB_Z0 + PSU_T], -1, (0, 0, 150), balloon=(k == 0), dia=3, head_d=5.5, head_h=1.7, length=8, color='#c9b86a')
     FAST['m3'] = FAST.get('m3', 0) + 1
@@ -285,7 +285,7 @@ box('spine_rail', 21, 'Spine rail lip on the H3 rear brackets, |X| <= 60, Y 355-
 PRO = '#26b3c9'
 box('jetson', 29, 'Jetson Orin Nano dev kit envelope 103 x 90.5 x 45 including its fan, second shelf above the Pi, ports to the rear', (-51.5, 410, -45.5), (51.5, 455, 45), PRO, 'proposed', (0, 110, 0), balloon=True, mass_g=250, material='proposed', opacity=0.75,
     note='Fits the upper bay between the RS03 rears (156.8 wide); 20 mm left above the cooler under the top rails.')
-box('fan_exhaust_1', 30, 'Exhaust fans 40 x 40 x 10 (2), PROVISIONAL: in the D1 door plane behind the frame rear face (needs a 12 mm shell gap); the 2026-11-06 reviews showed 13 mm of a fan inside the bay would blow into the top rail', (-55, 430, -80), (-15, 470, -70), PRO, 'proposed', (0, 150, 0), balloon=True, mass_g=20, material='proposed', opacity=0.75)
+box('fan_exhaust_1', 30, 'Fans 40 x 40 x 10: 2 exhaust (upper rear), 2 intake (lower front). Exhaust PROVISIONAL: in the D1 door plane behind the frame rear face (needs a 12 mm shell gap); the 2026-11-06 reviews showed 13 mm of a fan inside the bay would blow into the top rail', (-55, 430, -80), (-15, 470, -70), PRO, 'proposed', (0, 150, 0), balloon=True, mass_g=20, material='proposed', opacity=0.75)
 box('fan_exhaust_2', 30, 'Exhaust fan', (15, 430, -80), (55, 470, -70), PRO, 'proposed', (0, 150, 0), mass_g=20, material='proposed', opacity=0.75)
 box('fan_intake_hp', 30, 'Intake fan 40 x 40 x 10 in the front panel grille, Y 272-312, on the BMS FET and E-stop banks of the power board (board floorplan rev A)', (-20, 272, 70), (20, 312, 80), PRO, 'proposed', (0, 0, 120), mass_g=20, material='proposed', opacity=0.75)
 box('fan_intake_lp', 30, 'Intake fan 40 x 40 x 10 in the front panel grille, Y 193-233, on the 12/24 V DC-DC of the logic board (7 W) and the brake resistor', (-20, 193, 70), (20, 233, 80), PRO, 'proposed', (0, 0, 120), mass_g=20, material='proposed', opacity=0.75)
