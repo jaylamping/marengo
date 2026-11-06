@@ -6954,7 +6954,7 @@
 		)
 		(uuid "5ec5db55-f01d-55af-b953-3856b15edff4")
 	)
-	(global_label "WD_N"
+	(global_label "WD_N_M"
 		(shape passive)
 		(at 63.5 109.22 180)
 		(fields_autoplaced yes)
@@ -19469,7 +19469,7 @@
 		(at 337.82 332.74)
 		(uuid "546f2bfd-61af-5308-819b-6d2e9d0e488b")
 	)
-	(text "G0B1VET6 pin plan: parts check 68 of 68 against ST pin data. Extra lines beyond the plan: PC2/PC3 buck off, PF0/PF1 PG, PF3-5 rail flags, PB9 EN_CLEAN3. PF10 was BOARD_PRESENT, now BANK_B_CLOSE. PC9 WD_KICK, PE15 FLT_A, PE0 ESTOP_ARMED, PE1 WD_N. PD8-11, PD15, PD2 are now PORT_REQ, gated in hardware to PORT_EN.\nI2C: 3 hardware buses. I2C1 HP meters, I2C2 AFE, I2C3 to TCA9546A at 0x70 (ch0 meters A, ch1 meters B, ch2 Qwiic, ch3 spare).\nFive NTC channels sit on 10k to the ADC reference. NTC_BOARD1 also reads open when the HP board is missing: replaces BOARD_PRESENT."
+	(text "G0B1VET6 pin plan: parts check 68 of 68 against ST pin data. Extra lines beyond the plan: PC2/PC3 buck off, PF0/PF1 PG, PF3-5 rail flags, PB9 EN_CLEAN3. PF10 was BOARD_PRESENT, now BANK_B_CLOSE. PC9 WD_KICK, PE15 FLT_A, PE0 ESTOP_ARMED, PE1 WD_N read-back, input only, 10k in series. PD8-11, PD15, PD2 are now PORT_REQ, gated in hardware to PORT_EN.\nI2C: 3 hardware buses. I2C1 HP meters, I2C2 AFE, I2C3 to TCA9546A at 0x70 (ch0 meters A, ch1 meters B, ch2 Qwiic, ch3 spare).\nFive NTC channels sit on 10k to the ADC reference. NTC_BOARD1 also reads open when the HP board is missing: replaces BOARD_PRESENT."
 		(exclude_from_sim no)
 		(at 190.5 254 0)
 		(effects

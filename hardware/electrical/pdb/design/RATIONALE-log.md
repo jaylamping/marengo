@@ -316,7 +316,7 @@ All 4 blockers and 18 majors from [GATE3_REVIEW.md](GATE3_REVIEW.md) are in. Par
 
 ### Three defaults, Joey can veto each
 
-**Default 1, ports.** Keep the 15 A wiring. Add an independent hardware watchdog, TPS3431S (U2031). It starts itself at power-up: SET1 high, CWD open gives 1.6 s (1.36 to 1.84 s). No firmware can start or stop it. WDO and ENOUT on WD_N, which clears both E-stop latches. Latch A's Q̄ drives the OE̅ pins of SN74LVC244A U2032, which sits between PORT_REQ1-6 and PORT_EN1-6, so every port enable tri-states and its 100 kΩ on HP pulls it off. Both E-stop enables drop with the latches. Compute rails are untouched. Firmware kicks WD_KICK from the main loop only, after the port and pack checks ran. A shorted port FET still ends at the blade fuse; that was accepted.
+**Default 1, ports.** Keep the 15 A wiring. Add an independent hardware watchdog, TPS3431S (U2031). It starts itself at power-up: SET1 high, CWD open gives 1.6 s (1.36 to 1.84 s). No firmware can start or stop it. WDO and ENOUT on WD_N, which clears both E-stop latches. Latch A's Q̄ drives the OE̅ pins of SN74LVC244A U2032, which sits between PORT_REQ1-6 and PORT_EN1-6, so every port enable tri-states and its 100 kΩ on HP pulls it off. Both E-stop enables drop with the latches. Compute rails are untouched. Firmware kicks WD_KICK from the main loop only, after the port and pack checks ran. PE1 reads WD_N through 10 kΩ, so firmware cannot hold it up. WDO is a 200 ms pulse, not a latch: with a hung supervisor, a reset press re-arms for up to 1.84 s. A shorted port FET still ends at the blade fuse; that was accepted.
 
 **Default 2, CAN.** Replace isolated transceivers with non-isolated TCAN1462V-Q1 (VIO on pin 5, SOIC-8, TCAN1462VDRQ1 listed in SLLSFF2B). Reason: the motors reference CAN to their power GND and the RS03 housings are at GND, so isolation bought little. Pins ±58 V to GND, ±45 V differential.
 
@@ -332,8 +332,8 @@ Termination is split at the port connector: 56 Ω + 56 Ω PWR263S-35-56R0F, TERM
 
 | Fault | Result |
 |---|---|
-| H or L alone to 54.6 V | The other line follows through the termination. Dominant current about 115 mA gives about 14 V across the termination, inside ±45 V. Pins inside ±58 V unless V_PORT is above 58 V (regen, mini clamp up to 59.4 V: double fault, accepted) |
-| H at 54.6 V, L hard to GND | 24.8 W, 12.4 W each. PTC opens in about 2 s (0.5 A in 1.5 s max), about 25 J each. Within the 35 W part on HP copper. Differential exceeds ±45 V, so the transceiver may need replacing. No fire |
+| H or L alone to 54.6 V | The other line follows through the termination. Dominant current about 115 mA (specified only to 40 V) gives about 14 V across the termination, inside ±45 V. Pins inside ±58 V unless V_PORT is above 58 V (regen, mini clamp up to 59.4 V: double fault, accepted) |
+| H at 54.6 V, L hard to GND | 0.43 to 0.48 A, 24 to 26.4 W, up to 13.2 W each. The PTC's guarantee is 0.5 A in 1.5 s at 23 °C, and this is below that point, so clearing time is not guaranteed: about 2 s expected, bench test owed. Part rating is 35 W at 25 °C case with tab on GND copper, 3.5 W free air. Differential exceeds ±45 V, so the transceiver may need replacing |
 
 The old 0402 took 24.8 W at the same fault. The SMAJ58CA stays off at 54.6 V and is for ESD only.
 
@@ -343,7 +343,7 @@ The old 0402 took 24.8 W at the same fault. The SMAJ58CA stays off at 54.6 V and
 |---|---|
 | B1 | U302 EN and INP2 on ESTOP_EN_B, INP1 on BANK_B_CLOSE with 100 kΩ down. Text and check.py corrected |
 | B2 | D220 V10PM15-M3/I, 3-pin symbol, TO-277A. Vishay doc 87432: pads 1, 2 anode, tab cathode. Reversed charger 109 V is under 150 V. TVS surge plus reversal is a double fault |
-| B3 | Custom PWR263S symbol: terminals on pads 1, 3, tab pad 2 no-connect. Bourns PWR263S-35: "electrically isolated from the backplate", 5.08 mm pitch. R209, precharge, mini clamp, termination. Pulse chart about 10 J at 100 ms against 2.68 J and 2.2 J. 35 W at 25 °C case; 3.5 W at ambient on a small FR4 test board, so copper matters |
+| B3 | Custom PWR263S symbol: terminals on pads 1, 3, tab pad 2 no-connect. Bourns PWR263S-35: "electrically isolated from the backplate", 5.08 mm pitch. R209, precharge, mini clamp, termination. Pulse chart about 10 J at 100 ms against 2.68 J and 2.2 J. 35 W at 25 °C case; 3.5 W at ambient on a small FR4 test board, so copper matters: tab pad on GND (isolated part) |
 | B4 | F2201 to F2214: Schurter 3-148-693 USE 2410, 1 A, 200 A at 86 VDC (τ under 0.05 ms), 79 mΩ, against 146 A prospective. Balance error 24 mV at 150 mA. Footprint is a 2010 stand-in; the 2410 land is owed before layout |
 
 ### Majors
@@ -352,20 +352,20 @@ The old 0402 took 24.8 W at the same fault. The SMAJ58CA stays off at 54.6 V and
 |---|---|
 | M1 | U1104 and its input caps on VSYS_OR, so 3V3_AON rides the hold-up bank |
 | M2 | BUCK12_OFF 100 kΩ to GND: default on, a hung supervisor leaves 12 V up. BUCK24_OFF stays pulled up |
-| M3 | EN_INV pulled from VMOT through 1 MΩ with a 12 V zener. Losing VCLAMP12 or PORT_EN leaves Q2 on and the port off |
+| M3 | EN_INV pulled from VMOT through 1 MΩ with a 12 V zener. Q3 sinks it through a new BSS123 gated by VCLAMP12, 1 MΩ down. Losing VCLAMP12 or PORT_EN leaves Q2 on and the port off |
 | M4 | Default 1 |
-| M5 | R209 PWR263S. Load 1.46 mF, 2.2 J, tau 0.146 s, peak 29.8 W. OTP Predischarge Timeout 0, Stop Delta 2500 mV |
+| M5 | R209 PWR263S, tab on GND. Load 1.46 mF, 2.2 J, tau 0.146 s, peak 29.8 W. OTP Predischarge Timeout 100 (1.0 s), Stop Delta 2500 mV. Pass 2 reversed Timeout 0: Stop Delta needs under 25 mA, so a loaded VSYS would never exit. Firmware holds BUCK12_OFF high at boot until DSG is on. A VSYS short: about 30 J in R209, then SCD. The pulse chart stops at 0.1 s, so bench it |
 | M6 | DFETOFF 0x42 |
-| M7 | J2.4 is B0, a Kelvin tab net, 10 kΩ to BAT-. J2.3 is VSS (NTC and presence return). Cell 1 balance source B0. VC0 below VSS by the return drop, about 90 mV at 60 A with 1.5 mΩ assumed, inside the -0.3 V limit. Deviation from datasheet p70, which ties VC0 to VSS. Cell 1 Interconnect 0 |
-| M8 | J2201.3 NTC_RET, J2201.13 PRES, J2202 1 × 16 with pins 15, 16 looped in the tap plug. Either plug out opens DSG and CHG |
-| M9 | Q211 MMBT2907A local turn-off (ratings from memory; PBSS5240T data could not be fetched). 844 nC max in about 1.5 µs. FET sharing to scope |
+| M7 | J2.4 is B0, a Kelvin tab net, 10 kΩ to BAT-. J2.3 is VSS (NTC and presence return). Cell 1 balance source B0. VC0 below VSS by the return drop, about 90 mV at 60 A with 1.5 mΩ assumed, inside the limit. D15 B140 (Vf from memory) clamps VC0 near -0.3 V in a short (-0.3 V at 200 A, R14 limits current). Deviation from datasheet p70, which ties VC0 to VSS. Cell 1 Interconnect 0 |
+| M8 | J2201.3 NTC_RET, J2201.13 PRES, J2202 1 × 16 with pins 1, 2 looped in the tap plug, beside B0 and away from B13. Either plug out opens DSG and CHG |
+| M9 | Q211 MMBT2907A local turn-off, 220 Ω in series with the base, 10 kΩ base-emitter. Diodes Inc gives 600 mA, 800 mA peak, 200 mA peak base. 844 nC max in about 2 µs. FET sharing to scope |
 | M10 | OCD1 24 mV, OCC 12 mV, table above. V(OC_ACC) -2/+2.65 mV under 20 mV, ±4 mV 20 to 56 mV, ±5 mV 56 to 100 mV |
-| M11 | U301 uses SCP: CS on RS201 (Kelvin, high side), ISCP 10.5 kΩ = 31.6 to 49.5 mV = 105 to 165 A on 0.3 mΩ. That sits above OCD1 max 93 A and below SCD min 170 A. TMR 100 kΩ + 680 pF, about 10 µs, latch-off. Bank A opens, compute stays up. Reset by E-stop cycle. FLT_A to MCU PE15. Monitored after G1 is good, so a close does not false-trip |
-| M12 | Default 3. Loop GH4s are signal, GND, signal, GND, so pin-to-pin shorts land on GND and open the loop. Wireless receiver power has its own GH2 with a 0.5 A polyfuse. Residual: a cable short across one contact pair still defeats the series loop; one series loop feeds both channels. Not Cat 3 |
+| M11 | U301 uses SCP: CS on RS201 (Kelvin, high side), ISCP 10.5 kΩ = 31.6 to 49.5 mV = 105 to 165 A on 0.3 mΩ. That sits above OCD1 max 93 A and below SCD min 170 A. TMR 100 kΩ + 680 pF, about 10 µs, latch-off. Bank A opens, compute stays up. Reset by E-stop cycle or a SUP_OPEN_A pulse, so firmware bounds retries. FLT_A to MCU PE15, read with ESTOP_ARMED because FLT also asserts on UVLO. Bank B closes at 0.5 V or less to stay under the trip: 0.84 s, 1.01 s at +20 %, firmware timeout 1.2 s, which opens the loop |
+| M12 | Default 3. Loop GH4s are signal, GND, signal, GND, so pin-to-pin shorts land on GND and open the loop. Wireless receiver power has its own GH2 with a 0.5 A polyfuse. 10 kΩ + 100 nF on CLR rides through contact chatter, adding about 1.4 ms to a stop. Residuals: a cable short across one contact pair still defeats the series loop, and so does WL_12V shorted to LOOP_TH at the receiver: keep its power and contact wires in separate cables. One series loop feeds both channels. Not Cat 3 |
 | M13 | NC thermostat on the brake plate, in the E-stop loop (off-board, part and placement owed from the frame thread, about 100 °C class). Stuck-on 322 W into the HS25 opens the banks in hardware |
 | M14 | Clamp top 604 kΩ, window below |
 | M15 | 3 × 100 µF 80 V hybrid PACK_TOP to GND. Surge table below |
-| M16 | U1321 INA238 on a 2 mΩ shunt between L12_OUT and +12V. ALERT latched at 12.0 A, about 150 µs conversion, U1322 and three 2N7002 sink EN_12V_THIRD, AUX, SPARE through the supervisor's 1 kΩ series resistors. Firmware steps: fans above 10.5 A, third board above 11.0 A, 500 ms. Pi stub and Jetson only above 12.4 A for 1 s after hardware shed, and after telling the host. PG_12V falling alone logs only |
+| M16 | Firmware must configure U1321's alert limit at boot; its default never trips. Load-step droop against 12.5 A is a bench check. U1321 INA238 on a 2 mΩ shunt between L12_OUT and +12V. ALERT latched at 12.0 A, about 150 µs conversion, U1322 and three 2N7002 sink EN_12V_THIRD, AUX, SPARE through the supervisor's 1 kΩ series resistors. Firmware steps: fans above 10.5 A, third board above 11.0 A, 500 ms. Pi stub and Jetson only above 12.4 A for 1 s after hardware shed, and after telling the host. PG_12V falling alone logs only |
 | M17 | Default 2 |
 | M18 | Passes, no change, below |
 
@@ -385,21 +385,28 @@ Brake resistor is now Arcol HS25 10 Ω 25 W on all sheets (frame main 04983bb). 
 
 ### Stack surge (M15)
 
-0.36 J at 2 µH, 600 A. Limits: caps 80 V, INA228 85 V, FET 100 V, TPS7A4001 100 V, LM5069 100 V, LM5145 105 V abs max.
+Pass 2 replaced the energy estimate: the pack stays connected behind the inductance after the FETs open, so a stored-energy sum understates the peak. Limits: caps 80 V, INA228 85 V, FET 100 V, TPS7A4001 100 V, LM5069 100 V, LM5145 105 V abs max, U1 CHG VSS + 85 V.
 
-C = 3 × 100 µF. LC peak √(54.6² + 2 × 0.36 / C): 73 V nominal, 77 V at -20 %. ESR sits at the start of the pulse, when C is at 54.6 V, so it does not stack with the peak. The FET stays out of avalanche and D206 (from 64.4 V) stays a backstop, so the earlier claim that the TVS kept the FET out of avalanche no longer applies. Leakage up to 240 µA in ship mode before ageing. Plug-in inrush into 300 µF at the XT90 is ESR-limited: check the connector on the bench. 2 µH is an assumed harness inductance.
+Time-step model: pack EMF 54.6 V, 2 µH, 90 mΩ (PLAN pack resistance 90 to 110 mΩ, which is also what limits the fault to 600 A), I0 600 A, C from 54.6 V, ESR 6 mΩ, D206 from 64.4 V at 0.91 Ω.
+
+| C | 90 mΩ | 110 mΩ, 496 A |
+|---|---|---|
+| 4 × 100 µF at -20 % | 77.5 V | 71.8 V |
+| 4 × 100 µF nominal | 74.0 V | 69.1 V |
+
+At 3 µH and 320 µF it is 85 V, over the caps and at INA228's limit: measure the inductance. D206 conducts in this event. CHG_G sits about 11 V above the stack through 5.1 kΩ, so U1's CHG limit is close. Leakage up to 320 µA in ship mode before ageing. Plug-in inrush into 400 µF at the XT90 is ESR-limited: check the connector on the bench. The pack's Class T fuse covers a shorted part on PACK_TOP.
 
 ### M18, start-up SOA
 
-Checked against Infineon IPB017N10N5LF Rev 2.3, Diagram 3 (Tc 25 °C), read from the curves. C = 3.6 mF, 5.37 J.
+Checked against Infineon IPB017N10N5LF Rev 2.3, Diagram 3 (Tc 25 °C), read from the curves. C = 3.6 mF, 5.37 J. Corrected in pass 2: Tj uses the 0.4 K/W maximum.
 
 | Case | Peak | Against SOA |
 |---|---|---|
-| T = 117 ms | 1.68 A, 92 W at 54.6 V | DC line about 4 A at 54 V, 2.06 A at Tc 85 °C. 1.2× margin. Tj rise 92 W × 0.37 K/W = 34 K |
+| T = 117 ms | 1.68 A, 92 W at 54.6 V | DC line about 4 A at 54 V, 2.06 A at Tc 85 °C. 1.2× margin. Tj rise 92 W × 0.4 K/W = 37 K |
 | T = 257 ms | 0.76 A, 42 W | Passes |
-| Fault limit 200 W | 3.66 A for up to 9 ms | 10 ms curve about 12 A, 6.2 A at 85 °C. Passes |
+| Fault limit 200 W | 3.66 A for up to 9 ms | Datasheet 10.2 A at 56 V, 10 ms, about 5.3 A at 85 °C. Passes |
 
-Inrush is set by dV/dt, not C, so more capacitance only extends the time. No timer or dV/dt change.
+No timer or dV/dt change at 3.6 mF. Inrush is C × dV/dt, so more drive capacitance raises the current: at T = 117 ms the hot DC limit of 2.06 A is reached at 4.4 mF. 3.6 mF is therefore a ceiling for this setting, and the real drive capacitance needs measuring.
 
 ### Minors picked up
 
@@ -407,4 +414,4 @@ C14 1 µF 100 V 1206. D1 BAV19W. U401 thermal pad on pad 9. U201 address text 0x
 
 ### Tools
 
-check.py now audits every footprint with 3 or more pads, pad against symbol pin, both ways (241 parts). Run on the pre-fix netlist it fails 10 times, on D220, all the PWR263S parts and U401. On this netlist it passes.
+check.py now audits every footprint with 3 or more pads, pad against symbol pin, both ways (247 parts). Run on the pre-fix netlist it fails 10 times, on D220, all the PWR263S parts and U401. On this netlist it passes.

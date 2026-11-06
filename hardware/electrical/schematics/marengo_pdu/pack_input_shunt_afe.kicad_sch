@@ -11707,7 +11707,7 @@
 		)
 		(uuid "5af139ad-b541-5910-8ff6-7e642042ec17")
 	)
-	(text "Keeps VC0 defined with the harness out. 9 uA at 60 A."
+	(text "Keeps VC0 defined with the harness out. 9 uA at 60 A. D15 clamps VC0 near -0.3 V in a short (1.5 mOhm return, -0.3 V at 200 A), R14 limits it."
 		(exclude_from_sim no)
 		(at 30.48 165.1 0)
 		(effects
@@ -11717,6 +11717,164 @@
 			(justify left top)
 		)
 		(uuid "00291640-6bdd-5694-9438-e1cb2ce9cdee")
+	)
+	(wire
+		(pts
+			(xy 68.58 160.02)
+			(xy 73.66 160.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1e1cf3bb-f516-5ae6-8e86-43c59ecfce0d")
+	)
+	(label "VC0"
+		(at 73.66 160.02 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "974a9f6e-ff9b-5440-8047-41ba4b973759")
+	)
+	(symbol
+		(lib_id "Device:D")
+		(at 64.77 160.02 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "156c74a5-c31f-55ea-ad3f-78ad4b598c82")
+		(property "Reference" "D15"
+			(at 64.77 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "B140-13-F 40V 1A"
+			(at 64.77 162.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMA"
+			(at 64.77 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 64.77 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 64.77 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d9ccbb31-3d5b-59a1-8730-5fc242ccd057")
+		)
+		(pin "2"
+			(uuid "e2346631-b779-53a4-89c9-a1055b55a584")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "D15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:VSS")
+		(at 60.96 160.02 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "fcdc2685-e23c-582d-bfd1-c78a42c144c9")
+		(property "Reference" "#PWR13"
+			(at 60.96 157.48 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "VSS"
+			(at 60.96 162.56 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 60.96 160.02 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 60.96 160.02 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 60.96 160.02 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "4bfc2ec6-c58d-57c2-b15b-7bc55b796e26")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
+					(reference "#PWR13")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(text "External balance, SLUAA81A Fig 2-2: internal FET current through VC(n-1) input resistor gives Vgs. 3.9 V: 1.59 V min (RCB 46 R). SSM3K56FS is specified at 1.5 V for 50 mA only and 1.8 V for 200 mA: check Rds at 150 mA on the bench, top cell worst case 2.35 V.\nRbal 27R: 140-150 mA external at 3.9-4.2 V, plus 17-19 mA internal. Cell Balance Max Cells 4: about 2.5 W total."
 		(exclude_from_sim no)
@@ -11728,7 +11886,7 @@
 			)
 			(justify left top)
 		)
-		(uuid "1e1cf3bb-f516-5ae6-8e86-43c59ecfce0d")
+		(uuid "579a539d-8e52-51f8-8c63-93a1df8d5c4b")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -11811,7 +11969,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "974a9f6e-ff9b-5440-8047-41ba4b973759")
+		(uuid "5d2f78cd-72da-5b54-b489-54671e913ffc")
 	)
 	(label "B1"
 		(at 38.1 313.69 90)
@@ -11821,7 +11979,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "579a539d-8e52-51f8-8c63-93a1df8d5c4b")
+		(uuid "f14229d1-d4da-5990-beb0-7b09ed0963fd")
 	)
 	(wire
 		(pts
@@ -11832,7 +11990,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "5d2f78cd-72da-5b54-b489-54671e913ffc")
+		(uuid "9b516c20-29d3-5a87-b54e-c917c0864367")
 	)
 	(label "BD1"
 		(at 38.1 326.39 270)
@@ -11842,7 +12000,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "f14229d1-d4da-5990-beb0-7b09ed0963fd")
+		(uuid "2fecd139-dd46-5546-bb62-fe59c18795ff")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -11928,31 +12086,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9b516c20-29d3-5a87-b54e-c917c0864367")
+		(uuid "8159cd87-0772-567f-8241-e0602e176ef7")
 	)
 	(label "BG1"
 		(at 52.07 320.04 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "2fecd139-dd46-5546-bb62-fe59c18795ff")
-	)
-	(wire
-		(pts
-			(xy 64.77 325.12)
-			(xy 64.77 330.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8159cd87-0772-567f-8241-e0602e176ef7")
-	)
-	(label "B0"
-		(at 64.77 330.2 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -11963,6 +12100,27 @@
 	)
 	(wire
 		(pts
+			(xy 64.77 325.12)
+			(xy 64.77 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "67d19b20-b2cc-5bcc-b2d3-0da5dc5f2ee1")
+	)
+	(label "B0"
+		(at 64.77 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "439009fd-bc99-5f50-b468-a73e6b9f6755")
+	)
+	(wire
+		(pts
 			(xy 64.77 314.96)
 			(xy 64.77 309.88)
 		)
@@ -11970,7 +12128,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "67d19b20-b2cc-5bcc-b2d3-0da5dc5f2ee1")
+		(uuid "bf9b56ac-2d6c-512d-90bd-3673f659bef7")
 	)
 	(label "BD1"
 		(at 64.77 309.88 90)
@@ -11980,7 +12138,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "439009fd-bc99-5f50-b468-a73e6b9f6755")
+		(uuid "43cfa960-ec33-598a-8c05-0af84c82b351")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -12063,7 +12221,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "bf9b56ac-2d6c-512d-90bd-3673f659bef7")
+		(uuid "3154ead5-91db-5260-8fef-3782133d9a98")
 	)
 	(label "BG1"
 		(at 76.2 313.69 90)
@@ -12073,7 +12231,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "43cfa960-ec33-598a-8c05-0af84c82b351")
+		(uuid "f074f943-7bf2-533a-adcd-e1ed22b674a4")
 	)
 	(wire
 		(pts
@@ -12084,7 +12242,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "3154ead5-91db-5260-8fef-3782133d9a98")
+		(uuid "6f98a2d3-48e4-5adb-960c-1b784ad6d5ea")
 	)
 	(label "VC0"
 		(at 76.2 326.39 270)
@@ -12094,7 +12252,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "f074f943-7bf2-533a-adcd-e1ed22b674a4")
+		(uuid "12652f77-d96c-57d6-80c1-d78ca73bb74f")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -12104,8 +12262,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "0b254e00-4ce3-568c-9a76-6b6864dc9be0")
-		(property "Reference" "D2"
+		(uuid "041c23c7-5be3-50a9-88b1-33c3b2bc4af8")
+		(property "Reference" "D16"
 			(at 96.52 318.77 90)
 			(effects
 				(font
@@ -12149,15 +12307,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "b6f269fa-9357-5d89-b656-0023e61dd47c")
+			(uuid "cb88d340-a70c-57e8-b1cc-25e5ca62d505")
 		)
 		(pin "2"
-			(uuid "2c40b3f1-8d60-53a5-9798-71007506b5aa")
+			(uuid "b70c684d-ce2f-5e39-9e68-992a335e99e1")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D2")
+					(reference "D16")
 					(unit 1)
 				)
 			)
@@ -12172,7 +12330,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "6f98a2d3-48e4-5adb-960c-1b784ad6d5ea")
+		(uuid "f25adabe-ab42-534d-afe0-43acde8a5ea0")
 	)
 	(label "BG1"
 		(at 93.98 313.69 90)
@@ -12182,7 +12340,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "12652f77-d96c-57d6-80c1-d78ca73bb74f")
+		(uuid "d1818be0-1438-5166-a363-18d1b173444f")
 	)
 	(wire
 		(pts
@@ -12193,7 +12351,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f25adabe-ab42-534d-afe0-43acde8a5ea0")
+		(uuid "8dcd68cb-095e-5af4-a743-a5999307f943")
 	)
 	(label "B0"
 		(at 93.98 326.39 270)
@@ -12203,7 +12361,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "d1818be0-1438-5166-a363-18d1b173444f")
+		(uuid "a73c59db-e6a8-5027-8af2-d523fdc882e1")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -12286,7 +12444,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "8dcd68cb-095e-5af4-a743-a5999307f943")
+		(uuid "37c1bdf8-e1b0-59db-b4ab-0b2993942d28")
 	)
 	(label "B2"
 		(at 115.57 313.69 90)
@@ -12296,7 +12454,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "a73c59db-e6a8-5027-8af2-d523fdc882e1")
+		(uuid "4acc6227-2e52-5ba0-af95-cb8822df4f41")
 	)
 	(wire
 		(pts
@@ -12307,7 +12465,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "37c1bdf8-e1b0-59db-b4ab-0b2993942d28")
+		(uuid "a57dbc80-4f51-5448-9a66-329b67e1e850")
 	)
 	(label "BD2"
 		(at 115.57 326.39 270)
@@ -12317,7 +12475,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "4acc6227-2e52-5ba0-af95-cb8822df4f41")
+		(uuid "c8ad277c-6684-512c-9810-8ce34be78a6e")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -12403,31 +12561,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a57dbc80-4f51-5448-9a66-329b67e1e850")
+		(uuid "58b2b52e-e001-5035-8d73-81497a030240")
 	)
 	(label "BG2"
 		(at 129.54 320.04 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "c8ad277c-6684-512c-9810-8ce34be78a6e")
-	)
-	(wire
-		(pts
-			(xy 142.24 325.12)
-			(xy 142.24 330.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "58b2b52e-e001-5035-8d73-81497a030240")
-	)
-	(label "B1"
-		(at 142.24 330.2 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -12438,6 +12575,27 @@
 	)
 	(wire
 		(pts
+			(xy 142.24 325.12)
+			(xy 142.24 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b560df13-4faa-5ac6-a46b-943bd8ad0c9e")
+	)
+	(label "B1"
+		(at 142.24 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "21f0c6c3-71ec-53ca-8ffd-95ca2552ada2")
+	)
+	(wire
+		(pts
 			(xy 142.24 314.96)
 			(xy 142.24 309.88)
 		)
@@ -12445,7 +12603,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b560df13-4faa-5ac6-a46b-943bd8ad0c9e")
+		(uuid "82b27b28-b4cc-5225-964a-c97bf538522c")
 	)
 	(label "BD2"
 		(at 142.24 309.88 90)
@@ -12455,7 +12613,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "21f0c6c3-71ec-53ca-8ffd-95ca2552ada2")
+		(uuid "ce02cb51-d369-5e08-933f-aabc0b8276f4")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -12538,7 +12696,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "82b27b28-b4cc-5225-964a-c97bf538522c")
+		(uuid "0f466ab6-dc2b-521c-9894-052482cfed0a")
 	)
 	(label "BG2"
 		(at 153.67 313.69 90)
@@ -12548,7 +12706,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "ce02cb51-d369-5e08-933f-aabc0b8276f4")
+		(uuid "a72fbaff-e52f-523b-8b12-76909763e5fb")
 	)
 	(wire
 		(pts
@@ -12559,7 +12717,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "0f466ab6-dc2b-521c-9894-052482cfed0a")
+		(uuid "d3842ce9-785e-5a5a-b21b-0bfaa1162f8f")
 	)
 	(label "VC1"
 		(at 153.67 326.39 270)
@@ -12569,7 +12727,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "a72fbaff-e52f-523b-8b12-76909763e5fb")
+		(uuid "607b0b01-f044-5d2f-89d9-390dde51699b")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -12579,8 +12737,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "b1bbc9ce-8052-5db8-89f3-e6ebc797dec9")
-		(property "Reference" "D3"
+		(uuid "33898ce9-ec32-5d22-847f-e08d8405acba")
+		(property "Reference" "D17"
 			(at 173.99 318.77 90)
 			(effects
 				(font
@@ -12624,15 +12782,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "fb2c2ca1-75ca-511d-8a8a-ebddd0b5c5f1")
+			(uuid "6cb9e360-c3ba-5fda-97d9-06a62ae7e937")
 		)
 		(pin "2"
-			(uuid "1243f273-9f0c-59a8-abab-e9e4aae96bc3")
+			(uuid "74cf8b38-1906-5279-ade9-30b70abac75a")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D3")
+					(reference "D17")
 					(unit 1)
 				)
 			)
@@ -12647,7 +12805,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "d3842ce9-785e-5a5a-b21b-0bfaa1162f8f")
+		(uuid "41bec914-9989-575b-9212-7504e4172b15")
 	)
 	(label "BG2"
 		(at 171.45 313.69 90)
@@ -12657,7 +12815,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "607b0b01-f044-5d2f-89d9-390dde51699b")
+		(uuid "3295efe3-1b98-5112-8457-fa4497a8e8e3")
 	)
 	(wire
 		(pts
@@ -12668,7 +12826,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "41bec914-9989-575b-9212-7504e4172b15")
+		(uuid "7ae7c52b-36f6-5e69-bd5d-6b9f0637d388")
 	)
 	(label "B1"
 		(at 171.45 326.39 270)
@@ -12678,7 +12836,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "3295efe3-1b98-5112-8457-fa4497a8e8e3")
+		(uuid "bfd3a5ee-346c-594c-9316-5d94e8804376")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -12761,7 +12919,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "7ae7c52b-36f6-5e69-bd5d-6b9f0637d388")
+		(uuid "3a58fc14-3a1a-5974-90c6-6966594893cc")
 	)
 	(label "B3"
 		(at 194.31 313.69 90)
@@ -12771,7 +12929,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "bfd3a5ee-346c-594c-9316-5d94e8804376")
+		(uuid "bdb06f8e-c845-5b07-b247-0de843e94b33")
 	)
 	(wire
 		(pts
@@ -12782,7 +12940,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "3a58fc14-3a1a-5974-90c6-6966594893cc")
+		(uuid "7144c70b-6c6c-54bb-8643-072b973e6dab")
 	)
 	(label "BD3"
 		(at 194.31 326.39 270)
@@ -12792,7 +12950,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "bdb06f8e-c845-5b07-b247-0de843e94b33")
+		(uuid "4e3bce10-12f9-5c8c-b3a0-91a67b083f26")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -12878,31 +13036,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "7144c70b-6c6c-54bb-8643-072b973e6dab")
+		(uuid "151a81b8-4dd6-5514-8ca4-f5f69edbdf6f")
 	)
 	(label "BG3"
 		(at 208.28 320.04 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "4e3bce10-12f9-5c8c-b3a0-91a67b083f26")
-	)
-	(wire
-		(pts
-			(xy 220.98 325.12)
-			(xy 220.98 330.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "151a81b8-4dd6-5514-8ca4-f5f69edbdf6f")
-	)
-	(label "B2"
-		(at 220.98 330.2 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -12913,6 +13050,27 @@
 	)
 	(wire
 		(pts
+			(xy 220.98 325.12)
+			(xy 220.98 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "20e270d3-c203-585f-9f64-33f3e4718256")
+	)
+	(label "B2"
+		(at 220.98 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "b28b3112-9149-525e-81d3-d2ee27212ed3")
+	)
+	(wire
+		(pts
 			(xy 220.98 314.96)
 			(xy 220.98 309.88)
 		)
@@ -12920,7 +13078,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "20e270d3-c203-585f-9f64-33f3e4718256")
+		(uuid "7483269a-d87e-5086-b817-0ba5b181ce82")
 	)
 	(label "BD3"
 		(at 220.98 309.88 90)
@@ -12930,7 +13088,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "b28b3112-9149-525e-81d3-d2ee27212ed3")
+		(uuid "005d8e1e-cefd-5b32-9626-3c2c9cb897aa")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -13013,7 +13171,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "7483269a-d87e-5086-b817-0ba5b181ce82")
+		(uuid "01bd19b9-5180-5b19-958b-81031df28b04")
 	)
 	(label "BG3"
 		(at 232.41 313.69 90)
@@ -13023,7 +13181,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "005d8e1e-cefd-5b32-9626-3c2c9cb897aa")
+		(uuid "9ab82ab4-7cef-5de0-8ad4-7d312de5a43f")
 	)
 	(wire
 		(pts
@@ -13034,7 +13192,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "01bd19b9-5180-5b19-958b-81031df28b04")
+		(uuid "14c92192-51c8-5e0e-bff3-4d6436009ad8")
 	)
 	(label "VC2"
 		(at 232.41 326.39 270)
@@ -13044,7 +13202,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "9ab82ab4-7cef-5de0-8ad4-7d312de5a43f")
+		(uuid "55f90128-39ce-5bec-b2ac-e983e5271bf2")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -13054,8 +13212,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "e0d4e47c-94a5-5ffa-860f-0cc7da6010f5")
-		(property "Reference" "D4"
+		(uuid "16fb4694-4dac-52c2-b17c-a469d6bcf3a6")
+		(property "Reference" "D18"
 			(at 252.73 318.77 90)
 			(effects
 				(font
@@ -13099,15 +13257,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "b4c2d958-0342-5f96-b66d-756bf2a724b6")
+			(uuid "27da2ab3-af95-5dd5-aa32-123c3dee514e")
 		)
 		(pin "2"
-			(uuid "5915ee65-a4c3-54a8-89cc-77012054d34b")
+			(uuid "01a5ffc2-dd4d-5398-ba4b-55226825c1ed")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D4")
+					(reference "D18")
 					(unit 1)
 				)
 			)
@@ -13122,7 +13280,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "14c92192-51c8-5e0e-bff3-4d6436009ad8")
+		(uuid "9e9a7cbf-040d-5b36-a6ba-fb01262ca6f2")
 	)
 	(label "BG3"
 		(at 250.19 313.69 90)
@@ -13132,7 +13290,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "55f90128-39ce-5bec-b2ac-e983e5271bf2")
+		(uuid "d97ae909-5122-5416-bf27-5682c9bfa2d6")
 	)
 	(wire
 		(pts
@@ -13143,7 +13301,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9e9a7cbf-040d-5b36-a6ba-fb01262ca6f2")
+		(uuid "dd344648-2dbe-5e97-804d-a425ad7ade43")
 	)
 	(label "B2"
 		(at 250.19 326.39 270)
@@ -13153,7 +13311,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "d97ae909-5122-5416-bf27-5682c9bfa2d6")
+		(uuid "bfaa9afc-7ede-503d-ae57-d202707208fa")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -13236,7 +13394,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "dd344648-2dbe-5e97-804d-a425ad7ade43")
+		(uuid "204838fb-e3d0-5079-aedc-b060b43b0c77")
 	)
 	(label "B4"
 		(at 271.78 313.69 90)
@@ -13246,7 +13404,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "bfaa9afc-7ede-503d-ae57-d202707208fa")
+		(uuid "c9763eb1-6b3a-56ef-89ac-6a49e70fc926")
 	)
 	(wire
 		(pts
@@ -13257,7 +13415,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "204838fb-e3d0-5079-aedc-b060b43b0c77")
+		(uuid "777a5fc5-29cb-5502-b0fa-63232ac10746")
 	)
 	(label "BD4"
 		(at 271.78 326.39 270)
@@ -13267,7 +13425,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "c9763eb1-6b3a-56ef-89ac-6a49e70fc926")
+		(uuid "ef666912-75ff-5b01-bd1b-b8ae8a8d3d69")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -13353,31 +13511,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "777a5fc5-29cb-5502-b0fa-63232ac10746")
+		(uuid "8ca25df7-92c9-5ea1-8980-7bff9518acec")
 	)
 	(label "BG4"
 		(at 285.75 320.04 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "ef666912-75ff-5b01-bd1b-b8ae8a8d3d69")
-	)
-	(wire
-		(pts
-			(xy 298.45 325.12)
-			(xy 298.45 330.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8ca25df7-92c9-5ea1-8980-7bff9518acec")
-	)
-	(label "B3"
-		(at 298.45 330.2 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -13388,6 +13525,27 @@
 	)
 	(wire
 		(pts
+			(xy 298.45 325.12)
+			(xy 298.45 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "98876702-7386-5aa1-8865-4a3ebfc53ad6")
+	)
+	(label "B3"
+		(at 298.45 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "7ec4a773-142f-5710-9740-00fb4f021b4a")
+	)
+	(wire
+		(pts
 			(xy 298.45 314.96)
 			(xy 298.45 309.88)
 		)
@@ -13395,7 +13553,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "98876702-7386-5aa1-8865-4a3ebfc53ad6")
+		(uuid "1811dbc3-07f0-5ffe-8183-e2f34ed79235")
 	)
 	(label "BD4"
 		(at 298.45 309.88 90)
@@ -13405,7 +13563,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "7ec4a773-142f-5710-9740-00fb4f021b4a")
+		(uuid "0f274b1f-7e8b-5d32-bc95-6abcd4700ff2")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -13488,7 +13646,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "1811dbc3-07f0-5ffe-8183-e2f34ed79235")
+		(uuid "6d57d272-8657-5e94-b193-081002b70fa8")
 	)
 	(label "BG4"
 		(at 309.88 313.69 90)
@@ -13498,7 +13656,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "0f274b1f-7e8b-5d32-bc95-6abcd4700ff2")
+		(uuid "0fab7d22-9d0e-5a50-9609-3a3ee7ef16f2")
 	)
 	(wire
 		(pts
@@ -13509,7 +13667,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "6d57d272-8657-5e94-b193-081002b70fa8")
+		(uuid "36ec42b8-9289-5e2e-b3f6-bd7d64e81cc5")
 	)
 	(label "VC3"
 		(at 309.88 326.39 270)
@@ -13519,7 +13677,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "0fab7d22-9d0e-5a50-9609-3a3ee7ef16f2")
+		(uuid "d4549409-02c1-5a64-a2cd-5d04c1e77908")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -13529,8 +13687,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "2e568ad2-73b6-5c3c-a259-dd777aa9326a")
-		(property "Reference" "D5"
+		(uuid "ce50a2f4-9e5f-5a74-88a3-bc265df5294f")
+		(property "Reference" "D19"
 			(at 330.2 318.77 90)
 			(effects
 				(font
@@ -13574,15 +13732,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "a4ad6cf5-9a33-5a47-9a2c-c2fb35412e9b")
+			(uuid "f5cf3d0e-b42c-5442-8fb2-e13062ac5784")
 		)
 		(pin "2"
-			(uuid "3d84a2e0-2a0e-5dcf-88e7-5696e4b0575f")
+			(uuid "75ec0355-ae54-5489-980c-006f5a4c82d5")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D5")
+					(reference "D19")
 					(unit 1)
 				)
 			)
@@ -13597,7 +13755,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "36ec42b8-9289-5e2e-b3f6-bd7d64e81cc5")
+		(uuid "c93289eb-2930-55db-8fc5-384be959fba4")
 	)
 	(label "BG4"
 		(at 327.66 313.69 90)
@@ -13607,7 +13765,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "d4549409-02c1-5a64-a2cd-5d04c1e77908")
+		(uuid "50c8b915-174c-5f45-bc79-bce2527c843e")
 	)
 	(wire
 		(pts
@@ -13618,7 +13776,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "c93289eb-2930-55db-8fc5-384be959fba4")
+		(uuid "a31c4127-59bc-56df-b65c-e8f22cbf6ab1")
 	)
 	(label "B3"
 		(at 327.66 326.39 270)
@@ -13628,7 +13786,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "50c8b915-174c-5f45-bc79-bce2527c843e")
+		(uuid "f2dca67c-d0e9-573a-89b4-ec30d89ca017")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -13711,7 +13869,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a31c4127-59bc-56df-b65c-e8f22cbf6ab1")
+		(uuid "27bc9bff-63f1-506b-8e4b-a062625372bc")
 	)
 	(label "B5"
 		(at 350.52 313.69 90)
@@ -13721,7 +13879,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "f2dca67c-d0e9-573a-89b4-ec30d89ca017")
+		(uuid "d09b04f5-7ce0-54dc-a1c9-e2f9b452064b")
 	)
 	(wire
 		(pts
@@ -13732,7 +13890,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "27bc9bff-63f1-506b-8e4b-a062625372bc")
+		(uuid "638b282c-fe42-51d4-b76e-45c0d66cd950")
 	)
 	(label "BD5"
 		(at 350.52 326.39 270)
@@ -13742,7 +13900,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "d09b04f5-7ce0-54dc-a1c9-e2f9b452064b")
+		(uuid "704c42ae-0681-5eba-a631-a4aca48c98c3")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -13828,31 +13986,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "638b282c-fe42-51d4-b76e-45c0d66cd950")
+		(uuid "c63f01a7-a2c2-5317-a466-64115f220c6f")
 	)
 	(label "BG5"
 		(at 363.22 320.04 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "704c42ae-0681-5eba-a631-a4aca48c98c3")
-	)
-	(wire
-		(pts
-			(xy 375.92 325.12)
-			(xy 375.92 330.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c63f01a7-a2c2-5317-a466-64115f220c6f")
-	)
-	(label "B4"
-		(at 375.92 330.2 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -13863,6 +14000,27 @@
 	)
 	(wire
 		(pts
+			(xy 375.92 325.12)
+			(xy 375.92 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e34a5df3-a813-54ae-a064-75dc0b035cfa")
+	)
+	(label "B4"
+		(at 375.92 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "2f3626c0-231a-5601-ac8c-49f1d02c4fd6")
+	)
+	(wire
+		(pts
 			(xy 375.92 314.96)
 			(xy 375.92 309.88)
 		)
@@ -13870,7 +14028,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e34a5df3-a813-54ae-a064-75dc0b035cfa")
+		(uuid "e0dc3eab-c4f9-5aad-9e0e-9733afdd9f7a")
 	)
 	(label "BD5"
 		(at 375.92 309.88 90)
@@ -13880,7 +14038,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "2f3626c0-231a-5601-ac8c-49f1d02c4fd6")
+		(uuid "0cca409d-c9a7-564e-b32f-db4cd47391c3")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -13963,7 +14121,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e0dc3eab-c4f9-5aad-9e0e-9733afdd9f7a")
+		(uuid "d8bca51c-5642-5849-966a-0960b4c3e8a3")
 	)
 	(label "BG5"
 		(at 388.62 313.69 90)
@@ -13973,7 +14131,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "0cca409d-c9a7-564e-b32f-db4cd47391c3")
+		(uuid "81972689-64c5-52c9-96bb-979fe5cf23b1")
 	)
 	(wire
 		(pts
@@ -13984,7 +14142,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "d8bca51c-5642-5849-966a-0960b4c3e8a3")
+		(uuid "695fa9d5-faf5-570e-958a-2ebb74842328")
 	)
 	(label "VC4"
 		(at 388.62 326.39 270)
@@ -13994,7 +14152,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "81972689-64c5-52c9-96bb-979fe5cf23b1")
+		(uuid "7f2dbaa6-a401-545e-8081-58d711e66e9a")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -14004,8 +14162,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "f4b1dfe5-9c27-5e3a-aa17-a367cc1206a2")
-		(property "Reference" "D6"
+		(uuid "58302c55-8a4e-53dd-83d4-46542b5b6161")
+		(property "Reference" "D20"
 			(at 408.94 318.77 90)
 			(effects
 				(font
@@ -14049,15 +14207,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "adf32f2d-900b-50f3-847b-b7cc50df6933")
+			(uuid "1e7e5c23-e28e-5f05-8b88-ccf3233a4999")
 		)
 		(pin "2"
-			(uuid "52e1a200-efce-5603-a567-1bd4ccfbb71e")
+			(uuid "d5551da3-613c-5311-91db-adb4b39d4f1d")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D6")
+					(reference "D20")
 					(unit 1)
 				)
 			)
@@ -14072,7 +14230,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "695fa9d5-faf5-570e-958a-2ebb74842328")
+		(uuid "5e767f5b-2412-5e4a-9880-4ff1c2fa5894")
 	)
 	(label "BG5"
 		(at 406.4 313.69 90)
@@ -14082,7 +14240,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "7f2dbaa6-a401-545e-8081-58d711e66e9a")
+		(uuid "052f0272-d8dc-592f-b8a1-93bfbf8acfcc")
 	)
 	(wire
 		(pts
@@ -14093,7 +14251,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "5e767f5b-2412-5e4a-9880-4ff1c2fa5894")
+		(uuid "ceafc59b-472a-5210-8d60-d1c452ced574")
 	)
 	(label "B4"
 		(at 406.4 326.39 270)
@@ -14103,7 +14261,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "052f0272-d8dc-592f-b8a1-93bfbf8acfcc")
+		(uuid "105364ee-8aeb-5ed9-849a-bef544c4a0ff")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -14186,7 +14344,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "ceafc59b-472a-5210-8d60-d1c452ced574")
+		(uuid "62d0a5bb-f026-5755-88f6-c8bff2d44db9")
 	)
 	(label "B6"
 		(at 427.99 313.69 90)
@@ -14196,7 +14354,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "105364ee-8aeb-5ed9-849a-bef544c4a0ff")
+		(uuid "0fdce5ad-69c8-5434-b839-0b2497be356c")
 	)
 	(wire
 		(pts
@@ -14207,7 +14365,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "62d0a5bb-f026-5755-88f6-c8bff2d44db9")
+		(uuid "f301d44d-b9f6-5ef2-90a6-d91f4e4e591f")
 	)
 	(label "BD6"
 		(at 427.99 326.39 270)
@@ -14217,7 +14375,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "0fdce5ad-69c8-5434-b839-0b2497be356c")
+		(uuid "bfd046b4-8b14-5759-b6d9-59474d37c126")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -14303,31 +14461,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f301d44d-b9f6-5ef2-90a6-d91f4e4e591f")
+		(uuid "67203d98-5126-54ac-9382-e3df36cc084f")
 	)
 	(label "BG6"
 		(at 441.96 320.04 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "bfd046b4-8b14-5759-b6d9-59474d37c126")
-	)
-	(wire
-		(pts
-			(xy 454.66 325.12)
-			(xy 454.66 330.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "67203d98-5126-54ac-9382-e3df36cc084f")
-	)
-	(label "B5"
-		(at 454.66 330.2 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -14338,6 +14475,27 @@
 	)
 	(wire
 		(pts
+			(xy 454.66 325.12)
+			(xy 454.66 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c20a7704-2609-5652-a716-fa0186635260")
+	)
+	(label "B5"
+		(at 454.66 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "6e6176b8-7d32-5344-abc3-77528fb42ca4")
+	)
+	(wire
+		(pts
 			(xy 454.66 314.96)
 			(xy 454.66 309.88)
 		)
@@ -14345,7 +14503,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "c20a7704-2609-5652-a716-fa0186635260")
+		(uuid "9cbddce6-19c1-5442-9be9-f111341aa22f")
 	)
 	(label "BD6"
 		(at 454.66 309.88 90)
@@ -14355,7 +14513,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "6e6176b8-7d32-5344-abc3-77528fb42ca4")
+		(uuid "da95927f-7ebf-5424-8d45-bda7a399a882")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -14438,7 +14596,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9cbddce6-19c1-5442-9be9-f111341aa22f")
+		(uuid "3f238b14-c9c5-5041-8979-b2fc55eccb3c")
 	)
 	(label "BG6"
 		(at 466.09 313.69 90)
@@ -14448,7 +14606,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "da95927f-7ebf-5424-8d45-bda7a399a882")
+		(uuid "4c71543b-6475-50ab-b7b5-4755abac9122")
 	)
 	(wire
 		(pts
@@ -14459,7 +14617,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "3f238b14-c9c5-5041-8979-b2fc55eccb3c")
+		(uuid "e3c51ce4-d091-574a-a870-e9324eb55c29")
 	)
 	(label "VC5"
 		(at 466.09 326.39 270)
@@ -14469,7 +14627,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "4c71543b-6475-50ab-b7b5-4755abac9122")
+		(uuid "5694f3cc-d905-5492-abe6-b0cee7381772")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -14479,8 +14637,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "f3881df5-0c68-550b-a21b-399b5bf85292")
-		(property "Reference" "D7"
+		(uuid "34359492-eb8f-5292-ad9b-5c5c79442651")
+		(property "Reference" "D21"
 			(at 486.41 318.77 90)
 			(effects
 				(font
@@ -14524,15 +14682,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "e3f14a85-df18-5968-93f3-be852b0b9d01")
+			(uuid "20107523-000a-57ee-a886-8a43b419a72d")
 		)
 		(pin "2"
-			(uuid "de43d4c3-4d6d-50b7-89f5-60b4cfb2e5bd")
+			(uuid "60ad8d3f-60c5-5beb-aa3b-62b1ed7a7b99")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D7")
+					(reference "D21")
 					(unit 1)
 				)
 			)
@@ -14547,7 +14705,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e3c51ce4-d091-574a-a870-e9324eb55c29")
+		(uuid "1a15d015-973f-5230-ac42-30928ffbb4f5")
 	)
 	(label "BG6"
 		(at 483.87 313.69 90)
@@ -14557,7 +14715,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "5694f3cc-d905-5492-abe6-b0cee7381772")
+		(uuid "13c6123b-a3a4-5f7d-b513-91f9fd1dc595")
 	)
 	(wire
 		(pts
@@ -14568,7 +14726,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "1a15d015-973f-5230-ac42-30928ffbb4f5")
+		(uuid "a36b4830-440c-595c-83bf-2af7a7b15609")
 	)
 	(label "B5"
 		(at 483.87 326.39 270)
@@ -14578,7 +14736,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "13c6123b-a3a4-5f7d-b513-91f9fd1dc595")
+		(uuid "55bd7522-5c5d-55d9-b4fc-6abb614f9559")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -14661,7 +14819,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a36b4830-440c-595c-83bf-2af7a7b15609")
+		(uuid "624bdbd2-9210-5e33-b5c1-e88ab7d6eb20")
 	)
 	(label "B7"
 		(at 505.46 313.69 90)
@@ -14671,7 +14829,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "55bd7522-5c5d-55d9-b4fc-6abb614f9559")
+		(uuid "ad41ed85-9e25-5cb0-9e1f-8be42ff3d111")
 	)
 	(wire
 		(pts
@@ -14682,7 +14840,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "624bdbd2-9210-5e33-b5c1-e88ab7d6eb20")
+		(uuid "239237c1-2d55-57e8-ba05-35a99864b75e")
 	)
 	(label "BD7"
 		(at 505.46 326.39 270)
@@ -14692,7 +14850,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "ad41ed85-9e25-5cb0-9e1f-8be42ff3d111")
+		(uuid "074de3bf-4005-5652-8391-9071f3d669d5")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -14778,31 +14936,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "239237c1-2d55-57e8-ba05-35a99864b75e")
+		(uuid "9e247bb2-3b8e-59ce-8e5b-fbe6f4115218")
 	)
 	(label "BG7"
 		(at 519.43 320.04 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "074de3bf-4005-5652-8391-9071f3d669d5")
-	)
-	(wire
-		(pts
-			(xy 532.13 325.12)
-			(xy 532.13 330.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9e247bb2-3b8e-59ce-8e5b-fbe6f4115218")
-	)
-	(label "B6"
-		(at 532.13 330.2 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -14813,6 +14950,27 @@
 	)
 	(wire
 		(pts
+			(xy 532.13 325.12)
+			(xy 532.13 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3f493b73-c3e2-5545-beb9-03c4c60366b3")
+	)
+	(label "B6"
+		(at 532.13 330.2 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a9c83631-6a5f-5f6e-b4c4-192b8604a671")
+	)
+	(wire
+		(pts
 			(xy 532.13 314.96)
 			(xy 532.13 309.88)
 		)
@@ -14820,7 +14978,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "3f493b73-c3e2-5545-beb9-03c4c60366b3")
+		(uuid "bea9e45f-2a75-508b-8618-b0674e43fce0")
 	)
 	(label "BD7"
 		(at 532.13 309.88 90)
@@ -14830,7 +14988,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "a9c83631-6a5f-5f6e-b4c4-192b8604a671")
+		(uuid "85d28c11-d6e8-5fd8-97fa-e8ade50c6e02")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -14913,7 +15071,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "bea9e45f-2a75-508b-8618-b0674e43fce0")
+		(uuid "a4017050-ad64-5fd3-96e2-b55202958f41")
 	)
 	(label "BG7"
 		(at 543.56 313.69 90)
@@ -14923,7 +15081,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "85d28c11-d6e8-5fd8-97fa-e8ade50c6e02")
+		(uuid "8e64e2e8-f9cc-5cdd-b477-5ae6c23f8ee4")
 	)
 	(wire
 		(pts
@@ -14934,7 +15092,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a4017050-ad64-5fd3-96e2-b55202958f41")
+		(uuid "7842f399-dd97-5e98-81c1-e1d3f8d35ca1")
 	)
 	(label "VC6"
 		(at 543.56 326.39 270)
@@ -14944,7 +15102,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "8e64e2e8-f9cc-5cdd-b477-5ae6c23f8ee4")
+		(uuid "119009e3-efb9-504d-b194-a74ba5323bf7")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -14954,8 +15112,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "7faec15c-bc90-539d-a342-673b01db6c14")
-		(property "Reference" "D8"
+		(uuid "81ac7f0f-c298-5232-9e79-fbf1dffabd98")
+		(property "Reference" "D22"
 			(at 563.88 318.77 90)
 			(effects
 				(font
@@ -14999,15 +15157,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "1bb0e901-94f6-5774-9c33-1072f1ab2b23")
+			(uuid "5ef548ce-8232-5239-917c-8a596365e492")
 		)
 		(pin "2"
-			(uuid "e33e0659-535b-57e6-9998-cc7d458962d3")
+			(uuid "329752e8-fc6b-5032-b10c-b959dc32ff45")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D8")
+					(reference "D22")
 					(unit 1)
 				)
 			)
@@ -15022,7 +15180,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "7842f399-dd97-5e98-81c1-e1d3f8d35ca1")
+		(uuid "4e83292d-f39a-5063-857a-27672789230e")
 	)
 	(label "BG7"
 		(at 561.34 313.69 90)
@@ -15032,7 +15190,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "119009e3-efb9-504d-b194-a74ba5323bf7")
+		(uuid "7e5e9ac9-5e36-55d6-807d-d89994a9ea2f")
 	)
 	(wire
 		(pts
@@ -15043,7 +15201,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "4e83292d-f39a-5063-857a-27672789230e")
+		(uuid "d899d711-b41c-5736-ab1d-c5a2aa0ec57e")
 	)
 	(label "B6"
 		(at 561.34 326.39 270)
@@ -15053,7 +15211,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "7e5e9ac9-5e36-55d6-807d-d89994a9ea2f")
+		(uuid "c1d58177-909f-52f9-be62-932fe1871adf")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -15136,7 +15294,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "d899d711-b41c-5736-ab1d-c5a2aa0ec57e")
+		(uuid "987290aa-72dd-5222-9b35-51dda8614d6b")
 	)
 	(label "B8"
 		(at 38.1 363.22 90)
@@ -15146,7 +15304,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "c1d58177-909f-52f9-be62-932fe1871adf")
+		(uuid "90712084-a07e-572c-a710-82b71dbbf721")
 	)
 	(wire
 		(pts
@@ -15157,7 +15315,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "987290aa-72dd-5222-9b35-51dda8614d6b")
+		(uuid "fbeee563-4d9d-5116-b66f-9442b877163d")
 	)
 	(label "BD8"
 		(at 38.1 375.92 270)
@@ -15167,7 +15325,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "90712084-a07e-572c-a710-82b71dbbf721")
+		(uuid "844c4957-46fb-5c77-8338-3159742f6201")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -15253,31 +15411,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "fbeee563-4d9d-5116-b66f-9442b877163d")
+		(uuid "1e5c6407-487a-5e56-bcbe-ae351e1c409d")
 	)
 	(label "BG8"
 		(at 52.07 369.57 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "844c4957-46fb-5c77-8338-3159742f6201")
-	)
-	(wire
-		(pts
-			(xy 64.77 374.65)
-			(xy 64.77 379.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1e5c6407-487a-5e56-bcbe-ae351e1c409d")
-	)
-	(label "B7"
-		(at 64.77 379.73 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -15288,6 +15425,27 @@
 	)
 	(wire
 		(pts
+			(xy 64.77 374.65)
+			(xy 64.77 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c130abb9-89c3-5b6f-a256-5367c49264f5")
+	)
+	(label "B7"
+		(at 64.77 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "364f630d-22b6-5afe-a453-35e94743f3bb")
+	)
+	(wire
+		(pts
 			(xy 64.77 364.49)
 			(xy 64.77 359.41)
 		)
@@ -15295,7 +15453,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "c130abb9-89c3-5b6f-a256-5367c49264f5")
+		(uuid "5dbc1747-6bc5-51d3-8590-b10c90053d91")
 	)
 	(label "BD8"
 		(at 64.77 359.41 90)
@@ -15305,7 +15463,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "364f630d-22b6-5afe-a453-35e94743f3bb")
+		(uuid "2d69f625-6b35-5fb7-a089-cce083f4e76b")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -15388,7 +15546,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "5dbc1747-6bc5-51d3-8590-b10c90053d91")
+		(uuid "bffd6ad9-5b23-5727-97c7-045062513bb1")
 	)
 	(label "BG8"
 		(at 76.2 363.22 90)
@@ -15398,7 +15556,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "2d69f625-6b35-5fb7-a089-cce083f4e76b")
+		(uuid "8c16b72f-6498-55b1-ac97-98c032de9d41")
 	)
 	(wire
 		(pts
@@ -15409,7 +15567,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "bffd6ad9-5b23-5727-97c7-045062513bb1")
+		(uuid "744de7a1-205c-59eb-8618-b48d5fe96b31")
 	)
 	(label "VC7"
 		(at 76.2 375.92 270)
@@ -15419,7 +15577,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "8c16b72f-6498-55b1-ac97-98c032de9d41")
+		(uuid "287a3434-4a6a-5c33-85f7-f1be45ea44fd")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -15429,8 +15587,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "8b9965b4-ab31-5403-9821-311c7f77b36b")
-		(property "Reference" "D9"
+		(uuid "e5a18239-c515-54f1-a435-a86ea045ac1e")
+		(property "Reference" "D23"
 			(at 96.52 368.3 90)
 			(effects
 				(font
@@ -15474,15 +15632,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "00be57bf-5424-5805-abf6-9e3ab434034b")
+			(uuid "aab8d7a8-b814-5c3c-8388-d858b6163b38")
 		)
 		(pin "2"
-			(uuid "a9c512f2-aa78-5070-a650-70cb400752c7")
+			(uuid "e809fc8c-5b95-58a1-a127-5daa979eadb6")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D9")
+					(reference "D23")
 					(unit 1)
 				)
 			)
@@ -15497,7 +15655,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "744de7a1-205c-59eb-8618-b48d5fe96b31")
+		(uuid "fb926d2b-e5e2-5ec6-9115-a62db614d7da")
 	)
 	(label "BG8"
 		(at 93.98 363.22 90)
@@ -15507,7 +15665,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "287a3434-4a6a-5c33-85f7-f1be45ea44fd")
+		(uuid "441f3ac8-6989-5299-a1e2-d7f6e921f6de")
 	)
 	(wire
 		(pts
@@ -15518,7 +15676,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "fb926d2b-e5e2-5ec6-9115-a62db614d7da")
+		(uuid "4d75f3d2-23f5-5a14-b84b-1fc36a1ed9d0")
 	)
 	(label "B7"
 		(at 93.98 375.92 270)
@@ -15528,7 +15686,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "441f3ac8-6989-5299-a1e2-d7f6e921f6de")
+		(uuid "73fdb628-512b-5703-94ac-389d9c412130")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -15611,7 +15769,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "4d75f3d2-23f5-5a14-b84b-1fc36a1ed9d0")
+		(uuid "43b5c45d-8a70-566c-beab-5775f64917d9")
 	)
 	(label "B9"
 		(at 115.57 363.22 90)
@@ -15621,7 +15779,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "73fdb628-512b-5703-94ac-389d9c412130")
+		(uuid "a3530540-853c-52a2-8ef9-68fd57f3ef64")
 	)
 	(wire
 		(pts
@@ -15632,7 +15790,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "43b5c45d-8a70-566c-beab-5775f64917d9")
+		(uuid "60c8d506-174d-50db-946d-12c23bd351ba")
 	)
 	(label "BD9"
 		(at 115.57 375.92 270)
@@ -15642,7 +15800,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "a3530540-853c-52a2-8ef9-68fd57f3ef64")
+		(uuid "0218c1e4-46ca-5de0-a2d6-0bd277df2de9")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -15728,31 +15886,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "60c8d506-174d-50db-946d-12c23bd351ba")
+		(uuid "9fc2a186-46ab-5fc8-ae05-311c3132c08f")
 	)
 	(label "BG9"
 		(at 129.54 369.57 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "0218c1e4-46ca-5de0-a2d6-0bd277df2de9")
-	)
-	(wire
-		(pts
-			(xy 142.24 374.65)
-			(xy 142.24 379.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9fc2a186-46ab-5fc8-ae05-311c3132c08f")
-	)
-	(label "B8"
-		(at 142.24 379.73 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -15763,6 +15900,27 @@
 	)
 	(wire
 		(pts
+			(xy 142.24 374.65)
+			(xy 142.24 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "158de33c-9f12-5626-a133-637efe226dbc")
+	)
+	(label "B8"
+		(at 142.24 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "2823038c-38c9-5c14-90b4-6c666a84acf5")
+	)
+	(wire
+		(pts
 			(xy 142.24 364.49)
 			(xy 142.24 359.41)
 		)
@@ -15770,7 +15928,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "158de33c-9f12-5626-a133-637efe226dbc")
+		(uuid "12f7ba27-456f-5307-9fb1-e35c08b28f77")
 	)
 	(label "BD9"
 		(at 142.24 359.41 90)
@@ -15780,7 +15938,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "2823038c-38c9-5c14-90b4-6c666a84acf5")
+		(uuid "029140f4-de0e-5c33-85bf-c8433ee479d1")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -15863,7 +16021,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "12f7ba27-456f-5307-9fb1-e35c08b28f77")
+		(uuid "042ba3b0-ceb1-5891-a98d-82c386d7ce9d")
 	)
 	(label "BG9"
 		(at 153.67 363.22 90)
@@ -15873,7 +16031,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "029140f4-de0e-5c33-85bf-c8433ee479d1")
+		(uuid "ea3a89c4-a4a9-52ab-8190-931985626374")
 	)
 	(wire
 		(pts
@@ -15884,7 +16042,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "042ba3b0-ceb1-5891-a98d-82c386d7ce9d")
+		(uuid "6a49d463-0139-5266-a22e-6033cbccb59d")
 	)
 	(label "VC8"
 		(at 153.67 375.92 270)
@@ -15894,7 +16052,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "ea3a89c4-a4a9-52ab-8190-931985626374")
+		(uuid "c5935a6b-5a8a-5665-9f90-0e274d8fd56d")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -15904,8 +16062,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "05fd7e89-efe1-51e1-bc6d-a09baacbd995")
-		(property "Reference" "D10"
+		(uuid "a260e9ef-1e76-5651-997b-4766b5fb18ac")
+		(property "Reference" "D24"
 			(at 173.99 368.3 90)
 			(effects
 				(font
@@ -15949,15 +16107,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "0e6d8066-ac33-5608-a0c8-70977007c334")
+			(uuid "20440cdd-cbcb-5b33-9e19-d1ea2fb4f813")
 		)
 		(pin "2"
-			(uuid "456a335a-388f-5d76-8bae-ae1516ae0c45")
+			(uuid "d376afb0-72e6-50e3-9145-249015d534b1")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D10")
+					(reference "D24")
 					(unit 1)
 				)
 			)
@@ -15972,7 +16130,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "6a49d463-0139-5266-a22e-6033cbccb59d")
+		(uuid "67515a7f-afd7-5466-b33c-12739d1502ef")
 	)
 	(label "BG9"
 		(at 171.45 363.22 90)
@@ -15982,7 +16140,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "c5935a6b-5a8a-5665-9f90-0e274d8fd56d")
+		(uuid "5c00d984-5b74-5f76-979c-8ee7ae00dc34")
 	)
 	(wire
 		(pts
@@ -15993,7 +16151,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "67515a7f-afd7-5466-b33c-12739d1502ef")
+		(uuid "6e9dce18-c417-5b97-b6aa-abe7cf581c73")
 	)
 	(label "B8"
 		(at 171.45 375.92 270)
@@ -16003,7 +16161,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "5c00d984-5b74-5f76-979c-8ee7ae00dc34")
+		(uuid "f2f1a680-dbad-539b-b9e7-deb09f42fb10")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -16086,7 +16244,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "6e9dce18-c417-5b97-b6aa-abe7cf581c73")
+		(uuid "523e2ace-8097-52f6-9d13-874eef133b38")
 	)
 	(label "B10"
 		(at 194.31 363.22 90)
@@ -16096,7 +16254,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "f2f1a680-dbad-539b-b9e7-deb09f42fb10")
+		(uuid "a85a3108-b9ac-5a39-9023-84525acb03fe")
 	)
 	(wire
 		(pts
@@ -16107,7 +16265,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "523e2ace-8097-52f6-9d13-874eef133b38")
+		(uuid "774a5c3f-5639-561d-8f8f-327f4e8887d4")
 	)
 	(label "BD10"
 		(at 194.31 375.92 270)
@@ -16117,7 +16275,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "a85a3108-b9ac-5a39-9023-84525acb03fe")
+		(uuid "671ec60a-718a-5718-91e3-6e322e3f748a")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -16203,31 +16361,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "774a5c3f-5639-561d-8f8f-327f4e8887d4")
+		(uuid "6cc8a4d0-3515-56cf-a1f9-58c6a7a2cd86")
 	)
 	(label "BG10"
 		(at 208.28 369.57 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "671ec60a-718a-5718-91e3-6e322e3f748a")
-	)
-	(wire
-		(pts
-			(xy 220.98 374.65)
-			(xy 220.98 379.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6cc8a4d0-3515-56cf-a1f9-58c6a7a2cd86")
-	)
-	(label "B9"
-		(at 220.98 379.73 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -16238,6 +16375,27 @@
 	)
 	(wire
 		(pts
+			(xy 220.98 374.65)
+			(xy 220.98 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9594d265-0f5a-5387-80e9-d23fe4d1d9aa")
+	)
+	(label "B9"
+		(at 220.98 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "5b6a3de8-5692-5b10-bec8-3ad490082e12")
+	)
+	(wire
+		(pts
 			(xy 220.98 364.49)
 			(xy 220.98 359.41)
 		)
@@ -16245,7 +16403,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9594d265-0f5a-5387-80e9-d23fe4d1d9aa")
+		(uuid "df55310d-0e9c-5400-bb1a-dd50cba86ff1")
 	)
 	(label "BD10"
 		(at 220.98 359.41 90)
@@ -16255,7 +16413,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "5b6a3de8-5692-5b10-bec8-3ad490082e12")
+		(uuid "181370e2-b071-536a-ab72-ad0c1e4680ba")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -16338,7 +16496,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "df55310d-0e9c-5400-bb1a-dd50cba86ff1")
+		(uuid "004515be-04e4-594c-b9e6-53e7ee55fe66")
 	)
 	(label "BG10"
 		(at 232.41 363.22 90)
@@ -16348,7 +16506,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "181370e2-b071-536a-ab72-ad0c1e4680ba")
+		(uuid "eb6036ef-1ea1-5723-a002-0da05eef6f99")
 	)
 	(wire
 		(pts
@@ -16359,7 +16517,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "004515be-04e4-594c-b9e6-53e7ee55fe66")
+		(uuid "f7638058-3cfc-52d6-9138-bf1645966c03")
 	)
 	(label "VC9"
 		(at 232.41 375.92 270)
@@ -16369,7 +16527,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "eb6036ef-1ea1-5723-a002-0da05eef6f99")
+		(uuid "d771062e-767c-50cc-a035-fdd56b0b7584")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -16379,8 +16537,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "9bb3fc70-7e38-51f3-a658-c7d69cbf375c")
-		(property "Reference" "D11"
+		(uuid "48468393-8296-5996-922d-afe47053fe09")
+		(property "Reference" "D25"
 			(at 252.73 368.3 90)
 			(effects
 				(font
@@ -16424,15 +16582,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "173ff5fc-4d62-5010-a756-9c4c18ac144f")
+			(uuid "53fff9c8-c631-58fe-b7ba-124819fd5466")
 		)
 		(pin "2"
-			(uuid "6ef46e68-7ffb-50fd-b283-ab633ff93065")
+			(uuid "e441f65b-c302-527d-9fba-488ab911a99d")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D11")
+					(reference "D25")
 					(unit 1)
 				)
 			)
@@ -16447,7 +16605,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f7638058-3cfc-52d6-9138-bf1645966c03")
+		(uuid "68fc2cb7-9176-5d0b-afad-9c90ea8d2a41")
 	)
 	(label "BG10"
 		(at 250.19 363.22 90)
@@ -16457,7 +16615,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "d771062e-767c-50cc-a035-fdd56b0b7584")
+		(uuid "f0719f38-2d08-541a-858c-9e77379aa847")
 	)
 	(wire
 		(pts
@@ -16468,7 +16626,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "68fc2cb7-9176-5d0b-afad-9c90ea8d2a41")
+		(uuid "3c5b7019-9319-56fd-bba0-2da0ef6bc8e3")
 	)
 	(label "B9"
 		(at 250.19 375.92 270)
@@ -16478,7 +16636,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "f0719f38-2d08-541a-858c-9e77379aa847")
+		(uuid "3fe1963a-7665-5112-b5d8-edd0c69fc4e6")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -16561,7 +16719,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "3c5b7019-9319-56fd-bba0-2da0ef6bc8e3")
+		(uuid "e77d8a32-b522-5732-9462-111b1b03073d")
 	)
 	(label "B11"
 		(at 271.78 363.22 90)
@@ -16571,7 +16729,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "3fe1963a-7665-5112-b5d8-edd0c69fc4e6")
+		(uuid "677dfa37-98a9-5035-a91c-1af28b85a950")
 	)
 	(wire
 		(pts
@@ -16582,7 +16740,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e77d8a32-b522-5732-9462-111b1b03073d")
+		(uuid "15080f02-5e85-5cd5-b252-bf74e01ceae0")
 	)
 	(label "BD11"
 		(at 271.78 375.92 270)
@@ -16592,7 +16750,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "677dfa37-98a9-5035-a91c-1af28b85a950")
+		(uuid "e8b9a270-3505-55c2-b2d3-ddfa9abac1aa")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -16678,31 +16836,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "15080f02-5e85-5cd5-b252-bf74e01ceae0")
+		(uuid "45ebe3c8-fc10-52ca-b246-9a6ba6d3a54a")
 	)
 	(label "BG11"
 		(at 285.75 369.57 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "e8b9a270-3505-55c2-b2d3-ddfa9abac1aa")
-	)
-	(wire
-		(pts
-			(xy 298.45 374.65)
-			(xy 298.45 379.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "45ebe3c8-fc10-52ca-b246-9a6ba6d3a54a")
-	)
-	(label "B10"
-		(at 298.45 379.73 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -16713,6 +16850,27 @@
 	)
 	(wire
 		(pts
+			(xy 298.45 374.65)
+			(xy 298.45 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f45e15ad-c0f5-5ce5-a7d5-65fb2e19b88e")
+	)
+	(label "B10"
+		(at 298.45 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "3888ac23-37f0-57fb-bf11-bc2c2fdc6e4c")
+	)
+	(wire
+		(pts
 			(xy 298.45 364.49)
 			(xy 298.45 359.41)
 		)
@@ -16720,7 +16878,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f45e15ad-c0f5-5ce5-a7d5-65fb2e19b88e")
+		(uuid "1eca13c8-992f-501c-be77-9f125ba45e6d")
 	)
 	(label "BD11"
 		(at 298.45 359.41 90)
@@ -16730,7 +16888,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "3888ac23-37f0-57fb-bf11-bc2c2fdc6e4c")
+		(uuid "45ed9868-e6c7-5d42-9e0e-895cb520ab73")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -16813,7 +16971,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "1eca13c8-992f-501c-be77-9f125ba45e6d")
+		(uuid "b816ac62-3865-58c1-9d91-64e565add241")
 	)
 	(label "BG11"
 		(at 309.88 363.22 90)
@@ -16823,7 +16981,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "45ed9868-e6c7-5d42-9e0e-895cb520ab73")
+		(uuid "d929b009-0edf-552a-b005-c17f61f9da26")
 	)
 	(wire
 		(pts
@@ -16834,7 +16992,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b816ac62-3865-58c1-9d91-64e565add241")
+		(uuid "e066c888-0aba-55cd-ad58-b27d7df33b9c")
 	)
 	(label "VC10"
 		(at 309.88 375.92 270)
@@ -16844,7 +17002,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "d929b009-0edf-552a-b005-c17f61f9da26")
+		(uuid "a4aac658-03c3-5a10-8ea3-2d8c833d83e9")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -16854,8 +17012,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "4ab898cb-876d-5096-b520-665791448204")
-		(property "Reference" "D12"
+		(uuid "d250fc4f-5bd5-5fbd-9ba9-c5e4c76f2ef9")
+		(property "Reference" "D26"
 			(at 330.2 368.3 90)
 			(effects
 				(font
@@ -16899,15 +17057,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "252565e1-236c-53d3-a9f9-9d0925d05c69")
+			(uuid "1b20fc8f-5cf8-5ca6-9d00-5ff914995437")
 		)
 		(pin "2"
-			(uuid "bf9786a8-f4c7-5b29-9284-dbec89c4f4a3")
+			(uuid "15b1a190-d75f-5560-8188-cd3258be3193")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D12")
+					(reference "D26")
 					(unit 1)
 				)
 			)
@@ -16922,7 +17080,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e066c888-0aba-55cd-ad58-b27d7df33b9c")
+		(uuid "1845f87a-395b-5bd7-8521-137cc0192687")
 	)
 	(label "BG11"
 		(at 327.66 363.22 90)
@@ -16932,7 +17090,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "a4aac658-03c3-5a10-8ea3-2d8c833d83e9")
+		(uuid "9fd79167-a87a-590d-8d08-e900fd000cb4")
 	)
 	(wire
 		(pts
@@ -16943,7 +17101,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "1845f87a-395b-5bd7-8521-137cc0192687")
+		(uuid "1201079a-3d78-52d6-b61e-5c46d7c2a078")
 	)
 	(label "B10"
 		(at 327.66 375.92 270)
@@ -16953,7 +17111,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "9fd79167-a87a-590d-8d08-e900fd000cb4")
+		(uuid "b0f03f39-2e60-576b-bf68-aab8b4f72af3")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -17036,7 +17194,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "1201079a-3d78-52d6-b61e-5c46d7c2a078")
+		(uuid "8d933eb9-4e89-5201-8652-354f32277ea4")
 	)
 	(label "B12"
 		(at 350.52 363.22 90)
@@ -17046,7 +17204,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "b0f03f39-2e60-576b-bf68-aab8b4f72af3")
+		(uuid "2fcbb7b4-c045-5483-b53a-95bd7005f2ff")
 	)
 	(wire
 		(pts
@@ -17057,7 +17215,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "8d933eb9-4e89-5201-8652-354f32277ea4")
+		(uuid "e96f377a-3530-5d71-9e16-f9dd4a265626")
 	)
 	(label "BD12"
 		(at 350.52 375.92 270)
@@ -17067,7 +17225,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "2fcbb7b4-c045-5483-b53a-95bd7005f2ff")
+		(uuid "3aca1c73-168f-50c6-bd14-24c6ad4359dd")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -17153,31 +17311,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e96f377a-3530-5d71-9e16-f9dd4a265626")
+		(uuid "4e1db789-1cfa-52c9-81d2-79bff928ec2d")
 	)
 	(label "BG12"
 		(at 363.22 369.57 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "3aca1c73-168f-50c6-bd14-24c6ad4359dd")
-	)
-	(wire
-		(pts
-			(xy 375.92 374.65)
-			(xy 375.92 379.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4e1db789-1cfa-52c9-81d2-79bff928ec2d")
-	)
-	(label "B11"
-		(at 375.92 379.73 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -17188,6 +17325,27 @@
 	)
 	(wire
 		(pts
+			(xy 375.92 374.65)
+			(xy 375.92 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "03931381-8984-5fc9-bc66-edfa3a4ac3e8")
+	)
+	(label "B11"
+		(at 375.92 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "417f7844-1ad8-56a6-84b7-0f18be9a15af")
+	)
+	(wire
+		(pts
 			(xy 375.92 364.49)
 			(xy 375.92 359.41)
 		)
@@ -17195,7 +17353,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "03931381-8984-5fc9-bc66-edfa3a4ac3e8")
+		(uuid "7cd56132-2851-556d-b8eb-110d2d883ac2")
 	)
 	(label "BD12"
 		(at 375.92 359.41 90)
@@ -17205,7 +17363,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "417f7844-1ad8-56a6-84b7-0f18be9a15af")
+		(uuid "1cbbcf16-e537-502e-88a8-e3ccc537418e")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -17288,7 +17446,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "7cd56132-2851-556d-b8eb-110d2d883ac2")
+		(uuid "4e0a4849-7f1d-533e-9ada-03654660bbcc")
 	)
 	(label "BG12"
 		(at 388.62 363.22 90)
@@ -17298,7 +17456,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "1cbbcf16-e537-502e-88a8-e3ccc537418e")
+		(uuid "bf2aae63-32e0-5941-b3c7-bafa02570f1b")
 	)
 	(wire
 		(pts
@@ -17309,7 +17467,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "4e0a4849-7f1d-533e-9ada-03654660bbcc")
+		(uuid "3b62a598-af1b-58ef-b05a-bb2c0e007262")
 	)
 	(label "VC11"
 		(at 388.62 375.92 270)
@@ -17319,7 +17477,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "bf2aae63-32e0-5941-b3c7-bafa02570f1b")
+		(uuid "18539696-2bdd-5cd3-b3dd-be8c036e4d2e")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -17329,8 +17487,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "b2d048f5-d1d1-53e3-ab37-76aff25986c1")
-		(property "Reference" "D13"
+		(uuid "a0bfb7fe-2f69-5386-9aa3-1008d9046a4f")
+		(property "Reference" "D27"
 			(at 408.94 368.3 90)
 			(effects
 				(font
@@ -17374,15 +17532,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "3bcd663a-f596-5917-b617-6a61325b69a8")
+			(uuid "f4029982-f545-52b8-9101-9c9d85ea28f9")
 		)
 		(pin "2"
-			(uuid "41bc8343-24c4-58da-8c73-97bdd3a11216")
+			(uuid "3eaeaaf1-e7e9-50a5-8e0e-f7d698b25cbd")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D13")
+					(reference "D27")
 					(unit 1)
 				)
 			)
@@ -17397,7 +17555,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "3b62a598-af1b-58ef-b05a-bb2c0e007262")
+		(uuid "aff41b3c-6ae6-5ac6-bc1a-91c17a5c1465")
 	)
 	(label "BG12"
 		(at 406.4 363.22 90)
@@ -17407,7 +17565,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "18539696-2bdd-5cd3-b3dd-be8c036e4d2e")
+		(uuid "7c28bc29-b742-57ce-aaf0-fe2a70b2530b")
 	)
 	(wire
 		(pts
@@ -17418,7 +17576,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "aff41b3c-6ae6-5ac6-bc1a-91c17a5c1465")
+		(uuid "aef39fd5-20c7-5900-85e0-876c672f103d")
 	)
 	(label "B11"
 		(at 406.4 375.92 270)
@@ -17428,7 +17586,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "7c28bc29-b742-57ce-aaf0-fe2a70b2530b")
+		(uuid "d96f495c-105c-59d3-acf6-ca7a328b6593")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -17511,7 +17669,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "aef39fd5-20c7-5900-85e0-876c672f103d")
+		(uuid "6b9b9479-5db2-5e22-a485-7abb52f8ce2d")
 	)
 	(label "B13"
 		(at 427.99 363.22 90)
@@ -17521,7 +17679,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "d96f495c-105c-59d3-acf6-ca7a328b6593")
+		(uuid "378c90a9-ca9a-5f27-b5a6-87a02f1da21a")
 	)
 	(wire
 		(pts
@@ -17532,7 +17690,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "6b9b9479-5db2-5e22-a485-7abb52f8ce2d")
+		(uuid "89667bec-13f4-5a31-b99c-cdd11ff5b4eb")
 	)
 	(label "BD13"
 		(at 427.99 375.92 270)
@@ -17542,7 +17700,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "378c90a9-ca9a-5f27-b5a6-87a02f1da21a")
+		(uuid "052a4c5e-1f6a-55e1-8fc1-cbef0d912dfc")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -17628,31 +17786,10 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "89667bec-13f4-5a31-b99c-cdd11ff5b4eb")
+		(uuid "0cf27fb6-d251-5ab8-b38c-309af036d0d5")
 	)
 	(label "BG13"
 		(at 441.96 369.57 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "052a4c5e-1f6a-55e1-8fc1-cbef0d912dfc")
-	)
-	(wire
-		(pts
-			(xy 454.66 374.65)
-			(xy 454.66 379.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0cf27fb6-d251-5ab8-b38c-309af036d0d5")
-	)
-	(label "B12"
-		(at 454.66 379.73 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -17663,6 +17800,27 @@
 	)
 	(wire
 		(pts
+			(xy 454.66 374.65)
+			(xy 454.66 379.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "27f4ca8c-ed7b-5be7-a84e-9238c56b6da5")
+	)
+	(label "B12"
+		(at 454.66 379.73 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "97e8b7b8-d175-55a4-8537-65ccb8116e8d")
+	)
+	(wire
+		(pts
 			(xy 454.66 364.49)
 			(xy 454.66 359.41)
 		)
@@ -17670,7 +17828,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "27f4ca8c-ed7b-5be7-a84e-9238c56b6da5")
+		(uuid "b08741f4-21f3-5767-9b60-1527093456bc")
 	)
 	(label "BD13"
 		(at 454.66 359.41 90)
@@ -17680,7 +17838,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "97e8b7b8-d175-55a4-8537-65ccb8116e8d")
+		(uuid "e144c7f5-5218-520d-b78d-410cb11e9ab1")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -17763,7 +17921,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b08741f4-21f3-5767-9b60-1527093456bc")
+		(uuid "f6bdbcc4-b835-5104-b8ef-54c084578588")
 	)
 	(label "BG13"
 		(at 466.09 363.22 90)
@@ -17773,7 +17931,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "e144c7f5-5218-520d-b78d-410cb11e9ab1")
+		(uuid "5a360a68-4ff4-56e2-abc5-82b6954c73db")
 	)
 	(wire
 		(pts
@@ -17784,7 +17942,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f6bdbcc4-b835-5104-b8ef-54c084578588")
+		(uuid "afc60bac-f5ef-51c6-8cd4-e49fa471d193")
 	)
 	(label "VC12"
 		(at 466.09 375.92 270)
@@ -17794,7 +17952,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "5a360a68-4ff4-56e2-abc5-82b6954c73db")
+		(uuid "893b66d6-6d11-523a-b7b4-a3be0a2a69cb")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -17804,8 +17962,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "8eb4dc37-fc52-54da-a44b-3940336ed75d")
-		(property "Reference" "D14"
+		(uuid "3c013bc1-e41b-5b38-b8d3-9026a21f92e9")
+		(property "Reference" "D28"
 			(at 486.41 368.3 90)
 			(effects
 				(font
@@ -17849,15 +18007,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "fac6a64a-1621-5974-b566-e54a28ed364d")
+			(uuid "2501abb8-134f-5781-99d0-2860804b6870")
 		)
 		(pin "2"
-			(uuid "2fc70169-c202-5b48-8c95-118d80d42bb8")
+			(uuid "66bf0450-d8d1-5182-b93e-7cf9db7738d7")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/faf4e342-1617-57fb-bd2d-7a33c6d20eea"
-					(reference "D14")
+					(reference "D28")
 					(unit 1)
 				)
 			)
@@ -17872,7 +18030,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "afc60bac-f5ef-51c6-8cd4-e49fa471d193")
+		(uuid "bff83529-2240-53e3-91b7-cf7a0bf528fb")
 	)
 	(label "BG13"
 		(at 483.87 363.22 90)
@@ -17882,7 +18040,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "893b66d6-6d11-523a-b7b4-a3be0a2a69cb")
+		(uuid "c1db5fc4-9cf2-55de-b5b5-f9bf58994c23")
 	)
 	(wire
 		(pts
@@ -17893,7 +18051,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "bff83529-2240-53e3-91b7-cf7a0bf528fb")
+		(uuid "d97d6f00-d999-5b6a-98bf-fe1af824fd6d")
 	)
 	(label "B12"
 		(at 483.87 375.92 270)
@@ -17903,7 +18061,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "c1db5fc4-9cf2-55de-b5b5-f9bf58994c23")
+		(uuid "deb8df67-ebea-53ba-af72-bae627226d3d")
 	)
 	(embedded_fonts no)
 )

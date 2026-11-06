@@ -1456,7 +1456,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "Bourns PWR263S-35 35 W D2PAK resistor. 2 leads on pads 1, 3. Tab pad 2 is isolated (Bourns: resistor electrically isolated from the backplate)."
+			(property "Description" "Bourns PWR263S-35 35 W D2PAK resistor. 2 leads on pads 1, 3. Tab pad 2 is isolated (Bourns: resistor electrically isolated from the backplate), tied to GND for copper."
 				(at 0 -15.24 0)
 				(effects
 					(font
@@ -1515,7 +1515,7 @@
 						)
 					)
 				)
-				(pin no_connect line
+				(pin passive line
 					(at 15.24 -2.54 180)
 					(length 5.08)
 					(name "TAB"
@@ -7541,7 +7541,7 @@
 		)
 		(uuid "fe6241c2-7b30-5d4b-9d78-7865755fdfcd")
 	)
-	(text "VMOT precharge (IPT015N10N5 SOA is 0.7 A at 54 V, 10 ms, so a hard close on 1.8 mF is out). U302 EN and INP2 on ESTOP_EN_B: loop closed and latch armed, G2 precharges at once, bank B stays open.\nBANK_B_CLOSE (INP1, 100k down) closes bank B on command once VMOT is within 2 V of VSYS. Reaching 2 V takes 0.595 s, 0.71 s at +20% C: firmware timeout 0.85 s. EN low kills G1 and G2. Energy 2.68 J, tau 180 ms, peak 29.8 W."
+	(text "VMOT precharge (IPT015N10N5 SOA is 0.7 A at 54 V, 10 ms, so a hard close on 1.8 mF is out). U302 EN and INP2 on ESTOP_EN_B: loop closed and latch armed, G2 precharges at once, bank B stays open.\nBANK_B_CLOSE (INP1, 100k down) closes bank B on command once VMOT is within 0.5 V of VSYS. Close at 0.5 V or less so U301 does not trip: 0.84 s, 1.01 s at +20% C, firmware timeout 1.2 s, then open the loop. EN low kills G1 and G2. Energy 2.68 J, tau 180 ms, peak 29.8 W."
 		(exclude_from_sim no)
 		(at 25.4 198.12 0)
 		(effects
@@ -7829,9 +7829,81 @@
 		)
 		(uuid "346c3bfb-0554-5cce-b0d3-605ea3eca8c5")
 	)
-	(no_connect
-		(at 91.44 243.84)
+	(wire
+		(pts
+			(xy 91.44 243.84)
+			(xy 96.52 243.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
 		(uuid "7a24bc2a-b68a-5dff-b776-a936ef906344")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 96.52 243.84 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "a5e46c5e-58cb-5157-be3a-620868329ed7")
+		(property "Reference" "#PWR318"
+			(at 96.52 241.3 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 96.52 246.38 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 96.52 243.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 96.52 243.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 96.52 243.84 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "8cf80efa-a9f3-5e40-bc07-e19ea1f6fd03")
+		)
+		(instances
+			(project "marengo_pdu"
+				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/4cbdfc49-700b-594f-ae64-34b973495964"
+					(reference "#PWR318")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -8195,8 +8267,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "a5e46c5e-58cb-5157-be3a-620868329ed7")
-		(property "Reference" "#PWR318"
+		(uuid "47d6f85c-5034-50ed-9e30-44390daf5915")
+		(property "Reference" "#PWR319"
 			(at 148.59 238.76 0)
 			(effects
 				(font
@@ -8241,12 +8313,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "8cf80efa-a9f3-5e40-bc07-e19ea1f6fd03")
+			(uuid "c6006fee-cf73-5909-adc4-a4d3e860a15a")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/4cbdfc49-700b-594f-ae64-34b973495964"
-					(reference "#PWR318")
+					(reference "#PWR319")
 					(unit 1)
 				)
 			)
@@ -8489,8 +8561,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "47d6f85c-5034-50ed-9e30-44390daf5915")
-		(property "Reference" "#PWR319"
+		(uuid "952a8abc-2bd4-5d06-b3f2-ae9cb6372594")
+		(property "Reference" "#PWR320"
 			(at 184.15 238.76 0)
 			(effects
 				(font
@@ -8535,12 +8607,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "c6006fee-cf73-5909-adc4-a4d3e860a15a")
+			(uuid "1f123f7b-5f53-575d-9438-3c9c1e20b040")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/4cbdfc49-700b-594f-ae64-34b973495964"
-					(reference "#PWR319")
+					(reference "#PWR320")
 					(unit 1)
 				)
 			)
@@ -8658,8 +8730,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "952a8abc-2bd4-5d06-b3f2-ae9cb6372594")
-		(property "Reference" "#PWR320"
+		(uuid "8a88f3e3-681b-5a11-8b2d-7e22777032d7")
+		(property "Reference" "#PWR321"
 			(at 201.93 238.76 0)
 			(effects
 				(font
@@ -8704,12 +8776,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "1f123f7b-5f53-575d-9438-3c9c1e20b040")
+			(uuid "fe89d5ba-3ccf-531b-a200-bd935176abe7")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/4cbdfc49-700b-594f-ae64-34b973495964"
-					(reference "#PWR320")
+					(reference "#PWR321")
 					(unit 1)
 				)
 			)
@@ -9077,8 +9149,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "8a88f3e3-681b-5a11-8b2d-7e22777032d7")
-		(property "Reference" "#PWR321"
+		(uuid "1630f4d0-ca83-5d1e-874e-5ba8c4eda82a")
+		(property "Reference" "#PWR322"
 			(at 255.27 238.76 0)
 			(effects
 				(font
@@ -9123,12 +9195,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "fe89d5ba-3ccf-531b-a200-bd935176abe7")
+			(uuid "d5bffcdd-8391-5029-ba2b-c64592f7685b")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/4cbdfc49-700b-594f-ae64-34b973495964"
-					(reference "#PWR321")
+					(reference "#PWR322")
 					(unit 1)
 				)
 			)
@@ -9246,8 +9318,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "1630f4d0-ca83-5d1e-874e-5ba8c4eda82a")
-		(property "Reference" "#PWR322"
+		(uuid "eeb04aab-ddaa-5e84-9741-607cf284a118")
+		(property "Reference" "#PWR323"
 			(at 273.05 238.76 0)
 			(effects
 				(font
@@ -9292,12 +9364,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "d5bffcdd-8391-5029-ba2b-c64592f7685b")
+			(uuid "e4d7bb0e-a1f5-5f9d-8d21-004d75c8d6f3")
 		)
 		(instances
 			(project "marengo_pdu"
 				(path "/a840985c-3387-42ba-bc64-1037eae04a32/7db6970d-03f6-5118-b8c2-ce321044e008/4cbdfc49-700b-594f-ae64-34b973495964"
-					(reference "#PWR322")
+					(reference "#PWR323")
 					(unit 1)
 				)
 			)

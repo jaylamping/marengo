@@ -87,3 +87,49 @@ C14 sits on BAT at 54.6 V in a voltage-less 1 µF 0603 BOM row (Opus, Argon; nee
 
 - `check.py` tests connectivity against what the generator intended, so it passed B1. It needs pad-to-function checks on every 2-pin symbol on a 3-pad part.
 - Recipe: Fable and Opus cannot run scripts with the current tool list, and agy's list needs `sed`, `awk` and similar, or it can exit 0 empty after 25 minutes.
+
+## Pass 2 (2026-11-06)
+
+Reviewed commit `0cbda7f8`, changed sheets and fixes only, with `Bash(python3 *)` allowed. Sol 700 s, Opus high 1056 s, Fable high 1371 s. Hashes matched before and after. All three reran check.py: FAILS 0. All three found the fixes wired as logged, and all three said not ready. Each finding below was checked against the netlist or by calculation.
+
+### Fixed after pass 2
+
+| Finding | Source | Verified | Fix |
+|---|---|---|---|
+| Predischarge Timeout 0 stalls start-up. Stop Delta needs under 25 mA through 100 Ω, and a VSYS short has no timer. A regression from the M5 fix | Opus, Fable (blockers), Sol | Yes | Timeout 1.0 s, firmware holds BUCK12_OFF high until DSG is on. A short ends in SCD |
+| M3 did not make ports fail off on lost VCLAMP12, as the brief asked | Sol (blocker) | Yes | BSS123 gated by VCLAMP12 in series with Q3 |
+| Surge sum ignored the pack behind the inductance. 300 µF gives 103 V lossless | Sol (blocker), Opus and Fable in part | Yes, but lossless overstates it: 600 A already implies 90 mΩ | 4 × 100 µF, time-step model 77.5 V at -20 % |
+| Watchdog clear margin, about 1 V against VIL 0.8 V | All three | Yes | R2007, R2014 to 10 kΩ |
+| PE1 push-pull can hold WD_N up | Opus | Yes | 10 kΩ in series |
+| PORT_REQ1-6 and WD_KICK float in MCU reset | All three | Yes | 100 kΩ pull-downs |
+| Q211 base resistor is base-emitter, not series | Sol, Opus | Yes | 220 Ω in series, 10 kΩ base-emitter |
+| No chatter filter ahead of the latch | Opus | Yes | 100 nF on CLR, about 1.4 ms |
+| Bank B close can trip U301: G1-good refers to bank A | Sol, Opus; Fable disagreed | Yes on the reasoning. Current depends on ESR and sharing, so I took the safe side | Close at 0.5 V or less, timeout 1.2 s |
+| VC0 past -0.3 V at 200 A | Sol, Opus, Fable | Yes on the assumed 1.5 mΩ | D15 Schottky, part's Vf from memory |
+| M18 said more C only lengthens time | Sol | Yes, it was backwards | Log corrected: 4.4 mF is the hot limit at T = 117 ms |
+| PRES beside B13 on the tap plug | Opus | Yes | Loop moved to pins 1, 2 |
+| ESTOP_EN_B beside BANK_B_CLOSE on J101 | Fable | Yes | Reordered |
+| PWR263S tabs could not take copper | Opus | Yes | Tabs on GND, the part is isolated |
+| R2001 0.21 W in 0.25 W; D101 no part number | Opus | Yes | 1 W 2512; MMSZ4684 |
+
+### Rejected
+
+| Finding | Source | Reason |
+|---|---|---|
+| Clamp is 56.61 / 55.93 V | Fable | Omits TLV1805's 14 mV hysteresis. Sol and Opus agree with 56.77 / 55.77 V |
+| Surge at 1000 A | Fable | Pack resistance limits the fault to about 600 A |
+| Needs 1.4 mF on the stack | Sol | Lossless bound, ignores pack resistance |
+| No pack fuse shown | Opus | PLAN has a Class T 60 A pack fuse |
+| Reverse M2, 12 V default off | Fable | Keeps a reset from dropping compute; the timeout and firmware cover start-up |
+| USE 2410 unverified | Opus, Fable | My packet file was a blocked page. Sol confirmed 200 A at 86 VDC, 79 mΩ and 3-148-693 on Schurter's page |
+
+### Still open, none blocks layout planning
+
+- Bench: CAN double-fault clearing time (0.43 to 0.48 A, below the PTC's 0.5 A test point), R209 at about 30 J, 12 V load-step droop, FET sharing, stack inductance (3 µH gives 85 V), real drive capacitance.
+- Before layout: USE 2410 land, 2010 stand-in today. D220 is 3.4 A free air against the 4 A charger, so its copper matters.
+- Firmware requirements: INA238 alert configured at boot, BANK_B_CLOSE dropped on any open loop (no hardware interlock), precharge timeout opens the loop (R318 has no hardware timer), FLT_A read with ESTOP_ARMED, U301 retries bounded.
+- Accepted residuals: a short across one contact pair or WL_12V to LOOP_TH defeats the loop (Cat 0, not Cat 3). With a hung supervisor, a reset press re-arms for up to 1.84 s. U301's 105 A minimum is below six ports at full limit, fine for rev A's three.
+- U1 CHG pin about 88 V during the surge against VSS + 85 V, through 5.1 kΩ.
+- F503 may trip on ground-shift current in normal use. It is harmless, but CAN_REF cannot then be relied on.
+
+Fixes after pass 2 have ERC 0 and check.py FAILS 0 but no third model review.

@@ -3201,9 +3201,73 @@
 		)
 		(uuid "dd754c1a-0b4c-507e-bcf3-38c364f5aa3b")
 	)
+	(global_label "ESTOP_EN_A"
+		(shape passive)
+		(at 76.2 220.98 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "faceccd5-184e-5eae-b3ed-6cfd24364f1d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 76.2 220.98 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 58.42 223.52)
+			(xy 53.34 223.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8feb54c8-6428-56d4-96b1-4347e143a930")
+	)
+	(global_label "ESTOP_EN_B"
+		(shape passive)
+		(at 53.34 223.52 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "49879a8e-7517-55a1-a977-f08ff129ed4a")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 53.34 223.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 71.12 223.52)
+			(xy 76.2 223.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dcb18d81-7fe0-5f69-a652-f1ddaf10bc56")
+	)
 	(symbol
 		(lib_id "power:GND")
-		(at 76.2 220.98 90)
+		(at 76.2 223.52 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom no)
@@ -3211,7 +3275,7 @@
 		(dnp no)
 		(uuid "cbf8ff96-71c4-5b83-b152-be418d27a665")
 		(property "Reference" "#PWR2304"
-			(at 76.2 218.44 90)
+			(at 76.2 220.98 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3220,7 +3284,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 76.2 223.52 90)
+			(at 76.2 226.06 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3228,7 +3292,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 76.2 220.98 90)
+			(at 76.2 223.52 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3237,7 +3301,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 76.2 220.98 90)
+			(at 76.2 223.52 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3246,7 +3310,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 76.2 220.98 90)
+			(at 76.2 223.52 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3268,70 +3332,6 @@
 	)
 	(wire
 		(pts
-			(xy 58.42 223.52)
-			(xy 53.34 223.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "faceccd5-184e-5eae-b3ed-6cfd24364f1d")
-	)
-	(global_label "ESTOP_EN_A"
-		(shape passive)
-		(at 53.34 223.52 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8feb54c8-6428-56d4-96b1-4347e143a930")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 53.34 223.52 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 71.12 223.52)
-			(xy 76.2 223.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "49879a8e-7517-55a1-a977-f08ff129ed4a")
-	)
-	(global_label "ESTOP_EN_B"
-		(shape passive)
-		(at 76.2 223.52 0)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "dcb18d81-7fe0-5f69-a652-f1ddaf10bc56")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 76.2 223.52 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
 			(xy 58.42 226.06)
 			(xy 53.34 226.06)
 		)
@@ -3341,7 +3341,7 @@
 		)
 		(uuid "4691a58a-dcc2-5305-906c-4f08d655668b")
 	)
-	(global_label "BANK_B_CLOSE"
+	(global_label "TS2_WAKE"
 		(shape passive)
 		(at 53.34 226.06 180)
 		(fields_autoplaced yes)
@@ -3373,7 +3373,7 @@
 		)
 		(uuid "76fb9212-e544-57cd-8694-c06d3cbfd44b")
 	)
-	(global_label "TS2_WAKE"
+	(global_label "BANK_B_CLOSE"
 		(shape passive)
 		(at 76.2 226.06 0)
 		(fields_autoplaced yes)

@@ -2350,7 +2350,7 @@
 		)
 		(uuid "0306ae46-9f8b-5da8-ae5c-c8fdf86d2eea")
 	)
-	(label "B0"
+	(label "PRES"
 		(at 345.44 58.42 180)
 		(effects
 			(font
@@ -2371,7 +2371,7 @@
 		)
 		(uuid "08bb1f4c-064f-5c7c-bbb4-c4d14b2687e1")
 	)
-	(label "B1"
+	(label "NTC_RET"
 		(at 345.44 60.96 180)
 		(effects
 			(font
@@ -2392,7 +2392,7 @@
 		)
 		(uuid "ede19804-b49b-5f8b-be94-ba8a2a3e4e8b")
 	)
-	(label "B2"
+	(label "B0"
 		(at 345.44 63.5 180)
 		(effects
 			(font
@@ -2413,7 +2413,7 @@
 		)
 		(uuid "3d96ad2b-17df-54af-8e00-7d64ae6b12fb")
 	)
-	(label "B3"
+	(label "B1"
 		(at 345.44 66.04 180)
 		(effects
 			(font
@@ -2434,7 +2434,7 @@
 		)
 		(uuid "d8269ac1-320e-57f2-bf95-c77de07f6372")
 	)
-	(label "B4"
+	(label "B2"
 		(at 345.44 68.58 180)
 		(effects
 			(font
@@ -2455,7 +2455,7 @@
 		)
 		(uuid "e72ce93a-1cf9-5760-8719-36b9734fd9ef")
 	)
-	(label "B5"
+	(label "B3"
 		(at 345.44 71.12 180)
 		(effects
 			(font
@@ -2476,7 +2476,7 @@
 		)
 		(uuid "0f73fc26-136f-5c6b-8c9f-8238347f41ec")
 	)
-	(label "B6"
+	(label "B4"
 		(at 345.44 73.66 180)
 		(effects
 			(font
@@ -2497,7 +2497,7 @@
 		)
 		(uuid "1480e113-85bb-5bb7-9204-0723dcd8c058")
 	)
-	(label "B7"
+	(label "B5"
 		(at 345.44 76.2 180)
 		(effects
 			(font
@@ -2518,7 +2518,7 @@
 		)
 		(uuid "6a32ea34-e038-5a15-ae8e-ed87fb4b07c6")
 	)
-	(label "B8"
+	(label "B6"
 		(at 345.44 78.74 180)
 		(effects
 			(font
@@ -2539,7 +2539,7 @@
 		)
 		(uuid "024ae628-dde8-58a1-a39c-5ead766288b6")
 	)
-	(label "B9"
+	(label "B7"
 		(at 345.44 81.28 180)
 		(effects
 			(font
@@ -2560,7 +2560,7 @@
 		)
 		(uuid "aa76f26c-c668-591a-bb58-f1d162baa827")
 	)
-	(label "B10"
+	(label "B8"
 		(at 345.44 83.82 180)
 		(effects
 			(font
@@ -2581,7 +2581,7 @@
 		)
 		(uuid "af241fe6-aea8-5459-a66e-c568da170d43")
 	)
-	(label "B11"
+	(label "B9"
 		(at 345.44 86.36 180)
 		(effects
 			(font
@@ -2602,7 +2602,7 @@
 		)
 		(uuid "b627d307-41ac-55b8-b511-a4ba4acb5090")
 	)
-	(label "B12"
+	(label "B10"
 		(at 345.44 88.9 180)
 		(effects
 			(font
@@ -2623,7 +2623,7 @@
 		)
 		(uuid "94ec0845-f1fa-5448-a5ed-90d0d95c6f88")
 	)
-	(label "B13"
+	(label "B11"
 		(at 345.44 91.44 180)
 		(effects
 			(font
@@ -2644,7 +2644,7 @@
 		)
 		(uuid "f02b68a0-1d31-5f2f-8116-e653c29ece11")
 	)
-	(label "PRES"
+	(label "B12"
 		(at 345.44 93.98 180)
 		(effects
 			(font
@@ -2665,7 +2665,7 @@
 		)
 		(uuid "db11fe92-55ec-55b4-808f-7451dde6dd0d")
 	)
-	(label "NTC_RET"
+	(label "B13"
 		(at 345.44 96.52 180)
 		(effects
 			(font
@@ -4613,7 +4613,7 @@
 		)
 		(uuid "d524beca-d4fe-5c6a-980f-e7c5aeba436b")
 	)
-	(text "Fuse at the cell, one per tap. Schurter USE 2410 1 A: 79 mOhm, 200 A at 86 VDC, tau under 0.05 ms, against 146 A prospective. Balance adds 24 mV of sense error at 150 mA across two taps.\nFootprint is a 2010 stand-in: the 6.1 x 2.5 mm 2410 land is owed in layout.\nPresence: pin 13 goes out through the cell tap plug (J2202 pins 15, 16 looped in the harness) and back on pin 3, so either plug out opens DSG and CHG. B0 and B13 are their own Kelvin tabs: no pack current in a sense wire. NTC_RET returns on pin 3 to VSS, no cell connection."
+	(text "Fuse at the cell, one per tap. Schurter USE 2410 1 A: 79 mOhm, 200 A at 86 VDC, tau under 0.05 ms, against 146 A prospective. Balance adds 24 mV of sense error at 150 mA across two taps.\nFootprint is a 2010 stand-in: the 6.1 x 2.5 mm 2410 land is owed in layout.\nPresence: pin 13 goes out through the cell tap plug (J2202 pins 1, 2 looped in the harness, beside B0, away from B13) and back on pin 3, so either plug out opens DSG and CHG. B0 and B13 are their own Kelvin tabs: no pack current in a sense wire. NTC_RET returns on pin 3 to VSS, no cell connection."
 		(exclude_from_sim no)
 		(at 25.4 152.4 0)
 		(effects
