@@ -211,6 +211,13 @@ clearance is unchanged (7.8 mm minimum at the gussets). Inward offset folds at 2
 the dense grid); the shoulder top cap at ~3.3 mm is the tightest spot left and thickened fine in both pilots. Upper panels
 now ~170 g each from the split check. `?rim=14` in the generator restores rev 2.
 
+**Rev 3 pilot (SolidWorks):** 2.4 mm thickens with no patching (6 faces vs 25); wall 2.399–2.401 mm over 6,326 points,
+including both old thin spots, the socket and the top cap. 170.0 g, box 124.2 × 144.8 × 228.0, H1 27.4 mm, H3 48.5 mm; STL watertight,
+0 non-manifold edges (the first export from the build session lacked the inner face: re-check STLs exported straight after a build).
+Slices (from G-code, `pilot/`): sternum down 11 h 04 m, 157 g + 106 g support, outer face clean; sternum up 7 h 13 m, 30 g support but
+marks on up to ~137 cm² of the socket wall; neck down 7 h 20 m, 36 g, marks at the top. STEP reimport reads 0.3% high
+(unexplained): print from the STL.
+
 ## 9. Open items
 
 **Arm-thread tip-over recheck (main 022da44):** with only 10 mm of stop the frame yields (side 400 MPa, back 584, limit 145). It holds
