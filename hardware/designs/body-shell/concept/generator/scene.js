@@ -130,7 +130,7 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 // black P1 part (bottom at ZS-46), then tapers to the waist. Wall tracks the shoulder width (YSX).
 const WALL = 124 + YSX + FW;
 // arm-thread gap check (TORSO_WIDE_VARIANT.md): shoulder-point half-width <= 155 at fw=38 for 5 mm at 5 deg inward roll
-const TOPW = WALL - 7;
+const TOPW = WALL - Number(q.get('topcap') ?? 0);   // 7 = arm-thread cap (155 at fw=38); Joey kept the baseline
 const WX = Number(q.get('wx') ?? 10); // waist widening per side (Joey 2026-11-06: 'widen the waist a bit')
 const TAPER_Z = ZS - 46 - 65;
 const chest = [
@@ -153,7 +153,7 @@ const chest = [
 ];
 // shoulder socket: inside radius SOCK_R of the pitch axis the shell side steps in to the RS03 face (Y = +-97),
 // so the rotating P1 and roll RS03 (sweep radius ~57 mm) never touch it
-const SOCK_R = Number(q.get('sock') ?? 93);   // P2 sweeps to r 88 about the pitch axis (arm thread, 2026-11-06)
+const SOCK_R = Number(q.get('sock') ?? 62);   // P2 sweeps to r 88 about the pitch axis (arm thread, 2026-11-06)
 const sstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 // male chest plate: two pec masses with a sternum groove and a crisp lower edge
 const PEC_Z = ZS - 30;
