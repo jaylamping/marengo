@@ -49,5 +49,5 @@ sheet([(crop('m25.png', (600, 300, 2600, 2300), w=800), 'Previous: shoulders +25
        (crop('w38x.png', (600, 300, 2600, 2300), w=800), 'Latest, x-ray: wider 2020 frame')],
       'Body shell: broader shoulders (wider frame) and a wider waist', sub, 'SHELL_CONCEPT_BLEND.png',
       ['Same side line as before, but the whole shoulder moves out another 13 mm per side: longer left-right 2020 rails (150 -> 226 mm),',
-       'pitch RS03 faces at Y +-110.5, P1 unchanged. Widening only the shell there would hit the hanging upper arm, so the arm moves out with it.',
+       'pitch RS03 faces at Y +-135.5 (were +-97.5), P1 unchanged. Widening only the shell there would hit the hanging upper arm, so the arm moves out with it.',
        'Waist +10 mm per side: chest bottom 178 mm, dark bands 156 mm. Upper panels 324 mm and lower front 279 mm wide: both split at the centre for the P2S.'])
