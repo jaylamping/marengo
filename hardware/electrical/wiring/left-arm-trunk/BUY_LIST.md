@@ -18,6 +18,5 @@ Rev 0, 2026-11-06. Quantities are per arm, with the spares in brackets. Links we
 | 10 | 26 AWG CAN twisted pair | 3.5 m | [Spec55 twisted CAN 26 AWG](https://xtramotorsport.com/?p=11352), or twist your own from 26 AWG silicone (yellow + green) with a drill, ~1 turn per 25 mm | Silicone twists tighter and flexes better at the joints |
 | 11 | Solder-seal heat-shrink splices + assorted heat-shrink | 1 kit | [Crimp Supply 16-14 solder heat-shrink splices](https://crimpsupply.com/16-14-ga-solder-heat-shrink-butt-splice-terminals.html) | For the drop T-splices: solder, then shrink each conductor and add an overall shrink |
 | 12 | 120 Ω ¼ W resistor | 1 (+2) | any (Digi-Key, Amazon assortment) | Across CAN_H and CAN_L at the M15 splice |
-| 13 | Optional: NUP2105L dual CAN TVS (SOT-23) | 5 (+5) | Digi-Key / Mouser (search NUP2105L) | Sacrificial CAN clamp at each drop splice |
 
 Rough total per arm, excluding wire you already have: about $40 to $70, mostly connectors and 58 V fuses.
