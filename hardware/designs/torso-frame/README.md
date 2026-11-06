@@ -55,25 +55,27 @@ Two-box 2020 frame, 6063-T5 T-slot, 6 mm slots. Same 340 mm height as the built 
 | 8 | Rail, top front/rear, 186 | 2 | 186.00 | **new stock** |
 | 9 | Rail, top side, 100 | 2 | 100.00 | existing, reused as is |
 
-Total extrusion 3124 mm, of which 1024 mm is new stock. 28 corner brackets.
+Total extrusion 3124 mm, of which 1024 mm is new stock. 20 corner brackets and 8 end-tapped joints.
 
 The four built 340 mm posts become 198.62 + 121.38, two cuts each, the upper post measured to 121.38 (the 20 mm remainder absorbs the
 kerfs). New stock: 2 × 226, 2 × 186, 2 × 100 = 1024 mm; one more 4 × 500 mm pack (`B08Y8KCJW4`) covers it, and the two spare 110 mm
 top rails can become the two 100 mm shelf rails instead (then 824 mm new). Spare after the rebuild: four post offcuts.
 
-**Joint count:** 28 corner brackets with 2 × M5 T-nuts each (bottom corners 8, lower post tops 4, upper post bottoms 4,
-top corners 4 (gate 2: the four top Z-face brackets sat inside the as-built pitch bracket, arm thread check 11:47Z; deleted, the pitch bracket carries that corner; confirm on the built robot), shelf rail ends 4, step side rail ends 4). 20 are 2028; 8 are 2020 brackets (20 mm legs): the 4 top inner-X corners,
-because a 2028 there overlaps the pitch bracket wing at Y 447 to 450 (arm thread interference check), and the 4 step side rail ends,
-because only 18 mm separates the step side rails from the shelf rails and a 2028 leg ran 10 mm into the shelf rail (gate review).
-The built box uses 16, so 8 more 2028s. Optional +8 at the step if the post Z faces also get a bracket; the gate reviewers
-noted that eight more friction joints do not by themselves carry the side-fall shear, which runs along the gusset slots.
+**Joint count:** 20 corner brackets with 2 × M5 T-nuts each (bottom corners 8, lower post tops 4, upper post bottoms 4,
+top corners 4), plus **8 end-tapped joints** at shelf level. 16 are 2028 (the built box's 16, reused); 4 are 2020 (20 mm legs) at the top
+inner-X corners, because a 2028 there overlaps the pitch bracket wing at Y 447 to 450. Gate 2 changes: the four top Z-face brackets sat
+inside the as-built pitch bracket (arm thread check 11:47Z) and are deleted, the pitch bracket carries that corner (confirm on the built robot);
+and (Joey 16:39Z) the 8 shelf rail and step side rail ends are **end-tapped** instead of bracketed: tap M5 into the rail-end core, then an
+M5 × 35 socket head goes through the gusset (3 mm) and the shared rail (20 mm) into it, at gusset holes X ±65 and ±103, Y 363.62. That frees
+the shelf plate and its cable slots, and the screw doubles as an end anchor for the step joint along the slot.
 
 **Fasteners (all on `FRAME_EXPLODED_DETAIL.png`):**
 
 | Fastener | Qty | For |
 | --- | --- | --- |
-| M5 × 10 button head + M5 T-nut | 56 | corner brackets |
-| M5 × 10 button head + M5 T-nut | 36 | gussets, 9 per plate |
+| M5 × 10 button head + M5 T-nut | 40 | corner brackets |
+| M5 × 10 button head + M5 T-nut | 28 | gussets, 7 per plate (the other 2 holes per plate are end-tap screws) |
+| M5 × 35 socket head, into an M5-tapped rail end | 8 | end-tapped shelf rail and step side rail ends, through the gussets |
 | M5 × 18 button head + M5 T-nut | 20 | shell hardpoint brackets (through 12 mm of PETG; gate 2: × 20 bottoms in the slot before it clamps, × 16 leaves ~2 mm of thread; measure the slot depth first) |
 | M5 × 10 button head + M5 T-nut | 8 | pitch bracket ears (4 mm) to the step side rail, top side rail and upper posts (gate 2: × 12 bottoms in the slot; **assumption**: the built bracket's pattern decides) |
 | RS03 rear mounting screws | 2 sets | vendor pattern, as built |
@@ -81,7 +83,7 @@ noted that eight more friction joints do not by themselves carry the side-fall s
 | M2.5 standoffs and screws | 8 + 4 | Pi 5 stack, Jetson carrier |
 | M3 heat-set inserts + M3 × 8 | ~40 | shell panels to the hardpoint brackets (shell thread) |
 
-Total: **120 M5 screws and 120 M5 T-nuts** on the frame, plus 8 DIN 125 M5 washers under the pitch screws (the ear slots are 6.2 to 6.4 wide, arm thread).
+Total: **96 M5 screws with 96 M5 T-nuts, plus 8 M5 × 35 end-tap screws** on the frame, plus 8 DIN 125 M5 washers under the pitch screws (the ear slots are 6.2 to 6.4 wide, arm thread).
 
 ## 2a. Shopping list
 
@@ -90,10 +92,11 @@ What the BOM (`hardware/bom/master-bom.csv`) says Joey bought against what rev A
 | Item | Bought (BOM) | Needed for rev A | Buy |
 | --- | --- | --- | --- |
 | 2020 extrusion, 500 mm sticks | 2 × 4-pack = 4000 mm; 2400 mm cut for the built frame | 1024 mm new (2 × 226, 2 × 186, 2 × 100) | Depends on the inventory (the as-built list has 2200 mm and no shelf rails; this spec assumed 2400 mm). Buy the pack either way; the two spare 110 rails can become the two 100 shelf rails, which drops the new stock to 824 mm: **1 more 4-pack (`B08Y8KCJW4`)** |
-| 2028 corner brackets | kit of 30, 16 used | 20 | 14 spare on hand: **buy none**, or one kit if any are bent |
-| 2020 corner brackets, 20 mm legs | none | 8 | **1 pack of 10** (any 2020-series inside corner bracket, 20 × 20) |
-| M5 T-nuts, 2020, 10 mm long | ~32 with the kit | 120 (+ spares) | **100-pack slide-in** for the corner brackets, plus **two 50-packs of drop-in** (about 68 needed: 36 gussets, 8 pitch brackets, 20 hardpoints, plus spares) for the slots that are closed once the posts clamp the rail ends (gate review; gate 2 found one 50-pack about 20 short) |
-| M5 × 10 button head, stainless | some | 100 | **100-pack** (exact; add a 25-pack for spares) |
+| 2028 corner brackets | kit of 30, 16 used | 16 | the built box's 16: **buy none** (14 spare) |
+| 2020 corner brackets, 20 mm legs | none | 4 | **1 pack of 10** (any 2020-series inside corner bracket, 20 × 20) |
+| M5 tap (spiral point or plug) + tap handle, M5 × 35 socket head | none | 1 tap, 8 screws | **1 M5 × 0.8 tap and a 25-pack of M5 × 35 SHCS** for the 8 end-tapped joints (the 2020 core hole is already the 4.2 mm tap drill) |
+| M5 T-nuts, 2020, 10 mm long | ~32 with the kit | 96 (+ spares) | **100-pack slide-in** for the corner brackets, plus **two 50-packs of drop-in** (about 56 needed: 28 gussets, 8 pitch brackets, 20 hardpoints; one 50-pack is short) for the slots that are closed once the posts clamp the rail ends (gate review; gate 2 found one 50-pack about 20 short) |
+| M5 × 10 button head, stainless | some | 76 | **100-pack** |
 | M5 × 18 button head | none | 20 | **25-pack**. Gate 2: × 20 bottoms in the T-nut/slot before the 12 mm PETG bracket is clamped, × 16 leaves ~2 mm of thread. The pitch bracket screws are now M5 × 10 (from the 100-pack, so buy a second 25-pack of × 10). **Measure the slot depth of the stock on hand before ordering** |
 | 3 mm 6061-T6 sheet | none | 4 plates 58 × 140 | **one 150 × 300 mm sheet**, or 4 plates laser-cut from `gusset_plate_left.dxf` in this folder (R15, generated by `generator/gusset_dxf.py`; mirror two). The older `../torso-stepped/gusset_plate_left.dxf` is R8 everywhere and is superseded |
 | M4 × 10 button head | arm stock | 16 | from the arm fastener stock |
@@ -119,8 +122,8 @@ No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
 | 8 | Rail, top front/rear, 186 | 2 | 2020 | 186 | **new** |
 | 9 | Rail, top side, 100 | 2 | 2020 | 100 | reused, moved out 38 |
 | 10 | Gusset plate (`gusset_plate_left.dxf`, R15 at the X 113 / Y 335 corner) | 4 | 3 mm 6061-T6 | 160 | **new**; 40 g each |
-| 11 | Corner bracket 2028 + 2 M5 T-nuts | 20 | aluminium | 360 | 16 reused, 4 from the kit spares |
-| 34 | Corner bracket 2020 (20 mm legs), top inner-X corners and step side rail ends | 8 | aluminium | 112 | **new** |
+| 11 | Corner bracket 2028 + 2 M5 T-nuts | 16 | aluminium | 288 | reused |
+| 34 | Corner bracket 2020 (20 mm legs), top inner-X corners | 4 | aluminium | 56 | **new** |
 | 12 | RS03 shoulder pitch | 2 | RobStride | 1760 | existing; Ø80 rear boss X 78.4 to 92 with two connector flats, Ø99 body to 132.5, output face 135 |
 | 13 | Shoulder pitch bracket | 2 | PETG | 240 | existing part, moved out 38; envelope X 78.4 to 113, Y 353.6 to 495, Z ±50, wing to ±69 at Y 400 to 450 (recorded CAD check) |
 | 14 | Compute shelf plate | 1 | existing | 60 | existing; X ±55 between the shelf rails, Y 354.6 to 372.6 (recorded CAD check) |

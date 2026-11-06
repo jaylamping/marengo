@@ -82,8 +82,8 @@
  {
   "item": 11,
   "name": "Corner bracket, 2028, with 2 x M5 T-nuts",
-  "qty": 20,
-  "mass_g": 360,
+  "qty": 16,
+  "mass_g": 288,
   "material": "Al bracket + M5 T-nuts",
   "group": "bracket"
  },
@@ -266,24 +266,24 @@
  {
   "item": 34,
   "name": "Corner bracket, 2020",
-  "qty": 8,
-  "mass_g": 112,
+  "qty": 4,
+  "mass_g": 56,
   "material": "Al bracket + M5 T-nuts",
   "group": "bracket"
  },
  {
   "item": 35,
   "name": "M5 x 10 button head + T-nut",
-  "qty": 56,
-  "mass_g": 112,
+  "qty": 40,
+  "mass_g": 80,
   "material": "M5 button head",
   "group": "fastener"
  },
  {
   "item": 36,
   "name": "M5 x 10 button head + T-nut",
-  "qty": 36,
-  "mass_g": 72,
+  "qty": 28,
+  "mass_g": 56,
   "material": "M5 button head",
   "group": "fastener"
  },
@@ -318,5 +318,13 @@
   "mass_g": 80,
   "material": "PETG print",
   "group": "electronics"
+ },
+ {
+  "item": 41,
+  "name": "M5 x 35 socket head, END-TAP: through the gusset and the shared rail into the M5-tapped core of the shelf / step side rail end",
+  "qty": 8,
+  "mass_g": 16,
+  "material": "M5 button head",
+  "group": "fastener"
  }
 ]

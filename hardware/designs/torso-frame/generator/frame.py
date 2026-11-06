@@ -97,7 +97,7 @@ for sx in (1, -1):
 # ---- gusset plates, 3 mm 6061-T6, front and rear faces of each step corner -------------------
 GUSSET_PTS = [(55, 285), (75, 285), (113, 335), (113, 425), (93, 425), (93, Y_STEP_HI), (55, Y_STEP_HI)]
 GUSSET_R = [8, 8, 15, 8, 8, 8, 8]   # R15 at the X 113 / Y 335 corner (297 MPa peak in the arm thread FEA)
-GUSSET_HOLES = [(65, 297), (65, 317), (65, 337), (62, 363.62), (84, 363.62), (104, 363.62), (103, 385), (103, 400), (103, 415)]
+GUSSET_HOLES = [(65, 297), (65, 317), (65, 337), (65, 363.62), (84, 363.62), (103, 363.62), (103, 385), (103, 400), (103, 415)]
 first = True
 for sx in (1, -1):
     for sz in (1, -1):
@@ -144,9 +144,7 @@ for sx in (1, -1):
 # step-tier horizontal rails to the shared rails: shelf rails (4) and step side rails (4)
 for sx in (1, -1):
     for sz in (1, -1):
-        for hx in (HX_SHELF, HX_UP):
-            corner = (sx * (hx - E), Y_STEP_LO + E / 2, sz * (HZ - E))
-            bracket(f'br{nb}', corner, (0, -sx), (2, -sz), 1, E, (0, 0, 0), leg=20 if hx == HX_UP else None); nb += 1   # gate review: 28 mm legs ran 10 mm into the shelf rails
+        pass   # Joey 16:39Z: these 8 joints are END-TAPPED (M5 x 35 through the gusset and shared rail into the tapped rail end), see the gusset bolts below. The 8 brackets sat in the shelf plate and its cable slots.
 N_BRACKETS = nb
 
 # ---- fasteners: M5 button heads + T-nuts on every bracket, gusset and hardpoint ---------------------
@@ -188,6 +186,10 @@ for p in [q for q in parts if q['group'] == 'gusset']:
     sz = 1 if p['z0'] > 0 else -1
     for k, (x, y, r) in enumerate(p['holes']):
         head = [x, y, p['z0'] + (p['t'] if sz > 0 else 0)]
+        if abs(y - 363.62) < 0.1 and abs(abs(x) - 84) > 1:   # end-tap holes at the shelf rail (X 65) and step side rail (X 103) ends
+            screw(f"g{p['id']}_{k}", 41, 'M5 x 35 socket head, END-TAP: through the gusset and the shared rail into the M5-tapped core of the shelf / step side rail end (8; Joey 16:34Z)', 'z', head, -sz, p['explode'], balloon=(p['id'] == 'gusset_1_1' and abs(x) < 70), length=35, head_h=5, color='#b0b4ba')
+            FAST['m5_endtap'] = FAST.get('m5_endtap', 0) + 1
+            continue
         screw(f"g{p['id']}_{k}", 36, 'M5 x 10 button head + T-nut (gussets, 36)', 'z', head, -sz, p['explode'], balloon=(k == 0 and p['id'] == 'gusset_1_1'))
         tnut(f"gt{p['id']}_{k}", 36, 'M5 T-nut', 'z', [x, y, p['z0'] if sz > 0 else p['z0'] + p['t']], -sz, p['explode'], 'y' if abs(y - 363.62) > 1 else 'x')
         FAST['m5'] += 1; FAST['tnut'] += 1
