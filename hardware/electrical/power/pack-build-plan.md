@@ -72,6 +72,28 @@ the sense harness) run over the pack's top edge, which has 8.6 mm of headroom, t
 side: a short XT90S pigtail (about 60 mm, 10 AWG) from the fuse, and the sense board's header on the rear face at X 5 to 45,
 Y 318 to 343. Both are parked in a printed holder on the case so nothing hangs loose when the door is open.
 
+### Pack heat for the shell's airflow sizing (estimate, for frame gate review 2 item F)
+
+Pack heat is I² × R. R is about 90 mΩ for P50B, plus or minus 20%; the 6 Ah cells are unmeasured. The pack's thermal mass is
+about 2 kJ/K (26 cells × 70 g × about 1 J/g·K, plus case).
+
+| Case | Current | Heat | Effect |
+| --- | --- | --- | --- |
+| Bench average, arms + compute | 4 to 5 A | about 2 W | negligible |
+| Hard arm session, sustained | 15 A | about 20 W | about +10 K over 30 min with natural convection (estimate) |
+| Worst sustained we'd allow | 20 A | about 36 W | about +15 to 20 K over 30 min; NTC-driven fan in the lower box |
+| 40 A burst (reviewer case), 10 s | 40 A | 144 W | about 1.4 kJ, under +1 K. Not a steady state |
+| 60 A peak (fuse/OCD), 1 s | 60 A | 324 W | negligible energy |
+
+**Size the lower-box airflow for about 20 W steady, with 36 W as the worst case.** 40 A is a burst current, not a duty
+cycle. The AFE's 60 °C discharge cutoff and the NTC-driven fans are the backstop. Measured numbers replace this table after
+build step 6 and the first logged sessions.
+
+### Retention bosses for the frame cradle (item A)
+
+Yes. The printed case takes **two M4 heat-set inserts on its rear face**, at about X ±35, Y 205 (low corners). Keep clear of
+the sense board and connector zone at X 5 to 45, Y 300 to 345. The frame thread designs the cradle around them.
+
 ### Connector mating rule (agreed)
 
 **Sense connector in first, XT90 last. XT90 out first, sense connector last.** The board thread is checking the BQ76952's
