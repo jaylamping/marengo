@@ -238,8 +238,9 @@ Leg ports are footprints on rev A; populate when the legs exist.
   names, Davout pacing, `config/motors*.yaml`, the bus-plan ADR that ADR 0001 says is still owed), so it is a proposal to them,
   not a decision made here.
 - **Isolated transceivers** (ISOW1044-class, integrated isolated supply, verify) on every bus. The trunk thread's real "$500
-  actuator" fear is a crushed cable putting 54 V on CAN; their junction boards protect each drive, and isolation here protects
-  the Pi, the Jetson and the board. The bus side of each transceiver references that limb's trunk GND at the port.
+  actuator" fear is a crushed cable putting 54 V on CAN; with junction boards ruled out (08:35Z) the drives' transceivers rely on the
+  trunk's discrete TVS at the splices, and isolation here protects the Pi, the Jetson and the board. Pick a transceiver whose bus
+  pins survive a sustained 58 V fault (ISOW1044 class claims ±58 V; verify), and add a port-side CAN TVS on the board. The bus side of each transceiver references that limb's trunk GND at the port.
 - **Termination:** 120 Ω at the board end of each bus, switchable (solid-state or jumper), far end on the trunk's last junction
   board as the trunk thread planned.
 - The supervisor MCU appears on the same USB hub as a CDC serial device for telemetry and the arm/disarm handshake. If USB drops,
@@ -310,10 +311,9 @@ that can read thermistors (verify), but the 2 × 9 connector is full, so it cost
 
 **Per-motor current.** The board measures each limb exactly. Per motor it relies on the drives' own reports, and the
 supervisor reconciles the sum against the limb meter (the residual is wiring loss or error). If Joey wants measured current
-per motor as well, the trunk junction boards can carry a sense chip, which needs a small MCU on CAN at each one. The trunk thread
-took this on (07:31Z): each junction board gets an optional sense chip plus a small CAN MCU reporting drop current, bus voltage,
-temperature and fuse state at 10 to 50 Hz, node IDs 16 to 20 on each arm bus, standard 11-bit frames so they never collide with
-RobStride's 29-bit extended IDs. Reconciliation (sum of drops against the limb meter) runs on the host, which sees both.
+per motor as well, the trunk junction boards can carry a sense chip, which needs a small MCU on CAN at each one. Joey ruled out junction
+boards (08:35Z, trunk thread), so per-motor current comes from the drives' own CAN reports, reconciled on the host against the
+measured limb total; there are no per-motor sense nodes.
 
 **Accuracy target:** ±1% current above 1 A, ±0.2% voltage, energy within 2% over a session. Calibrated against a bench meter
 at bring-up, with the calibration stored in the supervisor.
@@ -375,7 +375,7 @@ is a new failure point and a contact resistance that heats, so high current stay
 | **LP: low-power board** | AFE, supervisor, CAN bridges and isolated transceivers, USB hub, 12 V intermediate and all LV rails, rail switches and meters, fans, temperatures, E-stop loop logic, I/O | lower box, lower part (Y 190 to 243) | about 100 × 55, 6 layers | rev A |
 | **Pi power stub** | 12 V → 5.1 V at 6 A right at the Pi, so the Pi's rail is regulated at the load and not 300 mm of wire away | Pi shelf, upper bay | about 30 × 20 | rev A, tiny |
 | **Pack sense board** | tap fuses, NTCs, 2 × 10 Micro-Fit | on the pack | 40 × 25 | rev A (battery thread asked) |
-| **Junction boards** | drop fuse, CAN surge protection, optional per-motor sensing | at each motor | trunk thread | trunk thread |
+| ~~Junction boards~~ | ruled out by Joey 08:35Z; trunk is spliced with inline fuses and plug-in joint jumpers | | | trunk thread |
 | **Test load box** | dummy load and pulse load for fuse and trip testing | bench only | | after rev A |
 
 HP and LP join through one locking board-to-board connector (VSYS at a few amps for the rails, I2C/SPI to the port meters,
@@ -463,6 +463,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.7 | 2026-11-06 | Junction boards ruled out (Joey 08:35Z): per-motor current from drive reports; port-side CAN TVS, 58 V-tolerant transceivers |
 | 0.6 | 2026-11-06 | Board family (6a): HP, LP, Pi power stub, pack sense board; no XT breakouts; per-motor sensing on junction boards |
 | 0.5 | 2026-11-06 | Rails reworked into two-stage regulation with 9 rails (Joey 07:29Z); telemetry section 3.9 (Joey 07:28Z); P50B cells, pack sense board, charge temperature window from the battery thread |
 | 0.4 | 2026-11-06 | Joey chose leg-ready ratings: 80 A continuous, 150 A for 100 ms main path, leg ports as unpopulated footprints |
