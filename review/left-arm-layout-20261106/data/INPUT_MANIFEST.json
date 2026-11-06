@@ -1,0 +1,39 @@
+{
+ "TORSO.step": {
+  "source": "C:\\Users\\joeyl\\Documents\\Codex\\2026-10-29\\task\\marengo-reference\\marengo_torso_asm.STEP",
+  "sha256": "e1300221aad16a99690272da743844a64dc28ca91736df0a9b6045fb8b55ad57"
+ },
+ "P1_L01.step": {
+  "source": "C:\\Users\\joeyl\\Documents\\Codex\\2026-10-29\\task\\LEFT_ARM_FORK_20261105\\geometry\\P1_LEFT_WO01_L01_HOLD.step",
+  "sha256": "8b38e1aca6f70c4643216916d4c6a7f815bfb472111d39c0cdddbb09edf4d39f"
+ },
+ "P2_L04B.step": {
+  "source": "C:\\Users\\joeyl\\Documents\\Codex\\2026-10-29\\task\\LEFT_P2_L04B_PRINT_REVIEW_20261105\\geometry\\P2_LEFT_L04B_ONE_SIDE_RELIEF_HOLD.step",
+  "sha256": "1ba620abfdf93a41e5d67e557c6e5742c26156afac0d5f7824c35bb8757da572"
+ },
+ "ELBOW_RS02.step": {
+  "source": "C:\\Users\\joeyl\\OneDrive\\Desktop\\robot\\Actuators\\RobStride\\RS02\\RS02.step",
+  "sha256": "ab1d28c8bcf9c537611d6a409cdcd739b71ff49ad8550718e2fb9a140b25479a"
+ },
+ "FOREARM_RS00.step": {
+  "source": "C:\\Users\\joeyl\\OneDrive\\Desktop\\robot\\Actuators\\RobStride\\RS00\\RS00.step",
+  "sha256": "4133dea27ccff90d69588dbc37662c9eafeed0bf858fc0a4cee93417e508abfe"
+ },
+ "ROLL_RS03.step": {
+  "source": [
+   "C:\\Users\\joeyl\\Documents\\Codex\\2026-10-29\\task\\LEFT_ARM_FORK_20261105\\geometry\\ROLL_RIGID_RELOCATION_REFERENCE.brep",
+   "C:\\Users\\joeyl\\Documents\\Codex\\2026-10-29\\task\\LEFT_P2_CABLE_FORK_20261105\\geometry\\ROLL_OUTPUT_RIGID_REFERENCE.brep"
+  ],
+  "sha256": "34d90574e6395857a97d83fdd0df586b98912bbf5f927d95ef8456c0e8705fd1"
+ },
+ "YAW_RS02.step": {
+  "source": "C:\\Users\\joeyl\\Documents\\Codex\\2026-10-29\\task\\LEFT_P2_RS02_REAR_CORRECTION_20261105\\geometry\\RS02_CLOCK_172p12_REFERENCE.brep",
+  "source_sha256": "2e5a4bf7b5b4e2bf2b3f3a902c3e564040ca243c024e8a16cca5ec0a37632057",
+  "sha256": "48c5630c8708936b95969a498ec32ff2bfad9c512e9fab744d9c1150befd7952"
+ },
+ "SPACER.step": {
+  "source": "C:\\Users\\joeyl\\Documents\\Codex\\2026-10-29\\task\\LEFT_P2_CABLE_FORK_20261105\\geometry\\SPACER_LEFT_PF03_REFERENCE.brep",
+  "source_sha256": "ddd9f1cb9b76474ead63d4c74879611eebe2767bc149549fb8a82ad4ffe31f75",
+  "sha256": "a03250a48bc84b44ccbe79b956833c825c2e8810375f7df545061e45e4934ff1"
+ }
+}
