@@ -1,9 +1,10 @@
 {
-  "ROLL_RS03": 0.880,
+  "ROLL_RS03": 0.88,
   "YAW_RS02": 0.405,
   "ELBOW_RS02": 0.405,
-  "FOREARM_RS00": 0.310,
+  "FOREARM_RS00": 0.31,
   "P1_L01": null,
   "P2_L04B": null,
-  "SPACER": null
+  "SPACER": null,
+  "marengo_upper_arm_left": null
 }

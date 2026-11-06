@@ -33,7 +33,7 @@ LINKS = ["shoulder_pitch_link", "shoulder_roll_link", "upper_arm_link", "forearm
 LINK_PARTS = {
     "shoulder_pitch_link": ("P1_L01", "ROLL_RS03"),
     "shoulder_roll_link": ("SPACER", "P2_L04B", "YAW_RS02"),
-    "upper_arm_link": ("ELBOW_RS02",),
+    "upper_arm_link": ("ELBOW_RS02", "marengo_upper_arm_left"),
     "forearm_link": ("FOREARM_RS00",),
     "hand_link": (),
 }
