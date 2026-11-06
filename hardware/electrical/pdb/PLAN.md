@@ -69,8 +69,8 @@ trip point, not the pack.
 
 Robot draw (estimate): arms plus waist at work, 100 to 300 W average with 1 to 1.5 kW spikes; with legs walking, 400 to
 800 W average with 2 to 3 kW spikes. **The pack is the limit, not the board:** 60 A fuse × 46.8 V = 2.8 kW, and a 13S2P pack
-has roughly 65 to 90 mΩ total resistance (estimate: about 5 to 7 mΩ per P45B pair plus nickel and leads), so 60 A sags it
-4 to 5 V and heats it about 250 W while it lasts. Fine for arms and waist. For legs the pack (and its fuse) needs a second look
+has roughly 80 to 110 mΩ total resistance (battery thread estimate: about 15 mΩ DCIR per P45B, 7.5 per pair × 13, plus links;
+measured value to come from cell grading), so 60 A sags it 5 to 7 V and heats it about 300 to 400 W while it lasts. Fine for arms and waist. For legs the pack (and its fuse) needs a second look
 (13S3P, or a pelvis pack in parallel); the board below is sized so that it is not the thing that has to change.
 
 ### 2.3 Low-voltage rails
@@ -123,8 +123,15 @@ two series motor switches → motor bus with regen clamp → one switched, fused
   inputs, precharge and predischarge FET control; verify the current part and its errata). It runs autonomously: OV, UV,
   over-current in discharge and charge, short circuit in discharge (µs), over-temperature, all in hardware with no MCU in the
   loop. The supervisor MCU only configures it and reads it.
-- **Settings** (carried from the pack doc): 2.9 V cell cutoff, 4.15 V charge cutoff, 60 A discharge OC (matches the pack fuse;
-  raise only with a new pack), 60 °C over-temp, short-circuit trip about 150 A in 200 µs (verify against FET SOA).
+- **Settings** (agreed with the battery thread 07:26Z): charge ends at **4.15 V/cell** (charger CV 53.9 V, and the supervisor
+  stops charge when any cell reaches 4.15 V); AFE cell **OV trip 4.22 to 4.25 V with about 1 s delay**, so braking into a full
+  pack (terminal voltage rises about 0.15 V/cell at 20 A regen) does not trip it; **UV 3.0 V soft** (host warns, then disarms
+  motors) and **2.8 V hard** AFE trip; 60 A discharge OC (matches the pack fuse; raise only with a new pack); 60 °C over-temp;
+  short-circuit trip about 150 A in 200 µs (verify against FET SOA). The regen clamp at 57.5 V (4.42 V/cell) sits above the OV
+  trip and only acts when the pack can't take the energy.
+- **Connection order:** mate the 16-pin balance connector first and the XT90 last; unplug the XT90 first. Check the BQ76952
+  datasheet on random cell attach and the cell-input series resistors it needs (verify). The AFE's open-wire check must fault
+  safe if the 16-pin comes off with the XT90 still in (verify the BQ76952 open-wire feature and its detection time).
 - **Balancing:** passive, external bleed FETs at about 150 mA per cell, during charge above 3.9 V. Matched cells and attended
   charging make passive enough; the pack doc's 2 A active balancer is not needed.
 - **Charge FET stays on while running**, so braking energy goes back into the pack. The regen clamp (3.4) covers the moments
@@ -363,6 +370,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.3 | 2026-11-06 | BMS thresholds and connection order agreed with the battery thread; pack resistance estimate updated |
 | 0.2 | 2026-11-06 | Test mode, dummy-load port, CAN fault-injection header (3.8) |
 | 0.1 | 2026-11-06 | Frame thread placed the assembly (main 0a31dda); open item closed |
 | 0 | 2026-11-06 | First architecture plan. Takes over the board from the torso-frame thread (which keeps placement, mounting, cooling envelope) |
