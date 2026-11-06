@@ -289,6 +289,8 @@ box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20: no hom
 box('pack', 32, '13S2P 21700 pack, 95 x 162 x 79, 2.2 kg: 26 x Molicel P45B/P50B in a 4 x 7 holder grid, cells along Z, balance leads to the bus board, slides out the back through D2', (-PK_W / 2, 183, PK_Z1 - PK_D), (PK_W / 2, 183 + PK_H, PK_Z1),
     '#e0c23a', 'electronics', (0, 0, -200), balloon=True, mass_g=2200, material='custom pack, hardware/electrical/power/custom-21700-pack.md', opacity=0.9,
     note='46.8 V nominal, 54.6 V full, 421-468 Wh. 7.5 mm to the posts each side, 8 mm top and bottom, 25 mm inside the frame rear face. Fuse and XT90S at the top rear corner.')
+box('pack_sense', 32, 'Pack sense board 40 x 25 x 10 on the pack rear face, top corner by the XT90 (2 x 9 Micro-Fit to the power board; battery thread layout, board thread main 79d1e88)', (5, 318, PK_Z1 - PK_D - 10), (45, 343, PK_Z1 - PK_D), COL['pdb'], 'electronics', (0, 0, -90), mass_g=12, material='PCB 40 x 25 x 10', opacity=0.8,
+    note='Rides on the pack, 15 mm inside the frame rear face, inside the D2 opening (|X| <= 60), so it slides out with the pack.')
 for sx in (1, -1):
     box(f'packrail_{sx}', 40, 'Pack tray rails, printed, on the lower post inner faces (2)', (min(sx * 47.5, sx * 55), 180, -50), (max(sx * 47.5, sx * 55), 348, 40), COL['printed'], 'electronics', (0, 0, -60), balloon=(sx > 0), mass_g=40, material='PETG print', opacity=0.8)
 box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 70, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
