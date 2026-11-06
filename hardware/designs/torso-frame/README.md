@@ -133,7 +133,7 @@ No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
 | 27 | Harness trunks: Pi/PDB to each shoulder RS03, two front-corner drops to the waist, step bus | 5 | 12–14 AWG + CAN pair | 220 | routing proposal |
 | 28 | Pelvis ring | 1 | draft | | hip stage, shown only in the viewer |
 | 29 | Jetson Orin Nano dev kit envelope 103 × 90.5 × 45 including its fan | 1 | proposed | 250 | second shelf, Y 410 to 455, ports to the rear; 20 mm to the top rails |
-| 30 | Fans 40 × 40 × 10: 2 exhaust, 1 intake lower front | 3 | proposed | 60 | exhaust position PROVISIONAL: in the D1 door plane behind the frame face (Y 430 to 470, Z −70 to −80); inside the bay they hit the top rail. The power-board rework will redo the cooling layout |
+| 30 | Fans 40 × 40 × 10: 2 exhaust, 2 intakes lower front (Y 272 to 312, Y 193 to 233) | 4 | proposed | 80 | exhaust position PROVISIONAL: in the D1 door plane behind the frame face (Y 430 to 470, Z −70 to −80); inside the bay they hit the top rail. The power-board rework will redo the cooling layout |
 | 31 | Third compute / USB hub board envelope 90 × 60 × 20 | 1 | proposed | 60 | lower box front |
 | 32 | OPTION: in-torso battery, 2 × 6S 5000 mAh standing in the lower box | 2 | option | 1500 | baseline keeps the pack in the pelvis |
 | 33 | Sensors: IMU on the shelf; head cameras/mics future on the top rails | | | | |
@@ -187,9 +187,22 @@ back through D2 (now the battery door, |X| ≤ 60, Y 175 to 352: shell thread, m
 board with the 13S BMS on it; plan by the board thread, `hardware/electrical/pdb/PLAN.md`, main 0b6a6ef) is two PCBs coplanar on one
 printed carrier: power board ~100 × 95 on top (Y 245 to 340), logic board ~100 × 55 below (Y 190 to 243), 6 × M3 standoffs at X ±46,
 Y 194 / 265 / 336 with 6 mm keep-out pads. The carrier rear face is at Z 37.5 (3 mm air plus a 0.5 mm Nomex sheet over the pack lid at
-Z 34), the component face at Z 61.5, 8.5 mm to the front rail plane. The intake fan grille at Y 250 to 290 blows on the DC-DC section.
-A 50 W aluminium-clad brake resistor (25 × 50 × 8) sits on the inner face of the front bottom rail under the logic board's bottom edge, on
-M3 T-nuts, in the intake downdraft. Frame bonding: one point, at a carrier standoff, 1 MΩ ∥ 10 nF to system ground (board thread's
+Z 34), the component face at Z 61.5, 8.5 mm to the front rail plane. Cooling per the board floorplan rev A (`hardware/electrical/pdb/design/FLOORPLAN.png`): the heat is in the BMS FET banks (Y 294 to 318) and
+E-stop banks (Y 266 to 290) on the power board and the 12/24 V DC-DC (Y 192 to 235, left half) on the logic board, so the single intake at
+Y 250 to 290 becomes **two 40 mm intakes** in the front panel between the posts, Y 272 to 312 and Y 193 to 233 (shell thread: grille
+change in U3). A 50 W aluminium-clad brake resistor (25 × 50 × 8) sits on the inner face of the −X bottom side rail at Y 155 to 180,
+Z ±25, below the pack tray rail, on M3 T-nuts, in the lower intake's air.
+
+**Connector room around the board (checked 2026-11-06 09:2x against the floorplan):** the board envelope is boxed in on three sides. Above the
+power board's top edge (Y 340) there are 13.6 mm to the shared front rail (Y 353.6, Z 60 to 80) and the compute shelf plate (Y 354.6, Z ±50,
+X ±55). Beside the side edges (X ±50) the front posts (|X| 55 to 75, Z 50 to 70) block Z ≥ 50 and the pack tray rails (|X| 47.5 to 55,
+Z −50 to 40) block Z < 40, so only a 10 mm band at Z 40 to 50 is open; no plug fits there, only soldered pigtails. Forward there are
+8.5 mm to the frame front plane and the fans. Below the logic board's bottom edge (Y 190) there are 35 mm to the waist adapter plate
+(Y 155) now that the brake resistor has moved. So: **top-edge plugs mate upward through a proposed cutout in the existing shelf plate,
+X −40 to 30, Z 37 to 50** (red in the sheets; the IMU and Pi power stub move to the shelf's rear half), which gives 56 mm of clear height
+to the Jetson at Y 410 for the XT90, the pack sense header and both arm ports; **bottom-edge plugs mate downward** with 35 mm (waist, aux,
+leg ports, brake resistor); the side-edge connectors in the floorplan (waist/aux/leg at Y 253 to 280, charge XT60 at Y 283 to 295) do not
+fit and should move to the bottom edge. Plug bodies in the top zone must stay below Z 60 (the shared front rail). Frame bonding: one point, at a carrier standoff, 1 MΩ ∥ 10 nF to system ground (board thread's
 proposal, agreed: the frame touches the actuator housings anyway, so "floating" would not be). Connector edges: top = pack XT90 and
 16-pin balance (rear face), both arm ports, USB to the Pi, fans; bottom = waist and leg ports, brake resistor; sides = E-stop loop,
 charge port, sensors. A 40 × 25 × 10 pack sense board (2 × 9 Micro-Fit; battery thread layout) rides on the pack's rear face at its
