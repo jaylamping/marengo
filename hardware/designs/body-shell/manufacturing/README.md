@@ -243,6 +243,18 @@ marks on up to ~137 cm² of the socket wall; neck down 7 h 20 m, 36 g, marks at 
 Panel set ≈ 1.01 kg and ~81 h of printing at the defaults. Screw caps: 22 per robot (Ø7.9 × 4.2, solid 2.35 mm roof) in Ø8.2 × 4.2
 counterbores over Ø12 inner pads. H5 bosses sit on the panel normal (37° front, 22° back): the brackets take the angle.
 
+**Doors, grilles and hatches built (2026-11-06 evening, `pilot/`):** all clean 2.4 mm, 0 non-manifold, no support on the outer face.
+
+| Part | Mass | Slice | Notes |
+| --- | --- | --- | --- |
+| D1 compute door | 39 g | outer up, 4 h 25 m, 32 g support | slotted hinge tabs at Y ±52 on H3 rear (pull out, then swing); 4 magnets Y ±50.5; M3 lock Y 0 Z 1240; 2 louvre patches Y ±25, Z 1258–1298, 6 slots 5.5 × 38 tipped 30° up, 12.5 cm² each |
+| D2 battery door | 68 g | outer up, 8 h 01 m, 55 g support | hinge tabs Y ±52 on H4 rear; magnets Y ±30 Z 1153; M3 lock Y 0; ~40 mm to the pack |
+| Intake grilles (2) | 6 g | outer up, ~1 h | 58% open, 6 slots ≤ 6 mm; held by 4 M2.5 × 6 plastite per grille into blind pilots in U3 (also ties the U3 halves); fit before U3 goes on |
+| D3 shoulder hatches | 11 g | upright, 52 m | first pass: still needs the 0.3 mm gap, lip under U2, magnet pockets and the matching U2 cut; 1.75 mm to the H2 boss |
+
+Upper backs now carry the D1 opening and flange (~145 g each). D1's top flange touches the Z 1310 splice pad at Y 6–18: the splice
+plate must clear it. Not yet checked: D1 against the fans, Pi and Jetson behind it.
+
 ## 9. Open items
 
 **Arm-thread tip-over recheck (main 022da44):** with only 10 mm of stop the frame yields (side 400 MPa, back 584, limit 145). It holds
