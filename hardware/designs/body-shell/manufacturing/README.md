@@ -217,6 +217,7 @@ including both old thin spots, the socket and the top cap. 170.0 g, box 124.2 ×
 Slices (from G-code, `pilot/`): sternum down 11 h 04 m, 157 g + 106 g support, outer face clean; sternum up 7 h 13 m, 30 g support but
 marks on up to ~137 cm² of the socket wall; neck down 7 h 20 m, 36 g, marks at the top. STEP reimport reads 0.3% high
 (unexplained): print from the STL.
+**Decision (Joey, 2026-11-06 09:48Z): chest panels print sternum-down**, keeping the outer face clean and accepting ~11 h and ~106 g of support each.
 
 ## 9. Open items
 
