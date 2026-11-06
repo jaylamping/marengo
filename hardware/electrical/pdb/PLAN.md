@@ -216,7 +216,11 @@ homing before `READY`).
 ### 3.5 Limb ports
 
 Each port: hot-swap switch (soft start, current limit, breaker) → **INA238-class 85 V current/voltage monitor** (verify) →
-blade fuse in a holder (the backstop if the FET fails short) → connector carrying **VBUS, GND, CAN_H, CAN_L**, exactly the four
+blade fuse in a holder (the backstop if the FET fails short). **Fuses and holders must be rated for at least 58 V DC**
+(trunk thread flag 08:51Z): standard ATO/ATM blades are 32 V DC parts. Use 58 V blades (Littelfuse 997 MINI 58 V series or
+the ATO-size 58 V equivalent, verify) in 58 V-rated holders. The regen clamp at 57.5 V keeps VMOT inside that rating; the
+margin is thin, so the clamp threshold must not drift up, and if a fuse family with an 80 V rating fits the footprint it is the
+better choice → connector carrying **VBUS, GND, CAN_H, CAN_L**, exactly the four
 wires the arm trunk thread specified. The supervisor can switch each limb separately (bring up one arm at a time, power-cycle a
 faulted limb without dropping the rest) and logs per-limb current, which is the measurement the trunk thread needs to settle
 its fuse values.
@@ -461,6 +465,7 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.8 | 2026-11-06 | Port fuses and holders must be 58 V DC rated, not 32 V blades (trunk thread flag) |
 | 0.7 | 2026-11-06 | Junction boards ruled out (Joey 08:35Z): per-motor current from drive reports; port-side CAN TVS, 58 V-tolerant transceivers |
 | 0.6 | 2026-11-06 | Board family (6a): HP, LP, Pi power stub, pack sense board; no XT breakouts; per-motor sensing on junction boards |
 | 0.5 | 2026-11-06 | Rails reworked into two-stage regulation with 9 rails (Joey 07:29Z); telemetry section 3.9 (Joey 07:28Z); P50B cells, pack sense board, charge temperature window from the battery thread |
