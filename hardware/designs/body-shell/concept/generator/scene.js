@@ -103,11 +103,11 @@ function seamVert(rows, th, za, zb, x0 = 0, grow = 0.8) {
 const chest = [
   [F0 - 6, 81, 78, 76, 3.4],
   [F0 + 80, 83, 82, 78, 3.4],
-  [F0 + 170, 94, 98, 84, 3.0],
-  [F0 + 245, 104, 110, 88, 2.9],
-  [ZS, 108, 106, 88, 3.1],
-  [ZS + 36, 104, 92, 84, 3.4],
-  [F1 + 2, 90, 76, 78, 3.4],
+  [F0 + 170, 92, 98, 84, 3.2],
+  [ZS - 62, 96.5, 108, 88, 3.8],
+  [ZS, 97, 106, 88, 4.2],
+  [ZS + 48, 96.5, 94, 84, 4.2],
+  [F1 + 4, 88, 76, 78, 3.6],
   [F1 + 26, 62, 56, 62, 2.8],
   [F1 + 44, 40, 40, 46, 2.4],
 ];
@@ -144,10 +144,31 @@ seamVert(chest, 0, F0 - 6, F1 + 30, 4); seamVert(chest, Math.PI, F0 - 6, F1 + 30
   add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edge, true, 'centripetal'), 400, 2.2, 6, true), dark));
   }
 }
-// shoulder pitch pass-through bosses (dark ring = rotating P1 face at Y=97)
+// shoulder: shell side ends flush with the pitch RS03 face (Y = +-97). A printed collar clamps under the
+// RS03 outer-ring bolts; the rotating output and everything outboard stays exposed.
+const act = new THREE.MeshStandardMaterial({ color: 0x5b6068, roughness: 0.35, metalness: 0.75 });
+const actDark = new THREE.MeshStandardMaterial({ color: 0x25282d, roughness: 0.4, metalness: 0.6 });
+const P1mat = new THREE.MeshStandardMaterial({ color: 0x30343a, roughness: 0.55, metalness: 0.2 });
 for (const s of [1, -1]) {
-  const ring = new THREE.Mesh(new THREE.CylinderGeometry(52, 52, 26, 64), dark);
-  ring.rotation.z = Math.PI / 2; ring.position.copy(P(0, s * 110, ZS)); add(ring);
+  const collar = new THREE.Mesh(new THREE.RingGeometry(43, 57, 72), new THREE.MeshPhysicalMaterial({ color: 0xeef0f3, roughness: 0.38, clearcoat: 0.6, side: THREE.DoubleSide }));
+  const cg = new THREE.Group(); cg.add(collar);
+  const lip = new THREE.Mesh(new THREE.CylinderGeometry(57, 57, 4, 72, 1, true), collar.material); lip.rotation.x = Math.PI / 2; lip.position.z = -2; cg.add(lip);
+  for (let k = 0; k < 8; k++) { const t = (k + 0.5) * Math.PI / 4; const bh = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 3, 16), actDark);
+    bh.rotation.x = Math.PI / 2; bh.position.set(49 * Math.cos(t), 49 * Math.sin(t), 1.5); cg.add(bh); }
+  cg.rotation.y = s * Math.PI / 2; cg.position.copy(P(0, s * 97.5, ZS)); add(cg); cg.traverse(o => { o.castShadow = true; });
+  if (EXPLODE) cg.position.x += s * 70;
+  if (!EXPLODE) parts.length < 99 && (s > 0) && parts.push({ tag: 'shoulder collar x2', Xdepth: 114, Ywidth: 6, Zheight: 114 });
+  if (EXPLODE) continue;
+  // rotating output flange + P1 + roll RS03 + P2/upper-arm-yaw RS02, all exposed
+  const out = new THREE.Mesh(new THREE.CylinderGeometry(42, 42, 6, 64), actDark); out.rotation.z = Math.PI / 2; out.position.copy(P(0, s * 100, ZS)); add(out);
+  const p1 = new THREE.Mesh(new THREE.CylinderGeometry(46, 46, 20, 64), P1mat); p1.rotation.z = Math.PI / 2; p1.position.copy(P(0, s * 113, ZS)); add(p1);
+  const p1b = new THREE.Mesh(new THREE.BoxGeometry(14, 92, 64), P1mat); p1b.position.copy(P(-2, s * 124, ZS)); add(p1b);
+  const roll = new THREE.Mesh(new THREE.CylinderGeometry(49.75, 49.75, 56.6, 64), act); roll.rotation.x = Math.PI / 2; roll.position.copy(P(-4, s * YS, ZS)); add(roll);
+  for (const xf of [-32.6, 24.6]) { const rr = new THREE.Mesh(new THREE.TorusGeometry(46, 2.2, 10, 64), actDark); rr.position.copy(P(xf, s * YS, ZS)); add(rr); }
+  const rface = new THREE.Mesh(new THREE.CylinderGeometry(22, 22, 4, 48), actDark); rface.rotation.x = Math.PI / 2; rface.position.copy(P(26, s * YS, ZS)); add(rface);
+  const p2 = new THREE.Mesh(new THREE.BoxGeometry(70, 30, 86), P1mat); p2.position.copy(P(0, s * YS, ZS - 62)); add(p2);
+  const yaw = new THREE.Mesh(new THREE.CylinderGeometry(39.25, 39.25, 45.5, 64), act); yaw.position.copy(P(0, s * YS, ZS - 100)); add(yaw);
+  const yr = new THREE.Mesh(new THREE.TorusGeometry(37, 2, 10, 64), actDark); yr.rotation.x = Math.PI / 2; yr.position.copy(P(0, s * YS, ZS - 122)); add(yr);
 }
 // chest "core" light: subtle accent, original detail
 const core = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 3, 48), accent);
@@ -189,15 +210,12 @@ if (!EXPLODE) loft(pelvis, PELVIS0 - 20, WAIST, FULL ? white : ghost, 30, 128, 4
 function arm(side) {
   const g = new THREE.Group(); root.add(g);
   const pivot = P(0, side * YS, ZS);
-  // deltoid cap: squared superellipsoid riding on roll actuator (moves with arm)
-  const del = [[ZS - 72, 48, 56, 56, 3.2], [ZS - 44, 60, 66, 66, 4.2], [ZS + 22, 64, 68, 68, 4.2], [ZS + 50, 58, 62, 62, 3.6], [ZS + 64, 40, 48, 48, 3.0], [ZS + 68, 16, 20, 20, 2.4]];
-  const m = loft(del, ZS - 72, ZS + 68, white, 60, 128, 0, 0, 2 * Math.PI, side > 0 ? 'left deltoid cap (on arm)' : 'right deltoid cap (on arm)', [0, side * 120, 60]); m.geometry.translate(side * (YS + 6), 0, 0);
   if (EXPLODE) return;
   // inner face visible joint ring
   // upper arm: closed tube 215 mm, elbow RS02 dark, forearm 195
   const bend = 15 * Math.PI / 180;
-  const ua = [[ZS - 215 + 35, 39, 40, 40, 2.2], [ZS - 120, 44, 45, 45, 2.2], [ZS - 70, 46, 47, 47, 2.3]];
-  const u = loft(ua, ZS - 215 + 30, ZS - 68, white, 40, 72, 0); u.geometry.translate(side * YS, 0, 0);
+  const ua = [[ZS - 215 + 35, 39, 40, 40, 2.2], [ZS - 160, 43, 44, 44, 2.2], [ZS - 126, 42, 43, 43, 2.3]];
+  const u = loft(ua, ZS - 215 + 30, ZS - 124, white, 40, 72, 0); u.geometry.translate(side * YS, 0, 0);
   const elbow = new THREE.Mesh(new THREE.CylinderGeometry(39.5, 39.5, 74, 48), dark);
   elbow.rotation.z = Math.PI / 2; elbow.position.copy(P(0, side * YS, ZS - 215)); add(elbow);
   // forearm, rotated forward by default elbow bend about elbow axis (Y)
@@ -207,7 +225,7 @@ function arm(side) {
   const fg = new THREE.Group(); fg.add(fm); fg.position.set(side * YS + OFFX, ZS - 215, 0); fg.rotation.x = -bend;
   root.remove(fm); fg.add(fm); root.add(fg);
   const hand = new THREE.Mesh(new THREE.BoxGeometry(56, 90, 30), dark); hand.position.set(0, -195 - 40, 0); fg.add(hand);
-  [m, u, elbow, fm, hand].forEach(o => { o.castShadow = true; });
+  [u, elbow, fm, hand].forEach(o => { o.castShadow = true; });
 }
 arm(1); arm(-1);
 
@@ -241,7 +259,7 @@ scene.add(key);
 const rim = new THREE.DirectionalLight(0xcfe3ff, 1.2); rim.position.set(-1500, 1500, -1200); scene.add(rim);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x7a808a, 0.25));
 
-const tgtY = FULL ? 780 : (ZS - 120);
+const tgtY = q.get('ty') ? ZS + Number(q.get('ty')) : (FULL ? 780 : (ZS - 120));
 let cam;
 const aspect = W / H;
 const ortho = (h) => { const c = new THREE.OrthographicCamera(-h * aspect / 2, h * aspect / 2, h / 2, -h / 2, 1, 10000); return c; };
@@ -249,10 +267,10 @@ const span = FULL ? Number(q.get('span') ?? 1700) : 900;
 if (VIEW === 'front') { cam = ortho(span); cam.position.set(Number(q.get('cx') ?? 0), tgtY, 3000); }
 else if (VIEW === 'side') { cam = ortho(span); cam.position.set(3000, tgtY, 0); }
 else if (VIEW === 'back') { cam = ortho(span); cam.position.set(0, tgtY, -3000); }
-else { cam = new THREE.PerspectiveCamera(24, aspect, 10, 20000); const d = FULL ? 4600 : 2300;
+else { cam = new THREE.PerspectiveCamera(24, aspect, 10, 20000); const d = Number(q.get('d') ?? (FULL ? 4600 : 2300));
   const az = Number(q.get('az') ?? 35) * Math.PI / 180, el = Number(q.get('el') ?? 12) * Math.PI / 180;
   cam.position.set(d * Math.sin(az) * Math.cos(el), tgtY + d * Math.sin(el), d * Math.cos(az) * Math.cos(el)); }
-cam.lookAt(Number(q.get('cx') ?? 0), tgtY, 0);
+const cx = Number(q.get('cx') ?? 0); if (q.get('cx') && cam.isPerspectiveCamera) cam.position.x += cx; cam.lookAt(cx, tgtY, 0);
 renderer.render(scene, cam);
 console.log('PARTS ' + JSON.stringify(parts));
 window.__done = true;
