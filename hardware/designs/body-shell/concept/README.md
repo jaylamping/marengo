@@ -1,6 +1,6 @@
 # Body shell, concept B
 
-2026-11-06. Concept renders only. This is not a part and is not released for printing.
+2026-11-06. **Baseline LOCKED by Joey** (silhouette, proportions, shoulder cavity). Concept renders only: not a part and not released for printing. Iterations start from this baseline.
 
 A white shell over the 2020 torso frame, from Joey's silhouette sketch: a broad chest, a taper to the waist,
 and a longer stomach. Concept B (Joey, 2026-11-06): no shell on the arm's shoulder parts; a male build with a heavy chest block,
