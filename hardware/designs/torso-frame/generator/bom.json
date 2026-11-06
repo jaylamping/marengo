@@ -123,7 +123,7 @@
   "item": 16,
   "name": "Power and logic boards on one carrier",
   "qty": 19,
-  "mass_g": 423,
+  "mass_g": 390,
   "material": "PCB + parts, 100 x 95 x 18",
   "group": "electronics"
  },
