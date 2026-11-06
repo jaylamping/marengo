@@ -126,7 +126,7 @@ sheet([(crop(fr, w=1500), 'Front (looking -Z)'), (crop(sd, w=1100), 'Left side (
 im, m = load('inside_exp'); balloons(im, m, items={12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 32, 33, 40}, dist=120)
 sheet([(crop(im, (300, 0, 2900, 2400), w=1800), 'Everything inside the frame: shoulder RS03s and pitch brackets outward, Pi and Jetson stack up, the 13S2P pack slides out the back, power and bus board forward, waist parts below')],
       'Internal torso frame rev A: inside the frame', 'FRAME_INSIDE.png', side=bomtable({12, 13, 14, 15, 16, 17, 18, 27, 29, 30, 32, 33, 40}),
-      notes=['Frame ghosted. Harness (yellow): exits inboard from each RS03 top-rear connector flat (Joey: one port per motor, low-front capped), step bus to the power and bus board, two drops in the front corners to the waist.'])
+      notes=['Frame ghosted. Harness (yellow): exits inboard from each RS03 top-rear connector flat (Joey: one port per motor, low-front capped), pack power and sense over the pack top edge to the pack rear corner, side-band pigtails at Z 40-50, two front-corner trunks.'])
 # 6. packaging 2D
 p1 = Image.open('out/pack2d_front.png').convert('RGB'); p2 = Image.open('out/pack2d_side.png').convert('RGB'); p3 = Image.open('out/pack2d_plan.png').convert('RGB')
 fits = table([['Pi 5 + CAN HAT', '85 x 56 x 21', 'upper bay, shelf', 'yes, as built'], ['Jetson Orin Nano dev kit', '103 x 90.5 x 45 incl. fan', 'upper bay, 2nd shelf Y 410', 'yes, 26.9 mm/side, 20 above'],
@@ -142,7 +142,7 @@ sheet([(crop(p1, w=1150), 'Front section at Z 0'), (crop(p2, w=935), 'Side secti
       'Internal torso frame rev A: internal packaging check', 'FRAME_PACKAGING.png', side=fits,
       notes=['Red dashed boxes are the bays. Upper bay 156.8 x 100 x 101.4 between the RS03 rear bosses; lower box 110 x 100 x 178.6 above the bottom rails; waist bay 150 x 140 x 40 under the frame.',
              'The 13S2P pack (yellow) fills the rear 79 mm of the lower box on printed tray rails and slides out the back through D2; the power and logic boards stand in front of it on one carrier (6 x M3 at X +-46, Y 194/265/336),',
-             '3 mm plus an insulating sheet off the pack lid, with two intake fans in the front panel at Y 272-312 (FET and E-stop banks) and Y 193-233 (DC-DC); brake resistor on the -X bottom side rail; shelf cutout (red) for the top-edge plugs.'])
+             '3 mm plus an insulating sheet off the pack lid, with two intake fans in the front panel at Y 272-312 (FET and E-stop banks) and Y 193-233 (DC-DC); brake resistor on the -X bottom side rail; no plugs on the boards: ring-lug pigtails over the pack, up the front corners and down the side bands (yellow paths).'])
 # 7. hardpoints
 h1, m1 = load('hp_front'); h2, m2 = load('hp_rear'); balloons(h1, m1, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24); balloons(h2, m2, items={19, 20, 21, 22, 23, 24}, use_tag=True, dist=90, size=24)
 sheet([(crop(h1, w=1500), 'Shell hardpoint brackets H1-H6 on the frame, from the front left (frame ghosted)'), (crop(h2, w=1500), 'From the back right, with the four TPU spine pads, the H3 spine rail lip and the collars')],

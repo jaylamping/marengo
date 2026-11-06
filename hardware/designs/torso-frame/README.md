@@ -198,11 +198,13 @@ power board's top edge (Y 340) there are 13.6 mm to the shared front rail (Y 353
 X ±55). Beside the side edges (X ±50) the front posts (|X| 55 to 75, Z 50 to 70) block Z ≥ 50 and the pack tray rails (|X| 47.5 to 55,
 Z −50 to 40) block Z < 40, so only a 10 mm band at Z 40 to 50 is open; no plug fits there, only soldered pigtails. Forward there are
 8.5 mm to the frame front plane and the fans. Below the logic board's bottom edge (Y 190) there are 35 mm to the waist adapter plate
-(Y 155) now that the brake resistor has moved. So: **top-edge plugs mate upward through a proposed cutout in the existing shelf plate,
-X −40 to 30, Z 37 to 50** (red in the sheets; the IMU and Pi power stub move to the shelf's rear half), which gives 56 mm of clear height
-to the Jetson at Y 410 for the XT90, the pack sense header and both arm ports; **bottom-edge plugs mate downward** with 35 mm (waist, aux,
-leg ports, brake resistor); the side-edge connectors in the floorplan (waist/aux/leg at Y 253 to 280, charge XT60 at Y 283 to 295) do not
-fit and should move to the bottom edge. Plug bodies in the top zone must stay below Z 60 (the shared front rail). Frame bonding: one point, at a carrier standoff, 1 MΩ ∥ 10 nF to system ground (board thread's
+(Y 155) now that the brake resistor has moved. Resolution (board thread, design README section 1a, main 9ce67a0): **no high-current plug on either board.** High-current exits are
+ring-lug pigtails on low-profile M4 board terminals. Reserved cable paths in the generator (item 27): pack power and sense from the HP
+top edge over the pack's top edge (X −35 to 30, Y 345 to 353.6) to the XT90S and sense board at the pack's rear top corner, so pack
+removal is unplug-then-slide at the D2 door; arm pigtails up the front corners in front of the board face (X ±47 to 55, Z 62 to 70)
+with the trunk; waist, aux, leg and charge pigtails down the side bands (|X| 50 to 55, Z 40 to 50, Y 160 to 300) to inline connectors
+below Y 190; 12 V, USB, CAN and fan leads up through the Z 50 to 60 gap between the shelf plate and the shared front rail. Only small
+connectors on the LP bottom edge mate downward. The shelf plate stays as built (cutout idea withdrawn). Frame bonding: one point, at a carrier standoff, 1 MΩ ∥ 10 nF to system ground (board thread's
 proposal, agreed: the frame touches the actuator housings anyway, so "floating" would not be). Connector edges: top = pack XT90 and
 16-pin balance (rear face), both arm ports, USB to the Pi, fans; bottom = waist and leg ports, brake resistor; sides = E-stop loop,
 charge port, sensors. A 40 × 25 × 10 pack sense board (2 × 9 Micro-Fit; battery thread layout) rides on the pack's rear face at its

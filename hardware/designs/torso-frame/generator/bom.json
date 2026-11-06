@@ -106,7 +106,7 @@
  {
   "item": 14,
   "name": "Compute shelf plate",
-  "qty": 2,
+  "qty": 1,
   "mass_g": 60,
   "material": "existing part",
   "group": "electronics"
@@ -210,8 +210,8 @@
  {
   "item": 27,
   "name": "Harness trunks: shoulder RS03 connector runs",
-  "qty": 5,
-  "mass_g": 220,
+  "qty": 8,
+  "mass_g": 270,
   "material": "silicone 14 AWG + CAN pair",
   "group": "harness"
  },
