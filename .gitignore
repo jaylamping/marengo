@@ -105,3 +105,9 @@ opencode.json
 # Bench suite artifacts and bytecode (untracked like the other var/ outputs)
 var/motion-suite/
 __pycache__/
+
+# KiCad lock and backup files
+*.lck
+~*.lck
+*-backups/
+_autosave-*
