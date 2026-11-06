@@ -11,7 +11,10 @@ import json, math, re
 
 # ---- frame parameters -------------------------------------------------------------------------
 E = 20.0                 # 2020 extrusion
-Y_BOT = 155.0            # bottom of the frame (pelvis 115 + 40 mm waist bay)
+Y_BOT = 135.0            # bottom of the frame. D3 (Joey 2026-11-06 05:45Z): 20 mm lower than rev A so two 95 mm packs stack in the lower box
+PK_L, PK_W, PK_H = 160.0, 102.0, 95.0   # FlexVolt-class pack envelope (DeWalt DCB6112 159 x 102 x ~95; Joey to confirm the pack)
+PK_Z1 = 46.0             # pack front face (terminal end) Z; rear face at PK_Z1 - PK_L = -114, 44 mm proud of the frame rear face
+DOCK_T = 12.0            # dock contact block in front of the pack, on the front rail plane
 Y_STEP_LO = 353.62       # underside of the shared step rails
 Y_STEP_HI = Y_STEP_LO + E
 Y_TOP = 495.0            # top of the frame
@@ -51,8 +54,8 @@ def ext(id, item, name, lo, hi, source, explode, qtykey, balloon=False):
 first = True
 for sx in (1, -1):
     for sz in (1, -1):
-        ext(f'post_lo_{sx}_{sz}', 1, 'Post, lower box, 198.6', (sx * (HX_LO - E) if sx > 0 else -HX_LO, Y_BOT, sz * (HZ - E) if sz > 0 else -HZ),
-            (HX_LO if sx > 0 else -(HX_LO - E), Y_STEP_LO, HZ if sz > 0 else -(HZ - E)), 'cut',
+        ext(f'post_lo_{sx}_{sz}', 1, 'Post, lower box, 218.6 (new)', (sx * (HX_LO - E) if sx > 0 else -HX_LO, Y_BOT, sz * (HZ - E) if sz > 0 else -HZ),
+            (HX_LO if sx > 0 else -(HX_LO - E), Y_STEP_LO, HZ if sz > 0 else -(HZ - E)), 'new',
             (0, -70, 0), 'post_lo', balloon=first); first = False
 first = True
 for sz in (1, -1):
@@ -79,7 +82,7 @@ for sx in (1, -1):
 first = True
 for sx in (1, -1):
     for sz in (1, -1):
-        ext(f'post_up_{sx}_{sz}', 7, 'Post, upper box, 121.4', (sx * (HX_UP - E) if sx > 0 else -HX_UP, Y_STEP_HI, sz * (HZ - E) if sz > 0 else -HZ),
+        ext(f'post_up_{sx}_{sz}', 7, 'Post, upper box, 121.4 (cut)', (sx * (HX_UP - E) if sx > 0 else -HX_UP, Y_STEP_HI, sz * (HZ - E) if sz > 0 else -HZ),
             (HX_UP if sx > 0 else -(HX_UP - E), Y_TOP, HZ if sz > 0 else -(HZ - E)), 'cut', (0, 70, 0), 'post_up', balloon=first); first = False
 first = True
 for sz in (1, -1):
@@ -215,13 +218,13 @@ box('shelf', 14, 'Compute shelf plate (existing: X +-55 between the shelf rails,
     (0, 40, 0), balloon=True, mass_g=60, material='existing part')
 box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, 376, -71.8), (19.7, 397, 13.2), COL['pi'], 'electronics',
     (0, 70, 0), balloon=True, mass_g=110, material='electronics', note='Position from the arm thread CAD check; ports face the rear (-Z) and reach Z -71.8')
-box('pdb', 16, 'PDB + E-stop/main switch envelope (proposed: lower box, behind the D2 power door)', (-50, 200, -48), (50, 290, -20), COL['pdb'], 'electronics',
-    (0, -70, -90), balloon=True, mass_g=150, material='placeholder 100 x 90 x 28', opacity=0.6,
-    note='Not designed yet (KiCad stub). Envelope reserved on standoffs to the rear lower posts, faces the D2 door (|X| < 58, Y 167-295).')
+box('pdb', 16, 'Power board envelope 100 x 150 x 24, standing on the lower box front face in front of the pack docks (D3)', (-50, 180, PK_Z1 + DOCK_T), (50, 330, PK_Z1 + DOCK_T + 24), COL['pdb'], 'electronics',
+    (0, 0, 120), balloon=True, mass_g=250, material='placeholder 100 x 150 x 24', opacity=0.6,
+    note='Not designed yet. Series/parallel switching of the two packs, ideal-diode OR-ing, low-voltage cutoff, per-pack fuse, precharge, E-stop, 48/12/5 V rails. Stands 12 mm proud of the frame front face; the intake fan sits on it in the front panel.')
 # harness trunks: Pi/PDB to each shoulder RS03 and down to the waist
 for sx in (1, -1):
     cyl(f'harness_shoulder_{sx}', 27, 'Harness trunks: shoulder RS03 connector runs (right-angle exit inboard from the rear-boss flat, flat A assumed), step bus, two front-corner drops', 'x', (sx * 60, 452, -27), 5, 36, '#d8b84a', 'harness', (0, 70, 0), balloon=(sx > 0), mass_g=40, material='silicone 14 AWG + CAN pair', opacity=0.95)
-    cyl(f'harness_down_{sx}', 27, 'Harness trunk down the inner front corner to the waist and legs', 'y', (sx * 45, 275, 40), 5, 210, '#d8b84a', 'harness', (0, -70, 0), mass_g=60, material='silicone 12-14 AWG + CAN pair', opacity=0.95)
+    cyl(f'harness_down_{sx}', 27, 'Harness trunk down the front corner, between the pack and the post, to the waist and legs', 'y', (sx * 53, 265, 62), 4, 230, '#d8b84a', 'harness', (0, -70, 0), mass_g=60, material='silicone 12-14 AWG + CAN pair', opacity=0.95)
 cyl('harness_bus', 27, 'Harness bus along the step rail, Pi to PDB', 'x', (0, 345, -40), 5, 110, '#d8b84a', 'harness', (0, 0, 0), mass_g=20, material='', opacity=0.95)
 box('imu_old', 15, 'BNO085 IMU (existing)', (30, Y_STEP_HI + 3, -10), (50, Y_STEP_HI + 9, 10), '#8fd36b', 'electronics', (0, 70, 0), mass_g=5, material='electronics')
 
@@ -229,7 +232,7 @@ box('imu_old', 15, 'BNO085 IMU (existing)', (30, Y_STEP_HI + 3, -10), (50, Y_STE
 box('waist_adapter', 18, 'Waist yaw adapter plate, PETG (existing; bolts to the bottom rectangle, pattern unverified)', (-HX_LO, Y_BOT - 6, -HZ), (HX_LO, Y_BOT, HZ),
     COL['adapter'], 'waist', (0, -190, 0), balloon=True, mass_g=120, material='PETG print', opacity=0.9,
     note='Placeholder 150 x 140 x 6 plate under the bottom rectangle. Joey to confirm how it bolts on.')
-cyl('rs03_waist', 17, 'RS03, waist yaw (existing; sits in the 40 mm bay, 57 mm tall: open item)', 'y', (0, Y_BOT - 6 - 28.5, 0), RS03_D / 2, 57,
+cyl('rs03_waist', 17, 'RS03, waist yaw (existing; the frame bottom moved down 20 mm in D3, so the waist bay is now 20 mm: hip stage item)', 'y', (0, Y_BOT - 6 - 28.5, 0), RS03_D / 2, 57,
     COL['motor'], 'waist', (0, -250, 0), balloon=True, mass_g=880, material='RobStride RS03')
 
 # ---- shell hardpoints (torso coords; from mounts.json: torso X = robot Y, torso Y = robot Z - 810, torso Z = robot X) ----
@@ -237,9 +240,9 @@ HP = {
  'H1': dict(item=19, face='+Z', pts=[(60, 485, 70), (-60, 485, 70)], carries='U1 upper front, top edge'),
  'H2': dict(item=20, face='-Z', pts=[(60, 485, -70), (-60, 485, -70)], carries='U2 upper back top edge, D3 catch, spine pack'),
  'H3': dict(item=21, face='+-Z', pts=[(35, 364, 70), (-35, 364, 70), (35, 364, -70), (-35, 364, -70)], carries='U1/U2 bottom, U3/U4 top, D1 frame, spine pack'),
- 'H4': dict(item=22, face='+-Z', pts=[(40, 165, 70), (-40, 165, 70), (40, 165, -70), (-40, 165, -70)], carries='U3/U4 bottom, D2 frame, spine pack'),
+ 'H4': dict(item=22, face='+-Z', pts=[(40, Y_BOT + 10, 70), (-40, Y_BOT + 10, 70), (40, Y_BOT + 10, -70), (-40, Y_BOT + 10, -70)], carries='U3/U4 bottom, D2 frame, spine pack'),
  'H5': dict(item=23, face='+-X', pts=[(75, 255, 60), (75, 255, -60), (-75, 255, 60), (-75, 255, -60)], carries='U3/U4 sides, V1 grilles'),
- 'H6': dict(item=24, face='+-X', pts=[(75, 165, 35), (75, 165, -35), (-75, 165, 35), (-75, 165, -35)], carries='abdomen band carrier (PROPOSED: outer side faces of the bottom side rails, was the under-face)'),
+ 'H6': dict(item=24, face='+-X', pts=[(75, Y_BOT + 10, 35), (75, Y_BOT + 10, -35), (-75, Y_BOT + 10, 35), (-75, Y_BOT + 10, -35)], carries='abdomen band carrier (PROPOSED: outer side faces of the bottom side rails, was the under-face)'),
 }
 for hid, h in HP.items():
     for i, (x, y, z) in enumerate(h['pts']):
@@ -263,11 +266,15 @@ box('jetson', 29, 'Jetson Orin Nano dev kit envelope 103 x 90.5 x 45 including i
     note='Fits the upper bay between the RS03 rears (156.8 wide); 20 mm left above the cooler under the top rails.')
 box('fan_exhaust_1', 30, 'Exhaust fans 40 x 40 x 10 (2), PROVISIONAL: in the D1 door plane behind the frame rear face (needs a 12 mm shell gap); the 2026-11-06 reviews showed 13 mm of a fan inside the bay would blow into the top rail', (-55, 430, -80), (-15, 470, -70), PRO, 'proposed', (0, 150, 0), balloon=True, mass_g=20, material='proposed', opacity=0.75)
 box('fan_exhaust_2', 30, 'Exhaust fan', (15, 430, -80), (55, 470, -70), PRO, 'proposed', (0, 150, 0), mass_g=20, material='proposed', opacity=0.75)
-box('fan_intake', 30, 'Intake fan 40 x 40 x 10, lower front panel grille (Y 250-295)', (-20, 250, 40), (20, 290, 50), PRO, 'proposed', (0, -70, 90), mass_g=20, material='proposed', opacity=0.75)
-box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing', (-45, 190, 18), (45, 250, 38), PRO, 'proposed', (0, -70, 90), balloon=True, mass_g=60, material='proposed', opacity=0.75)
-for sx in (1, -1):
-    box(f'battery_{sx}', 32, 'OPTION: in-torso battery, 2 x 6S 5000 mAh (155 x 50 x 45 each) standing in the lower box. Baseline keeps the main 48 V pack in the pelvis.',
-        (min(sx * 2, sx * 52), 175, -20), (max(sx * 2, sx * 52), 330, 25), '#e0c23a', 'option', (0, -60, 0), balloon=(sx > 0), mass_g=750, material='option', opacity=0.6)
+box('fan_intake', 30, 'Intake fan 40 x 40 x 10 on the power board, in the lower front panel grille (Y 235-275)', (-20, 235, PK_Z1 + DOCK_T + 24), (20, 275, PK_Z1 + DOCK_T + 34), PRO, 'proposed', (0, 0, 120), mass_g=20, material='proposed', opacity=0.75)
+box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20: NO HOME in D3 (the packs fill the lower box); candidates: pelvis, or a second layer over the Pi', (-45, 60, -10), (45, 120, 10), PRO, 'future', (0, -330, 0), balloon=True, mass_g=60, material='proposed', opacity=0.4)
+for i in range(2):
+    y0 = Y_BOT + E + 3 + i * (PK_H + 4)
+    box(f'pack_{i}', 32, 'FlexVolt-class 60 V pack 160 x 102 x 95 (2), end-on, stacked in the lower box, slide in from the back (D3)', (-PK_W / 2, y0, PK_Z1 - PK_L), (PK_W / 2, y0 + PK_H, PK_Z1),
+        '#e0c23a', 'electronics', (0, 0, -200), balloon=(i == 0), mass_g=1520, material='DeWalt DCB6112 class, Joey to confirm', opacity=0.9,
+        note='Rear face at Z -114 (44 mm proud of the frame rear face). 4 mm to the posts each side. Run both in 20 V mode in series (10S, 42 V full) to stay under the RS03 60 V limit.')
+    box(f'dock_{i}', 35, 'Pack dock: printed plate + DeWalt-pattern rail adapter, on the front rail plane (2)', (-PK_W / 2 - 3, y0 - 2, PK_Z1), (PK_W / 2 + 3, y0 + PK_H + 2, PK_Z1 + DOCK_T),
+        COL['printed'], 'electronics', (0, 0, 60), balloon=(i == 0), mass_g=60, material='PETG + adapter', opacity=0.9)
 box('bno085', 33, 'Sensors: BNO085 IMU on the shelf (fitted); head cameras and mics are future, on the top rails', (-50, Y_STEP_HI + 3, 20), (-30, Y_STEP_HI + 9, 40), PRO, 'proposed', (0, 70, 0), balloon=True, mass_g=5, material='proposed', opacity=0.75)
 # ---- spine pack (rear crush pads, outside the shell; shell manufacturing thread geometry, main 074cab4) ----
 first = True
@@ -303,18 +310,18 @@ dims = {
    ([-HX_UP, Y_TOP, HZ], [HX_UP, Y_TOP, HZ], 'y', 45, '226'),
    ([-HX_LO, Y_BOT, HZ], [HX_LO, Y_BOT, HZ], 'y', -45, '150'),
    ([-RS03_OUT, Y_SHOULDER, HZ], [RS03_OUT, Y_SHOULDER, HZ], 'y', 150, '270 across RS03 output faces'),
-   ([HX_UP, Y_BOT, HZ], [HX_UP, Y_TOP, HZ], 'x', 95, '340'),
+   ([HX_UP, Y_BOT, HZ], [HX_UP, Y_TOP, HZ], 'x', 95, '360'),
    ([HX_UP, Y_STEP_LO, HZ], [HX_UP, Y_TOP, HZ], 'x', 50, '141.4 upper box'),
-   ([HX_UP, Y_BOT, HZ], [HX_UP, Y_STEP_LO, HZ], 'x', 50, '198.6 lower box'),
-   ([-HX_UP, Y_BOT, HZ], [-HX_UP, Y_SHOULDER, HZ], 'x', -70, '269.9 to pitch axis'),
+   ([HX_UP, Y_BOT, HZ], [HX_UP, Y_STEP_LO, HZ], 'x', 50, '218.6 lower box'),
+   ([-HX_UP, Y_BOT, HZ], [-HX_UP, Y_SHOULDER, HZ], 'x', -70, '289.9 to pitch axis'),
    ([-HX_UP, 285, HZ], [-HX_UP, 425, HZ], 'x', -130, 'gusset 140'),
    ([HX_LO, 300, HZ], [HX_UP, 300, HZ], 'y', -10, '38 step'),
  ],
  'side': [
    ([0, Y_TOP, -HZ], [0, Y_TOP, HZ], 'y', 45, '140'),
-   ([0, Y_BOT, HZ], [0, Y_TOP, HZ], 'z', 60, '340'),
+   ([0, Y_BOT, HZ], [0, Y_TOP, HZ], 'z', 60, '360'),
    ([0, Y_STEP_LO, -HZ], [0, Y_STEP_HI, -HZ], 'z', -60, '20 step rail'),
-   ([0, Y_BOT, -HZ], [0, Y_SHOULDER, -HZ], 'z', -110, '269.9'),
+   ([0, Y_BOT, -HZ], [0, Y_SHOULDER, -HZ], 'z', -110, '289.9'),
  ],
  'top': [
    ([-HX_UP, Y_TOP, HZ], [HX_UP, Y_TOP, HZ], 'z', 60, '226'),
@@ -334,7 +341,7 @@ total = sum(d['length'] * d['qty'] for d in rows)
 with open('cutlist.md', 'w') as f:
     f.write('| Item | Member | Qty | Length, mm | Source |\n| --- | --- | --- | --- | --- |\n')
     for d in rows:
-        src = {'keep': 'existing, reused as is', 'cut': 'cut from the existing 340 mm posts', 'new': '**new stock**'}[d['source']]
+        src = {'keep': 'existing, reused as is', 'cut': 'cut from two of the existing 340 mm posts (two cuts each)', 'new': '**new stock**'}[d['source']]
         f.write(f"| {d['item']} | {d['name'].replace(' (new)', '')} | {d['qty']} | {d['length']:.2f} | {src} |\n")
     f.write(f"\nTotal extrusion {total:.0f} mm, of which {total_new:.0f} mm is new stock. {N_BRACKETS} corner brackets.\n")
 bom = {}

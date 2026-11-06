@@ -1,9 +1,9 @@
 [
  {
   "item": 1,
-  "name": "Post, lower box, 198.6",
+  "name": "Post, lower box, 218.6",
   "qty": 4,
-  "mass_g": 396,
+  "mass_g": 436,
   "material": "2020 6063-T5",
   "group": "extrusion"
  },
@@ -49,7 +49,7 @@
  },
  {
   "item": 7,
-  "name": "Post, upper box, 121.4",
+  "name": "Post, upper box, 121.4 (cut)",
   "qty": 4,
   "mass_g": 244,
   "material": "2020 6063-T5",
@@ -121,10 +121,10 @@
  },
  {
   "item": 16,
-  "name": "PDB + E-stop/main switch envelope",
+  "name": "Power board envelope 100 x 150 x 24, standing on the lower box front face in front of the pack docks",
   "qty": 1,
-  "mass_g": 150,
-  "material": "placeholder 100 x 90 x 28",
+  "mass_g": 250,
+  "material": "placeholder 100 x 150 x 24",
   "group": "electronics"
  },
  {
@@ -241,19 +241,19 @@
  },
  {
   "item": 31,
-  "name": "Third compute / USB hub board envelope 90 x 60 x 20, lower box front, standing",
+  "name": "Third compute / USB hub board envelope 90 x 60 x 20: NO HOME in D3",
   "qty": 1,
   "mass_g": 60,
   "material": "proposed",
-  "group": "proposed"
+  "group": "future"
  },
  {
   "item": 32,
-  "name": "OPTION: in-torso battery, 2 x 6S 5000 mAh",
+  "name": "FlexVolt-class 60 V pack 160 x 102 x 95",
   "qty": 2,
-  "mass_g": 1500,
-  "material": "option",
-  "group": "option"
+  "mass_g": 3040,
+  "material": "DeWalt DCB6112 class, Joey to confirm",
+  "group": "electronics"
  },
  {
   "item": 33,
@@ -274,8 +274,8 @@
  {
   "item": 35,
   "name": "M5 x 10 button head + T-nut",
-  "qty": 64,
-  "mass_g": 128,
+  "qty": 66,
+  "mass_g": 248,
   "material": "M5 button head",
   "group": "fastener"
  },

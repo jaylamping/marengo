@@ -6,8 +6,8 @@ f = lambda s, b=False: ImageFont.truetype(FB if b else F, s)
 D = json.load(open('parts.json')); P = D['parts']
 S = 4.0  # px per mm
 LABEL = {'rs03_pitch': 'RS03 pitch', 'rs03_boss': '', 'rs03_pitch_out': '', 'pitch_bracket': 'pitch bracket', 'pitch_wing': '', 'shelf': 'shelf', 'pi5': 'Pi 5 + HAT',
-         'imu_old': 'IMU', 'pdb': 'PDB', 'rs03_waist': 'RS03 waist', 'waist_adapter': 'waist adapter', 'jetson': 'Jetson Orin Nano', 'fan_exhaust': 'fan', 'fan_intake': 'fan',
-         'compute3': '3rd board', 'battery': 'battery option', 'bno085': '', 'harness': 'harness'}
+         'imu_old': 'IMU', 'pdb': 'power board', 'rs03_waist': 'RS03 waist', 'waist_adapter': 'waist adapter', 'jetson': 'Jetson Orin Nano', 'fan_exhaust': 'fan', 'fan_intake': 'fan',
+         'compute3': '', 'battery': 'battery option', 'pack': 'pack', 'dock': 'dock', 'bno085': '', 'harness': 'harness'}
 def lab(p):
     for k, v in LABEL.items():
         if p['id'].startswith(k): return v
@@ -64,8 +64,8 @@ def draw(ax, out, title, bays):
     d.text((40, H - 30), axn, font=f(20), fill=(90, 90, 96, 255))
     im.convert('RGB').save(out); print(out, im.size)
 draw('front', 'out/pack2d_front.png', 'Front elevation (section at Z 0)',
-     [((-78.4, 373.62), (78.4, 475), 'upper bay 156.8 x 101.4 (x 100 deep)'), ((-55, 175), (55, 353.62), 'lower box 110 x 178.6 (x 100 deep)'), ((-75, 115), (75, 155), 'waist bay 150 x 40')])
+     [((-78.4, 373.62), (78.4, 475), 'upper bay 156.8 x 101.4 (x 100 deep)'), ((-55, 155), (55, 353.62), 'lower box 110 x 198.6 (x 100 deep)'), ((-75, 115), (75, 135), 'waist bay 150 x 20')])
 draw('side', 'out/pack2d_side.png', 'Side elevation (section at X 0)',
-     [((-50, 373.62), (50, 475), 'upper bay 100 deep'), ((-50, 175), (50, 353.62), 'lower box 100 deep'), ((-124, 166), (-77, 481), 'spine pads, outside the shell')])
+     [((-50, 373.62), (50, 475), 'upper bay 100 deep'), ((-50, 155), (50, 353.62), 'lower box 100 deep'), ((-124, 166), (-77, 481), 'spine pads, outside the shell')])
 draw('plan', 'out/pack2d_plan.png', 'Plan (section at Y 430, through the RS03s and the Jetson)',
      [((-78.4, -50), (78.4, 50), 'upper bay 156.8 x 100')])
