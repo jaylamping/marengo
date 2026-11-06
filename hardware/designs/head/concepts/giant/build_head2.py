@@ -123,7 +123,9 @@ VARIANTS = {'A3': dict(eye_r=21, eye_ro=30),
             'A4': dict(crest_n=14, jaw_solid=1, louvres=0, bands=0, eye_r=15.5, eye_ro=21.5, eye_dep=6, eye_y=29, eye_z=140, tip_dz=8, crest_h=15, crest_back=0.15, skirt=1, crest_k=0.75,
                        crest_t=3, crest_base=14, ear=1, ear_x=-6, ear_z=150, jaw_top=108, jaw_t=9, jaw_fwd=14, chin_slope=0.32,
                        jaw_taper_w=4, jaw_taper_d=6, top=222)}
+VARIANTS['A5'] = dict(VARIANTS['A4'], jaw_t=3, jaw_fwd=3, jaw_taper_w=10, jaw_taper_d=16, chin_slope=0.45)  # thin plate jaw hugging the face (Joey 11:23Z)
 MATS_V = {'A4': dict(bezel='dark', ears='white', collar='white', jaw='white', grille='dark')}
+MATS_V['A5'] = MATS_V['A4']
 if __name__ == '__main__':
     for n in (sys.argv[1:] or list(VARIANTS)):
         parts = build(VARIANTS[n]); os.makedirs(f'out/{n}', exist_ok=True); man = []

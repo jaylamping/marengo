@@ -42,7 +42,7 @@ Render: symlink `out/` as `giantout` in `hardware/designs/body-shell/concept/gen
 `DPR=2 node shoot.js '[["gA_rounded","stl=A_rounded&hz=-12&ty=180&d=1350&az=32&el=8"], ...]'` and `python3 compose_giant.py`.
 Concept only: the chosen variant gets rebuilt natively in SolidWorks on Joey-PC (cad/head/).
 
-## Pass 3 (current): as close to the Giant references as possible
+## Pass 3: as close to the Giant references as possible
 
 `build_head2.py A4` -> `HEAD_GIANT_PASS3.png`. One colour (white) with dark accents only; locomotive chrome dropped.
 Domed bucket, crest blade starting as a point between the eyes, big round eyes (dark ring + glow), scoop jaw on side
@@ -53,3 +53,12 @@ Known nits: dark gap behind the jaw hinge in side view; slight stepping on the c
 `eye_states.py` -> `HEAD_EYE_STATES.png`: mock-up of how the round eye displays show what he is "thinking"
 (idle, looking, focus, happy, sceptical, thinking, asleep, keep back). Animated on the real displays, combined with
 head tilt/nod and the jaw.
+
+## Pass 4 (current): matched to the film still
+
+`build_head3.py G1` -> `HEAD_GIANT_PASS4.png` (render with `?stl=G1`; materials `grey1`/`grey2` in scene.js, override with `&g1=`/`&g2=`).
+Joey 11:21-11:25Z: jaw a very slight grey, mohawk (crest) a darker grey, jaw far too thick vs the reference.
+Rounded-square (superellipse) head with straight sides and a full dome; thin 4 mm jaw plate wrapping the lower face
+with a small ledge, raked chin and side hinge boss; smooth lofted crest from a point just above the jaw to a spike
+at the crown; ear blocks at eye height; back of the head skirts down behind the hinge.
+Known nit: thin dark seam between the back skirt and the jaw's rear edge in side view.

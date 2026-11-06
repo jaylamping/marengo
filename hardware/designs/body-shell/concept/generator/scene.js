@@ -282,6 +282,8 @@ if (q.get('stl')) {
     dark: new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5, metalness: 0.4 }),
     chrome: new THREE.MeshPhysicalMaterial({ color: 0xdfe3e8, roughness: 0.12, metalness: 1.0, clearcoat: 1 }),
     lens: new THREE.MeshPhysicalMaterial({ color: 0x050607, roughness: 0.05, metalness: 0.2, clearcoat: 1 }),
+    grey1: new THREE.MeshPhysicalMaterial({ color: Number(q.get('g1') ?? 0xd3d6db), roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.3 }), // very light grey (jaw)
+    grey2: new THREE.MeshPhysicalMaterial({ color: Number(q.get('g2') ?? 0x6f747c), roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.3 }),  // darker grey (crest)
     jaw: new THREE.MeshPhysicalMaterial({ color: Number(q.get('jawcol') ?? 0xeef0f3), roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.3 }), // ?jawcol=0x... tints only the jaw
     eye: new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: Number(q.get('eyecol') ?? 0xffc95e), emissiveIntensity: Number(q.get('eyek') ?? 1.0) }) };
   const base = 'giantout/' + q.get('stl') + '/';
