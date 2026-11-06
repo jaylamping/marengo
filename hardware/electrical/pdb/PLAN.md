@@ -108,7 +108,7 @@ two series motor switches → motor bus with regen clamp → one switched, fused
 
 ```
  PACK (cells + 60 A MIDI fuse + 2 NTC)
-   │ XT90S              │ 18-pin balance/NTC/sense (Micro-Fit 2x9)
+   │ XT90S              │ 20-pin balance/NTC/sense (Micro-Fit 2x10)
    ▼                    ▼
  [shunt, low side]  [BMS AFE: BQ76952-class, 13S]──I2C──[Supervisor MCU]
    │                    │ drives                          │
@@ -148,9 +148,9 @@ two series motor switches → motor bus with regen clamp → one switched, fused
   motors) and **2.8 V hard** AFE trip; 60 A discharge OC (matches the pack fuse; raise only with a new pack); 60 °C over-temp;
   short-circuit trip about 150 A in 200 µs (verify against FET SOA). The regen clamp at 57.5 V (4.42 V/cell) sits above the OV
   trip and only acts when the pack can't take the energy.
-- **Connection order:** mate the 18-pin balance connector first and the XT90 last; unplug the XT90 first. Check the BQ76952
+- **Connection order:** mate the 20-pin balance connector first and the XT90 last; unplug the XT90 first. Check the BQ76952
   datasheet on random cell attach and the cell-input series resistors it needs (verify). The AFE's open-wire check must fault
-  safe if the 18-pin comes off with the XT90 still in (verify the BQ76952 open-wire feature and its detection time).
+  safe if the 20-pin comes off with the XT90 still in (verify the BQ76952 open-wire feature and its detection time).
 - **Balancing:** passive, external bleed FETs at about 150 mA per cell, during charge above 3.9 V. Matched cells and attended
   charging make passive enough; the pack doc's 2 A active balancer is not needed.
 - **Charge FET stays on while running**, so braking energy goes back into the pack. The regen clamp (3.4) covers the moments
@@ -166,10 +166,10 @@ Consequences Joey should know:
    discharge-tested before this board exists, and that BMS is the bring-up tool and the fallback if board rev A has a problem.
 3. **Pack sense board (this thread builds it, battery thread asked 07:29Z):** a 40 × 25 mm PCB on the pack carrying 14 tap
    fuses (0.5 to 1 A, at least 63 V DC), 2 NTC inputs (10k B3435, which is the 103AT curve the BQ76952 defaults to; verify)
-   and the 2 × 9 Micro-Fit header, tap order chosen so adjacent pins are one cell apart, 2 pins for a connector-present loop.
+   and the 2 × 10 Micro-Fit header (battery thread 9ad5303; frame placed it at X 5 to 45, Y 318 to 343, Z −55 to −45, main ad7fb6c), tap order chosen so adjacent pins are one cell apart, 2 pins for a connector-present loop.
    The AFE input resistors stay on the main board. Ordered with the main boards.
-4. **Pack connector change:** the 14 balance leads plus 2 pack NTCs go to one locking 18-pin connector (Molex Micro-Fit 3.0
-   2 × 9, 600 V class, verify; 2 pins form the connector-present loop that opens DSG directly) instead of a JST balance plug, each lead fused at the pack end as the pack doc already says.
+4. **Pack connector change:** the 14 balance leads plus 2 pack NTCs go to one locking 20-pin connector (Molex Micro-Fit 3.0
+   2 × 10, 600 V class, verify: 14 taps, 3 NTCs, 1 spare; 2 pins form the connector-present loop that opens DSG directly) instead of a JST balance plug, each lead fused at the pack end as the pack doc already says.
 
 ### 3.2 Power-on sequence and states
 
@@ -353,7 +353,7 @@ Board stands vertically, component side forward (+Z) into the fan, 100 wide (X) 
 
 | Band (torso Y) | Contents | Edge connectors |
 | --- | --- | --- |
-| 310 to 340 (top) | Pack input XT90 and 18-pin balance connector on the rear face top edge; arm and waist ports | top edge: L arm, R arm (up the front corners to the shoulders), USB to the Pi, fan leads, power button cable |
+| 310 to 340 (top) | Pack input XT90 and 20-pin balance connector on the rear face top edge; arm and waist ports | top edge: L arm, R arm (up the front corners to the shoulders), USB to the Pi, fan leads, power button cable |
 | 250 to 310 | BMS FETs, E-stop banks, VMOT bulk, DC-DC modules in the fan jet | |
 | 205 to 250 | Logic section: supervisor, CAN bridges, USB hub, isolated transceivers, AFE | side edge: E-stop loop, charge port, sensors |
 | 190 to 205 (bottom) | Port switches for waist, legs, aux | bottom edge: waist and leg ports down past Y 155, brake resistor |
@@ -401,7 +401,7 @@ short pigtails for the most-cycled ports (pack, charge). Revisit if a limb's con
 | Supervisor MCU | STM32G0/G4 or RP2350; separate from the CAN bridges so a bridge crash cannot touch power control |
 | CAN bridges | 2 × STM32G4 (3 FDCAN each), USB FS, behind a USB2514-class hub |
 | CAN transceivers | ISOW1044-class isolated CAN FD with integrated power |
-| Connectors | XT90 (pack), Micro-Fit 2 × 9 (balance + sense), XT30(2+2) (arm, waist, aux), XT60 + GH (legs), JST GH/XH for low-current |
+| Connectors | XT90 (pack), Micro-Fit 2 × 10 (balance + sense), XT30(2+2) (arm, waist, aux), XT60 + GH (legs), JST GH/XH for low-current |
 | Fab | KiCad (the existing empty `../schematics/marengo_pdu/` project), PCB and SMT assembly at JLCPCB or PCBWay; through-hole power connectors hand-soldered |
 
 Rough cost for rev A (estimate): $150 to 250 for 5 power PCBs and 5 logic PCBs assembled (2 sets populated), $100 to 150 in
