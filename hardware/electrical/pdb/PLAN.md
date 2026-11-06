@@ -219,10 +219,12 @@ homing before `READY`).
   - pack at or near full (any cell at 4.15 V; the OV trip at 4.22 to 4.25 V with 1 s delay is the hard stop), the 0.7 V of
     headroom between the 53.9 V charge end and the 57.5 V clamp is where regen lives;
   - pack outside the 0 to 45 °C charge window (cold-weather regen goes to the resistor, by design);
-  - regen current above the charge over-current limit (AFE OCC: proposal 20 A for 1 s, pending the battery thread's cell
-    charge-pulse rating);
+  - regen current above the charge over-current limit: **AFE OCC 50 A with about 1 s delay** (P50B max charge 25 A per cell,
+    battery thread 08:58Z; redo if 6 Ah cells are bought). The charge path (same FETs and shunt as discharge, rated 80 A
+    continuous) carries that easily;
   - BMS faulted or CHG FET open, or pack removed.
-  Host side: above 95% charge the host lowers braking aggressiveness so the clamp is rarely needed. Energy scale, for honesty: a
+  Host braking caps (battery thread proposal, agreed): **30 A** between 0 and 95% charge; **5 A** above 95% or below 5 °C, with
+  the clamp absorbing the rest. The supervisor logs clamp energy (J per event and per session) alongside recovered Wh. Energy scale, for honesty: a
   3 kg arm falling 0.5 m is about 15 J, a few milliwatt-hours, so arm regen is about protecting the 60 V drives, not range;
   walking legs return more.
 - **Regen path in every state** (trunk thread question, 08:57Z). Rules: the port switches are single FETs (no back-to-back
