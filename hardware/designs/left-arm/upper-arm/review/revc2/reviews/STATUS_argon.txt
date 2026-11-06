@@ -1,0 +1,4 @@
+argon start 2026-11-06T07:32:42Z
+argon exit 0 elapsed 23 s
+argon attempt 2 (--settings allow read-only commands; attempt 1 died in 23 s: headless auto-denied the command tool, agy 1.5.1) start 2026-11-06T07:34:30Z
+argon exit 0 elapsed 1587 s
