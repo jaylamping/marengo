@@ -69,4 +69,4 @@ No CAD work until SolidWorks is free.
 5. Print layer coupons, then the carrier alone with a real 6808, then a fork cheek and stub sector on a dummy output, including stop hits and a run to failure.
 6. Print full parts only after that, with lengths and the wiring openings frozen.
 
-**Decision for Joey:** the compact layout saves 3 mm of width but raises the side-moment couple on the RS02 output bearing by 28%, with no rating to judge it. Keep it and accept that risk, measure a limit first, or go back to a wider span.
+**Decision, Joey, 2026-11-06: measure first.** Keep the compact, centred elbow, and prove what fails first on a dummy RS02 output before printing the full arm. Plan: `../testing/ELBOW_DUMMY_OUTPUT_TEST.md`. The compact layout saves 3 mm of width but raises the side-moment couple on the RS02 output bearing by 28%, with no rating to judge it, so that risk stays open until a limit is known.
