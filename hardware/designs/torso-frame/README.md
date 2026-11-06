@@ -140,7 +140,7 @@ No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
 | 29 | Jetson Orin Nano dev kit envelope 103 × 90.5 × 45 including its fan | 1 | proposed | 250 | second shelf, Y 410 to 455, ports to the rear; 20 mm to the top rails |
 | 30 | Fans 40 × 40 × 10: 2 exhaust, 2 intakes lower front (Y 264 to 304, Y 193 to 233) | 4 | proposed | 80 | exhaust position PROVISIONAL: in the D1 door plane behind the frame face (Y 430 to 470, Z −70 to −80); inside the bay they hit the top rail. The power-board rework will redo the cooling layout |
 | 31 | Third compute / USB hub board envelope 90 × 60 × 20 | 1 | proposed | 60 | **no home** (the pack and boards fill the lower box): pelvis, or a layer over the Pi |
-| 32 | 13S2P 21700 pack 95 × 162 × 79 + pack sense board | 1 | custom pack | 2212 | **locked** 06:13Z; lower box, slides out through D2 (section 6) |
+| 32 | 13S2P 21700 pack 95 × 162 × 79 + on-pack JK BMS | 1 | custom pack | 2212 | **locked** 06:13Z; lower box, slides out through D2 (section 6) |
 | 33 | Sensors: IMU on the shelf; head cameras/mics future on the top rails | | | | |
 
 Frame structure only (items 1 to 11, 34 to 36: extrusion, gussets, brackets, their screws and T-nuts): about **2.8 kg** (generator sum; gate 2 found the old 2.1 kg figure stale). Everything shown in the torso, pack included, waist and pelvis excluded: about **8.8 kg**.
@@ -204,7 +204,7 @@ Z −50 to 37.5) and the carrier (to Z 41.5) block the rest, so only an 8 mm ban
 8.5 mm to the frame front plane and the fans. Below the logic board's bottom edge (Y 190) there are 35 mm to the waist adapter plate
 (Y 155) now that the brake resistor has moved. Resolution (board thread, design README section 1a, main 9ce67a0): **no high-current plug on either board.** High-current exits are
 ring-lug pigtails on low-profile M4 board terminals. Reserved cable paths in the generator (item 27): pack power and sense from the HP
-top edge over the pack's top edge (X −35 to 30, Y 345 to 353.6) to the XT90S and sense board at the pack's rear top corner, so pack
+top edge over the pack's top edge (X −35 to 30, Y 345 to 353.6) to the XT90S at the pack's rear top corner, so pack
 removal is unplug-then-slide at the D2 door; arm pigtails up the side bands (|X| 50 to 55, Z 42 to 50, Y 160 to 353.6; 5 × 8 mm per side, tight); waist, aux, leg and charge pigtails down the same bands
 to inline connectors below Y 190. **Gate 2 correction:** the earlier front-corner path (Z 62 to 70) ran through the front rails and 8 corner brackets, and the
 "Z 50 to 60 gap" between the shelf and the shared front rail does not exist (the shelf ends at Z 50, the rail starts there). **There is no cable passage
@@ -212,8 +212,7 @@ from the lower box to the upper bay** today. Proposed: a 10 × 10 notch in each 
 connectors on the LP bottom edge mate downward. The shelf plate stays as built (cutout idea withdrawn). Frame bonding: one point, at a carrier standoff, 1 MΩ ∥ 10 nF to system ground (board thread's
 proposal, agreed: the frame touches the actuator housings anyway, so "floating" would not be). Connector edges: top = pack XT90 and
 16-pin balance (rear face), both arm ports, USB to the Pi, fans; bottom = waist and leg ports, brake resistor; sides = E-stop loop,
-charge port, sensors. A 40 × 25 × 10 pack sense board (2 × 9 Micro-Fit; battery thread layout) rides on the pack's rear face at its
-top corner by the XT90 (X 5 to 45, Y 318 to 343, Z −55 to −45), 15 mm inside the frame rear face, and slides out with the pack through D2. A Pi power stub (30 × 20 × 10, 12 V in from the logic board, 5 V out to the Pi's GPIO header; PLAN.md 6a, main e7d0b62)
+charge port, sensors. On-pack BMS (Joey's pick, battery thread main d42e88f): a JK-BD6A17S8P, 133 × 81 × 18 with standoffs, sits on the pack's rear face at X −40.5 to 40.5, Y 186 to 319, Z −65 to −45, long axis along Y, FET heatsink facing rearward toward D2, 5 mm inside the frame rear face. The XT60 charge pigtail parks flat beside the XT90S (X −42 to −17, Y 325 to 345, Z −58 to −45). The sense board and its 2 × 10 connector are gone. All of it stays in |X| ≤ 45, Z ≥ −68 and slides out with the pack through D2. A Pi power stub (30 × 20 × 10, 12 V in from the logic board, 5 V out to the Pi's GPIO header; PLAN.md 6a, main e7d0b62)
 sits on the compute shelf beside the Pi at X 22 to 52, Z 20 to 40, clear of the IMU. The FlexVolt options (D1 to D3) stay in `generator/variants.py` as the record of what was rejected.
 
 Volumes: upper bay 156.8 × 100 × 101.4 between the RS03 rears; lower box 110 × 100 × 178.6 between the bottom rails and the shared rails; waist bay 150 × 140 × 40 below the frame.

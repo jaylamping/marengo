@@ -315,11 +315,11 @@ box('compute3', 31, 'Third compute / USB hub board envelope 90 x 60 x 20: no hom
 box('pack', 32, '13S2P 21700 pack, 95 x 162 x 79, 2.2 kg: 26 x Molicel P45B/P50B in a 4 x 7 holder grid, cells along Z, balance leads to the bus board, slides out the back through D2', (-PK_W / 2, 183, PK_Z1 - PK_D), (PK_W / 2, 183 + PK_H, PK_Z1),
     '#e0c23a', 'electronics', (0, 0, -200), balloon=True, mass_g=2200, material='custom pack, hardware/electrical/power/custom-21700-pack.md', opacity=0.9,
     note='46.8 V nominal, 54.6 V full, 421-468 Wh. 7.5 mm to the posts each side, 8 mm top and bottom, 25 mm inside the frame rear face. Fuse and XT90S at the top rear corner.')
-box('pack_sense', 32, 'Pack sense board 40 x 27 x 10 on the pack rear face, -X side under the Micro-Fit (battery thread 20:13Z; moved clear of the XT90S) (2 x 9 Micro-Fit to the power board; battery thread layout, board thread main 79d1e88)', (-45, 295, PK_Z1 - PK_D - 10), (-5, 322, PK_Z1 - PK_D), COL['pdb'], 'electronics', (0, 0, -90), mass_g=12, material='PCB 40 x 25 x 10', opacity=0.8,
-    note='Rides on the pack, 15 mm inside the frame rear face, inside the D2 opening (|X| <= 60), so it slides out with the pack.')
-# battery thread 20:13Z (provisional until the case CAD): mated XT90S lying flat on the pack rear face, axis along X; Micro-Fit 2x10 sense connector beside it; fuse inside the case
+box('pack_bms', 32, 'JK-BD6A17S8P BMS 133 x 81 x 18 on standoffs, pack rear face, long axis along Y, FET heatsink facing rearward to D2 (battery thread, Joey picked on-pack BMS, main d42e88f)', (-40.5, 186, -65), (40.5, 319, -45), COL['pdb'], 'electronics', (0, 0, -90), mass_g=180, material='JK-BD6A17S8P', opacity=0.8,
+    note='Rides on the pack inside the D2 opening (|X| <= 60), 5 mm inside the frame rear face; slides out with the pack. Replaces the pack sense board.')
+# battery thread 20:13Z (provisional until the case CAD): mated XT90S lying flat on the pack rear face, axis along X; XT60 charge pigtail beside it; fuse inside the case
 box('pack_xt90', 32, 'Mated XT90S pair on a printed saddle, flat on the pack rear face, axis along X (battery thread, provisional)', (-15, 323, -60), (43, 345, -45), '#e0c23a', 'electronics', (0, 0, -90), mass_g=30, material='XT90S', opacity=0.8)
-box('pack_sense_conn', 32, 'Micro-Fit 2x10 sense connector, mated, flat on the pack rear face (battery thread, provisional)', (-42, 325, -58), (-17, 345, -45), '#e0c23a', 'electronics', (0, 0, -90), mass_g=8, material='Micro-Fit', opacity=0.8)
+box('pack_chg_xt60', 32, 'XT60 charge pigtail, parked flat on the pack rear face (battery thread, on-pack BMS)', (-42, 325, -58), (-17, 345, -45), '#e0c23a', 'electronics', (0, 0, -90), mass_g=10, material='XT60', opacity=0.8)
 for sx in (1, -1):
     # Joey 16:32Z cradle, SolidWorks model main f9621274 (../cradle/): web |X| 48-51.5, feet over the bottom side rail and under the shelf rail,
     # ledge and front lip, thumbscrew boss at Y 252.6 Z -5. Envelope boxes here; the STEP is the source.
