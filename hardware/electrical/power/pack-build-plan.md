@@ -22,10 +22,8 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
   for about 3% of capacity. Use an adjustable-voltage charger at 4 A, ending in an XT60.
 - **Busbars are wide plates, not 10 mm strip.** A 10 mm nickel strip cannot carry 60 A. The pack doc's nickel line is
   replaced (section 4).
-- **Tools to buy: about $360 to $840**, depending on the welder and crimper. A spot welder (Glitter 811H class or kWeld), a cell internal-resistance meter, a
-  150 to 200 W electronic load, a lithium fire extinguisher, and small consumables. The welder is reusable for the pelvis and
-  leg packs.
-- **Total first pack with tools: about $910 to $1,490** (table in section 9). The pack and charger alone are about $550 to $650.
+- **Tools to buy: a ~$40 handheld spot welder.** Joey has the meter; pre-crimped leads replace a crimper.
+- **Pack total about $505 including the welder** (section 9). The BMS and charger (about $110) count against the power board.
 
 ## 1. What the pack is, and what it is not
 
@@ -42,6 +40,19 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
 - **Not on the pack:** charge and discharge FETs, balancing, coulomb counting, shunt. They live on the power board.
 - **Consequence (agreed):** the pack charges in the robot through the board's charge port. A second swap-and-charge pack
   would need its own BMS. That is not planned; removing the pack is a service job.
+
+### Pack fuse voltage rating (flag from the trunk and board threads)
+
+Common automotive MIDI/ANL/blade fuses are rated **32 V DC**, which won't reliably break an arc at 54.6 V (57.5 V with the
+regen clamp). The pack fuse and its holder must carry a DC rating above that:
+
+- **Preferred: Class T 60 A ferrule fuse (Littelfuse JLLN060 class, 300 V AC / 160 V DC, verify)** in a matching DC-rated
+  holder. That gives 2.8× voltage margin, very high interrupt rating, and the ferrule is small (about 14 × 22 mm, verify). It
+  fits the spare grid positions.
+- **Fallback: Littelfuse MIDI 58 V series** (60 A 58 V bolt-down part 142.5631.5602 seen at Digi-Key, verify series and
+  holder rating). Only 0.5 V above the regen clamp, so it's a fallback.
+- **Interrupt rating check (estimate):** a dead short at the pack is about 54.6 V ÷ 90 mΩ ≈ 600 A. Both options are rated
+  far above that (verify on the datasheet).
 
 ### Why the BMS stays on the board (checked from the pack side)
 
@@ -80,6 +91,14 @@ Sources (datasheet): [P45B](https://www.imrbatteries.com/content/molicel_p45b.pd
 Vendor pages: [P50B, 18650BatteryStore](https://www.18650batterystore.com/products/molicel-21700-p50b-5000mah-50a-battery),
 [P45B, IMR Batteries](https://imrbatteries.com/products/molicel-p45b-21700-4500mah-45a-battery).
 
+**Preferred if obtainable (Joey's find, Battery Mooch's 21700 table updated 2026-10-13):** Mooch's independent tests
+put **Reliance RS60, Linkdata 60P and Great Power 60Q (CCC)** in his 30 A column at 16.9 to 18.7 Wh delivered per cell; the
+P50B is not on his list. At 2P behind a 60 A fuse each cell must handle 30 A, so the 30 A column is ours. 6 Ah cells give
+about 12 Ah / 560 Wh, about 20% more than P50B, in the same 21700 grid (check the bare-cell length is 70 to 71 mm). Avoid
+Tenpower 60XG (Mooch flags low cycle life). Linkdata 65P, BAK 65E, Vapcell F66 top the 5 to 20 A columns but are not rated
+for 30 A. On 2026-11-06 RS60 was out of stock at NKON and not listed at IMR Batteries; no trusted US vendor found for 60P or
+60Q. Buy one of these from a reputable vendor if possible; otherwise P50B. Tell the power board thread which cell is bought.
+
 **13S2P P50B:** 10.0 Ah, 46.8 V nominal, 468 Wh. That is 120 A continuous at the cells, so the 60 A fuse is the limit by a
 factor of two (datasheet × 2). Charging stops at 4.15 V, so usable energy is about 450 Wh (estimate).
 
@@ -110,6 +129,7 @@ warm the pack. That is what the two NTCs are for. The measured number replaces t
 | Short circuit | about 150 A in 200 µs (board thread checks FET SOA) | AFE |
 | Over-temperature | 60 °C discharge cutoff; charge allowed only 0 to 45 °C (P50B is rated −20 to 60 °C; we stay conservative) | AFE |
 | Balancing | passive, about 150 mA, during charge above 3.9 V, cells more than 15 mV apart | AFE |
+| Regen charging (Joey wants regen back into the cells, agreed 2026-11-06) | through the BMS FETs, counted as charge. Charge OC trip 50 A with about 1 s delay (P50B max charge 25 A per cell). Host caps braking at 30 A from 0 to 95% charge, and at 5 A above 95% or below 5 °C. Clamp energy logged | AFE + host |
 | Regen backstop | clamp at 57.5 V (4.42 V per cell) into the brake resistor | power board |
 
 The board thread notes that 20 A of braking raises a full pack's terminal voltage to about 4.30 V per cell, which is why the
@@ -141,12 +161,12 @@ about 43 mm.
 
 | Plate material | In-row link at 60 A | Notes |
 | --- | --- | --- |
-| 0.15 mm pure nickel | 0.53 mΩ, 1.9 W | too warm for long runs |
-| **0.2 mm pure nickel plate (cut from 40 mm+ wide strip or sheet)** | **0.40 mΩ, 1.4 W** | **first pack. A good capacitor welder handles it** |
+| **0.15 mm pure nickel plate (cut from 40 mm+ wide strip or sheet)** | **0.53 mΩ, 1.9 W** | **first pack (Joey's call: a ~$40 handheld welder, which handles 0.15 mm but not 0.2 mm)** |
+| 0.2 mm pure nickel plate | 0.40 mΩ, 1.4 W | needs a stronger welder |
 | 0.15 mm nickel-plated copper, or a 0.1 mm Cu + 0.15 mm Ni sandwich | about 0.1 mΩ, 0.4 W | upgrade for the leg-rated pack. Needs a strong welder and practice |
 
-Across 13 links the 0.2 mm nickel plates add about 4 mΩ (estimate) and about 14 W at a 60 A peak, for seconds. At 20 A it
-is 1.6 W. That's fine for arms and waist.
+Across 13 links the 0.15 mm nickel plates add about 5 mΩ (estimate) and about 19 W at a 60 A peak, for seconds. At 20 A
+it is about 2 W. That's fine for arms and waist. A leg-rated pack needs copper busbars and a better welder.
 
 - End plates (B0−, B13+): solder the 10 AWG lead to a **nickel tab that extends past the cell**, never to a cell. Pre-tin the
   tab before welding it on, so the soldering heat stays off the can.
@@ -179,11 +199,10 @@ are the protection.
 
 | Item | Why | Cost (verify) |
 | --- | --- | --- |
-| **Spot welder: Glitter 811H class (capacitor, self-contained) or kWeld (needs a 12 V high-current LiPo or a car battery as the source)** | 0.2 mm nickel plates need real energy; the $60 to 90 welders are marginal at 0.2 mm. kWeld is the better-measured tool; the 811H needs no separate battery | $150 to 300 |
-| Cell IR meter, YR1035+ class (4-wire, AC 1 kHz) | grade every cell | $30 to 50 |
+| **Spot welder: handheld battery type (Joey's pick)** | handles 0.15 mm pure nickel; pull-test scrap on its highest setting before touching cells | $40 |
+| Cell IR meter, YR1035+ class (4-wire, AC 1 kHz), **optional** | grade every cell; a normal multimeter can't read 6 mΩ | $30 to 50 |
 | Electronic load, 150 to 200 W, up to 150 V (DL24P class) | capacity test at C/3 and DCIR steps | $40 to 80 |
 | Good multimeter (if not already owned) | voltage checks at every step | owned? |
-| Lithium-ion fire extinguisher (AVD or F-500 type) + a steel bucket of dry sand | the honest cost of a home-built 470 Wh pack | $60 to 120 |
 | Steel tray or a cement board to charge on | | $20 |
 | Insulated tools (or wrap the ends of pliers and cutters in Kapton), ceramic tweezers | a dropped tool across a plate is a dead short | $20 |
 | Safety glasses, nitrile gloves | welding spatter | owned? |
@@ -194,16 +213,15 @@ are the protection.
 | Silicone wire: 10 AWG red/black, 22 AWG in several colours | leads, taps | $20 |
 | PVC heat-shrink wrap, about 200 mm flat width (or a printed lid only) | outer skin under the case | $10 |
 | EVA foam, 2 mm | cushion between pack and case | $5 |
-| Bench adapter harness parts (Micro-Fit housing, crimps, JST-XH balance plug) | JK bench BMS hookup | $10 |
+| Micro-Fit 3.0 housings + **pre-crimped leads** (Molex 2145xx series, verify part), JST-XH balance plug | sense harness and JK bench adapter, no crimper needed | $25 |
 
-Crimping Micro-Fit pins well needs the Molex hand tool (about $250, verify) or a decent ratchet crimper for Micro-Fit
-contacts (about $40, verify). The board thread may want the same crimper.
+No crimper: Molex sells Micro-Fit contacts pre-crimped on wire (about $1 each, verify). Joey already owns a multimeter.
 
 ## 7. Safety rules
 
 1. **The pack fuse and the E-stop are the safety system, not the BMS (decided).** The fuse sits on the pack as close as
    possible to B13+.
-2. **Charge attended, on the steel tray, with the extinguisher in reach.** Never overnight, never unattended in the robot
+2. **Charge attended, on concrete or a steel tray.** Never overnight, never unattended in the robot
    until we have logged at least 10 clean charges with the board's supervisor.
 3. **Build on a clear, non-flammable bench.** Only the cells being worked on are out. Everything else stays in its box,
    in groups of no more than a few cells. Watches and rings off.
@@ -212,7 +230,7 @@ contacts (about $40, verify). The board thread may want the same crimper.
 5. **Pack out of the robot:** XT90 capped (the female housing on the board side is shrouded; put a cap on the male pack
    side), sense connector in its holder, stored at 50 to 60% (about 3.75 V per cell) if it sits for more than two weeks.
 6. **A swollen, hot, hissing or sweet-smelling pack goes outside onto concrete** and gets left alone. No water on a
-   lithium fire indoors; sand or the extinguisher, then distance.
+   lithium fire indoors; get it outside if safe to, otherwise distance.
 7. **Tip-over:** the frame (2020 posts on both sides, gussets outboard) and the shell's crush pad protect the pack. Check
    the case for cracks after any fall. A dented cell is scrap.
 8. Store the 2 spare cells in a plastic cell case, never loose.
@@ -224,7 +242,7 @@ Each step has a pass/fail check. A failure stops the build until it is understoo
 | Step | Do | Pass criteria |
 | --- | --- | --- |
 | 1. Receive | Check codes, mass, voltage of all 28 cells | 69 to 71 g; all within 30 mV of the median; none under 3.0 V |
-| 2. Grade | Measure AC IR of each cell with the YR1035+. Log in a spreadsheet next to this doc | IR within ±10% of the median (about 6.5 mΩ AC datasheet); reject outliers |
+| 2. Grade | With an IR meter: AC IR of each cell. Without one: resting voltage after 24 h, plus the single-batch purchase. Log in a spreadsheet next to this doc | IR within ±10% of the median (about 6.5 mΩ AC datasheet), or voltage within 10 mV; reject outliers |
 | 3. Match | Sort into 13 pairs so that pair IRs (parallel) are as even as possible; the 2 spares are the outliers | pair IRs within ±5% |
 | 4. Dry fit | Holders, fish-paper rings on every positive end, polarity marked with a paint pen on the holder, series path drawn on the holder face | photo, matches the layout drawing |
 | 5. Weld | Pull-test scrap first (the weld should tear the nickel, not peel). Parallel pairs first, then series plates. 4 welds per cell end | every weld passes a gentle pry with a plastic spudger; each pair reads the same voltage |
@@ -241,25 +259,25 @@ connected to the robot** (gate 3: load-bearing or powered).
 
 ## 9. Shopping list and cost
 
-| Item | Qty | Cost (verify) |
+Pack-only budget (Joey, 2026-11-06): the **BMS and charger count against the power board**, Joey owns a meter, uses a ~$40
+handheld welder, needs no crimper (pre-crimped leads), and skips the extinguisher.
+
+| Item | Cost (verify) | Note |
 | --- | --- | --- |
-| Molicel P50B | 28 | $294 (vendor page, $10.50 at 10+) |
-| Nickel plate stock 0.2 mm + 0.15 mm tab strip | | $35 |
-| Cell holders, fish paper, Kapton, foam, wrap | | $45 |
-| MIDI 60 A fuse + holder (Littelfuse 498 series class) | 1 + spare fuse | $15 |
-| Amass XT90S pair, XT60 pair, 10 AWG and 22 AWG silicone wire | | $35 |
-| Pack sense board (with the power board's PCB order) + Micro-Fit 2 × 10 parts | | $15 |
-| 3 × 10 kΩ NTC (103AT) | | $5 |
-| Printed case (PC FR or ASA, never PETG next to cells) | | $15 in filament |
-| JK 13S bench BMS | 1 | $50 to 90 |
-| 13S charger (trimmable 4 A), or Grin Satiator | 1 | $40 to 70, or $300 to 350 |
-| **Pack and charger** | | **about $550 to 650** |
-| Spot welder | 1 | $150 to 300 |
-| IR meter, electronic load | | $70 to 130 |
-| Fire extinguisher, sand bucket, steel tray, insulated tools | | $100 to 160 |
-| Micro-Fit crimper | 1 | $40 to 250 |
-| **Tools** | | **about $360 to 840** |
-| **Total, first pack** | | **about $910 to 1,490** (low end with the cheap charger and crimper) |
+| Molicel P50B × 28 | $294 | vendor page, $10.50 at 10+. P45B at about $6, if back in stock, saves about $120 |
+| Nickel plate 0.15 mm (40 mm+ wide) + 0.15 × 8 mm tab strip | $30 | |
+| Cell holders, fish paper, Kapton, foam, wrap | $45 | |
+| 60 A pack fuse **rated ≥ 58 V DC (never a 32 V automotive part)** + matching holder, spare fuse | $15 to 40 | see section 1 fuse note |
+| XT90S, XT60, 10 AWG + 22 AWG silicone wire | $35 | |
+| Micro-Fit 2 × 10 housings + pre-crimped leads, 3 NTCs, sense board (in the power board's PCB order) | $30 | |
+| Printed case (PC FR or ASA) | $15 | filament |
+| Handheld spot welder | $40 | Joey's pick |
+| **Total, pack** | **about $505** | |
+| *On the power board budget:* JK 13S bench BMS $60, trimmable 4 A charger $50 | *$110* | |
+
+Optional later: a 150 W electronic load ($40) for a controlled capacity test (otherwise the board's coulomb counter measures
+capacity); a stronger welder for a copper-busbar leg pack; a cell IR meter ($35) if the multimeter can't grade cells (a DC
+meter can't read 6 mΩ, so grading falls back to matching resting voltage plus the vendor's batch).
 
 ## 10. Pack sense board (new part, handed to the power board thread)
 

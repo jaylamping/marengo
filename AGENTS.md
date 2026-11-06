@@ -89,7 +89,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 | `scripts/` | `check.sh`, deploy/install, `pi-remote.sh`, vcan, systemd units (`scripts/systemd/`) |
 | `docs/` | `status.md`, `roadmap.md`, `safety.md`, `rust-patterns.md`, ADRs `decisions/` (index in its README), `commissioning/`, `reviews/` |
 | `sim/` | MuJoCo smoke (`sim/scripts/smoke_test.py`, `sim/fixtures/minimal.xml`) |
-| `cad/`, `hardware/` | Manifests and docs only; SolidWorks binaries are local to the Windows host in `J:\code\marengo\cad`, organized by body region per `cad/README.md` ("Folder layout"). Check with `python tools/cad/check_cad_layout.py <cad root>` |
+| `cad/`, `hardware/` | Manifests and docs only; SolidWorks binaries are local to the Windows host in `J:\code\marengo\cad`, organized by body region per `cad/README.md` ("Folder layout"). Check with `python tools/cad/check_cad_layout.py <cad root>` Every session that uses SolidWorks launches its own instance and attaches by PID, per `hardware/tools/solidworks/RULES.md`; never attach to the running SolidWorks. |
 | `var/` | Runtime output; `var/log`, `var/enable-soak`, `var/gravity-calibration` and `var/firmware-captures` are gitignored |
 
 ---

@@ -1,0 +1,162 @@
+{
+ "upper_front_L": {
+  "sections": 80,
+  "points": 121,
+  "min_convex_radius_rows": [
+   2.491028439734011,
+   [
+    75.5,
+    135.5,
+    1243.8
+   ]
+  ],
+  "min_convex_radius_cols": [
+   3.6023373530574054,
+   [
+    14.8,
+    145.9,
+    1318.8
+   ]
+  ]
+ },
+ "upper_front_R": {
+  "sections": 80,
+  "points": 121,
+  "min_convex_radius_rows": [
+   2.4910284397338742,
+   [
+    75.5,
+    -135.5,
+    1243.8
+   ]
+  ],
+  "min_convex_radius_cols": [
+   3.6023373530574085,
+   [
+    14.8,
+    -145.9,
+    1318.8
+   ]
+  ]
+ },
+ "upper_back_L": {
+  "sections": 80,
+  "points": 121,
+  "min_convex_radius_rows": [
+   2.4944691096770124,
+   [
+    -80.5,
+    136.8,
+    1234.2
+   ]
+  ],
+  "min_convex_radius_cols": [
+   3.645135850441274,
+   [
+    -13.2,
+    145.6,
+    1318.8
+   ]
+  ]
+ },
+ "upper_back_R": {
+  "sections": 80,
+  "points": 121,
+  "min_convex_radius_rows": [
+   2.494469109676966,
+   [
+    -80.5,
+    -136.8,
+    1234.2
+   ]
+  ],
+  "min_convex_radius_cols": [
+   3.6451358504412665,
+   [
+    -13.2,
+    -145.6,
+    1318.8
+   ]
+  ]
+ },
+ "lower_front_L": {
+  "sections": 40,
+  "points": 121,
+  "min_convex_radius_rows": [
+   31.0592662224136,
+   [
+    70.8,
+    100.6,
+    959.0
+   ]
+  ],
+  "min_convex_radius_cols": [
+   69.81601241756496,
+   [
+    4.0,
+    117.3,
+    1075.2
+   ]
+  ]
+ },
+ "lower_front_R": {
+  "sections": 40,
+  "points": 121,
+  "min_convex_radius_rows": [
+   31.05926622241396,
+   [
+    70.8,
+    -100.6,
+    959.0
+   ]
+  ],
+  "min_convex_radius_cols": [
+   69.81601241756496,
+   [
+    4.0,
+    -117.3,
+    1075.2
+   ]
+  ]
+ },
+ "lower_back_L": {
+  "sections": 40,
+  "points": 121,
+  "min_convex_radius_rows": [
+   34.34571313752169,
+   [
+    -74.2,
+    100.6,
+    959.0
+   ]
+  ],
+  "min_convex_radius_cols": [
+   69.71091038963708,
+   [
+    -10.2,
+    117.3,
+    1075.2
+   ]
+  ]
+ },
+ "lower_back_R": {
+  "sections": 40,
+  "points": 121,
+  "min_convex_radius_rows": [
+   34.34571313751277,
+   [
+    -74.2,
+    -100.6,
+    959.0
+   ]
+  ],
+  "min_convex_radius_cols": [
+   69.71091038963749,
+   [
+    -10.2,
+    -117.3,
+    1075.2
+   ]
+  ]
+ }
+}

@@ -26,8 +26,10 @@ plane. If the plan below outgrows that envelope I must say so before routing (se
 
 ## 1. Fixed inputs
 
-- **Pack (decided 06:13Z):** 13S2P Molicel P50B (P45B sold out, battery thread 07:29Z), 46.8 V nominal, **54.6 V full**, 39 V empty at 3.0 V/cell (2.9 V
-  cutoff → 37.7 V), 9 to 10 Ah, 60 A MIDI fuse on the pack, XT90S out.
+- **Pack (decided 06:13Z):** 13S2P; cell choice open with the battery thread (08:52Z): preferred 6 Ah 30 A-class cells (Reliance
+  RS60 / Linkdata 60P / Great Power 60Q, about 12 Ah, 560 Wh, 60 A continuous at 2P, equal to the BMS OC limit), Molicel P50B
+  as the fallback; pack resistance assumed 90 to 110 mΩ until measured. Pack fuse is a Class T 60 A ferrule, 160 V DC (verify).
+  46.8 V nominal, **54.6 V full**, 39 V empty at 3.0 V/cell, hard UV trip 2.8 V/cell (36.4 V), XT90S out.
 - **BMS on this board (decided 06:14Z):** "we can probably incorporate the bms onto there as well".
 - **Drives (vendor manual):** RS00, RS02, RS03, RS04 all rated 48 V, operating **24 to 60 V**. At 54.6 V full there are only
   5.4 V of headroom for regen.
@@ -199,8 +201,8 @@ homing before `READY`).
   24 V; once the battery arrives, the button only ever switches the loop. (Flagged to the arm trunk thread.)
 - **Stop category:** Cat 0 (power cut, joints go limp) is the default and what the robot does today. A Cat 1 option (supervisor
   tells the host and the drives to damp first, hardware cuts after a fixed 300 ms RC timer no matter what) costs two parts and
-  can be fitted by a jumper. RobStride manuals have a "post-power-off anti-backdrive protection" section (4.2.5 in the RS03
-  manual) that may give passive damping when unpowered: **verify** on a drive before relying on it.
+  can be fitted by a jumper. The RobStride manuals (4.2.5, RS00/RS03/RS04) confirm passive damping when unpowered, on by default:
+  a Cat 0 stop leaves the joints damped, not free, when moved quickly (see 3.4).
 
 ### 3.4 Motor bus: bulk capacitance, precharge, regen clamp
 
@@ -210,13 +212,59 @@ homing before `READY`).
 - **Regen clamp:** an active shunt regulator on VMOT: comparator at 57.5 V switches a FET into an external brake resistor
   (aluminium-clad, 50 W, 10 Ω class, bolted to a 2020 rail so the frame is the heatsink; off-board, two-wire connector). Plus
   a TVS for fast edges. A TVS alone cannot do this job: a 58 V-standoff TVS clamps at about 90 V.
+- **Braking energy goes back into the pack through the BMS first** (Joey 08:58Z: "it should go back through the bms to charge
+  the batteries"). Path: drive → port FET (or its body diode) → VMOT → E-stop banks (or their body diodes when open) → VSYS →
+  BMS CHG/DSG FETs (both on while running) → cells. The AFE counts it as charge, so it shows up in the coulomb counter and the
+  energy telemetry as recovered Wh. The clamp is only the backup, for the cases where the pack must not take charge:
+  - pack at or near full (any cell at 4.15 V; the OV trip at 4.22 to 4.25 V with 1 s delay is the hard stop), the 0.7 V of
+    headroom between the 53.9 V charge end and the 57.5 V clamp is where regen lives;
+  - pack outside the 0 to 45 °C charge window (cold-weather regen goes to the resistor, by design);
+  - regen current above the charge over-current limit: **AFE OCC 50 A with about 1 s delay** (P50B max charge 25 A per cell,
+    battery thread 08:58Z; redo if 6 Ah cells are bought). The charge path (same FETs and shunt as discharge, rated 80 A
+    continuous) carries that easily;
+  - BMS faulted or CHG FET open, or pack removed.
+  Host braking caps (battery thread proposal, agreed): **30 A** between 0 and 95% charge; **5 A** above 95% or below 5 °C, with
+  the clamp absorbing the rest. The supervisor logs clamp energy (J per event and per session) alongside recovered Wh. Energy scale, for honesty: a
+  3 kg arm falling 0.5 m is about 15 J, a few milliwatt-hours, so arm regen is about protecting the 60 V drives, not range;
+  walking legs return more.
+- **Regen path in every state** (trunk thread question, 08:57Z). Rules: the port switches are single FETs (no back-to-back
+  reverse blocking), so their body diodes always pass load-side current back to VMOT. The E-stop banks are also single-direction,
+  with their body diodes pointing VMOT → VSYS. The clamp sits on VMOT itself and **powers itself from VMOT** (comparator and gate
+  drive fed by the voltage they clamp), so it works with the supervisor, the BMS and the pack all off.
+
+  | State | Where a backdriven arm's energy goes |
+  | --- | --- |
+  | Port on | port FET → VMOT → pack (if CHG on) or clamp |
+  | Port off or tripped | port FET body diode → VMOT → clamp |
+  | E-stop open | port → VMOT → clamp; also E-stop body diodes → VSYS → pack if the BMS allows |
+  | Board unpowered, pack connected | as E-stop open; clamp self-powered |
+  | Pack removed | port → VMOT → self-powered clamp |
+  | **Port fuse blown** | **isolated from the board.** Covered by a small per-port active clamp on the load side, after the fuse (59 V, about 20 W, sized for a hand-pushed or falling arm, not a full leg). A plain TVS can't do it: one that stays off at 54.6 V clamps near 80 V |
+
+  **What the RobStride manuals say (read 2026-11-06, `hardware/docs/robstride/`):**
+  - *Unpowered:* RS00, RS03 and RS04 manuals section 4.2.5, "Motor Post-Power-Off Anti-Backdrive Protection": "If the motor is
+    rotated rapidly while unpowered, a certain damping force will be felt. This protection prevents surges caused by excessively
+    high external rotation speeds." On by default; `damper` (0x702A, default 0) = 1 disables it. The RS02 manual lists the same
+    `damper` parameter but has no section describing it, so assume it behaves the same and confirm on the bench. **Keep it
+    enabled on every drive.** This is the drives' built-in braking, and it is what limits the energy in the blown-fuse case, so
+    the per-port load-side clamp above is a cheap backup, not the primary protection.
+  - *Powered, damping or braking:* the drives regenerate into the supply, with no internal brake resistor mentioned. The damping
+    mode example in every manual says: "the motor generates electricity under this condition and requires power supply to
+    prevent overvoltage." So the board must absorb braking energy, which is exactly the pack-first + clamp path above.
+  - *Drive limits:* overvoltage fault at 60 V, undervoltage fault at 12 V (fault bits 3 and 2). The 57.5 V clamp stays below the
+    drives' own trip; the 2.8 V/cell hard UV (36.4 V) is far above theirs.
+  Bench check still worth doing: backdrive an unpowered RS02 and RS03 by hand and scope the bus, to put a number on it.
 - **Bulk:** about 2 mF of low-ESR polymer or low-profile electrolytics on VMOT. Standard 63 V cans are 25 mm tall and break the
   24 mm envelope, so they lie down or are replaced by arrays of shorter ones.
 
 ### 3.5 Limb ports
 
 Each port: hot-swap switch (soft start, current limit, breaker) → **INA238-class 85 V current/voltage monitor** (verify) →
-blade fuse in a holder (the backstop if the FET fails short) → connector carrying **VBUS, GND, CAN_H, CAN_L**, exactly the four
+blade fuse in a holder (the backstop if the FET fails short). **Fuses and holders must be rated for at least 58 V DC**
+(trunk thread flag 08:51Z): standard ATO/ATM blades are 32 V DC parts. Use 58 V blades (Littelfuse 997 MINI 58 V series or
+the ATO-size 58 V equivalent, verify) in 58 V-rated holders. The regen clamp at 57.5 V keeps VMOT inside that rating; the
+margin is thin, so the clamp threshold must not drift up, and if a fuse family with an 80 V rating fits the footprint it is the
+better choice → connector carrying **VBUS, GND, CAN_H, CAN_L**, exactly the four
 wires the arm trunk thread specified. The supervisor can switch each limb separately (bring up one arm at a time, power-cycle a
 faulted limb without dropping the rest) and logs per-limb current, which is the measurement the trunk thread needs to settle
 its fuse values.
@@ -238,10 +286,11 @@ Leg ports are footprints on rev A; populate when the legs exist.
   names, Davout pacing, `config/motors*.yaml`, the bus-plan ADR that ADR 0001 says is still owed), so it is a proposal to them,
   not a decision made here.
 - **Isolated transceivers** (ISOW1044-class, integrated isolated supply, verify) on every bus. The trunk thread's real "$500
-  actuator" fear is a crushed cable putting 54 V on CAN; their junction boards protect each drive, and isolation here protects
-  the Pi, the Jetson and the board. The bus side of each transceiver references that limb's trunk GND at the port.
-- **Termination:** 120 Ω at the board end of each bus, switchable (solid-state or jumper), far end on the trunk's last junction
-  board as the trunk thread planned.
+  actuator" fear is a crushed cable putting 54 V on CAN; with junction boards ruled out (08:35Z) the drives' transceivers rely on the
+  trunk's discrete TVS at the splices, and isolation here protects the Pi, the Jetson and the board. Pick a transceiver whose bus
+  pins survive a sustained 58 V fault (ISOW1044 class claims ±58 V; verify), and add a port-side CAN TVS on the board. The bus side of each transceiver references that limb's trunk GND at the port.
+- **Termination:** 120 Ω at the board end of each bus, switchable (solid-state or jumper), far end at the trunk's last drop
+  (a heat-shrunk resistor, trunk thread).
 - The supervisor MCU appears on the same USB hub as a CDC serial device for telemetry and the arm/disarm handshake. If USB drops,
   the drives' own CAN timeout (600, about 30 ms, ADR 0001) stops them; the supervisor also opens the motor switches if it loses
   the host heartbeat.
@@ -271,8 +320,7 @@ So fuse selectivity and CAN fault tests can run without risking real actuators:
   a small board of its own) drives step and short-circuit currents into a trunk segment, so drop fuses can be checked to blow
   before the port trips.
 - **CAN fault-injection header** on one bus (the spare CAN6): jumper positions to short CAN_H to CAN_L, CAN_H or CAN_L to GND,
-  and CAN_H to VBUS through a 100 ohm current-limit resistor, plus a removable terminator. This checks the trunk junction boards'
-  surge protection and the isolated transceivers before a real trunk sees it. Only usable in test mode with motors disarmed.
+  and CAN_H to VBUS through a 100 ohm current-limit resistor, plus a removable terminator. This checks the trunk's splice TVS diodes and the isolated transceivers before a real trunk sees it. Only usable in test mode with motors disarmed.
 - Test points on VSYS, VMOT and every port, sized for a scope probe ground spring.
 
 ### 3.9 Observability and telemetry (Joey 07:28Z: "know at all times how many amps/volts we are pulling and where")
@@ -309,11 +357,9 @@ non-volatile memory so it survives a pack swap. A third pack NTC by the pack fus
 that can read thermistors (verify), but the 2 × 9 connector is full, so it costs a 2 × 10 Micro-Fit. Recommended, cheap.
 
 **Per-motor current.** The board measures each limb exactly. Per motor it relies on the drives' own reports, and the
-supervisor reconciles the sum against the limb meter (the residual is wiring loss or error). If Joey wants measured current
-per motor as well, the trunk junction boards can carry a sense chip, which needs a small MCU on CAN at each one. The trunk thread
-took this on (07:31Z): each junction board gets an optional sense chip plus a small CAN MCU reporting drop current, bus voltage,
-temperature and fuse state at 10 to 50 Hz, node IDs 16 to 20 on each arm bus, standard 11-bit frames so they never collide with
-RobStride's 29-bit extended IDs. Reconciliation (sum of drops against the limb meter) runs on the host, which sees both.
+host reconciles the sum against the limb meter (the residual is wiring loss or error). Joey ruled out junction boards
+(08:35Z, trunk thread), so there are no per-motor sense nodes: the limb meters are the only measured current below the pack,
+which makes their 1 kHz rate and 20 kHz fault capture the main tool for finding which motor misbehaved.
 
 **Accuracy target:** ±1% current above 1 A, ±0.2% voltage, energy within 2% over a session. Calibrated against a bench meter
 at bring-up, with the calibration stored in the supervisor.
@@ -375,7 +421,7 @@ is a new failure point and a contact resistance that heats, so high current stay
 | **LP: low-power board** | AFE, supervisor, CAN bridges and isolated transceivers, USB hub, 12 V intermediate and all LV rails, rail switches and meters, fans, temperatures, E-stop loop logic, I/O | lower box, lower part (Y 190 to 243) | about 100 × 55, 6 layers | rev A |
 | **Pi power stub** | 12 V → 5.1 V at 6 A right at the Pi, so the Pi's rail is regulated at the load and not 300 mm of wire away | Pi shelf, upper bay | about 30 × 20 | rev A, tiny |
 | **Pack sense board** | tap fuses, NTCs, 2 × 10 Micro-Fit | on the pack | 40 × 25 | rev A (battery thread asked) |
-| **Junction boards** | drop fuse, CAN surge protection, optional per-motor sensing | at each motor | trunk thread | trunk thread |
+| ~~Junction boards~~ | ruled out by Joey 08:35Z; trunk is spliced with inline fuses and plug-in joint jumpers | | | trunk thread |
 | **Test load box** | dummy load and pulse load for fuse and trip testing | bench only | | after rev A |
 
 HP and LP join through one locking board-to-board connector (VSYS at a few amps for the rails, I2C/SPI to the port meters,
@@ -403,6 +449,9 @@ short pigtails for the most-cycled ports (pack, charge). Revisit if a limb's con
 | CAN transceivers | ISOW1044-class isolated CAN FD with integrated power |
 | Connectors | XT90 (pack), Micro-Fit 2 × 10 (balance + sense), XT30(2+2) (arm, waist, aux), XT60 + GH (legs), JST GH/XH for low-current |
 | Fab | KiCad (the existing empty `../schematics/marengo_pdu/` project), PCB and SMT assembly at JLCPCB or PCBWay; through-hole power connectors hand-soldered |
+
+Board-thread budget also carries (Joey, via the battery thread 08:10Z): the JK 13S bench BMS (about $60) and the trimmable
+4 A 13S charger (about $50), about $110. Board-side Micro-Fit leads are pre-crimped, so no crimper is needed.
 
 Rough cost for rev A (estimate): $150 to 250 for 5 power PCBs and 5 logic PCBs assembled (2 sets populated), $100 to 150 in
 parts not stocked by the assembler, and a current-limited 0 to 60 V lab supply (about $100) for bring-up, since the 24 V
@@ -460,6 +509,11 @@ from rev A, area falls by about 1,800 mm². No change to the frame envelope requ
 
 | Rev | Date | Change |
 | --- | --- | --- |
+| 0.11 | 2026-11-06 | RobStride manuals checked: unpowered anti-backdrive damping (keep enabled), drives regenerate into the supply, 60 V OV / 12 V UV faults |
+| 0.10 | 2026-11-06 | Regen routed through the BMS into the pack first, clamp as backup (Joey 08:58Z) |
+| 0.9 | 2026-11-06 | Regen path in every state, self-powered clamp, per-port load-side clamp (trunk thread question) |
+| 0.8 | 2026-11-06 | Port fuses and holders must be 58 V DC rated, not 32 V blades (trunk thread flag) |
+| 0.7 | 2026-11-06 | Junction boards ruled out (Joey 08:35Z): per-motor current from drive reports; port-side CAN TVS, 58 V-tolerant transceivers |
 | 0.6 | 2026-11-06 | Board family (6a): HP, LP, Pi power stub, pack sense board; no XT breakouts; per-motor sensing on junction boards |
 | 0.5 | 2026-11-06 | Rails reworked into two-stage regulation with 9 rails (Joey 07:29Z); telemetry section 3.9 (Joey 07:28Z); P50B cells, pack sense board, charge temperature window from the battery thread |
 | 0.4 | 2026-11-06 | Joey chose leg-ready ratings: 80 A continuous, 150 A for 100 ms main path, leg ports as unpopulated footprints |

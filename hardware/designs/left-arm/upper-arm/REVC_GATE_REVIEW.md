@@ -1,8 +1,8 @@
 # Rev C gate review, elbow pass 2
 
-2026-11-06. Packet: `review/left-arm-revc2`, PR #272, `hardware/designs/left-arm/upper-arm/review/revc2/`. Argon is still to run on the Mac, so this summary may change.
+2026-11-06. Packet: `review/left-arm-revc2`, PR #272, `hardware/designs/left-arm/upper-arm/review/revc2/`.
 
-**Result: not passed. Do not print the full upper arm or forearm.** All four reviewers reached that independently. Print small fit and stop pieces first, once the items below are fixed.
+**Result: not passed. Do not print the full upper arm or forearm.** All five reviewers reached that independently. Print small fit and stop pieces first, once the items below are fixed.
 
 | Reviewer | Run time | Verdict |
 | --- | --- | --- |
@@ -10,9 +10,9 @@
 | Astra, high | 18.1 min | Hold |
 | Sol, high | 18.7 min | Blocker |
 | Fable, high, on the subscription, as no API key is set on Joey-PC | 25.2 min | Do not print yet |
-| Argon, high | Pending, on the Mac | |
+| Argon, high, on the Mac with a read-only command list | 26.5 min, after a first attempt died in 23 s on denied commands | Five blockers |
 
-Packet hashes held before and after the run. Run started 07:29:53Z, in parallel.
+Packet hashes held before and after each run. The four Joey-PC runs started 07:29:53Z, in parallel.
 
 ## Accepted
 
@@ -35,6 +35,21 @@ I checked each of these against the packet files. "Raised by" names who found it
 10. **Print risks** (Fable, Sol, Muse): +X support faces land on fitted surfaces, and the carrier has four bridges with its outboard face up. Fable suggests outboard face down. Compare -X as well (Sol, Astra). The arm and carrier have no slice.
 11. **Scope** (all four): the forearm junction opening, cable route and length decision can all make a full print obsolete.
 
+### Added by Argon
+
+Checked against the packet STEP and STL with ray casts and my own arithmetic. No native CAD was used.
+
+12. **Cable exit slot is blocked by the carrier: accepted, blocker for any cable route.** The slot is open down to the carrier at Y 251.81, and the tube floor ends at Y 254.86, so only a 3 mm gap is left, as measured from the STL along Y at X 146. The steel ring sits under the rest of the slot. A 4 x 9 mm flat or Ø8 cannot make the turn. Pass 1 had the same layout, so this is not new with the shift. The gap stays open sideways at Y 253.5, but the posterior route needs its own exit. Add it to the cable route check.
+13. **Rear hub M4 cannot be indexed with an L-key through the cable window: accepted, blocker until a tool is proven.** Socket at X 168.85, Z 17.87, window X 159.99 to 180.99 at about Z -22.3. With a 3.4 mm key that gives 10.1 + 14.6 = 24.7 degrees of swing, under the 30 needed by flipping the key. Fix order: try a low-profile ratchet bit on the dummy, then widen the window or re-clock the hub. Argon's suggestion of Torx does not help, since Torx also indexes at 60 degrees.
+14. **Six hoop screw heads clamp 3 mm of bare PETG: accepted, as finding 7, raised to blocker for the carrier print.** The carrier runs X 140.5 to 149.7 and the sleeves stop at the hoop, confirmed on the STL. Argon's 180 to 220 MPa assumes a normal M3 preload we would not use on PETG, but the creep path is real. Fix: carry the sleeves through the carrier or bear the heads on the steel ring.
+15. **Retainer pilot wall: accepted, the 0.2 mm bottom skin rejected.** Wall to the bearing seat is 1.70 mm in the STL, 1.65 nominal, about 1.5 mm with an M3 major diameter, and 0.8 mm from the pocket to the r 34.5 recess at θ 123.9 degrees. The bottom of the hole is at X 149.5, but the part is solid to X 151.2 at r 29, so the skin is 1.7 mm. Fix: move or re-seat the retainers. Argon's r 30.5 needs a recheck against the recess.
+16. **Carrier print direction: accepted.** Print it -X up, outboard face on the bed (Argon and Fable).
+17. **Fork +Z up: to test, not accepted.** It cuts flat down-facing area, but no layer stress exists for it. Add a +Z build direction to the next fork FEA. Argon's change to 40 to 50% infill is not taken: the FEA and P1 and P2 process are solid.
+18. **Finger root and stop walls beside the pockets: verify when the SolidWorks lock is free.** Covered by the stop FEA in finding 3.
+19. **Leftovers: accepted.** Four unused Ø4 × 6 holes at r 38.5 in the hoop are in the STEP. The fuse pocket divider is 0.6 mm; junction board work replaces it. The Pass 1 X positions in the older sections of `ELBOW_COMPACTION.md` are marked as pass 1 at its top.
+
+Finding 2 also stands with Argon's second point: the Ø44 stub shoulder leaves 0.2 mm to the race, so it moves too. Argon's Ø48.5 bore and the Ø50 in the fix list both need checking against the chosen bearing's drawing.
+
 ### Minors
 
 - The URDF upper limit equals the hard stop. The controller needs a soft limit 2 to 3 degrees inside it (Fable).
@@ -46,7 +61,7 @@ I checked each of these against the packet files. "Raised by" names who found it
 
 ## Rejected
 
-- **M4 engagement under a 7 mm minimum, called a blocker by Muse and a major by Fable.** The RS02 drawing reads 6-M4 7 MIN, and the manual says screw depth must not exceed the casing thread depth. So 7 mm is the least thread available, and 6.0 to 6.14 mm is within it. The packet's phrase "7 mm minimum depth" caused this and is my error, carried from earlier records. Sol and Astra read it correctly. Fable's M4 × 16, at 8 mm, could exceed the thread. Still open: measured depth on a real RS02 and thread strength.
+- **M4 engagement under a 7 mm minimum, called a blocker by Muse and a major by Fable and Argon.** The RS02 drawing reads 6-M4 7 MIN, and the manual says screw depth must not exceed the casing thread depth. So 7 mm is the least thread available, and 6.0 to 6.14 mm is within it. The packet's phrase "7 mm minimum depth" caused this and is my error, carried from earlier records. Sol and Astra read it correctly. Fable's M4 × 16, at 8 mm, could exceed the thread. Still open: measured depth on a real RS02 and thread strength.
 - **Contact pressure compared with layer tension** (Muse). The 22.5 MPa allowable is for tension across layers, and the stop face is in compression. The stop stays a blocker on the other grounds.
 - **A 30 × 18 board fits the 21 × 40 window only diagonally** (Muse). 18 is under 21 and 30 is under 40.
 - **The retainer stack must fit in the 0.8 mm gap** (Muse). It sits in a 2.5 mm pocket, with a 2.45 mm stack (Fable).
@@ -62,9 +77,9 @@ I checked each of these against the packet files. "Raised by" names who found it
 
 No CAD work until SolidWorks is free.
 
-1. Fix the floor bore, hoop access, fork head recess and retainer pocket.
-2. Write the assembly order.
-3. Run carrier and stop FEA, and refined LC1A and fork twist.
+1. Fix the floor bore and stub shoulder, hoop access, hoop clamp path, retainer holes and pocket, fork head recess, and the leftover hoop holes.
+2. Write the assembly order, including the rear hub M4 tool and the cable exit.
+3. Run carrier and stop FEA, refined LC1A and fork twist, and the fork at +Z.
 4. Add screws, washers and the 6808 to the interference sweep.
 5. Print layer coupons, then the carrier alone with a real 6808, then a fork cheek and stub sector on a dummy output, including stop hits and a run to failure.
 6. Print full parts only after that, with lengths and the wiring openings frozen.
