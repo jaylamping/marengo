@@ -76,7 +76,13 @@ bottom edge. No XT plug fits on the HP board. So rev A puts **no high-current co
 - Short circuit: the pack can push about 54.6 V / 0.09 Ω ≈ 600 A prospective. AFE SCD at 40 mV on 0.25 mΩ = **160 A, delay set
   to the minimum (about 15 µs, verify)**. In practice the Class T pack fuse, the port eFuses (faster, lower) and the FET pulse
   rating all share this; the schematic gate must show the FET SOA covers 600 A for about 50 µs.
-- AFE thresholds on 0.25 mΩ: OCD 60 A = 15 mV, OCC 50 A = 12.5 mV (both inside the BQ76952 ranges, verify).
+- AFE thresholds on 0.25 mΩ, corrected against the BQ76952 datasheet SLUSE13B (p22: OCD/OCC in 2 mV steps, OCC delay max
+  425 ms): **OCD1 16 mV = 64 A** (hardware comparator, ≤ 425 ms), **OCD3 60 A for 1 s** (current-based, firmware level inside the
+  AFE) as the agreed 60 A ceiling, **OCC 12 mV = 48 A at 425 ms** (stays under the P50B's 50 A pack charge limit), **SCD 40 mV =
+  160 A** (valid step).
+- Cell wiring per datasheet Table 16-3 (p75): cells 1, 2 and 16 must be real, so cells 1 to 12 on VC0 to VC12, cell 13 on
+  VC15 to VC16, VC13 to VC15 shorted to VC12 as the table shows. Thermistors: TS1, TS3, CFETOFF and HDQ as thermistor inputs,
+  TS2 left free for wake from SHUTDOWN (DFETOFF stays on the E-stop loop).
 
 ### 2.3 Regen clamp sizing
 
@@ -130,13 +136,12 @@ The LM5069 current limit is set by a 55 mV (typ, verify) sense threshold: 2.5 m�
 ```
 marengo_pdu (root)
 ├── HP_power_board
-│   ├── pack_input_shunt
+│   ├── pack_input_shunt_afe   (BQ76952 lives on HP)
 │   ├── bms_fets_precharge
 │   ├── estop_banks
 │   ├── vmot_bulk_clamp
 │   └── port_channel ×6        (one sheet, instanced; legs DNP)
 ├── LP_logic_board
-│   ├── afe_bq76952
 │   ├── supervisor_mcu
 │   ├── can_bridges_usb_hub
 │   ├── isolated_can ×6        (instanced)
