@@ -429,5 +429,20 @@ R2007, R2014, C2005 and C2007 as logged above no longer exist in that form, and 
 | Q211 | R222 15 Ω in the collector: 0.62 A peak from 11 V, under 800 mA. R215 set only the base current |
 | OTP | Mfg Status Init[FET_EN] = 1, default 0 is FET test mode and the board would never start. Enabled Protections C[SCDL] = 1, SCDL Latch Limit 2, Counter Dec Delay 60 s: a persistent VSYS short costs R209 30 J about every 65 s |
 | BUCK12_OFF | Firmware reads FET Status and asserts it only while DSG is off, at every predischarge. The boot-only rule dropped compute on an MCU reset, and missed later predischarges |
-| D15 | Not closed. B140 stays. Layout rule: B0 to VSS return under 1 mΩ, giving -0.6 V and about 3 mA at 600 A. No Vf figure at that current is proven; Nexperia's PMEG6010 datasheet could not be fetched |
+| D15 | See VC0 short, below |
+
+### VC0 short (D15 closed)
+
+D15 is now Vishay SS14-E3/61T, doc 88746 Fig. 3: at 10 mA, typical, about 0.26 V at 25 °C and 0.38 V at -40 °C, read off the curve, which stops at 10 mA. C23 1 µF from VC0 to VSS is new: TI range 0.1 to 1 µF, and datasheet p70 asks for a capacitor to VSS on VC0. R14 is already at TI's 100 Ω maximum. The clamp current stays under 10 mA, so the 10 mA value is an upper bound. No maximum Vf is published at this current.
+
+Model: 2 µH, 90 mΩ, a hard short, stack held near 0 V, FET off at 45 µs (threshold crossing, 30 µs delay, turn-off). Pack current peaks at 525 A, not 600 A, and runs on after turn-off into the stack. C13 couples 18 % of the step. Limit is VSS - 0.3 V.
+
+| B0 to VSS return | No C23, SS14 25 °C | C23, no diode | C23, SS14 25 °C | C23, SS14 -40 °C |
+|---|---|---|---|---|
+| 1.0 mΩ | -0.23 V | -0.22 V | -0.20 V | -0.22 V |
+| 1.5 mΩ | -0.25 V | -0.33 V | -0.24 V | -0.32 V |
+
+Margin at the 1.0 mΩ layout limit is 80 mV at any temperature, with no reliance on the diode. At the earlier 1.5 mΩ assumption it is 60 mV at 25 °C and -20 mV at -40 °C. A turn-off at 70 µs with 1.5 mΩ and -40 °C reaches -0.36 V. The 1 mΩ limit on the return is a harness and layout requirement, including the XT90 contact if it sits between B0 and VSS.
+
+Conduction at the normal -90 mV stays small but rises hot; cell 1 reading at 60 A is a bench check. C23 slows VC0 relative to VC1 by about 120 µs, well inside the cell scan.
 

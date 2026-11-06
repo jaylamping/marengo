@@ -152,9 +152,9 @@ Reviewed commit `c0f24ea9`, the pass 2 fixes and the USE 2410 land only. Sol 509
 | FET_EN missing from the OTP list | Opus | Yes, TRM default 0 | Added |
 | SCD retry unbounded on a VSYS short | Opus (major), Fable (minor) | Yes, Latch Limit default 0 | SCDL on, limit 2, 60 s |
 
-### Rated major, not closed
+### D15, closed after pass 3
 
-D15 sits at VC0's -0.3 V limit with no guaranteed margin at 600 A (Sol major; Opus, Fable minor). B140 stays with a 1 mΩ layout limit on the return. A part with a published low-current Vf is still owed.
+Sol rated it major; Opus and Fable, minor. D15 is now SS14-E3/61T, with a readable curve, plus C23 1 µF to VSS. Margins are in the log: -0.22 V at a 1 mΩ return, no diode needed.
 
 ### Minors left open
 

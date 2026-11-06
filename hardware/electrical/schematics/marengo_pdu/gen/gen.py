@@ -303,8 +303,9 @@ P.text(NOTE2,(20.32,233.68),size=1.5)
 _a,_b=(40.64,160.02),(55.88,160.02)
 P.sym('Device:R',Rr(),'10k',(48.26,160.02),90,R603,refat=(48.26,157.48),valat=(48.26,162.56))
 P.wire((44.45,160.02),_a); P.label('B0',_a,180); P.wire((52.07,160.02),_b); P.label('BAT-',_b)
-P.text('Keeps VC0 defined with the harness out. 9 uA at 60 A. D15 clamps VC0 near -0.3 V in a short, no guaranteed margin. Keep the B0 to VSS return under 1 mOhm in layout: -0.6 V at 600 A, about 3 mA through R14.',(30.48,165.1))
-P.wire((68.58,160.02),(73.66,160.02)); P.label('VC0',(73.66,160.02)); P.sym('Device:D','D15','B140-13-F 40V 1A',(64.77,160.02),180,'Diode_SMD:D_SMA',refat=(64.77,157.48),valat=(64.77,162.56)); vss((60.96,160.02),270)
+P.text('Keeps VC0 defined with the harness out. 9 uA at 60 A.\nC23 1 uF to VSS (TI range 0.1 to 1 uF, 100R at its maximum) and D15\nhold VC0 through a short: 525 A peak with the 2 uH pack.\nB0 to VSS return 1.0 mOhm: -0.22 V, no diode needed.\n1.5 mOhm: -0.24 V at 25 C, -0.32 V at -40 C (limit -0.3 V).\nKeep the return at 1 mOhm or less.',(30.48,181.61))
+P.wire((68.58,160.02),(73.66,160.02)); P.label('VC0',(73.66,160.02)); P.sym('Device:D','D15','SS14-E3/61T 40V 1A',(64.77,160.02),180,'Diode_SMD:D_SMA',refat=(64.77,157.48),valat=(64.77,154.94)); vss((60.96,160.02),270)
+P.sym('Device:C','C23','1uF 25V X7R',(86.36,165.1),0,'Capacitor_SMD:C_0603_1608Metric',refat=(88.9,163.83),valat=(88.9,166.37)); P.wire((86.36,161.29),(86.36,160.02)); P.wire((73.66,160.02),(86.36,160.02)); vss((86.36,168.91),180)
 # ---------- hierarchy ----------
 def ph(key,title,extra=None):
     s=Sheet(key,title,'A4',comment='Placeholder, not yet captured'); s.file=key+'.kicad_sch'

@@ -258,5 +258,8 @@ if MY:
 for s_ in ('MID_DIV','VMOT_DIV','VSYS_DIV'):
     rr=[r for r in comp if r.startswith('R') and any(sfx(n(r,p),s_) for p in (1,2))]
     ok(sorted(val(r) for r in rr if val(r)[:2] in ('1M','56'))==['1M 0.1%','56k 0.1%'],f'{s_} 0.1 %')
+ok(val('D15').startswith('SS14') and sfx(n('D15',1),'VC0') and n('D15',2)=='VSS','D15 SS14 VC0 clamp')
+vc0=n('U1',16); cc=[c for c in comp if c.startswith('C') and {n(c,1),n(c,2)}=={vc0,'VSS'}]
+ok(len(cc)==1 and val(cc[0]).startswith('1uF'),'VC0 1 uF to VSS')
 print('audited',aud,'parts')
 print(sorted(nets)[:60]); print('FAILS',len(fail))
