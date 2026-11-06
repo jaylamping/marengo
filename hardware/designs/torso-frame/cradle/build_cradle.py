@@ -117,27 +117,27 @@ def build_side(sw, s, label):
         a, b = bx(s, x0, x1)
         p.box((a, y0, z0), (b, y1, z1), name, cut)
 
-    box(47.5, 51, 175, 353.62, -50, 37.5, "Web")
-    box(51, 55, 175, 179, -44, 37.5, "Bottom_foot_strip")
+    box(48, 51.5, 175, 353.62, -50, 37.5, "Web")  # 0.5 per side of slide clearance to the 95 mm pack
+    box(51.5, 55, 175, 179, -44, 37.5, "Bottom_foot_strip")
     box(55, 75, 175, 179, -21.5, 21.5, "Bottom_foot_tongue")  # corner bracket legs fill Z +-22 to +-50 on this rail
-    box(51, 75, 349.62, 353.62, -44, 37.5, "Top_foot")
-    box(40, 47.5, 179, 183, -45, 34, "Ledge")
-    box(42, 47.5, 179, 345, 34, 37.5, "Front_lip")  # down to Y 179: at Y 183 it would meet the ledge on a bare edge
+    box(51.5, 75, 349.62, 353.62, -44, 37.5, "Top_foot")
+    box(40, 48, 179, 183, -45, 34, "Ledge")
+    box(42, 48, 179, 345, 34, 37.5, "Front_lip")  # down to Y 179: at Y 183 it would meet the ledge on a bare edge
     for y, n in ((200, "Lo"), (330, "Hi")):
-        box(47.5, 55, y - 5, y + 5, 29.5, 37.5, f"Carrier_pad_{n}")
-    # 4 x 4 root chamfers, web to feet
+        box(48, 55.5, y - 5, y + 5, 29.5, 37.5, f"Carrier_pad_{n}")
+    # 3.5 x 3.5 root chamfers, web to feet; the bottom one stays on the strip, clear of the bracket legs
     p.sketch("front")
-    p.triangle([(s * 51, 179), (s * 55, 179), (s * 51, 183)])
+    p.triangle([(s * 51.5, 179), (s * 55, 179), (s * 51.5, 182.5)])
     p.extrude(-44, 37.5, "Bottom_root")
     p.sketch("front")
-    p.triangle([(s * 51, 349.62), (s * 55, 349.62), (s * 51, 345.62)])
+    p.triangle([(s * 51.5, 349.62), (s * 55, 349.62), (s * 51.5, 346.12)])
     p.extrude(5.2, 37.5, "Top_root")  # forward of the strap slot, the lips run through here
-    # Thumbscrew boss, Right Plane sketch x = -Z. M4 x 16 head seats on the boss face, tip 5 mm past the pack side.
-    a, b = bx(s, 51, 58.5)
+    # Thumbscrew boss, Right Plane sketch x = -Z. M4 x 16 head seats on the boss face, tip 4.5 mm past the centred pack side.
+    a, b = bx(s, 51.5, 59)
     p.sketch("right")
     p.circle(5, 252.6, 16)
     p.extrude(a, b, "Thumbscrew_boss")
-    a, b = bx(s, 46, 60)
+    a, b = bx(s, 47, 61)
     p.sketch("right")
     p.circle(5, 252.6, 4.5)
     p.extrude(a, b, "Thumbscrew_hole", cut=True)
@@ -148,34 +148,34 @@ def build_side(sw, s, label):
             p.stadium(s * 65, -z, 5.5, 10)
         p.extrude(y0, y1, f"M5_slots_{n}", cut=True)
     # Lightening windows, 6 mm clear of the boss, feet, pads and lip
-    a, b = bx(s, 46, 52)
+    a, b = bx(s, 47, 52.5)
     p.sketch("right")
     p.stadium(10, 214, 62, 44)
     p.stadium(10, 301, 62, 62)
     p.extrude(a, b, "Windows", cut=True)
     # Carrier pad inserts, M3 x 5, 4.2 pilot, 5.5 deep
     p.sketch("front")
-    p.circle(s * 51.25, 200, 4.2)
-    p.circle(s * 51.25, 330, 4.2)
+    p.circle(s * 51.75, 200, 4.2)
+    p.circle(s * 51.75, 330, 4.2)
     p.extrude(32, 37.5, "M3_insert_holes", cut=True)
     # Strap slot, open at the rear edge, and the detent pocket for the strap lip
-    box(46, 52, 345, 348.4, -51, 5.2, "Strap_slot", cut=True)
-    a, b = bx(s, 50.2, 52)
+    box(47, 53, 345.5, 348.9, -51, 5.2, "Strap_slot", cut=True)
+    a, b = bx(s, 50.7, 52.5)
     p.sketch("right")
-    p.circle(5, 342, 4.4)
+    p.circle(5, 342.5, 4.4)
     p.extrude(a, b, "Strap_detent", cut=True)
     p.finish(f"marengo_torso_cradle_side_{label}", f"Pack cradle side, {label}, rev A")
 
 
 def build_strap(sw):
     p = Part(sw, CAD / "marengo_torso_cradle_top_strap.SLDPRT")
-    p.box((-51.2, 345, -15), (51.2, 348, 5), "Strap")  # 0.2 per side over the 102 across the webs
+    p.box((-51.7, 345.5, -15), (51.7, 348.5, 5), "Strap")  # 0.2 per side over the 103 across the webs, 0.5 over the pack
     for s, n in ((-1, "R"), (1, "L")):
-        a, b = bx(s, 51.2, 53.7)
-        p.box((a, 340, -15), (b, 348, 5), f"Lip_{n}")
-        a, b = bx(s, 50.7, 51.2)
+        a, b = bx(s, 51.7, 54.2)
+        p.box((a, 340.5, -15), (b, 348.5, 5), f"Lip_{n}")
+        a, b = bx(s, 51.2, 51.7)
         p.sketch("right")
-        p.circle(5, 342, 4)
+        p.circle(5, 342.5, 4)
         p.extrude(a, b, f"Detent_{n}")
     p.finish("marengo_torso_cradle_top_strap", "Pack cradle top strap, rev A")
 

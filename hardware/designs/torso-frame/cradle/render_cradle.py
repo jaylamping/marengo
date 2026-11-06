@@ -50,7 +50,7 @@ def main():
     items = [(WIP / "context.SLDPRT", None, (0, 0.26431, 0))]
     items += [(CAD / "marengo_torso_cradle_side_right.SLDPRT", ORANGE, (-0.0575, 0.26431, -0.00625))]
     items += [(CAD / "marengo_torso_cradle_side_left.SLDPRT", ORANGE, (0.0575, 0.26431, -0.00625))]
-    items += [(CAD / "marengo_torso_cradle_top_strap.SLDPRT", GREEN, (0, 0.344, -0.005))]
+    items += [(CAD / "marengo_torso_cradle_top_strap.SLDPRT", GREEN, (0, 0.3445, -0.005))]
     for path, rgb, centre in items:
         sw.OpenDoc6(str(path), 1, 1, "", err, warn)
         asm = sw.ActivateDoc3(title, False, 0, err)
