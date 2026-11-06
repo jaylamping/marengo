@@ -129,6 +129,7 @@ warm the pack. That is what the two NTCs are for. The measured number replaces t
 | Short circuit | about 150 A in 200 µs (board thread checks FET SOA) | AFE |
 | Over-temperature | 60 °C discharge cutoff; charge allowed only 0 to 45 °C (P50B is rated −20 to 60 °C; we stay conservative) | AFE |
 | Balancing | passive, about 150 mA, during charge above 3.9 V, cells more than 15 mV apart | AFE |
+| Regen charging (Joey wants regen back into the cells, agreed 2026-11-06) | through the BMS FETs, counted as charge. Charge OC trip 50 A with about 1 s delay (P50B max charge 25 A per cell). Host caps braking at 30 A from 0 to 95% charge, and at 5 A above 95% or below 5 °C. Clamp energy logged | AFE + host |
 | Regen backstop | clamp at 57.5 V (4.42 V per cell) into the brake resistor | power board |
 
 The board thread notes that 20 A of braking raises a full pack's terminal voltage to about 4.30 V per cell, which is why the
