@@ -4,7 +4,7 @@ import json
 from scipy.spatial import cKDTree
 
 exec(open("sweep.py").read().split("def main():")[0])
-E = Path(r"J:\code\marengo\cad\exports\left_arm")
+from cad_paths import FOREARM as E
 export = json.loads((HERE.parent / "cad_export.json").read_text())
 raw = json.loads((HERE.parent / "component_boxes_mm.json").read_text())
 boxes = {k.replace("parts/", "").replace(".SLDPRT", ""): v for k, v in raw.items() if k.startswith("parts/")}
