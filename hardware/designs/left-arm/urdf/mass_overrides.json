@@ -3,8 +3,8 @@
   "YAW_RS02": 0.405,
   "ELBOW_RS02": 0.405,
   "FOREARM_RS00": 0.31,
-  "P1_L01": null,
-  "P2_L04B": null,
-  "SPACER": null,
+  "P1_L01": 0.16,
+  "P2_L04B": 0.166,
+  "SPACER": 0.011,
   "marengo_upper_arm_left": null
 }

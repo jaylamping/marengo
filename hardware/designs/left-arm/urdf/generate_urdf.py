@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-PRINT_DENSITY = 1270.0  # kg/m3, solid PETG
+PRINT_DENSITY = 1190.0  # kg/m3, effective 100%-infill PETG print, from weighed P1 and P2 (see MEASURED_MASSES.md)
 
 # STEP (X lateral, Y up, Z depth) to robot frame (REP-103: X forward, Y left, Z up).
 STEP_TO_ROBOT = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])

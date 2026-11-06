@@ -2,9 +2,9 @@
   <link name="torso_link" />
   <link name="left_shoulder_pitch_link">
     <inertial>
-      <origin xyz="0.008628 -0.004249 -0.000016" rpy="0 0 0" />
-      <mass value="1.049830" />
-      <inertia ixx="0.000555928" ixy="0.000109708" ixz="0.000000937" iyy="0.000240734" iyz="0.000000469" izz="0.000453095" />
+      <origin xyz="0.008529 -0.004042 -0.000014" rpy="0 0 0" />
+      <mass value="1.040000" />
+      <inertia ixx="0.000524682" ixy="0.000103771" ixz="0.000000886" iyy="0.000227046" iyz="0.000000434" izz="0.000427983" />
     </inertial>
   </link>
   <joint name="left_shoulder_pitch" type="revolute">
@@ -16,9 +16,9 @@
   </joint>
   <link name="left_shoulder_roll_link">
     <inertial>
-      <origin xyz="0.016941 -0.000969 -0.066771" rpy="0 0 0" />
-      <mass value="0.608276" />
-      <inertia ixx="0.000788524" ixy="0.000023483" ixz="-0.000146490" iyy="0.000889506" iyz="0.000025598" izz="0.000703653" />
+      <origin xyz="0.015917 -0.000941 -0.068921" rpy="0 0 0" />
+      <mass value="0.582000" />
+      <inertia ixx="0.000693454" ixy="0.000022430" ixz="-0.000120495" iyy="0.000784766" iyz="0.000025016" izz="0.000668085" />
     </inertial>
   </link>
   <joint name="left_shoulder_roll" type="revolute">
@@ -30,9 +30,9 @@
   </joint>
   <link name="left_upper_arm_link">
     <inertial>
-      <origin xyz="-0.000115 -0.002198 -0.192873" rpy="0 0 0" />
-      <mass value="0.650687" />
-      <inertia ixx="0.001297075" ixy="-0.000000589" ixz="0.000003664" iyy="0.001403113" iyz="0.000138351" izz="0.000417469" />
+      <origin xyz="-0.000111 -0.002109 -0.193763" rpy="0 0 0" />
+      <mass value="0.635210" />
+      <inertia ixx="0.001239939" ixy="-0.000000559" ixz="0.000003495" iyy="0.001344517" iyz="0.000130844" izz="0.000403700" />
     </inertial>
   </link>
   <joint name="left_upper_arm_yaw" type="revolute">
@@ -82,4 +82,4 @@
     <child link="left_hand_tip" />
     <origin xyz="0.000000 -0.000000 -0.141400" rpy="0 0 0" />
   </joint>
-</robot>
+</robot>

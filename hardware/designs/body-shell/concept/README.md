@@ -1,6 +1,6 @@
 # Body shell, concept B
 
-2026-11-06. **Baseline LOCKED by Joey** (silhouette, proportions, shoulder cavity). Concept renders only: not a part and not released for printing. Iterations start from this baseline.
+2026-11-06. **Baseline LOCKED by Joey; rev B (2026-11-06): back deepened for the frame, waist ~193 with straight sides, see `../manufacturing/SHELL_BASELINE_REVB.png`.** (silhouette, proportions, shoulder cavity). Concept renders only: not a part and not released for printing. Iterations start from this baseline.
 
 A white shell over the 2020 torso frame, from Joey's silhouette sketch: a broad chest, a taper to the waist,
 and a longer stomach. Concept B (Joey, 2026-11-06): no shell on the arm's shoulder parts; a male build with a heavy chest block,
@@ -31,7 +31,7 @@ mock-up, not SolidWorks; the real panels get modelled on Joey-PC once the look i
 | Shoulder pitch axis | 424.9 mm above pelvis bottom; RS03 output faces at Y ±135 | arm thread |
 | Arm line | Y ±208.5 | arm thread |
 | Chest shell | 324 mm at the shoulder point (rounded cap ~R40, trapezius slope to the neck); 278 mm 111 mm below the axis; 178 mm at the chest bottom | this concept |
-| Waist (dark bands) | 156 mm wide, 3 bands over the waist yaw RS03 | this concept |
+| Waist (dark bands) | **~193 mm wide with straight sides (Joey 2026-11-06 07:19, rev B)**; was 156. 3 bands over the waist yaw RS03 | generator `wx=29`, `straight=1` (defaults) |
 | Shoulder cavity | 78 mm radius around the pitch axis, floor at the RS03 face. r 76 is the minimum for full pitch (-50..180) with >= 3 mm at 0 and 5 deg inward roll | arm-thread sweep |
 | Chest depth | ~124 mm front (pec) + 88 mm back (212 mm) | this concept |
 | Shoulder collar | 114 mm OD, 86 mm ID, 2 mm flange, on the 8 unused outboard M4 holes (M4x10 button heads) | arm thread |
