@@ -227,13 +227,12 @@ box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, 376, -71.8), 
 # power and peripheral board (board thread, main 0b6a6ef, hardware/electrical/pdb/PLAN.md s.5-6): two PCBs coplanar on one carrier, 6 x M3 at X +-46, Y 194/265/336.
 # Rear face moved from Z 34 to 37.5: 3 mm air plus a 0.5 mm insulating sheet over the pack lid (board thread ask 1). Front face Z 61.5, 8.5 mm behind the frame front face (Z 70; the front rails are only at Y 155-175 and 353.6-373.6, so the board sees open space between the posts).
 PDB_Z0 = PK_Z1 + 3.5
-box('pdb', 16, 'Power and logic boards on one carrier (BMS onboard): power board ~100 x 95 (13S BMS, fuse, precharge, contactor, motor ports, DC-DC at Y 250-290 in the intake jet) on 6 mm standoffs', (-50, 245, PDB_Z0 + 10), (50, 340, PDB_Z0 + PSU_T), COL['pdb'], 'electronics',
-    (0, 0, 120), balloon=True, mass_g=180, material='PCB + parts, 100 x 95 x 18', opacity=0.7,
-    note='Board thread plan main 0b6a6ef. Top edge: pack XT90 + 16-pin balance (rear face), both arm ports, USB to the Pi, fan leads. Sides: E-stop loop, charge port, sensors.')
-box('pdb_logic', 16, 'Logic / peripheral board ~100 x 55 below the power board, same carrier', (-50, 190, PDB_Z0 + 10), (50, 243, PDB_Z0 + PSU_T), COL['pdb'], 'electronics', (0, 0, 120), mass_g=70, material='PCB + parts, 100 x 55 x 18', opacity=0.7,
-    note='Bottom edge: waist and leg ports, brake resistor lead.')
+box('pdb', 16, 'Power board rev B: one 100 x 150 board, all parts on the front face (board thread, FLOORPLAN_REVB.png main 924bab4; BMS now on the pack) on 6 mm standoffs', (-50, 190, PDB_Z0 + 10), (50, 340, PDB_Z0 + PSU_T), COL['pdb'], 'electronics',
+    (0, 0, 120), balloon=True, mass_g=250, material='PCB + parts, 100 x 150', opacity=0.7,
+    note='Component ceiling Z 67, Z 61.5 inside the fan footprints (|X| <= 20, Y 264-304 and 193-233); 12 V brick at Y 302.85-339.65 accepted at Z 61.8. Terminals down both side edges.')
 box('pdb_sheet', 16, 'Insulating sheet 0.5 mm (Nomex or FR4) over the pack lid, between the tray rails, 3 mm air gap to the carrier', (-42, 190, PK_Z1), (42, 340, PK_Z1 + 0.5), '#e8e2c0', 'electronics', (0, 0, 90), mass_g=5, material='Nomex 410 0.5 mm', opacity=0.8)
-box('pdb_carrier', 16, 'Board carrier, printed, screwed to the front ends of the pack tray rails (gate 2: it had no attachment); holds the two PCBs coplanar on 6 mm M3 standoffs', (-55, 190, PDB_Z0), (55, 340, PDB_Z0 + 4), COL['printed'], 'electronics', (0, 0, 100), mass_g=60, material='PETG print 100 x 150 x 4', opacity=0.8)
+box('pdb_carrier', 16, 'Board carrier, printed PETG 110 x 150 x 4 (carrier/build_carrier.py): 4 x M3 x 8 countersunk from the front into the cradle carrier-pad inserts (+-51.75, 200/330); 6 standoff screws counterbored from the rear; two lightening windows', (-55, 190, PDB_Z0), (55, 340, PDB_Z0 + 4), COL['printed'], 'electronics', (0, 0, 100), mass_g=49, material='PETG 100 % infill, 110 x 150 x 4', opacity=0.8)
+FAST['m3'] = FAST.get('m3', 0) + 4
 for k, (xx, yy) in enumerate(((46, 194), (-46, 194), (46, 265), (-46, 265), (46, 336), (-46, 336))):
     # gate 2: the screws floated 10 mm above the carrier. Now: M3 x 6 through the 1.6 mm PCB into a 6 mm F-F standoff on the carrier, second M3 x 6 from the carrier rear
     screw(f'pdb_m3_{k}', 16, 'M3 x 6 (2 per standoff) + 6 mm F-F standoff, board to carrier (6 standoffs, 6 mm keep-out pads at X +-46, Y 194/265/336)', 'z', [xx, yy, PDB_Z0 + 11.6], -1, (0, 0, 150), balloon=(k == 0), dia=3, head_d=5.5, head_h=1.7, length=6, color='#c9b86a')

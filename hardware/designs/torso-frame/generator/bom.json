@@ -121,10 +121,10 @@
  },
  {
   "item": 16,
-  "name": "Power and logic boards on one carrier",
-  "qty": 19,
-  "mass_g": 390,
-  "material": "PCB + parts, 100 x 95 x 18",
+  "name": "Power board rev B: one 100 x 150 board, all parts on the front face",
+  "qty": 18,
+  "mass_g": 379,
+  "material": "PCB + parts, 100 x 150",
   "group": "electronics"
  },
  {
