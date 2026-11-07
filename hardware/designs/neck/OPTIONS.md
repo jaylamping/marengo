@@ -117,9 +117,10 @@ the drive. That only works if the frame thread leaves room under the collar.
    the bay himself. Fixed limits: top rails Y 475-495 at Z ±50..70, usable bay |X| < 78 between the shoulder
    motors, top-rail T-slots free except the H1/H2 nuts (front X ±60, rear X ±85). The neck also needs a mount: a plate on the top rails with T-nuts.
 3. **Power ("Plan the custom power and peripheral board").** The servos run on 12 V from the 150 W brick.
-   Expect about 1 A typical and 8 A worst case (three stalls at 2.7 A each). **The brick is ahead of the
-   E-stop, so the E-stop would not stop the neck.** The cheapest fix is a second NC contact block on Joey's
-   E-stop switching the neck's 12 V feed. This depends on the E-stop model, which is still pending.
+   Expect about 1 A typical. Power thread (04:46Z) will solve the E-stop gap on the board: one "motion 12 V"
+   output switched by the same E-stop latch as the motor bus, through a load switch limited to about 4 A.
+   It feeds the neck servos and the jaw servo; displays, camera and audio stay unswitched. Because the brick
+   also feeds compute, servo torque/current is capped in servo config to stay inside 4 A (no 8 A stall peaks).
 4. **Calibration loop.** Servo backlash, unpublished but likely around 1°, is about 9 mm at 0.5 m.
    The head camera alone can't be the reference for arm calibration. Keep the bench webcam as the
    reference, or have the head camera see a fixed tag on the torso each time.
