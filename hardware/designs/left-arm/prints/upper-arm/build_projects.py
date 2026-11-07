@@ -88,7 +88,7 @@ def coupons_plate():
 BRIM = {'brim_type': 'outer_only', 'brim_width': '5', 'curr_bed_type': 'Supertack Plate'}
 # coupons only check fits, so they don't need the structural walls and infill
 FIT = {'wall_loops': '3', 'sparse_infill_density': '15%'}
-EXTRA = {'fit_coupons': FIT, 'seat_ring_only': FIT}
+EXTRA = {'fit_coupons': FIT, 'seat_ring_only': FIT, 'upper_arm': {'sparse_infill_density': '50%'}}
 STUB_R = 20.0
 # keeps support out of the bearing seat, r 28 about the elbow axis, carrier inboard face down
 BLOCK = {'carrier': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1),
@@ -132,6 +132,22 @@ def to_pla(ps):
 
 
 PLA_JOBS = ('cover',)  # internal parts that carry no load, or rig fixtures
+
+
+def box_mesh(lo, hi):
+    (x0, y0, z0), (x1, y1, z1) = lo, hi
+    c = np.array([[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], float)
+    f = [(0, 2, 1), (0, 3, 2), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4), (1, 2, 6), (1, 6, 5), (2, 3, 7), (2, 7, 6), (3, 0, 4), (3, 4, 7)]
+    return c[np.array(f)].reshape(-1, 3)
+
+
+def arm_clamp_zone(lo, hi):
+    """100% infill over the whole hoop body with its six screw columns and the seat, the hoop-to-tube corners, and the hub block. UP_X coordinates: x = Y, y = Z, z = X."""
+    cy, cz = 209.860668, 5.985875
+    return np.vstack([disc(cy, cz, 46.0, 151.5, 165.6, 144), box_mesh((250.0, -32.0, 151.5), (262.0, 44.0, 166.0)), box_mesh((297.8, -14.0, 154.0), (320.0, 26.0, 187.0))])
+
+
+MOD = {'upper_arm': (arm_clamp_zone, {'sparse_infill_density': '100%'})}
 
 def disc(cx, cy, r, z0, z1, n=48):
     """Solid cylinder, as triangles, for a support blocker. Plate-up coordinates of the job."""
@@ -186,6 +202,13 @@ def project(name, tri, out):
         obj = obj.replace('  </object>', '  </object>' + chr(10) + '  <object id="3" p:UUID="00030000-81cb-4c03-9d28-80fed5dfa1dc" type="model">' + chr(10) + '   <mesh>' + chr(10) + '    <vertices>' + chr(10) + vs + chr(10) + '    </vertices>' + chr(10) + '    <triangles>' + chr(10) + ts + chr(10) + '    </triangles>' + chr(10) + '   </mesh>' + chr(10) + '  </object>', 1)
         mdl = mdl.replace('</components>', ' <component p:path="/3D/Objects/object_1.model" objectid="3" p:UUID="00010001-b206-40ff-9872-83e8017abed1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>' + chr(10) + '   </components>', 1)
         cfg = cfg.replace('    </part>', '    </part>' + chr(10) + f'    <part id="3" subtype="support_blocker" uuid="51d17843-7a32-47a7-bb0b-71b78baf25d6">' + chr(10) + '      <metadata key="name" value="blocker" />' + chr(10) + f'      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 {h:.5f} 0 0 0 1" />' + chr(10) + f'      <mesh_stat face_count="{nb}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0" />' + chr(10) + '    </part>', 1)
+    mod = MOD.get(name)
+    if mod:
+        vs, ts, nm_ = mesh_xml(mod[0](lo, hi), center)
+        obj = obj.replace('  </object>', '  </object>' + chr(10) + '  <object id="4" p:UUID="00040000-81cb-4c03-9d28-80fed5dfa1dc" type="model">' + chr(10) + '   <mesh>' + chr(10) + '    <vertices>' + chr(10) + vs + chr(10) + '    </vertices>' + chr(10) + '    <triangles>' + chr(10) + ts + chr(10) + '    </triangles>' + chr(10) + '   </mesh>' + chr(10) + '  </object>', 1)
+        mdl = mdl.replace('</components>', ' <component p:path="/3D/Objects/object_1.model" objectid="4" p:UUID="00010002-b206-40ff-9872-83e8017abed1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>' + chr(10) + '   </components>', 1)
+        meta = ''.join(f'      <metadata key="{k}" value="{v}" />' + chr(10) for k, v in mod[1].items())
+        cfg = cfg.replace('    </part>', '    </part>' + chr(10) + '    <part id="4" subtype="modifier_part" uuid="51d17843-7a32-47a7-bb0b-71b78baf25d7">' + chr(10) + '      <metadata key="name" value="clamp_solid" />' + chr(10) + f'      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 {h:.5f} 0 0 0 1" />' + chr(10) + meta + f'      <mesh_stat face_count="{nm_}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0" />' + chr(10) + '    </part>', 1)
     cfg = cfg.replace('P2_LEFT_L04B_04HF_100R_6W_DEVELOPMENT_HOLD', name)
     cfg = cfg.replace('174726', str(len(faces)))
     cfg = cfg.replace('value="1 0 0 0 0 1 0 0 0 0 1 51 0 0 0 1"', f'value="1 0 0 0 0 1 0 0 0 0 1 {h:.5f} 0 0 0 1"')
