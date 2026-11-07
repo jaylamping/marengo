@@ -16,7 +16,7 @@
 ## Power path
 
 - **Flow order down the board:** BAT pair (top edge) → absorber cluster and RS1 → bank A → bank B (under the upper fan) → bus caps → port breakers → limb pigtails. Remove the old B → A → B detour.
-- **Pack entry:** the BAT and GND 8 AWG pair (4.5 mm holes, 8 mm pads, 14 mm pitch; to an AS150U) sits side by side on the top edge, in the frame's pack cable path (X −5 to 25). Solid connections to all four layers, no thermal reliefs. A cable-tie hole each side of the pair.
+- **Pack entry:** the BAT and GND 8 AWG pair (4.5 mm holes, 8 mm pads, 14 mm pitch; to an XT90) sits side by side on the top edge, in the frame's pack cable path. **Keep-out: no components in X −5..25, Y 315–340** (the leads run up the face and bend over the top edge at R15 from about Y 330); the pads sit in that strip. Solid connections to all four layers, no thermal reliefs. A cable-tie hole each side of the pair.
 - **Absorber cluster:**
   - C38, C44, C45, D7 + its twin, and the R53 copper link all within 25 mm, at the BAT entry.
   - ABS and ABS_N are pours directly over unbroken L2.
