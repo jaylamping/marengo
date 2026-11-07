@@ -1,0 +1,8 @@
+mesh check: marengo_teststand_upright_rs00 (source marengo_teststand_upright_rs00.stl, CAD coordinates)
+faces 8672, bounds [[-96.0, -40.0, 0.0], [96.0, 10.0, 136.0]]
+[PASS] bodies 1 (allowed 1), watertight True
+[PASS] sharp vertices over 150 deg: 0 unlisted, 0 listed design corners
+[PASS] knife edges (fold over 170 deg, edge over 1 mm): 0 unlisted, 0 listed
+[INFO] needle triangles (min angle under 1 deg, edge over 2 mm): 4573, tessellation only unless a check above fails
+[PASS] walls thinner than 0.6 mm over 0.5 mm2: 0 unlisted, 0 listed
+RESULT: PASS
