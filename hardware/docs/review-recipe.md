@@ -86,6 +86,7 @@ The Go plan is $10 a month. Each model's 5-hour cap is 20 % of its monthly limit
 
 - The final text is in the JSON events, in `text` parts, with tokens and cost in `step_finish`. The shared log is `~/.local/share/opencode/log/opencode.log`; `--print-logs` gives each run its own copy.
 - Read-only is by agent config, so check hashes after.
+- **Fallback only**, if the review agent fails on the seeded packet: run the open model in Claude Code through Go's Anthropic-compatible endpoint. Set `ANTHROPIC_BASE_URL=https://opencode.ai/inference/go/anthropic` and `ANTHROPIC_AUTH_TOKEN` to the Go key, both in that process's environment only, then run `claude -p --model <model> --allowedTools Read,Glob,Grep --output-format json`. It uses the same Go quota. `total_cost_usd` is priced as Claude there, so take usage from the Go page. Not tried yet.
 - A key that shows a tick in OpenCode isn't proven valid. `opencode auth login` replaces it, and the error says which problem it is.
 
 ## Reviewer audit
