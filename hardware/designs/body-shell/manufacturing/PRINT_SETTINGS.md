@@ -37,3 +37,22 @@ come with the print release after gate 2; this checklist is what they will conta
 - Weigh each part and add it to `MEASURED_MASSES.md`.
 
 Unconfirmed until coupons: cap fit (C1), seam strip gap (C2), support Z gap, and the brim on the tallest panels.
+
+## Ready-to-print files (sliced by the Bambu CLI, 2026-11-07; G-code inside, not yet opened in the Studio GUI)
+
+In `hardware/designs/body-shell/prints/` (Git LFS) and on Joey-PC in `J:\code\marengo\cad\prints\shell\`:
+
+| File | What | Time | Filament |
+| --- | --- | --- | --- |
+| `marengo_shell_coupons_plate1.3mf` | **Print this first.** Coupons C1 (fit combs), C4 (curved splice pair), C10 (screw caps), C11 (bracket feet), C12 (battery door magnets), C13 (grille screw pilots) | 5 h 28 m | 153 g |
+| `marengo_shell_upper_front_L_sternum_down.3mf` | First real panel, final settings | 9 h 23 m | 216 g (72 g support) |
+| `marengo_shell_upper_front_L_sternum_down_draft.3mf` | Same panel as a quick fit draft (0.28 mm, 2 walls) | 7 h 37 m | 189 g |
+
+Checklist when you print:
+1. Load **PETG HF**; the files use the 0.4 **High Flow** nozzle profile (flow 0.92, 260 °C, 14 mm³/s from your PETG HF preset).
+2. Textured PEI plate with a **thin glue stick** layer (not in the file; do it by hand).
+3. Open, check the plate preview shows supports only on the inside, and print. Don't re-slice unless something looks wrong.
+4. Known differences from the table above: the seam is plain "Aligned" (not painted), and the coupon plate has a 5 mm brim on every
+   object. Both are harmless.
+5. After the coupon plate: do the tests in `README.md` §8 (C1 pick the fit, C10 cap fit, C11 on a real 2020 rail, C12 door hold,
+   C13 screw five times) and tell me the results. The panel waits for those numbers.
