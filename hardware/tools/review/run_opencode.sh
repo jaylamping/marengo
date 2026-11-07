@@ -9,8 +9,7 @@ set -u
 M=$1; [[ $M == */* ]] || M=opencode-go/$M; PK=$2; PF=$3; MIN=${4:-45}; N=${M//\//-}; OUT=$PK/reviews; mkdir -p "$OUT"
 FATAL='usage limit|RetryError|Invalid credential|insufficient'
 # keys set with [Environment]::SetEnvironmentVariable(...,'User') don't reach shells that were already open
-[ -n "${CHEAPERINFERENCE_API_KEY:-}" ] || export CHEAPERINFERENCE_API_KEY=$(powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable('CHEAPERINFERENCE_API_KEY','User')" | tr -d '
-')
+[ -n "${CHEAPERINFERENCE_API_KEY:-}" ] || export CHEAPERINFERENCE_API_KEY=$(powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable('CHEAPERINFERENCE_API_KEY','User')" | tr -d '\r\n')
 cd "$PK" || exit 2
 timeout 60 opencode run --pure -m "$M" --agent review --print-logs --format json "Reply with the single word OK." \
   </dev/null >"$OUT/opencode-$N.probe.json" 2>"$OUT/opencode-$N.probe.log"
