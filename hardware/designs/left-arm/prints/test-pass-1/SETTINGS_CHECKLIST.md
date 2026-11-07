@@ -17,7 +17,7 @@ Each project lists its changes from the Bambu system presets, so Bambu Studio ke
 | Walls | 6 |
 | Infill | 100%, except `dummy_housing.3mf` at 40%, pattern shows as Rectilinear in the GUI (`zig-zag` in the file) |
 | Top and bottom | 5 top layers, 3 bottom layers |
-| Supports | Normal, auto, 45 degree threshold, not limited to the build plate |
+| Supports | **Tree (auto), Tree Hybrid style**, 45 degree threshold, not limited to the build plate. Normal supports in PETG can be impossible to remove. The carrier and seat ring keep their support blocker in the bearing seat |
 | Support Z gap | 0.20 mm top and bottom |
 | Interface layers | 2 top, 2 bottom |
 | Nozzle | 255 °C for PETG, 220 °C for PLA |

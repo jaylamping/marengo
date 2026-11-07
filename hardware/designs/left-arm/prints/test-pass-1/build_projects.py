@@ -105,7 +105,7 @@ JOBS = {
     'fork_sector': lambda: DOWN_X(read_stl(PARTS / 'test_fork_sector.STL')),
 }
 # settings that differ from the P2 project, on purpose
-BRIM = {'brim_type': 'outer_only', 'brim_width': '5', 'curr_bed_type': 'Supertack Plate'}
+BRIM = {'brim_type': 'outer_only', 'brim_width': '5', 'curr_bed_type': 'Supertack Plate', 'support_type': 'tree(auto)', 'support_style': 'tree_hybrid'}
 EXTRA = {'dummy_housing': {'sparse_infill_density': '25%'}}
 
 

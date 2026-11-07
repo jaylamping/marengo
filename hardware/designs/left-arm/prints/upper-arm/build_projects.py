@@ -85,7 +85,7 @@ def coupons_plate():
 
 
 # settings that differ from the P2 project, on purpose
-BRIM = {'brim_type': 'outer_only', 'brim_width': '5', 'curr_bed_type': 'Supertack Plate'}
+BRIM = {'brim_type': 'outer_only', 'brim_width': '5', 'curr_bed_type': 'Supertack Plate', 'support_type': 'tree(auto)', 'support_style': 'tree_hybrid'}
 # coupons only check fits, so they don't need the structural walls and infill
 FIT = {'wall_loops': '3', 'sparse_infill_density': '15%'}
 EXTRA = {'fit_coupons': FIT, 'seat_ring_only': FIT, 'upper_arm': {'sparse_infill_density': '50%'}}
