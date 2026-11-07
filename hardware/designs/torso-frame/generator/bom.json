@@ -123,7 +123,7 @@
   "item": 16,
   "name": "Power board rev B: one 100 x 150 board, all parts on the front face",
   "qty": 20,
-  "mass_g": 468,
+  "mass_g": 477,
   "material": "PCB + parts, 100 x 150",
   "group": "electronics"
  },
