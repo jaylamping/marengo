@@ -299,7 +299,7 @@ def build_jaw():
     keep = xz_prism([(300, cz), (P['bottom_flat_x'], cz), (xb, P['bottom_back_z']), (xb, 400), (300, 400)])
     bottom = keep & across
     band = (outer & bottom) - (inner & bottom.moved(Location((0, 0, P['floor_t']))))   # shell with a floor plate
-    band = band - Cylinder(P['neck_hole_r'], 100, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((-4, 0, -10)))
+    band = band - Cylinder(P['neck_hole_r'], 100, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, -10)))
     band = band & band_profile()
     # horizontal seam across the front of the band (MASTER_A, MASTER_C): a shallow groove, filled dark
     zs_ = lz - P['seam_frac'] * (lz - cz)
@@ -352,9 +352,9 @@ def build_dark():
         Location((0, 0, P['chin_z'] + 9)))
     # ringed neck from the collar up into the jaw (MASTER_B stack of rings, MASTER_C tube)
     z0 = P['collar_h1'] + P['collar_h2'] - 2
-    neck = Cylinder(P['neck_r'], P['chin_z'] + 12 - z0, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((-4, 0, z0)))
+    neck = Cylinder(P['neck_r'], P['chin_z'] + 12 - z0, align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, z0)))
     for zr in P['neck_ribs']:
-        neck += Cylinder(P['neck_rib_r'], P['neck_rib_h'], align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((-4, 0, zr)))
+        neck += Cylinder(P['neck_rib_r'], P['neck_rib_h'], align=(Align.CENTER, Align.CENTER, Align.MIN)).move(Location((0, 0, zr)))
     return core, neck
 
 
