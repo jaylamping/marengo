@@ -11,10 +11,12 @@ Settings are the test pass 1 process: P2S, 0.4 mm High Flow, Generic PETG, or Ba
 | 1 | `seat_ring_only.3mf` | PETG | 21 m | 9.2 g | Same way up as the carrier | Only the Ø52.2 seat, Ø50 shoulder and Ø40 stub. The 6808 has never been fitted to a print, so check that one fit first. 3 walls, 15% infill |
 | 2 | `carrier.3mf` | PETG | 1 h 25 m | 36.4 g | Inboard face | Same way up as the strength carrier in test pass 1 |
 | 3 | `cover.3mf` | Bambu PLA Basic | 24 m | 3.8 g | Standing on its end | Thin curved shell |
-| 4 | `upper_arm.3mf` | PETG | 8 h 14 m | 230.5 g | Flat on the hub, X 131.99 | Layers across X, as in the FEA. The RS02 seat faces up, clean. **50% infill, with 100% over the hoop body and seat, the hoop-to-tube corners and the hub block** |
+| 4 | `upper_arm.3mf` | PETG | 8 h 15 m | 230.9 g | Flat on the hub, X 131.99 | Layers across X, as in the FEA. The RS02 seat faces up, clean. **50% infill, with 100% over the hoop body and seat, the hoop-to-tube corners and the hub block** |
 | 5 | `p2.3mf` | PETG | 5 h 56 m | 187.3 g | As P2 L04B, same 45 degree plate rotation | Only if you want a new P2, see below |
 
-Total for plates 2 to 5: about 16 h 2 m and 458 g, including support and brim. Without P2, 10 h 5 m and 271 g.
+**Neck cleanup, 2026-11-07:** the hoop-to-tube neck had two chamfer ends sticking out past the tube on the bed side and a 1.4 mm collar strip forming a ridge on top. Both are fixed in the CAD (NECK_GUSSET, NECK_CLIP), and two tiny internal voids at the fuse pockets are filled (VOID_FILL). The arm is one watertight body. Before and after: `renders/neck_before_after.png`.
+
+Total for plates 2 to 5: about 16 h 3 m and 458 g, including support and brim. Without P2, 10 h 6 m and 271 g.
 
 The fit ring has a thin wall, so it reads slightly looser than the carrier. Pull any low stubs of support out of the carrier seat before pressing the bearing.
 
