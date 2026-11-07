@@ -48,7 +48,7 @@ Legs move to rev C. Their port footprints stay on the board, unfitted.
 | Brake leads | M4 terminals → one Mini-Fit Jr 2-pin header per resistor (J3, J25). A different connector family from every 12 V output, so no 12 V load can mate a 57 V brake header |
 | Limb outputs and returns | Soldered pigtail pairs with strain-relief holes (KiCad SolderWire-2.5sqmm Relief): 16 AWG silicone for arms, waist and aux into the XT30(2+2), as in the arm trunk plan; 14 AWG for the legs (rev C). See layout/HARNESS_INTERFACE.md for the thermal check |
 | Aux port | Unfitted, like the legs |
-| Shunts | CSS4J "contact factory" 5 mΩ parts and the 2 mΩ → Vishay WSK2512 4-terminal; limb shunts 1.5 mΩ WSK2512 (sized for the breaker) |
+| Shunts | CSS4J "contact factory" 5 mΩ parts and the 2 mΩ → Vishay WSK2512 4-terminal; limb shunts 2 mΩ Bourns CSS2H-2512K-2L00F, 5 W (sized for the breaker; was 1.5 mΩ WSK2512, see PRODUCTION_RUN.md section 4) |
 | Bus caps | 4 × APZ 68 µF (obsolete) → 5 × Panasonic EEH-ZC1K470P, 47 µF 80 V, 235 µF, active line |
 | Sourcing | LCSC for commodity parts with the PCB order; Sager, Heilind and Arrow/TTI for the off-board parts (see the cost section) |
 | Kept on purpose | Both E-stop banks, both FETs per bank, the latch, the clamp, the absorber, the Class T fuse, 4 layers |

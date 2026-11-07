@@ -21388,7 +21388,7 @@
 		)
 		(uuid "d407e5c8-0669-59d5-a107-b7701b9eed76")
 	)
-	(text "6. Limb ports: 1.5 mOhm shunt, own breaker (block 6a), meter, soldered pigtail pair. Pigtail fuses inline."
+	(text "6. Limb ports: 2 mOhm shunt, own breaker (block 6a), meter, soldered pigtail pair. Pigtail fuses inline."
 		(exclude_from_sim no)
 		(at 645 22 0)
 		(effects
@@ -26794,7 +26794,7 @@
 			)
 		)
 	)
-	(text "1.5 mOhm: 45 A is 68 mV, ADCRANGE 0. 0.6 W at 20 A.\nEach limb's + and return leave on one soldered pair, twisted from the board edge. No GND studs.\nAux and legs DNP: fit the same parts when they arrive (legs on rev C).\nU12 reads the R arm port input, so it shows VBUS with every port off; the other meters read their port outputs."
+	(text "2 mOhm: 45 A is 90 mV, ADCRANGE 0. 0.8 W at 20 A.\nEach limb's + and return leave on one soldered pair, twisted from the board edge. No GND studs.\nAux and legs DNP: fit the same parts when they arrive (legs on rev C).\nU12 reads the R arm port input, so it shows VBUS with every port off; the other meters read their port outputs."
 		(exclude_from_sim no)
 		(at 645 280 0)
 		(effects

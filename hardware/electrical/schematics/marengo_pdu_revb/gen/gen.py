@@ -143,7 +143,7 @@ Fault check: 87 W is 1.6 A for up to 3.8 ms, against 12 A at 10 ms on the datash
 Compute is on whenever the BMS is on. Loss at 3 A: 0.05 W shunt, 0.03 W FET.''',(240,486),100)
 
 # ---------- limbs ----------
-head('6. Limb ports: 1.5 mOhm shunt, own breaker (block 6a), meter, soldered pigtail pair. Pigtail fuses inline.',(645,22))
+head('6. Limb ports: 2 mOhm shunt, own breaker (block 6a), meter, soldered pigtail pair. Pigtail fuses inline.',(645,22))
 LIMBS=[('L arm','GND','GND',0),('R arm','GND','+3V3_PI',0),('waist','I2C_SCL','GND',0),('aux','GND','I2C_SCL',1),('L leg','+3V3_PI','GND',1),('R leg','+3V3_PI','+3V3_PI',1)]
 PORTDNP=[]
 for k,(nm,a1,a0,d) in enumerate(LIMBS):
@@ -158,7 +158,7 @@ for k,(nm,a1,a0,d) in enumerate(LIMBS):
     if d:
         PORTDNP.append(K)
         for r in (rs,u,cref,j1): dnp(r)
-note('1.5 mOhm: 45 A is 68 mV, ADCRANGE 0. 0.6 W at 20 A.\nEach limb\'s + and return leave on one soldered pair, twisted from the board edge. No GND studs.\nAux and legs DNP: fit the same parts when they arrive (legs on rev C).\nU12 reads the R arm port input, so it shows VBUS with every port off; the other meters read their port outputs.',(645,280))
+note('2 mOhm: 45 A is 90 mV, ADCRANGE 0. 0.8 W at 20 A.\nEach limb\'s + and return leave on one soldered pair, twisted from the board edge. No GND studs.\nAux and legs DNP: fit the same parts when they arrive (legs on rev C).\nU12 reads the R arm port input, so it shows VBUS with every port off; the other meters read their port outputs.',(645,280))
 s.refc['J']=21
 
 # ---------- bank A ----------
