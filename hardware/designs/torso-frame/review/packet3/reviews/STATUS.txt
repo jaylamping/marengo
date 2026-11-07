@@ -1,6 +1,6 @@
 muse exit 0 elapsed 383s
 sol exit 0 elapsed 487s
 astra exit 0 elapsed 662s
-fable not run: awaiting Joey's approval to use the API key
-opus not run: awaiting Joey's approval to use the API key
-argon not run: agy not installed on Joey-PC
+argon exit 0 elapsed 959s
+opus exit 0 elapsed 819s
+fable exit 0 elapsed 1316s
