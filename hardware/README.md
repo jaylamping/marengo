@@ -2,6 +2,8 @@
 
 Physical robot design for Marengo: CAD, electrical, prints, and BOM. Mechanics and wiring are defined here first; software reads the exports.
 
+**Status for the software project: [`STATUS.md`](STATUS.md).** Hardware threads update it in the same commit whenever a milestone lands (built/tested parts, joint names, limits, CAN IDs, URDF, new software requirements).
+
 ## Layout
 
 | Path | Purpose |
