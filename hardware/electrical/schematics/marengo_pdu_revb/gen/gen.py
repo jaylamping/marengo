@@ -12,7 +12,7 @@ MF4='Connector_Molex:Molex_Micro-Fit_3.0_43045-0412_2x02_P3.00mm_Vertical'
 MINI='Connector_Molex:Molex_Mini-Fit_Jr_5566-02A_2x01_P4.20mm_Vertical'
 SH='Resistor_SMD:R_Shunt_Isabellenhuette_BVR4026'
 SHK='Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm'
-PIG='Connector_Wire:SolderWire-2.5sqmm_1x02_P7.2mm_D2.4mm_OD3.6mm_Relief'
+PIG='Connector_Wire:SolderWire-2.5sqmm_1x02_P7.2mm_D2.4mm_OD3.6mm'  # cable-tie holes beside each pair come from the layout (place.py)
 INA='INA237AIDGSR'; INADS='https://www.ti.com/lit/ds/symlink/ina237.pdf'
 CP='Capacitor_SMD:CP_Elec_10x10.5'
 CAP100='47uF 80V EEH-ZC1K470P'
@@ -42,7 +42,7 @@ LDO=custom('TPS7A4001','tps7a4001',ds='https://www.ti.com/lit/ds/symlink/tps7a40
 
 # ---------- battery in and E-stop bank ----------
 head('1. Battery in and E-stop bank B (LM5069-1, two FETs). Bank A, in series ahead of it, is block 7',(25.4,22))
-conn(2,'Pack: 10 AWG pigtail pair to an XT90 (mates the pack XT90S), 1 BAT, 2 GND',(40.64,45.72),'Connector_Wire:SolderWire-6sqmm_1x02_P14mm_D3.5mm_OD7mm_Relief',['BAT','GND'],ref='J1')
+conn(2,'Pack: 10 AWG pigtail pair to an XT90 (mates the pack XT90S), 1 BAT, 2 GND',(40.64,45.72),'Connector_Wire:SolderWire-6sqmm_1x02_P14mm_D3.5mm_OD7mm',['BAT','GND'],ref='J1')
 s.refc['J']=2  # J2 (the second stud) is gone; later refs keep their numbers
 g=Grid(s,68.58,38.1,20.32,30.48,150)
 g.Z('5.0SMDJ58A','BAT','GND',SMC); g.C('1uF 100V X7R soft-term','BAT','GND',C1210); g.C('100nF 100V X7R soft-term','SH_P','GND',C805); g.F('BAT'); g.F('GND'); g.F('SH_P')
