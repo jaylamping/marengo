@@ -84,6 +84,8 @@ All tests run on one actuator alone on its own CAN bus, so the bus can carry a c
 
 **Which units:** the full set once per actuator type. Then a 5-minute T1 on every individual unit before it's installed, to catch an outlier. **Test order (Joey 2026-11-07): RS03, then RS02, then RS00, then RS04.** The uninstalled waist RS03 covers the first RS03 runs. The arm actuators are locked to the arms with no spares (Joey, 2026-11-07), so RS00/RS02/RS03 type tests run on a unit the next time it's off an arm, or in place on the arm with the link removed if that's easier.
 
+**No spares (Joey, 2026-11-06):** every arm actuator is needed, so nothing here overloads or overheats a real drive. Stalled holds (T2, T5) stop at the *stall* rating, which is lower than the rotating rating (RS03 13 N·m stalled vs 20 rotating, RS02 6 vs 7, per the October manuals; check RS00/RS04), and T5 stops at 60 °C.
+
 **Safety:** torque cap at the test's stated maximum plus 10%, speed cap 1 rad/s except in T1's speed passes, E-stop within reach, nobody in the lever's swing. RS04 at rated torque is 40 N·m: the stand and lever are built for that (below).
 
 ### 2.4 The stand (print + fasteners, plus one $10 scale)
