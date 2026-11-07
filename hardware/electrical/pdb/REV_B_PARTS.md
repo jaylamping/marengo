@@ -108,4 +108,4 @@ No short across the rows puts +VIN on +VOUT. Before first power, check polarity 
 | Pressed input is information only. | | **Software: debounce it in software.** |
 | Self-test reads (rev B3 review M6) | | **Software: read MID only with VBUS under 3 V, banks open, at least 5 s after the last stop.** Healthy MID is 0.38 to 0.55 × pack, from BMS telemetry. MID within 2 V of pack means A is shorted; MID under 3 V means B is shorted. Any other reading is a fail. |
 | Servo back-feed into +12V (rev B3 review M8) | U9 and U18 don't block reverse current; C41 and the compute loads take it | **Software: keep the neck and jaw servo current cap, and never back-drive them faster than their rated speed.** |
-| U4 SPARE_SW (M3, rev B2) | Accepted by Joey: the neck never moves fast | None |
+| U9 is the only break for the neck and jaw servos (rev B2 M3) | Accepted by Joey: the neck never moves fast | None |
