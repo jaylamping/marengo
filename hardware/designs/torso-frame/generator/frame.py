@@ -245,8 +245,13 @@ for k, (xx, yy) in enumerate(((46, 194), (-46, 194), (46, 265), (-46, 265), (46,
 # behind the logic board's bottom edge (Y 190), in front of the pack (Z <= 34), in the lower intake's air.
 # board thread 11:30Z: rev A takes an Arcol HS25 (28.0 wide, 51.0 over the tags, 27.3 body, 14.6 tall, holes 18.3 x 19.8; 10 ohm fine for the arm stage).
 # On a 2 mm plate that hangs 1 mm below the frame bottom, the body spans Y 154-182, 1 mm clear of the pack bottom (Y 183). The HS50 (29.7 wide) overlapped the pack by 1.7 mm.
-box('brake_plate', 16, 'Brake resistor adapter plate, 2 mm 6061, 70 x 30, on the front bottom rail inner face (2 x M5 drop-in T-nuts), hangs 1 mm below the frame bottom (hip stage: keep Y 154-155 free at |X| <= 35)', (-35, 154, 48), (35, 184, 50), '#b8bcc4', 'electronics', (0, -40, 60), mass_g=12, material='2 mm 6061')
-box('brake_res', 16, 'Brake resistor Arcol HS25 10 ohm (51.0 over the tags x 28.0 x 14.6) flat on the adapter plate, 4 x M3 on 18.3 x 19.8; 1 mm clear of the pack bottom; leads to the logic board bottom edge (LP connectors at |X| > 36 or above Y 190); the leg stage takes a bigger part in the rail reserve', (-25.5, 154, 33.4), (25.5, 182, 48), '#9a9ea6', 'electronics', (0, -40, 60), balloon=True, mass_g=35, material='Arcol HS25, 4 x M3')
+# 2026-11-07 board thread: Joey approved the Arcol HS50 10 ohm (49.1 body, 72.5 over the tags, 29.7 x 14.8, holes 39.7 x 21.4). It does not fit the
+# front bottom rail (needs |X| <= 36.3, the bottom-edge cable drop is at |X| > 36). New spot: on the FRONT face of the +X front lower post, long
+# axis vertical, outside the frame plane (Z 70) and in front of the board (component face Z 61.5). Clear of H4 (Y <= 175), H5 (X >= 75, Y >= 245)
+# and the gusset T-nuts (Y >= 292). Plate screws (2 x M5 drop-in T-nut, post slot X 65) sit under the tags at Y 181 / 244.
+box('brake_plate', 16, 'Brake resistor plate, 2 mm aluminium flat bar 30 x 70 (hand cut, 2 x M5 x 8 button + drop-in T-nuts in the post front slot at Y 181/244, 4 x M3 for the resistor), on the front face of the +X front lower post', (45, 178, 70), (75, 248, 72), '#b8bcc4', 'electronics', (60, 0, 60), mass_g=11, material='2 mm 6061 flat bar')
+box('brake_res', 16, 'Brake resistor Arcol HS50 10 ohm (49.1 body, 72.5 over the tags, 29.7 x 14.8) flat on the plate, long axis vertical, 4 x M3 on 39.7 x 21.4; body Y 188-237, tags Y 176-249; leads round the post edge to the board bottom edge. Needs shell clearance in front (Z to 86.8) and hot-surface distance from the PLA shell', (45.3, 188, 72), (75, 237.1, 86.8), '#9a9ea6', 'electronics', (60, 0, 60), balloon=True, mass_g=50, material='Arcol HS50, 4 x M3')
+FAST['m5'] += 2; FAST['tnut'] += 2   # brake plate
 # harness trunks: Pi/PDB to each shoulder RS03 and down to the waist
 for sx in (1, -1):
     # gate 2: was X +-42..78 and ran through the Jetson (X +-51.5). Now stops at |X| 52 and turns behind the Jetson (Z -58, 12 mm of air behind its rear face)
