@@ -1,0 +1,25 @@
+Neck layout study, option C (Joey 2026-11-07 06:30Z): 3 x STS3215-class 12 V bus servos.
+
+Head frame (Argon baseline): X fwd, Y left, Z up, mm; z = 0 is the collar bottom.
+ASSUMED: collar bottom 10 mm above the frame top-rail face (Y 495 -> z -10).
+Fixed limits from the frame thread (04:46Z): top rails z -30..-10 at |X| 50..70; box interior |X| < 50 at all
+heights, |Y| < 78 between the shoulder motors; Jetson box is a placeholder (top Y 455 -> z -50); Pi 5 top Y 397.
+
+Topology: a hollow yaw tube on a thin-section bearing whose housing sits on the top rails. Under it, two
+pitch/roll servos lie flat, stacked, and turn with the tube. Each drives a near-vertical pushrod up the tube
+to a ball stud on the head plate, which sits on a U-joint at z = UJ_Z. Both rods sit behind the pivot, at
++Y and -Y: moving together gives pitch, moving opposite gives roll. A fixed yaw servo beside the stack
+drives a ring gear on the tube.
+
+1. max stud travel 16.0 mm -> horn 57 deg from level (limit 65)  OK
+2. rod envelope r 28.4: bearing bore r 35 OK; bellows free bore r 33.5 OK
+3. servo shaft x 1; body x -10..35; stack sweep r 39.3 (limit 48.0) OK
+4. stack bottom z -50.4 = frame Y 455; Jetson placeholder top Y 455 (eats 0 mm of bay)
+5. 1.0 kg: pitch 0.62 N*m -> 23 N per rod -> 0.43 N*m per servo (rated 0.98, stall 2.94) OK
+5. 1.3 kg: pitch 0.81 N*m -> 29 N per rod -> 0.56 N*m per servo (rated 0.98, stall 2.94) OK
+6. yaw: ring gear r 44 on the servo cage at z -8..-2, pinion r 12 on a fixed servo at y 56 (limit |Y| < 78): ratio 3.67:1, yaw torque need 0.08 N*m -> 0.022 N*m at the servo
+7. yaw bearing 61814 (70 x 90 x 10): z 4..14 on a printed tower (OD ~120 so it lands on the top rails at |X| 50..70; ID ~80 round the upper servo, ~96 with a pinion window at the ring gear) inside the collar r75
+8. chin clears the collar top (z 14 + 3) down to 24 deg look-down with the head as modelled; at 40 deg the chin reaches z 1
+   head + U-joint raised 10 mm (taller neck): look-down limit 34 deg
+   head + U-joint raised 20 mm (taller neck): look-down limit 45 deg
+   head + U-joint raised 30 mm (taller neck): look-down limit 60 deg
