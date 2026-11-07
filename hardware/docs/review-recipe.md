@@ -84,7 +84,8 @@ The `review` agent ([opencode-review-agent.md](../tools/review/opencode-review-a
 
 The Go plan is $10 a month. Each model's 5-hour cap is 20 % of its monthly limit, and its weekly cap is 50 %. Three models in parallel with subagents re-reading a 54-file packet spent it in one round (GLM alone took 269k input tokens). Before a round, check the Go page in the OpenCode console. Extra Usage there falls back to pay-as-you-go credit instead of blocking.
 
-- The final text is in the JSON events, in `text` parts, with tokens and cost in `step_finish`. The shared log is `~/.local/share/opencode/log/opencode.log`; `--print-logs` gives each run its own copy.
+- **Take Go cost from the console's Go page, not from OpenCode's JSON.** On rev B2 the JSON said about $0.10 and the console said $3.59, about 35 times more. Read the console before and after each run, one model at a time. The 5-hour window is shared by all Go models and is worth about $3.50, so one Kimi run can use most of it.
+- The final text is in the JSON events, in `text` parts, with tokens in `step_finish`. The shared log is `~/.local/share/opencode/log/opencode.log`; `--print-logs` gives each run its own copy.
 - Read-only is by agent config, so check hashes after.
 - **Fallback only**, if the review agent fails on the seeded packet: run the open model in Claude Code through Go's Anthropic-compatible endpoint. Set `ANTHROPIC_BASE_URL=https://opencode.ai/inference/go/anthropic` and `ANTHROPIC_AUTH_TOKEN` to the Go key, both in that process's environment only, then run `claude -p --model <model> --allowedTools Read,Glob,Grep --output-format json`. It uses the same Go quota. `total_cost_usd` is priced as Claude there, so take usage from the Go page. Not tried yet.
 - A key that shows a tick in OpenCode isn't proven valid. `opencode auth login` replaces it, and the error says which problem it is.

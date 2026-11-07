@@ -84,7 +84,7 @@ The review is 102 KB with five blockers, but 34 of its 49 cited values don't mat
 | Fable | 930 in, 99,692 out, 352,719 cache write, 4,134,541 cache read | $10.44, from `total_cost_usd` |
 | Argon | 1,029,951 in, 92,311 out, 13,180 thinking, 2,214,745 cache read | Subscription |
 | Wonder, Sol, Astra | No per-run figure | Subscription |
-| OpenCode trials | DeepSeek 33k in and 0.9k out on try 1. GLM 269k in. Kimi 9k in | $0.006, $0.075 and $0.024 as OpenCode reports them, on the Go plan |
+| OpenCode trials | Go console: 77 requests, 3.9M tokens. Kimi 1.7M cache read, 883k cache write, 42k out. GLM 293k in, 712k cache read, 98k out | **$3.59 on the Go console**: Kimi $2.56, GLM $1.03, DeepSeek under $0.01. That used all of the 5-hour window, 40 % of the week and 20 % of the month. OpenCode's own figure was about $0.10 |
 
 ## Open models: none delivered
 
