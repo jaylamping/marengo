@@ -17,6 +17,9 @@ def ok(c,m):
     if not c: fail.append(m)
 def two(a,b,pre=('R','C')):
     return [r for r in comp if r[0] in pre and r[1].isdigit() and {n(r,1),n(r,2)}=={a,b}]
+def diode(k,a):
+    # Device:D pin 1 is the cathode
+    return [r for r in comp if r[0]=='D' and r[1].isdigit() and n(r,1)==k and n(r,2)==a]
 # main path
 ok(n('RS1',1)=='BAT' and n('RS1',4)==n('Q8',4)==n('Q9',4),'shunt from BAT to bank A drains')
 ok(n('Q1',4)==n('Q2',4)=='MID' and all(n(q,p)=='MID' for q in ('Q8','Q9') for p in (2,3,5,6,7)),'bank A sources feed bank B drains at MID')
@@ -26,15 +29,16 @@ ok(n('U1',9)=='VBUS' and n('U1',5)=='GND','U1 OUT VBUS')
 ok(n('U1',4)=='GND','OVLO low')
 ok(two('GATE',n('Q1',1)) and two('GATE',n('Q2',1)),'each gate own R to GATE')
 ok(n('U8',15)=='GATE_A' and len(two('G1PD_A','GATE_A',('R',)))==1 and n('U8',13)=='MID' and n('U8',1)==n('U8',3)=='EN_A','U8 drives bank A through a slow pull-down, source on MID, EN and INP1 together')
-ok(n('U8',5)=='UVLO','U8 FLT holds U1 off until bank A can close')
+ok(n('U8',5)=='FLT_A' and diode('FLT_A','UVLO'),'U8 FLT holds U1 off until bank A can close, through a diode that keeps UVLO faults off FLT')
 ok(n('U8',18)==n('RS1',2) and n('U8',17)==n('RS1',3) and n('U8',8)=='ISCP_A' and n('U8',9)=='TMR_A','bank A short-circuit comparator on RS1')
 ok(two('TMR_A','GND',('R',)) and two('TMR_A','GND',('C',)),'comparator latches off')
 ok(not ({n('Q8',1),n('Q9',1),'GATE_A'} & {n('Q1',1),n('Q2',1),'GATE'}),'no gate net shared between banks')
-ok(len(two('RUN','EN_A'))==1 and two('EN_A','GND'),'bank A enable from RUN, pulled down')
+ok(len(two('RUN_A','EN_A'))==1 and two('EN_A','GND') and diode('RUN_A','RUN'),'bank A enable from RUN through its own diode, pulled down')
 ok(len(two('SW_D','MID',('R',)))==1 and len(two('MID','GND',('R',)))==1,'MID bias')
-ok(n('U17',8)=='MID' and n('U17',9)==n('U17',10)=='GND','U17 reads MID')
+ok(n('U17',8)=='MID_S' and two('MID','MID_S',('R',)) and n('U17',9)==n('U17',10)=='GND','U17 reads MID through a series resistor')
 ok(n('U11',8)=='V_L1','U11 reads VBUS through the L arm output')
-ok(n('U1',3)=='UVLO' and len(two('RUN','UVLO'))==1 and len(two('UVLO','GND'))==1,'UVLO only from RUN: no RUN, no bank')
+ok(n('U1',3)=='UVLO' and len(two('RUN_B','UVLO'))==1 and len(two('UVLO','GND'))==1 and diode('RUN_B','RUN'),'UVLO only from RUN, through its own diode: no RUN, no bank')
+ok(not any(r[0]=='R' and 'RUN' in (n(r,1),n(r,2)) and {n(r,1),n(r,2)}&{'UVLO','EN_A'} for r in comp),'no resistor from RUN straight to UVLO or EN_A: a pin fault cannot back-drive RUN')
 ok(not any(n(r,p) in('BAT','VBUS') for r,p in pin if r!='x' and n(r,p)=='UVLO'),'UVLO has no path to the bus')
 # nothing bulky ahead of the bank
 bat=[r for r,p in nets['BAT'] if r[0]=='C']
@@ -48,10 +52,13 @@ ok(not any(r in ('U7','Q7') for r,p in nets['RUN']+nets['VCTL']),'E-stop latch d
 ok(all(val(c).startswith('2.2uF') for c in [r for r,p in nets['BRK_IN'] if r[0]=='C']),'brick input caps only 2.2 uF')
 ok(n('U5',4)=='GND' and n('U5',5)=='GND' and n('U5',7)==n('U5',8),'brick -Vout grounded, sense tied')
 # latch
-ok(n('U2',8)=='BAT' and n('U2',5)=='BAT','LDO on the battery side, EN tied')
+ok(n('U2',8)==n('U2',5)=='BAT_CTL' and any(r[0]=='F' and {n(r,1),n(r,2)}=={'BAT','BAT_CTL'} for r in comp),'LDO on the battery side through a fuse, EN tied')
+ok(diode('BAT_CTL','VCTL') and any(r[0]=='D' and n(r,1)=='VCTL' and n(r,2)=='GND' for r in comp),'LDO reverse diode, VCTL clamped')
+ok(any(val(c).startswith('10uF') for c in [r for r,p in nets['VCTL'] if r[0]=='C']),'VCTL output cap 10 uF')
 ok(n('Q4',2)=='LOOP_RET' and n('Q4',3)=='RUN' and n('Q5',2)=='GND','latch pair')
 ok(n('J20',1)=='LOOP_OUT' and n('J20',2)=='GND' and n('J20',3)=='LOOP_RET','loop pins split by GND')
-ok(not any(n('J20',p) in('VCTL',) for p in range(1,6)),'no bare 12 V on the loop connector')
+ok(not any(n('J20',p) in('VCTL',) for p in range(1,9)),'no bare 12 V on the loop connector')
+ok(n('J20',4)=='GND' and n('J20',5)=='RST_SRC','GND between loop return and reset source')
 ok(two('VCTL','LOOP_OUT') and two('VCTL','RST_SRC'),'loop and reset fed through resistors')
 ok(not two('LOOP_RET','RST_IN'),'reset is not fed from the loop return (a held button must not re-arm)')
 # clamp
@@ -59,7 +66,8 @@ ok(n('U3',3)==n('U4',1) and n('U3',6)=='VCTL','reference on IN-, comparator on V
 ok('Q6' in comp and 'CL_D' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'CL_G' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'GND' in [pin.get(('Q6',str(p))) for p in range(1,10)],'clamp FET D, G, S')
 ok(len([r for r,p in nets['CL_D'] if r[0]=='J'])==1,'brake terminal on the FET drain')
 d=[r for r in comp if r[0]=='D' and val(r).startswith('MBRS')]
-ok(len(d)==1,'one freewheel diode')
+ok(len([r for r in d if n(r,1)=='VBUS' and n(r,2)=='CL_D'])==1,'one freewheel diode')
+ok(diode('ABS','BAT') and any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS'] if r[0]=='C']) and two('ABS','GND',('R',)),'battery-side absorber: diode, cap, bleed')
 ok(sum(1 for c in comp if c[0]=='C' and val(c).startswith('100uF'))==4,'four bus caps')
 # meters
 addr={}
@@ -77,10 +85,11 @@ ok(n('RS10',1)==n('U9',5) and n('U10',10)==n('RS10',2) and n('U10',9)==n('RS10',
 ok(n('J22',1)=='SPARE_SW' and n('J22',2)=='GND','SPARE_SW output')
 ok(n('J23',1)=='SPARE_ON' and n('J23',2)=='GND' and n('U18',5)=='SPARE_ON' and n('U18',3)==n('U18',4)=='+12V','SPARE_ON output behind its eFuse')
 ok(not any(r in ('U18','J23') for r,p in nets['RUN']),'SPARE_ON does not touch the latch')
-ok(len(legs)==10,'legs DNP: '+str(sorted(legs)))
+ok(len(legs)==8,'legs DNP: '+str(sorted(legs)))
+ok(len([r for r,p in nets['GND'] if r[0]=='J' and val(r).startswith('GND stud')])==2,'limb returns on two GND studs')
 ok(n('J21',1)=='+3V3_PI' and n('J21',2)=='I2C_SDA' and n('J21',3)=='I2C_SCL' and n('J21',4)=='GND','Pi header')
-ok(n('J20',7)=='ESTOP_NO' and n('J20',6)=='GND','button NO on the loop connector, GND between it and reset')
-ok(two('+3V3_PI','ESTOP_NO') and two('ESTOP_NO','ESTOP_PI_N') and n('J21',5)=='ESTOP_PI_N','NO pull-up on the Pi rail, series R to the Pi')
+ok(n('J20',8)=='ESTOP_NO' and n('J20',7)=='GND','button NO on the loop connector, GND between it and reset')
+ok(two('NO_PU','ESTOP_NO') and diode('NO_PU','+3V3_PI') and two('ESTOP_NO','ESTOP_PI_N') and n('J21',5)=='ESTOP_PI_N','NO pull-up from the Pi rail through a blocking diode, series R to the Pi')
 ok(n('D6',3)=='ESTOP_PI_N','clamp on the Pi pin')
 ok(not any(r=='J21' for r,p in nets['RUN']+nets['VCTL']+nets['VBUS']),'nothing above 3.3 V on the Pi header')
 print('audited',cnt[0]); print('FAILS',len(fail))

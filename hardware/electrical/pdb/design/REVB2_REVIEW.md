@@ -64,6 +64,25 @@ Hashes matched before the round and after each run. All pass ERC and check.py. E
 - **Open:** the brick on a frame plate (B2), and a bigger braking resistor (M2). Those areas stay parametric until he answers.
 - GLM 5.3 and Kimi K3.1 Pro are out of the reviewer group for now. DeepSeek V4.1 Flash stays as a trial on CheaperInference.
 
+## Fix round 2 (2026-11-07)
+
+On the sheet, block 10 holds the new parts, so earlier refs keep their numbers. ERC is clean, check.py passes 80 of 80, and the courtyard total is 8,832 mm²: 98 % of the one-sided budget with legs, down from 100.6 %.
+
+| Item | Fix |
+| --- | --- |
+| B1 | Absorber on BAT: MBRS3100 into 47 µF 100 V polymer (ESR 30 mΩ or less), 100k bleed. A 200 A, 1 µH lead adds about 13 V, so about 70 V peak. D1 is now 5.0SMDJ58A. The BMS sees 47 µF (0.07 J) when it closes: check it at the bench |
+| B3 | UVLO and EN_A take RUN through their own BAV19W. U8 FLT reaches UVLO through a BAV19W, so a UVLO fault can't reach FLT. R5 is 22k, so UVLO is 3.8 V at RUN 7 V |
+| M12 | J20 is 8 pins: GND between loop return and reset source |
+| M13 | 33k from MID to U17 VBUS. Calibrate the 3 % gain |
+| M14, M6, M7 | U2 is fed through F1 (250 mA, 63 V, 1206) with its own 1 µF. VCTL is clamped by SMAJ15A, has 10 µF 1206, and a BAV19W from OUT to IN |
+| M4 | The NO pull-up goes through a BAT46W, and the Pi resistor is 100k: a bus short leaves 0.5 mA in the clamp |
+| M5 | Timer 4.7 nF: 0.15 to 0.39 ms, about 1.4× SOA margin at t^0.346. Still read the real curve at layout |
+| M9 | 330 µF on +12V takes spare-output shorts and servo back-feed, along with the compute loads |
+| M10 | MID divider is 47k + 47k: hot leakage moves MID by under 5 V, so the self-test bands (0.4 to 0.6 × pack healthy) hold |
+| minor | 22 nF from MID to GND for U8 |
+| Fit | Six limb "−" terminals replaced by two GND studs. Check the stud and lug current |
+| Open | M8: rerun the latch sim at power-up with reset held. M1: no hardware reset interlock yet. M11: measurements. Brick placement (B2) waits for Joey's converter pick. The floorplan PNG predates this round |
+
 ## The fit decision
 
 None of the four reviewers chose moving parts to the back face, which is the plan Joey approved. Fable argues against it: 6 mm standoffs, the pack behind, no airflow. Sol and Wonder prefer smaller RS9 and RS10 shunts; Astra and Fable prefer dropping U10 and RS10. Fable's other idea is the best one I've seen: the limb "−" terminals are all GND, so merging six into two shared studs frees about 690 mm², enough to cover B1's absorber too. B1 adds 150 to 300 mm² at the battery entry, so this needs deciding again. It needs a current check on the shared studs.
