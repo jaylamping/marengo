@@ -37,10 +37,10 @@ This sets the fork at its design position, with the 0.8 to 0.9 mm running gap at
 
 From the output outward: M8 × 55 hex head bolt, class 10.9, with its head in the output's hex pocket. Then the printed spacer (4.0 mm, measure it) between the output back and the housing core, then the housing bore, then a washer on the housing face inside the stub bore, then two M8 nuts.
 
-1. Put thread-locker (medium strength, such as Loctite 243) on the bolt under both nuts.
+1. Fit the nuts dry. **No thread-locker:** the rig comes apart within a week or so.
 2. Run the first nut on until the output just turns freely.
-3. Hold it with a thin spanner and lock the second nut against it to 15 N·m, not more. The jam preload and the test torque add up in the bolt, and the thread-locker does the holding. Finish with their flats lined up, so a socket takes both nuts at once.
-4. Let the thread-locker cure for a day, then draw a paint line across both nuts and the bolt end.
+3. Hold it with a thin spanner and lock the second nut against it to 15 N·m, not more. The jam preload and the test torque add up in the bolt, and the 15 N·m jam does the holding. Finish with their flats lined up, so a socket takes both nuts at once.
+4. Draw a paint line across both nuts and the bolt end. **Check it before every test.** If it has moved, relock the nuts to 15 N·m and redraw it.
 
 The bolt end stops at about X 129, 2.7 mm past the inboard cheek face, with nothing near it. The thread runs to about X 151, and the first nut sits at X 143 to 150, so it has about 1 mm of thread to spare. Check that by hand before the bolt goes in. If the spacer prints long or short, sand it or shim it. The check is the running gap at the cheek, by feeler gauge, 0.8 to 0.9 mm all round.
 
@@ -53,7 +53,6 @@ As well as the arm hardware in `../../BUY_LIST.md`:
 | M8 × 55 hex head bolt, class 10.9, **fully threaded (ISO 4017)** so the first nut is on full thread | 1 | Head in the output pocket, through spacer and housing. Class 8.8 is too close to yield in torsion at 17 N·m |
 | M8 nut | 2 | Locked together in the stub bore, also the wrench flats for test 5 |
 | M8 washer | 1 | On the housing face |
-| Medium thread-locker | 1 | M8 nuts |
 | 13 mm deep socket | 1 | Test 5, through the stub bore, on both nuts |
 | Ø4 × 8 steel dowel pin | 3 | Output to fork, in place of printed pins |
 | M3 hex nut | 6 | Housing pockets, one on each hoop screw |

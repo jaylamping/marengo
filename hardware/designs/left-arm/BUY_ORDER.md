@@ -57,7 +57,7 @@ The 14-way ribbon and the elbow cable guard are a separate small order, once the
 
 | Part | Qty | Notes |
 | --- | --- | --- |
-| Medium thread-locker (Loctite 243 class) | 1 | Hoop and hub screws only after the 1-week retorque, and the M8 nuts. Tip threads only: keep it off bare PETG, because it can crack it |
+| Medium thread-locker (Loctite 243 class) | 1 | **Later, final assembly after testing. Not needed now.** Everything is fitted dry while it is being tested. Tip threads only when it is used: keep it off bare PETG, because it can crack it |
 | Paint marker | 1 | Witness marks on every clamp screw for the retorques |
 
 ## 5. Tools

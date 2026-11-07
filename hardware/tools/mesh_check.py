@@ -5,7 +5,10 @@ Fails unless:
   - no vertex has an angle defect above 150 deg, except whitelisted design corners,
   - no knife edge: no pair of adjacent faces folded past 170 deg along an edge longer than 1 mm,
     except whitelisted spots,
-  - no sampled wall thinner than 0.6 mm over 0.5 mm2 or more, except whitelisted boxes.
+  - no sampled wall thinner than 0.6 mm over 0.5 mm2 or more, except whitelisted boxes,
+  - for parts with a turned or lofted outer surface (whitelist key 'revolve'): no radial deviation
+    from the ideal surface over 0.03 mm, inward or outward, across 1 mm2 or more, outside whitelisted
+    (angle, Y) boxes. This catches shallow notches and steps that no vertex or thickness test sees.
 
 Needle triangles (min angle under 1 deg, edge over 2 mm) are counted and listed, not failed:
 CAD tessellation makes thousands of them on flat fans, so a needle only matters when it forms a
@@ -47,7 +50,7 @@ def thickness(m, chunk=3000):
     return th
 
 
-def check(mesh, name, bodies=1, corners=(), folds=(), thin=()):
+def check(mesh, name, bodies=1, corners=(), folds=(), thin=(), revolve=None):
     """mesh: trimesh.Trimesh or (vertices, faces). Returns (ok, report text)."""
     m = mesh if isinstance(mesh, trimesh.Trimesh) else trimesh.Trimesh(*mesh, process=True)
     rep, ok = [f'mesh check: {name}', f'faces {len(m.faces)}, bounds {m.bounds.round(2).tolist()}'], True
@@ -104,8 +107,69 @@ def check(mesh, name, bodies=1, corners=(), folds=(), thin=()):
     rep += [f'    UNLISTED {a} mm2, min {t} mm, box {lo} to {hi}' for a, t, lo, hi, _ in sorted(tb, reverse=True)[:30]]
     rep += [f'    listed   {a} mm2, min {t} mm, box {lo} to {hi}: {r}' for a, t, lo, hi, r in sorted(tk, reverse=True)]
     ok &= not tb
+    if revolve:
+        good, lines = surface_deviation(m, **revolve)
+        rep += lines
+        ok &= good
     rep.append(f'RESULT: {"PASS" if ok else "FAIL"}')
     return ok, '\n'.join(rep) + '\n'
+
+
+DEV = 0.03
+DEV_AREA = 1.0
+
+
+def surface_deviation(m, center, y_range, step=(0.1, 0.5), boxes=(), map_png=None):
+    """Radial scan of a surface of revolution about an axis along Y through center (x, z).
+    The ideal radius at each Y is the median over the full turn, so the bare tube sets the reference.
+    boxes: [{'ang': (a0, a1), 'y': (y0, y1), 'reason': ...}] in degrees (0 = +X, 90 = +Z) and mm."""
+    from scipy import ndimage
+    dy, da = step
+    it = trimesh.ray.ray_triangle.RayMeshIntersector(m)
+    ys = np.arange(y_range[0], y_range[1], dy)
+    an = np.arange(0, 360, da)
+    dv = np.c_[np.cos(np.radians(an)), np.zeros(len(an)), np.sin(np.radians(an))]
+    R = np.full((len(ys), len(an)), np.nan)
+    for i, y in enumerate(ys):
+        o = np.c_[center[0] + dv[:, 0] * 200, np.full(len(an), y), center[1] + dv[:, 2] * 200]
+        loc, ri, _ = it.intersects_location(o, -dv, multiple_hits=False)
+        R[i, ri] = np.hypot(loc[:, 0] - center[0], loc[:, 2] - center[1])
+    ref = np.nanmedian(R, axis=1)[:, None]
+    dev = R - ref
+    cell = np.radians(da) * ref * dy * np.ones_like(dev)
+    lines, bad = [], []
+    for sign, lab in ((1, 'proud'), (-1, 'sunk')):
+        lb, n = ndimage.label(np.nan_to_num(sign * dev) > DEV)
+        for j in range(1, n + 1):
+            w = lb == j
+            area = float(cell[w].sum())
+            if area < DEV_AREA:
+                continue
+            ii, jj = np.where(w)
+            y0, y1, a0, a1 = ys[ii.min()], ys[ii.max()], an[jj.min()], an[jj.max()]
+            hit = [b for b in boxes if b['ang'][0] <= a0 and a1 <= b['ang'][1] and b['y'][0] <= y0 and y1 <= b['y'][1]]
+            item = f'{lab} {area:.1f} mm2, max {float(np.nanmax(sign * dev[w])):.2f} mm, Y {y0:.1f}-{y1:.1f}, angle {a0:.1f}-{a1:.1f}'
+            if hit:
+                lines.append(f'    listed   {item}: {hit[0]["reason"]}')
+            else:
+                bad.append(f'    UNLISTED {item}')
+    head = f'[{"PASS" if not bad else "FAIL"}] surface deviation over {DEV} mm across {DEV_AREA} mm2: {len(bad)} unlisted, {len(lines)} listed'
+    if map_png:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(22, 10))
+        im = ax.imshow(np.clip(dev, -0.3, 0.3), aspect='auto', origin='lower', extent=[0, 360, ys[0], ys[-1]], cmap='RdBu_r', vmin=-0.3, vmax=0.3)
+        plt.colorbar(im, label='radial deviation from the ideal surface, mm (clipped at 0.3)')
+        for b in boxes:
+            ax.add_patch(plt.Rectangle((b['ang'][0], b['y'][0]), b['ang'][1] - b['ang'][0], b['y'][1] - b['y'][0], fill=False, ec='k', lw=1.5))
+            ax.text(b['ang'][0] + 1, b['y'][1] + 0.3, b.get('label', ''), fontsize=11)
+        ax.set_xlabel('angle about the axis, deg (0 = +X, 90 = +Z)')
+        ax.set_ylabel('Y, mm')
+        plt.tight_layout()
+        plt.savefig(map_png, dpi=80)
+        plt.close(fig)
+    return not bad, [head] + bad + lines
 
 
 def find_up(start, rel):
@@ -131,7 +195,8 @@ def gate(name, tri, out_dir, src=None, whitelist=None):
         t = np.asarray(tri, float)
         m = trimesh.Trimesh(t, np.arange(len(t)).reshape(-1, 3), process=True)
         frame = 'plate coordinates'
-    ok, rep = check(m, f'{name} ({frame})', bodies=wl.get('bodies', 1), corners=wl.get('corners', ()), folds=wl.get('folds', ()), thin=wl.get('thin', ()))
+    rv = dict(wl['revolve'], map_png=str(Path(out_dir) / f'{name}_deviation.png')) if wl.get('revolve') and src is not None else None
+    ok, rep = check(m, f'{name} ({frame})', bodies=wl.get('bodies', 1), corners=wl.get('corners', ()), folds=wl.get('folds', ()), thin=wl.get('thin', ()), revolve=rv)
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     (Path(out_dir) / f'{name}_meshcheck.txt').write_text(rep, encoding='utf8', newline='\n')
     print(rep, flush=True)

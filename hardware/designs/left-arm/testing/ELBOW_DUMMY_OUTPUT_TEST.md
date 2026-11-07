@@ -132,7 +132,7 @@ Assemble the full order on the dummy parts with real tools.
 
 **Two ways of loading.** The torque wrench is the main case for this test, because it puts torque in at the output the way the RS02 does. It loads the M4 and dowel joint, the outboard cheek and the crown, as well as the stop. The lever only loads the stub and finger, so use it for the external load, drop and side tests.
 
-- **Torque wrench:** 13 mm deep socket on both locked M8 nuts together, through the Ø30 stub bore from the inboard side. With the flats lined up, neither nut can turn against the other, so this works for both stops. Set them up as in the M8 stack in `../prints/test-pass-1/PRINT_ORDER.md`. Apply 17 N·m against each stop. **Check the paint line after every step.** If it has moved, that run doesn't count: relock the nuts and repeat.
+- **Torque wrench:** 13 mm deep socket on both locked M8 nuts together, through the Ø30 stub bore from the inboard side. With the flats lined up, neither nut can turn against the other, so this works for both stops. Set them up as in the M8 stack in `../prints/test-pass-1/PRINT_ORDER.md`. Apply 17 N·m against each stop. The nuts are dry, held by the 15 N·m jam, so **check the paint line before each test and after every step.** If it has moved, that run doesn't count: relock the nuts and repeat.
 - **If the nuts won't hold:** use the wrench in the tightening direction only, and re-mount the fixture for the other stop.
 - **Wrench limit: 20 N·m.** Between the nuts the bolt carries the jam preload and the torsion together; at 15 N·m jam and 20 N·m torque it is at about 75% of class 10.9 yield, and at 25 N·m about 90%. Past 20 N·m use the lever, and note that the failure then loads only the stub and finger.
 - **Lever:** as below.
@@ -187,7 +187,7 @@ The hoop and carrier clamp PETG directly, so preload falls as the plastic relaxe
 1. Measure how far each screw turns on a retorque at 1 hour, 1 day and 1 week, before any test loads. Re-mark each time. The housing has 100% infill round the screws and under the clamp face, so this measures the joint.
 2. Repeat at 1 hour after test 5, the stop cycles.
 
-**Proposed pass:** under about 15 degrees at the 1-day and 1-week retorques, and no witness-mark movement between carrier and housing after the stop cycles. Thread-locker goes on only after the 1-week retorque, as on the arm. Record the turn at each screw. If the marks move, the clamp has slipped.
+**Proposed pass:** under about 15 degrees at the 1-day and 1-week retorques, and no witness-mark movement between carrier and housing after the stop cycles. No thread-locker on the rig: its screws stay dry, checked by the marks, as on the arm. Record the turn at each screw. If the marks move, the clamp has slipped.
 
 ### Test 9: reuse the bearing
 

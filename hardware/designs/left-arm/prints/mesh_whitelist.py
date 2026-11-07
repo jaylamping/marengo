@@ -6,6 +6,15 @@ Every entry needs a reason. Add entries only after looking at the spot in a rend
 """
 WHITELIST = {
     'upper_arm': {
+        'revolve': {
+            'center': (170.49, 5.99), 'y_range': (254.9, 319.0),
+            'boxes': [
+                {'ang': (49.0, 125.0), 'y': (254.9, 257.0), 'label': 'collar + web end', 'reason': 'collar block and hoop web running 2 mm onto the tube, with the r1.5 root fillet; structural, several mm wide'},
+                {'ang': (235.0, 311.0), 'y': (254.9, 257.0), 'label': 'web + collar end', 'reason': 'hoop web and collar block running onto the tube, other side; structural'},
+                {'ang': (237.0, 303.0), 'y': (262.0, 310.0), 'label': 'cover recess', 'reason': 'cover recess and cable window, closed by the printed cover'},
+                {'ang': (165.0, 195.0), 'y': (298.0, 319.5), 'label': 'bed flat', 'reason': 'flat at X 131.99 that the arm prints on'},
+            ],
+        },
         'corners': [
             {'pt': (151.7, 230.09, 43.48), 'reason': 'hoop outer circle meets the straight web edge on the carrier face, near-tangent corner'},
             {'pt': (151.7, 230.09, -31.5), 'reason': 'same corner, other side'},

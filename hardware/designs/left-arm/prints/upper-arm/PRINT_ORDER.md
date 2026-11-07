@@ -11,12 +11,14 @@ Settings are the test pass 1 process: P2S, 0.4 mm High Flow, Generic PETG, or Ba
 | 1 | `seat_ring_only.3mf` | PETG | 22 m | 9.2 g | Same way up as the carrier | Only the Ø52.2 seat, Ø50 shoulder and Ø40 stub. The 6808 has never been fitted to a print, so check that one fit first. 3 walls, 15% infill |
 | 2 | `carrier.3mf` | PETG | 1 h 22 m | 36.4 g | Inboard face | Same way up as the strength carrier in test pass 1 |
 | 3 | `cover.3mf` | Bambu PLA Basic | 25 m | 3.8 g | Standing on its end | Thin curved shell |
-| 4 | `upper_arm.3mf` | PETG | 8 h 8 m | 229.8 g | Flat on the hub, X 131.99 | Layers across X, as in the FEA. The RS02 seat faces up, clean. **50% infill, with 100% over the hoop body and seat, the hoop-to-tube corners and the hub block** |
+| 4 | `upper_arm.3mf` | PETG | 8 h 3 m | 229.0 g | Flat on the hub, X 131.99 | Layers across X, as in the FEA. The RS02 seat faces up, clean. **50% infill, with 100% over the hoop body and seat, the hoop-to-tube corners and the hub block** |
 | 5 | `p2.3mf` | PETG | 5 h 57 m | 187.3 g | As P2 L04B, same 45 degree plate rotation | Only if you want a new P2, see below |
 
 **Neck cleanup, 2026-11-07, second pass:** the bed-side spikes in the first cleanup were the coarse STL facets of the tube cutting through the r1.5 root fillet, plus chamfer faces running past the clip. The arm is now exported at 0.01 mm / 5 degrees, the clip follows the tube cone out to Y 257.45 (NECK_CLIP2 to 7) and a revolve cut trims anything proud of the cone to Y 260.65 (TUBE_CONE_CLIP: fuse wedge corners), with EXIT_CLIP for the exit-fill corner, the chamfer ends stop at the tube circle, and the relief pockets open cleanly into the bore (RELIEF_OPEN, PORT_MERGE). The build runs `hardware/tools/mesh_check.py` before writing the 3MF; see `upper_arm_meshcheck.txt`, `renders/upper_arm_sheet.png` and `renders/upper_arm_neck_bedside.png`.
 
-Total for plates 2 to 5: about 15 h 51 m and 457 g, including support and brim. Without P2, 9 h 55 m and 270 g.
+**Tube surface, third pass, 2026-11-07:** the wedges Joey found on the tube beside the collar were the flat tops of the two fuse pad bosses (C_FUSE_PAD_BOSS, FUSE3_LENS) breaking through the curved tube, plus 0.07 mm notches from stepped clip cuts. The pads are now trimmed flush to the tube (PAD_CLIP1 to 22; the wall behind the fuse pockets is still at least 3.0 mm), and the stepped clips are replaced by revolve cuts that follow the tube exactly (TOP_SECTOR_CLIP, BED_SECTOR_CLIP). The mesh gate now scans the tube radially and fails on any step over 0.03 mm that is not a listed feature: see `renders/upper_arm_deviation.png` and `renders/upper_arm_tube_closeup.png`.
+
+Total for plates 2 to 5: about 15 h 46 m and 456 g, including support and brim. Without P2, 9 h 50 m and 269 g.
 
 The fit ring has a thin wall, so it reads slightly looser than the carrier. Pull any low stubs of support out of the carrier seat before pressing the bearing.
 

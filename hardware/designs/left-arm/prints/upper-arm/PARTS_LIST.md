@@ -31,6 +31,6 @@ Fasteners and bearings only. `../../BUY_ORDER.md` is the order.
 | Inline fuse holder | 2 | Mini-blade, 16 AWG leads, trunk buy list item 7 (Parts Express 070-676 or Crimp Supply). **Measure yours: the row takes up to 12.5 wide and 35 long is fine, it can overhang** | M14 drop and S4 segment, in the two rows on the wall opposite the window |
 | Mini-blade fuse | 2 | 58 V Littelfuse 997 series, 5 A | Values in `hardware/electrical/wiring/left-arm-trunk/README.md` |
 | Hook and loop tape | Short strip | Self-adhesive, thin | Holds each fuse holder in its row |
-| Medium thread-locker | 1 | Loctite 243 or similar | Hoop and hub screws |
+| Medium thread-locker | 1 | Loctite 243 or similar | **Later, final assembly after testing.** Not used now: the screws stay dry |
 
 The 14-way ribbon and its guard come with the back-of-arm cable work, not this package.

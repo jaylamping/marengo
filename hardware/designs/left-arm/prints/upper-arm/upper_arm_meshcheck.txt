@@ -1,8 +1,7 @@
 mesh check: upper_arm (source UA2_ARM.STL, CAD coordinates)
-faces 50626, bounds [[131.99, 167.61, -36.26], [209.74, 319.86, 48.23]]
+faces 48066, bounds [[131.99, 167.61, -36.26], [209.74, 319.86, 48.23]]
 [PASS] bodies 1 (allowed 1), watertight True
 [PASS] sharp vertices over 150 deg: 0 unlisted, 9 listed design corners
-    listed   [151.7, 230.09, -31.5] 158 deg: same corner, other side
     listed   [151.7, 230.09, 43.48] 158 deg: hoop outer circle meets the straight web edge on the carrier face, near-tangent corner
     listed   [185.48, 280.52, 36.49] 323 deg: 0.02 mm step between FUSE2_WALLS and FUSE_FILL on the inner fuse-bay wall, inside the tube, below slicer resolution
     listed   [186.24, 264.07, -18.1] 196 deg: window frame corner meeting the inner taper at a grazing angle, under the cover
@@ -11,8 +10,9 @@ faces 50626, bounds [[131.99, 167.61, -36.26], [209.74, 319.86, 48.23]]
     listed   [183.05, 307.17, -24.49] 204 deg: cover recess end corner against the inner taper, under the cover
     listed   [187.93, 307.17, -21.99] 259 deg: cover recess end corner against the outer taper, under the cover
     listed   [188.04, 271.08, -18.1] 192 deg: window frame corner meeting the inner taper at a grazing angle, under the cover
+    listed   [151.7, 230.09, -31.5] 158 deg: same corner, other side
 [PASS] knife edges (fold over 170 deg, edge over 1 mm): 0 unlisted, 0 listed
-[INFO] needle triangles (min angle under 1 deg, edge over 2 mm): 3611, tessellation only unless a check above fails
+[INFO] needle triangles (min angle under 1 deg, edge over 2 mm): 3596, tessellation only unless a check above fails
 [PASS] walls thinner than 0.6 mm over 0.5 mm2: 0 unlisted, 9 listed
     listed   1.5 mm2, min 0.43 mm, box [162.2, 172.9, 17.6] to [163.6, 175.1, 17.6]: same, upper relief
     listed   1.4 mm2, min 0.06 mm, box [181.0, 281.6, -29.1] to [181.2, 292.0, -28.0]: cover recess side edge, other side, under the cover
@@ -23,4 +23,9 @@ faces 50626, bounds [[131.99, 167.61, -36.26], [209.74, 319.86, 48.23]]
     listed   0.7 mm2, min 0.09 mm, box [151.7, 252.4, -7.0] to [151.9, 252.6, -2.0]: 0.2 mm ROOT_EASE back face inside the port slot, one layer, not a blade
     listed   0.5 mm2, min 0.48 mm, box [159.7, 271.6, -27.1] to [160.4, 273.5, -26.7]: cover recess side edge where the flat recess meets the taper at a grazing angle, under the cover
     listed   0.5 mm2, min 0.03 mm, box [162.2, 172.9, -1.1] to [163.6, 173.2, -1.0]: corner where the merged port and flange reliefs meet, under the RS02 flange, not visible
+[PASS] surface deviation over 0.03 mm across 1.0 mm2: 0 unlisted, 4 listed
+    listed   proud 73.0 mm2, max 1.43 mm, Y 254.9-256.6, angle 49.5-124.0: collar block and hoop web running 2 mm onto the tube, with the r1.5 root fillet; structural, several mm wide
+    listed   proud 77.1 mm2, max 1.44 mm, Y 254.9-256.7, angle 236.0-310.5: hoop web and collar block running onto the tube, other side; structural
+    listed   sunk 1943.8 mm2, max 19.51 mm, Y 262.6-309.5, angle 238.5-301.5: cover recess and cable window, closed by the printed cover
+    listed   sunk 232.2 mm2, max 0.74 mm, Y 298.5-318.9, angle 169.5-190.5: flat at X 131.99 that the arm prints on
 RESULT: PASS

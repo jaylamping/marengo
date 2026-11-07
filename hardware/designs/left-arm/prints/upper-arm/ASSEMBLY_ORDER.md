@@ -9,7 +9,7 @@
 
 **These are low on purpose.** The clamp goes straight through the plastic, and PETG takes almost all of the clamp's stretch, so 0.05 to 0.1 mm of creep would empty it. The DIN 6796 conical spring washer under each hoop screw stores travel to cover that. Use a torque screwdriver.
 
-**Fit the screws dry at first.** Cured thread-locker breaks away at about 0.5 N·m, which would hide any preload loss at a 0.35 N·m retorque. Thread-locker goes on only after the 1-week retorque, step 13.
+**Fit every screw dry. No thread-locker now.** The arm comes apart again during testing, and cured thread-locker breaks away at about 0.5 N·m, which would also hide any preload loss at a 0.35 N·m retorque. The paint marks and the retorques do the checking. Thread-locker waits for final assembly after testing.
 
 ## Order
 
@@ -25,7 +25,7 @@
 10. **Cover.** Fit the cover with four M3 × 6 screws once the harness checks pass.
 11. **P2.** If you made P2 L05 or filed the tip, the inward roll bench limit can go from 2 to 5 degrees, once you have checked 5 degrees by hand.
 12. **Retorque.** PETG relaxes under a clamp. Paint-mark each hoop and hub screw head across to the part after the first tightening. Retorque every one to the table value at 1 hour, 1 day and 1 week, and re-mark each time. **If any screw turns more than about 15 degrees at the 1-day or 1-week retorque, stop and tell me.**
-13. **Thread-locker.** After the 1-week retorque, take each screw out one at a time, put medium thread-locker on the tip threads only, so none reaches bare PETG, and refit it to the table torque before moving to the next.
+13. **No thread-locker yet.** Keep the hoop and hub screws dry through testing, checked by the paint marks and retorques in step 12. Thread-locker goes on only at final assembly after testing: then take each screw out one at a time, put medium thread-locker on the tip threads only, so none reaches bare PETG, and refit it to the table torque before moving to the next.
 14. **Spin check.** With the fork on, turn the elbow by hand through its range. It should be smooth, with no rub at the cheek. See `../../MOVING_INTERFACES.md`.
 
 The elbow rig test comes next, before the forearm goes on. See `../../testing/ELBOW_DUMMY_OUTPUT_TEST.md`.
