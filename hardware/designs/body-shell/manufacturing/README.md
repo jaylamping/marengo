@@ -161,7 +161,7 @@ section 1, as another swappable part.
 
 - **Material: PETG** (Bambu PETG HF) for panels, doors and brackets. It is tough in a fall, and holds shape near warm actuators.
   PLA softens around 60 °C and is brittle. ASA is a later option for UV and heat. TPU 95A for bumpers.
-- 0.4 mm High Flow nozzle (fitted), 0.2 mm layers, 6 walls (solid 2.4 mm), textured PEI plate. Bosses at 100%.
+- 0.4 mm High Flow nozzle (fitted), 0.2 mm layers, 6 walls (solid 2.4 mm), Cool Plate SuperTack, no glue. Bosses at 100%.
 - Orientation from the script (`SHELL_MFG_PLATES.png`): large panels stand on an edge so the visible face is a wall surface, with
   tree supports only on the inside. Seam position: rear, aligned to the shadow-gap lines. Brim on the tall standing pieces.
 - A full 3MF and an exact-settings checklist come with each print release, after gate 2.

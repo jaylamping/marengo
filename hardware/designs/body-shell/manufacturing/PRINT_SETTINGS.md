@@ -9,7 +9,7 @@ come with the print release after gate 2; this checklist is what they will conta
 | --- | --- | --- |
 | Printer / nozzle | P2S, 0.4 mm **High Flow** | fitted nozzle |
 | Filament profile | Bambu PETG HF | tough in a fall, holds shape near warm actuators |
-| Plate | Textured PEI, glue stick thin on PETG | PETG can pull chunks out of smooth PEI |
+| Plate | Cool Plate SuperTack, no glue | Joey prints PETG on this plate; bed 60 °C from the PETG HF profile |
 | Process profile | 0.20 mm Standard | |
 | Wall loops | **6** (line width 0.40 mm) → solid 2.4 mm wall | the wall is all perimeters, no infill gaps |
 | Sparse infill | 100 % (only bosses and pads have room for it) | bosses carry the screws |
@@ -18,7 +18,7 @@ come with the print release after gate 2; this checklist is what they will conta
 | Support Z gap | 0.25 mm top, interface 2 layers, interface spacing 0.5 mm | PETG fuses to PETG supports; this keeps them peelable |
 | Brim | 5 mm outer brim on tall pieces (all chest panels, doors) | panels stand on the split edge |
 | Part cooling | 40–60 % (profile default) | |
-| Bed / nozzle temp | profile default (70 °C bed) | |
+| Bed / nozzle temp | profile default (60 °C bed on SuperTack) | |
 
 ## Orientation (Joey 2026-11-06: clean outer face wins over print time)
 
@@ -44,15 +44,12 @@ In `hardware/designs/body-shell/prints/` (Git LFS) and on Joey-PC in `J:\code\ma
 
 | File | What | Time | Filament |
 | --- | --- | --- | --- |
-| `marengo_shell_coupons_plate1_light.3mf` | **Print this first.** Coupons C1 (flat comb + fit key), C4 (curved splice pair + plate), C10 (cap plate + 6 caps), C11 (bracket feet), C12 (battery door magnets), C13 (grille screw pilots). Fit-only pieces are light (C1, C10 plate, C12: 3 walls, 15% gyroid, 0.28 mm, 2 top/bottom layers); strength pieces and the caps stay at full settings | 3 h 48 m | 103 g |
+| `marengo_shell_fit_kit_upper_front_L.3mf` | **Print this first.** Real parts for that panel: H1 and H3 front left brackets, 4 screw caps, and the C13 pilot patch. Brackets at full settings, no brim; the patch shows whether the 1 mm skin over the pilot bulges on the outer face | 1 h 30 m | 41.6 g (1 g support) |
 | `marengo_shell_upper_front_L_sternum_down.3mf` | First real panel, final settings | 9 h 23 m | 216 g (72 g support) |
-| `marengo_shell_upper_front_L_sternum_down_draft.3mf` | Same panel as a quick fit draft (0.28 mm, 2 walls) | 7 h 37 m | 189 g |
 
 Checklist when you print:
 1. Load **PETG HF**; the files use the 0.4 **High Flow** nozzle profile (flow 0.92, 260 °C, 14 mm³/s from your PETG HF preset).
-2. Textured PEI plate with a **thin glue stick** layer (not in the file; do it by hand).
+2. Cool Plate SuperTack, no glue.
 3. Open, check the plate preview shows supports only on the inside, and print. Don't re-slice unless something looks wrong.
-4. Known differences from the table above: the seam is plain "Aligned" (not painted), and on the coupon plate only C4 L/R, C13 and the C12 pad have
-   a 5 mm brim. Both are harmless.
-5. After the coupon plate: do the tests in `README.md` §8 (C1 pick the fit, C10 cap fit, C11 on a real 2020 rail, C12 door hold,
-   C13 screw five times) and tell me the results. The panel waits for those numbers.
+4. Known difference from the table above: the seam is plain "Aligned" (not painted). Harmless.
+5. After the fit kit: screw an M2.5 plastite into the C13 pilots five times, check the outer face, and try the brackets and caps on the panel.
