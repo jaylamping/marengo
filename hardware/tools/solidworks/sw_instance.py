@@ -120,18 +120,21 @@ def _watch_hidden(pid):
     modal dialog blocks the instance.
     """
     user = ctypes.windll.user32
-    ours = {pid}
+    ours = {pid: _started(pid)}  # pid to start time, because Windows reuses pids
     state = {"prev": None}
     seen = set()
 
+    def live(p):
+        return p in ours and ours[p] is not None and ours[p] == _started(p)
+
     def is_ours(p):
-        if p in ours:
+        if live(p):
             return True
         try:
             q = psutil.Process(p)
             crash = q.name().lower() == "sldexitapp.exe" and f"/SWPID={pid}" in " ".join(q.cmdline()).upper()
-            if crash or q.ppid() in ours:
-                ours.add(p)
+            if crash or live(q.ppid()):
+                ours[p] = q.create_time()
                 return True
         except psutil.Error:
             pass
@@ -178,18 +181,29 @@ def _watch_hidden(pid):
             user.DispatchMessageW(ctypes.byref(msg))
         if time.time() - sweep > 2:
             sweep = time.time()
-            for q in list(ours):
+            alive = [q for q in ours if live(q)]
+            for q in alive:
                 try:
-                    ours.update(c.pid for c in psutil.Process(q).children(recursive=True))
+                    for c in psutil.Process(q).children(recursive=True):
+                        ours.setdefault(c.pid, c.create_time())
                 except psutil.Error:
                     pass
-            alive = [q for q in ours if psutil.pid_exists(q)]
+            for q in [q for q in ours if not live(q)]:
+                del ours[q]
+            alive = list(ours)
             # A crash report can appear after the instance has gone, so stay a minute longer.
             gone = (gone or time.time()) if not alive else None
             if gone and time.time() - gone > 60:
                 return
             for q in alive:
                 hide_windows(q)
+
+
+def _started(pid):
+    try:
+        return psutil.Process(pid).create_time()
+    except psutil.Error:
+        return None
 
 
 def _start_hider(pid):
@@ -300,9 +314,11 @@ def launch(timeout=300, visible=False):
             _start_hider(pid)
         start = time.time()
         disp = None
+        journal = False
         while time.time() - start < timeout:
             if proc.poll() is not None:
                 raise RuntimeError(f"SolidWorks exited during start, code {proc.returncode}")
+            journal = _clear_journal_prompt(pid) or journal
             try:
                 disp = _attach_by_pid(pid)
             except pythoncom.com_error:
@@ -314,7 +330,6 @@ def launch(timeout=300, visible=False):
             proc.kill()
             raise RuntimeError(f"SolidWorks PID {pid} never registered in the ROT")
         sw = wc.dynamic.Dispatch(disp)
-        journal = False
         while time.time() - start < timeout:
             journal = _clear_journal_prompt(pid) or journal
             try:
