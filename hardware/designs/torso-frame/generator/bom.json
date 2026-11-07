@@ -122,8 +122,8 @@
  {
   "item": 16,
   "name": "Power board rev B: one 100 x 150 board, all parts on the front face",
-  "qty": 18,
-  "mass_g": 398,
+  "qty": 20,
+  "mass_g": 468,
   "material": "PCB + parts, 100 x 150",
   "group": "electronics"
  },
@@ -209,10 +209,10 @@
  },
  {
   "item": 27,
-  "name": "Harness trunks: shoulder RS03 connector runs",
-  "qty": 9,
-  "mass_g": 160,
-  "material": "silicone 14 AWG + CAN pair",
+  "name": "Reserve: pin solder joints and 4-wire pigtail in front of the brick",
+  "qty": 10,
+  "mass_g": 175,
+  "material": "reserved path",
   "group": "harness"
  },
  {

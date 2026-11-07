@@ -249,9 +249,19 @@ for k, (xx, yy) in enumerate(((46, 194), (-46, 194), (46, 265), (-46, 265), (46,
 # front bottom rail (needs |X| <= 36.3, the bottom-edge cable drop is at |X| > 36). New spot: on the FRONT face of the +X front lower post, long
 # axis vertical, outside the frame plane (Z 70) and in front of the board (component face Z 61.5). Clear of H4 (Y <= 175), H5 (X >= 75, Y >= 245)
 # and the gusset T-nuts (Y >= 292). Plate screws (2 x M5 drop-in T-nut, post slot X 65) sit under the tags at Y 181 / 244.
-box('brake_plate', 16, 'Brake resistor plate, 2 mm aluminium flat bar 30 x 70 (hand cut, 2 x M5 x 8 button + drop-in T-nuts in the post front slot at Y 181/244, 4 x M3 for the resistor), on the front face of the +X front lower post', (45, 178, 70), (75, 248, 72), '#b8bcc4', 'electronics', (60, 0, 60), mass_g=11, material='2 mm 6061 flat bar')
-box('brake_res', 16, 'Brake resistor Arcol HS50 10 ohm (49.1 body, 72.5 over the tags, 29.7 x 14.8) flat on the plate, long axis vertical, 4 x M3 on 39.7 x 21.4; body Y 188-237, tags Y 176-249; leads round the post edge to the board bottom edge. Needs shell clearance in front (Z to 86.8) and hot-surface distance from the PLA shell', (45.3, 188, 72), (75, 237.1, 86.8), '#9a9ea6', 'electronics', (60, 0, 60), balloon=True, mass_g=50, material='Arcol HS50, 4 x M3')
+# Plates are 3 mm aluminium flat bar (hand cut): the parts' M3 screws land on the solid post face, so they thread into the plate (tapped M3) or
+# come from the plate rear with countersunk heads; nothing protrudes behind the plate. Plate M5s sit outside the part bodies.
+box('brake_plate', 16, 'Brake resistor plate, 3 mm aluminium flat bar 30 x 70 (hand cut; 2 x M5 x 10 button + drop-in T-nuts in the post front slot at Y 181/244; 4 x M3 tapped for the resistor), on the front face of the +X front lower post', (45, 178, 70), (75, 248, 73), '#b8bcc4', 'electronics', (60, 0, 60), mass_g=17, material='3 mm 6061 flat bar')
+box('brake_res', 16, 'Brake resistor Arcol HS50 10 ohm (49.1 body, 72.5 over the tags, 29.7 x 14.8) flat on the plate, long axis vertical, 4 x M3 x 6 into the tapped plate on 39.7 x 21.4; body Y 188-237, tags Y 176-249; leads round the post edge to the board bottom edge (+X half). Needs shell clearance in front (Z to 87.8) and hot-surface distance from the PLA shell', (45.3, 188, 73), (75, 237.1, 87.8), '#9a9ea6', 'electronics', (60, 0, 60), balloon=True, mass_g=50, material='Arcol HS50, 4 x M3')
 FAST['m5'] += 2; FAST['tnut'] += 2   # brake plate
+# 12 V converter (board thread 11:13Z, Joey's pick): Murata DVE0125V2NBC eighth brick with baseplate, 58.4 x 22.7 x 13.2, ~6-7 W loss at 10 A.
+# Mirror spot on the -X front lower post front face, long axis vertical, baseplate on a 3 mm flat-bar plate (frame = heatsink), M3 countersunk
+# from the plate rear into the baseplate threads (holes per the datasheet). Pins face forward (+Z): pigtail solder joints reserve 8 mm in front.
+# Bottom end Y 176-190 kept free for the pin row exit, strain relief and the 20 A input fuse / input cap at the brick end.
+box('dcdc_plate', 16, '12 V converter plate, 3 mm aluminium flat bar 30 x 78 (hand cut; 2 x M5 x 10 button + drop-in T-nuts in the post front slot at Y 181/251; 4 x M3 countersunk from the rear into the brick baseplate), on the front face of the -X front lower post', (-75, 176, 70), (-45, 254, 73), '#b8bcc4', 'electronics', (-60, 0, 60), mass_g=19, material='3 mm 6061 flat bar')
+box('dcdc_12v', 16, '12 V DC-DC Murata DVE0125V2NBC, eighth brick with baseplate (58.4 x 22.7 x 13.2), baseplate on the plate, pins forward; ~6-7 W loss at 10 A into the frame', (-75, 190, 73), (-52.3, 248.4, 86.2), '#5a6070', 'electronics', (-60, 0, 60), balloon=True, mass_g=45, material='Murata DVE0125V2NBC')
+box('dcdc_pigtail', 27, 'Reserve: pin solder joints and 4-wire pigtail in front of the brick (8 mm), exit down to the strain relief, 20 A input fuse and input cap at the bottom end (Y 176-190)', (-75, 176, 73), (-45, 248.4, 94.2), '#d8b84a', 'harness', (-60, 0, 60), mass_g=15, material='reserved path', opacity=0.4)
+FAST['m5'] += 2; FAST['tnut'] += 2   # dcdc plate
 # harness trunks: Pi/PDB to each shoulder RS03 and down to the waist
 for sx in (1, -1):
     # gate 2: was X +-42..78 and ran through the Jetson (X +-51.5). Now stops at |X| 52 and turns behind the Jetson (Z -58, 12 mm of air behind its rear face)
