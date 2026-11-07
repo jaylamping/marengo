@@ -16,7 +16,7 @@ Settings are the test pass 1 process: P2S, 0.4 mm High Flow, Generic PETG, 0.20 
 
 Total for plates 2 to 5: about 16 h 20 m and 488 g, including support and brim. Without P2, 10 h 25 m and 300 g.
 
-**`seat_ring_only.3mf`, 33 m, 11.4 g:** the bearing seat ring on its own, with the support blocker. It's the one coupon still valid now the joint is going all-printed, so print this one instead of `fit_coupons.3mf` for now. A new coupon plate follows with the new joint.
+**`seat_ring_only.3mf`, 26 m, 8.3 g:** the bearing seat ring on its own, with the support blocker, 3 walls and 15% infill, because it only checks a fit. It's the one coupon still valid now the joint is going all-printed, so print this one instead of `fit_coupons.3mf` for now. A new coupon plate follows with the new joint.
 
 ## Fit coupons
 

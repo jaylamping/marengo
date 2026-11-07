@@ -61,7 +61,9 @@ def coupons_plate():
 
 # settings that differ from the P2 project, on purpose
 BRIM = {'brim_type': 'outer_only', 'brim_width': '5'}
-EXTRA = {}
+# coupons only check fits, so they don't need the structural walls and infill
+FIT = {'wall_loops': '3', 'sparse_infill_density': '15%'}
+EXTRA = {'fit_coupons': FIT, 'seat_ring_only': FIT}
 # keeps support out of the bearing seat, r 28 about the elbow axis, carrier inboard face down
 BLOCK = {'carrier': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1),
          'seat_ring_only': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1),
