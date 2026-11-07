@@ -149,7 +149,7 @@ Hardware consequences:
 
 ## 9. Answers so far (Joey 2026-11-07)
 
-- **Jetson:** Orin Nano 8 GB. No SSD installed yet. When the NVMe goes in, flash the latest JetPack that supports the Orin Nano (6.2 or later is what unlocks Super mode). One 512 GB–1 TB M.2 2280 NVMe carries the OS, models and the logs from section 8.
+- **Jetson:** Orin Nano 8 GB. No SSD installed yet. When the NVMe goes in, flash the latest JetPack that supports the Orin Nano (6.2 or later is what unlocks Super mode). Joey is using a spare 256 GB M.2 NVMe he already has: enough for JetPack + containers (~40–60 GB), models and ~150 GB of logs with nightly offload; swap for 512 GB–1 TB only if video logging outgrows it.
 - **Pi 5:** 4 GB. Enough for the control role: the Rust runtime, Davout, CAN, SQLite logging and the gateway use well under 1 GB. Don't upgrade at today's prices. Keep the router and anything model-related on the Jetson, as planned, and send bulky logs (video) to the Jetson's SSD, not the Pi.
 - **Language/offline:** robot stays in the house; heavy inference goes to the 5080, the MacBook or the cloud (section 7).
 
