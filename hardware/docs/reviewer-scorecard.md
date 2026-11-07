@@ -72,6 +72,13 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B2 late | deepseek-v4.1-flash (trial) | high | 14 | 3 | 4 | 0 | on (checked) | 0 | 12.6 | CheaperInference, ~$0.06 | 3.2 | First delivered open-model review. Unique: U2 short puts the pack on VCTL; SPARE_ON cap; INA228 strapping |
 | PDB rev B2 late | glm-5.3 (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 24 | CheaperInference, $2.02 (cap) | | Miss. Stopped at the $2 cap before its final answer |
 | PDB rev B2 late | kimi-k3.1-pro (trial) | high | 0 | 0 | 0 | 0 | no review | 1 | 21 | CheaperInference, $1.08 | | Miss. The provider cut the stream twice |
+| PDB rev B3 | claude-fable-5-1 | high | 12 | 0 | 3 | 0 | on (checked) | 0 | 30 | $13.91 (JSON) | 10 | Unique: trips interrupt 500-800 A, not 200 A; C29/R35 fix; RST_IN 1 MOhm |
+| PDB rev B3 | gpt-6.1-sol | high | 14 | 0 | 1 | 0 | on (checked) | 0 | 23.2 | sub | 23.2 | Absorber overshoot is I*sqrt(L/C), with Astra |
+| PDB rev B3 | gpt-6-astra | high | 14 | 0 | 2 | 0 | on (checked) | 0 | 32.7 | sub | 16.4 | Unique: Pi-off back-power; shunt part number carried over |
+| PDB rev B3 | muse-wonder-1.0 | high | 9 | 1 | 1 | 0 | on (checked) | 0 | 14.9 | sub | 14.9 | Fix for D12 was "remove it", which leaves FLT exposed |
+| PDB rev B3 | claude-opus-5-5 | high | 8 | 0 | 1 | 0 | on (checked) | 0 | 28.6 | $6.66 (API) | 28.6 | Unique: DVE output caps at the pins. Ran on the API after agy's quota ran out |
+| PDB rev B3 | claude-opus-5-5 (agy) | high | 0 | 0 | 0 | 0 | no review | 0 | 6.3 | Antigravity quota | | Quota ran out mid-run; not scored against the model |
+| PDB rev B3 | deepseek-v4.1-flash (trial) | high | 2 | 6 | 0 | 0 | on (names), wrong in substance | 1 | 18.5 | CheaperInference, ~$0.13 | | Six confident false blockers (INA228 addresses, reversed soft start, D6 nets...). Try 1 hit OpenCode's output cap |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
 ## By model
@@ -80,14 +87,14 @@ Totals of the rows above. Compare them with care: rounds differ, and not every m
 
 | Model | Runs | Real | False | Unique | False conf | Off target | Retries | Mean min |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| claude-opus-5-5 | 7 | 73 | 5 | 18 | 0 | 0 | 0 | 17.3 |
-| claude-opus-5-5 (agy) | 1 | 12 | 2 | 4 | 0 | 0 | 0 | 24.6 |
-| claude-fable-5-1 | 9 | 75 | 10 | 7 | 0 | 0 | 0 | 21.9 |
-| gpt-6.1-sol | 10 | 101 | 5 | 5 | 0 | 0 | 1 | 12.2 |
-| gpt-6-astra | 7 | 81 | 3 | 3 | 0 | 0 | 1 | 12.3 |
-| muse-wonder-1.0 | 7 | 73 | 20 | 3 | 2 | 0 | 0 | 7.8 |
+| claude-opus-5-5 | 8 | 81 | 5 | 19 | 0 | 0 | 0 | 18.7 |
+| claude-opus-5-5 (agy) | 2 | 12 | 2 | 4 | 0 | 0 | 0 | 15.5 |
+| claude-fable-5-1 | 10 | 87 | 10 | 10 | 0 | 0 | 0 | 22.7 |
+| gpt-6.1-sol | 11 | 115 | 5 | 6 | 0 | 0 | 1 | 13.2 |
+| gpt-6-astra | 8 | 95 | 3 | 5 | 0 | 0 | 1 | 14.9 |
+| muse-wonder-1.0 | 8 | 82 | 21 | 4 | 2 | 0 | 0 | 8.7 |
 | gemini-4-argon-high (removed) | 5 | 25 | 11 | 6 | 0 | 2 | 7 | 25.6 |
 | grok-4.7-high-fast (dropped) | 2 | 23 | 3 | 0 | 0 | 0 | 1 | 12.5 |
-| deepseek-v4.1-flash (trial) | 2 | 14 | 3 | 4 | 0 | 0 | 1 | 40.3 |
-| glm-5.3 (trial) | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 34.5 |
-| kimi-k3.1-pro (trial) | 2 | 0 | 0 | 0 | 0 | 0 | 1 | 33.0 |
+| deepseek-v4.1-flash (trial) | 3 | 16 | 9 | 4 | 0 | 0 | 2 | 33.0 |
+| glm-5.3 (removed) | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 34.5 |
+| kimi-k3.1-pro (removed) | 2 | 0 | 0 | 0 | 0 | 0 | 1 | 33.0 |
