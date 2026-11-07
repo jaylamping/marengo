@@ -19,7 +19,7 @@
 | Calibration loop ([CALIBRATION_LOOP.md](../designs/left-arm/testing/CALIBRATION_LOOP.md)) | BRIO camera, AprilTag detection, fitting | Off-robot host is fine; Jetson later | light, not real-time |
 | Full body, stationary | Same loop over 23 joints on 5 CAN buses | Pi 5 + 5 USB-CAN adapters | CPU light; CAN is the limit (section 3) |
 | Standing and walking | State estimation + a learned or model-based balance/gait policy at 50–200 Hz | Pi 5 (a locomotion policy is a small MLP, well under 1 ms per step on a Pi CPU) | moderate |
-| Training locomotion policies | Thousands of parallel sim envs (MuJoCo Playground / Isaac Lab) | Desktop GPU (the 3070 Ti PC), never the robot | heavy, offline |
+| Training locomotion policies | Thousands of parallel sim envs (MuJoCo Playground / Isaac Lab) | Desktop GPU (the 5080 PC), never the robot | heavy, offline |
 | Seeing and talking | Cameras, person/object detection, speech-to-text, text-to-speech, wake word | Jetson | moderate, continuous |
 | Language commands ("wave your right hand") | LLM turns words into a motion-primitive plan (ADR 0014) | Cloud or PC by default; small local model on the Jetson as an offline fallback | bursty |
 | End-to-end robot foundation models (VLA) | Camera + words in, joint targets out | Not on this robot for now (section 5) | very heavy |
@@ -52,10 +52,11 @@ The key point: nothing in the roadmap up to walking needs more on-robot compute 
 - **Vision:** YOLO-class detection at 30–60 fps INT8, human pose, AprilTags, depth from a stereo camera: all comfortable.
 - **Power:** 7–25 W from the power board's spare 12 V output (barrel jack). Verify the dev kit carrier's DC input range accepts our 12 V rail before first power-up; the kit ships with a 19 V brick.
 
-### The desktop PC (3070 Ti, 8 GB VRAM)
+### The desktop PC (RTX 5080, 16 GB VRAM)
 
-- Part of the compute stack even though it's not on the robot: policy training in sim, the bigger LLM when the robot is on Wi-Fi, and offline calibration fitting.
-- 8 GB of VRAM is the PC's limit too. It's enough for MuJoCo Playground / Isaac Lab locomotion training at moderate batch sizes and for 7–8 B LLMs. If something here ever needs upgrading, it's this GPU, not the robot.
+- Part of the compute stack even though it's not on the robot: policy training in sim, the bigger models over the house network, and offline calibration fitting. (ADR 0014 still says 3070 Ti; the PC now has a 5080.)
+- 16 GB of VRAM fits: Whisper large-v3-turbo, 7–14 B LLMs at Q4 with room for context, small VLMs, and a 3 B VLA like GR00T in bf16 (about 6.5 GB of weights). 27–32 B dense models at Q4 are a squeeze or don't fit; those go to a cloud provider.
+- It's also Joey's gaming PC, so the robot has to cope with the GPU being busy or the PC being off (section 8).
 
 ## 3. The CAN bottleneck (the one that bites first)
 
@@ -115,7 +116,18 @@ Two takeaways:
 - **Power:** Pi 5 V/5 A and Jetson 12 V barrel both come off the power board; the Jetson is on one of the two spare 12 V outputs. Together ~15–35 W.
 - **Heat:** already in the chest budget (60–75 W total including both pitch RS03s) with two 40 mm exhaust fans behind the D1 door ([body-shell manufacturing README](../designs/body-shell/manufacturing/README.md)). An Orin NX would sit in the same envelope (10–25 W modes; the dev kit's carrier and cooler are the same size).
 
-## 7. Open questions for Joey
+## 8. Joey's direction (2026-11-07)
+
+The robot stays in the house for now. Pi = everything that isn't inference (CAN, connectivity, telemetry, logging). Jetson = small, latency-critical inference. Everything heavier goes to the 5080 when it fits, otherwise to the fastest cloud provider.
+
+How to make that work:
+
+- **One routing point.** A small service (on the Jetson) takes each inference request and picks Jetson, then PC, then cloud, by what the task needs and what's reachable. Callers don't care where it ran.
+- **Graceful loss.** If the PC is off or busy gaming and the internet is down, the robot keeps running and only loses the features that needed them. Nothing that keeps it standing, safe or stopped ever crosses the network; that stays on the Pi.
+- **Latency budget.** House Wi-Fi adds a few ms to tens of ms with spikes; wired Ethernet to the PC is steadier. Cloud adds tens to hundreds of ms plus the provider's time to first token. Fine for language, speech and "what am I looking at"; not for anything inside a control loop.
+- **Fastest providers.** For open-weight models, Groq and Cerebras run hundreds to over a thousand tokens/s with low time to first token. For the best plans from words, a frontier model is slower but smarter. Measure from the house before picking.
+
+## 9. Open questions for Joey
 
 1. Which Pi 5 do you have, 4, 8 or 16 GB? (8 GB or more is plenty; 4 GB is still fine for control.)
 2. Has the Jetson been flashed to JetPack 6.2 or later (Super mode)?
