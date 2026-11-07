@@ -134,7 +134,6 @@ ax.text(40, 165, 'bending goes round the RS00:\ntube → 6808 pair → sleeve �
 ax.text(36, 52, 'span 57', ha='left', va='center', fontsize=12)
 dim(ax, 30.5, 30.5, 0, '')
 ax.annotate('', xy=(34, (YB1[0] + YB1[1]) / 2), xytext=(34, (YB2[0] + YB2[1]) / 2), arrowprops=dict(arrowstyle='<->', lw=0.9, color='#444'))
-ax.text(-35, 54, 'bearing\nspan 57', ha='right', va='center', fontsize=11)
 ax.set_title('A   Support bearings round the RS00 output', fontsize=22, fontweight='bold', pad=8)
 txt[1].text(0.02, 0.95, 'Added ≈ +85 g: 2 × 6808-2RS ≈ 62 g, coupling ≈ 8 g,\nsleeve + inner tube ≈ 17 g more than today\'s tube\n'
         'Diameter: Ø64 → Ø60 below the RS00 (bearing OD 52 + 4 mm walls)\n'
