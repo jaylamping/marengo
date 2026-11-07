@@ -23,15 +23,17 @@ Fable and Opus: run each as a fresh session with only the packet folder, never f
 export ANTHROPIC_API_KEY=sk-ant-...
 
 (claude -p --model claude-fable-5-1 --effort high --allowedTools "Read,Glob,Grep,Bash(sha256sum*)" \
-  --output-format text "$P" > reviews/claude-fable.md 2> reviews/claude-fable.log </dev/null
- echo "fable exit $?" >> reviews/STATUS.txt) &
+  --output-format json "$P" > reviews/claude-fable.json 2> reviews/claude-fable.log </dev/null
+ echo "fable exit $?" >> reviews/STATUS.txt
+ python -c "import json;d=json.load(open('reviews/claude-fable.json',encoding='utf-8'));open('reviews/claude-fable.md','w',encoding='utf-8').write(d['result'])") &
 
 (claude -p --model claude-opus-5-5 --effort high --allowedTools "Read,Glob,Grep,Bash(sha256sum*)" \
-  --output-format text "$P" > reviews/claude-opus.md 2> reviews/claude-opus.log </dev/null
- echo "opus exit $?" >> reviews/STATUS.txt) &
+  --output-format json "$P" > reviews/claude-opus.json 2> reviews/claude-opus.log </dev/null
+ echo "opus exit $?" >> reviews/STATUS.txt
+ python -c "import json;d=json.load(open('reviews/claude-opus.json',encoding='utf-8'));open('reviews/claude-opus.md','w',encoding='utf-8').write(d['result'])") &
 ```
 
-Cost per review, from the published API prices (2026-11-06; Fable 5.1 $10 in / $50 out per million tokens, Opus 5.5 $4 / $20) and a torso-frame-sized packet (about 200k tokens read, 20 to 40k tokens of thinking and review written at high): **Fable about $3 to $4, Opus about $1.50 to $2**. Check the balance at https://platform.claude.com/settings/billing before a round; if the credits are gone, drop the key and the Fable run falls back to the subscription (Opus too). `claude -p` has no run-time cost print, so read the token usage from the console's usage page after the first round and correct these numbers here.
+Cost per review, from the published API prices (2026-11-06; Fable 5.1 $10 in / $50 out per million tokens, Opus 5.5 $4 / $20) and a torso-frame-sized packet (about 200k tokens read, 20 to 40k tokens of thinking and review written at high): **Fable about $3 to $4, Opus about $1.50 to $2**. Check the balance at https://platform.claude.com/settings/billing before a round; if the credits are gone, drop the key and the Fable run falls back to the subscription (Opus too). The JSON output saved beside each review carries the token usage and `total_cost_usd`: read those, not this estimate. First real data point (power board rev B, 2026-11-07, about 540k cache write, 1.16M cache read, 79k output): Fable about $12, estimated from the session transcript, so allow three times the figure above until the JSON gives a billed number.
 
 A thread may also run it from the cloud as a fresh (not forked) agent pointed at the packet path with the same prompt; record which way it ran.
 
@@ -51,6 +53,23 @@ AGY_ALLOW='{"permissions":{"allow":["command(sed)","command(awk)","command(cat)"
 agy 1.5.1 (2026-11-06) auto-denies its `command` tool in headless mode and exits 0 after ~20 s with an empty review and the log line "a tool required the command permission that headless mode cannot prompt for". The `--settings` allow list above (session only, never saved) lets it read and rerun scripts; do not use `--dangerously-skip-permissions`. Run it from a scratch `git worktree` of the packet branch, not the main clone, and check the hashes after. Left-arm rev C pass 2 run: 1587 s (26.5 min), 57 KB review.
 
 Read-only is by prompt only (like Muse); `--mode plan` is ignored with slash commands disabled, and there is no sandbox flag that forbids writes, so check the hashes after.
+
+On Joey-PC, agy 1.5.2 (power board rev B, 2026-11-07, six tries):
+
+- `command(...)` allow entries match exact command lines. `command(Get-ChildItem *)` did not match `Get-ChildItem -Recurse -Name`. There is no `read` entry.
+- It uses PowerShell, so any shell call can soft-deny and end the run empty with exit 0. Add this to its prompt: run no shell commands, use only file tools.
+- Reading outside the workspace also ends the run. Pass every folder it needs with `--add-dir`, including `C:/Program Files/KiCad/10.0/share/kicad/footprints`.
+- Run it with `--output-format stream-json --log-file <path>`. The final `result` event carries the review in `response`, plus token usage and `denied_actions`. Without it, an empty review tells you nothing.
+- **Check that the review is about the packet.** That run returned 100 KB of confident findings on a design that doesn't exist, with exit 0 and matching hashes. Grep its part values and refs against the netlist before reading further, and compare its questions to `PACKET.md`.
+
+## Usage per reviewer
+
+| Reviewer | Per-run figure | Where to look |
+| --- | --- | --- |
+| Fable, Opus | `--output-format json`: tokens and `total_cost_usd` | https://platform.claude.com/settings/billing for the billed figure |
+| Argon | Tokens in the stream-json `result` event, no cost | Antigravity's Models & Usage screen. It has separate Gemini and Claude and GPT limits, weekly and 5-hour, as percentages |
+| Wonder | None in stdout or the log. `muse trace inspect` not yet tried | `muse usage`, or Muse's web Usage page: percent of window and week for the whole account, which can lag by up to an hour |
+| Sol, Astra | Not checked yet | Not checked yet |
 
 ## 1. Build the packet
 
