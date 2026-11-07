@@ -53,7 +53,7 @@ Five folds at 10.4 mm installed pitch, close to the 9 mm rings on the approved n
 
 ![fold states](bellows/BELLOWS_PROFILE.png)
 
-**It's printed longer than it's installed (62.5 mm vs 52 mm).** Printed at installed length, the flanks would be about 75° from vertical. Printing it longer eases the overhang, and leaves a little strain in place when installed.
+**It's printed longer than it's installed (62.5 mm vs 52 mm).** Printed at installed length, the flanks would be about 86° from vertical, nearly flat. Printing it longer eases the overhang, and leaves a little strain in place when installed.
 
 **Single-wall or vase mode won't work.** A single line on a flank 69° from vertical gives a wall about 0.15 mm thick, nowhere near opaque.
 
@@ -72,7 +72,7 @@ How strain was estimated: flanks stay straight and each fold's arc keeps its len
 
 These came out of the sizing. **None of them are built yet.**
 
-1. **Head end moves up, from h 65 to h 72, onto a skirt hanging from the head plate.** At h 65 the head end swings too far relative to the rods, and they'd need a bore of r 35, which a r 41 bellows can't give. At h 72 they need r 30.3, against a worst-case bore of r 31.9. The folds also get longer, which is why the numbers above differ from the 33.9 to 74.8 mm in the first layout. This replaces the head-underside clamp you asked for with a clamp inside the head.
+1. **Head end moves up, from h 65 to h 72, onto a skirt hanging from the head plate.** At h 65 the head end swings too far relative to the rods, and they'd need a bore of r 35, which a r 41 bellows can't give. At h 72 they need r 30.3, against a worst-case bore of r 31.9. The folds also get longer, which is why the numbers above differ from the 33.9 to 74.8 mm in the first layout. This replaces the head-underside clamp in the brief with a clamp inside the head.
 2. **Yaw tube stops at h 20.** The r 33 sleeve doesn't fit the new bore. The D plate moves into the journal at h 14 to 20, and the top flange grows into a r 39 spigot. The U-joint post gets 20 mm longer, and it needs a strength check.
 3. **Jaw floor hole grows.** The folds reach r 41.5 and the hole is r 42. I'd go to at least r 43. Head thread to confirm.
 4. **Rod gap is small.** Rods clear the worst-case fold root by 1.6 mm, with the bellows centreline modelled as a smooth S curve. Moving rod B's feet 1 to 2 mm outboard, still planned for this pass, uses some of that, so it gets rechecked then.
