@@ -1,5 +1,7 @@
 # Neck layout study, option C (rev 0, 2026-11-07)
 
+**DECIDED (Joey 2026-11-07 06:50Z): neck +10 mm** ("+10 looks the best to me"). The visible neck goes from 36 to ~46 mm, the U-joint sits at z 80, and the head can look down ~34° (design range: pitch 34° down / 25° up, roll ±20°, yaw ±90°).
+
 Joey picked option C (three bus servos) at 06:30Z. This study checks that it packages before any SolidWorks
 work. Script: [layout_study.py](layout_study.py) (output in [layout_study_output.txt](layout_study_output.txt)).
 Picture: [LAYOUT_STUDY.png](LAYOUT_STUDY.png) (to scale, schematic).
