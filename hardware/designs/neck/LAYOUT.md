@@ -45,6 +45,13 @@ sees down to ~59° below horizontal. Hands at waist height, about 0.4 m in front
 level, so they would sit near the bottom edge of the image. The robot could look at its hands, but only just,
 and without the visible "looking down" gesture.
 
+## Update: collar height (2026-11-07, from the shell generator scene)
+
+The head thread places the head with `hz=-6`, which puts the collar bottom at F1 + 34, i.e. **34 mm** above the top-rail
+face (Y 529), not the 10 mm assumed above. The shell dome closes at F1 + 48. This helps: the whole stack can sit 24 mm
+higher, so its bottom lands near Y 479, out of the compute bay. The chin-vs-collar look-down limits don't change
+(they are relative to the collar). Renders: [renders/NECK_HEIGHT_OPTIONS.png](renders/NECK_HEIGHT_OPTIONS.png).
+
 ## Next
 
 1. Joey: neck height (decision card in the thread).
