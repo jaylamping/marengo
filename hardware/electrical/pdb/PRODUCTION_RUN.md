@@ -200,6 +200,9 @@ Hot air is for rework only (removing or reseating a part). Joey's low-power gun 
 1. The thermal option is decided ([THERMAL_OPTION.md](design/THERMAL_OPTION.md)), main board placed and routed and DRC
    clean, and the buck board laid out and DRC clean.
 2. Part numbers fixed (section 4) and the BOM regenerated; kit CSV regenerated with suppliers chosen per route B/C.
+   **Joey prefers one source for all board parts:** re-check DigiKey stock for the 6 ICs out of stock on 2026-11-07
+   (INA237, LM5069-1/-2, TPS7A4001, TPS3431S, LM5146). If they're back, order everything from DigiKey (route A) and
+   accept the about $80–95 premium; otherwise DigiKey for everything it stocks plus one LCSC order for the rest.
 3. JLC quote for both designs (2/1 oz, ENIG, 1.6 mm, frameless stencils); section 1 updated.
 4. The big review on the routed boards (Fable plus several Opus). Fix everything blocking.
 5. Gerbers, drill files and stencil (paste) layers exported; polarity of every diode, can and IC checked in the 3D view.
