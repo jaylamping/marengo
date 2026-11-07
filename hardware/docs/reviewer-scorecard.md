@@ -88,6 +88,7 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B4 | deepseek-v4.1-flash (trial) | high | 4 | 12 | 1 | 2 | **values off** | 0 | 6.5 | CheaperInference, $0.07 | 6.5 | Unique: unfused compute outputs. 42 of 72 cited values match; false blockers on the power limit and U2. **Strike 1** |
 | PDB rev B4 task | Argon (task: claim check), gemini-4-argon-high | high | 20 | 0 | 0 | 0 | on (checked) | 0 | 4.3 | Gemini quota | | 20 of 20 against a hidden key, every one cited. Side note quoted 544 W |
 | PDB rev B4 task | Argon (task: figure reading), gemini-4-argon-high | high | 2 | 1 | 0 | 0 | on (checked) | 0 | 8.8 | Gemini quota | | Arcol right, including "no pulse curve: NOT IN SOURCE". DVE derating read up to 13 % low (conservative). IPB017 SOA log-log read 1.5-2x high with "high" confidence: 1 of 10 within 25 %. Scored per figure set: 2 usable, 1 false |
+| PDB rev B4 (late trial) | composer-2.5-fast (Cursor) | default (no effort setting) | 4 | 2 | 0 | 1 | on (checked: 96 % names, 9 of 9 values) | 0 | 2.6 | Cursor sub | | Fast and shallow. False blocker: says the clamp senses SW_D (R19 is on VBUS). False major: Q12 sees 54.6 V (the DVE ON/OFF pin is at 13.5 V or less). Real findings were all shared (BMS-close surge, 652 W, footprint audit, bench gates). Missed the absorber corners, F1, D8 and the FLT diode |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
 ## Standing note: Fable phased out (Joey, 2026-11-07)
