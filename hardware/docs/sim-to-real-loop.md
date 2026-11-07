@@ -82,7 +82,7 @@ All tests run on one actuator alone on its own CAN bus, so the bus can carry a c
 - **T5 Thermal.** Hold 50% then 100% of rated torque against the T2 lever (stalled) until the temperature curve flattens or reaches 60 °C, whichever is first (the calibration loop's pause limit, **repo**). Gives the thermal time constant for sim and for software limits.
 - **T6 Excitation for a learned actuator model.** Chirps and random multi-sine position targets in MIT mode with the weighted lever, at several Kp/Kd settings, logging command, position, velocity and current at the full rate. 20 to 30 minutes per type is enough to train the small network ANYbotics-style ([Hwangbo et al. 2019](https://arxiv.org/abs/1901.08652)).
 
-**Which units:** the full set once per actuator type. Then a 5-minute T1 on every individual unit before it's installed, to catch an outlier. The two RS04s and the waist RS03 aren't installed yet, so they go first. The arm actuators are locked to the arms with no spares (Joey, 2026-11-07), so RS00/RS02/RS03 type tests run on a unit the next time it's off an arm, or in place on the arm with the link removed if that's easier.
+**Which units:** the full set once per actuator type. Then a 5-minute T1 on every individual unit before it's installed, to catch an outlier. **Test order (Joey 2026-11-07): RS03, then RS02, then RS00, then RS04.** The uninstalled waist RS03 covers the first RS03 runs. The arm actuators are locked to the arms with no spares (Joey, 2026-11-07), so RS00/RS02/RS03 type tests run on a unit the next time it's off an arm, or in place on the arm with the link removed if that's easier.
 
 **Safety:** torque cap at the test's stated maximum plus 10%, speed cap 1 rad/s except in T1's speed passes, E-stop within reach, nobody in the lever's swing. RS04 at rated torque is 40 N·m: the stand and lever are built for that (below).
 
@@ -150,8 +150,7 @@ Joey to carry over; nothing here is decided for them.
 | Step | When | Cost |
 |---|---|---|
 | Luggage scale + print the stand | Now (body work isn't blocked by it) | ~$10–15 + prints |
-| T1–T6 on the two RS04s and the waist RS03 | Now, they're uninstalled | time |
-| T1–T6 on RS00/RS02/RS03 types | Next time a unit is off an arm | time |
+| T1–T6 in order RS03 → RS02 → RS00 → RS04 | Once the stand is printed | time |
 | NVMe on the Pi | With the next parts order | ~$40–80 |
 | Pelvis lift points in the pelvis design | First pelvis revision | nothing extra |
 | Gantry frame and rated line parts | When legs are close | ~$150–350 |
@@ -159,5 +158,5 @@ Joey to carry over; nothing here is decided for them.
 ## 7. Joey's answers (2026-11-07)
 
 1. Owns a kitchen scale, no luggage scale: **buy the digital luggage scale** (50 kg, 10 g resolution, ~$10–15) with the next order.
-2. **Approved:** run T1–T6 on the uninstalled RS04s and the waist RS03 once the stand is printed.
+2. **Approved:** run T1–T6 once the stand is printed, in the order RS03, RS02, RS00, RS04 (Joey's follow-up).
 3. Gantry type **waits for the new house**: garage workspace favours a steel rack or engine-hoist frame; indoors favours a lighter extrusion frame. The pelvis lift points are needed either way.
