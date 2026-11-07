@@ -228,12 +228,36 @@ def project(name, tri, out):
     return src, size, len(faces)
 
 
+def mesh_gate(name, tri, out):
+    """Fail the build before any 3MF is written if the part mesh has slivers, spikes or stray bodies."""
+    sys.path[:0] = [str(mesh_check_dir()), str(whitelist_dir())]
+    import mesh_check
+    from mesh_whitelist import WHITELIST
+    mesh_check.gate(name, tri, out, SRC.get(name), WHITELIST)
+
+
+def mesh_check_dir():
+    for p in [HERE, *HERE.parents]:
+        for b in (p, p / '_repo'):
+            if (b / 'hardware/tools/mesh_check.py').exists():
+                return b / 'hardware/tools'
+    raise FileNotFoundError('hardware/tools/mesh_check.py')
+
+
+def whitelist_dir():
+    return mesh_check_dir().parent / 'designs/left-arm/prints'
+
+
+SRC = {'PF03_roll_spacer': TASK / 'FINAL_PRINT_REVIEW_20261104_HOLD/spacer-process/SPACER_PF03_AXIS_VERTICAL_HOLD_mm.stl', 'elbow_carrier': PARTS / 'test_carrier.STL', 'elbow_carrier_strength': PARTS / 'test_carrier.STL', 'dummy_housing': PARTS / 'test_dummy_housing.STL', 'fork_sector': PARTS / 'test_fork_sector.STL'}  # checked in CAD coordinates
+
+
 def run(name):
     out = HERE / 'out' / name
     if out.exists():
         shutil.rmtree(out)
     (out / 'profile').mkdir(parents=True)
     tri = JOBS[name]()
+    mesh_gate(name, tri, out)
     src, size, nf = project(name, tri, out)
     final = f'{name}.3mf'
     args = [EXE, '--datadir', str(out / 'profile'), '--debug', '1', '--slice', '0', '--export-3mf', final, '--outputdir', str(out), str(src)]
