@@ -268,6 +268,8 @@ g.C('1uF 100V X7R','VBUS','GND',C1210)   # local HF cap at Q6/D4 (r5 layout 14)
 g.nl()
 for _ in range(3): nic(s,'Connector:TestPoint',s.nref('TP'),'TP GND',g.at(),'TestPoint:TestPoint_Keystone_5015_Micro_Mini',{'1':'GND'})
 for net in ('GATE','GATE_A','UVLO','FLT_A'): nic(s,'Connector:TestPoint',s.nref('TP'),'TP '+net,g.at(),'TestPoint:TestPoint_Pad_D1.0mm',{'1':net})
+# rev B5 hand assembly: bring-up probe pads on the power nodes and the safety outputs (TP14-TP23)
+for net in ('BAT','SW_D','ABS','CL_D','V_L1','V_L2','V_L3','PORT_FLT_N','WDO_N','+3V3_PI'): nic(s,'Connector:TestPoint',s.nref('TP'),'TP '+net,g.at(),'TestPoint:TestPoint_Pad_D1.0mm',{'1':net})
 wnote('''Fifth 47 uF 80 V hybrid on VBUS (EEH-ZC1K470P, active line; the APZ 68 uF is obsolete): 235 uF in all, the value tools/port_sim.py uses.
 Second SK810L beside D7: the unread forward curve at 300-900 A was worth up to 8 V on BAT at 30 mOhm (absorber_sim D7 sweep, 94 V); two in parallel halve it, so the worst corner stays at about 91 V, as with the assumed 10 mOhm.
 Clamp duty: CL_OUT (0/12.1 V) through 100k/1k into U17 IN+ (IN- on GND): 120 mV at 100 % duty, 4.7 ms RC. The Pi reads duty x 120 mV and integrates duty x VBUS^2 / 10 Ohm for the brake-energy cap.

@@ -117,7 +117,8 @@ class Sheet:
         if s.key=='root': doc.append(['sheet_instances',['path',S('/'),['page',S('1')]]])
         doc.append(['embedded_fonts','no'])
         wfile(f'{OUT}/{s.file}').write(dump(doc)+'\n')
-R402='Resistor_SMD:R_0402_1005Metric';C402='Capacitor_SMD:C_0402_1005Metric';C805='Capacitor_SMD:C_0805_2012Metric';C1210='Capacitor_SMD:C_1210_3225Metric'
+# rev B5 hand assembly (Joey 17:26Z): no 0402 anywhere; the small default is 0603
+R402='Resistor_SMD:R_0603_1608Metric';C402='Capacitor_SMD:C_0603_1608Metric';C805='Capacitor_SMD:C_0805_2012Metric';C1210='Capacitor_SMD:C_1210_3225Metric'
 R603='Resistor_SMD:R_0603_1608Metric';C603='Capacitor_SMD:C_0603_1608Metric';C1206='Capacitor_SMD:C_1206_3216Metric';R1206='Resistor_SMD:R_1206_3216Metric'
 SOD='Diode_SMD:D_SOD-123';SOT23='Package_TO_SOT_SMD:SOT-23';SMC='Diode_SMD:D_SMC';MOS5='Package_TO_SOT_SMD:TDSON-8-1'
 def gnd(s,p): s.sym('power:GND',s.nref('#PWR'),'GND',p,0,hideref=True)
@@ -149,11 +150,21 @@ class Grid:
         s=g.s; p=g.at(); s.sym('power:PWR_FLAG',s.nref('#FLG'),'PWR_FLAG',p,180); e=(p[0],p[1]+2.54); s.wire(p,e); put(s,e,net,'D')
     def R(g,val,a,b,fp=R402): return g.two('Device:R','R',val,a,b,fp)
     def C(g,val,a,b,fp=C402,k=1):
+        val,fp=cnorm(val,fp)
         for _ in range(k): g.two('Device:C','C',val,a,b,fp)
     def CP(g,val,a,b,fp): return g.two('Device:C_Polarized','C',val,a,b,fp)
     def L(g,val,a,b,fp): return g.two('Device:L','L',val,a,b,fp)
     def D(g,val,k,an,fp=SOD): return g.two('Device:D','D',val,k,an,fp,rot=270)
     def Z(g,val,k,an,fp=SOD): return g.two('Device:D_Zener','D',val,k,an,fp,rot=270)
+# rev B5 BOM consolidation (hand assembly, one kit): one part per value/size. A higher rating replaces a lower one only
+# where the bias derating still meets the circuit (X7R 50 V 0603 100 nF keeps about 90 % at 12 V).
+CNORM={('100nF','C_0603'):('100nF 50V X7R',None),('100nF 25V','C_0603'):('100nF 50V X7R',None),('100nF 25V X7R','C_0603'):('100nF 50V X7R',None),
+       ('100nF 100V X7R','C_0603'):('100nF 100V X7R','Capacitor_SMD:C_0805_2012Metric'),('100nF 100V','C_0805'):('100nF 100V X7R',None),
+       ('1uF 100V','C_1210'):('1uF 100V X7R',None),('2.2uF 100V','C_1210'):('2.2uF 100V X7R',None),('22uF 25V','C_1210'):('22uF 25V X7R',None),
+       ('2.2uF 25V','C_0805'):('2.2uF 25V X7R',None)}
+def cnorm(val,fp):
+    k=(val,fp.split(':')[-1][:6]); n=CNORM.get(k)
+    return (n[0],n[1] or fp) if n else (val,fp)
 def ext(l):
     ys=[]
     for u in getall(l,'symbol'):
