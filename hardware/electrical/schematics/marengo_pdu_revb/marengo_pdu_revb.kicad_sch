@@ -39797,7 +39797,7 @@
 		)
 		(uuid "2b5a06ce-c2f0-5cac-b2fc-9fb67cb69315")
 	)
-	(text "Block 10. Absorber: a bank trip into a bus short cuts 350-480 A. tools/absorber_sim.py (pack 54.6 V, 0.1 Ohm loop, 0.5-1\nuH assumed, no pack yet) gives BAT 81-83 V peak with this 47 uF, 50 mOhm part and D1. Measure the lead at bring-up. 100k\nbleeds it. BMS close drives 190-230 A into it for a few us: bench it on the JK.\nF1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps under the 40 V parts and\nF1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.\nAbsorber close option (M3), DNP: if the JK trips when it closes onto C38, remove the 0R and fit 2R + the delayed NMOS +\nits RC: 25 A at close, clamp unchanged (absorber_sim.py).\nRUN_A and RUN_B diodes: a U1 pin 2-3 bridge or an EN fault can't drive RUN. FLT reaches UVLO through 10k (2010, 0.75 W)\nwith a 15 V zener on FLT_A: FLT low holds UVLO near 1.7 V, and a bridged UVLO puts at most 5.5 mA into FLT and 15 V on\nit (20 V max).\nConverter: F2 20 A on the board end protects the pigtail (U7 already limits at 9.7-12.3 A; F2 backs up a shorted Q7).\nThe DVE has no reverse protection, so the keyed connector carries polarity. U7 PGD high (good) turns on the 2N7002,\nwhich pulls ON/OFF to -Vin: on. 470k and the 12 V zener bias the gate from BRK_IN, so it doesn't depend on VCTL.\n1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock\n(M1): Q10 shorts RST_SRC until MID is over about 11 V through the 10 V zener and Q11, so with bank B shorted and the bus\ndown, reset does nothing; healthy MID is 17 V at a 36 V pack. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF\nSRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land\nin it and the compute loads."
+	(text "Block 10. Absorber: a bank trip into a bus short cuts 350-480 A. tools/absorber_sim.py (pack 54.6 V, 0.1 Ohm loop, 0.5-1\nuH assumed, no pack yet) gives BAT 81-83 V peak with this 47 uF, 50 mOhm part and D1. Measure the lead at bring-up. 100k\nbleeds it. BMS close drives 190-230 A into it for a few us: bench it on the JK.\nF1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps under the 40 V parts and\nF1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.\nAbsorber close option (M3), DNP: if the JK trips when it closes onto C38, remove the 0R and fit 2R + the delayed NMOS +\nits RC: 25 A at close, clamp unchanged (absorber_sim.py).\nRUN_A and RUN_B diodes: a U1 pin 2-3 bridge or an EN fault can't drive RUN. FLT reaches UVLO through 10k (2010, 0.75 W)\nwith a 15 V zener on FLT_A: FLT low holds UVLO near 1.7 V, and a bridged UVLO puts at most 5.5 mA into FLT and 15 V on\nit (20 V max).\nConverter: F2 20 A on the board end protects the pigtail (U7 already limits at 9.7-12.3 A; F2 backs up a shorted Q7).\nThe DVE has no reverse protection, so the keyed connector carries polarity. U7 PGD high (good) turns on the 2N7002,\nwhich pulls ON/OFF to -Vin: on. 470k and the 12 V zener bias the gate from BRK_IN, so it doesn't depend on VCTL.\n1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock\n(M1): Q10 shorts RST_SRC until MID is over about 11 V (10 V zener, Q11), and Q14 shorts it while VBUS is over about 6 V\n(5.1 V zener). Reset needs MID healthy and the bus down, so a shorted B can't be hard-closed onto a charged bus. After a\nstop, wait for the drives' caps to bleed. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF SRC to GND, TI's\nrecommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land in it and the\ncompute loads."
 		(exclude_from_sim no)
 		(at 300 130 0)
 		(effects
@@ -39807,6 +39807,591 @@
 			(justify left top)
 		)
 		(uuid "c779553f-ec52-51cf-b8d7-27cf7e7f9704")
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 322.58 529.59 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b9848636-7232-55eb-892c-b17cb835cf2c")
+		(property "Reference" "D16"
+			(at 325.12 528.32 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C5V1"
+			(at 325.12 530.86 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 322.58 529.59 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 322.58 529.59 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 322.58 529.59 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "78f7997f-c0e4-58a6-ba66-b34502f1d4f5")
+		)
+		(pin "2"
+			(uuid "76e8520f-56d7-5ec7-8f4c-968c1074e935")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "D16")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 322.58 525.78)
+			(xy 322.58 523.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8b7f2457-53bc-5d62-82b5-29dbb468d3a6")
+	)
+	(label "VBUS"
+		(at 322.58 523.24 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d3f03383-26b2-5fc7-97c4-da7fb75e0d2d")
+	)
+	(wire
+		(pts
+			(xy 322.58 533.4)
+			(xy 322.58 535.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "94ff9a35-298f-5b4d-bb0d-423fb21fc6cd")
+	)
+	(label "VB_Z"
+		(at 322.58 535.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "86347a87-2775-5908-b625-575462f51842")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 339.09 529.59 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "15272927-b3c9-5647-b292-461ea6dafd1a")
+		(property "Reference" "R57"
+			(at 341.63 528.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "220k"
+			(at 341.63 530.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 339.09 529.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 339.09 529.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 339.09 529.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "69cbc6f0-5443-5b20-8f90-a6dda49712f2")
+		)
+		(pin "2"
+			(uuid "501c7d53-7755-59a5-98e3-950ede652ea0")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "R57")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 339.09 525.78)
+			(xy 339.09 523.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4c398b7c-efd4-5536-af43-b6e88a943e9c")
+	)
+	(label "VB_B"
+		(at 339.09 523.24 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a8121f07-b625-5e44-95e1-68c99d29f880")
+	)
+	(wire
+		(pts
+			(xy 339.09 533.4)
+			(xy 339.09 535.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "61728f41-e618-5f4f-9754-667d13ac5830")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 339.09 535.94 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "d2e72e83-7a52-5243-b220-1616d909f5e1")
+		(property "Reference" "#PWR131"
+			(at 342.9 534.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 342.9 537.21 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 339.09 535.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 339.09 535.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 339.09 535.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "bb220005-f5c7-5f4e-81d2-054dad4390a4")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR131")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 322.58 560.07 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "19ddb69a-4fc6-5851-a975-c5679699c2af")
+		(property "Reference" "R58"
+			(at 325.12 558.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "47k"
+			(at 325.12 561.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 322.58 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 322.58 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 322.58 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "28a6deba-9493-52e6-bda3-5679b8c59ae4")
+		)
+		(pin "2"
+			(uuid "c6607d61-ff8b-598a-8b57-3ad92fd1f635")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "R58")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 322.58 556.26)
+			(xy 322.58 553.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c61fe2ea-4aff-5b5c-bc90-99139ceedffa")
+	)
+	(label "VB_Z"
+		(at 322.58 553.72 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "13461012-d49e-5e48-80b7-e5cf60d61925")
+	)
+	(wire
+		(pts
+			(xy 322.58 563.88)
+			(xy 322.58 566.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d69eddf2-d593-508e-81e2-5d56ea11fbf5")
+	)
+	(label "VB_B"
+		(at 322.58 566.42 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "889fed92-f6df-5db1-9714-6227224e45b2")
+	)
+	(symbol
+		(lib_id "Transistor_BJT:Q_NPN_BEC")
+		(at 345.44 562.61 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e5ea2618-1ef1-5cd8-bd2c-4d322631d81b")
+		(property "Reference" "Q14"
+			(at 340.36 546.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MMBT3904"
+			(at 340.36 579.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 345.44 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 345.44 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 345.44 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d9d7b55a-3875-5d51-a91c-5e1dca132988")
+		)
+		(pin "2"
+			(uuid "73325256-b419-5aa6-ab11-f1639fad2a33")
+		)
+		(pin "3"
+			(uuid "c9b45e7c-fa60-598e-820e-ea792d1277e2")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "Q14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 340.36 562.61)
+			(xy 335.28 562.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2af3f8f6-c745-5d7e-8f76-db9dfce4ae07")
+	)
+	(label "VB_B"
+		(at 335.28 562.61 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d65e6778-fc8e-5acf-bbc6-70fa111d7542")
+	)
+	(wire
+		(pts
+			(xy 347.98 567.69)
+			(xy 347.98 572.77)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "efc15b89-eba3-55ae-8104-804adc2644dc")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 347.98 572.77 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "ff48db16-81db-52ff-b50a-49c6b7e27df4")
+		(property "Reference" "#PWR132"
+			(at 351.79 571.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 351.79 574.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 347.98 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 347.98 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 347.98 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e174fe5a-f7ee-5242-91c0-0166e3d6054b")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR132")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 347.98 557.53)
+			(xy 347.98 552.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e5809d2f-db08-59e9-8e3a-f5cc25d5b891")
+	)
+	(label "RST_SRC"
+		(at 347.98 552.45 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "58c0d6ee-4c41-59d1-86eb-c52fbc75e49d")
 	)
 	(sheet_instances
 		(path "/"

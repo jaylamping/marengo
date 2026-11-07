@@ -14,6 +14,7 @@ ng.ngSpice_Init(pf,sf,ef,None,None,None,None)
 MODELS='''
 .model Q3904 NPN(IS=6.734f XTI=3 EG=1.11 VAF=74.03 BF={bfn} NE=1.259 ISE=6.734f IKF=66.78m XTB=1.5 BR=.7371 NC=2 RC=1 CJC=3.638p MJC=.3085 VJC=.75 FC=.5 CJE=4.493p MJE=.2593 VJE=.75 TR=239.5n TF=301.2p ITF=.4 VTF=4 XTF=2 RB=10)
 .model Q3906 PNP(IS=1.41f XTI=3 EG=1.11 VAF=18.7 BF={bfp} NE=1.5 IKF=80m XTB=1.5 BR=4.977 NC=2 RC=2.5 CJC=9.728p MJC=.5776 VJC=.75 FC=.5 CJE=8.063p MJE=.3677 VJE=.75 TR=33.42n TF=179.3p ITF=.4 VTF=4 XTF=6 RB=10)
+.model DZ5 D(IS=1n N=1 RS=5 BV=5.1 IBV=5m)
 .model DZ10 D(IS=1n N=1 RS=5 BV=10 IBV=5m)
 .model DSIG D(IS=2.5n N=1.75 RS=0.6 CJO=2p BV=120)
 '''
@@ -32,6 +33,11 @@ RZB MID_B 0 220k
 Q11 INT_B MID_B 0 Q3904
 RINT VCTL INT_B 100k
 Q10 RST_SRC INT_B 0 Q3904
+VVB VBUS 0 DC {vbus}
+DZB VB_Z VBUS DZ5
+RZ1 VB_Z VB_B 47k
+RZ2 VB_B 0 220k
+Q14 RST_SRC VB_B 0 Q3904
 SRST RST_SRC RST_IN CR 0 SW1
 VCR CR 0 PWL({rst})
 R1M RST_IN 0 10k
@@ -63,10 +69,10 @@ destroy all
 .endc
 .end
 '''
-def run(tr,loop,rst,tend,bfn=416.4,bfp=180.7,mid=20):
+def run(tr,loop,rst,tend,bfn=416.4,bfp=180.7,mid=20,vbus=0):
     out=os.path.join(tempfile.gettempdir(),'latch_sim.dat').replace('\\','/')
     if os.path.exists(out): os.remove(out)
-    net=NET.format(tr=tr,loop=loop,rst=rst,tend=tend,out=out,bfn=bfn,bfp=bfp,mid=mid)
+    net=NET.format(tr=tr,loop=loop,rst=rst,tend=tend,out=out,bfn=bfn,bfp=bfp,mid=mid,vbus=vbus)
     p=os.path.join(tempfile.gettempdir(),'latch_sim.cir'); open(p,'w').write(net)
     ng.ngSpice_Command(b'remcirc'); ng.ngSpice_Command(('source '+p.replace('\\','/')).encode())
     rows=[[float(x) for x in l.split()] for l in open(out) if l.strip()]
@@ -97,7 +103,7 @@ for cn,bn,bp in CORN:
     r=run('1m','0 1 0.04 1 0.0401 0 0.05 0 0.0501 1 1 1','0 0 0.02 0 0.0201 1 1 1','0.1',bn,bp)
     case(f'{cn}: reset held through a loop cycle does nothing',at(r,0.09)[1]<H,f'RUN {at(r,0.09)[1]:.2f} V')
     # M1 interlock: MID under the zener (bank B shorted, bus discharged) blocks reset; MID 17 V (healthy at a 36 V pack) allows it
-    for mid,want in ((1,False),(8,False),(17,True)):
-        r=run('1m','0 1 1 1',f'0 0 {t0} 0 {t0+1e-4} 1 {t0+0.02} 1 {t0+0.0201} 0 1 0','0.06',bn,bp,mid)
-        v=at(r,0.05)[1]; case(f'{cn}: MID {mid} V, reset '+('closes it' if want else 'is blocked'),(v>6.0) if want else (v<H),f'RUN {v:.2f} V')
+    for mid,vb,want in ((1,0,False),(8,0,False),(17,0,True),(17,3,True),(17,10,False),(27,27,False)):
+        r=run('1m','0 1 1 1',f'0 0 {t0} 0 {t0+1e-4} 1 {t0+0.02} 1 {t0+0.0201} 0 1 0','0.06',bn,bp,mid,vb)
+        v=at(r,0.05)[1]; case(f'{cn}: MID {mid} V, VBUS {vb} V, reset '+('closes it' if want else 'is blocked'),(v>6.0) if want else (v<H),f'RUN {v:.2f} V')
 print('FAILS',fails)

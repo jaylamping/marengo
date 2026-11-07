@@ -67,7 +67,8 @@ ok(two('VCTL','LOOP_OUT') and two('VCTL','RST_SRC'),'loop and reset fed through 
 ok(not two('LOOP_RET','RST_IN'),'reset is not fed from the loop return (a held button must not re-arm)')
 ok(two('RST_SRC','GND',('C',)),'reset source slowed by a cap: reset held at power-up does not arm the latch')
 qi=[q for q in comp if q[0]=='Q' and n(q,3)=='RST_SRC' and n(q,2)=='GND']
-ok(len(qi)==1 and two('VCTL',n(qi[0],1),('R',)) and any(r[0]=='Q' and n(r,3)==n(qi[0],1) and n(r,1)=='MID_B' for r in comp),'reset interlock: RST_SRC held low until MID is healthy')
+ok(len([q for q in qi if n(q,1)==n(qi[0],1)])>=1 and two('VCTL',n(qi[0],1),('R',)) and any(r[0]=='Q' and n(r,3)==n(qi[0],1) and n(r,1)=='MID_B' for r in comp),'reset interlock: RST_SRC held low until MID is healthy')
+ok(any(q[0]=='Q' and n(q,3)=='RST_SRC' and n(q,2)=='GND' and n(q,1)=='VB_B' for q in comp) and any(r[0]=='D' and n(r,1)=='VBUS' and n(r,2)=='VB_Z' for r in comp),'reset interlock: RST_SRC held low while VBUS is up')
 # clamp
 ok(n('U3',3)==n('U4',1) and n('U3',6)=='VCTL','reference on IN-, comparator on VCTL')
 ok('Q6' in comp and 'CL_D' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'CL_G' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'GND' in [pin.get(('Q6',str(p))) for p in range(1,10)],'clamp FET D, G, S')
