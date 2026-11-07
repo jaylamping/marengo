@@ -169,7 +169,15 @@ The FETs, board and stencils don't change. The two 2.2 µF drain capacitors (opt
 | Cable exits | top edge (Y 340): pack 8 AWG pair (X 1 and 15), brake Mini-Fit pairs (X 29, 37, 18 AWG), 12 V converter pigtail J24 (X −41 to −19, 18 AWG). Left and right edges (X ±45): limb pigtails, 14 AWG pairs at Y 209–249. Bottom edge (Y 195): Pi GH 7-pin (X −31, 26–28 AWG), Micro-Fit 12 V outputs (X −19 to 18, 18–20 AWG) |
 | Keep-outs | pack lead bend: X −5..25, Y 315–340 above the front face (8 AWG at R15, 7 mm OD). Back side outside the heatsink: THT pins up to 2.5 mm proud. 6 mm around each M3 hole |
 
-A STEP outline (board slab + heatsink block + connector keep-out boxes) can follow once Joey picks the option.
+**STEP for placement:** [layout/marengo_pdu_revb_package.step](layout/marengo_pdu_revb_package.step) (Git LFS, 42 MB; rebuilt by
+tools/package_step.py). It's an assembly with:
+- the board with every KiCad 3D model, plus approximate blocks for the Micro-Fit and Mini-Fit headers, which have no
+  model;
+- the 70 × 105 × 25 mm finned heatsink and its gap pad;
+- translucent red keep-out bodies (`KO_*`) for the pack lead bend, the plugs and cable exits on every edge, and the
+  heatsink's air inlet and outlet.
+
+Coordinates are board/torso X and Y, with Z 0 at the board's bottom face.
 
 ## Open items
 
