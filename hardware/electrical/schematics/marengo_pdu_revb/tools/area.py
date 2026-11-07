@@ -5,7 +5,7 @@ import os,sys
 sys.path.insert(0,os.path.dirname(__file__)); from sx import *
 import pcbnew
 MM=pcbnew.pcbIUScale.IU_PER_MM if hasattr(pcbnew,'pcbIUScale') else 1e6
-FPDIR=os.environ.get('KICAD_FP','/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints/')
+FPDIR=os.environ.get('KICAD_FP',next(p for p in ('/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints/','C:/Program Files/KiCad/10.0/share/kicad/footprints/') if os.path.isdir(p)))
 N=parse(open(sys.argv[1]).read())
 rows=[]
 for c in getall(get(N,'components'),'comp'):

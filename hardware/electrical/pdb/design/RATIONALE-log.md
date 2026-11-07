@@ -462,3 +462,17 @@ All are value, OTP or note changes. None changes topology.
 | OTP | FET Options[PDSG_EN] = 1 named. UTD at -10 °C added |
 | BUCK12_OFF | Keyed on FET Status[PDSG_FET], released on an I2C read failure |
 | Notes | Filter 0.5 to 1.0 ms. Cat 1 about 245 ms, 157 to 323 ms with tolerance: reselect the parts if Cat 1 is ever fitted |
+
+## Rev B additions, 2026-11-07
+
+**Second bank.** Bank A (Q8, Q9) in series ahead of bank B (Q1, Q2), same direction so both body diodes pass regen. A shared gate net was rejected: a FET that dies shorted gate to drain would hold the other bank on. A gets its own driver, TPS48100, wired as rev A U302 in simple driver mode. A second LM5069 was rejected too: its GATE sinks 2 mA to GND through the OUT zener (SNVS452G 8.4.2 asks a 250 mA forward rating), which would pin MID low and hide a shorted bank B. U1 stays on bank B, whose source is VBUS, so that same 2 mA bleeds VBUS against the 54 uA of U1's internal 1 MOhm. Two FETs, not one: one alone is about 9 W hot at 60 A. Bank loss doubles to 10.4 W at 60 A, 2.6 W at 30 A.
+
+**Self-test.** U11 already reads VBUS. That only catches both banks shorted, so U17 (0x48) reads MID, biased by 220k + 220k and its own 1 MOhm input to 0.45 x pack. Pack 36-54.6 V: healthy 16-25 V, A shorted over 34 V, B shorted under 3 V. With B shorted, reset closes A onto the bus with no soft start, so a failed test must stop the operator pressing reset; the Pi can't block it.
+
+**E-stop edge.** A turns off in about 1.2 us, bank B in about 170 us, so A now makes the hard edge and SMDJ58A takes the lead's kick. Not simulated. Bench check.
+
+**Pressed input.** Pull-up on the field side of the series 10k, so the contact gets 1 mA of wetting and the Pi pin still sits behind the resistor. A pull-up at the Pi pin with a series R small enough to read low would let a harness short dump far more into the clamp. GND on J20 pin 6 keeps reset and NO apart.
+
+**Spares.** TPS259541: 13.7 V clamp, auto-retry. 487R gives 3.87-4.42 A. In limit at low output voltage U9 heats fast, and thermal shutdown auto-retries at 93 ms, so a stalled neck blinks rather than latches. SMAJ15A on its output for inductive kick (OUT must stay above -1.2 V). RS10 reuses the 5 mOhm shunt line.
+
+**Area.** 111 parts and 8116 mm2 before, 145 parts and 9043 mm2 now: 90 % to 100.5 % of the one-sided 60 % budget with legs, 90 % without. Bank A's floorplan spot fits by area but is away from bank B: a 60 A detour to fix at layout.

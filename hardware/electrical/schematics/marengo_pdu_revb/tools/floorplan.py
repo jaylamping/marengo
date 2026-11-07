@@ -6,7 +6,7 @@ import sys
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle,Circle
-A=dict(bank=639,soft=330,out=493,limb=678,latch=215,clamp=173)   # courtyard mm2, fitted plus legs DNP
+A=dict(bank=639,soft=330,out=507,limb=678,latch=269,clamp=173,banka=505,spare=360)   # courtyard mm2, fitted plus legs DNP
 INK='#1c2733'
 COL=dict(fet='#e57373',cap='#b39ddb',conn='#f2c14e',port='#c5e1a5',logic='#80deea',pow='#90caf9')
 W,H=372,262
@@ -18,7 +18,7 @@ def box(X0,X1,Y0_,Y1,fc,name='',fs=9,ec='#37474f',lw=.9,ls='-',z=3,rot=0,alpha=1
     ax.add_patch(Rectangle((px(X0),py(Y1)),X1-X0,Y1-Y0_,fc=fc,ec=ec,lw=lw,ls=ls,zorder=z,alpha=alpha))
     if name: ax.text(px((X0+X1)/2),py((Y0_+Y1)/2),name,ha='center',va='center',fontsize=fs,rotation=rot,zorder=9,color=color,linespacing=1.05)
 ax.text(8,10,'Power board rev B: placement sketch (to scale)',fontsize=23,fontweight='bold',color=INK)
-ax.text(8,17,"One board, 100 × 150 mm, all parts on the front face. Blocks are each block's courtyards ÷ 0.6. Terminals, brick and bus caps are true size. Front view, robot's left on the right. Blocks only: no routing yet.",fontsize=10.5,color='#37474f')
+ax.text(8,17,"One board, 100 × 150 mm, all parts on the front face. Blocks are each block's courtyards ÷ 0.6. Terminals, brick and bus caps are true size. Front view, robot's left on the right. Blocks only: no routing yet, and bank A's place is a fit, not a current path.",fontsize=10.5,color='#37474f')
 ax.text(px(-50),Y0-3,'Front view',fontsize=16,fontweight='bold',color=INK,va='bottom')
 # board
 box(-50,50,190,340,'#f4f7f4',ec='black',lw=3.5,z=1)
@@ -44,32 +44,37 @@ for Y,l,r in zip(ROWS,L,R):
         box(X-T/2,X+T/2,Y-T/2,Y+T/2,'#f7f7f7' if dnp else COL['conn'],t+('\n(DNP)' if dnp else ''),fs=7.6,ec='black' if dnp else '#37474f',lw=1.4 if dnp else .9,ls=(0,(4,2)) if dnp else '-',z=5)
 # blocks
 Xl,Xr=-36.5,36.5
-y0,y1=268.5,302
+y0,y1=268,302
 w=lambda a:a/.6/(y1-y0)
 x=Xl
-for k,name,c in (('bank','E-stop switch\nLM5069-1, 2 FETs,\nshunt','fet'),('soft','Brick soft\nstart','fet'),('out','12 V caps, meter,\n3 outputs, Pi I2C\nheader','pow')):
+for k,name,c in (('bank','E-stop bank B\nLM5069-1, 2 FETs,\nshunt','fet'),('soft','Brick soft\nstart','fet'),('out','12 V caps, meter,\n3 outputs, Pi I2C\nheader','pow')):
     box(x,x+w(A[k]),y0,y1,COL[c],f'{name}\n{A[k]/.6/100:.1f} cm²',fs=8.5); x+=w(A[k])
 print('top row ends at X',round(x,1),'limit',Xr)
 # bus caps in the strip between the fans, true size
 for k in range(4):
     X=-18.3+k*12.2; box(X-6.1,X+6.1,238,250.2,COL['cap'],'100 µF',fs=7.5)
-ax.text(px(0),py(235.7),'Bus caps stay in this strip',ha='center',va='center',fontsize=7.8,color=INK,zorder=9)
 # meters
 mh=A['limb']/2/.6/11.9
 for X0,X1,t in ((-36.5,-24.6,'R side meters'),(24.6,36.5,'L side meters')):
     box(X0,X1,264-mh,264,COL['port'],f'{t}: shunts, INA228\n{A["limb"]/2/.6/100:.1f} cm²',fs=8,rot=90)
+# spares in the strip above the caps, bank A below them
+h=A['spare']/.6/48.2
+box(-24.1,24.1,263.5-h,263.5,COL['pow'],f'SPARE_SW eFuse, shunt, meter\nSPARE_ON polyfuse, 2 outputs, {A["spare"]/.6/100:.1f} cm²',fs=7.5)
+h=A['banka']/.6/48.2
+box(-24.1,24.1,236.8-h,236.8,COL['fet'],f'E-stop bank A\nTPS48100, 2 FETs, MID meter\n{A["banka"]/.6/100:.1f} cm²',fs=8.5)
+print('bank A bottom',round(236.8-h,1))
 # latch and clamp
 h=A['latch']/.6/21.5
-box(-22,-.5,204,204+h,COL['logic'],f'E-stop latch, control\nrail, loop connector\n{A["latch"]/.6/100:.1f} cm²',fs=7)
+box(-22,-.5,191.5,191.5+h,COL['logic'],f'E-stop latch,\ncontrol rail, loop\nconnector, pressed\ninput, {A["latch"]/.6/100:.1f} cm²',fs=7)
 h=A['clamp']/.6/21.5
-box(.5,22,204,204+h,COL['pow'],f'Braking clamp\n{A["clamp"]/.6/100:.1f} cm²',fs=8)
+box(.5,22,191.5,191.5+h,COL['pow'],f'Braking clamp\n{A["clamp"]/.6/100:.1f} cm²',fs=8)
 # frame below the board
 box(-25.5,25.5,154,182,'#d7ccc8','Brake resistor HS25, on the frame, Y 154 to 182',fs=8,ec='#6d4c41')
-ax.text(px(-50),py(186),'Board edge: X ±50, Y 190 to 340. Bay is 110 mm between the posts.',fontsize=8.5,color=INK,va='center')
+ax.text(px(-50),py(186),'Board edge: X ±50, Y 190 to 340. Bay is 110 mm between posts.\nBlocks fill the face: 100 % of the 60 % budget with legs fitted.',fontsize=8.5,color=INK,va='center')
 ax.text(px(39),py(263.3),'',fontsize=8)
 # fan labels
 ax.annotate('Fan zone, Y 264 to 304',xy=(px(0),py(266)),xytext=(px(0),py(265.8)),ha='center',va='center',fontsize=8,color='#1565c0',zorder=9)
-ax.text(px(0),py(195),'Fan zone, Y 193 to 233',ha='center',va='center',fontsize=8,color='#1565c0',zorder=9)
+ax.text(px(0),py(215),'Fan zone, Y 193 to 233',ha='center',va='center',fontsize=8,color='#1565c0',zorder=9)
 # side view
 ox=150; oy=Y0
 sx=lambda z:ox+(z+50)

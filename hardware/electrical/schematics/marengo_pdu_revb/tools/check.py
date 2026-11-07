@@ -18,12 +18,19 @@ def ok(c,m):
 def two(a,b,pre=('R','C')):
     return [r for r in comp if r[0] in pre and r[1].isdigit() and {n(r,1),n(r,2)}=={a,b}]
 # main path
-ok(n('RS1',1)=='BAT' and n('RS1',4)==n('Q1',4)==n('Q2',4),'shunt from BAT to both drains')
+ok(n('RS1',1)=='BAT' and n('RS1',4)==n('Q8',4)==n('Q9',4),'shunt from BAT to bank A drains')
+ok(n('Q1',4)==n('Q2',4)=='MID' and all(n(q,p)=='MID' for q in ('Q8','Q9') for p in (2,3,5,6,7)),'bank A sources feed bank B drains at MID')
 ok(all(n(q,p)=='VBUS' for q in ('Q1','Q2') for p in (2,3,5,6,7)),'sources on VBUS: body diodes carry regen to the pack')
 ok(n('U1',2)==n('RS1',2) and n('U1',1)==n('RS1',3),'U1 VIN and SENSE Kelvin on RS1')
 ok(n('U1',9)=='VBUS' and n('U1',5)=='GND','U1 OUT VBUS')
 ok(n('U1',4)=='GND','OVLO low')
 ok(two('GATE',n('Q1',1)) and two('GATE',n('Q2',1)),'each gate own R to GATE')
+ok(n('U8',14)==n('U8',15)=='GATE_A' and n('U8',13)=='MID' and n('U8',1)==n('U8',3)=='EN_A','U8 drives bank A, source on MID, EN and INP1 together')
+ok(not ({n('Q8',1),n('Q9',1),'GATE_A'} & {n('Q1',1),n('Q2',1),'GATE'}),'no gate net shared between banks')
+ok(len(two('RUN','EN_A'))==1 and two('EN_A','GND'),'bank A enable from RUN, pulled down')
+ok(len(two('SW_D','MID',('R',)))==1 and len(two('MID','GND',('R',)))==1,'MID bias')
+ok(n('U17',8)=='MID' and n('U17',9)==n('U17',10)=='GND','U17 reads MID')
+ok(n('U11',8)=='V_L1','U11 reads VBUS through the L arm output')
 ok(n('U1',3)=='UVLO' and len(two('RUN','UVLO'))==1 and len(two('UVLO','GND'))==1,'UVLO only from RUN: no RUN, no bank')
 ok(not any(n(r,p) in('BAT','VBUS') for r,p in pin if r!='x' and n(r,p)=='UVLO'),'UVLO has no path to the bus')
 # nothing bulky ahead of the bank
@@ -57,11 +64,20 @@ SYM={'GND':0,'+3V3_PI':1,'I2C_SDA':2,'I2C_SCL':3}
 for u in [c for c in comp if val(c).startswith('INA228')]:
     a=0x40|(SYM[n(u,1)]<<2)|SYM[n(u,2)]; ok(a not in addr,f'{u} address {a:#x}'); addr[a]=u
     ok(n(u,4)=='I2C_SDA' and n(u,5)=='I2C_SCL' and n(u,6)=='+3V3_PI' and n(u,7)=='GND',u+' bus and supply')
-ok(len(addr)==7,'seven meters')
+ok(len(addr)==9,'nine meters')
 for k in range(2,8):
     r=f'RS{k}'; u=f'U{k+9}'
     ok(n(r,1)=='VBUS' and n(u,10)==n(r,2) and n(u,9)==n(r,3) and n(u,8)==n(r,4),r+' Kelvin to '+u)
 legs=[r for r in comp if dnp(r)]
+ok(n('U9',2)=='SP_EN' and len(two('RUN','SP_EN'))==1 and n('U9',3)==n('U9',4)=='+12V','SPARE_SW eFuse enabled by RUN, fed from +12V')
+ok(n('RS10',1)==n('U9',5) and n('U10',10)==n('RS10',2) and n('U10',9)==n('RS10',3) and n('U10',8)==n('RS10',4)=='SPARE_SW','RS10 Kelvin to U10')
+ok(n('J22',1)=='SPARE_SW' and n('J22',2)=='GND','SPARE_SW output')
+ok(n('J23',1)=='SPARE_ON' and n('J23',2)=='GND' and {n('F1',1),n('F1',2)}=={'+12V','SPARE_ON'},'SPARE_ON output behind the polyfuse')
+ok(not any(r in ('F1','J23') for r,p in nets['RUN']),'SPARE_ON does not touch the latch')
 ok(len(legs)==10,'legs DNP: '+str(sorted(legs)))
 ok(n('J21',1)=='+3V3_PI' and n('J21',2)=='I2C_SDA' and n('J21',3)=='I2C_SCL' and n('J21',4)=='GND','Pi header')
+ok(n('J20',7)=='ESTOP_NO' and n('J20',6)=='GND','button NO on the loop connector, GND between it and reset')
+ok(two('+3V3_PI','ESTOP_NO') and two('ESTOP_NO','ESTOP_PI_N') and n('J21',5)=='ESTOP_PI_N','NO pull-up on the Pi rail, series R to the Pi')
+ok(n('D6',3)=='ESTOP_PI_N','clamp on the Pi pin')
+ok(not any(r=='J21' for r,p in nets['RUN']+nets['VCTL']+nets['VBUS']),'nothing above 3.3 V on the Pi header')
 print('audited',cnt[0]); print('FAILS',len(fail))

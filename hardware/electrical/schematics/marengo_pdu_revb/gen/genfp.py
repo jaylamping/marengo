@@ -28,4 +28,4 @@ for num,x,y,d in PADS:
 for k,(x,y) in enumerate(HOLES):
     t+=f'\t(pad "" np_thru_hole circle (at {x} {y}) (size 3.5 3.5) (drill 3.5) (layers "*.Cu" "*.Mask") (uuid "{u("h"+str(k))}"))\n'
 t+='\t(embedded_fonts no)\n)\n'
-open(OUT+'/IQB150W8.kicad_mod','w').write(t)
+open(OUT+'/IQB150W8.kicad_mod','w',newline=chr(10)).write(t)

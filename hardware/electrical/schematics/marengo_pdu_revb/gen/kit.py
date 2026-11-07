@@ -2,7 +2,9 @@
 import sys,uuid,math,copy,re,os,json
 sys.path.insert(0,os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','tools'))
 from sx import *
-LIB='/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols/'
+LIB=next((p for p in (os.environ.get('KICAD_SYM'),'/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols/','C:/Program Files/KiCad/10.0/share/kicad/symbols/') if p and os.path.isdir(p)),None)
+assert LIB,'set KICAD_SYM to the KiCad symbols folder'
+def wfile(path): return open(path,'w',encoding='utf-8',newline=chr(10))
 OUT=sys.argv[1]
 PROJ='marengo_pdu_revb'; LIBNAME='marengo_revb'; NS=uuid.UUID('b1d0f6a2-58a7-4a55-9e8e-2d4b6c7e1f02')
 ROOT=str(uuid.uuid5(NS,'root'))
@@ -35,14 +37,14 @@ def mkic(name,pins,fp='',ds='',desc='',ref='U'):
       ['symbol',S(name+'_1_1')]+ps,['embedded_fonts','no']]
     CUSTOM[name]=sym; return sym
 def writelib():
-    open(OUT+'/'+LIBNAME+'.kicad_sym','w').write(dump(['kicad_symbol_lib',['version','20251024'],['generator',S('kicad_symbol_editor')],['generator_version',S('10.0')]]+[CUSTOM[k] for k in sorted(CUSTOM)])+'\n')
+    wfile(OUT+'/'+LIBNAME+'.kicad_sym').write(dump(['kicad_symbol_lib',['version','20251024'],['generator',S('kicad_symbol_editor')],['generator_version',S('10.0')]]+[CUSTOM[k] for k in sorted(CUSTOM)])+'\n')
 # ---------- library access ----------
 _c={}
 def libsym(lid):
     lib,name=lid.split(':')
     if lib==LIBNAME: s=copy.deepcopy(CUSTOM[name])
     else:
-        if lib not in _c: _c[lib]={s[1]:s for s in getall(parse(open(LIB+lib+'.kicad_sym').read()),'symbol')}
+        if lib not in _c: _c[lib]={s[1]:s for s in getall(parse(open(LIB+lib+'.kicad_sym',encoding='utf-8').read()),'symbol')}
         s=copy.deepcopy(_c[lib][name])
     ext=get(s,'extends')
     if ext:
@@ -114,7 +116,7 @@ class Sheet:
         doc=['kicad_sch',['version','20260306'],['generator',S('eeschema')],['generator_version',S('10.0')],['uuid',S(ROOT if s.key=='root' else U('file/'+s.key))],['paper',S(s.paper)],tb,['lib_symbols']+list(s.lib.values())]+items
         if s.key=='root': doc.append(['sheet_instances',['path',S('/'),['page',S('1')]]])
         doc.append(['embedded_fonts','no'])
-        open(f'{OUT}/{s.file}','w').write(dump(doc)+'\n')
+        wfile(f'{OUT}/{s.file}').write(dump(doc)+'\n')
 R402='Resistor_SMD:R_0402_1005Metric';C402='Capacitor_SMD:C_0402_1005Metric';C805='Capacitor_SMD:C_0805_2012Metric';C1210='Capacitor_SMD:C_1210_3225Metric'
 R603='Resistor_SMD:R_0603_1608Metric';C603='Capacitor_SMD:C_0603_1608Metric';C1206='Capacitor_SMD:C_1206_3216Metric';R1206='Resistor_SMD:R_1206_3216Metric'
 SOD='Diode_SMD:D_SOD-123';SOT23='Package_TO_SOT_SMD:SOT-23';SMC='Diode_SMD:D_SMC';MOS5='Package_TO_SOT_SMD:TDSON-8-1'
@@ -174,7 +176,7 @@ def nic(s,lid,ref,val,at,fp,nets,ds='',rot=0,L=5.08):
             dx,dy={'R':(L,0),'L':(-L,0),'U':(0,-L),'D':(0,L)}[d]; e=(q[0]+dx,q[1]+dy)
             s.wire(q,e); put(s,e,net,d)
 def custom(name,jf,fp=None,ds=None,ren=None,et=None,renum=None):
-    d=json.load(open(os.path.join(PARTS,jf+'.json')))
+    d=json.load(open(os.path.join(PARTS,jf+'.json'),encoding='utf-8'))
     pins=[]
     for p in d['pins']:
         nm=str(p['name']).split(' ')[0].split('(')[0]; nm=(ren or {}).get(str(p['num']),nm)
