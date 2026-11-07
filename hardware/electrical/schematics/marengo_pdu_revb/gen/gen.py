@@ -5,7 +5,7 @@ from kit import *
 wfile(OUT+'/sym-lib-table').write('(sym_lib_table\n\t(version 7)\n\t(lib (name "marengo_revb")(type "KiCad")(uri "${KIPRJMOD}/marengo_revb.kicad_sym")(options "")(descr "rev B project symbols"))\n)\n')
 wfile(OUT+'/fp-lib-table').write('(fp_lib_table\n\t(version 7)\n\t(lib (name "marengo_revb")(type "KiCad")(uri "${KIPRJMOD}/marengo_revb.pretty")(options "")(descr "rev B project footprints"))\n)\n')
 REDCUBE='TerminalBlock_Wuerth:Wuerth_REDCUBE-THR_WP-THRSH_74651194_THR'
-TPFP='TestPoint:TestPoint_Keystone_5015_Micro_Mini'
+TPFP='TestPoint:TestPoint_Pad_D2.0mm'  # rev B5 cost pass: bare pads; the three GND points keep Keystone loops for scope clips
 GH=lambda n:f'Connector_JST:JST_GH_SM0{n}B-GHS-TB_1x0{n}-1MP_P1.25mm_Horizontal'
 MF2='Connector_Molex:Molex_Micro-Fit_3.0_43045-0212_2x01_P3.00mm_Vertical'
 MF4='Connector_Molex:Molex_Micro-Fit_3.0_43045-0412_2x02_P3.00mm_Vertical'
@@ -66,7 +66,7 @@ FETs: 0.85 mOhm for the pair, 5.2 W hot at 60 A, 1.3 W at 30 A, the same again i
 The 2 mA also pulls VBUS down through U1's OUT-GATE zener, against the 54 uA of its internal 1 MOhm SENSE-OUT path, so VBUS reads near 0 V with the banks open.
 Body diodes of both banks pass regen back to the pack with the banks open. OVLO tied low: opening on overvoltage would strand regen on the bus.
 LM5069-1 latches on a fault. Clear: E-stop cycle, then reset.
-BAT spike: the absorber in blocks 10 and 10d (6 x 47 uF) takes the lead current when a bank opens fast, 5.0SMDJ58A is the backstop. FETs and U1 are 100 V.
+BAT spike: the absorber in blocks 10 and 10d (8 x 47 uF) takes the lead current when a bank opens fast, 5.0SMDJ58A is the backstop. FETs and U1 are 100 V.
 Polarity (rev B5): one soldered 8 AWG pigtail pair, side by side, to an XT90 that only mates the pack's XT90S one way (Joey: the pack run is the heaviest connector run in the robot). Nothing on the main path blocks a reversed pack: both banks' body diodes would conduct and D1 becomes the crowbar, so the keyed plug and the bring-up polarity check carry it.''',(300,92))
 
 # ---------- control rail and latch ----------
@@ -235,7 +235,7 @@ g.R('100k','VCTL','PRE_G'); dnp(f"R{s.refc['R']}")
 g.C('100nF','PRE_G','GND'); dnp(f"C{s.refc['C']}")
 g.R('1M','PRE_G','GND'); dnp(f"R{s.refc['R']}")
 q=s.nref('Q'); nfet5(s,q,'BSC040N10NS5ATMA1',(400,492),'ABS_N','PRE_G','GND'); dnp(q)
-wnote('''Block 10. Absorber: a bank trip into a bus short cuts 350-890 A. tools/absorber_sim.py (pack 54.6 V, no pack yet), worst corners: 0.05 Ohm pulse loop (cell AC resistance), 0.5-1 uH, D1 at 71.2 V, C -20 %, trip 8.8-17.5 us. Six 47 uF 80 V hybrids (EEH-ZC1K470P, the bus-cap part) give BAT 79 V or less: every can stays under its 80 V rating (rev B5: the APZ 100 V line is obsolete). Measure lead L and pulse R at bring-up. 100k bleeds it. BMS close drives about 300 A into three cans for a few us: bench it on the JK.
+wnote('''Block 10. Absorber: a bank trip into a bus short cuts 350-890 A. tools/absorber_sim.py (pack 54.6 V, no pack yet), worst corners: 0.05 Ohm pulse loop (cell AC resistance), 0.5-1 uH, D1 at 71.2 V, C -20 %, trip 8.8-17.5 us. Eight 47 uF 80 V hybrids (EEH-ZC1K470P, the bus-cap part) give BAT 75 V or less (0.05 Ohm loop): 6 % under rating, about 18 % under surge (rev B5: the APZ 100 V line is obsolete). Bring-up step 1 is a gate: a pulse loop under 0.05 Ohm means rerun absorber_sim before motors. Measure lead L and pulse R at bring-up. 100k bleeds it. BMS close drives about 300 A into three cans for a few us: bench it on the JK.
 U2 feed: F1, 22R, ES1D in series, then 1 uF. A shorted U2 puts the pack on VCTL: 22R holds it to about 1.6 A, so SMAJ15A clamps under 19.2 V (Q6 gate 20 V) and F1 (50 A breaking) opens. The series diode keeps C5 from back-driving U2 when BAT collapses, and 22R keeps C39's inrush far under F1's I2t.
 Absorber close option (M3), DNP: if the JK trips when it closes onto C38, remove the 0R and fit 2R + the delayed NMOS + its RC: 25 A at close, clamp unchanged (absorber_sim.py).
 RUN_A and RUN_B diodes: a U1 pin 2-3 bridge or an EN fault can't drive RUN. FLT reaches UVLO through BAT46W + 10k (2010) with a 12 V zener on FLT_A: FLT low holds UVLO near 1.9 V; a bridged UVLO puts at most 5.5 mA into FLT and 12.7 V on it (15 V recommended).
@@ -266,7 +266,7 @@ g.D('SK810L-TP','ABS','BAT',SMC)   # second absorber diode in parallel with D7: 
 g.R('100k','CL_OUT','CL_TM'); g.R('1k','CL_TM','GND'); g.C('4.7uF 10V X7R','CL_TM','GND',C805)   # clamp duty into U17's shunt input
 g.C('1uF 100V X7R','VBUS','GND',C1210)   # local HF cap at Q6/D4 (r5 layout 14)
 g.nl()
-for _ in range(3): tp(g,'GND')
+for _ in range(3): nic(s,'Connector:TestPoint',s.nref('TP'),'TP GND',g.at(),'TestPoint:TestPoint_Keystone_5015_Micro_Mini',{'1':'GND'})
 for net in ('GATE','GATE_A','UVLO','FLT_A'): nic(s,'Connector:TestPoint',s.nref('TP'),'TP '+net,g.at(),'TestPoint:TestPoint_Pad_D1.0mm',{'1':net})
 wnote('''Fifth 47 uF 80 V hybrid on VBUS (EEH-ZC1K470P, active line; the APZ 68 uF is obsolete): 235 uF in all, the value tools/port_sim.py uses.
 Second SK810L beside D7: the unread forward curve at 300-900 A was worth up to 8 V on BAT at 30 mOhm (absorber_sim D7 sweep, 94 V); two in parallel halve it, so the worst corner stays at about 91 V, as with the assumed 10 mOhm.
@@ -319,7 +319,7 @@ While the Pi stays dead the watchdog repeats 310 ms released / 200 ms low; a res
 Software requirement: drive CanTimeout set and read back before every enable.''',(450,700),190)
 # absorber cans 4-6, last so earlier refs keep their numbers: the APZ line is obsolete (Joey, 16:46Z)
 g=Grid(s,38.1,900,25.4,30.48,200)
-for _ in range(3): g.CP('47uF 80V EEH-ZC1K470P','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x10.5')
+for _ in range(5): g.CP('47uF 80V EEH-ZC1K470P','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x10.5')  # 8 cans in all: 75 V worst, 6 % under rating
 writelib()
 s.write([('/'+ROOT,'1')])
 print('ok',{k:v for k,v in s.refc.items() if not k.startswith('#')})

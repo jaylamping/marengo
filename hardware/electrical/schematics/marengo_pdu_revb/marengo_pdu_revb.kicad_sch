@@ -10903,7 +10903,7 @@
 			)
 		)
 	)
-	(text "The bank is the soft start for all the motor capacitance: BMS sees no inrush. Reset closes it, loop open drops it. No software in the path. Compute is not behind it.\nRs 0.5 mOhm: limit 97-123 A (VCL 48.5-61.5 mV), breaker 160-260 A (VCB 80-130 mV). Above peak draw and JK DOC 80 A. 1.8 W at 60 A.\nStart: Cdv 100 nF, gate 10-22 uA, 100-220 V/s, 0.25-0.55 s to full. Bus ceiling 9.4 mF at 2.06 A hot DC SOA line (112 W, 45 K Tj rise). Drive caps unmeasured.\nPower limit 652 W at 54.6 V, 480-810 W with tolerance: RPWR = 1.3e5 x Rs x (P - 1.18 mV x VDS / Rs), SNVS452G eq 10, VSNS 6 mV over the 5 mV floor. Timer 4.7 nF: 0.22 ms typ, 0.15-0.39 ms.\nFault check: 810 W is 14.8 A at 54.6 V for up to 0.39 ms. Reviewers read about 16 A at 0.82 ms, 70 C, one FET; TI scales as t^0.346, so about 20.7 A at 0.39 ms: 1.4 x. Read the real curve at layout.\nFETs: 0.85 mOhm for the pair, 5.2 W hot at 60 A, 1.3 W at 30 A, the same again in bank A. UVLO low sinks the gate at 2 mA: about 170 us off.\nThe 2 mA also pulls VBUS down through U1's OUT-GATE zener, against the 54 uA of its internal 1 MOhm SENSE-OUT path, so VBUS reads near 0 V with the banks open.\nBody diodes of both banks pass regen back to the pack with the banks open. OVLO tied low: opening on overvoltage would strand regen on the bus.\nLM5069-1 latches on a fault. Clear: E-stop cycle, then reset.\nBAT spike: the absorber in blocks 10 and 10d (6 x 47 uF) takes the lead current when a bank opens fast, 5.0SMDJ58A is the backstop. FETs and U1 are 100 V.\nPolarity (rev B5): one soldered 8 AWG pigtail pair, side by side, to an XT90 that only mates the pack's XT90S one way (Joey: the pack run is the heaviest connector run in the robot). Nothing on the main path blocks a reversed pack: both banks' body diodes would conduct and D1 becomes the crowbar, so the keyed plug and the bring-up polarity check carry it."
+	(text "The bank is the soft start for all the motor capacitance: BMS sees no inrush. Reset closes it, loop open drops it. No software in the path. Compute is not behind it.\nRs 0.5 mOhm: limit 97-123 A (VCL 48.5-61.5 mV), breaker 160-260 A (VCB 80-130 mV). Above peak draw and JK DOC 80 A. 1.8 W at 60 A.\nStart: Cdv 100 nF, gate 10-22 uA, 100-220 V/s, 0.25-0.55 s to full. Bus ceiling 9.4 mF at 2.06 A hot DC SOA line (112 W, 45 K Tj rise). Drive caps unmeasured.\nPower limit 652 W at 54.6 V, 480-810 W with tolerance: RPWR = 1.3e5 x Rs x (P - 1.18 mV x VDS / Rs), SNVS452G eq 10, VSNS 6 mV over the 5 mV floor. Timer 4.7 nF: 0.22 ms typ, 0.15-0.39 ms.\nFault check: 810 W is 14.8 A at 54.6 V for up to 0.39 ms. Reviewers read about 16 A at 0.82 ms, 70 C, one FET; TI scales as t^0.346, so about 20.7 A at 0.39 ms: 1.4 x. Read the real curve at layout.\nFETs: 0.85 mOhm for the pair, 5.2 W hot at 60 A, 1.3 W at 30 A, the same again in bank A. UVLO low sinks the gate at 2 mA: about 170 us off.\nThe 2 mA also pulls VBUS down through U1's OUT-GATE zener, against the 54 uA of its internal 1 MOhm SENSE-OUT path, so VBUS reads near 0 V with the banks open.\nBody diodes of both banks pass regen back to the pack with the banks open. OVLO tied low: opening on overvoltage would strand regen on the bus.\nLM5069-1 latches on a fault. Clear: E-stop cycle, then reset.\nBAT spike: the absorber in blocks 10 and 10d (8 x 47 uF) takes the lead current when a bank opens fast, 5.0SMDJ58A is the backstop. FETs and U1 are 100 V.\nPolarity (rev B5): one soldered 8 AWG pigtail pair, side by side, to an XT90 that only mates the pack's XT90S one way (Joey: the pack run is the heaviest connector run in the robot). Nothing on the main path blocks a reversed pack: both banks' body diodes would conduct and D1 becomes the crowbar, so the keyed plug and the bring-up polarity check carry it."
 		(exclude_from_sim no)
 		(at 300 92 0)
 		(effects
@@ -11746,7 +11746,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_Keystone_5015_Micro_Mini"
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
 			(at 175.26 185.42 0)
 			(effects
 				(font
@@ -14184,7 +14184,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_Keystone_5015_Micro_Mini"
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
 			(at 525.78 215.9 0)
 			(effects
 				(font
@@ -17247,7 +17247,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_Keystone_5015_Micro_Mini"
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
 			(at 558.8 330.2 0)
 			(effects
 				(font
@@ -18711,7 +18711,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_Keystone_5015_Micro_Mini"
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
 			(at 325.12 367.03 0)
 			(effects
 				(font
@@ -21314,7 +21314,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_Keystone_5015_Micro_Mini"
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
 			(at 260.35 482.6 0)
 			(effects
 				(font
@@ -29395,7 +29395,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_Keystone_5015_Micro_Mini"
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
 			(at 684.53 392.43 0)
 			(effects
 				(font
@@ -40618,7 +40618,7 @@
 		)
 		(uuid "d65e6778-fc8e-5acf-bbc6-70fa111d7542")
 	)
-	(text "Block 10. Absorber: a bank trip into a bus short cuts 350-890 A. tools/absorber_sim.py (pack 54.6 V, no pack yet), worst corners: 0.05 Ohm pulse loop (cell AC resistance),\n0.5-1 uH, D1 at 71.2 V, C -20 %, trip 8.8-17.5 us. Six 47 uF 80 V hybrids (EEH-ZC1K470P, the bus-cap part) give BAT 79 V or less: every can stays under its 80 V rating (rev\nB5: the APZ 100 V line is obsolete). Measure lead L and pulse R at bring-up. 100k bleeds it. BMS close drives about 300 A into three cans for a few us: bench it on the JK.\nU2 feed: F1, 22R, ES1D in series, then 1 uF. A shorted U2 puts the pack on VCTL: 22R holds it to about 1.6 A, so SMAJ15A clamps under 19.2 V (Q6 gate 20 V) and F1 (50 A\nbreaking) opens. The series diode keeps C5 from back-driving U2 when BAT collapses, and 22R keeps C39's inrush far under F1's I2t.\nAbsorber close option (M3), DNP: if the JK trips when it closes onto C38, remove the 0R and fit 2R + the delayed NMOS + its RC: 25 A at close, clamp unchanged\n(absorber_sim.py).\nRUN_A and RUN_B diodes: a U1 pin 2-3 bridge or an EN fault can't drive RUN. FLT reaches UVLO through BAT46W + 10k (2010) with a 12 V zener on FLT_A: FLT low holds UVLO near\n1.9 V; a bridged UVLO puts at most 5.5 mA into FLT and 12.7 V on it (15 V recommended).\nConverter: F2 20 A on the board end protects the pigtail (U7 already limits at 9.7-12.3 A; F2 backs up a shorted Q7). The DVE has no reverse protection, so the keyed connector\ncarries polarity. U7 PGD high (good) turns on the 2N7002, which pulls ON/OFF to -Vin through 220R: on (0.45 V at 2 mA). 220R limits a pin 5-11 short to 55 mA. 470k and the 12\nV zener bias the gate from BRK_IN, so it doesn't depend on VCTL.\n1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock (M1): Q10 shorts RST_SRC until MID is over about 11 V\n(10 V zener, Q11), and Q14 shorts it while VBUS is over 6-8.5 V (5.1 V zener, hFE spread). Operator rule: wait for VBUS under 3 V. Reset needs MID healthy and the bus down, so\na shorted B can't be hard-closed onto a charged bus. After a stop, wait for the drives' caps to bleed. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF SRC to GND,\nTI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land in it and the compute loads."
+	(text "Block 10. Absorber: a bank trip into a bus short cuts 350-890 A. tools/absorber_sim.py (pack 54.6 V, no pack yet), worst corners: 0.05 Ohm pulse loop (cell AC resistance),\n0.5-1 uH, D1 at 71.2 V, C -20 %, trip 8.8-17.5 us. Eight 47 uF 80 V hybrids (EEH-ZC1K470P, the bus-cap part) give BAT 75 V or less (0.05 Ohm loop): 6 % under rating, about 18\n% under surge (rev B5: the APZ 100 V line is obsolete). Bring-up step 1 is a gate: a pulse loop under 0.05 Ohm means rerun absorber_sim before motors. Measure lead L and pulse\nR at bring-up. 100k bleeds it. BMS close drives about 300 A into three cans for a few us: bench it on the JK.\nU2 feed: F1, 22R, ES1D in series, then 1 uF. A shorted U2 puts the pack on VCTL: 22R holds it to about 1.6 A, so SMAJ15A clamps under 19.2 V (Q6 gate 20 V) and F1 (50 A\nbreaking) opens. The series diode keeps C5 from back-driving U2 when BAT collapses, and 22R keeps C39's inrush far under F1's I2t.\nAbsorber close option (M3), DNP: if the JK trips when it closes onto C38, remove the 0R and fit 2R + the delayed NMOS + its RC: 25 A at close, clamp unchanged\n(absorber_sim.py).\nRUN_A and RUN_B diodes: a U1 pin 2-3 bridge or an EN fault can't drive RUN. FLT reaches UVLO through BAT46W + 10k (2010) with a 12 V zener on FLT_A: FLT low holds UVLO near\n1.9 V; a bridged UVLO puts at most 5.5 mA into FLT and 12.7 V on it (15 V recommended).\nConverter: F2 20 A on the board end protects the pigtail (U7 already limits at 9.7-12.3 A; F2 backs up a shorted Q7). The DVE has no reverse protection, so the keyed connector\ncarries polarity. U7 PGD high (good) turns on the 2N7002, which pulls ON/OFF to -Vin through 220R: on (0.45 V at 2 mA). 220R limits a pin 5-11 short to 55 mA. 470k and the 12\nV zener bias the gate from BRK_IN, so it doesn't depend on VCTL.\n1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock (M1): Q10 shorts RST_SRC until MID is over about 11 V\n(10 V zener, Q11), and Q14 shorts it while VBUS is over 6-8.5 V (5.1 V zener, hFE spread). Operator rule: wait for VBUS under 3 V. Reset needs MID healthy and the bus down, so\na shorted B can't be hard-closed onto a charged bus. After a stop, wait for the drives' caps to bleed. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF SRC to GND,\nTI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land in it and the compute loads."
 		(exclude_from_sim no)
 		(at 300 128 0)
 		(effects
@@ -68301,6 +68301,234 @@
 			(justify right bottom)
 		)
 		(uuid "b912ff5a-4121-5a38-a0c1-6d4091d33b7c")
+	)
+	(symbol
+		(lib_id "Device:C_Polarized")
+		(at 114.3 900.43 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8d0bf4d3-ec5f-5f76-ae13-a5ad773eb75e")
+		(property "Reference" "C85"
+			(at 116.84 899.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "47uF 80V EEH-ZC1K470P"
+			(at 116.84 901.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x10.5"
+			(at 114.3 900.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 114.3 900.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 114.3 900.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2e951b06-8636-538d-9188-b0e3c7a18688")
+		)
+		(pin "2"
+			(uuid "35c75e50-0de8-55ef-9b41-21671d945d7f")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "C85")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 114.3 896.62)
+			(xy 114.3 894.08)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f0c76c00-13fb-54a0-9474-bd11c61413c2")
+	)
+	(label "ABS"
+		(at 114.3 894.08 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "805efe80-42d3-55a8-b713-c59dcadd598e")
+	)
+	(wire
+		(pts
+			(xy 114.3 904.24)
+			(xy 114.3 906.78)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6e2dce8b-0f0b-547f-8f4e-509d78cd73ea")
+	)
+	(label "ABS_N"
+		(at 114.3 906.78 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "27402d6c-bf2b-5a56-ab32-5c69203810f3")
+	)
+	(symbol
+		(lib_id "Device:C_Polarized")
+		(at 139.7 900.43 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "dd001e71-38c6-5223-aa9f-a1a3f907b068")
+		(property "Reference" "C86"
+			(at 142.24 899.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "47uF 80V EEH-ZC1K470P"
+			(at 142.24 901.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x10.5"
+			(at 139.7 900.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 139.7 900.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 139.7 900.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "13c6f900-5041-5039-8bef-3fea9fb7f387")
+		)
+		(pin "2"
+			(uuid "163762cd-0398-5ef0-ac09-ca75d4db8b66")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "C86")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 139.7 896.62)
+			(xy 139.7 894.08)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "989aae4c-3df8-5d70-b559-0d9ece3626cb")
+	)
+	(label "ABS"
+		(at 139.7 894.08 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4a892af2-bbad-5f8d-948d-19977b5ccdb0")
+	)
+	(wire
+		(pts
+			(xy 139.7 904.24)
+			(xy 139.7 906.78)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3428fa6c-f775-57c8-ba0f-a2e54d5547e8")
+	)
+	(label "ABS_N"
+		(at 139.7 906.78 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "59657df2-4df5-50ee-afd6-2a3811477d89")
 	)
 	(sheet_instances
 		(path "/"
