@@ -18,6 +18,11 @@ Total for plates 2 to 5: about 16 h 9 m and 496 g, including support and brim. W
 
 The fit ring has a thin wall, so it reads slightly looser than the carrier. Pull any low stubs of support out of the carrier seat before pressing the bearing.
 
+## As printed
+
+- **Upper arm, first print, 2026-11-07:** white PETG, 6 walls and **50% infill**, Joey's choice to save weight, instead of the 100% in `upper_arm.3mf`. With 6 walls most of the part is solid wall anyway; only the thick hoop body, neck and hub get the 50%. The retorque marks decide whether a reprint needs a 100% zone round the hoop and hub screws. If any hoop screw turns more than about 15 degrees at the 1-day or 1-week retorque, reprint with that zone. `build_projects.py` has it ready as `arm_clamp_zone`.
+- **Carrier:** stays at 100%.
+
 ## P2
 
 P2 L05 is P2 L04B with 2.5 mm off the inboard tip. It clears the M4 heads on the r 49 collar ring, so the inward roll limit can go from 2 to 5 degrees. **You don't have to reprint it.** You can file 2.5 mm off the tip of the P2 you have, flat, over Z 8 to 28, for the same clearance. A reprint uses the same process and orientation as L04B.
