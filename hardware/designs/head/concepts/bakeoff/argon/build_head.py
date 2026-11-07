@@ -9,7 +9,7 @@ import json, math, os
 from build123d import *
 
 # ----------------------------------------------------------------------------- vertical layout (mm)
-CHIN_Z = 50.0                       # bottom of the jaw (was 22; raised so the neck shows, MASTER_A/B/C)
+CHIN_Z = 60.0                       # bottom of the jaw (50 in the Argon entry; +10 mm neck per Joey 2026-11-07, neck thread)
 LEDGE_Z = CHIN_Z + 54.0             # top edge of the jaw band at the sides (knee); 10 mm lower at the front
 EYE_Z = LEDGE_Z + 50.0              # eye centre                           (MASTER_C: knee -> eye = 0.36 D)
 TOP_Z = EYE_Z + 82.0                # crown apex                           (MASTER_C: crown -> eye = 0.65 D)
@@ -48,7 +48,7 @@ P = dict(
     crest_h_back=0.0, crest_end_deg=96.0, crest_lean_deg=40.0,    # blade leans back over the dome (MASTER_A, B)
     # collar (lowered) and ringed neck
     collar_r1=75.0, collar_r2=68.0, collar_h1=8.0, collar_h2=6.0,
-    neck_r=36.0, neck_rib_r=41.0, neck_rib_h=4.0, neck_ribs=(18.0, 27.0, 36.0),
+    neck_r=36.0, neck_rib_r=41.0, neck_rib_h=4.0, neck_ribs=(18.0, 27.0, 36.0, 45.0),
 )
 MATS = dict(head='white', collar='white', jaw='grey1', hinge='grey1', crest='grey2',
             bezel='dark', seam='dark', core='dark', neck='dark', glow='eye')

@@ -104,3 +104,4 @@ Joey 12:22Z: pull the mouth area out so it isn't so smushed. `build_head3.py G8`
 
 **Current baseline (Joey, 2026-11-07): Argon's polish of Fable round 3, `../bakeoff/argon/build_head.py`.**
 Single clean mohawk peak, jaw knee at 0.55 of head depth, 136 mm jaw band. More iteration to come.
+2026-11-07: neck +10 mm (Joey, neck thread): jaw bottom z 60, U-joint z 80, fourth neck rib at z 45 (`HEAD_ARGON_NECK10.png`).
