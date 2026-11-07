@@ -60,19 +60,32 @@ On Joey-PC, `agy` 1.5.2 is at `C:/Users/joeyl/AppData/Local/agy/bin/agy.exe`, an
 
 ## Trial reviewers
 
-Open models run through OpenCode on the Go plan. They're scored on the scorecard and don't gate until they've passed the seeded test packet. Joey's main pick is DeepSeek V4.1 Flash, with GLM 5.3 and Kimi K3.1 Pro.
+Open models run through OpenCode with Joey's CheaperInference account as the main route, and the Go plan as the fallback. They're scored on the scorecard and don't gate until they've passed the seeded test packet. Joey's main pick is DeepSeek V4.1 Flash, with GLM 5.3 and Kimi K3.1 Pro.
 
-Run them one at a time with [`run_opencode.sh`](../tools/review/run_opencode.sh), never in parallel:
+| Model | OpenCode id | $/M input, cache read, output (2026-11-07) |
+| --- | --- | --- |
+| DeepSeek V4.1 Flash | `cheaperinference/deepseek-v4.1-flash-1017` | 0.066, 0.00132, 0.264 |
+| GLM 5.3 | `cheaperinference/glm-5.3` | 0.77, 0.143, 2.42 |
+| Kimi K3.1 Pro | `cheaperinference/kimi-k3.1-pro` | 1.30, 0.13, 6.50 |
+
+CheaperInference setup on Joey-PC:
+- The provider is in `~/.config/opencode/opencode.json` as `cheaperinference`: OpenAI-compatible at `https://api.cheaperinference.com/v1`, with the key read from `{env:CHEAPERINFERENCE_API_KEY}`.
+- Joey sets the key in his Windows user environment. The runner reads it from there if the shell doesn't have it. Never write it to a file or a log.
+- Live prices are in `GET /v1/models` with the key; the dated DeepSeek id pins the build.
+- It has no shared 5-hour window, so runs on it can overlap. On Go, run one at a time.
+
+Use [`run_opencode.sh`](../tools/review/run_opencode.sh) with a spend cap:
 
 ```bash
 cp hardware/tools/review/opencode-review-agent.md ~/.config/opencode/agents/review.md   # once per machine
-bash hardware/tools/review/run_opencode.sh deepseek-v4.1-flash /c/Temp/<packet> <prompt file> 45
+PRICES="0.77 0.143 2.42" CAP_USD=2 bash hardware/tools/review/run_opencode.sh cheaperinference/glm-5.3 /c/Temp/<packet> <prompt file> 45
 ```
 
-It does three things:
+A bare model name means `opencode-go/<model>`. The runner does four things:
 - Probes the model with a one-word prompt first, and stops (exit 3) if that fails.
-- Runs `opencode run --pure -m opencode-go/<model> --variant high --agent review --print-logs --format json`.
+- Runs `opencode run --pure -m <model> --variant high --agent review --print-logs --format json`.
 - Kills the run (exit 4) as soon as its log shows a usage-limit, retry or credential error.
+- With `PRICES` and `CAP_USD`, adds up cost from the JSON every 15 s with [`oc_cost.py`](../tools/review/oc_cost.py), kills the run (exit 5) past the cap, and prints the cost at the end. That's an estimate from list prices; the dashboard is the bill.
 
 The `review` agent ([opencode-review-agent.md](../tools/review/opencode-review-agent.md)) denies `bash`, `task`, `edit`, `webfetch`, `websearch`, `external_directory` and `doom_loop`, and allows only read, glob, grep and list. Use deny, never ask: ask has no one to answer it headless. Check it with `opencode agent list`.
 
