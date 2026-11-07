@@ -98,7 +98,7 @@ It also has D2PAK-7s on 20 cm² pours with 30 vias each. An iron can't do those.
 
 ## Cost (estimates, ±25 %; run the carts before ordering)
 
-**Lean number first.** One board, LCSC/JLC prices at a 5-board order, no assembly fee: **about $130 of parts plus about $20 of PCB, so about $150.** With JLC SMT assembly, about $175–185 per board. The buck board adds about $20.
+**Lean number first.** One board, LCSC/JLC prices at a 5-board order, no assembly fee: **about $120 of parts (about $100-105 after the second cost pass's BOM mapping) plus about $20 of PCB.** With JLC SMT assembly, about $175–185 per board. The buck board adds about $20.
 
 | Main board group | Estimate |
 | --- | --- |
@@ -125,6 +125,26 @@ It also has D2PAK-7s on 20 cm² pours with 30 vias each. An iron can't do those.
 | **Off-board** | **about $240** |
 
 **Whole power system, excluding cells: about $395 lean (hand assembly), about $425 with JLC SMT assembly.** That's down from about $575–595 at rev B4. The protection added in this round is in that number: three port breakers about $25 and the watchdog about $2. The JK BMS is now the biggest single line.
+
+## Second cost pass (Joey 16:53Z: target 100 dollars of main-board parts, no weaker protection)
+
+**Lean total now: about 120 dollars of main-board parts at a 5-board LCSC/JLC order** (estimates; LCSC prices can't be read automatically, run the cart). Not under 100 without touching protection.
+
+| Candidate | Saving per board | Verdict |
+| --- | --- | --- |
+| Test points: Keystone loops to bare pads (3 GND loops kept) | about 2 | **Applied** (13653e87) |
+| Shunts: Vishay WSK2512 to a commodity 4-terminal 2512 from LCSC (same land) | about 5 | Do at BOM mapping; the land doesn't change |
+| JLC basic parts: move resistor and MLCC values onto JLC's basic list (no 3-dollar extended fee per unique part) | about 10-20 at qty 5 (about 50 unique extended lines today) | Do at BOM mapping; values stay in their tolerance |
+| Port FETs IPB017 (4.30) to a BSC040-class TDSON (about 1.30) | about 9 | **Not applied.** port_sim puts 1.1 kA through the FET for a short at the board pads; BSC040's pulse rating is well under that. That's the protection getting weaker |
+| Drop the per-port INA237s and read the TPS48111 IMON pins with one ADC | 0 or worse | **Not applied.** The shunt stays (the breaker needs it), an 8-channel ADC costs about what three INA237s do, and the port-output voltage that names a tripped port goes away |
+| Bank A FETs to a non-linear-rated 1.7-2 mOhm D2PAK-7 (bank A never runs linear) | about 2 | For the big review: needs the SOA read for the interrupt event |
+| Q7 IPB017 to a TDSON part | about 3 | Not applied: its SOA at U7's 70 W limit can't be read here |
+| TPS48100 to a cheaper driver | - | Not applied: it carries the close-order interlock (FLT) and bank A's short-circuit trip |
+| Order 10 boards instead of 5 | about 10-15 of parts per board, and the PCB and fee share halves | Joey's call (see PRODUCTION_RUN.md) |
+
+With the shunt and basic-part mapping the board lands at **about 100-105 dollars of parts**. Under 100 needs a 10-board order or a port-FET downgrade.
+
+**Faster bank A (TPS48111 in place of the TPS48100), evaluated, not adopted.** It would cut the interrupted current: absorber_sim with the bank opening in about 4.5 us gives 67.7 V worst with 8 cans (70.4 V with 6), against 73.7-78 V at today's 8.8-13 us. But the TPS48111's FLT_I only reports over-current; it doesn't assert while its charge pump is still coming up. Today U8's FLT holds U1 off until bank A can actually close ("A closes first by logic, not by timing"). Adopting the TPS48111 would need a new close-order interlock. That's an E-stop logic change, so it goes to the big review with the numbers above, and the board keeps the TPS48100 and 8 cans.
 
 ## Decisions that are Joey's
 
