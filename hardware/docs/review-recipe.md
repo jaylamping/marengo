@@ -42,11 +42,11 @@ Always pass the model flag. Codex without `-m` did not give Sol. Grok 4.8 Fast w
 
 cursor-agent launched from Git Bash can be blocked by the repo's `.cursor` pre-tool hook (`impeccable-before-edit.js` dies with a bash syntax error, every file read rejected, exit still 0, 30 s). Launch it from PowerShell with the same flags (torso frame gate, 2026-11-06). Check that the review actually read files before trusting an exit 0.
 
-## agy, for Claude models only
+## agy: Gemini (Argon) work only, not a reviewer
 
-Argon is out of the group, so nothing here runs Gemini. agy stays for the Claude and GPT quota in Joey's Google AI Ultra plan. `agy models` on Joey-PC lists `claude-opus-5-5-low`, `-medium`, `-high` and `claude-sonnet-5-5-low`, `-medium`, `-high`.
+**Joey, 2026-11-07 14:30Z: Opus no longer runs through Antigravity.** Its Claude/GPT quota covers about one Opus review per 5-hour window. agy stays installed for Gemini (Argon) work only, and Argon is not a reviewer. The notes below are kept as a record of what agy needed headless.
 
-**Claude routing, Joey 2026-11-07, for reviews and similar workflows:** first the Antigravity quota through agy (`claude-opus-5-5-high`), then the Anthropic API key, then our own subscriptions last. Fable isn't on agy, so it goes API first, then subscription. A run on agy is a different setup from one on the Claude CLI, so it gets its own scorecard row, "Opus High (agy)".
+**Claude routing, Joey 2026-11-07 14:30Z, for reviews and similar workflows:** Opus and Fable both go to the Anthropic API key first, then our own subscription. Earlier agy-run Opus rows stay in the scorecard as "Opus High (agy)".
 
 On Joey-PC, `agy` 1.5.2 is at `C:/Users/joeyl/AppData/Local/agy/bin/agy.exe`, and it may not be on PATH in open shells. What the rev B rounds showed:
 
