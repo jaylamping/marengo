@@ -83,7 +83,7 @@ the shelf plate and its cable slots, and the screw doubles as an end anchor for 
 | M2.5 standoffs and screws | 8 + 4 | Pi 5 stack, Jetson carrier |
 | M3 heat-set inserts + M3 × 8 | ~40 | shell panels to the hardpoint brackets (shell thread) |
 
-Total: **96 M5 screws with 96 M5 T-nuts, plus 8 M5 × 35 end-tap screws** on the frame, plus 8 DIN 125 M5 washers under the pitch screws (the ear slots are 6.2 to 6.4 wide, arm thread).
+Total: **96 M5 screws with 96 M5 T-nuts, plus 8 M5 × 35 end-tap screws** on the frame (the pack cradle adds 8 more M5 × 10 + drop-in T-nuts: **104** with the cradle), plus 8 DIN 125 M5 washers under the pitch screws (the ear slots are 6.2 to 6.4 wide, arm thread).
 
 ## 2a. Shopping list
 
@@ -104,7 +104,7 @@ What the BOM (`hardware/bom/master-bom.csv`) says Joey bought against what rev A
 | DIN 125 M5 washers | none | 8 | **pack of 50** (pitch bracket ears, slots 6.2 to 6.4 wide) |
 | M3 heat-set inserts (M3 × 5.7) + M3 × 8 | none | ~40 each | **50-pack each** (shell thread) |
 | PETG, TPU 95A | printer stock | ~0.5 kg brackets and adapters, ~0.35 kg pads | top up as needed |
-| 40 × 40 × 10 fans, 5 V or 12 V | none | 3 | **3** once the PDB voltage rails are fixed |
+| 40 × 40 × 10 fans, 5 V or 12 V | none | 4 | **4** (2 intake, 2 exhaust) once the PDB voltage rails are fixed |
 | Jetson Orin Nano dev kit, M2.5 standoffs | Joey's list | 1 | **confirm whether already owned** |
 
 No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
@@ -140,7 +140,7 @@ No new actuators, no new PDB parts yet (board not designed), no new Pi parts.
 | 29 | Jetson Orin Nano dev kit envelope 103 × 90.5 × 45 including its fan | 1 | proposed | 250 | second shelf, Y 410 to 455, ports to the rear; 20 mm to the top rails |
 | 30 | Fans 40 × 40 × 10: 2 exhaust, 2 intakes lower front (Y 264 to 304, Y 193 to 233) | 4 | proposed | 80 | exhaust position PROVISIONAL: in the D1 door plane behind the frame face (Y 430 to 470, Z −70 to −80); inside the bay they hit the top rail. The power-board rework will redo the cooling layout |
 | 31 | Third compute / USB hub board envelope 90 × 60 × 20 | 1 | proposed | 60 | **no home** (the pack and boards fill the lower box): pelvis, or a layer over the Pi |
-| 32 | 13S2P 21700 pack 95 × 162 × 79 + on-pack JK BMS | 1 | custom pack | 2212 | **locked** 06:13Z; lower box, slides out through D2 (section 6) |
+| 32 | 13S2P 21700 pack 95 × 162 × 79 + on-pack JK BMS, XT90S, XT60 | 1 | custom pack | 2420 | **locked** 06:13Z; lower box, slides out through D2 (section 6) |
 | 33 | Sensors: IMU on the shelf; head cameras/mics future on the top rails | | | | |
 
 Frame structure only (items 1 to 11, 34 to 36: extrusion, gussets, brackets, their screws and T-nuts): about **2.8 kg** (generator sum; gate 2 found the old 2.1 kg figure stale). Everything shown in the torso, pack included, waist and pelvis excluded: about **8.8 kg**.
@@ -188,11 +188,10 @@ Y 166 to 295; the bridges are gone (the door is there now). They give the 30 to 
 `hardware/electrical/power/custom-21700-pack.md`. Pack box 95 × 162 × 79 (26 Molicel P45B/P50B in a 4 × 7 holder grid, cells along Z),
 2.2 kg, 46.8 V nominal, 54.6 V full, 421 to 468 Wh. It sits at |X| ≤ 47.5, Y 183 to 345, Z −45 to +34 on two printed tray rails on the
 printed **pack cradle** (Joey 16:32Z; SolidWorks model in `cradle/`, main f9621274: webs |X| 48 to 51.5 with 0.5 mm slide clearance per side, feet bolted to the bottom side rails and under the shelf rails, ledge, front lip, top strap, one M4 thumbscrew per side into a pack side insert at Y 252.6), 7.5 mm to the posts, 8 mm to the bottom and shared rails, 25 mm inside the frame rear face, and slides out the
-back through D2 (now the battery door, |X| ≤ 60, Y 175 to 352: shell thread, main 761c62b). The **power and bus board** (Joey 06:14Z: one
-board with the 13S BMS on it; plan by the board thread, `hardware/electrical/pdb/PLAN.md`, main 0b6a6ef) is two PCBs coplanar on one
-printed carrier: power board ~100 × 95 on top (Y 245 to 340), logic board ~100 × 55 below (Y 190 to 243), 6 × M3 standoffs at X ±46,
-Y 194 / 265 / 336 with 6 mm keep-out pads. The carrier rear face is at Z 37.5 (3 mm air plus a 0.5 mm Nomex sheet over the pack lid at
-Z 34); the carrier (Z 37.5 to 41.5, |X| ≤ 55) screws to the front ends of the tray rails, the PCBs sit on 6 mm M3 F-F standoffs from Z 47.5, and the component face is at Z 61.5, 8.5 mm behind the frame front face (the front rails are only at Y 155 to 175 and 353.6 to 373.6; between them the board looks out between the posts). **Component height ceiling (rev B board, one 100 × 150 board, board thread `hardware/electrical/pdb/design/FLOORPLAN_REVB.png`):** parts may rise to **Z 67** (3 mm under the frame front face at Z 70), except in the two intake fan footprints (|X| ≤ 20, Y 264 to 304 and Y 193 to 233; fan bodies Z 70 to 80 in the shell grille), where the ceiling is **Z 61.5** to keep the fan inlet air gap. Accepted exception: the 12 V brick (Y 302.85 to 339.65, top Z 61.8) overlaps the upper fan footprint by 1.15 mm in Y and 0.3 mm in height, leaving 8.2 mm to the fan; no standoff change. The rev A cap board under the pack and the (±46, 239) standoff are dropped. Cooling per the board floorplan rev A (`hardware/electrical/pdb/design/FLOORPLAN.png`): the heat is in the BMS FET banks (Y 294 to 318) and
+back through D2 (now the battery door, |X| ≤ 60, Y 175 to 352: shell thread, main 761c62b). The **power and bus board** is **one 100 × 150 board (rev B, board thread main 924bab4; the BMS moved onto the pack)** on a
+printed carrier (`carrier/`, 118 × 162 × 4 PETG, X ±59, Y 184 to 346), 6 × M3 standoffs at X ±46,
+Y 194 / 265 / 336 with 6 mm keep-out pads. (Superseded: the rev A two-PCB layout, power ~100 × 95 over logic ~100 × 55.) The carrier rear face is at Z 37.5 (3 mm air plus a 0.5 mm Nomex sheet over the pack lid at
+Z 34); the carrier (Z 37.5 to 41.5, |X| ≤ 59) screws with 4 × M3 × 8 countersunk into heat-set inserts in the cradle's front-edge pads (|X| 51.75, Y 200 and 330), the PCBs sit on 6 mm M3 F-F standoffs from Z 47.5, and the component face is at Z 61.5, 8.5 mm behind the frame front face (the front rails are only at Y 155 to 175 and 353.6 to 373.6; between them the board looks out between the posts). **Component height ceiling (rev B board, one 100 × 150 board, board thread `hardware/electrical/pdb/design/FLOORPLAN_REVB.png`):** parts may rise to **Z 67** (3 mm under the frame front face at Z 70), except in the two intake fan footprints (|X| ≤ 20, Y 264 to 304 and Y 193 to 233; fan bodies Z 70 to 80 in the shell grille), where the ceiling is **Z 61.5** to keep the fan inlet air gap. Accepted exception: the 12 V brick (Y 302.85 to 339.65, top Z 61.8) overlaps the upper fan footprint by 1.15 mm in Y and 0.3 mm in height, leaving 8.2 mm to the fan; no standoff change. The rev A cap board under the pack and the (±46, 239) standoff are dropped. Cooling per the board floorplan rev A (`hardware/electrical/pdb/design/FLOORPLAN.png`): the heat is in the BMS FET banks (Y 294 to 318) and
 E-stop banks (Y 266 to 290) on the power board and the 12/24 V DC-DC (Y 192 to 235, left half) on the logic board, so the single intake at
 Y 250 to 290 becomes **two 40 mm intakes** in the front panel between the posts, Y 264 to 304 (dropped 8 mm clear of the U1/U3 shell seam at Y 315) and Y 193 to 233 (shell thread: grille
 change in U3). The brake resistor is an Arcol HS25, 10 Ω (board thread 11:30Z: 51.0 over the tags, 28.0 × 14.6, holes 18.3 × 19.8; fine for the arm stage, the leg stage takes a bigger part). It lies flat on a 2 mm aluminium adapter plate on the inner face of the **front bottom rail** (|X| ≤ 25.5, Y 154 to 182, Z 33.4 to 50), 1 mm clear of the pack bottom, behind the logic board's bottom edge and in the lower intake's air. The plate hangs 1 mm below the frame bottom (hip stage: keep Y 154 to 155 free at |X| ≤ 35). The HS50 (29.7 wide) overlapped the pack by 1.7 mm. Pack heat (battery thread df11714): about 20 W steady in a hard arm session, 36 W worst sustained (20 A); 40 A is a 10 s burst under 1 K. Lower-box exhaust goes sideways to the V1 side grilles (shell c73d348) through the Z 37.5 to 50 window between the tray rails and the front posts.
@@ -204,7 +203,7 @@ Z −50 to 37.5) and the carrier (to Z 41.5) block the rest, so only an 8 mm ban
 8.5 mm to the frame front plane and the fans. Below the logic board's bottom edge (Y 190) there are 35 mm to the waist adapter plate
 (Y 155) now that the brake resistor has moved. Resolution (board thread, design README section 1a, main 9ce67a0): **no high-current plug on either board.** High-current exits are
 ring-lug pigtails on low-profile M4 board terminals. Reserved cable paths in the generator (item 27): pack power and sense from the HP
-top edge over the pack's top edge (X −35 to 30, Y 345 to 353.6) to the XT90S at the pack's rear top corner, so pack
+top edge over the pack's top edge (X −5 to 25 through the strap gap, Y 345 to 353.6) to the XT90S at the pack's rear top corner, so pack
 removal is unplug-then-slide at the D2 door; arm pigtails up the side bands (|X| 50 to 55, Z 42 to 50, Y 160 to 353.6; 5 × 8 mm per side, tight); waist, aux, leg and charge pigtails down the same bands
 to inline connectors below Y 190. **Gate 2 correction:** the earlier front-corner path (Z 62 to 70) ran through the front rails and 8 corner brackets, and the
 "Z 50 to 60 gap" between the shelf and the shared front rail does not exist (the shelf ends at Z 50, the rail starts there). **There is no cable passage

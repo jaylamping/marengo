@@ -1,20 +1,20 @@
 """Power board carrier, rev B (one 100 x 150 board). build123d, torso coordinates (X lateral, Y up, Z forward), mm.
 
-Plate |X| <= 55, Y 190 to 340, Z 37.5 to 41.5 (4 mm PETG). Rear face sits on the cradle carrier pads (|X| 48 to 55.5,
+Plate |X| <= 59, Y 184 to 346, Z 37.5 to 41.5 (4 mm PETG). Rear face sits on the cradle carrier pads (|X| 48 to 55.5,
 Y 195-205 and 325-335, front face Z 37.5) and is screwed to their M3 heat-set inserts at (+-51.75, 200) and (+-51.75, 330)
 with M3 x 8 countersunk screws from the front (flush, clear of the side cable band |X| 50-55, Z 42-50).
 Board standoffs (rev B floorplan, LAYOUT_NOTES): 6 x M3 F-F 6 mm hex standoffs at (+-46, 194), (+-46, 265), (+-46, 336),
-fixed by M3 x 6 button heads from the rear, heads in a 2 mm counterbore so the rear face stays flat (3 mm air gap to the
+fixed by M3 x 4 button heads from the rear (2.5 mm engagement), heads in a 2.5 mm counterbore so the rear face stays flat (3 mm air gap to the
 pack sheet). Two lightening windows between the standoff columns. Run: python3 build_carrier.py
 """
 from build123d import *
 import os
 
 T, Z0 = 4.0, 37.5
-X0, X1, Y0, Y1 = -55.0, 55.0, 190.0, 340.0
+X0, X1, Y0, Y1 = -59.0, 59.0, 184.0, 346.0  # gate 2 packet 3: grown for >= 4 mm edge ligaments (was +-55, 190-340)
 CARRIER_SCREWS = [(sx * 51.75, y) for sx in (1, -1) for y in (200.0, 330.0)]
 STANDOFFS = [(sx * 46.0, y) for sx in (1, -1) for y in (194.0, 265.0, 336.0)]
-WINDOWS = [(-34, 34, 206, 256), (-34, 34, 274, 324)]  # x0, x1, y0, y1, R6 corners
+WINDOWS = [(-38, 38, 202, 257), (-38, 38, 273, 328)]  # x0, x1, y0, y1, R6 corners
 
 # Sketch in the XY plane, extrude along +Z (= torso Z, toward the front).
 with BuildPart() as p:
@@ -32,7 +32,7 @@ with BuildPart() as p:
         CounterSinkHole(radius=1.7, counter_sink_radius=3.1, depth=T)
     # standoff screws: counterbored from the rear (button head 5.7 x 1.65)
     with Locations(*[rear * Pos(x, -y) for x, y in STANDOFFS]):
-        CounterBoreHole(radius=1.7, counter_bore_radius=3.25, counter_bore_depth=2.0, depth=T)
+        CounterBoreHole(radius=1.7, counter_bore_radius=3.25, counter_bore_depth=2.5, depth=T)
 
 part = p.part
 here = os.path.dirname(os.path.abspath(__file__))

@@ -43,7 +43,7 @@ Windows open 34 % of the web. The left side is the same script with X mirrored, 
 | --- | --- |
 | Extrusions, corner brackets, their fasteners, brake plate and resistor, `harness_side_*`, gussets, shelf plate | No overlap. Touching at the mounting faces, 0.5 mm from the foot tongue to the bracket legs, 0.98 mm to the shelf plate |
 | `packrail_*` | Overlaps throughout: the cradle replaces these, and `parts.json` still lists them |
-| `pdb_sheet` | **Real.** The lip takes 5.5 × 150 × 0.5 mm per side: the sheet must narrow to \|X\| ≤ 42 |
+| `pdb_sheet` | Resolved: the sheet is now \|X\| ≤ 42 in `parts.json`; it meets the lip face at \|X\| 42 with 0 mm (cut it 1 mm narrower, \|X\| ≤ 41, at assembly) |
 | `harness_pack` | Clear. The reserve is now X −5 to 25, in the strap gap, so the leads have the full Y 345 to 353.6 (8.6 mm) |
 | `pdb_carrier` | Touches the Z 37.5 face, as intended |
 | Pack | 0.5 mm per side at the webs, 0.5 mm under the strap, 0 mm at the ledge and lip, which bear it |
