@@ -1,6 +1,6 @@
 # Actuator test stand
 
-**Status:** RS03 and RS02 sets sliced 2026-11-07 (plates in this folder). RS00 and RS04 uprights + adapters designed 2026-11-07, all four sizes now done. Spec: [sim-to-real-loop.md section 2](../../docs/sim-to-real-loop.md). Test order (Joey, 2026-11-07): **RS03 first (the uninstalled waist unit), then RS02, RS00, RS04.** Only the upright and the output adapter change per actuator size; the lever, clamp cap, load block, scale anchor and lock post are shared and already sized for the RS04 case.
+**Status:** all four sizes (RS03, RS02, RS00, RS04) designed and sliced 2026-11-07; plates in this folder. Spec: [sim-to-real-loop.md section 2](../../docs/sim-to-real-loop.md). Test order (Joey, 2026-11-07): **RS03 first (the uninstalled waist unit), then RS02, RS00, RS04.** Only the upright and the output adapter change per actuator size; the lever, clamp cap, load block, scale anchor and lock post are shared and already sized for the RS04 case.
 
 ![assembled](STAND_RS03_ASSEMBLED.png)
 ![exploded](STAND_RS03_EXPLODED.png)
