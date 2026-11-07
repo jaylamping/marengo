@@ -1,5 +1,8 @@
 # Left upper arm print order
 
+> **HOLD (2026-11-07 02:5xZ): do not print `carrier.3mf` or `upper_arm.3mf`.** The pre-print review found that the carrier ribbon slot was cut in the wrong place, and that LC1C misses its target at the hoop screw holes. A fixed package will replace these files. `cover.3mf` (fit trial) and `p2.3mf` are OK.
+
+
 2026-11-07. **Not released yet: the pre-print review comes first.** Don't fit these parts to the robot until it passes.
 
 Settings are the test pass 1 process: P2S, 0.4 mm High Flow, Generic PETG, 0.20 mm, 6 walls, 100% infill, normal supports, outer 5 mm brim. See `../test-pass-1/SETTINGS_CHECKLIST.md`. Open each file as a project, don't rotate anything, and check the settings before printing. Each plate matches the P2 L04B project except the brim. No slicer warnings on any plate.
