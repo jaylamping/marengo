@@ -12,3 +12,6 @@ hardware/designs/neck/**/*.step filter=lfs diff=lfs merge=lfs -text
 hardware/designs/neck/**/*.stl filter=lfs diff=lfs merge=lfs -text
 hardware/designs/neck/**/*.3mf filter=lfs diff=lfs merge=lfs -text
 hardware/electrical/pdb/design/layout/*.step filter=lfs diff=lfs merge=lfs -text
+hardware/designs/actuator-test-stand/**/*.stl filter=lfs diff=lfs merge=lfs -text
+hardware/designs/actuator-test-stand/**/*.step filter=lfs diff=lfs merge=lfs -text
+hardware/designs/actuator-test-stand/**/*.3mf filter=lfs diff=lfs merge=lfs -text
