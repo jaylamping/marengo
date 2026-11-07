@@ -27,7 +27,7 @@ supervisor chip dies, the motors go off and the computers stay up.
 5. **VMOT, the motor bus.** 18 capacitors smooth it. A braking clamp, powered from the motor bus itself, dumps energy into a
    10 Ω resistor on the frame if the voltage reaches about 56.8 V (the drives fault at 60 V). Braking energy normally goes back into
    the battery through the same path; the clamp only works when the battery can't take it.
-   A hardware watchdog on the logic board drops every limb and both E-stop banks if the supervisor stops running, and leaves
+   A hardware watchdog on the power board drops every limb and both E-stop banks if the supervisor stops running, and leaves
    compute alone. After any E-stop, the banks stay open until someone presses the reset button with the loop closed.
 6. **Six limb outputs** (left arm, right arm, waist, aux, and two leg outputs left empty until the legs exist). Each one has a
    hot-swap controller (TI LM5069) that soft-starts the limb and cuts it in microseconds on overcurrent, a current meter for
