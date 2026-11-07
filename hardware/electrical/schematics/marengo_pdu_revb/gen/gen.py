@@ -154,7 +154,7 @@ for k,(nm,a1,a0,d) in enumerate(LIMBS):
     nic(s,'Sensor_Energy:INA228',u,INA,(715,y+12),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':a1,'2':a0,'3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':vb,'9':f'SH{t}_N','10':f'SH{t}_P'},ds=INADS)
     gg=Grid(s,750,y+6,12,30,770); c=gg.C('100nF 25V X7R','+3V3_PI','GND')
     cref=f"C{s.refc['C']}"
-    j1=conn(2,nm+': 14 AWG pigtail pair, 1 +, 2 return',(775,y+12),PIG,[f'V_{t}','GND'])
+    j1=conn(2,nm+(': 14' if 'leg' in nm else ': 16')+' AWG pigtail pair, 1 +, 2 return',(775,y+12),PIG,[f'V_{t}','GND'])
     if d:
         PORTDNP.append(K)
         for r in (rs,u,cref,j1): dnp(r)

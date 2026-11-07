@@ -1,12 +1,12 @@
 id,circuit,net,conductors,gauge,od_mm_each,construction,from,to,length_mm,twist_or_bundle,status,note
 W1,pack +,BAT,1,8 AWG,7.0,fine-strand silicone,J1.1 (solder pad),XT90 board half (pin +) mating the pack-side XT90S in the case-wall pocket,about 120-180 (set by the frame thread),paired with W2 (flat; no sleeve),fitted,R15 bend at the board top edge
 W2,pack return,GND (P-),1,8 AWG,7.0,fine-strand silicone,J1.2 (solder pad),XT90 board half (pin -),about 120-180,paired with W1,fitted,
-W3,L arm +/return,V_L1 / D_L1,2,14 AWG,3.6,silicone,J8.1 / J8.2,inline 20 A MINI fuse (58 V) then limb connector,about 250,twisted pair,fitted,
-W4,R arm +/return,V_L2 / D_L2,2,14 AWG,3.6,silicone,J9.1 / J9.2,inline 20 A MINI fuse (58 V) then limb connector,about 250,twisted pair,fitted,
-W5,waist +/return,V_L3 / D_L3,2,14 AWG,3.6,silicone,J10.1 / J10.2,inline 20 A MINI fuse (58 V) then limb connector,TBD (frame thread),twisted pair,fitted,
-W6,aux +/return,V_L4 / D_L4,2,14 AWG,3.6,silicone,J11.1 / J11.2,inline 20 A MINI fuse then limb connector,TBD,twisted pair,unfitted rev B5,
-W7,L leg +/return,V_L5 / D_L5,2,14 AWG,3.6,silicone,J12.1 / J12.2,inline 20 A MINI fuse then XT60 (+ GH CAN at the leg),TBD,twisted pair,unfitted until legs,
-W8,R leg +/return,V_L6 / D_L6,2,14 AWG,3.6,silicone,J13.1 / J13.2,inline 20 A MINI fuse then XT60 (+ GH CAN at the leg),TBD,twisted pair,unfitted until legs,
+W3,L arm +/return,V_L1 / GND,2,16 AWG,3.0,silicone,J8.1 / J8.2,inline 20 A MINI fuse (58 V) then limb connector,about 250,twisted pair,fitted,
+W4,R arm +/return,V_L2 / GND,2,16 AWG,3.0,silicone,J9.1 / J9.2,inline 20 A MINI fuse (58 V) then limb connector,about 250,twisted pair,fitted,
+W5,waist +/return,V_L3 / GND,2,16 AWG,3.0,silicone,J10.1 / J10.2,inline 20 A MINI fuse (58 V) then limb connector,TBD (frame thread),twisted pair,fitted,
+W6,aux +/return,V_L4 / GND,2,16 AWG,3.0,silicone,J11.1 / J11.2,inline 20 A MINI fuse then limb connector,TBD,twisted pair,unfitted rev B5,
+W7,L leg +/return,V_L5 / GND,2,14 AWG,3.6,silicone,J12.1 / J12.2,inline 20 A MINI fuse then XT60 (+ GH CAN at the leg),TBD,twisted pair,unfitted until legs,14 AWG kept for the 40 A-class legs (rev C)
+W8,R leg +/return,V_L6 / GND,2,14 AWG,3.6,silicone,J13.1 / J13.2,inline 20 A MINI fuse then XT60 (+ GH CAN at the leg),TBD,twisted pair,unfitted until legs,14 AWG kept for the 40 A-class legs (rev C)
 W9,brake +X,VBUS / CL_D,2,18 AWG,2.3,silicone,J3 (Mini-Fit Jr 5557-02R plug),HS50 20R on the +X gusset (ring or solder tabs),about 50,twisted pair,fitted,
 W10,brake -X,VBUS / CL_D,2,18 AWG,2.3,silicone,J25 (Mini-Fit Jr 5557-02R plug),HS50 20R on the -X gusset,about 200,twisted pair,fitted,
 W11,12 V converter,BRK_F x2 / GND x7 / BRK_ON / +12V_RAW x3,12,18 AWG,1.9,thin-wall PVC or silicone (Micro-Fit 3.0 crimp),J24 (Micro-Fit 3.0 43025-1200 plug),buck board J1 (43025-1200 plug) on the -X rail,about 150,twisted in facing pairs (n with n+6),fitted,

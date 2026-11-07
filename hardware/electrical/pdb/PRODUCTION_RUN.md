@@ -185,7 +185,7 @@ Work on the buck board first; it's the practice run. Inspect and test between ev
 6. Through-hole parts, with the board on the plate at about 150 °C (below the paste's 183 °C melt) so the iron doesn't
    fight the 2 oz copper:
    - Micro-Fit and Mini-Fit headers and the F2 fuse holder;
-   - 14 AWG limb pigtails, tinned first, large chisel tip at about 370 °C;
+   - 16 AWG limb pigtails (14 AWG on the legs later), tinned first, large chisel tip at about 370 °C;
    - the 8 AWG pack pair last, the largest chisel tip at about 400 °C. Heat the pad and the wire together until the solder
      wicks fully into the hole.
 7. Cable ties through the tie holes; clean the flux again.

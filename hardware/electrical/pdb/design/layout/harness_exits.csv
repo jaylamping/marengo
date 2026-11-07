@@ -1,18 +1,18 @@
 body,net,od_mm,x,y,z,dx,dy,dz,bend_R_mm,then_dx,then_dy,then_dz,note
-WIRE_PACK_8AWG_J1_1_BAT,BAT,7.0,1.0,335.0,1.6,0.0,0.0,1.0,15.0,0.0,1.0,0.0,8 AWG to the XT90 board half, mating the pack XT90S in its case-wall pocket (mating face toward -X)
-WIRE_PACK_8AWG_J1_2_GND,GND,7.0,15.0,335.0,1.6,0.0,0.0,1.0,15.0,0.0,1.0,0.0,8 AWG to the XT90 board half, mating the pack XT90S in its case-wall pocket (mating face toward -X)
-WIRE_LIMB_L_ARM_J8_1_V_L1,V_L1,3.6,45.0,241.12,1.6,0.0,0.0,1.0,11.0,1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector
-WIRE_LIMB_L_ARM_J8_2_GND,GND,3.6,45.0,248.32,1.6,0.0,0.0,1.0,11.0,1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector
-WIRE_LIMB_R_ARM_J9_1_V_L2,V_L2,3.6,-45.0,248.32,1.6,0.0,0.0,1.0,11.0,-1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector
-WIRE_LIMB_R_ARM_J9_2_GND,GND,3.6,-45.0,241.12,1.6,0.0,0.0,1.0,11.0,-1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector
-WIRE_LIMB_WAIST_J10_1_V_L3,V_L3,3.6,45.0,223.62,1.6,0.0,0.0,1.0,11.0,1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector
-WIRE_LIMB_WAIST_J10_2_GND,GND,3.6,45.0,230.82,1.6,0.0,0.0,1.0,11.0,1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector
-WIRE_LIMB_AUX_J11_1_V_L4,V_L4,3.6,-45.0,230.82,1.6,0.0,0.0,1.0,11.0,-1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector (unfitted)
-WIRE_LIMB_AUX_J11_2_GND,GND,3.6,-45.0,223.62,1.6,0.0,0.0,1.0,11.0,-1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector (unfitted)
-WIRE_LIMB_L_LEG_J12_1_V_L5,V_L5,3.6,45.0,206.12,1.6,0.0,0.0,1.0,11.0,1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector (unfitted)
-WIRE_LIMB_L_LEG_J12_2_GND,GND,3.6,45.0,213.32,1.6,0.0,0.0,1.0,11.0,1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector (unfitted)
-WIRE_LIMB_R_LEG_J13_1_V_L6,V_L6,3.6,-45.0,213.32,1.6,0.0,0.0,1.0,11.0,-1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector (unfitted)
-WIRE_LIMB_R_LEG_J13_2_GND,GND,3.6,-45.0,206.12,1.6,0.0,0.0,1.0,11.0,-1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and limb connector (unfitted)
+WIRE_PACK_8AWG_J1_1_BAT,BAT,7.0,1.0,335.0,1.6,0.0,0.0,1.0,15.0,0.0,1.0,0.0,"8 AWG to the XT90 board half, mating the pack XT90S in its case-wall pocket (mating face toward -X)"
+WIRE_PACK_8AWG_J1_2_GND,GND,7.0,15.0,335.0,1.6,0.0,0.0,1.0,15.0,0.0,1.0,0.0,"8 AWG to the XT90 board half, mating the pack XT90S in its case-wall pocket (mating face toward -X)"
+WIRE_LIMB_L_ARM_J8_1_V_L1,V_L1,3.0,45.0,241.12,1.6,0.0,0.0,1.0,9.0,1.0,0.0,0.0,16 AWG pigtail to inline 20 A MINI fuse and XT30(2+2)-F
+WIRE_LIMB_L_ARM_J8_2_GND,GND,3.0,45.0,248.32,1.6,0.0,0.0,1.0,9.0,1.0,0.0,0.0,16 AWG pigtail to inline 20 A MINI fuse and XT30(2+2)-F
+WIRE_LIMB_R_ARM_J9_1_V_L2,V_L2,3.0,-45.0,248.32,1.6,0.0,0.0,1.0,9.0,-1.0,0.0,0.0,16 AWG pigtail to inline 20 A MINI fuse and XT30(2+2)-F
+WIRE_LIMB_R_ARM_J9_2_GND,GND,3.0,-45.0,241.12,1.6,0.0,0.0,1.0,9.0,-1.0,0.0,0.0,16 AWG pigtail to inline 20 A MINI fuse and XT30(2+2)-F
+WIRE_LIMB_WAIST_J10_1_V_L3,V_L3,3.0,45.0,223.62,1.6,0.0,0.0,1.0,9.0,1.0,0.0,0.0,16 AWG pigtail to inline 20 A MINI fuse and XT30(2+2)-F
+WIRE_LIMB_WAIST_J10_2_GND,GND,3.0,45.0,230.82,1.6,0.0,0.0,1.0,9.0,1.0,0.0,0.0,16 AWG pigtail to inline 20 A MINI fuse and XT30(2+2)-F
+WIRE_LIMB_AUX_J11_1_V_L4,V_L4,3.0,-45.0,230.82,1.6,0.0,0.0,1.0,9.0,-1.0,0.0,0.0,16 AWG pigtail to inline 20 A MINI fuse and XT30(2+2)-F (unfitted)
+WIRE_LIMB_AUX_J11_2_GND,GND,3.0,-45.0,223.62,1.6,0.0,0.0,1.0,9.0,-1.0,0.0,0.0,16 AWG pigtail to inline 20 A MINI fuse and XT30(2+2)-F (unfitted)
+WIRE_LIMB_L_LEG_J12_1_V_L5,V_L5,3.6,45.0,206.12,1.6,0.0,0.0,1.0,10.8,1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and XT60 (unfitted)
+WIRE_LIMB_L_LEG_J12_2_GND,GND,3.6,45.0,213.32,1.6,0.0,0.0,1.0,10.8,1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and XT60 (unfitted)
+WIRE_LIMB_R_LEG_J13_1_V_L6,V_L6,3.6,-45.0,213.32,1.6,0.0,0.0,1.0,10.8,-1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and XT60 (unfitted)
+WIRE_LIMB_R_LEG_J13_2_GND,GND,3.6,-45.0,206.12,1.6,0.0,0.0,1.0,10.8,-1.0,0.0,0.0,14 AWG pigtail to inline 20 A MINI fuse and XT60 (unfitted)
 WIRE_BRAKE_J3_1_VBUS,VBUS,2.3,29.0,337.15,23.6,0.0,0.0,1.0,8.0,0.0,1.0,0.0,18 AWG twisted pair to the HS50 on the +X gusset
 WIRE_BRAKE_J3_2_CL_D,CL_D,2.3,29.0,331.65,23.6,0.0,0.0,1.0,13.5,0.0,1.0,0.0,18 AWG twisted pair to the HS50 on the +X gusset
 WIRE_BRAKE_J25_1_VBUS,VBUS,2.3,37.0,337.15,23.6,0.0,0.0,1.0,8.0,0.0,1.0,0.0,18 AWG twisted pair to the HS50 on the -X gusset

@@ -32,8 +32,8 @@ Each `WIRE_*` body runs 80–120 mm. Rows that bend the same way use concentric 
 | Group | Exit | Leaves toward | Bend | Keep-out |
 | --- | --- | --- | --- | --- |
 | Pack pair J1 (8 AWG, 7.0 mm) | solder pads at (1, 335) and (15, 335), up from Z 1.6 | +Z, then +Y over the top edge | R15 | `KO_pack_8AWG_leads_R15_bend` |
-| Limb pigtails J8, J10, J12 (14 AWG, 3.6 mm) | pads at X +45, Y 206–248 | +Z, then +X out of the side edge | R11 | `KO_limb_pigtails_right` |
-| Limb pigtails J9, J11, J13 | pads at X −45, Y 206–248 | +Z, then −X | R11 | `KO_limb_pigtails_left` |
+| Limb pigtails J8, J10, J12 (arms, waist, aux: 16 AWG, 3.0 mm; legs: 14 AWG, 3.6 mm) | pads at X +45, Y 206–248 | +Z, then +X out of the side edge | 3 × OD (R9 / R11) | `KO_limb_pigtails_right` |
+| Limb pigtails J9, J11, J13 | pads at X −45, Y 206–248 | +Z, then −X | 3 × OD | `KO_limb_pigtails_left` |
 | Brake J3, J25 (Mini-Fit Jr, 18 AWG, 2.3 mm) | mated plug top, Z about 23.6, at X 29 and 37 | +Z, then +Y | R8 and up (nested) | `KO_brake_plugs_J3_J25` |
 | 12 V converter J24 (Micro-Fit 2 × 6, 18 AWG, 1.9 mm) | plug top, Z about 17.6, X −37.5..−22.5 | +Z, then +Y | R6 and up | `KO_12V_converter_plug_J24` |
 | 12 V outputs J5, J6, J7, J22, J23 (Micro-Fit) | plug top, Z about 17.6, Y about 194–197 | +Z, then −Y | 4 × OD and up | `KO_bottom_plugs_J5_J7_J21_J22_J23` |
@@ -57,14 +57,27 @@ All dimensions marked "about" are approximate. Take the drawing before freezing 
 | Run | Board end | Far end, part number | Mated envelope |
 | --- | --- | --- | --- |
 | Pack | 8 AWG soldered pair → **Amass XT90 (board half, solder cups take 8 AWG)** | **Pack-side XT90S half in a case-wall pocket** (battery main ec2513d): X +10..+45, Y 323..345, Z −45..−60 in torso coordinates, **mating face toward −X**, leads inside the case | about 21 × 11 mm section, about 55 mm mated length along −X/+X. The 8 AWG pair has to arrive along +X into the pocket face, so it needs space for an R15 turn before the plug (8 AWG plus the plug back is about 30 mm straight) |
-| L arm, R arm, waist | 14 AWG pigtail → inline 58 V MINI blade fuse holder (20 A, Littelfuse 997 class) → **Amass XT30(2+2)-F** on the pigtail (live side), joint at the frame step corner (arm-trunk agreement) | arm trunk XT30(2+2)-M | fuse holder about 40 × 20 × 15 mm (inline 58 V part still to choose); XT30(2+2) mated about 15 × 8 × 32 mm. The 2 signal pins carry the trunk's CAN from the Pi's USB-CAN adapter; this board carries no CAN |
-| L leg, R leg (rev C) | 14 AWG pigtail → fuse → **Amass XT60** + separate JST GH CAN at the leg | — | XT60 mated about 16 × 8 × 32 mm |
+| L arm, R arm, waist (aux the same) | **16 AWG** silicone pigtail, as in the arm trunk plan → inline 58 V MINI blade fuse holder (20 A, Littelfuse 997 class) → **Amass XT30(2+2)-F** on the pigtail (live side), joint at the frame step corner (arm-trunk agreement) | arm trunk XT30(2+2)-M | fuse holder about 40 × 20 × 15 mm (inline 58 V part still to choose); XT30(2+2) mated about 15 × 8 × 32 mm. The 2 signal pins carry the trunk's CAN from the Pi's USB-CAN adapter; this board carries no CAN |
+| L leg, R leg (rev C) | 14 AWG pigtail (kept heavier for the leg ports, rev C) → fuse → **Amass XT60** + separate JST GH CAN at the leg | — | XT60 mated about 16 × 8 × 32 mm |
 | Aux | as arms | — | unfitted |
 | Brake ×2 | Mini-Fit Jr 5557-02R plug | HS50 tabs (solder or ring) | plug about 10 × 10 mm, 22 mm above the board |
 | 12 V converter | Micro-Fit 3.0 43025-1200 | the same plug on the buck board | plug about 21 × 10 mm |
 | 12 V outputs | Micro-Fit 3.0 43025-0200/-0400 | loads | plug about 7 × 10 mm |
 | Pi link, E-stop | JST GH GHR-07V-S / GHR-08V-S | Pi adapter; E-stop and reset buttons | plug about 10–11 × 4.25 × 6.5 mm |
 
-Open item for the arm trunk: XT30 solder cups take 16 AWG at most, but the pigtails are 14 AWG. Either the pigtail steps down to
-16 AWG at the fuse holder (fuse 20 A, wire ≥ 20 A at short length), or the joint moves to an XT60. **To be settled with the arm
-trunk thread before cutting wire.**
+**Arm, waist and aux pigtails are 16 AWG** (coordinator 18:55Z, matching
+[wiring/left-arm-trunk](../../../wiring/left-arm-trunk/README.md): 16 AWG trunk power on XT30, GH1.25 CAN). The XT30 cups
+take 16 AWG, and the board's SolderWire-2.5sqmm pads (2.4 mm hole, 3.6 mm relief) take it unchanged. Check, for a twisted
+pair of 16 AWG silicone (13.2 mΩ/m, 3.0 mm OD), in still air with about 12 W/m²K from the surface and a 1.3 factor for the pair:
+
+| Case | Current | Temperature rise | Verdict |
+| --- | --- | --- | --- |
+| Expected arm load (drop fuses 7.5 + 7.5 + 5 + 5 + 3 A; real draw is a few amps) | 5 A | about 4 K | fine |
+| Heavy arm load | 10 A | about 16 K | fine |
+| Software trip limit (sustained) | 15 A | about 39 K → about 80 °C at 40 °C torso air | fine for 200 °C silicone; XT30 contacts are the limit, as the trunk plan says |
+| Fuse rating, software failed | 20 A | about 79 K → about 120 °C | survivable (silicone 200 °C), not a running point; the 20 A fuse clears a few × 20 A within seconds |
+| Port overload trip (TPS48111, 30 A, about 16 ms) | 30 A | 0.04 K (adiabatic) | negligible |
+| Short at the pigtail end (1.1–1.4 kA, under 2 µs) | — | 0.01 K | negligible |
+
+The CAN pair for the XT30(2+2) signal pins doesn't come from this board. It comes from the Pi's USB-CAN adapter and joins at
+the pigtail's XT30(2+2)-F.

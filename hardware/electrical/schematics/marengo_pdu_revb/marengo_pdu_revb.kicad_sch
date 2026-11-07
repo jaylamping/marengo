@@ -22203,7 +22203,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "L arm: 14 AWG pigtail pair, 1 +, 2 return"
+		(property "Value" "L arm: 16 AWG pigtail pair, 1 +, 2 return"
 			(at 769.62 59.69 0)
 			(effects
 				(font
@@ -23102,7 +23102,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "R arm: 14 AWG pigtail pair, 1 +, 2 return"
+		(property "Value" "R arm: 16 AWG pigtail pair, 1 +, 2 return"
 			(at 769.62 100.33 0)
 			(effects
 				(font
@@ -24001,7 +24001,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "waist: 14 AWG pigtail pair, 1 +, 2 return"
+		(property "Value" "waist: 16 AWG pigtail pair, 1 +, 2 return"
 			(at 769.62 139.7 0)
 			(effects
 				(font
@@ -24900,7 +24900,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "aux: 14 AWG pigtail pair, 1 +, 2 return"
+		(property "Value" "aux: 16 AWG pigtail pair, 1 +, 2 return"
 			(at 769.62 180.34 0)
 			(effects
 				(font
