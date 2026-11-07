@@ -4,6 +4,7 @@ X lateral (+X robot left), Y up, Z forward. Right side is -X; the left side is t
 Run: python build_cradle.py <solidworks session pid file>
 """
 import sys
+from math import pi
 from pathlib import Path
 
 import pythoncom
@@ -19,7 +20,7 @@ PLANES = {"front": "Front Plane", "top": "Top Plane", "right": "Right Plane"}
 MM = 1e-3
 BLIND, START_PLANE, START_OFFSET = 0, 0, 3
 LEAD_GAP = ((-5, 345, -16), (25, 349, 6))
-STRAP_NOTE = "Pack cradle top strap, rev A, two hooks, lead gap X -5 to 25"
+STRAP_NOTE = "Pack cradle top strap, rev A, two snap hooks, lead gap X -5 to 25"
 
 
 class Part:
@@ -44,12 +45,16 @@ class Part:
         self.sm.InsertSketch(True)
         self.sm.AddToDB = True
 
-    def extrude(self, a, b, name, cut=False, merge=True):
-        """Close the open sketch and extrude along the plane normal from coordinate a to b (a < b)."""
+    def extrude(self, a, b, name, cut=False, merge=True, draft=None):
+        """Close the open sketch and extrude along the plane normal from coordinate a to b (a < b).
+
+        draft = (degrees, outward) tapers a boss from its start face.
+        """
         self.sm.AddToDB = False
         t0, off, flip_off = (START_OFFSET, abs(a) * MM, a < 0) if a else (START_PLANE, 0.0, False)
         d = (b - a) * MM
-        tail = (BLIND, BLIND, d, 0.0, False, False, False, False, 0.0, 0.0, False, False, False, False)
+        deg, outward = draft or (0, False)
+        tail = (BLIND, BLIND, d, 0.0, bool(deg), False, outward, False, deg * pi / 180, 0.0, False, False, False, False)
         if cut:  # a cut runs against the sketch normal unless Dir is set
             f = self.fm.FeatureCut4(True, False, True, *tail, False, True, True, False, False, False, t0, off, flip_off, False)
         else:
@@ -175,11 +180,24 @@ def build_strap(sw):
     for s, n in ((-1, "R"), (1, "L")):
         a, b = bx(s, 51.7, 54.2)
         p.box((a, 340.5, -15), (b, 348.5, 5), f"Lip_{n}")
-        a, b = bx(s, 51.2, 51.7)
+        # Detent pin, 30 deg lead-in from dia 4 at the lip to the tip at |X| 50.9. The pocket floor is at 50.7
+        a, b = bx(s, 50.9, 51.7)
         p.sketch("right")
-        p.circle(5, 342.5, 4)
-        p.extrude(a, b, f"Detent_{n}")
+        p.circle(5, 342.5, 4 if s < 0 else 3.05)  # the extrude starts at -X, so the left pin grows from its tip
+        p.extrude(a, b, f"Detent_{n}", draft=(30, s > 0))
     p.box(*LEAD_GAP, "Lead_gap", cut=True)  # 30 mm over the pack lead path, leaves two separate hooks
+    for s, n in ((-1, "R"), (1, "L")):
+        # Snap tongue, rear 7.2 mm of the bar, rooted at |X| 30, 1.6 thick, free end at the web inner face
+        def cut(x0, x1, y0, y1, z0, z1, name):
+            a, b = bx(s, x0, x1)
+            p.box((a, y0, z0), (b, y1, z1), name, cut=True)
+
+        cut(30, 47.8, 345, 346.9, -16, -7.8, f"Tongue_relief_{n}")
+        cut(30, 47.8, 345, 349, -7.8, -7, f"Tongue_slit_{n}")
+        cut(47.8, 51.7, 345, 349, -16, -7, f"Tongue_end_{n}")
+        p.sketch("front")
+        p.triangle([(s * 47.8, 348.5), (s * 47.8, 350), (s * 46.8, 350), (s * 42.8, 348.5)])  # catch face on the web side
+        p.extrude(-15, -7.8, f"Barb_{n}")
     p.finish("marengo_torso_cradle_top_strap", STRAP_NOTE)
 
 

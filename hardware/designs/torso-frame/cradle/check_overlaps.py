@@ -23,10 +23,16 @@ RIGHT = {
 }
 ALL = dict(RIGHT)
 ALL.update({"L_" + k: ((-hi[0], lo[1], lo[2]), (-lo[0], hi[1], hi[2])) for k, (lo, hi) in RIGHT.items()})
-ALL["strap_r"] = ((-51.7, 345.5, -15), (-5, 348.5, 5))
-ALL["strap_l"] = ((25, 345.5, -15), (51.7, 348.5, 5))
-ALL["strap_lip_r"] = ((-54.2, 340.5, -15), (-51.7, 348.5, 5))
-ALL["strap_lip_l"] = ((51.7, 340.5, -15), (54.2, 348.5, 5))
+for s, n, inner in ((-1, "r", 5), (1, "l", 25)):
+    def side(x0, x1, y0, y1, z0, z1):
+        a, b = sorted((s * x0, s * x1))
+        return (a, y0, z0), (b, y1, z1)
+
+    ALL[f"strap_rail_{n}"] = side(inner, 51.7, 345.5, 348.5, -7, 5)
+    ALL[f"strap_root_{n}"] = side(inner, 30, 345.5, 348.5, -15, -7)
+    ALL[f"strap_tongue_{n}"] = side(30, 47.8, 346.9, 348.5, -15, -7.8)
+    ALL[f"strap_barb_{n}"] = side(42.8, 47.8, 348.5, 350, -15, -7.8)
+    ALL[f"strap_lip_{n}"] = side(51.7, 54.2, 340.5, 348.5, -15, 5)
 
 
 def boxes_of(p):

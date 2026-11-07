@@ -2,7 +2,7 @@
 
 SolidWorks model of [CRADLE_SPEC.md](CRADLE_SPEC.md), in torso coordinates, 2026-11-06. The web inner face is at **|X| 48.0**, not the spec 47.5, so the pack slides with 0.5 mm per side. **Not gate reviewed, no 3MF yet.**
 Native parts are in `J:\code\marengo\cad\torso\` (`marengo_torso_cradle_*`, named per `cad/manifests/cad-conventions.json`). `build_cradle.py`
-rebuilds them, `check_overlaps.py` and `mass_estimate.py` give the numbers below, `render_cradle.py` makes `CRADLE_ASSEMBLED.png`.
+rebuilds them, `check_overlaps.py`, `check_hook_fit.py` and `mass_estimate.py` give the numbers below, `render_cradle.py` makes `CRADLE_ASSEMBLED.png`.
 
 ## Parts
 
@@ -10,8 +10,8 @@ rebuilds them, `check_overlaps.py` and `mass_estimate.py` give the numbers below
 | --- | --- | --- | --- | --- |
 | `marengo_torso_cradle_side_right` (-X) | 1 | 55,370 | 70.3 | 61 |
 | `marengo_torso_cradle_side_left` (+X) | 1 | 55,370 | 70.3 | 61 |
-| `marengo_torso_cradle_top_strap` (two hooks) | 1 set | 5,217 | 6.6 | 6.6 |
-| Set | | | 147.2 | 130 |
+| `marengo_torso_cradle_top_strap` (two snap hooks) | 1 set | 4,653 | 5.9 | 5.9 |
+| Set | | | 146.5 | 129 |
 
 Solid mass is SolidWorks volume × 1.27 g/cm3. The gyroid figure is a voxel estimate with 1.68 mm walls, so the 3.5 mm web prints almost solid.
 Windows open 34 % of the web. The left side is the same script with X mirrored, not a linked mirror feature.
@@ -30,7 +30,7 @@ Windows open 34 % of the web. The left side is the same script with X mirrored, 
 2. **Front lip (item 5) starts at Y 179, not 183.** At Y 183 it met the ledge on a bare edge, which is not a valid solid.
 3. **Carrier pads (item 7) are blocks.** An M3 insert does not fit a 3.5 mm web, so each pad is 7.5 × 10 × 8 at |X| 48 to 55.5.
 4. **Top strap could not hook over the webs.** The webs run up to the top feet, so nothing passes over them, and a 102 mm strap cannot enter closed slots across a 95 mm gap.
-   Each web now has a slot, Y 345.5 to 348.9, open at the rear edge up to Z 5.2. The strap slides in from the rear after the pack and clicks into a Ø4.4 detent pocket at Y 342.5, Z −5.
+   Each web now has a slot, Y 345.5 to 348.9, open at the rear edge up to Z 5.2. Each hook fits from the side and its pin seats in a Ø4.4 detent pocket at Y 342.5, Z −5 (see Hook retention).
    The strap gained outer lips to |X| 54.2 and is 103.4 long across the webs. No extra fasteners. This costs web material: from Z −50 to 5 only a 4.7 mm strip joins the web to the top foot.
 5. **Added:** 3.5 × 3.5 root chamfers between web and feet (bottom full length, top forward of the slot).
 6. **Pack clearance.** Webs moved out to |X| 48 to 51.5, with the boss, pads, strap slots and strap lips moving with them. The M5 slots stay at |X| 65 on the T-slot. The ledge and lip keep their inner edges and now reach the web at |X| 48. The strap sits Y 345.5 to 348.5.
@@ -58,9 +58,29 @@ Print suggestion, untested: stand each side on its rear edge so the C section li
 
 The pack power leads (10 AWG silicone, 5.2 to 5.8 mm OD) cross the pack top along Z and did not fit the 5.1 mm left above the strap.
 The strap now has a **30 mm gap at X −5 to +25**, through its full height and depth (`Lead_gap` in `build_cradle.py`), so the leads get Y 345 to 353.6 (8.6 mm) there.
-It is now two separate bodies, 6.6 g together: the right hook is X −54.2 to −5 (4.1 g), the left X 25 to 54.2 (2.6 g).
+It is two separate bodies: the right hook is X −54.2 to −5, the left X 25 to 54.2.
 
-**Open: the hooks have no lateral retention.** Each hook still sits in its web slot with its lip and detent, and still bears the pack.
-But the detent bump reaches only 0.3 mm into the web (bump tip at |X| 51.2, web outer face at 51.5), and it stayed seated only because the far lip held the one-piece strap in X.
-A hook's inner end is now free, so it can slide 0.3 mm outward, lift off its detent, then back out of the rear of the slot, or keep sliding out of the web. Nothing in `parts.json` stops it at that height.
-Only friction holds the hooks, so they need a positive stop before this prints. No fix is modelled yet, and the hooks have had no FEA as cantilevers.
+## Hook retention (2026-11-07)
+
+Each hook is held by a toolless snap and a detent pin, with no fasteners and no change to the sides. Nothing else stops a hook, now that the lead gap splits the strap.
+
+- **Snap barb, stops outward X.** The rear 7.2 mm of each bar (Z −15 to −7.8) is a tongue rooted at |X| 30, 1.6 thick, 17.8 long, ending at |X| 47.8. Its barb rises to Y 350, 1.1 mm past the slot ceiling at Y 348.9. The 90 deg catch face sits 0.2 mm from the web inner face, and the 4 mm ramp on the inboard side is the lead-in.
+- **Detent pin, stops rearward Z.** The pin is now 0.8 tall, tip at |X| 50.9, with a 30 deg lead-in. It sits 0.6 mm into the 0.8 deep pocket, and 0.4 mm at the worst of the X float.
+- **Lip, stops inward X.** Unchanged, 0.2 mm from the web outer face. The barb and lip straddle the web, so total X float is 0.4 mm, and together they stop the hook rocking when the pack pushes its inner end up.
+
+**Fitting.** The old rear slide-in does not work on the assembled frame: corner bracket br17 (|X| 51 to 55, Y 325.6 to 353.6, Z −70 to −50) sits against the web rear edge, so the lip cannot get round it. Instead, from the frame side with the side shell off, line the hook up at Z −15 to 5 and push it inward along X through the web slot, inner end first. The ramp presses the tongue down, and it clicks when the barb clears the web. The hook only clicks with the pin in its pocket, so the click also confirms Z. It can be fitted with the pack in or out.
+
+**Release.** With a thin blade from the rear, over the pack top, press the tongue down just inboard of the web, then pull the hook out sideways. The tongue has 1.9 mm of room above the pack and needs 1.1. The pack slides in and out under the strap, so a pack swap does not need this.
+
+**Print.** Stand each hook on its rear face (Z −15). Load paths then lie in the layer plane, the tongue is on the bed and the bar bridges 21.7 mm from the root to the lip, with no supports. Untested.
+
+| Check | Result |
+| --- | --- |
+| Hook to side, seated, and at ±0.2 mm X (`check_hook_fit.py`, 0.1 mm voxels) | No overlap |
+| Hook rearward | Free for 0.2 mm, the pin is hitting the pocket by 0.4 mm |
+| Hook outward | Free to 0.2 mm. Beyond that only the barb meets the side (Y 349 to 350) |
+| Insertion path out past the frame side, boxes against `parts.json` | Clear of the frame and M5 heads. Boxes only, cables and the shell are not included |
+| Hooks, solid | Right 2,927 mm3, 3.7 g. Left 1,726 mm3, 2.2 g |
+| Tongue, hand calculation | 1.1 mm deflection: about 0.9 % strain, about 3 N at the barb (E 2 GPa) |
+
+**Open.** Not printed, so the snap force, the pin and barb fits and the 21.7 mm bridge need a test print. Still no FEA of the hooks as cantilevers, and the bar is now 12 × 3 mm through the web. `parts.json` still shows each hook as a plain box without the barb or lip.
