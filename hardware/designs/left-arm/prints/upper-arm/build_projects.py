@@ -1,5 +1,6 @@
 """Upper arm print projects. Each mesh goes into the reviewed P2 L04B seed project, so every setting is the P1 and P2 process, then Bambu Studio slices it offline."""
 import json
+import os
 import re
 import shutil
 import struct
@@ -95,6 +96,43 @@ BLOCK = {'carrier': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2
          'fit_coupons': lambda lo, hi: disc(lo[0] + SEAT_XY[0], lo[1] + SEAT_XY[1], 28.0, lo[2] - 1, hi[2] + 1)}
 
 
+
+PLA = 'Bambu PLA Basic @BBL P2S'
+FDIR = Path(os.environ.get('APPDATA', '')) / 'BambuStudio/system/BBL/filament'
+SKIP = {'name', 'from', 'inherits', 'type', 'instantiation', 'setting_id', 'include', 'compatible_printers', 'filament_extruder_variant'}
+
+
+def filament(n):
+    """A Bambu system filament profile with its inherits chain resolved."""
+    p = FDIR / f'{n}.json'
+    if not p.exists():
+        return {}
+    d = json.loads(p.read_text(encoding='utf8'))
+    b = filament(d['inherits']) if 'inherits' in d else {}
+    b.update(d)
+    return b
+
+
+def to_pla(ps):
+    """Swap the project's PETG for Bambu PLA Basic, keeping the process (walls, infill, supports) as it is."""
+    f = filament(PLA)
+    if not f:
+        raise SystemExit(f'no {PLA} profile in {FDIR}')
+    for k, v in f.items():
+        if k in SKIP or k not in ps:
+            continue
+        cur = ps[k]
+        if isinstance(cur, list) and isinstance(v, list) and len(v) != len(cur):
+            v = (v * len(cur))[:len(cur)] if len(v) == 1 else v[:len(cur)] if len(v) > len(cur) else v + [v[-1]] * (len(cur) - len(v))
+        ps[k] = v
+    ps['filament_settings_id'] = [PLA]
+    if 'filament_ids' in ps:
+        ps['filament_ids'] = [f.get('filament_id', '')]
+    return ps
+
+
+PLA_JOBS = ('cover',)  # internal parts that carry no load, or rig fixtures
+
 def disc(cx, cy, r, z0, z1, n=48):
     """Solid cylinder, as triangles, for a support blocker. Plate-up coordinates of the job."""
     a = np.linspace(0, 2 * np.pi, n, endpoint=False)
@@ -155,6 +193,8 @@ def project(name, tri, out):
     ps = json.loads(z.read('Metadata/project_settings.config'))
     ps.update(BRIM)
     ps.update(EXTRA.get(name, {}))
+    if name in PLA_JOBS:
+        to_pla(ps)
     src = out / f'{name}_input.3mf'
     with zipfile.ZipFile(src, 'w', zipfile.ZIP_DEFLATED) as o:
         for i in z.infolist():

@@ -10,7 +10,8 @@ Check these in Bambu Studio before you press print. If anything differs, stop an
 | --- | --- |
 | Printer | Bambu Lab P2S |
 | Nozzle | 0.4 mm High Flow |
-| Filament | Generic PETG @BBL P2S |
+| Filament | Generic PETG @BBL P2S for every part that carries load or is under test. **Bambu PLA Basic @BBL P2S** for internal parts with no load and rig fixtures: the upper arm cover, dummy housing and dummy output. The elbow cable guard will be PLA too. Each print order names the material per plate |
+| Bed | 70 °C for PETG, 40 °C for PLA, both on Cool Plate Super Tack |
 | Plate | Cool Plate Super Tack, no glue |
 | Layer height | 0.20 mm, first layer 0.20 mm |
 | Walls | 6 |
@@ -19,8 +20,7 @@ Check these in Bambu Studio before you press print. If anything differs, stop an
 | Supports | Normal, auto, 45 degree threshold, not limited to the build plate |
 | Support Z gap | 0.20 mm top and bottom |
 | Interface layers | 2 top, 2 bottom |
-| Nozzle | 255 °C |
-| Bed | 70 °C |
+| Nozzle | 255 °C for PETG, 220 °C for PLA |
 | Flow ratio | 0.95 |
 | Max volumetric speed | 12 mm³/s |
 | Brim | **Outer brim only, 5 mm, on every plate.** It is saved in each file |
