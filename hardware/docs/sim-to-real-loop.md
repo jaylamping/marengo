@@ -156,8 +156,8 @@ Joey to carry over; nothing here is decided for them.
 | Pelvis lift points in the pelvis design | First pelvis revision | nothing extra |
 | Gantry frame and rated line parts | When legs are close | ~$150–350 |
 
-## 7. Questions for Joey
+## 7. Joey's answers (2026-11-07)
 
-1. Do you already own a luggage scale and a kitchen scale?
-2. OK to start T1–T6 on the uninstalled RS04s and waist RS03 once the stand is printed?
-3. Gantry: extrusion frame, or would a used steel power rack or engine hoist suit your space better?
+1. Owns a kitchen scale, no luggage scale: **buy the digital luggage scale** (50 kg, 10 g resolution, ~$10–15) with the next order.
+2. **Approved:** run T1–T6 on the uninstalled RS04s and the waist RS03 once the stand is printed.
+3. Gantry type **waits for the new house**: garage workspace favours a steel rack or engine-hoist frame; indoors favours a lighter extrusion frame. The pelvis lift points are needed either way.
