@@ -95,3 +95,12 @@ Joey 11:53Z: "his jaw is rounded, no flat". `build_head3.py G6` (= G5 with jaw_f
 
 Joey 12:22Z: pull the mouth area out so it isn't so smushed. `build_head3.py G8` (= G6 with jaw_ledge 11, chin_fwd 12)
 -> `HEAD_GIANT_PASS10.png`. G7 (pass 8 with a side-rounded scoop jaw) is in the script but was not shown.
+
+## Bake-off and polish rounds
+
+- Fable rounds 1–3: `../bakeoff/fable_r1`, `fable_r2`, `fable` (sheets `HEAD_BAKEOFF_FABLE.png`, `HEAD_FABLE_R2.png`, `HEAD_FABLE_R3.png`).
+- Polish round 1 (Terra, ran blind): `HEAD_POLISH_TERRA.png`.
+- Polish round 2: `HEAD_POLISH_R2.png` (Argon, Terra 1b, Terra 2b vs Fable round 3).
+
+**Current baseline (Joey, 2026-11-07): Argon's polish of Fable round 3, `../bakeoff/argon/build_head.py`.**
+Single clean mohawk peak, jaw knee at 0.55 of head depth, 136 mm jaw band. More iteration to come.
