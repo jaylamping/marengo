@@ -156,6 +156,9 @@ for blk,(X0,X1,Y0,Y1) in BLK.items():
         place_at(fps[r],X0+x+ww/2,Y1-y-hh/2)
     used=sum(w*h for w,h,r in items); area=(X1-X0)*(Y1-Y0)
     rep[blk]=dict(parts=len(items),used=round(used),fill=round(used/area*100),overflow=over)
+# J20 (JST GH horizontal, E-stop loop) must open toward the -X edge (KO_estop); maxrects only knows its box, so turn it 180
+# about the courtyard centre, which keeps the box
+if round(fps['J20'].GetOrientationDegrees())==90: fps['J20'].Rotate(bbox(fps['J20']).GetCenter(),pcbnew.EDA_ANGLE(180,pcbnew.DEGREES_T))
 # anything that didn't fit goes to a parking strip below the board edge, so it's visible
 px=-50
 for blk in rep:
