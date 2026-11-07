@@ -138,7 +138,7 @@ This supersedes ADR 0014's "primitive selection from a fixed catalog" as the lon
 - **Fast, no weight change:** keep a memory of plans that worked and what Joey corrected, and feed it back as context next time.
 - **Slow, nightly:** fine-tune (LoRA) the planner on the day's logged episodes, on the 5080 or the Mac overnight. Feasible today for 4–8 B models. Needs a score for each episode (camera check, Joey's feedback) and an eval suite: new weights only go live if they beat the old ones, and the old ones are kept.
 
-Whatever the model learns, motion still goes through the Pi's limit checks.
+Whatever the model learns, motion still goes through the Pi's limit checks. And every new model or policy, including a nightly update, goes model → sim (many rounds) → real test on the robot → repeat (Joey). Sim is only as good as the model of the robot, so weighed masses, the calibration loop's measurements and actuator friction/torque-speed data all feed the MJCF.
 
 Weight-space programming ([MIT CSAIL post, 2026-11-02](https://rikiyat.github.io/blog/weight-space-programming/)): an LLM reads and edits network weights directly from a goal, no gradient descent. Early and small (17 k to 1.5 M parameter policies, edits on a 0.8 B LLM); the authors say edits unlock existing abilities rather than add missing ones. Most relevant here at small scale: our motor policies are that size. Watch item, not the plan of record.
 
