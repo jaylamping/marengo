@@ -125,3 +125,22 @@ for n in (4,8):
     print(f'  {n} x 100 uF 100 V low-ESR aluminium (150 mOhm, 12.5 mm cans):',f'{worst(n*80e-6,0.15/n,0.005):5.1f}V')
 print('BMS close onto eight discharged cans (the 10b decision rides on this bench test):')
 for L in (0.5e-6,1e-6): print(f'  L {L*1e6:.1f}u: peak {close(L,300.8e-6,0.0056)[1]:5.0f} A')
+
+print('\nRev B5 BMS swap (JK -> JBD/Daly): how long the BMS close onto 8 cans stays above short-circuit levels (JBD delay 200-800 us, Daly 200-500 us):')
+for C,esr in ((8*37.6e-6,0.045/8),(8*47e-6,0.036/8)):
+    for L in (0.5e-6,1e-6):
+        for rl in (0.05,0.1):
+            r=sim(f'''close
+VB EMF 0 PWL(0 0 100n 54.6)
+RL EMF L1 {rl}
+LL L1 BAT {L} IC=0
+D1 0 BAT DTVS
+D7 BAT ABS DSCH
+RESR ABS C1 {esr}
+C38 C1 CN {C} IC=0
+VPRE CN 0 0
+''','v(bat) i(ll)','200u')
+            def dur(th):
+                ts=[x[0] for x in r if x[3]>th]
+                return (max(ts)-min(ts))*1e6 if ts else 0
+            print(f'  C {C*1e6:3.0f}u L {L*1e6:.1f}u R {rl:.2f}: peak {max(x[3] for x in r):4.0f} A; us above 180/300 A: {dur(180):4.1f} {dur(300):4.1f}')
