@@ -16,7 +16,7 @@ Settings are the test pass 1 process: P2S, 0.4 mm High Flow, Generic PETG, 0.20 
 
 Total for plates 2 to 5: about 16 h 20 m and 488 g, including support and brim. Without P2, 10 h 25 m and 300 g.
 
-**`seat_ring_only.3mf`, Cool Plate Super Tack, no glue, 26 m, 8.3 g:** the bearing seat ring on its own, with the support blocker, 3 walls and 15% infill, because it only checks a fit. It's the one coupon still valid now the joint is going all-printed, so print this one instead of `fit_coupons.3mf` for now. A new coupon plate follows with the new joint.
+**`seat_ring_only.3mf`, Cool Plate Super Tack, no glue, 21 m, 9.2 g:** only the faces a 6808 fit needs: the Ø52.2 seat with its Ø50 shoulder, printed the same way up as the carrier, and a Ø40 stub for the inner race. 3 walls, 15% infill. Press the bearing in by hand, firm with no rock, then try it on the stub. The 6808 has never been fitted to a print.
 
 ## Fit coupons
 

@@ -56,8 +56,8 @@ JOBS = {
     'fork_sector': lambda: DOWN_X(read_stl(PARTS / 'test_fork_sector.STL')),
 }
 # settings that differ from the P2 project, on purpose
-BRIM = {'brim_type': 'outer_only', 'brim_width': '5'}
-EXTRA = {'dummy_housing': {'sparse_infill_density': '40%'}}
+BRIM = {'brim_type': 'outer_only', 'brim_width': '5', 'curr_bed_type': 'Supertack Plate'}
+EXTRA = {'dummy_housing': {'sparse_infill_density': '25%'}}
 
 
 def output_plate():
@@ -123,7 +123,7 @@ def run(name):
     src, size, nf = project(name, tri, out)
     final = f'{name}.3mf'
     args = [EXE, '--datadir', str(out / 'profile'), '--debug', '1', '--slice', '0', '--export-3mf', final, '--outputdir', str(out), str(src)]
-    r = subprocess.run(args, capture_output=True, text=True, timeout=1500)
+    r = subprocess.run(args, capture_output=True, text=True, timeout=1800, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS | subprocess.CREATE_NO_WINDOW)
     (out / 'log.txt').write_text(r.stdout[-4000:] + r.stderr[-2000:], errors='replace')
     res = dict(name=name, exit=r.returncode, size_mm=[round(float(v), 1) for v in size], faces=int(nf))
     f = out / final

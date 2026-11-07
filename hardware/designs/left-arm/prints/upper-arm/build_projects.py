@@ -35,9 +35,33 @@ JOBS = {
     'p2': lambda: read_stl(S / 'P2_L05.STL'),
     'fit_coupons': lambda: coupons_plate(),
     'guard': lambda: YZ(read_stl(S / 'GUARD.STL')),
-    'seat_ring_only': lambda: UP_X(read_stl(S / 'coupon_seat.STL')),
+    'seat_ring_only': lambda: bearing_fit(),
     'cover': lambda: YZ(read_stl(S / 'UA2_COVER.STL')),
 }
+def revolve(prof, cx, cy, n=360):
+    """Closed ring from an (r, z) profile, as triangles."""
+    a = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    v = []
+    m = len(prof)
+    for i in range(n):
+        j = (i + 1) % n
+        for k in range(m):
+            (r0, z0), (r1, z1) = prof[k], prof[(k + 1) % m]
+            A = [cx + r0 * np.cos(a[i]), cy + r0 * np.sin(a[i]), z0]
+            B = [cx + r1 * np.cos(a[i]), cy + r1 * np.sin(a[i]), z1]
+            C = [cx + r1 * np.cos(a[j]), cy + r1 * np.sin(a[j]), z1]
+            D = [cx + r0 * np.cos(a[j]), cy + r0 * np.sin(a[j]), z0]
+            v += [A, C, B, A, D, C]
+    return np.array(v, float)
+
+
+def bearing_fit():
+    """Only the faces a 6808 fit needs: the Ø52.2 seat with its Ø50 shoulder, printed seat down like the carrier, and the Ø40 stub."""
+    seat = revolve([(26.1, 0), (29.0, 0), (29.0, 8.2), (25.0, 8.2), (25.0, 7.0), (26.1, 7.0)], 29.0, 29.0)
+    stub = revolve([(STUB_R - 3, 0), (STUB_R, 0), (STUB_R, 9.0), (STUB_R - 3, 9.0)], 58.0 + 10.0 + STUB_R, 29.0)
+    return np.vstack([seat, stub])
+
+
 SEAT_XY = [0.0, 0.0]
 
 
@@ -64,9 +88,10 @@ BRIM = {'brim_type': 'outer_only', 'brim_width': '5', 'curr_bed_type': 'Supertac
 # coupons only check fits, so they don't need the structural walls and infill
 FIT = {'wall_loops': '3', 'sparse_infill_density': '15%'}
 EXTRA = {'fit_coupons': FIT, 'seat_ring_only': FIT}
+STUB_R = 20.0
 # keeps support out of the bearing seat, r 28 about the elbow axis, carrier inboard face down
 BLOCK = {'carrier': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1),
-         'seat_ring_only': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1),
+         'seat_ring_only': lambda lo, hi: disc(lo[0] + 29.0, lo[1] + 29.0, 28.0, lo[2] - 1, hi[2] + 1),
          'fit_coupons': lambda lo, hi: disc(lo[0] + SEAT_XY[0], lo[1] + SEAT_XY[1], 28.0, lo[2] - 1, hi[2] + 1)}
 
 
