@@ -90,6 +90,23 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B4 task | Argon (task: figure reading), gemini-4-argon-high | high | 2 | 1 | 0 | 0 | on (checked) | 0 | 8.8 | Gemini quota | | Arcol right, including "no pulse curve: NOT IN SOURCE". DVE derating read up to 13 % low (conservative). IPB017 SOA log-log read 1.5-2x high with "high" confidence: 1 of 10 within 25 %. Scored per figure set: 2 usable, 1 false |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
+## Standing note: Fable phased out (Joey, 2026-11-07)
+
+Fable 5.1 has left routine review rounds. It runs one pass only, at the power board's final layout sign-off (gate 3, before powered and load-bearing use). Opus 5.5 covers its role elsewhere. The evidence:
+
+| Round | Model | Real | Unique | Cost | Minutes |
+| --- | --- | --- | --- | --- | --- |
+| PDB rev B3 | Fable | 12 | 3 | $13.91 | 30.0 |
+| PDB rev B3 | Opus (API) | 8 | 1 | $6.66 | 28.6 |
+| PDB rev B4 | Fable | 12 | 2 | $14.47 | 32.7 |
+| PDB rev B4 | Opus (API) | 16 | 3 | $4.80 | 24.8 |
+
+Across all runs, Opus has 97 real / 6 false / 22 unique in 9 runs, against Fable's 99 / 12 / 12 in 11. Opus costs about a third as much per run. Fable keeps the final power gate because of two unique catches that each changed the design:
+- **R3:** the board's own trips cut 500–800 A, not 200 A.
+- **R4:** cell AC resistance puts the pulse loop at about 0.05 Ω, which forced three absorber cans.
+
+Every prompt now carries a worst-case-corners line (review-recipe.md) to cover those blind spots.
+
 ## Round wall time
 
 All reviewers run concurrently (recipe), so a round takes as long as its slowest reviewer. Failed or hung trial runs aren't counted.
