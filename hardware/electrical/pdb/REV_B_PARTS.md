@@ -28,6 +28,8 @@ the repo as a reference.
 | 12 V rail | Board-mount 150 W brick, e.g. Mean Well IQB150W8-12 (quarter brick, 9–75 V in, 12 V 12.5 A) (Joey deferred to me) | No converter to design; small. |
 | Limb outputs (arms, waist, aux; legs later) | Terminal pair + shunt + one INA228 meter each (Joey: yes to meters) | Amps per limb at all times. No per-limb switching (Joey: OK to lose it). |
 | 12 V meter | One INA228 | Compute power in telemetry. |
+| Motion 12 V output (added 2026-11-07, Joey picked 3 STS3215 neck servos) | Load switch or eFuse, about 4 A limit, enabled by the E-stop latch | Neck servos and the jaw servo stop on E-stop. The neck thread caps servo current in firmware. |
+| Head 12 V output (unswitched) | 2-pin output | Head displays, camera, mics and speaker, under about 10 W; these stay up through an E-stop. |
 | Pi link | I2C header to the Pi | The Pi reads all meters; no supervisor chip. |
 
 ## Next
