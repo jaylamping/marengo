@@ -19,3 +19,6 @@ print_shoulder_pitch_mount_bracket_left,PETG shoulder pitch mount bracket (left)
 print_shoulder_pitch_mount_bracket_right,PETG shoulder pitch mount bracket (right),1,printed,,,marengo_shoulder_pitch_mount_bracket_right
 print_waist_yaw_adapter,PETG waist yaw adapter plate,1,printed,,,marengo_waist_yaw_adapter
 sensor_bno085,Teyleten Robot GY-BNO085 9-DOF IMU,1,Teyleten,GY-BNO085,"torso IMU; I2C 0x4b (ADR high); Pi header i2c-1"
+neck_servo_sts3215,Feetech STS3215 12 V 30 kg·cm serial bus servo (neck yaw + pitch/roll pair),3,Feetech,STS3215 (12 V C018/C047),"Joey 2026-11-07: neck option C; ~$15-30 each from Chinese sellers; 12 V only (not the 7.4 V 19 kg version)"
+neck_bearing_61814,Thin-section deep groove ball bearing 70 x 90 x 10 (neck yaw),1,any,61814,"hardware/designs/neck/LAYOUT_SW.md"
+neck_bellows_tpu,TPU filament for the neck bellows (black; opaque only, never transparent),1,Bambu Lab,TPU 95A HF Black 1 kg,"Joey 2026-11-07 08:12Z: glossy OK, matte preferred but optional, NO transparent; external spool, dry first; SainSmart Matte TPU 95A black is the matte alternative"
