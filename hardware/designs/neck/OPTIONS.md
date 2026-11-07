@@ -67,11 +67,11 @@ redesigning the neck top, so decide now.
 | New buys | 3 × RS00 | 1 × RS00 + 2 servos | 3 servos + USB bus adapter |
 | Buses | CAN only | CAN + servo TTL bus | servo TTL bus only |
 | Power | 48 V motor bus (E-stop cuts it) | both | 12 V (needs an E-stop cut, see below) |
-| Fit | RS00 yaw hangs to Y ~444; Jetson top is Y 455 (~11 mm clash). Two RS00 side by side are 103 mm wide in a 122 mm cranium, in the jaw's swing | same Jetson clash | fits between the top rails; about 2 mm to the Jetson top (needs the frame thread to confirm) |
+| Fit | RS00 yaw hangs to Y ~444, eating ~11 mm of the compute bay (the Jetson box is only a placeholder; dropping it to Y 399-444 leaves ~2 mm over the Pi). Two RS00 side by side are 103 mm wide in a 122 mm cranium, in the jaw's swing | same ~11 mm of compute bay | fits between the top rails; about 2 mm to the Jetson top (needs the frame thread to confirm) |
 | Feel | smooth, quiet, back-drivable | smooth yaw, geared pitch | geared, some whine, some backlash |
 | In a fall | expensive motors take the hit | RS00 safe, servos sacrificial | all sacrificial: printed gear teeth and U-joint shear pins give first, servos are cheap |
 
-Why C: the loads are tiny; there are no spare RS00s; RS00 yaw clashes with the Jetson; and C keeps one
+Why C: the loads are tiny; there are no spare RS00s; an RS00 yaw costs ~11 mm of compute-bay height; and C keeps one
 bus, one supply and the lightest head. It also follows "blow cheap parts, not $500 actuators":
 every part in the neck is cheap and printed parts are the fuse.
 
@@ -104,8 +104,10 @@ the drive. That only works if the frame thread leaves room under the collar.
    there. Also needed: chin clearance at 40° down, and space for a U-joint at about z 70.
 2. **Frame ("Finalize the internal torso frame").** Under the collar, between the top rails, the neck needs
    about 75 × 100 × 50 mm, plus the yaw servo beside it. That is about 2 mm above the Jetson's top
-   (Y 455) if the collar sits 10 mm above the frame top. The collar height over the frame is assumed and
-   not yet set. The neck also needs a mount: a plate on the top rails with T-nuts.
+   placeholder (Y 455) if the collar sits 10 mm above the frame top. Frame thread (04:46Z): the frame ends
+   at Y 495 and doesn't set the collar height (head/shell do); the Jetson box is a placeholder since Joey packs
+   the bay himself. Fixed limits: top rails Y 475-495 at Z ±50..70, usable bay |X| < 78 between the shoulder
+   motors, top-rail T-slots free except the H1/H2 nuts (front X ±60, rear X ±85). The neck also needs a mount: a plate on the top rails with T-nuts.
 3. **Power ("Plan the custom power and peripheral board").** The servos run on 12 V from the 150 W brick.
    Expect about 1 A typical and 8 A worst case (three stalls at 2.7 A each). **The brick is ahead of the
    E-stop, so the E-stop would not stop the neck.** The cheapest fix is a second NC contact block on Joey's
