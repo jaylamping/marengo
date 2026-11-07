@@ -1,5 +1,7 @@
 # Left arm: one order for the upper arm and the elbow rig test
 
+> **HOLD, 2026-11-07 07:26Z: don't order yet.** Joey will not buy laser-cut steel. The elbow and hub rings are being replaced with printed parts and stock washers, so section 1 goes away and the sleeve lengths change. This list will be reissued.
+
 2026-11-07. One list covering both jobs:
 
 - the **upper arm** (`prints/upper-arm/`);
