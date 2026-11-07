@@ -14,7 +14,7 @@ aluminium plates before falls or hard motion. Not gate reviewed.
 Each plate 58 × 140 × 6 mm, about 38 g at 100 %.
 
 **Bambu P2S settings** (0.4 mm High Flow nozzle):
-- Filament PETG (Generic PETG HF profile), textured PEI plate, glue stick on smooth plate.
+- Filament PETG (Generic PETG HF profile), Cool Plate SuperTack, no glue.
 - Layer 0.20 mm, **infill 100 % rectilinear** (or 6 walls + 60 % gyroid if you want it faster), top/bottom 5 layers.
 - Lying flat as placed, **no supports**, no brim needed.
 - After printing: run an M5 drill or 5.5 mm bit through each hole if it is tight.
