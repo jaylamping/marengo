@@ -25,12 +25,21 @@ Joey uses the PC while sessions work, so SolidWorks must never pop up or take fo
 A hidden launch does three things:
 
 - Starts SLDWORKS.exe with its window hidden.
-- Starts a small separate process that hides every window of that PID, ten times a second, until the PID exits. It keeps working during a blocking solve, when COM can't be called.
+- Starts a small separate process that hides every window of that PID and its child processes the moment it shows, using window events, until they all exit. If one takes focus, it hands focus back. It keeps working during a blocking solve, when COM can't be called.
 - Sets `Visible` and `UserControl` to False.
 
 Setting `sw.Visible = False` alone is not enough. It read back True and the window stayed up.
 
 Anything hidden is logged to `sw_hidden_<pid>.log` in the temp folder, and `HAD FOCUS` marks a window that took focus. **A hidden modal dialog blocks the instance, so if a script hangs, read that log first.**
+
+**What was popping up on 2026-11-07:** a watcher logged every window for a real run. Two things showed.
+
+- `sldexitapp.exe`, started by SolidWorks on exit, opened a visible **SOLIDWORKS Error Report** that stayed on screen and took focus. It is a child process, so hiding the SolidWorks PID didn't cover it. `close()` now also stops that child, and the hider covers child processes.
+- Each launch briefly took focus for the splash, the main window and the welcome screen. Polling at 10 Hz was too slow for that.
+
+No console windows showed, from Python, PowerShell, git or Bambu Studio.
+
+Use `end_session(state_file)` to close an instance. Calling `session(state_file).close()` when the instance is already gone starts a new one just to close it.
 
 If something won't run hidden, use `inst.minimize()`, which never takes focus. `inst.hide()` hides on demand. From another process, or for a stuck instance of your own, call `hide_windows(pid)`.
 

@@ -10,6 +10,8 @@ Read RULES.md first. launch() starts a new SLDWORKS.exe and attaches through the
 Running Object Table entry for that PID, so it can never reach another session's
 instance. Never use GetActiveObject or Dispatch('SldWorks.Application').
 """
+import ctypes
+import ctypes.wintypes as wt
 import msvcrt
 import os
 import subprocess
@@ -111,17 +113,78 @@ def hider_log(pid):
 
 
 def _watch_hidden(pid):
-    """Keep this PID's windows hidden until it exits. Anything hidden is logged, because a hidden modal dialog blocks the instance."""
+    """Hide windows of this PID and its child processes the moment they show, and hand focus back if one takes it.
+
+    Runs on window events rather than polling, so a window has no time to paint. Child processes matter:
+    sldexitapp.exe opens the SOLIDWORKS Error Report after an exit. Anything hidden is logged, because a hidden
+    modal dialog blocks the instance.
+    """
+    user = ctypes.windll.user32
+    ours = {pid}
+    state = {"prev": None}
     seen = set()
-    while psutil.pid_exists(pid):
-        fore = win32gui.GetForegroundWindow()
-        took = fore and win32process.GetWindowThreadProcessId(fore)[1] == pid
-        for item in hide_windows(pid):
-            if item not in seen or took:
-                seen.add(item)
-                with open(hider_log(pid), "a", encoding="utf8") as f:
-                    f.write(f"{time.strftime('%H:%M:%S')} {item[0]} | {item[1]}{' | HAD FOCUS' if took else ''}\n")
-        time.sleep(0.1)
+
+    def is_ours(p):
+        if p in ours:
+            return True
+        try:
+            if psutil.Process(p).ppid() in ours:
+                ours.add(p)
+                return True
+        except psutil.Error:
+            pass
+        return False
+
+    def log(h, took):
+        item = (win32gui.GetClassName(h), win32gui.GetWindowText(h))
+        if item not in seen or took:
+            seen.add(item)
+            with open(hider_log(pid), "a", encoding="utf8") as f:
+                f.write(f"{time.strftime('%H:%M:%S')} {item[0]} | {item[1]}{' | HAD FOCUS' if took else ''}\n")
+
+    def event(_hook, ev, h, obj, child, _thread, _time):
+        try:
+            if obj != 0 or child != 0 or not h or user.GetAncestor(h, 2) != h:
+                return
+            p = win32process.GetWindowThreadProcessId(h)[1]
+            if not is_ours(p):
+                if ev == 3:
+                    state["prev"] = h
+                return
+            if win32gui.IsWindowVisible(h):
+                win32gui.ShowWindow(h, win32con.SW_HIDE)
+            log(h, ev == 3)
+            if ev == 3 and state["prev"] and win32gui.IsWindow(state["prev"]):
+                user.SwitchToThisWindow(state["prev"], True)
+        except Exception:
+            pass
+
+    proc = ctypes.WINFUNCTYPE(None, wt.HANDLE, wt.DWORD, wt.HWND, wt.LONG, wt.LONG, wt.DWORD, wt.DWORD)(event)
+    user.SetWinEventHook.restype = wt.HANDLE
+    user.SetWinEventHook(0x8002, 0x8002, 0, proc, 0, 0, 0)  # EVENT_OBJECT_SHOW
+    user.SetWinEventHook(3, 3, 0, proc, 0, 0, 0)  # EVENT_SYSTEM_FOREGROUND
+    fore = win32gui.GetForegroundWindow()
+    if fore and win32process.GetWindowThreadProcessId(fore)[1] not in ours:
+        state["prev"] = fore
+    msg = wt.MSG()
+    sweep = 0
+    while True:
+        user.MsgWaitForMultipleObjectsEx(0, None, 500, 0x04FF, 0)
+        while user.PeekMessageW(ctypes.byref(msg), 0, 0, 0, 1):
+            user.TranslateMessage(ctypes.byref(msg))
+            user.DispatchMessageW(ctypes.byref(msg))
+        if time.time() - sweep > 2:
+            sweep = time.time()
+            for q in list(ours):
+                try:
+                    ours.update(c.pid for c in psutil.Process(q).children(recursive=True))
+                except psutil.Error:
+                    pass
+            alive = [q for q in ours if psutil.pid_exists(q)]
+            if not alive:
+                return
+            for q in alive:
+                hide_windows(q)
 
 
 def _start_hider(pid):
@@ -207,6 +270,10 @@ class Instance:
             psutil.Process(self.pid).wait(30)
         except psutil.NoSuchProcess:
             pass
+        # ExitApp can start sldexitapp.exe, which opens a visible Error Report. Only this PID's own child.
+        for p in psutil.process_iter(["name", "ppid"]):
+            if p.info["ppid"] == self.pid and (p.info["name"] or "").lower() == "sldexitapp.exe":
+                p.kill()
 
 
 def launch(timeout=300, visible=False):
@@ -289,6 +356,16 @@ def session(state_file, visible=False):
     with open(state, "w") as f:
         f.write(str(inst.pid))
     return inst
+
+
+def end_session(state_file):
+    """Close this session's instance if it is running. Never starts one."""
+    state = str(state_file)
+    if os.path.exists(state):
+        pid = int(open(state).read().strip())
+        if psutil.pid_exists(pid) and psutil.Process(pid).name().lower() == "sldworks.exe":
+            attach(pid).close()
+        os.remove(state)
 
 
 if __name__ == "__main__" and len(sys.argv) == 3 and sys.argv[1] == "--hide-watch":
