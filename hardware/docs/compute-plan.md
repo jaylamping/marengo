@@ -147,12 +147,11 @@ Hardware consequences:
 - **Log everything, keep it.** Joint commands and feedback, IMU, audio and camera from the Jetson, operator commands and outcomes. Needs an NVMe SSD on the Jetson (the dev kit has M.2 slots) and on the Pi (M.2 HAT), sized for days of data, with a nightly offload to the PC.
 - **Leave room for a bigger on-robot module.** If the model moves onto the robot later, the compute bay, the 12 V output and the chest fans should take an Orin NX 16 GB without rework, and ideally not rule out a Thor-class module (40–130 W) without a redesign.
 
-## 9. Open questions for Joey
+## 9. Answers so far (Joey 2026-11-07)
 
-1. Which Pi 5 do you have, 4, 8 or 16 GB? (8 GB or more is plenty; 4 GB is still fine for control.)
-2. Has the Jetson been flashed to JetPack 6.2 or later (Super mode)?
-3. Do you want the robot to work fully offline (no cloud, no PC), or is "cloud/PC for language, Jetson for vision" fine? Offline pushes toward the Orin NX 16 GB.
-4. Do you want me to watch for Orin NX 16 GB module deals, and what's your ceiling?
+- **Jetson:** Orin Nano 8 GB. No SSD installed yet. When the NVMe goes in, flash the latest JetPack that supports the Orin Nano (6.2 or later is what unlocks Super mode). One 512 GB–1 TB M.2 2280 NVMe carries the OS, models and the logs from section 8.
+- **Pi 5:** 4 GB. Enough for the control role: the Rust runtime, Davout, CAN, SQLite logging and the gateway use well under 1 GB. Don't upgrade at today's prices. Keep the router and anything model-related on the Jetson, as planned, and send bulky logs (video) to the Jetson's SSD, not the Pi.
+- **Language/offline:** robot stays in the house; heavy inference goes to the 5080, the MacBook or the cloud (section 7).
 
 ## Sources
 
