@@ -9,6 +9,9 @@ TPFP='TestPoint:TestPoint_Keystone_5015_Micro_Mini'
 GH=lambda n:f'Connector_JST:JST_GH_SM0{n}B-GHS-TB_1x0{n}-1MP_P1.25mm_Horizontal'
 MF2='Connector_Molex:Molex_Micro-Fit_3.0_43045-0212_2x01_P3.00mm_Vertical'
 SH='Resistor_SMD:R_Shunt_Isabellenhuette_BVR4026'
+SHK='Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm'
+PIG='Connector_Wire:SolderWire-2.5sqmm_1x02_P7.2mm_D2.4mm_OD3.6mm_Relief'
+INA='INA228AIDGSR'; INADS='https://www.ti.com/lit/ds/symlink/ina228.pdf'
 CP='Capacitor_SMD:CP_Elec_10x12.6'
 CAP100='68uF 80V APZ1012680M080R'
 s=Sheet('root','marengo power board rev B','A0',comment='Rev B: a part goes in only if leaving it out would hurt. Parts list: hardware/electrical/pdb/REV_B_PARTS.md. Rev A stays as reference.')
@@ -138,20 +141,22 @@ Fault check: 87 W is 1.6 A for up to 3.8 ms, against 12 A at 10 ms on the datash
 Compute is on whenever the BMS is on. Loss at 3 A: 0.05 W shunt, 0.03 W FET.''',(240,486),100)
 
 # ---------- limbs ----------
-head('6. Limb outputs: terminal pair, 1 mOhm shunt, INA228. Fuses inline in the pigtails.',(645,22))
-LIMBS=[('L arm','GND','GND',0),('R arm','GND','+3V3_PI',0),('waist','I2C_SCL','GND',0),('aux','GND','I2C_SCL',0),('L leg','+3V3_PI','GND',1),('R leg','+3V3_PI','+3V3_PI',1)]
+head('6. Limb ports: 1.5 mOhm shunt, own breaker (block 6a), meter, soldered pigtail pair. Pigtail fuses inline.',(645,22))
+LIMBS=[('L arm','GND','GND',0),('R arm','GND','+3V3_PI',0),('waist','I2C_SCL','GND',0),('aux','GND','I2C_SCL',1),('L leg','+3V3_PI','GND',1),('R leg','+3V3_PI','+3V3_PI',1)]
+PORTDNP=[]
 for k,(nm,a1,a0,d) in enumerate(LIMBS):
     y=34+k*40; K=k+1
     rs=f'RS{K+1}'; u=f'U{10+K}'; t=f'L{K}'
-    nic(s,'Device:R_Shunt',rs,'1mR CSS4J-4026R-1L00F 6W',(660,y+12),SH,{'1':'VBUS','2':f'SH{t}_P','3':f'SH{t}_N','4':f'V_{t}'})
-    nic(s,'Sensor_Energy:INA228',u,'INA228AIDGSR',(715,y+12),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':a1,'2':a0,'3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':f'V_{t}','9':f'SH{t}_N','10':f'SH{t}_P'},ds='https://www.ti.com/lit/ds/symlink/ina228.pdf')
-    gg=Grid(s,750,y+6,12,30,770); c=gg.C('100nF','+3V3_PI','GND')
+    nic(s,'Device:R_Shunt',rs,'1.5mR 2512 Kelvin WSK25121L500FEA',(660,y+12),SHK,{'1':'VBUS','2':f'SH{t}_P','3':f'SH{t}_N','4':f'D_{t}'})
+    vb=f'D_{t}' if t=='L2' else f'V_{t}'   # R arm meter reads the port input: VBUS even with every port off
+    nic(s,'Sensor_Energy:INA228',u,INA,(715,y+12),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':a1,'2':a0,'3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':vb,'9':f'SH{t}_N','10':f'SH{t}_P'},ds=INADS)
+    gg=Grid(s,750,y+6,12,30,770); c=gg.C('100nF 25V X7R','+3V3_PI','GND')
     cref=f"C{s.refc['C']}"
-    j1=term(nm+' +',(775,y+12),f'V_{t}')
+    j1=conn(2,nm+': 14 AWG pigtail pair, 1 +, 2 return',(775,y+12),PIG,[f'V_{t}','GND'])
     if d:
+        PORTDNP.append(K)
         for r in (rs,u,cref,j1): dnp(r)
-term('GND stud 1: L arm, R arm, waist returns',(805,46),'GND'); term('GND stud 2: aux, L leg, R leg returns',(805,166),'GND')
-note('1 mOhm: 60 A peak is 60 mV, ADCRANGE 0. 0.36 W at 19 A.\nLegs DNP: fit the same parts when they arrive.\nReturns share two GND studs, three limbs each: check the stud and its lug for the summed current.',(645,280))
+note('1.5 mOhm: 45 A is 68 mV, ADCRANGE 0. 0.6 W at 20 A.\nEach limb\'s + and return leave on one soldered pair, twisted from the board edge. No GND studs.\nAux and legs DNP: fit the same parts when they arrive (legs on rev C).\nU12 reads the R arm port input, so it shows VBUS with every port off; the other meters read their port outputs.',(645,280))
 s.refc['J']=21
 
 # ---------- bank A ----------
@@ -250,6 +255,36 @@ wnote('''Rev B4 review: two more absorber cans (three in all). U2 feed 22R and s
 term('M4 terminal, HS50 B (-X) +',(200,660),'VBUS'); term('M4 terminal, HS50 B (-X) -',(240,660),'CL_D')
 g.R('9.53M','CL_HY','CL_SENSE',R603)  # R22 split: 19.1 MOhm isn't stocked in 0402 (rev B4 audit)
 dnp('C29')  # bank A comparator at its fastest: TMR with R37 only (rev B3 review B2)
+
+# ---------- rev B5: limb port breakers (Opus round 5, Joey 2026-11-07) ----------
+head('6a. Limb port breakers: TPS48111-Q1 + one FET per port, latch-off, enabled by RUN',(850,22))
+mkic('TPS48111-Q1',[('1','EN/UVLO','input'),('2','INP_G','input'),('3','INP','input'),('4','FLT_T','open_collector'),('5','FLT_I','open_collector'),('6','GND','power_in'),('7','IMON','passive'),('8','IWRN','passive'),('9','TMR','passive'),('10','DIODE','passive'),('11','G','output'),('12','BST','passive'),('13','SRC','passive'),('14','PD','output'),('15','PU','output'),('17','CS-','input'),('18','CS+','input'),('19','ISCP','passive'),('20','VS','passive')],'marengo_revb:TPS48100_DGX_VSSOP-19','https://www.ti.com/lit/ds/symlink/tps4811-q1.pdf','100 V smart high-side driver, 1.2 us short-circuit trip, 4 A pull-down (DGX-19, same land as TPS48100)')
+s.refc['U']=18  # U1-U18 are placed by hand above
+g=Grid(s,860,40,17,30,990)
+g.D('BAV19W','RUN_P','RUN'); g.R('10k','PORT_FLT_N','+3V3_PI'); g.F('RUN_P')
+for k in range(6):
+    K=k+1; t=f'L{K}'; y=95+k*105
+    u=s.nref('U'); q=s.nref('Q'); refs=[u,q]
+    nic(s,LIBNAME+':TPS48111-Q1',u,'TPS48111AQDGXRQ1',(880,y),'marengo_revb:TPS48100_DGX_VSSOP-19',{'1':f'EN_{t}','2':'GND','3':f'INP_{t}','4':None,'5':'PORT_FLT_N','6':'GND','7':'GND','8':f'IWRN_{t}','9':f'TMR_{t}','10':'GND','11':None,'12':f'BST_{t}','13':f'V_{t}','14':f'GPD_{t}','15':f'GPU_{t}','17':f'SH{t}_N','18':f'CSP_{t}','19':f'ISCP_{t}','20':f'SH{t}_P'},ds='https://www.ti.com/lit/ds/symlink/tps4811-q1.pdf')
+    nic(s,Qb,q,'IPB017N10N5LFATMA1',(950,y),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':f'G_{t}','2':f'V_{t}','3':f'V_{t}','4':f'D_{t}','5':f'V_{t}','6':f'V_{t}','7':f'V_{t}'})
+    g=Grid(s,985,y-30,15,30,1160)
+    refs+=[g.R('100R',f'SH{t}_P',f'CSP_{t}'),g.R('3.4k 1%',f'ISCP_{t}',f'SH{t}_N'),g.R('26.1k 1%',f'IWRN_{t}','GND'),g.R('100k',f'TMR_{t}','GND')]
+    g.C('1uF 16V X7R',f'TMR_{t}','GND',C603); refs.append(f"C{s.refc['C']}")
+    g.C('220nF 25V X7R',f'BST_{t}',f'V_{t}',C603); refs.append(f"C{s.refc['C']}")
+    g.C('100nF 100V X7R',f'SH{t}_P','GND',C805); refs.append(f"C{s.refc['C']}")
+    g.C('2.2uF 100V X7R',f'D_{t}','GND',C1210); refs.append(f"C{s.refc['C']}")
+    g.nl()
+    refs+=[g.R('100k',f'GPU_{t}',f'G_{t}'),g.R('22R',f'GPD_{t}',f'G_{t}',R603),g.D('BAV19W',f'GC_{t}',f'G_{t}')]
+    g.C('100nF 100V X7R',f'GC_{t}','GND',C805); refs.append(f"C{s.refc['C']}")
+    refs+=[g.R('10M',f'GC_{t}','GND',R603),g.Z('BZT52C15',f'G_{t}',f'V_{t}'),g.R('22k','RUN_P',f'EN_{t}'),g.R('10k',f'EN_{t}','GND'),g.R('100k','RUN_P',f'INP_{t}'),g.D('SK810L-TP',f'V_{t}','GND',SMC)]
+    if K in PORTDNP:
+        for r in refs: dnp(r)
+wnote('''Why: a hard limb short used to latch the whole bus (U1 trips in under 0.4 ms, long before a 20 A fuse melts). Each port now opens itself first.
+Short circuit: RISCP 3.4k on 1.5 mOhm = 35-45 A (15.6 uA x (R + 464)), PD low within 1.6 us, then 22R to the gate: Miller about 0.16 us, so the drain-side di/dt stays a few A/ns against the 2.2 uF and the bus caps. tools/port_sim.py: for 50 nH to 1 uH of wiring, 0.5-1 uH pack lead, 0-50 A on the other limbs, RS1 peaks at 130 A or less against U8 158 A and U1 160 A minimum: the port always opens first. A short at the board pads (50 nH) puts about 1.1-1.4 kA through the FET for under 2 us (5-14 mJ; IPB017: 1024 A pulse, 979 mJ avalanche), which is why the port uses the bank FET. A short in the harness (200 nH or more) is 400-540 A.
+Overload: RIWRN 26.1k = 30 A (11.9 x RSET / (RSNS x IOC)), CTMR 1 uF with 100k across it: about 16 ms, then latch-off. The 20 A pigtail fuse stays as wire protection and as backup for a shorted FET.
+Latch clears only when EN drops: an E-stop cycle, then reset. FLT_I of every port pulls PORT_FLT_N (Pi header): the Pi names the port whose output is low.
+Start: EN and INP come from RUN through one diode (a pin fault can't drive RUN). The bus starts from 0 under U1, so the port wakes at VS 3 V with BST up (0.22 uF, about 20 ms): the gate rises through 100k into 100 nF (diode-coupled, 10M bleed, so PD never sees it), about 1 kV/s at the output: 20 mF of drive capacitance draws about 20 A, under the 30 A overload level. After that the drive caps follow the bus.
+Off (E-stop, trip): the body diode still returns regen from the limb to the bus and the clamp. SK810L on each output carries the wiring current when the FET opens. 15 V zener gate to source.''',(860,735),210)
 writelib()
 s.write([('/'+ROOT,'1')])
 print('ok',{k:v for k,v in s.refc.items() if not k.startswith('#')})

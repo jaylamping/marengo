@@ -59,12 +59,18 @@ R27 RUN_A EN_A 10k
 R28 EN_A 0 100k
 R38 RUN SP_EN 100k
 R39 SP_EN 0 68k
+* rev B5: three fitted limb port breakers on RUN_P (each 22k/10k to EN, 100k to INP)
+DP RUN RUN_P DSIG
+RENP RUN_P EN_P 7.33k
+RENG EN_P 0 3.33k
+RINP RUN_P INP_P 33.3k
+RINPG INP_P 0 1Meg
 .model SW1 SW(VT=0.5 VH=0.1 RON=1m ROFF=1G)
 '''+MODELS+'''
 .control
 set filetype=ascii
 tran 2u {tend} 0 2u uic
-wrdata {out} v(run) v(l_b) v(uvlo) v(en_a)
+wrdata {out} v(run) v(l_b) v(uvlo) v(en_a) v(en_p)
 destroy all
 .endc
 .end
@@ -97,7 +103,7 @@ for cn,bn,bp in CORN:
     # 3. reset press after power-up closes it; 4. loop open drops it; 5. re-closing the loop does nothing; 6. reset held through a loop cycle does nothing
     t0=0.02
     r=run('1m','0 1 0.06 1 0.0601 0 0.07 0 0.0701 1 1 1',f'0 0 {t0} 0 {t0+1e-4} 1 {t0+0.02} 1 {t0+0.0201} 0 1 0','0.1',bn,bp)
-    case(f'{cn}: reset closes it',at(r,0.05)[1]>6.0,f'RUN {at(r,0.05)[1]:.2f} V, UVLO {at(r,0.05)[5]:.2f} V, EN_A {at(r,0.05)[7]:.2f} V')
+    case(f'{cn}: reset closes it',at(r,0.05)[1]>6.0 and at(r,0.05)[9]>1.25,f'RUN {at(r,0.05)[1]:.2f} V, UVLO {at(r,0.05)[5]:.2f} V, EN_A {at(r,0.05)[7]:.2f} V, port EN {at(r,0.05)[9]:.2f} V (1.2 V max threshold)')
     case(f'{cn}: loop open drops it',at(r,0.065)[1]<H,f'RUN {at(r,0.065)[1]:.2f} V')
     case(f'{cn}: re-closing the loop does nothing',at(r,0.09)[1]<H,f'RUN {at(r,0.09)[1]:.2f} V')
     r=run('1m','0 1 0.04 1 0.0401 0 0.05 0 0.0501 1 1 1','0 0 0.02 0 0.0201 1 1 1','0.1',bn,bp)

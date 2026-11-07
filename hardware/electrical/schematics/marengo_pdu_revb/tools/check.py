@@ -38,7 +38,7 @@ ok(not ({n('Q8',1),n('Q9',1),'GATE_A'} & {n('Q1',1),n('Q2',1),'GATE'}),'no gate 
 ok(len(two('RUN_A','EN_A'))==1 and two('EN_A','GND') and diode('RUN_A','RUN'),'bank A enable from RUN through its own diode, pulled down')
 ok(len(two('SW_D','MID',('R',)))==1 and len(two('MID','GND',('R',)))==1,'MID bias')
 ok(n('U17',8)=='MID_S' and two('MID','MID_S',('R',)) and n('U17',9)==n('U17',10)=='GND','U17 reads MID through a series resistor')
-ok(n('U11',8)=='V_L1','U11 reads VBUS through the L arm output')
+ok(n('U12',8)=='D_L2' and n('U11',8)=='V_L1','U12 reads VBUS on the R arm port input, U11 its port output')
 ok(n('U1',3)=='UVLO' and len(two('RUN_B','UVLO'))==1 and len(two('UVLO','GND'))==1 and diode('RUN_B','RUN'),'UVLO only from RUN, through its own diode: no RUN, no bank')
 ok(not any(r[0]=='R' and 'RUN' in (n(r,1),n(r,2)) and {n(r,1),n(r,2)}&{'UVLO','EN_A'} for r in comp),'no resistor from RUN straight to UVLO or EN_A: a pin fault cannot back-drive RUN')
 ok(not any(n(r,p) in('BAT','VBUS') for r,p in pin if r!='x' and n(r,p)=='UVLO'),'UVLO has no path to the bus')
@@ -92,9 +92,19 @@ for u in [c for c in comp if val(c).startswith('INA228')]:
     a=0x40|(SYM[n(u,1)]<<2)|SYM[n(u,2)]; ok(a not in addr,f'{u} address {a:#x}'); addr[a]=u
     ok(n(u,4)=='I2C_SDA' and n(u,5)=='I2C_SCL' and n(u,6)=='+3V3_PI' and n(u,7)=='GND',u+' bus and supply')
 ok(len(addr)==9,'nine meters')
+ports=[u for u in comp if val(u).startswith('TPS48111')]
+ok(len(ports)==6,'six limb port breakers')
 for k in range(2,8):
-    r=f'RS{k}'; u=f'U{k+9}'
-    ok(n(r,1)=='VBUS' and n(u,10)==n(r,2) and n(u,9)==n(r,3) and n(u,8)==n(r,4),r+' Kelvin to '+u)
+    r=f'RS{k}'; u=f'U{k+9}'; t=f'L{k-1}'
+    ok(n(r,1)=='VBUS' and n(u,10)==n(r,2) and n(u,9)==n(r,3) and n(u,8) in (f'V_{t}',n(r,4)),r+' Kelvin to '+u)
+    p=[x for x in ports if n(x,20)==n(r,2)]
+    q=[x for x in comp if x[0]=='Q' and n(x,4)==n(r,4)]
+    ok(len(p)==1 and n(p[0],17)==n(r,3) and two(n(r,2),n(p[0],18),('R',)) and two(n(p[0],19),n(r,3),('R',)) and len(q)==1 and n(q[0],2)==n(p[0],13)==f'V_{t}',t+' port: shunt, breaker sense (RSET on CS+, RISCP to CS-), FET drain on the shunt, source on the output')
+    ok(n(p[0],1)!=n(p[0],3) and two('RUN_P',n(p[0],1),('R',)) and two('RUN_P',n(p[0],3),('R',)) and n(p[0],5)=='PORT_FLT_N' and two(n(p[0],9),'GND',('R',)),t+' port enabled from RUN_P, fault flag shared, latch-off resistor on TMR')
+    ok(any(d[0]=='D' and n(d,1)==f'V_{t}' and n(d,2)=='GND' for d in comp),t+' output clamp to GND for the wiring current')
+    j=[x for x in comp if x[0]=='J' and n(x,1)==f'V_{t}']
+    ok(len(j)==1 and n(j[0],2)=='GND',t+' + and return on one pigtail pair')
+ok(diode('RUN_P','RUN') and not any(x in ('U1','U8') for x,p in nets['RUN_P']),'ports take RUN through their own diode')
 OPT={r for r in comp if {n(r,1),n(r,2),n(r,4)}&{'PRE_G','ABS_N'}}|{'C29'}|set(csc)|{r for r in comp if r[0]=='R' and {n(r,1),n(r,2)}=={'VBUS','GND'}}
 legs=[r for r in comp if dnp(r) and r not in OPT]
 ok(n('U9',2)=='SP_EN' and len(two('RUN','SP_EN'))==1 and n('U9',3)==n('U9',4)=='+12V','SPARE_SW eFuse enabled by RUN, fed from +12V')
@@ -102,8 +112,8 @@ ok(n('RS10',1)==n('U9',5) and n('U10',10)==n('RS10',2) and n('U10',9)==n('RS10',
 ok(n('J22',1)=='SPARE_SW' and n('J22',2)=='GND','SPARE_SW output')
 ok(n('J23',1)=='SPARE_ON' and n('J23',2)=='GND' and n('U18',5)=='SPARE_ON' and n('U18',3)==n('U18',4)=='+12V','SPARE_ON output behind its eFuse')
 ok(not any(r in ('U18','J23') for r,p in nets['RUN']),'SPARE_ON does not touch the latch')
-ok(len(legs)==8,'legs DNP: '+str(sorted(legs)))
-ok(len([r for r,p in nets['GND'] if r[0]=='J' and val(r).startswith('GND stud')])==2,'limb returns on two GND studs')
+ok(len(legs)==3*(4+20),'aux and legs DNP (4 limb parts + 20 breaker parts each): '+str(len(legs)))
+ok(not [r for r,p in nets['GND'] if r[0]=='J' and val(r).startswith('GND stud')],'no GND studs: each limb return sits beside its +')
 ok(n('J21',1)=='+3V3_PI' and n('J21',2)=='I2C_SDA' and n('J21',3)=='I2C_SCL' and n('J21',4)=='GND','Pi header')
 ok(n('J20',8)=='ESTOP_NO' and n('J20',7)=='GND','button NO on the loop connector, GND between it and reset')
 ok(two('NO_PU','ESTOP_NO') and diode('NO_PU','+3V3_PI') and two('ESTOP_NO','ESTOP_PI_N') and n('J21',5)=='ESTOP_PI_N','NO pull-up from the Pi rail through a blocking diode, series R to the Pi')
