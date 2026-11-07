@@ -24,13 +24,15 @@ Each plate 58 × 140 × 6 mm, about 38 g at 100 %.
 
 ## Cradle and board carrier, fit-check set
 
-**Fit-check only, not crash-rated.** Light settings for everything (Joey 2026-11-07), since nothing in this set depends on print strength yet. Made by `build_prints.py` with the Bambu Studio CLI: P2S 0.4 mm nozzle, Joe PETG HF, Cool Plate SuperTack, 0.28 mm layers, 3 walls, 15 % gyroid.
+**Fit-check only, not crash-rated.** Light settings for everything (Joey 2026-11-07), since nothing in this set depends on print strength yet. Made by `build_prints.py` with the Bambu Studio CLI: P2S 0.4 mm nozzle, Cool Plate SuperTack, 0.28 mm layers, 3 walls, 15 % gyroid. Sides and carrier are in Joe PLA (Joey's PLA preset, temperatures from the preset) to save PETG for parts that need it. The hooks stay in Joe PETG HF: they are already printed, and the snap tongue is better in PETG.
 
-| File | What | Orientation | Supports | Time | Filament |
-| --- | --- | --- | --- | --- | --- |
-| `marengo_torso_cradle_sides_x2.3mf` | Both cradle sides on one plate | Front edge down (Z 37.5 on the bed) | Tree, 3 g, three places | 3 h 3 min | 104 g |
-| `marengo_torso_cradle_hooks.3mf` | Both snap hooks | Rear face down (Z −15 on the bed) | None | 22 min | 5 g |
-| `marengo_torso_board_carrier.3mf` | Power board carrier | Rear face down (Z 37.5 on the bed) | None | 1 h 1 min | 34 g |
+PLA softens around 55–60 °C, which is fine for a fit-check on the bench. If the pack or power board runs hot later, reprint the sides and carrier in PETG.
+
+| File | What | Material | Orientation | Supports | Time | Filament |
+| --- | --- | --- | --- | --- | --- | --- |
+| `marengo_torso_cradle_sides_x2.3mf` | Both cradle sides on one plate | PLA | Front edge down (Z 37.5 on the bed) | Tree, three places | 2 h 32 min | 107 g |
+| `marengo_torso_cradle_hooks.3mf` | Both snap hooks | PETG (printed) | Rear face down (Z −15 on the bed) | None | 22 min | 5 g |
+| `marengo_torso_board_carrier.3mf` | Power board carrier | PLA | Rear face down (Z 37.5 on the bed) | None | 52 min | 35 g |
 
 Print the hooks first. They take about 20 minutes and show whether the 2 mm slit stayed open, the 19 mm bridge held and the tongue flexes. The click itself needs a side's web slot, so check that once a side is printed.
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Fit-check print plates for the torso cradle, hooks and board carrier, sliced offline with the Bambu Studio CLI.
 
-Joey's P2S machine and PETG HF presets flattened over the system profiles, same route as the left arm forearm slice.
+Joey's P2S machine and filament presets flattened over the system profiles, same route as the left arm forearm slice.
+Sides and carrier in Joe PLA, hooks in Joe PETG HF (Joey 2026-11-07: PETG kept for parts that need it).
 Light fit-check settings throughout (Joey 2026-11-07): 3 walls, 15 % gyroid, 0.28 mm layers, Cool Plate SuperTack, no glue.
 Run: python build_prints.py [plate ...]
 """
@@ -26,6 +27,7 @@ WORK = Path(tempfile.gettempdir()) / "marengo_torso_prints"
 FRONT_DOWN = trimesh.transformations.rotation_matrix(np.pi, [1, 0, 0])  # torso Z 37.5 on the bed, layers in the C section
 AS_IS = np.eye(4)  # torso +Z up: hook rear face or carrier rear face on the bed
 BED = "Supertack Plate"
+PLA, PETG = "Joe PLA.json", "Joe PETG HF.json"  # Joey's user filament presets
 BASE = {"layer_height": "0.28", "wall_loops": "3", "sparse_infill_density": "15%", "sparse_infill_pattern": "gyroid", "enable_support": "0"}
 BRIM = {"brim_type": "outer_only", "brim_width": "5"}
 # Manual tree supports, only inside ENFORCE. Auto put them in the M3 insert holes, the M5 slots, the strap slot and the window arches.
@@ -44,9 +46,9 @@ def hooks():
 
 
 PLATES = {
-    "marengo_torso_cradle_sides_x2": ([(side("right"), FRONT_DOWN), (side("left"), FRONT_DOWN)], {**BRIM, **SUPPORT}),  # right is object 0, left object 1
-    "marengo_torso_cradle_hooks": ([(h, AS_IS) for h in hooks()], {}),
-    "marengo_torso_board_carrier": ([(CARRIER / "marengo_torso_board_carrier.stl", AS_IS)], {}),
+    "marengo_torso_cradle_sides_x2": ([(side("right"), FRONT_DOWN), (side("left"), FRONT_DOWN)], {**BRIM, **SUPPORT}, PLA),  # right is object 0, left object 1
+    "marengo_torso_cradle_hooks": ([(h, AS_IS) for h in hooks()], {}, PETG),
+    "marengo_torso_board_carrier": ([(CARRIER / "marengo_torso_board_carrier.stl", AS_IS)], {}, PLA),
 }
 
 
@@ -77,9 +79,9 @@ def write(kind, path, out, overrides=None):
     return f
 
 
-def filament(out):
+def filament(out, preset):
     # Joe's preset has per-extruder arrays with "nil" slots, which the CLI refuses, so apply its first slot over the system preset.
-    joe = json.loads((USER / "filament" / "Joe PETG HF.json").read_text(encoding="utf8"))
+    joe = json.loads((USER / "filament" / preset).read_text(encoding="utf8"))
     base = flat("filament", json.loads(find("filament", joe["inherits"]).read_text(encoding="utf8")))
     over = {"name": joe["name"]}
     for k, v in joe.items():
@@ -134,12 +136,12 @@ def add_enforcers(src, dst):
 
 
 def run(name):
-    items, over = PLATES[name]
+    items, over, preset = PLATES[name]
     out = WORK / name
     out.mkdir(parents=True, exist_ok=True)
     m = write("machine", USER / "machine" / "Bambu Lab P2S 0.4 nozzle ventoBox 20251215.json", out, {"name": "Bambu Lab P2S 0.4 nozzle", "printer_settings_id": "Bambu Lab P2S 0.4 nozzle"})
     s = write("process", SYS / "process" / "0.20mm Standard @BBL P2S.json", out, {**BASE, **over})
-    f = filament(out)
+    f = filament(out, preset)
     stls = []
     for i, (src, tf) in enumerate(items):
         mesh = trimesh.load(src) if isinstance(src, Path) else src.copy()
