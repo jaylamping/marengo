@@ -34,6 +34,8 @@ PLA softens around 55–60 °C, which is fine for a fit-check on the bench. If t
 | `marengo_torso_cradle_hooks.3mf` | Both snap hooks | PETG (printed) | Rear face down (Z −15 on the bed) | None | 22 min | 5 g |
 | `marengo_torso_board_carrier.3mf` | Power board carrier | PLA | Rear face down (Z 37.5 on the bed) | None | 52 min | 35 g |
 
+The 3MFs flag their changed settings (layers, walls, infill, supports, brim) so Bambu Studio keeps them when the project opens instead of reloading the 0.20 mm preset defaults. After opening, the process panel should show 0.28 mm, 3 walls and 15 % gyroid.
+
 Print the hooks first. They take about 20 minutes and show whether the 2 mm slit stayed open, the 19 mm bridge held and the tongue flexes. The click itself needs a side's web slot, so check that once a side is printed.
 
 The sides use tree supports in three places only (bottom foot tongue, thumbscrew boss, ledge tip), see `../cradle/README.md`. The plate has a 5 mm brim. Pull the supports off the boss and tongue, and check the M3 pilots and M5 slots are clear.

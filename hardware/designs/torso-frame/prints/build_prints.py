@@ -135,6 +135,24 @@ def add_enforcers(src, dst):
             o.writestr(item.filename, data if data is not None else z.read(item.filename))
 
 
+def mark_changed(path, keys):
+    """Flag our process overrides in different_settings_to_system. Without it Bambu Studio sees an unmodified system preset when the
+    project opens and reloads its defaults (0.20 mm, 2 walls, no supports). Only the settings JSON changes; the sliced G-code is kept."""
+    path = Path(path)
+    z = zipfile.ZipFile(path)
+    cfg = json.loads(z.read("Metadata/project_settings.config"))
+    diff = list(cfg.get("different_settings_to_system") or ["", "", ""])
+    diff[0] = ";".join(sorted(set(filter(None, diff[0].split(";"))) | set(keys)))
+    cfg["different_settings_to_system"] = diff
+    tmp = path.with_suffix(".tmp")
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as o:
+        for item in z.infolist():
+            data = json.dumps(cfg, indent=4) if item.filename == "Metadata/project_settings.config" else z.read(item.filename)
+            o.writestr(item, data)
+    z.close()
+    tmp.replace(path)
+
+
 def run(name):
     items, over, preset = PLATES[name]
     out = WORK / name
@@ -162,6 +180,7 @@ def run(name):
         r = subprocess.run([*cli, *load, "--slice", "1", "--export-3mf", final.name, "--outputdir", str(out), *map(str, stls)], **flags)
     if (out / final.name).exists():
         shutil.copy(out / final.name, final)
+        mark_changed(final, {**BASE, **over})
     (out / "log.txt").write_text(r.stdout[-6000:] + r.stderr[-3000:], errors="replace")
     res = {"plate": name, "exit": r.returncode}
     if final.exists():
@@ -172,5 +191,9 @@ def run(name):
 
 
 if __name__ == "__main__":
-    for plate in sys.argv[1:] or PLATES:
-        run(plate)
+    if sys.argv[1:2] == ["--mark"]:   # flag the overrides in already-sliced projects without re-slicing
+        for plate in sys.argv[2:] or PLATES:
+            mark_changed(HERE / f"{plate}.3mf", {**BASE, **PLATES[plate][1]})
+    else:
+        for plate in sys.argv[1:] or PLATES:
+            run(plate)
