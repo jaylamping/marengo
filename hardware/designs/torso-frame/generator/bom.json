@@ -209,7 +209,7 @@
  },
  {
   "item": 27,
-  "name": "Reserve: pin solder joints and 4-wire pigtail in front of the brick",
+  "name": "Reserve: pin solder joints and pigtails in front of the brick",
   "qty": 10,
   "mass_g": 175,
   "material": "reserved path",
