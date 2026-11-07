@@ -4,6 +4,8 @@ Open each file as a complete project, not a geometry import. Each 3MF is already
 
 Check these in Bambu Studio before you press print. If anything differs, stop and fix it before printing, because presets can reset values.
 
+**After opening a project, always confirm the plate type, walls and infill against this table, and that the print time matches `PRINT_ORDER.md`.** A preset can switch them when the project opens. One coupon plate opened as Cool Plate Super Tack and about 1 h 53 m, against Textured PEI and 3 h 05 m as sliced.
+
 | Setting | Value |
 | --- | --- |
 | Printer | Bambu Lab P2S |

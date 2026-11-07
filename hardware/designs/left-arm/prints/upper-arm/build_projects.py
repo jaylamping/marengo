@@ -35,6 +35,7 @@ JOBS = {
     'p2': lambda: read_stl(S / 'P2_L05.STL'),
     'fit_coupons': lambda: coupons_plate(),
     'guard': lambda: YZ(read_stl(S / 'GUARD.STL')),
+    'seat_ring_only': lambda: UP_X(read_stl(S / 'coupon_seat.STL')),
     'cover': lambda: YZ(read_stl(S / 'UA2_COVER.STL')),
 }
 SEAT_XY = [0.0, 0.0]
@@ -63,6 +64,7 @@ BRIM = {'brim_type': 'outer_only', 'brim_width': '5'}
 EXTRA = {}
 # keeps support out of the bearing seat, r 28 about the elbow axis, carrier inboard face down
 BLOCK = {'carrier': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1),
+         'seat_ring_only': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1),
          'fit_coupons': lambda lo, hi: disc(lo[0] + SEAT_XY[0], lo[1] + SEAT_XY[1], 28.0, lo[2] - 1, hi[2] + 1)}
 
 
