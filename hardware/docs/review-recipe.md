@@ -44,6 +44,8 @@ cursor-agent launched from Git Bash can be blocked by the repo's `.cursor` pre-t
 
 ## agy: Gemini (Argon) work only, not a reviewer
 
+Argon is the project reader (Joey, 2026-11-07): see [argon-reader.md](argon-reader.md) for the command, inputs and the mandatory verification step.
+
 **Joey, 2026-11-07 14:30Z: Opus no longer runs through Antigravity.** Its Claude/GPT quota covers about one Opus review per 5-hour window. agy stays installed for Gemini (Argon) work only, and Argon is not a reviewer. The notes below are kept as a record of what agy needed headless.
 
 **Claude routing, Joey 2026-11-07 14:30Z, for reviews and similar workflows:** Opus and Fable both go to the Anthropic API key first, then our own subscription. Earlier agy-run Opus rows stay in the scorecard as "Opus High (agy)".

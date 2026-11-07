@@ -86,6 +86,8 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B4 | gpt-6-astra | high | 16 | 0 | 2 | 0 | on (checked) | 0 | 18.4 | sub | 9.2 | Unique: D5 should be a Schottky; STS3215 12 V variant |
 | PDB rev B4 | muse-wonder-1.0 | high | 18 | 2 | 2 | 0 | on (checked) | 0 | 18.8 | sub | 9.4 | Unique: U11 reads after the L-arm fuse; Q3 vendor pinout. Still quoted 544 W |
 | PDB rev B4 | deepseek-v4.1-flash (trial) | high | 4 | 12 | 1 | 2 | **values off** | 0 | 6.5 | CheaperInference, $0.07 | 6.5 | Unique: unfused compute outputs. 42 of 72 cited values match; false blockers on the power limit and U2. **Strike 1** |
+| PDB rev B4 task | Argon (task: claim check), gemini-4-argon-high | high | 20 | 0 | 0 | 0 | on (checked) | 0 | 4.3 | Gemini quota | | 20 of 20 against a hidden key, every one cited. Side note quoted 544 W |
+| PDB rev B4 task | Argon (task: figure reading), gemini-4-argon-high | high | 2 | 1 | 0 | 0 | on (checked) | 0 | 8.8 | Gemini quota | | Arcol right, including "no pulse curve: NOT IN SOURCE". DVE derating read up to 13 % low (conservative). IPB017 SOA log-log read 1.5-2x high with "high" confidence: 1 of 10 within 25 %. Scored per figure set: 2 usable, 1 false |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
 ## By model
