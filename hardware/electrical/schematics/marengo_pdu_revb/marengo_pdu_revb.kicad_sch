@@ -10011,7 +10011,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "MMBTA92"
+		(property "Value" "MMBTA92LT1G"
 			(at 270.51 128.27 0)
 			(effects
 				(font
@@ -14802,7 +14802,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "19.1M"
+		(property "Value" "9.53M"
 			(at 256.54 278.13 0)
 			(effects
 				(font
@@ -14811,7 +14811,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 254 276.86 0)
 			(effects
 				(font
@@ -14888,7 +14888,7 @@
 		)
 		(uuid "a6dacbad-e663-5ba9-96dd-6498e16be170")
 	)
-	(label "CL_SENSE"
+	(label "CL_HY"
 		(at 254 283.21 270)
 		(effects
 			(font
@@ -16714,7 +16714,7 @@
 		)
 		(uuid "b7dfccb8-88d5-5809-bfa4-c9b65743fad5")
 	)
-	(text "400 uF, 80 V. The drives have their own. Can is 10 x 16.5: land owed, and it only clears under the higher ceiling, away from the fans."
+	(text "400 uF, 80 V. The drives have their own. Can is 10 x 16.5: land owed, and it only clears under the higher ceiling, away from the fans. Part number unverified (rev B4 audit): open."
 		(exclude_from_sim no)
 		(at 355.6 318 0)
 		(effects
@@ -29915,7 +29915,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS259541DSG"
+		(property "Value" "TPS259541DSGR"
 			(at 594.36 519.43 0)
 			(effects
 				(font
@@ -32449,7 +32449,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS259541DSG"
+		(property "Value" "TPS259541DSGR"
 			(at 474.98 468.63 0)
 			(effects
 				(font
@@ -36059,7 +36059,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "330uF 25V polymer"
+		(property "Value" "330uF 25V EEH-ZA1E331P"
 			(at 116.84 561.34 0)
 			(effects
 				(font
@@ -36068,7 +36068,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_8x10.5"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x10.5"
 			(at 114.3 560.07 0)
 			(effects
 				(font
@@ -40596,7 +40596,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22R 2512 pulse-rated"
+		(property "Value" "22R CRCW251222R0FKEGHP"
 			(at 121.92 626.11 0)
 			(effects
 				(font
@@ -42450,6 +42450,120 @@
 			(justify right bottom)
 		)
 		(uuid "6ca95ebc-d502-5d1f-b880-16f3c160f1c8")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 119.38 660.4 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "164e4686-01b5-5154-b63b-3409fdb72e83")
+		(property "Reference" "R64"
+			(at 121.92 659.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "9.53M"
+			(at 121.92 661.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 119.38 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 119.38 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 119.38 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fe5164a1-b0b3-5c84-89be-f341e755e2d5")
+		)
+		(pin "2"
+			(uuid "b0e2f120-f66a-5b66-8531-d48916e36266")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "R64")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 119.38 656.59)
+			(xy 119.38 654.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "451c9728-cf9b-5112-bdbf-6b35ecfb5261")
+	)
+	(label "CL_HY"
+		(at 119.38 654.05 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c10bb69c-f827-5809-b94b-c49e33d5e7fd")
+	)
+	(wire
+		(pts
+			(xy 119.38 664.21)
+			(xy 119.38 666.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0677c08d-58e6-5499-b4ea-5ee20114ebfb")
+	)
+	(label "CL_SENSE"
+		(at 119.38 666.75 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "13e4b336-72a8-53f5-adef-45ce2926ebf8")
 	)
 	(sheet_instances
 		(path "/"

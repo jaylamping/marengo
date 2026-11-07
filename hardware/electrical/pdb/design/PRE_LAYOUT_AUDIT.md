@@ -17,9 +17,17 @@ Routing hasn't started; Joey reviews placement first.
 | 1 | C38, C44, C45: Kyocera AVX APZ1012470M100R, 47 µF 100 V, 3 needed | **Supply.** DigiKey shows 0 in stock with a 24-week factory lead time. Octopart's inventory trend is down 100 % over three months | Find a 47 µF 100 V hybrid polymer in a 10 × 12.5 mm can with ESR ≤ 50 mΩ and a µs surge rating. Rerun absorber_sim at that part's ESR. Sourcing is a task for the Argon reader, plus a DigiKey check |
 | 2 | C45 placement | **Doesn't fit on the front face.** Row 2 (bank B, latch) has no room for the two new cans. C44 fits a pocket under J26; C45 doesn't | Joey's call. Put C45 on the back face under bank B, where the absorber loop runs D7 → C → GND through vias. Or shrink bank A's block to widen the pocket |
 | 3 | C10–C13: HHXF800GRA101MJH0G, 100 µF 80 V bus caps | **Part number not verified** (no datasheet or distributor listing found). The sheet note says the can is 10 × 16.5 mm, but the footprint is CP_Elec_10x14.3 | Pick a real 100 µF 80 V hybrid polymer and set the footprint from its datasheet. Bus caps need the Z 67 strip anyway |
-| 4 | R22: 19.1 MΩ 0402 (clamp hysteresis) | **Not a standard value in 0402**: the common thick-film series stop at 10 MΩ | Two 9.53 MΩ 0603 in series (0.1 % not needed) or a high-ohm series part. Same hysteresis |
+| 4 | **Fixed:** R22: 19.1 MΩ 0402 (clamp hysteresis) | **Not a standard value in 0402**: the common thick-film series stop at 10 MΩ | Two 9.53 MΩ 0603 in series (0.1 % not needed) or a high-ohm series part. Same hysteresis |
 | 5 | R53: 0R 2512 in the absorber ground leg | **Carries the full trip pulse**, up to about 900 A for about 10 µs, about 3 A²s. A generic 2512 jumper has no rating for that | Replace R53 with a direct copper connection, which drops the 10b option's footprint, or use a jumper with a published pulse rating. Joey decides with the 10b DNP decision: 10b only matters if the JK trips on close |
 | 6 | Bank A FETs Q8, Q9 | **Outside the fan zone.** The top strip (Y 305–339) is above the upper fan zone (Y 264–304). See the thermal section | Give them extra copper (below), or swap bank A with the latch block so both banks sit under the fans |
+
+## Fixed in the schematic (2026-11-07)
+
+- R22 is now 2 × 9.53 MΩ 0603 in series (R22 + R64, via net CL_HY). Hysteresis is unchanged.
+- Q3 value is now MMBTA92LT1G (onsemi, B1/E2/C3).
+- U9 and U18 values are now TPS259541DSGR.
+- C41 is now Panasonic EEH-ZA1E331P: 330 µF 25 V hybrid, 20 mΩ, 2.5 A ripple, 10 × 10.2 mm. The footprint moves from CP_Elec_8x10.5 to CP_Elec_10x10.5.
+- R59 is now Vishay CRCW251222R0FKEGHP: 22 Ω 1 % 2512, pulse-withstanding (HP), 1.5 W.
 
 ## Footprint and land-pattern checks
 
