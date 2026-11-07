@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actuator test stand: per-size upright + output adapter (RS03, RS02 so far; Joey's order RS03, RS02, RS00, RS04) and shared fixtures. CadQuery, mm.
+"""Actuator test stand: per-size upright + output adapter (RS03, RS02, RS00 so far; Joey's order RS03, RS02, RS00, RS04) and shared fixtures. CadQuery, mm.
 
 Stand frame (all parts are built in it):
   X along the bench rail (2020, clamped to the bench), +X toward the scale anchor.
@@ -57,7 +57,33 @@ RS02 = dict(
     cb_slot=True,                                       # D24 output circle puts counterbores across the channel walls
     w=48.0, rib_x=40.0,                                 # housing is D78.5; ribs stay below Z 72
 )
-ACTUATORS = {"rs03": RS03, "rs02": RS02}
+RS00 = dict(
+    name="rs00", step="RS00/RS00-20261030.stp", step_c=(0.0, 0.0), step_out_z=-6.0,
+    housing_bc=50.0, housing_ang=[60.0 * k for k in range(6)],         # 6x M3 on D50 (drawing: 6-M3; STEP 5 deep)
+    h_clr=3.4, h_head=6.2, h_grip=8.0,                                  # M3x12: 8 grip, 4 in the housing
+    bore=39.0,                                          # clears the D35 output
+    output_bc=27.0, output_n=6,                         # 6x M3 on D27 (drawing: 5 deep blind)
+    o_clr=3.4, o_head=6.2,                              # M3x14: 10 grip, 4 in the output
+    cb_slot=True,                                       # D27 circle leaves a 0.35 mm sliver to the channel wall otherwise
+    contact_d=32.0, spigot_d=37.0,                      # D32 pad stays inside the D34.6 output face; D37 clears the D39 bore
+    boss=1.0,                                           # output face is 1.0 proud of the housing face
+    w=38.0, rib_x=30.0,                                 # housing is D57
+)
+RS04 = dict(  # STEP output faces +z, so it is turned 180 deg about y first: stand angle = 180 - STEP angle (STEP +y stays up)
+    name="rs04", step="RS04/RS04-20261030.stp", step_c=(0.0, 0.0), step_out_z=25.5, step_flip=True,
+    housing_bc=106.0, housing_ang=[159.0 - 36 * k for k in range(10)],  # 10x M4 on D106, 7 deep (drawing: 5 min)
+    h_clr=M4_CLR, h_head=M4_HEAD, h_grip=9.0,                           # M4x16: 9 grip, 7 in the housing
+    bore=56.0,                                          # clears the D49.6 output disc
+    output_bc=36.0, out_ang=[15, 75, 105, 135, -15, -45, -105, -135, -165],   # 9x M5 on D36 (drawing: 6.5 min; STEP models 3.5)
+    o_clr=M5_CLR, o_head=M5_HEAD, o_grip=10.5,          # M5x16: 10.5 grip, 5.5 in the output
+    pins=[45, 165, -75], pin_r=17.9, pin_hole=6.4, pin_depth=3.5,   # 3x D6 dowels stand 2.7 proud of the output face
+    cb_slot=True,
+    contact_d=48.0,                                     # stays inside the D49.6 output disc
+    boss=0.5,                                           # output face is 0.5 proud of the housing face
+    w=66.0, rib_x=58.0,                                 # housing is D120; ribs stay below the housing at Z 72
+    foot_x=102.0, foot_holes=(76.0, 92.0),              # foot holes move out past the wider plate
+)
+ACTUATORS = {"rs03": RS03, "rs02": RS02, "rs00": RS00, "rs04": RS04}
 
 PLATE_T = 12.0
 PLATE_BACK_Y = -2.0                 # housing front face sits here
@@ -123,7 +149,8 @@ def upright(a=RS03):
     plate = (cq.Workplane("XZ", origin=(0, PLATE_FRONT_Y, 0))
              .polyline([(-w, FOOT_T), (w, FOOT_T), (w, AXIS_Z + top - 15), (w - 15, AXIS_Z + top), (-w + 15, AXIS_Z + top), (-w, AXIS_Z + top - 15)]).close()
              .extrude(PLATE_T))
-    foot = box(-96, 96, -40, PLATE_FRONT_Y, 0, FOOT_T)
+    fx = a.get("foot_x", 96.0)
+    foot = box(-fx, fx, -40, PLATE_FRONT_Y, 0, FOOT_T)
     body = plate.union(foot)
     for sx in (-1, 1):  # rear ribs, outside the housing ears
         rib = yz_profile([(PLATE_BACK_Y + 0.01, FOOT_T - 0.01), (-40, FOOT_T - 0.01), (-40, FOOT_T + 6), (PLATE_BACK_Y + 0.01, 72)], 0, 8)
@@ -134,7 +161,8 @@ def upright(a=RS03):
         x, z = r * math.cos(math.radians(ang)), r * math.sin(math.radians(ang))
         body = body.cut(y_cyl(a["h_clr"], PLATE_BACK_Y - 1, PLATE_FRONT_Y + 1, x, AXIS_Z + z))
         body = body.cut(y_cyl(a["h_head"], PLATE_BACK_Y + a["h_grip"], PLATE_FRONT_Y + 1, x, AXIS_Z + z))
-    for x in (-86, -70, 70, 86):  # foot to rail-top slot T-nuts
+    h1, h2 = a.get("foot_holes", (70.0, 86.0))
+    for x in (-h2, -h1, h1, h2):  # foot to rail-top slot T-nuts
         body = body.cut(z_cyl(M5_CLR, -1, FOOT_T + 1, x, 0))
     return body
 
@@ -144,16 +172,33 @@ def adapter(a=RS03):
     lever end stop, 4 captive M5 nuts for the clamp cap. Printed spigot face down. 100 % infill (part under load)."""
     of = out_face_y(a)
     spig = y_cyl(a["contact_d"], of, HUB_Y0 + 0.01, 0, AXIS_Z)
+    if "spigot_d" in a:  # contact pad 1 mm, then a fatter spigot so the screw counterbores stay inside it
+        spig = spig.union(y_cyl(a["spigot_d"], of + 1.0, HUB_Y0 + 0.01, 0, AXIS_Z))
     hub = y_cyl(HUB_D, HUB_Y0, WALL_Y1, 0, AXIS_Z)
     body = spig.union(hub)
     chan = box(STOP_X, 40, FLOOR_Y1, WALL_Y1 + 1, AXIS_Z - LEVER_W / 2, AXIS_Z + LEVER_W / 2)
     body = body.cut(chan)
     body = body.cut(y_cyl(min(16.0, a["output_bc"] - 14), of - 1, of + 1.0, 0, AXIS_Z))  # relief over the output centre features
-    for x, z in bolt_circle(a["output_bc"], a["output_n"], 30.0):  # clocked 30 deg: two holes in the channel floor, four under the walls
-        body = body.cut(y_cyl(M4_CLR, of - 1, WALL_Y1 + 1, x, AXIS_Z + z))
-        body = body.cut(y_cyl(M4_HEAD, of + 10.0, WALL_Y1 + 1, x, AXIS_Z + z))
+    if "out_ang" in a:
+        holes = [((a["output_bc"] / 2) * math.cos(math.radians(t)), (a["output_bc"] / 2) * math.sin(math.radians(t))) for t in a["out_ang"]]
+    else:
+        holes = bolt_circle(a["output_bc"], a["output_n"], 30.0)  # clocked 30 deg: two holes in the channel floor, four under the walls
+    clr, head, grip = a.get("o_clr", M4_CLR), a.get("o_head", M4_HEAD), a.get("o_grip", 10.0)
+    for x, z in holes:
+        body = body.cut(y_cyl(clr, of - 1, WALL_Y1 + 1, x, AXIS_Z + z))
+        body = body.cut(y_cyl(head, of + grip, WALL_Y1 + 1, x, AXIS_Z + z))
         if a.get("cb_slot") and abs(z) > 0.1:  # run the counterbore into the channel as a slot: no knife cusp where it meets the wall
-            body = body.cut(box(x - M4_HEAD / 2, x + M4_HEAD / 2, of + 10.0, WALL_Y1 + 1, AXIS_Z + min(0, z), AXIS_Z + max(0, z)))  # M4x16: 10 grip, 6 in the output
+            body = body.cut(box(x - head / 2, x + head / 2, of + grip, WALL_Y1 + 1, AXIS_Z + min(0, z), AXIS_Z + max(0, z)))  # M4x16: 10 grip, 6 in the output
+    for i in range(len(holes)):  # neighbouring counterbores that would leave a sliver between them merge into one slot
+        for j in range(i + 1, len(holes)):
+            (x1, z1), (x2, z2) = holes[i], holes[j]
+            d = math.hypot(x2 - x1, z2 - z1)
+            if d < head + 1.2:
+                body = body.cut(cq.Workplane("XZ", origin=(0, of + grip, 0)).center((x1 + x2) / 2, AXIS_Z + (z1 + z2) / 2)
+                                .slot2D(d + head, head, math.degrees(math.atan2(z2 - z1, x2 - x1))).extrude(-(WALL_Y1 + 1 - of - grip)))
+    for t in a.get("pins", []):  # sockets for the output's dowel pins: they take the torque in shear
+        x, z = a["pin_r"] * math.cos(math.radians(t)), a["pin_r"] * math.sin(math.radians(t))
+        body = body.cut(y_cyl(a["pin_hole"], of - 1, of + a["pin_depth"], x, AXIS_Z + z))
     for x, z in CLAMP_XZ:
         body = body.cut(y_cyl(M5_CLR, HUB_Y0 - 1, WALL_Y1 + 1, x, AXIS_Z + z))
         body = body.cut(hex_y(M5_NUT_AF, HUB_Y0 - 1, HUB_Y0 + M5_NUT_T, x, AXIS_Z + z))
@@ -246,6 +291,8 @@ def vendor(a):
         return None
     cx, cy = a["step_c"]
     m = cq.importers.importStep(str(step)).translate((-cx, -cy, -a["step_out_z"]))
+    if a.get("step_flip"):  # output faces +z in this STEP: half turn about y, so x -> -x and the output points along +Y
+        m = m.rotate((0, 0, 0), (0, 1, 0), 180)
     return m.rotate((0, 0, 0), (1, 0, 0), 90).translate((0, out_face_y(a), AXIS_Z))
 
 

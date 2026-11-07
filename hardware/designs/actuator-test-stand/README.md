@@ -1,6 +1,6 @@
 # Actuator test stand
 
-**Status:** RS03 set sliced 2026-11-07 (plates in this folder). RS02 upright + adapter designed 2026-11-07. Spec: [sim-to-real-loop.md section 2](../../docs/sim-to-real-loop.md). Test order (Joey, 2026-11-07): **RS03 first (the uninstalled waist unit), then RS02, RS00, RS04.** Only the upright and the output adapter change per actuator size; the lever, clamp cap, load block, scale anchor and lock post are shared and already sized for the RS04 case.
+**Status:** RS03 and RS02 sets sliced 2026-11-07 (plates in this folder). RS00 and RS04 uprights + adapters designed 2026-11-07, all four sizes now done. Spec: [sim-to-real-loop.md section 2](../../docs/sim-to-real-loop.md). Test order (Joey, 2026-11-07): **RS03 first (the uninstalled waist unit), then RS02, RS00, RS04.** Only the upright and the output adapter change per actuator size; the lever, clamp cap, load block, scale anchor and lock post are shared and already sized for the RS04 case.
 
 ![assembled](STAND_RS03_ASSEMBLED.png)
 ![exploded](STAND_RS03_EXPLODED.png)
@@ -15,6 +15,33 @@ Same stand, same lever, cap, load block, anchor and lock post. Only two new prin
 - Clear of the vendor RS02 model, lever and rail (**CAD check**); both parts pass the surface scan.
 
 ![RS02 assembled](STAND_RS02_ASSEMBLED.png)
+
+## RS00 set (third)
+
+Two new prints again: `upright_rs00` and `adapter_rs00` (plates `teststand_rs00_upright`, `teststand_rs00_adapter`).
+
+- Housing: **6× M3 on D50** (**vendor**: 6-M3; STEP 5 deep), M3x12, 8 grip, 4 in the housing. D39 bore clears the D35 output; output face 1.0 proud (**vendor STEP**).
+- Output: **6× M3 on D27** (**vendor**: 5 deep blind), M3x14, 10 grip, 4 engaged. A D32 contact pad stays inside the D34.6 output face, then the spigot steps out to D37 so the counterbores stay inside it.
+- Loads: the RS00 is the smallest unit, well inside the RS03 load check.
+- Clear of the vendor RS00 model, lever and rail (**CAD check**); both parts pass the surface scan.
+
+![RS00 assembled](STAND_RS00_ASSEMBLED.png)
+
+## RS04 set (last, the 40 N·m case)
+
+`upright_rs04` and `adapter_rs04` (plates `teststand_rs04_upright`, `teststand_rs04_adapter`). Same 100 mm axis, so the lever, cap, load block, anchor and lock post carry over. The RS04 STEP has its output on +z (the others are on −z), so the script turns it a half turn first; connectors still point up.
+
+- Housing: **10× M4 on D106** (**vendor STEP**: tapped 7 deep; drawing 5 min), M4x16, 9 grip, 7 in the housing. The plate is wider (±66) and the foot is ±102 with its T-nut holes at X ±76 and ±92, outside the plate.
+- Output: **9× M5 on D36** (**vendor**: drawing 6.5 min deep), M5x16, 10.5 grip, 5.5 engaged. **Check the depth by hand first**: the STEP models the tapped holes only 3.5 deep. If an M5x16 bottoms out, use M5x14. Neighbouring counterbores 30° apart would leave slivers, so they merge into slots.
+- Three **D6 dowel pins** on the output (2.7 proud) drop into D6.4 sockets 3.5 deep in the adapter face, so the adapter is located by the pins and bolts.
+- Load at 40 N·m (**estimate**):
+  - Clamp friction from the 9 M5s carries most of it. If it slips, the 9 shanks and 3 pins share 2.2 kN in bearing at about 4–5 MPa.
+  - The channel walls see 2.8 MPa.
+  - The upright's 10 housing screws see 75 N each, and the plate's in-plane bending at the foot is about 1.2 MPa.
+  - The shared parts are already rated for the RS04 case in the load check below.
+- Clear of the vendor RS04 model (pins sit in their sockets), lever and rail (**CAD check**); both parts pass the surface scan.
+
+![RS04 assembled](STAND_RS04_ASSEMBLED.png)
 
 Evidence labels: **vendor** (RobStride STEP / manual), **CAD check** (this script), **estimate** (hand calc), **assumption**.
 
@@ -66,7 +93,10 @@ None of these orientations needs supports: every overhang is a hole under 8.5 mm
 | 2020 offcut ≥ 300 mm (lever) and about 420 mm (rail) | 1 each | Joey's own extrusion. Cut the lever end square: the 30.0 stop references it |
 | C-clamps | 2 | Rail to bench, unless Joey already has a way to clamp it |
 | M4x16 SHCS | 14 | RS03: 8 housing (9 mm grip, 7 into the 8 mm housing thread), 6 output (10 grip, 6 into the 6 mm output thread). RS02 reuses the 6 output screws |
-| M3x14 SHCS | 9 | RS02 housing |
+| M3x14 SHCS | 9 | RS02 housing; 6 of them reused for the RS00 output |
+| M3x12 SHCS | 6 | RS00 housing |
+| M4x16 SHCS | 2 more | RS04 housing takes 10 (the 8 RS03 housing screws + 2) |
+| M5x16 SHCS | 9 | RS04 output (M5x14 if the holes are only 3.5 deep) |
 | M5 SHCS + drop-in T-nuts | 12 | Upright 4 (M5x14), load block 2 (M5x16), anchor 2 (M5x25 top, M5x10 front), lock post 4 (M5x25, 3× M5x10) |
 | M5x30 SHCS + M5 hex nuts | 4 | Clamp cap |
 | M8x60 hex bolt (load pin) and M8x70 bolt + nut + washer (anchor) | 1 each | Hex head captive in the load block |
@@ -114,4 +144,4 @@ Weigh the lever + clamp cap + load block assembly and find its centre of mass (b
 
 ## Next
 
-RS00, then RS04, from the same script at the same 100 mm axis height. The RS04 upright and adapter are the only parts that see 40 N·m, and they get their own load check when they come up.
+All four sizes are designed. Print each set when its turn in the test order comes up.

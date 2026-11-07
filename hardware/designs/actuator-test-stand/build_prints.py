@@ -47,6 +47,10 @@ PLATES = {
     "teststand_rs03_adapter": ([(P + "adapter_rs03", FRONT_DOWN)], LOADED),
     "teststand_rs02_upright": ([(P + "upright_rs02", FRONT_DOWN)], FIXTURE),
     "teststand_rs02_adapter": ([(P + "adapter_rs02", FRONT_DOWN)], LOADED),
+    "teststand_rs00_upright": ([(P + "upright_rs00", FRONT_DOWN)], FIXTURE),
+    "teststand_rs00_adapter": ([(P + "adapter_rs00", FRONT_DOWN)], LOADED),
+    "teststand_rs04_upright": ([(P + "upright_rs04", FRONT_DOWN)], FIXTURE),
+    "teststand_rs04_adapter": ([(P + "adapter_rs04", FRONT_DOWN)], LOADED),
     "teststand_fixtures": ([(P + "clamp_cap", FRONT_DOWN), (P + "load_block", FRONT_DOWN), (P + "lock_post", X_SIDE), (P + "anchor", X_SIDE)], FIXTURE),
 }
 
