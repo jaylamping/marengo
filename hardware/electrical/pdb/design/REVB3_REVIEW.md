@@ -54,6 +54,22 @@ Hashes matched before and after every run. ERC was clean and check.py passed 83 
 | Pi-off back-power through D6 at 0.5 mA in a harness fault | Astra |
 | The 57.5 V clamp worst case rests on typical comparator hysteresis | Astra |
 
+## Fix round 3 (2026-11-07)
+
+| Item | Fix |
+| --- | --- |
+| B1 | D12 is now a BZT52C15 from FLT_A to GND, and FLT reaches UVLO through a new 10k 2010 (0.75 W). FLT low gives UVLO about 1.7 V, under the 2.45 V minimum. A bridged UVLO puts 5.5 mA into FLT at most (10 mA limit) and holds it at 15 V (20 V limit) |
+| B2 | C29 DNP (fastest comparator, R37 still latches). R35 is 22 Ω. D7 is the SK810L-TP (8 A, same SMC). C38 is the Kyocera AVX APZ1012470M100R, 47 µF 100 V, 50 mΩ, 10×12.6 can, 24-week lead time. The fallback is two Würth 22 µF 100 V hybrids. [`tools/absorber_sim.py`](../../schematics/marengo_pdu_revb/tools/absorber_sim.py) runs ngspice against a hard bus short behind the banks. It assumes pack EMF 54.6 V and 0.1 Ω of loop resistance; there's no pack yet. Result: 350–480 A cut, BAT peaks at 81–83 V at 0.5–1 µH, and D1 takes about 30 A of it. 94 µF would give 71–73 V. Bring-up step 1 checks the assumption |
+| B3 | F2 is the Littelfuse 0997020.WXN (58 V MINI, 1 kA). J24 is re-pinned: −VOUT 7–9, +VOUT 10–12, so the input row only faces −VOUT and returns. Reverse-polarity crowbar, input damping cap and output caps go on an adapter at the DVE pins. The harness table is in REV_B_PARTS |
+| M2 | C19 is 100 nF C0G: timer 3.1–8 ms. That covers about 48 µF plus the DVE's internal capacitance at the low power limit |
+| M4 | C5 is 10 µF 50 V. The race: a shorted U2 drives about 30 A through F1's roughly 1 Ω cold resistance into D9. The 0466's melting I²t (about 1e-3 A²s, series typical, confirm) opens in a few µs, while D9 sees about 20 V × 30 A for that time, far inside its 400 W rating |
+| M6, M8 | Software requirements in REV_B_PARTS |
+| M7, M9 | Converter adapter in REV_B_PARTS |
+| M3 | **Quantified, not changed.** Simulated BMS close onto the bare absorber: 190–230 A at 47 µF. A plain series resistor or cold NTC fixes the close (0.5 Ω gives 73–76 A, 2 Ω gives 25 A) but ruins the clamp: BAT reaches 186 V and 259 V on a trip. An NTC never warms up, because the absorber carries no steady current. What works is a 2 Ω resistor in the cap's ground leg, bypassed by a low-side NMOS (for example BSC040N10NS5, already in the BOM) that turns on about 10 ms after VCTL comes up. That's 4 parts: the close is 25 A and the clamp is unchanged. Proposed, not fitted: it waits for the JK bench result (bring-up step 2) |
+| M1, M5 | Held for Joey |
+
+ERC is clean and check.py passes 83 of 83. The minors aren't done yet.
+
 ## Rejected
 
 | Claim | Raised by | Why |

@@ -65,6 +65,39 @@ Pigtail: twisted pairs, 18 AWG.
 - Input: 2 wires each way, about 4.2 A at 36 V.
 - +12 V: 3 wires each way. At 12 A that's about 25 mV in the wire and about 80 mV in the Micro-Fit contacts, so about 0.1 V in all.
 
+## 12 V converter: adapter and pigtail (rev B3 fixes)
+
+The DVE needs parts at its own pins. The rev B3 review found its output had no capacitance there (M9), its input damping was unspecified (M7), and it had no reverse-polarity protection (B3). These parts go on a small adapter board soldered to the DVE pins, in the rail's fuse and cap zone (X −40 to −29):
+
+| Part | Value | Why |
+| --- | --- | --- |
+| Input bulk | 47 µF 100 V aluminium, Panasonic EEE-TK2A470AQ (SMD, ESR about 0.42 Ω) | Its ESR damps the pigtail (75–150 nH) against the board's 4.4 µF, over-damped at about 0.4 Ω against Z0 of about 0.18 Ω |
+| Input HF | 1 µF 100 V X7R 1210 | At the pins |
+| Reverse crowbar | SK810L-TP, cathode on +VIN, anode on −VIN | A swapped pair clamps reverse at about 1 V. U7 limits it to 9.7–12.3 A and times out, so it retries at low duty. F2 never needs to blow |
+| Output bulk | 100 µF 25 V hybrid polymer (Panasonic EEH-ZA1E101P class, confirm) | Murata asks for 100 µF minimum low-ESR at the output, and the DVE has no sense pins |
+| Output HF | 10 µF 25 V X7R 1206 + 1 µF X7R | Murata's output test setup |
+| Strain relief | Clamp on the plate | Pigtail |
+
+Pigtail J24, Molex Micro-Fit 3.0, 43025-1200 plug, 18 AWG, twisted in pairs, about 150 mm. Pin n faces pin n+6 across the rows:
+
+| J24 pin | Net | DVE pin | Faces |
+| --- | --- | --- | --- |
+| 1, 2 | +VIN (BRK_F, after F2) | 1 | 7, 8: −VOUT (GND) |
+| 3, 4 | −VIN (GND) | 4 | 9: −VOUT; 10: +VOUT |
+| 5 | ON/OFF, low = on | 2 | 11: +VOUT. A short there turns the converter off |
+| 6 | −VIN (GND) | 4 | 12: +VOUT |
+| 7, 8, 9 | −VOUT (GND) | 5 | |
+| 10, 11, 12 | +VOUT (+12V_RAW) | 16 | |
+
+No short across the rows puts +VIN on +VOUT. Before first power, check polarity at the adapter with a meter. F2 is a Littelfuse 0997020.WXN: MINI blade, 20 A, 58 V DC, 1 kA breaking. It sits in the Keystone 3568 holder at the board end.
+
+## Bring-up measurements that gate layout sign-off
+
+1. **Pack-lead inductance** and loop resistance, BAT to P−, with the real pack, BMS and leads. tools/absorber_sim.py assumes 0.5–1 µH and 0.1 Ω, giving BAT 81–83 V on a trip. Rerun it with the measured values. Over 90 V means more absorber.
+2. **BMS close into the absorber.** Simulated 190–230 A for a few µs. Close the JK onto a bare board 20 times: it must not trip.
+3. **Scope a 60 A E-stop** and a bus short behind a current-limited source, on BAT and MID.
+4. **Converter baseplate** at 140 W steady: under 100 °C.
+
 ## Accepted risks and software requirements (Joey, 2026-11-07)
 
 | Item | Decision | Requirement |
@@ -73,3 +106,6 @@ Pigtail: twisted pairs, 18 AWG.
 | Clamp takes 5.7 A, 322 W, against 30 A of host regen. | Accepted. | **Software: cap braking at about 5 A when the pack is nearly full**, or whenever the BMS isn't accepting charge. |
 | Reset can't be blocked by the Pi. | Bank A's short-circuit trip now covers a shorted bank B. | **Software: run the MID and VBUS self-test before reset and tell the operator not to press reset on a failure.** |
 | Pressed input is information only. | | **Software: debounce it in software.** |
+| Self-test reads (rev B3 review M6) | | **Software: read MID only with VBUS under 3 V, banks open, at least 5 s after the last stop.** Healthy MID is 0.38 to 0.55 × pack, from BMS telemetry. MID within 2 V of pack means A is shorted; MID under 3 V means B is shorted. Any other reading is a fail. |
+| Servo back-feed into +12V (rev B3 review M8) | U9 and U18 don't block reverse current; C41 and the compute loads take it | **Software: keep the neck and jaw servo current cap, and never back-drive them faster than their rated speed.** |
+| U4 SPARE_SW (M3, rev B2) | Accepted by Joey: the neck never moves fast | None |

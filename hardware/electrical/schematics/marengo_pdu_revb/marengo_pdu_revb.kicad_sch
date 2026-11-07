@@ -10568,7 +10568,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10uF 25V X7R"
+		(property "Value" "10uF 50V X7R"
 			(at 116.84 186.69 0)
 			(effects
 				(font
@@ -20149,7 +20149,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "47nF C0G"
+		(property "Value" "100nF C0G"
 			(at 283.21 453.39 0)
 			(effects
 				(font
@@ -20158,7 +20158,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 280.67 452.12 0)
 			(effects
 				(font
@@ -28648,7 +28648,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "150R"
+		(property "Value" "22R"
 			(at 703.58 393.7 0)
 			(effects
 				(font
@@ -29089,7 +29089,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "efa543c6-15cb-5a42-9922-78fee637b465")
 		(property "Reference" "C29"
 			(at 754.38 391.16 0)
@@ -29929,7 +29929,7 @@
 			)
 		)
 	)
-	(text "Own driver: a FET usually dies shorted gate to drain, which would pull a shared gate net to the pack and hold the other bank on. RUN is the only shared signal, and\neach bank takes it through its own diode.\nBoth banks face the same way, drains toward the pack, so regen stays open. Bank B keeps U1, the shunt and the soft start.\nClose order: U8 FLT holds U1 UVLO low through a 100 V diode until BST is up (about 57 ms typ, 35-115 ms with 2.2 uF). The diode keeps a UVLO fault off FLT (20 V\nmax), so A closes first by logic, not by timing. A closes onto MID only. FLT also blocks B if U8 has no charge pump or has tripped.\nOff edge: EN falls first, 4.6 us typ, 6.5 us max, then G1PD pulls 390 nC through 150R: about 10 us, so 6 A/us at 60 A, against a 100 us latch. D1 stays as the\nbackstop. Check at the bench.\nShort-circuit comparator on RS1: 40.2k gives 99 mV, 79-121 mV, 158-242 A, above U1's limit. TMR 100k + 680 pF: about 10 us, latch-off, cleared by an E-stop cycle. It\ncovers reset with B shorted: A opens, and FLT holds B off.\nDriver off holds gate to source with no path to GND, so MID can be biased: 47k + 47k, 0.48-0.50 x pack, 0.6 mA, 63 mW each. Hot FET leakage, up to 200 uA per bank,\nmoves MID by under 5 V. U17 reads MID through 33k (spike and fault limit): calibrate the 3 % gain.\nSelf-test before reset, pack 36-54.6 V, BMS telemetry for pack voltage: MID 0.4-0.6 x pack and U11 VBUS under 3 V is healthy. MID within 2 V of pack: A shorted. MID\nunder 3 V: B shorted. VBUS high: both shorted, or the bus has not bled down yet, about 11 s on board caps, longer with drives.\nU17 uses VBUS only, IN+ and IN- on GND. VBUS alone cannot see one shorted bank, which is why MID is read."
+	(text "Own driver: a FET usually dies shorted gate to drain, which would pull a shared gate net to the pack and hold the other bank on. RUN is the only shared signal, and\neach bank takes it through its own diode.\nBoth banks face the same way, drains toward the pack, so regen stays open. Bank B keeps U1, the shunt and the soft start.\nClose order: U8 FLT holds U1 UVLO low through a 100 V diode until BST is up (about 57 ms typ, 35-115 ms with 2.2 uF). The diode keeps a UVLO fault off FLT (20 V\nmax), so A closes first by logic, not by timing. A closes onto MID only. FLT also blocks B if U8 has no charge pump or has tripped.\nOff edge: EN falls first, 4.6 us typ, 6.5 us max, then G1PD pulls 390 nC through 22R: about 2-3 us. The absorber (block 10) takes the lead's current, so a slow edge\nbuys nothing.\nShort-circuit comparator on RS1: 40.2k gives 99 mV, 134-313 A with the ISCP spread, above U1's limit. TMR 100k only (C29 DNP): fastest response, 4.3 us, still latch-\noff, cleared by an E-stop cycle. It covers reset with B shorted: A opens, and FLT holds B off.\nDriver off holds gate to source with no path to GND, so MID can be biased: 47k + 47k, 0.48-0.50 x pack, 0.6 mA, 63 mW each. Hot FET leakage, up to 200 uA per bank,\nmoves MID by under 5 V. U17 reads MID through 33k (spike and fault limit): calibrate the 3 % gain.\nSelf-test before reset, pack 36-54.6 V, BMS telemetry for pack voltage: MID 0.4-0.6 x pack and U11 VBUS under 3 V is healthy. MID within 2 V of pack: A shorted. MID\nunder 3 V: B shorted. VBUS high: both shorted, or the bus has not bled down yet, about 11 s on board caps, longer with drives.\nU17 uses VBUS only, IN+ and IN- on GND. VBUS alone cannot see one shorted bank, which is why MID is read."
 		(exclude_from_sim no)
 		(at 650 428 0)
 		(effects
@@ -34304,7 +34304,7 @@
 				)
 			)
 		)
-		(property "Value" "MBRS3100T3G"
+		(property "Value" "SK810L-TP"
 			(at 40.64 530.86 90)
 			(effects
 				(font
@@ -34414,7 +34414,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "47uF 100V polymer"
+		(property "Value" "47uF 100V APZ1012470M100R"
 			(at 66.04 530.86 0)
 			(effects
 				(font
@@ -34423,7 +34423,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_10x10.5"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x12.6"
 			(at 63.5 529.59 0)
 			(effects
 				(font
@@ -35596,7 +35596,7 @@
 		(uuid "e0b85763-c573-5eb9-987d-8cd00f18ae96")
 	)
 	(symbol
-		(lib_id "Device:D")
+		(lib_id "Device:D_Zener")
 		(at 292.1 529.59 270)
 		(unit 1)
 		(exclude_from_sim no)
@@ -35612,7 +35612,7 @@
 				)
 			)
 		)
-		(property "Value" "BAV19W"
+		(property "Value" "BZT52C15"
 			(at 294.64 530.86 90)
 			(effects
 				(font
@@ -35694,15 +35694,70 @@
 		)
 		(uuid "f5f6a8e6-5e40-586e-b759-f469fed4463f")
 	)
-	(label "UVLO"
-		(at 292.1 535.94 270)
-		(effects
-			(font
-				(size 1.27 1.27)
+	(symbol
+		(lib_id "power:GND")
+		(at 292.1 535.94 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "490ce03a-6b62-5165-aed6-da080bd8f205")
+		(property "Reference" "#PWR112"
+			(at 295.91 534.67 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
-			(justify right bottom)
 		)
-		(uuid "cf2b2f47-e3ae-5be4-af14-a4b6c23c1300")
+		(property "Value" "GND"
+			(at 295.91 537.21 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 292.1 535.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 292.1 535.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 292.1 535.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "1b89049c-e94d-519c-8d88-5861953dcafd")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR112")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -35785,7 +35840,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "88a2a692-c34f-5236-8812-77c6ccf7e46a")
+		(uuid "cf2b2f47-e3ae-5be4-af14-a4b6c23c1300")
 	)
 	(label "MID"
 		(at 38.1 553.72 90)
@@ -35795,7 +35850,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "f61ddc06-bd7b-562e-8f5e-d754b014652f")
+		(uuid "88a2a692-c34f-5236-8812-77c6ccf7e46a")
 	)
 	(wire
 		(pts
@@ -35806,7 +35861,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "104ff7f3-fb8e-54c6-92ea-a040c2dd28fe")
+		(uuid "f61ddc06-bd7b-562e-8f5e-d754b014652f")
 	)
 	(label "MID_S"
 		(at 38.1 566.42 270)
@@ -35816,7 +35871,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "0aa54721-0d08-5fad-8c83-d3243d924957")
+		(uuid "104ff7f3-fb8e-54c6-92ea-a040c2dd28fe")
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -35899,7 +35954,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b5d572d5-b6fe-53f9-93c1-214d9e2fc790")
+		(uuid "0aa54721-0d08-5fad-8c83-d3243d924957")
 	)
 	(label "MID"
 		(at 63.5 553.72 90)
@@ -35909,7 +35964,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "4ca742b8-1590-51d5-8e1c-38c2d79380b7")
+		(uuid "b5d572d5-b6fe-53f9-93c1-214d9e2fc790")
 	)
 	(wire
 		(pts
@@ -35920,7 +35975,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "59e94588-78a4-53ea-847c-51ecd1b19991")
+		(uuid "4ca742b8-1590-51d5-8e1c-38c2d79380b7")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -35930,8 +35985,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "490ce03a-6b62-5165-aed6-da080bd8f205")
-		(property "Reference" "#PWR112"
+		(uuid "71192e9a-1c3f-55e7-bbd0-20ec7f7c253c")
+		(property "Reference" "#PWR113"
 			(at 67.31 565.15 0)
 			(effects
 				(font
@@ -35976,12 +36031,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "1b89049c-e94d-519c-8d88-5861953dcafd")
+			(uuid "f8465d9d-2e09-5589-ac03-d2fdfb5caf0f")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR112")
+					(reference "#PWR113")
 					(unit 1)
 				)
 			)
@@ -36063,7 +36118,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "06c7cd77-3c9a-5c0f-ba5d-b9652b468eee")
+		(uuid "59e94588-78a4-53ea-847c-51ecd1b19991")
 	)
 	(label "NO_PU"
 		(at 88.9 553.72 90)
@@ -36073,7 +36128,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "8d7feb77-921a-5783-a2a4-43e5110b0855")
+		(uuid "06c7cd77-3c9a-5c0f-ba5d-b9652b468eee")
 	)
 	(wire
 		(pts
@@ -36084,7 +36139,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "db659ae6-da0e-5744-be5a-6b88838a13f1")
+		(uuid "8d7feb77-921a-5783-a2a4-43e5110b0855")
 	)
 	(label "+3V3_PI"
 		(at 88.9 566.42 270)
@@ -36094,7 +36149,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "d50684b6-b30e-5a68-91ad-1c2ddf5a5661")
+		(uuid "db659ae6-da0e-5744-be5a-6b88838a13f1")
 	)
 	(symbol
 		(lib_id "Device:C_Polarized")
@@ -36177,7 +36232,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "129bd4e3-9113-56f1-88df-3f0284556f36")
+		(uuid "d50684b6-b30e-5a68-91ad-1c2ddf5a5661")
 	)
 	(label "+12V"
 		(at 114.3 553.72 90)
@@ -36187,7 +36242,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "2c990022-e761-511e-a8f0-e196b0ab84f0")
+		(uuid "129bd4e3-9113-56f1-88df-3f0284556f36")
 	)
 	(wire
 		(pts
@@ -36198,7 +36253,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "20fc986c-0fdd-554d-96ac-6cc6b504b5e5")
+		(uuid "2c990022-e761-511e-a8f0-e196b0ab84f0")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -36208,8 +36263,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "71192e9a-1c3f-55e7-bbd0-20ec7f7c253c")
-		(property "Reference" "#PWR113"
+		(uuid "710b0ab8-823d-5cb7-b011-0bf6716a33da")
+		(property "Reference" "#PWR114"
 			(at 118.11 565.15 0)
 			(effects
 				(font
@@ -36254,12 +36309,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "f8465d9d-2e09-5589-ac03-d2fdfb5caf0f")
+			(uuid "a13844d0-381a-5349-b951-c0417ddc6aff")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR113")
+					(reference "#PWR114")
 					(unit 1)
 				)
 			)
@@ -36346,7 +36401,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b62a91fa-fd80-58e1-ade2-9e2d02233654")
+		(uuid "20fc986c-0fdd-554d-96ac-6cc6b504b5e5")
 	)
 	(label "RST_SRC"
 		(at 139.7 553.72 90)
@@ -36356,7 +36411,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "fdb318e3-bfd1-5d9d-a3c3-4c8ebc95a57e")
+		(uuid "b62a91fa-fd80-58e1-ade2-9e2d02233654")
 	)
 	(wire
 		(pts
@@ -36367,7 +36422,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "02e1625a-f796-550d-b916-0acdf0b1be67")
+		(uuid "fdb318e3-bfd1-5d9d-a3c3-4c8ebc95a57e")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -36377,8 +36432,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "710b0ab8-823d-5cb7-b011-0bf6716a33da")
-		(property "Reference" "#PWR114"
+		(uuid "791ca6f1-6116-5d40-ab1c-e8f97071983f")
+		(property "Reference" "#PWR115"
 			(at 143.51 565.15 0)
 			(effects
 				(font
@@ -36423,12 +36478,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "a13844d0-381a-5349-b951-c0417ddc6aff")
+			(uuid "c51e1170-b53b-5854-b148-87025f492137")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR114")
+					(reference "#PWR115")
 					(unit 1)
 				)
 			)
@@ -36510,7 +36565,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "6cfa8dfd-684a-504b-9a6a-0ef33824209f")
+		(uuid "02e1625a-f796-550d-b916-0acdf0b1be67")
 	)
 	(label "MID"
 		(at 165.1 553.72 90)
@@ -36520,7 +36575,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "dff45185-001a-5059-96e1-094f22397a46")
+		(uuid "6cfa8dfd-684a-504b-9a6a-0ef33824209f")
 	)
 	(wire
 		(pts
@@ -36531,7 +36586,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "24ed10dc-04b6-5e42-85d5-b8ca6a98606f")
+		(uuid "dff45185-001a-5059-96e1-094f22397a46")
 	)
 	(label "MID_Z"
 		(at 165.1 566.42 270)
@@ -36541,7 +36596,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "46504afb-6ded-5435-a042-29d77efa30fd")
+		(uuid "24ed10dc-04b6-5e42-85d5-b8ca6a98606f")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -36624,7 +36679,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b6e59d44-7a57-5763-b26f-e9d30f800dfa")
+		(uuid "46504afb-6ded-5435-a042-29d77efa30fd")
 	)
 	(label "MID_Z"
 		(at 190.5 553.72 90)
@@ -36634,7 +36689,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "120020df-d2d6-5185-ab3a-c874dd71d266")
+		(uuid "b6e59d44-7a57-5763-b26f-e9d30f800dfa")
 	)
 	(wire
 		(pts
@@ -36645,7 +36700,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9d7574bc-d48c-56f7-aee3-b44ec3db2285")
+		(uuid "120020df-d2d6-5185-ab3a-c874dd71d266")
 	)
 	(label "MID_B"
 		(at 190.5 566.42 270)
@@ -36655,7 +36710,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "b7cd8b4a-856e-5359-9bde-0e32ca19bb6a")
+		(uuid "9d7574bc-d48c-56f7-aee3-b44ec3db2285")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -36738,7 +36793,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a85df70d-ec03-5d78-915f-e46c15884733")
+		(uuid "b7cd8b4a-856e-5359-9bde-0e32ca19bb6a")
 	)
 	(label "MID_B"
 		(at 215.9 553.72 90)
@@ -36748,7 +36803,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "63e4ccfa-a53a-54d6-869b-95627c3c43ff")
+		(uuid "a85df70d-ec03-5d78-915f-e46c15884733")
 	)
 	(wire
 		(pts
@@ -36759,7 +36814,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "d2e465f0-e63a-5fff-8c39-7b7430d41a0e")
+		(uuid "63e4ccfa-a53a-54d6-869b-95627c3c43ff")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -36769,8 +36824,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "791ca6f1-6116-5d40-ab1c-e8f97071983f")
-		(property "Reference" "#PWR115"
+		(uuid "ff01c0f1-aafd-58a6-8883-2850fe16750e")
+		(property "Reference" "#PWR116"
 			(at 219.71 565.15 0)
 			(effects
 				(font
@@ -36815,12 +36870,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "c51e1170-b53b-5854-b148-87025f492137")
+			(uuid "5e53dda2-0a5d-5f34-8769-e592daf45599")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR115")
+					(reference "#PWR116")
 					(unit 1)
 				)
 			)
@@ -36907,7 +36962,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "90c000ad-f9e2-5fa4-9b5c-d64c7c73c4e9")
+		(uuid "d2e465f0-e63a-5fff-8c39-7b7430d41a0e")
 	)
 	(label "VCTL"
 		(at 241.3 553.72 90)
@@ -36917,7 +36972,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "9031996e-f16a-5ec5-bafc-f7f55efafce0")
+		(uuid "90c000ad-f9e2-5fa4-9b5c-d64c7c73c4e9")
 	)
 	(wire
 		(pts
@@ -36928,7 +36983,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "c690fe2e-2585-50f3-8229-fc3fe6b9e672")
+		(uuid "9031996e-f16a-5ec5-bafc-f7f55efafce0")
 	)
 	(label "INT_B"
 		(at 241.3 566.42 270)
@@ -36938,7 +36993,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "2f7b877b-849a-5222-b533-9b598e5b6057")
+		(uuid "c690fe2e-2585-50f3-8229-fc3fe6b9e672")
 	)
 	(symbol
 		(lib_id "Transistor_BJT:Q_NPN_BEC")
@@ -37024,7 +37079,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "866a2786-a79b-519e-9a95-240f6fdeacd3")
+		(uuid "2f7b877b-849a-5222-b533-9b598e5b6057")
 	)
 	(label "INT_B"
 		(at 257.81 562.61 180)
@@ -37034,7 +37089,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "5c97311a-fd9f-581e-abb4-3505aabaae0e")
+		(uuid "866a2786-a79b-519e-9a95-240f6fdeacd3")
 	)
 	(wire
 		(pts
@@ -37045,7 +37100,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "526777dc-8f94-5139-866a-361c24046f5a")
+		(uuid "5c97311a-fd9f-581e-abb4-3505aabaae0e")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -37055,8 +37110,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "ff01c0f1-aafd-58a6-8883-2850fe16750e")
-		(property "Reference" "#PWR116"
+		(uuid "547e8e5b-4e4e-50f8-9ac3-110bc90df357")
+		(property "Reference" "#PWR117"
 			(at 274.32 571.5 0)
 			(effects
 				(font
@@ -37101,12 +37156,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "5e53dda2-0a5d-5f34-8769-e592daf45599")
+			(uuid "58b95bb1-ce75-5cd5-ba29-3737fb45b9d5")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR116")
+					(reference "#PWR117")
 					(unit 1)
 				)
 			)
@@ -37121,7 +37176,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f7191b9b-50ea-5aa1-9998-633d0d583b2d")
+		(uuid "526777dc-8f94-5139-866a-361c24046f5a")
 	)
 	(label "RST_SRC"
 		(at 270.51 552.45 90)
@@ -37131,7 +37186,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "fb6f9074-eb9b-5299-a6db-f2c11c44d6a6")
+		(uuid "f7191b9b-50ea-5aa1-9998-633d0d583b2d")
 	)
 	(symbol
 		(lib_id "Transistor_BJT:Q_NPN_BEC")
@@ -37217,7 +37272,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b72cc389-5fa9-5023-8c4d-755d7dcccd9b")
+		(uuid "fb6f9074-eb9b-5299-a6db-f2c11c44d6a6")
 	)
 	(label "MID_B"
 		(at 284.48 562.61 180)
@@ -37227,7 +37282,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "ed478ce6-88bb-5362-897b-6f924391f686")
+		(uuid "b72cc389-5fa9-5023-8c4d-755d7dcccd9b")
 	)
 	(wire
 		(pts
@@ -37238,7 +37293,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f69ed217-0ebd-546e-9f41-69991aaf5ee3")
+		(uuid "ed478ce6-88bb-5362-897b-6f924391f686")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -37248,8 +37303,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "547e8e5b-4e4e-50f8-9ac3-110bc90df357")
-		(property "Reference" "#PWR117"
+		(uuid "18c09ebc-9ca2-5834-bc10-5c509308aab2")
+		(property "Reference" "#PWR118"
 			(at 300.99 571.5 0)
 			(effects
 				(font
@@ -37294,12 +37349,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "58b95bb1-ce75-5cd5-ba29-3737fb45b9d5")
+			(uuid "81b8ae71-434c-5a09-9ab1-42f95774491c")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR117")
+					(reference "#PWR118")
 					(unit 1)
 				)
 			)
@@ -37314,7 +37369,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "dd534f0e-7952-51b3-944a-101f0eef40c3")
+		(uuid "f69ed217-0ebd-546e-9f41-69991aaf5ee3")
 	)
 	(label "INT_B"
 		(at 297.18 552.45 90)
@@ -37324,7 +37379,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "59b90b55-9436-570c-901c-e67007c68099")
+		(uuid "dd534f0e-7952-51b3-944a-101f0eef40c3")
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x12")
@@ -37344,7 +37399,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "12 V converter pigtail: 1-2 +VIN, 3-4 -VIN, 5 ON/OFF (low = on), 6 -VIN, 7-9 +VOUT, 10-12 -VOUT"
+		(property "Value" "12 V converter pigtail: 1-2 +VIN, 3-4 -VIN, 5 ON/OFF (low = on), 6 -VIN, 7-9 -VOUT, 10-12 +VOUT"
 			(at 60.96 411.48 0)
 			(effects
 				(font
@@ -37437,7 +37492,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "210a4b40-6ff3-559a-9121-a8106d37cb31")
+		(uuid "59b90b55-9436-570c-901c-e67007c68099")
 	)
 	(label "BRK_F"
 		(at 55.88 372.11 180)
@@ -37447,7 +37502,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "cfc74641-2701-5003-a50c-d891b03fce70")
+		(uuid "210a4b40-6ff3-559a-9121-a8106d37cb31")
 	)
 	(wire
 		(pts
@@ -37458,7 +37513,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "c5de5ed5-e7e0-5dfc-b720-59a3ccbdc683")
+		(uuid "cfc74641-2701-5003-a50c-d891b03fce70")
 	)
 	(label "BRK_F"
 		(at 55.88 374.65 180)
@@ -37468,7 +37523,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "c7fcfcc7-3686-500d-94fb-3d782853541d")
+		(uuid "c5de5ed5-e7e0-5dfc-b720-59a3ccbdc683")
 	)
 	(wire
 		(pts
@@ -37479,7 +37534,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "746a19b8-1411-5251-955c-ac0d61124bea")
+		(uuid "c7fcfcc7-3686-500d-94fb-3d782853541d")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -37489,8 +37544,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "18c09ebc-9ca2-5834-bc10-5c509308aab2")
-		(property "Reference" "#PWR118"
+		(uuid "b17cf46b-5881-5df7-a341-25b4235cf526")
+		(property "Reference" "#PWR119"
 			(at 55.88 374.65 90)
 			(effects
 				(font
@@ -37535,12 +37590,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "81b8ae71-434c-5a09-9ab1-42f95774491c")
+			(uuid "7930516a-c8c0-5168-9a7f-e64957530782")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR118")
+					(reference "#PWR119")
 					(unit 1)
 				)
 			)
@@ -37555,7 +37610,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "49c2dc10-f7e9-514f-aa55-839e2db18d2b")
+		(uuid "746a19b8-1411-5251-955c-ac0d61124bea")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -37565,8 +37620,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "b17cf46b-5881-5df7-a341-25b4235cf526")
-		(property "Reference" "#PWR119"
+		(uuid "0d4864a7-4a9c-576d-a3f3-73fd113d48c8")
+		(property "Reference" "#PWR120"
 			(at 55.88 377.19 90)
 			(effects
 				(font
@@ -37611,12 +37666,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "7930516a-c8c0-5168-9a7f-e64957530782")
+			(uuid "4b3adc4b-6aef-5fb0-af6c-573a8d3ca26e")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR119")
+					(reference "#PWR120")
 					(unit 1)
 				)
 			)
@@ -37631,7 +37686,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "fb226c63-e1cd-550a-ad26-26d51350acc5")
+		(uuid "49c2dc10-f7e9-514f-aa55-839e2db18d2b")
 	)
 	(label "BRK_ON"
 		(at 55.88 382.27 180)
@@ -37641,7 +37696,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "c0b104cb-ce5b-5be0-878f-f1155629ca2e")
+		(uuid "fb226c63-e1cd-550a-ad26-26d51350acc5")
 	)
 	(wire
 		(pts
@@ -37652,7 +37707,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "5328cb90-e99b-5877-a71c-130decad3704")
+		(uuid "c0b104cb-ce5b-5be0-878f-f1155629ca2e")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -37662,8 +37717,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "0d4864a7-4a9c-576d-a3f3-73fd113d48c8")
-		(property "Reference" "#PWR120"
+		(uuid "f97d7701-3566-5b7d-bbff-f923b264bc56")
+		(property "Reference" "#PWR121"
 			(at 55.88 382.27 90)
 			(effects
 				(font
@@ -37708,12 +37763,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "4b3adc4b-6aef-5fb0-af6c-573a8d3ca26e")
+			(uuid "f64aaa6b-f183-5332-9a91-6cfe48d1bb1c")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR120")
+					(reference "#PWR121")
 					(unit 1)
 				)
 			)
@@ -37728,150 +37783,11 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "2a366321-b370-5fc5-ac19-41041122c8a7")
-	)
-	(label "+12V_RAW"
-		(at 55.88 387.35 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "51a2bf1c-cab8-5140-90c2-dc22ba36e983")
-	)
-	(wire
-		(pts
-			(xy 60.96 389.89)
-			(xy 55.88 389.89)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8ef7b078-d2b4-556e-a7d1-b103cee720db")
-	)
-	(label "+12V_RAW"
-		(at 55.88 389.89 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "6d5b1c78-ae45-59cf-9d5a-8e90bda83b3b")
-	)
-	(wire
-		(pts
-			(xy 60.96 392.43)
-			(xy 55.88 392.43)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "eb6d7d69-5126-5e5a-84f4-ac10506ddabd")
-	)
-	(label "+12V_RAW"
-		(at 55.88 392.43 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "4f67c399-b05c-5739-9f56-52c99d85a2a6")
-	)
-	(wire
-		(pts
-			(xy 60.96 394.97)
-			(xy 55.88 394.97)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0cbc63d2-8e8f-5428-9e24-75fe7581aff8")
+		(uuid "5328cb90-e99b-5877-a71c-130decad3704")
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 55.88 394.97 270)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board no)
-		(dnp no)
-		(uuid "f97d7701-3566-5b7d-bbff-f923b264bc56")
-		(property "Reference" "#PWR121"
-			(at 55.88 392.43 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "GND"
-			(at 55.88 397.51 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 55.88 394.97 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 55.88 394.97 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 55.88 394.97 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "f64aaa6b-f183-5332-9a91-6cfe48d1bb1c")
-		)
-		(instances
-			(project "marengo_pdu_revb"
-				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR121")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 60.96 397.51)
-			(xy 55.88 397.51)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "482f1437-9f92-5df1-8aff-cb969148c7da")
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 55.88 397.51 270)
+		(at 55.88 387.35 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom no)
@@ -37879,7 +37795,7 @@
 		(dnp no)
 		(uuid "a03ff5b0-b478-52a4-bace-3d92bc56cfe8")
 		(property "Reference" "#PWR122"
-			(at 55.88 394.97 90)
+			(at 55.88 384.81 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37888,7 +37804,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 55.88 400.05 90)
+			(at 55.88 389.89 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37896,7 +37812,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 55.88 397.51 90)
+			(at 55.88 387.35 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37905,7 +37821,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 55.88 397.51 90)
+			(at 55.88 387.35 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37914,7 +37830,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 55.88 397.51 90)
+			(at 55.88 387.35 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37936,18 +37852,18 @@
 	)
 	(wire
 		(pts
-			(xy 60.96 400.05)
-			(xy 55.88 400.05)
+			(xy 60.96 389.89)
+			(xy 55.88 389.89)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "a5f4a4e5-0fc5-5513-a46f-2e0081a277a8")
+		(uuid "2a366321-b370-5fc5-ac19-41041122c8a7")
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 55.88 400.05 270)
+		(at 55.88 389.89 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom no)
@@ -37955,7 +37871,7 @@
 		(dnp no)
 		(uuid "8ba714df-91bf-5af1-88ad-f13b573079b3")
 		(property "Reference" "#PWR123"
-			(at 55.88 397.51 90)
+			(at 55.88 387.35 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37964,7 +37880,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 55.88 402.59 90)
+			(at 55.88 392.43 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37972,7 +37888,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 55.88 400.05 90)
+			(at 55.88 389.89 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37981,7 +37897,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 55.88 400.05 90)
+			(at 55.88 389.89 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -37990,7 +37906,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 55.88 400.05 90)
+			(at 55.88 389.89 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -38010,6 +37926,145 @@
 			)
 		)
 	)
+	(wire
+		(pts
+			(xy 60.96 392.43)
+			(xy 55.88 392.43)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "51a2bf1c-cab8-5140-90c2-dc22ba36e983")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 55.88 392.43 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "9c761746-b162-5035-93d3-81599cea2c2b")
+		(property "Reference" "#PWR124"
+			(at 55.88 389.89 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 55.88 394.97 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 55.88 392.43 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 55.88 392.43 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 55.88 392.43 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d00e18b5-d999-5b68-99ba-0287cf81ac1c")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR124")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 60.96 394.97)
+			(xy 55.88 394.97)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8ef7b078-d2b4-556e-a7d1-b103cee720db")
+	)
+	(label "+12V_RAW"
+		(at 55.88 394.97 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "6d5b1c78-ae45-59cf-9d5a-8e90bda83b3b")
+	)
+	(wire
+		(pts
+			(xy 60.96 397.51)
+			(xy 55.88 397.51)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eb6d7d69-5126-5e5a-84f4-ac10506ddabd")
+	)
+	(label "+12V_RAW"
+		(at 55.88 397.51 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "4f67c399-b05c-5739-9f56-52c99d85a2a6")
+	)
+	(wire
+		(pts
+			(xy 60.96 400.05)
+			(xy 55.88 400.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0cbc63d2-8e8f-5428-9e24-75fe7581aff8")
+	)
+	(label "+12V_RAW"
+		(at 55.88 400.05 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "482f1437-9f92-5df1-8aff-cb969148c7da")
+	)
 	(symbol
 		(lib_id "Device:Fuse")
 		(at 114.3 397.51 0)
@@ -38028,7 +38083,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "20A 58V MINI blade, part TBD"
+		(property "Value" "20A 58V MINI 0997020.WXN"
 			(at 116.84 398.78 0)
 			(effects
 				(font
@@ -38091,7 +38146,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "5e4810d0-7dd9-5d5a-ac69-9ba4904787a6")
+		(uuid "a5f4a4e5-0fc5-5513-a46f-2e0081a277a8")
 	)
 	(label "BRK_IN"
 		(at 114.3 391.16 90)
@@ -38101,7 +38156,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "b00447f4-4332-5ee9-9603-575f669e45f1")
+		(uuid "5e4810d0-7dd9-5d5a-ac69-9ba4904787a6")
 	)
 	(wire
 		(pts
@@ -38112,7 +38167,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "08ad0200-e1de-5037-bfeb-c39b1dbf24ae")
+		(uuid "b00447f4-4332-5ee9-9603-575f669e45f1")
 	)
 	(label "BRK_F"
 		(at 114.3 403.86 270)
@@ -38122,7 +38177,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "c0bfedf5-aa9d-5df9-9e03-255712d3b6cd")
+		(uuid "08ad0200-e1de-5037-bfeb-c39b1dbf24ae")
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -38205,7 +38260,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "84c29327-9817-5a3e-8868-366f4450a60d")
+		(uuid "c0bfedf5-aa9d-5df9-9e03-255712d3b6cd")
 	)
 	(label "BRK_IN"
 		(at 134.62 391.16 90)
@@ -38215,7 +38270,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "17b6f809-a369-5f20-b040-cc0ca1a0b409")
+		(uuid "84c29327-9817-5a3e-8868-366f4450a60d")
 	)
 	(wire
 		(pts
@@ -38226,7 +38281,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9e021d4d-d79e-5e16-b9b0-5f34ef94e659")
+		(uuid "17b6f809-a369-5f20-b040-cc0ca1a0b409")
 	)
 	(label "BRK_PG"
 		(at 134.62 403.86 270)
@@ -38236,7 +38291,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "6edd0969-f44a-5467-887c-766c63c75384")
+		(uuid "9e021d4d-d79e-5e16-b9b0-5f34ef94e659")
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
@@ -38314,7 +38369,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b1dd1b65-cec8-5a7a-82fa-9737e62f94fc")
+		(uuid "6edd0969-f44a-5467-887c-766c63c75384")
 	)
 	(label "BRK_PG"
 		(at 154.94 391.16 90)
@@ -38324,7 +38379,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "1a28069b-7431-5b89-96f2-c6a7926c680e")
+		(uuid "b1dd1b65-cec8-5a7a-82fa-9737e62f94fc")
 	)
 	(wire
 		(pts
@@ -38335,7 +38390,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "04caf3a1-f33d-5c32-acfb-1c2b0063a606")
+		(uuid "1a28069b-7431-5b89-96f2-c6a7926c680e")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -38345,8 +38400,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "9c761746-b162-5035-93d3-81599cea2c2b")
-		(property "Reference" "#PWR124"
+		(uuid "c8154064-152b-50fa-84cd-4dbd092cc24d")
+		(property "Reference" "#PWR125"
 			(at 158.75 402.59 0)
 			(effects
 				(font
@@ -38391,12 +38446,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "d00e18b5-d999-5b68-99ba-0287cf81ac1c")
+			(uuid "16e5381a-781b-5b1c-87a2-23a8fa8cb301")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR124")
+					(reference "#PWR125")
 					(unit 1)
 				)
 			)
@@ -38477,7 +38532,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "26cacc2a-5904-5cec-87da-8309e14af2a5")
+		(uuid "04caf3a1-f33d-5c32-acfb-1c2b0063a606")
 	)
 	(label "+12V_RAW"
 		(at 175.26 400.05 270)
@@ -38487,7 +38542,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "f2133b91-74ca-5b9c-a5bb-879f94035ba3")
+		(uuid "26cacc2a-5904-5cec-87da-8309e14af2a5")
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
@@ -38573,7 +38628,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "ed3c5543-0aaf-53d4-9a50-45486c9a0417")
+		(uuid "f2133b91-74ca-5b9c-a5bb-879f94035ba3")
 	)
 	(label "BRK_PG"
 		(at 229.87 402.59 180)
@@ -38583,7 +38638,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "26178ea9-1828-5571-8331-5e0a1f098498")
+		(uuid "ed3c5543-0aaf-53d4-9a50-45486c9a0417")
 	)
 	(wire
 		(pts
@@ -38594,7 +38649,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e15a85a2-c627-5d8b-a62d-ad2cdc8390b3")
+		(uuid "26178ea9-1828-5571-8331-5e0a1f098498")
 	)
 	(symbol
 		(lib_id "power:GND")
@@ -38604,8 +38659,8 @@
 		(in_bom no)
 		(on_board no)
 		(dnp no)
-		(uuid "c8154064-152b-50fa-84cd-4dbd092cc24d")
-		(property "Reference" "#PWR125"
+		(uuid "9b4b22b0-b1f4-5dcb-9ca5-a2acf26bb434")
+		(property "Reference" "#PWR126"
 			(at 246.38 411.48 0)
 			(effects
 				(font
@@ -38650,12 +38705,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "16e5381a-781b-5b1c-87a2-23a8fa8cb301")
+			(uuid "582c57a2-f600-5758-ad48-f09a7665287d")
 		)
 		(instances
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
-					(reference "#PWR125")
+					(reference "#PWR126")
 					(unit 1)
 				)
 			)
@@ -38670,7 +38725,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "7f0b5146-9979-5932-9802-d56a14646671")
+		(uuid "e15a85a2-c627-5d8b-a62d-ad2cdc8390b3")
 	)
 	(label "BRK_ON"
 		(at 242.57 392.43 90)
@@ -38680,9 +38735,123 @@
 			)
 			(justify left bottom)
 		)
+		(uuid "7f0b5146-9979-5932-9802-d56a14646671")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 195.58 397.51 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7ba7c22f-78aa-5efc-82cc-b41c4beae74d")
+		(property "Reference" "R52"
+			(at 198.12 396.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10k 0.75W"
+			(at 198.12 398.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_2010_5025Metric"
+			(at 195.58 397.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 195.58 397.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 195.58 397.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2abe079a-ddbc-5290-b7d3-ca4006a56dc4")
+		)
+		(pin "2"
+			(uuid "0fbbd10a-f320-54d7-b730-82769212c804")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "R52")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 195.58 393.7)
+			(xy 195.58 391.16)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
 		(uuid "ae5ae89b-0e59-5569-8531-61849e9e6cc3")
 	)
-	(text "Block 10. Absorber (B1): a fast breaker trip leaves the pack lead's current with nowhere to go. The diode lets BAT dump\nit into 47 uF, so a 200 A, 1 uH lead (20 mJ) charges it about 7 V, plus 6 V across a 30 mOhm ESR at 200 A: about 70 V\npeak. Polymer, ESR 30 mOhm or less. Measure the lead and scope a 60 A stop. 100k bleeds it. The cap charges through the\ndiode when the BMS closes: 47 uF, 0.07 J, check the BMS takes it.\nF1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps under the 40 V parts and\nF1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.\nRUN_A, RUN_B and FLT_A diodes (B3): a U1 pin 2-3 bridge or an EN fault can no longer drive RUN, so one fault loses one\nbank at most.\nConverter: F2 20 A on the board end protects the pigtail (U7 already limits at 9.7-12.3 A; F2 backs up a shorted Q7).\nThe DVE has no reverse protection, so the keyed connector carries polarity. U7 PGD high (good) turns on the 2N7002,\nwhich pulls ON/OFF to -Vin: on. 470k and the 12 V zener bias the gate from BRK_IN, so it doesn't depend on VCTL.\n1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock\n(M1): Q10 shorts RST_SRC until MID is over about 11 V through the 10 V zener and Q11, so with bank B shorted and the bus\ndown, reset does nothing; healthy MID is 17 V at a 36 V pack. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF\nSRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land\nin it and the compute loads."
+	(label "FLT_A"
+		(at 195.58 391.16 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a4c63605-f7f3-518b-864c-f975d4cfe822")
+	)
+	(wire
+		(pts
+			(xy 195.58 401.32)
+			(xy 195.58 403.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e3211c58-6b7d-5923-9486-39902dce166b")
+	)
+	(label "UVLO"
+		(at 195.58 403.86 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "757e13f3-346b-5d50-a6f0-63e79ea02416")
+	)
+	(text "Block 10. Absorber: a bank trip into a bus short cuts 350-480 A. tools/absorber_sim.py (pack 54.6 V, 0.1 Ohm loop, 0.5-1\nuH assumed, no pack yet) gives BAT 81-83 V peak with this 47 uF, 50 mOhm part and D1. Measure the lead at bring-up. 100k\nbleeds it. BMS close drives 190-230 A into it for a few us: bench it on the JK.\nF1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps under the 40 V parts and\nF1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.\nRUN_A and RUN_B diodes: a U1 pin 2-3 bridge or an EN fault can't drive RUN. FLT reaches UVLO through 10k (2010, 0.75 W)\nwith a 15 V zener on FLT_A: FLT low holds UVLO near 1.7 V, and a bridged UVLO puts at most 5.5 mA into FLT and 15 V on\nit (20 V max).\nConverter: F2 20 A on the board end protects the pigtail (U7 already limits at 9.7-12.3 A; F2 backs up a shorted Q7).\nThe DVE has no reverse protection, so the keyed connector carries polarity. U7 PGD high (good) turns on the 2N7002,\nwhich pulls ON/OFF to -Vin: on. 470k and the 12 V zener bias the gate from BRK_IN, so it doesn't depend on VCTL.\n1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock\n(M1): Q10 shorts RST_SRC until MID is over about 11 V through the 10 V zener and Q11, so with bank B shorted and the bus\ndown, reset does nothing; healthy MID is 17 V at a 36 V pack. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF\nSRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land\nin it and the compute loads."
 		(exclude_from_sim no)
 		(at 300 130 0)
 		(effects
@@ -38691,7 +38860,7 @@
 			)
 			(justify left top)
 		)
-		(uuid "a4c63605-f7f3-518b-864c-f975d4cfe822")
+		(uuid "6f6b86f6-e576-5ae9-bcbd-3735df641cc7")
 	)
 	(sheet_instances
 		(path "/"
