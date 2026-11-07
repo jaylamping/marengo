@@ -1,0 +1,66 @@
+[
+ {
+  "run": "brake_1_0",
+  "wire": "16awg",
+  "od": 2.9,
+  "bend_r": 7.0,
+  "length_mm": 88.0,
+  "note": "HS50 bottom tag down the post front edge; board end open"
+ },
+ {
+  "run": "brake_1_1",
+  "wire": "16awg",
+  "od": 2.9,
+  "bend_r": 7.0,
+  "length_mm": 88.7,
+  "note": "HS50 bottom tag down the post front edge; board end open"
+ },
+ {
+  "run": "brake_-1_0",
+  "wire": "16awg",
+  "od": 2.9,
+  "bend_r": 7.0,
+  "length_mm": 88.0,
+  "note": "HS50 bottom tag down the post front edge; board end open"
+ },
+ {
+  "run": "brake_-1_1",
+  "wire": "16awg",
+  "od": 2.9,
+  "bend_r": 7.0,
+  "length_mm": 88.7,
+  "note": "HS50 bottom tag down the post front edge; board end open"
+ },
+ {
+  "run": "dcdc_in_pos",
+  "wire": "14awg",
+  "od": 3.4,
+  "bend_r": 8.0,
+  "length_mm": 114.5,
+  "note": "48 V in from the board, fuse/cap zone at -X; board end open"
+ },
+ {
+  "run": "dcdc_in_neg",
+  "wire": "14awg",
+  "od": 3.4,
+  "bend_r": 8.0,
+  "length_mm": 111.6,
+  "note": "48 V return; board end open"
+ },
+ {
+  "run": "dcdc_out_pos",
+  "wire": "14awg",
+  "od": 3.4,
+  "bend_r": 8.0,
+  "length_mm": 114.5,
+  "note": "12 V out; board end open"
+ },
+ {
+  "run": "dcdc_out_neg",
+  "wire": "14awg",
+  "od": 3.4,
+  "bend_r": 8.0,
+  "length_mm": 111.6,
+  "note": "12 V return; board end open"
+ }
+]
