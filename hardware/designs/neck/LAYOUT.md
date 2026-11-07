@@ -54,6 +54,10 @@ face (Y 529), not the 10 mm assumed above. The shell dome closes at F1 + 48. Thi
 higher, so its bottom lands near Y 479, out of the compute bay. The chin-vs-collar look-down limits don't change
 (they are relative to the collar). Renders: [renders/NECK_HEIGHT_OPTIONS.png](renders/NECK_HEIGHT_OPTIONS.png).
 
+## SolidWorks layout
+
+Done: [LAYOUT_SW.md](LAYOUT_SW.md).
+
 ## Next
 
 1. Joey: neck height (decision card in the thread).

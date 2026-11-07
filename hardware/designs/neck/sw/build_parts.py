@@ -150,6 +150,10 @@ def tower(sw):
     p.rect(44, 72, -41, 16)
     p.circle(56, 0, 11)
     p.extrude(Y(-12.2), Y(-9.2), "pod_shelf")
+    p.box((51, Y(-12.2), -4.7), (61, Y(-9.2), 11), "boss_slot", cut=True)   # the servo top boss runs forward of the shaft
+    p.sketch("top")
+    p.circle(56, 0, 11)
+    p.extrude(Y(-12.2), Y(-9.2), "boss_hole", cut=True)   # also through the tower wall
     p.ring(0, 49, 495, Y(-9.5), "bore", cut=True)
     p.box((43, 495, -38), (69.5, Y(-12.2), 13), "servo_pocket", cut=True)
     p.box((40, Y(-9.2), -16), (75, Y(0.8), 16), "pinion_window", cut=True)
@@ -187,14 +191,15 @@ def cage(sw):
     p = Part(sw, "servo_cage")
     floor_lo = g.SERVO_B_H - g.SERVO_THICK / 2
     p.ring(0, 42.6, Y(floor_lo - 3), Y(floor_lo), "floor")
+    p.box((-43, Y(floor_lo - 3), -43), (43, Y(floor_lo), -3), "rear_opening", cut=True)   # horn B and its link swing through
     p.ring(41, 42.6, Y(floor_lo), Y(1.5), "wall")
     p.ring(33, 42.6, Y(1.5), Y(3.6), "top_plate")
     p.ring(33, 39, Y(3.6), Y(4), "race_seat")
-    # shelf between the servos, ahead of the rods
+    # shelf between the servos, ahead of the horns and rods
     p.sketch("top")
-    half = sqrt(41.5 ** 2 - 8 ** 2)
-    p.sm.CreateArc(0, 0, 0, -half * MM, 8 * MM, 0, half * MM, 8 * MM, 0, 1)   # sketch y = -Z: arc runs round the front
-    p.sm.CreateLine(-half * MM, 8 * MM, 0, half * MM, 8 * MM, 0)
+    half = sqrt(41.5 ** 2 - 3 ** 2)
+    p.sm.CreateArc(0, 0, 0, -half * MM, 3 * MM, 0, half * MM, 3 * MM, 0, 1)   # sketch y = -Z: arc runs round the front
+    p.sm.CreateLine(-half * MM, 3 * MM, 0, half * MM, 3 * MM, 0)
     p.extrude(Y(g.SERVO_A_H - g.SERVO_THICK / 2 - g.GAP), Y(g.SERVO_A_H - g.SERVO_THICK / 2), "shelf")
     p.sketch("top")
     p.poly(involute_gear(88))
@@ -241,7 +246,7 @@ def rod(sw, k):
 
 
 def cross(sw):
-    p = Part(sw, "ujoint_cross", "purchase", "steel")
+    p = Part(sw, "ujoint_cross")   # printed block, the pins become bought dowels or shoulder bolts
     uy = Y(g.UJ_H)
     p.box((-8, uy - 8, -8), (8, uy + 8, 8), "block")
     p.sketch("right")

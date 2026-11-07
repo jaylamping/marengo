@@ -1,0 +1,16 @@
+{
+ "neutral_with_bellows": [],
+ "p34.0_r0": [],
+ "p-25.0_r0": [],
+ "p0_r20.0": [],
+ "p0_r-20.0": [],
+ "p17_r10": [],
+ "p17_r-10": [],
+ "p-12_r10": [],
+ "p-12_r-10": [],
+ "max_horn_deg": 49.2,
+ "lowest_link_Y": 472.6,
+ "link_radius_at_horn": 32.1,
+ "link_radius_at_head": 28.4,
+ "cage_sweep_r": 45.0
+}

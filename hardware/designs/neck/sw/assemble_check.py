@@ -105,7 +105,7 @@ def pose_all(pitch=0.0, roll=0.0, yaw=0.0):
 
 
 FIXED = {"rails": ("ref_rails", GREY), "collar": ("ref_collar", WHITE), "tower": ("tower", TEAL), "bearing": ("bearing_61814", BLUE)}
-MOVING = {"tube": ("yaw_tube", TEAL), "cage": ("servo_cage", TEAL), "pinion": ("yaw_pinion", TEAL), "cross": ("ujoint_cross", STEEL), "plate": ("head_plate", TEAL),
+MOVING = {"tube": ("yaw_tube", TEAL), "cage": ("servo_cage", TEAL), "pinion": ("yaw_pinion", TEAL), "cross": ("ujoint_cross", TEAL), "plate": ("head_plate", TEAL),
           "bellows": ("bellows", DARK), "horn_a": ("horn", STEEL), "horn_b": ("horn", STEEL), "rod_a": ("rod_a", STEEL), "rod_b": ("rod_b", STEEL)}
 SERVOS = ("servo_a", "servo_b", "servo_yaw")
 # the ball joints and press fits touch by design
@@ -128,26 +128,24 @@ class Layout:
 
     def new(self):
         sw = self.sw
-        for p in set(self.paths().values()):
-            sw.OpenDoc6(str(p), 1, 1, "", self.err, self.warn)
         self.a = sw.NewDocument(sw.GetUserPreferenceStringValue(9), 0, 0, 0)
-        self.a.Extension.SaveAs(str(ASM), 0, 1, NUL, self.err, self.warn)
-        self.a = sw.ActivateDoc3(Path(ASM).name, False, 0, self.err)
+        title = self.a.GetTitle
         for n, p in self.paths().items():
+            sw.OpenDoc6(str(p), 1, 1, "", self.err, self.warn)
+            self.a = sw.ActivateDoc3(title, False, 0, self.err)
             c = self.a.AddComponent5(str(p), 0, "", False, "", 0, 0, 0)
             if c is None:
                 raise RuntimeError(n)
             self.c[n] = c
             c.Select4(False, NUL, False)
             self.a.UnfixComponent()   # the first component comes in fixed
-        for doc in set(self.paths().values()):
-            sw.CloseDoc(doc.name)
+        self.a.SaveAs3(str(ASM), 0, 1)
         self.link()
         self.save()
 
     def open(self):
         self.a = self.sw.OpenDoc6(str(ASM), 2, 1, "", self.err, self.warn)
-        self.a = self.sw.ActivateDoc3(ASM.name, False, 0, self.err)
+        self.sw.ActivateDoc3(self.a.GetTitle, False, 0, self.err)
         comps = list(self.a.GetComponents(True))
         pool = {}
         for c in comps:
@@ -214,7 +212,7 @@ class Layout:
         bmp = CAD.parent / "_wip" / "neck" / f"{name}.bmp"
         if not self.a.SaveBMP(str(bmp), *size):
             raise RuntimeError(name)
-        Image.open(bmp).convert("RGB").save(OUT / "renders" / f"{name}.png")
+        Image.open(bmp).convert("RGB").save(OUT.parent / "renders" / f"{name}.png")
         print(name, flush=True)
 
 
@@ -235,7 +233,6 @@ def do_check(L):
 
 
 def do_render(L):
-    (OUT / "renders").mkdir(exist_ok=True)
     L.colour()
     L.pose()
     L.show("rails", True)

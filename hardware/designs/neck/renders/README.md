@@ -14,3 +14,5 @@ Then run `node shoot.js "$(cat shots.json)"`. The scene takes these neck-study q
 
 All rotations are about the U-joint at 70 + lift mm above the collar bottom. `hz=-6` puts the collar bottom at
 F1 + 34 (the head thread's placement).
+
+`NECK_SW_*.png`: the SolidWorks concept layout, from [sw/run_all.py](../sw/run_all.py). See [LAYOUT_SW.md](../LAYOUT_SW.md).
