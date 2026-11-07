@@ -25,7 +25,7 @@ the repo as a reference.
 | E-stop switch | Two FET banks in series, both from the E-stop latch. Bank B: hot-swap controller (soft start = precharge for all limbs). Bank A: second bank with its own TPS48100 driver, closes first, slow turn-off, own short-circuit trip. Reset latch (Joey: press reset at every power-up) | Safety, no software in the path. All bulk capacitance sits behind it, so the BMS never sees inrush. One shorted FET can't defeat the E-stop. |
 | Braking clamp | Comparator, FET, Arcol HS50 10R J on the frame (Joey, 2026-11-07: bigger for redundancy; place it with the frame thread) | A full pack or a BMS trip during regen would push the bus past the drives' 60 V fault. |
 | Bus capacitors | A few electrolytics at the clamp and switch | The drives have their own. Limb cap boards (Unitree style) get added if the bench shows ringing. |
-| 12 V rail | Board-mount 150 W brick, e.g. Mean Well IQB150W8-12 (quarter brick, 9–75 V in, 12 V 12.5 A) (Joey deferred to me), with a heatsink on the baseplate | No converter to design; small. It derates above 30 C at 20 LFM. |
+| 12 V rail | Murata DVE0125V2NBC (eighth brick with baseplate, 36–75 V in, 12 V 25 A, 94.6 %, negative-logic on/off), picked by Joey 2026-11-07. Off the board on the top front rail (frame 79500b9), pigtail J24 to the board's top edge | 2× the current of the IQB, conduction-cooled into the frame, frees about 2,200 mm² of board. |
 | Limb outputs (arms, waist, aux; legs later) | Terminal pair + shunt + one INA228 meter each (Joey: yes to meters) | Amps per limb at all times. No per-limb switching (Joey: OK to lose it). |
 | 12 V meter | One INA228 | Compute power in telemetry. |
 | SPARE_SW 12 V output (replaces the Motion 12 V row, 2026-11-07) | TPS259541 eFuse, 3.87 to 4.42 A limit, soft start, INA228, 2-pin output, enabled by the E-stop latch | Generic switched output, off with the motors. First use: 3 STS3215 neck servos and the jaw servo, with servo current capped in firmware. |
@@ -39,7 +39,7 @@ the repo as a reference.
 2. Done: HB2-BS545 (see above).
 3. Schematic done, ERC clean (`hardware/electrical/schematics/marengo_pdu_revb`). Short review, then layout.
 
-## 12 V budget against the 12.5 A brick (IQB150W8-12)
+## 12 V budget against the 25 A converter (DVE0125V2NBC)
 
 | Load | Expected | Hard ceiling |
 | ---- | -------- | ------------ |
@@ -48,9 +48,22 @@ the repo as a reference.
 | 4 fans, about 0.15 A each (assumed) | 0.6 A | 0.6 A |
 | SPARE_ON | 1.0 A | About 2.1 A |
 | SPARE_SW | 4.0 A | 4.42 A |
-| Total | **10.1 A, 121 W, 81 %** | **11.6 A** |
+| Total | **10.1 A, 121 W, 40 %** | **11.6 A, 46 %** |
 
-The arithmetic fits, the heat doesn't without help. At 20 LFM with no heatsink the brick derates from 30 C, to about 75 % at 50 C (9.4 A) as read by the rev B reviewers from the spec curve. So the brick gets a heatsink on its baseplate, about 5 mm tall, in the Z 67 strip, in the upper intake's air path. Part to pick, and Z 67 still needs the frame thread's OK. Bench check before layout sign-off: 121 W steady in a warm enclosure, brick case temperature against the spec limit. Fallback: bolt the brick to a frame plate on a pigtail.
+The current fits with margin, and the heat now goes into the frame:
+- **Loss:** at 93 to 94.6 %, the 140 W ceiling loses about 9 W.
+- **Baseplate limit:** 110 °C with no derating (IPC 9592); thermal shutdown is 130 °C. From a 50 °C torso, the baseplate-to-air path through plate and rail must be 6 K/W or better. Use a thermal pad, and bolt the full plate face to the rail. Bench check: 140 W steady, baseplate under 100 °C.
+- **Input UVLO:** fixed on the DVE at 32 to 36 V on, 30 to 34 V off. Near an empty pack under load sag, compute can drop before the BMS cuts out. **Software requirement: shut compute down cleanly at a pack voltage of 38 V or more.**
+
+Off-board parts at the converter end, in the fuse and cap zone at the -X end of the rail (X -40 to -29):
+- 33 µF 100 V aluminium low-ESR, plus 1 µF 100 V ceramic, across +VIN/-VIN at the pins. Murata tests with 33 µF at the pins, and the 150 mm lead is 75 to 150 nH.
+- Strain relief.
+
+The 20 A fuse required by Murata is F2, at the board end. That protects the pigtail from its source. U7 already limits at 9.7 to 12.3 A, so F2 only backs up a shorted Q7.
+
+Pigtail: twisted pairs, 18 AWG.
+- Input: 2 wires each way, about 4.2 A at 36 V.
+- +12 V: 3 wires each way. At 12 A that's about 25 mV in the wire and about 80 mV in the Micro-Fit contacts, so about 0.1 V in all.
 
 ## Accepted risks and software requirements (Joey, 2026-11-07)
 

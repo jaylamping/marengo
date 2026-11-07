@@ -494,3 +494,16 @@ Findings in REVB_REVIEW.md.
 **Floorplan (M11).** Bank A moved beside bank B in the top row, and the 12 V block moved below the caps. The 12 V path gets longer: 12 A, not 60 A. Fill is 100.6 % with legs, 90.4 % without.
 
 Not fixed, by design: the minors in REVB_REVIEW.md except FLT, C28 and the self-test window.
+
+## Rev B2 fix round, 2026-11-07
+
+Details and the full list are in [REVB2_REVIEW.md](REVB2_REVIEW.md) ("Fix round 2", "Frame placements"). The reasons in short:
+
+- **Absorber on BAT (B1).** No gate network bounds di/dt once Crss collapses. So the energy goes into a diode-fed 47 µF polymer instead of a TVS that clamps too high.
+- **Diodes from RUN to each bank (B3).** RUN stays the one shared signal, but neither bank's pin can drive it back.
+- **Fuse, TVS and reverse diode around U2 (M14, M6, M7).** The LDO was a single part between the pack and 40 V parts.
+- **1 µF on RST_SRC (M8).** Simulation confirmed Fable's mechanism: a fast VCTL ramp with reset held armed the latch.
+- **MID reset interlock (M1).** Reset after a failed self-test can't hard-close A onto a shorted B while the bus is down.
+- **Braking resistor HS50**, Joey's call, for redundancy. It moved to the +X gusset.
+- **12 V converter off the board.** The Murata DVE0125V2NBC, Joey's pick, goes on the top front rail on a pigtail. That frees the top strip and ends the Z 67 and heatsink question.
+- **Limb returns on two GND studs**, Joey's call. It frees about 690 mm².

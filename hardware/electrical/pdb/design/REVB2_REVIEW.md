@@ -64,6 +64,18 @@ Hashes matched before the round and after each run. All pass ERC and check.py. E
 - **Open:** the brick on a frame plate (B2), and a bigger braking resistor (M2). Those areas stay parametric until he answers.
 - GLM 5.3 and Kimi K3.1 Pro are out of the reviewer group for now. DeepSeek V4.1 Flash stays as a trial on CheaperInference.
 
+## Frame placements (frame main 79500b9, final, Joey 11:20Z)
+
+- **12 V converter: Murata DVE0125V2NBC**, Joey's pick. It replaces the IQB150W8-12 and moves off the board. That closes B2: there's no Z 67 or fan-zone problem, and 25 A is 2.5× the expected load.
+  - Location: top front rail, X -29.2 to 29.2, Y 473.7 to 496.4.
+  - Pigtail: about 150 mm, to J24 (Micro-Fit 2×6) on the board's top edge, -X half.
+  - Negative-logic ON/OFF is driven by a 2N7002 from U7's PGD, with the gate biased from BRK_IN.
+  - F2 (20 A) is at the board end. The 33 µF and 1 µF input caps are at the converter pins.
+  - Baseplate: 4× M3 threaded, 50.8 × 15.24 mm.
+  - New risk: the fixed input UVLO (34 V typ off), so software must shut compute down at 38 V or more.
+- **HS50:** on the +X gusset front face, body Y 297.5 to 346.6. J3 and J4 move to the board's top edge, +X half, so the leads are about 50 mm, twisted. MBRS3100 carries the lead and winding inductance, so the FET doesn't see it.
+- **Board area:** 7,063 mm² of courtyard, 78 % of the one-sided budget with legs.
+
 ## Braking resistor: HS50 (Joey, 2026-11-07, "for redundancy")
 
 Arcol publishes no pulse or short-time overload rating for the HS range; its datasheet says to ask (sales@arcolresistors.com). So I sized it on thermal mass. I assumed 0.9 J/g·K, half the mass taking heat in a burst, and 100 K of rise from a 50 °C ambient, well under the 200 °C hot spot. These are estimates, not ratings.

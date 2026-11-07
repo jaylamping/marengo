@@ -93,7 +93,7 @@ g.R('9.09k','VCTL','VREF_CL'); g.C('100nF','VCTL','GND'); g.R('499k 0.1%','VBUS'
 g.nl(); g.R('10R','CL_OUT','CL_G'); g.R('100k','CL_G','GND'); g.D('MBRS3100T3G','VBUS','CL_D',SMC)
 nfet5(s,'Q6','BSC040N10NS5ATMA1',(254,322),'CL_D','CL_G','GND')
 term('M4 terminal, HS50 +',(330.2,292),'VBUS'); term('M4 terminal, HS50 -',(330.2,314.96),'CL_D')
-note('''Arcol HS50 10R J on the frame plate: 322 W, 5.7 A while on. 50 W on Arcol's standard heatsink, 32 g: about 1.4 kJ, 4.5 s at 322 W, before it gets hot. Threshold values are rev A's, unchanged.
+note('''Arcol HS50 10R J on the +X gusset plate (frame 3877317), leads to J3/J4 on the board's top edge, +X half, twisted: 322 W, 5.7 A while on. MBRS3100 carries the lead and winding inductance at turn-off, so lead length sets EMI, not FET stress. 50 W on Arcol's standard heatsink, 32 g: about 1.4 kJ, 4.5 s at 322 W, before it gets hot. Threshold values are rev A's, unchanged.
 Self-powered: VCTL lives as long as the bus or the pack does. If the FET sticks on, the plate thermostat opens the loop and the bank drops the bus.
 TLV1805 drives the FET directly: 100 mA peak, 0.3 us into 4 nF. Rev A's driver, meter, shunt, status FET and NTC are gone, and a smaller FET replaces the IPT015.
 Leg stage later: fit 2 Ohm and recheck this FET, 29 A gives about 5 W.''',(355.6,280))
@@ -106,10 +106,9 @@ g.F('VBUS'); tp(g,'VBUS')
 note('400 uF, 80 V. The drives have their own. Can is 10 x 16.5: land owed, and it only clears under the higher ceiling, away from the fans.',(355.6,318))
 
 # ---------- brick ----------
-head('5. 12 V brick',(25.4,352))
-nic(s,'marengo_revb:IQB150W8-12','U5','IQB150W8-12',(66,385),'marengo_revb:IQB150W8',{'1':'BRK_IN','2':'BRK_PG','3':'GND','5':'GND','6':None,'7':'+12V_RAW','8':'+12V_RAW','4':'GND'})
+head('5. 12 V converter: Murata DVE0125V2NBC on the -X front post plate, pigtail J24 (block 10)',(25.4,352))
 g=Grid(s,114.3,367,20.32,30.48,200)
-g.C('2.2uF 100V','BRK_IN','GND',C1210,k=2); g.C('22uF 25V','+12V_RAW','GND',C1210,k=2); g.F('+12V_RAW')
+g.C('2.2uF 100V','BRK_IN','GND',C1210,k=2); g.C('22uF 25V','+12V_RAW','GND',C1210,k=2)
 nic(s,'Device:R_Shunt','RS8','2mR CSS4J-4026K-2L00F 6W',(218,378),SH,{'1':'+12V_RAW','2':'SH12_P','3':'SH12_N','4':'+12V'})
 nic(s,'Sensor_Energy:INA228','U6','INA228AIDGSR',(272,378),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':'+3V3_PI','2':'I2C_SDA','3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':'+12V','9':'SH12_N','10':'SH12_P'},ds='https://www.ti.com/lit/ds/symlink/ina228.pdf')
 g=Grid(s,305,367,20.32,30.48,330); g.C('100nF','+3V3_PI','GND'); tp(g,'+12V')
@@ -117,10 +116,11 @@ for nm,x in (('Jetson',360),('Pi 5 V buck',400),('fans',440)):
     conn(2,'12 V to '+nm,(x,378),MF2,['+12V','GND'])
 conn(5,'Pi: 3V3, SDA, SCL, GND, E-stop pressed (low)',(490,378),GH(5),['+3V3_PI','I2C_SDA','I2C_SCL','GND','ESTOP_PI_N'],ref='J21')
 g=Grid(s,515,367,20.32,30.48,530); g.F('+3V3_PI')
-note('''Ahead of the E-stop: motors off, compute stays up. Soft start in block 5a, BRK_PG on R.C keeps the brick off until its input is up.
--Vout is tied to GND here: the robot has one ground, P-. RS+ and RS- tied at the pins, Trim open. Input caps at the pins; the EMC filter is left out.
-150 W at 12 V, 89 %: 18 W at full load, about 6 W at 50 W. Derating starts near 30 C at 20 LFM: fit a heatsink on the baseplate, in the Z 67 strip, see REV_B_PARTS. 12.7 mm tall: keep clear of the fan gap.
-INA228 addresses: L arm 0x40, R arm 0x41, waist 0x42, aux 0x43, L leg 0x44, R leg 0x45, 12 V 0x46, SPARE_SW 0x47, MID 0x48. Powered by the Pi's 3.3 V; Pi pull-ups on I2C.''',(25.4,404))
+note('''Ahead of the E-stop: motors off, compute stays up. Soft start in block 5a; the converter's negative-logic ON/OFF is held off until U7's PGD is good (block 10).
+Off board on the top front rail (frame 3877317), baseplate down, 4x M3 into its threaded baseplate (50.8 x 15.24 mm, 3 mm max depth). J24 sits on the board's top edge, -X half. -Vin and -Vout both go to GND: the robot has one ground, P-.
+Pigtail about 150 mm, twisted pairs, 18 AWG: 2 wires each way on the input, 3 each way on +12 V (0.1 V drop at 12 A including contacts). At the converter end: 33 uF 100 V aluminium (its ESR damps the lead, 75-150 nH) plus 1 uF across +VIN/-VIN at the pins. 300 W, 25 A, 94.6 %: about 9 W at the 140 W ceiling, into the plate.
+Input UVLO 32-36 V on, 30-34 V off, fixed on the DVE: near an empty pack under sag, compute can drop before the BMS cuts out.
+INA228 addresses: L arm 0x40, R arm 0x41, waist 0x42, aux 0x43, L leg 0x44, R leg 0x45, 12 V 0x46, SPARE_SW 0x47, MID 0x48. Powered by the Pi's 3.3 V; Pi pull-ups on I2C.''',(25.4,424))
 
 
 # ---------- brick soft start ----------
@@ -209,13 +209,19 @@ g=Grid(s,38.1,530,25.4,30.48,340)
 g.D('MBRS3100T3G','ABS','BAT',SMC); g.CP('47uF 100V polymer','ABS','GND','Capacitor_SMD:CP_Elec_10x10.5'); g.R('100k','ABS','GND',R1206)
 g.two('Device:Fuse','F','250mA 63V 0466.250','BAT','BAT_CTL','Fuse:Fuse_1206_3216Metric'); g.C('1uF 100V','BAT_CTL','GND',C1210); g.F('BAT_CTL'); g.D('BAV19W','BAT_CTL','VCTL'); g.Z('SMAJ15A','VCTL','GND','Diode_SMD:D_SMA')
 g.D('BAV19W','RUN_B','RUN'); g.D('BAV19W','RUN_A','RUN'); g.D('BAV19W','FLT_A','UVLO')
-g.nl(); g.R('33k','MID','MID_S'); g.C('22nF 100V','MID','GND',C805); g.D('BAT46W','NO_PU','+3V3_PI'); g.CP('330uF 25V','+12V','GND','Capacitor_SMD:CP_Elec_8x10.5')
+g.nl(); g.R('33k','MID','MID_S'); g.C('22nF 100V','MID','GND',C805); g.D('BAT46W','NO_PU','+3V3_PI'); g.CP('330uF 25V polymer','+12V','GND','Capacitor_SMD:CP_Elec_8x10.5')
 g.C('1uF 25V','RST_SRC','GND',C603); g.Z('BZT52C10','MID','MID_Z'); g.R('220k','MID_Z','MID_B'); g.R('220k','MID_B','GND'); g.R('100k','VCTL','INT_B')
 s.refc['Q']=max(s.refc.get('Q',0),9)
 Q(NPN,'MMBT3904',(268,562),'INT_B','GND','RST_SRC'); Q(NPN,'MMBT3904',(295,562),'MID_B','GND','INT_B')
+# 12 V converter pigtail: the DVE moved off the board (Joey, 2026-11-07)
+conn(12,'12 V converter pigtail: 1-2 +VIN, 3-4 -VIN, 5 ON/OFF (low = on), 6 -VIN, 7-9 +VOUT, 10-12 -VOUT',(66,385),'Connector_Molex:Molex_Micro-Fit_3.0_43045-1212_2x06_P3.00mm_Vertical',['BRK_F','BRK_F','GND','GND','BRK_ON','GND','+12V_RAW','+12V_RAW','+12V_RAW','GND','GND','GND'])
+g=Grid(s,114.3,398,20.32,30.48,200)
+g.two('Device:Fuse','F','20A 58V MINI blade, part TBD','BRK_IN','BRK_F','Fuse:Fuseholder_Blade_Mini_Keystone_3568'); g.R('470k','BRK_IN','BRK_PG',R1206); g.Z('BZT52C12','BRK_PG','GND'); g.F('+12V_RAW')
+nic(s,'Transistor_FET:Q_NMOS_GSD',s.nref('Q'),'2N7002',(240,402),SOT23,{'1':'BRK_PG','2':'GND','3':'BRK_ON'})
 wnote('''Block 10. Absorber (B1): a fast breaker trip leaves the pack lead's current with nowhere to go. The diode lets BAT dump it into 47 uF, so a 200 A, 1 uH lead (20 mJ) charges it about 7 V, plus 6 V across a 30 mOhm ESR at 200 A: about 70 V peak. Polymer, ESR 30 mOhm or less. Measure the lead and scope a 60 A stop. 100k bleeds it. The cap charges through the diode when the BMS closes: 47 uF, 0.07 J, check the BMS takes it.
 F1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps under the 40 V parts and F1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.
 RUN_A, RUN_B and FLT_A diodes (B3): a U1 pin 2-3 bridge or an EN fault can no longer drive RUN, so one fault loses one bank at most.
+Converter: F2 20 A on the board end protects the pigtail (U7 already limits at 9.7-12.3 A; F2 backs up a shorted Q7). The DVE has no reverse protection, so the keyed connector carries polarity. U7 PGD high (good) turns on the 2N7002, which pulls ON/OFF to -Vin: on. 470k and the 12 V zener bias the gate from BRK_IN, so it doesn't depend on VCTL.
 1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock (M1): Q10 shorts RST_SRC until MID is over about 11 V through the 10 V zener and Q11, so with bank B shorted and the bus down, reset does nothing; healthy MID is 17 V at a 36 V pack. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF SRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land in it and the compute loads.''',(300,130),120)
 writelib()
 s.write([('/'+ROOT,'1')])

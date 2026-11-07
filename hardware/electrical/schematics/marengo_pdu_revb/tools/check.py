@@ -43,14 +43,18 @@ ok(not any(n(r,p) in('BAT','VBUS') for r,p in pin if r!='x' and n(r,p)=='UVLO'),
 # nothing bulky ahead of the bank
 bat=[r for r,p in nets['BAT'] if r[0]=='C']
 ok(all(val(c).startswith('1uF') for c in bat),'only 1 uF directly on BAT: '+str(bat))
-ok(not any(r=='U5' for r,p in nets['BAT']+nets['VBUS']),'brick on neither BAT nor VBUS')
-ok(n('U5',1)=='BRK_IN' and n('U5',3)=='GND' and n('U5',2)==n('U7',8),'brick behind its own soft start, R.C on U7 PGD')
+jb=[r for r in comp if r[0]=='J' and val(r).startswith('12 V converter pigtail')]
+ok(len(jb)==1 and not any(r==jb[0] for r,p in nets['BAT']+nets['VBUS']),'converter connector on neither BAT nor VBUS')
+jb=jb[0] if jb else 'J0'
+ok(n(jb,1)==n(jb,2)=='BRK_F' and any(r[0]=='F' and {n(r,1),n(r,2)}=={'BRK_IN','BRK_F'} for r in comp),'converter input behind its soft start and a fuse')
+qon=[q for q in comp if q[0]=='Q' and val(q)=='2N7002' and n(q,1)==n('U7',8) and n(q,3)==n(jb,5) and n(q,2)=='GND']
+ok(len(qon)==1,'negative-logic ON/OFF pulled to -Vin only when U7 PGD is good')
 ok(n('RS9',1)=='BAT' and n('RS9',4)==n('Q7',4) and n('Q7',2)=='BRK_IN','brick path from BAT, ahead of the E-stop bank')
 ok(n('U7',2)==n('RS9',2) and n('U7',1)==n('RS9',3) and n('U7',3)==n('U7',2),'U7 Kelvin, UVLO on VIN')
 ok(n('U7',4)=='GND' and n('U7',9)=='BRK_IN','U7 OVLO low, OUT on BRK_IN')
 ok(not any(r in ('U7','Q7') for r,p in nets['RUN']+nets['VCTL']),'E-stop latch does not touch the brick path')
 ok(all(val(c).startswith('2.2uF') for c in [r for r,p in nets['BRK_IN'] if r[0]=='C']),'brick input caps only 2.2 uF')
-ok(n('U5',4)=='GND' and n('U5',5)=='GND' and n('U5',7)==n('U5',8),'brick -Vout grounded, sense tied')
+ok(all(n(jb,p)=='GND' for p in (3,4,6,10,11,12)) and all(n(jb,p)=='+12V_RAW' for p in (7,8,9)),'converter -Vin and -Vout on GND, +Vout on +12V_RAW')
 # latch
 ok(n('U2',8)==n('U2',5)=='BAT_CTL' and any(r[0]=='F' and {n(r,1),n(r,2)}=={'BAT','BAT_CTL'} for r in comp),'LDO on the battery side through a fuse, EN tied')
 ok(diode('BAT_CTL','VCTL') and any(r[0]=='D' and n(r,1)=='VCTL' and n(r,2)=='GND' for r in comp),'LDO reverse diode, VCTL clamped')
