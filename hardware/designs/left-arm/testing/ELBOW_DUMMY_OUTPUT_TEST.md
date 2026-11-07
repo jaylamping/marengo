@@ -182,12 +182,12 @@ For each test: date, spool, print orientation, part revision, screw torque, room
 
 ### Test 8: clamp creep
 
-The hoop and carrier clamp PETG directly, so preload falls as the plastic relaxes. Mark each M3 head and the carrier with paint, then tighten to the torque in `../prints/upper-arm/ASSEMBLY_ORDER.md`.
+The hoop and carrier clamp PETG directly, so preload falls as the plastic relaxes. Fit the M3s **dry**, with the DIN 9021 and DIN 6796 stack as on the arm, and tighten to the torque in `../prints/upper-arm/ASSEMBLY_ORDER.md`. Paint-mark each head across to the carrier.
 
-1. Measure how far each screw turns on a retorque at 1 hour, 1 day and 1 week, before any test loads.
+1. Measure how far each screw turns on a retorque at 1 hour, 1 day and 1 week, before any test loads. Re-mark each time. The housing has 100% infill round the screws and under the clamp face, so this measures the joint.
 2. Repeat at 1 hour after test 5, the stop cycles.
 
-**Proposed pass:** under a quarter turn at the 1 day retorque, and no witness-mark movement between carrier and housing after the stop cycles. Record the turn at each screw. If the marks move, the clamp has slipped.
+**Proposed pass:** under about 15 degrees at the 1-day and 1-week retorques, and no witness-mark movement between carrier and housing after the stop cycles. Thread-locker goes on only after the 1-week retorque, as on the arm. Record the turn at each screw. If the marks move, the clamp has slipped.
 
 ### Test 9: reuse the bearing
 

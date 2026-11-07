@@ -65,6 +65,17 @@ def to_pla(ps):
 
 PLA_JOBS = ('dummy_housing', 'dummy_output')  # rig fixtures
 
+
+def clamp_zone(lo, hi):
+    """100% infill round the six carrier screws and under the clamp face, so tests 7 and 8 load the joint, not sparse infill. UP_X coordinates."""
+    cy, cz = 209.860668, 5.985875
+    parts = [disc(cy - 36.5 * np.cos(np.radians(a)), cz + 36.5 * np.sin(np.radians(a)), 6.0, 151.6, 172.1) for a in (63.9, 103.9, 143.9, 223.9, 263.9, 303.9)]
+    parts.append(disc(cy, cz, 44.0, 151.6, 154.8, 96))
+    return np.vstack(parts)
+
+
+MOD = {'dummy_housing': (clamp_zone, {'sparse_infill_density': '100%'})}
+
 def box(lo, hi):
     (x0, y0, z0), (x1, y1, z1) = lo, hi
     c = np.array([[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], float)
@@ -107,6 +118,32 @@ def output_plate():
     return np.vstack([o, s])
 
 
+def disc(cx, cy, r, z0, z1, n=48):
+    """Solid cylinder, as triangles, for a support blocker. Plate-up coordinates of the job."""
+    a = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    p = np.c_[cx + r * np.cos(a), cy + r * np.sin(a)]
+    v = []
+    for i in range(n):
+        j = (i + 1) % n
+        A, B = p[i], p[j]
+        v += [[cx, cy, z0], [B[0], B[1], z0], [A[0], A[1], z0]]
+        v += [[cx, cy, z1], [A[0], A[1], z1], [B[0], B[1], z1]]
+        v += [[A[0], A[1], z0], [B[0], B[1], z0], [B[0], B[1], z1]]
+        v += [[A[0], A[1], z0], [B[0], B[1], z1], [A[0], A[1], z1]]
+    return np.array(v, float)
+
+
+def mesh_xml(tri, shift):
+    key = np.round(tri, 4)
+    uniq, inv = np.unique(key, axis=0, return_inverse=True)
+    faces = inv.reshape(-1, 3)
+    faces = faces[(faces[:, 0] != faces[:, 1]) & (faces[:, 1] != faces[:, 2]) & (faces[:, 0] != faces[:, 2])]
+    uniq = uniq - shift
+    vs = chr(10).join(f'     <vertex x="{x:.5f}" y="{y:.5f}" z="{w:.5f}"/>' for x, y, w in uniq)
+    ts = chr(10).join(f'     <triangle v1="{a}" v2="{b}" v3="{c}"/>' for a, b, c in faces)
+    return vs, ts, len(faces)
+
+
 def project(name, tri, out):
     key = np.round(tri, 4)
     uniq, inv = np.unique(key, axis=0, return_inverse=True)
@@ -127,6 +164,13 @@ def project(name, tri, out):
     mdl = z.read('3D/3dmodel.model').decode()
     mdl = re.sub(r'(<item objectid="2"[^>]*transform=")[^"]*"', rf'\g<1>1 0 0 0 1 0 0 0 1 128 128 {h:.5f}"', mdl)
     cfg = z.read('Metadata/model_settings.config').decode()
+    mod = MOD.get(name)
+    if mod:
+        vs, ts, nm_ = mesh_xml(mod[0](lo, hi), center)
+        obj = obj.replace('  </object>', '  </object>' + chr(10) + '  <object id="4" p:UUID="00040000-81cb-4c03-9d28-80fed5dfa1dc" type="model">' + chr(10) + '   <mesh>' + chr(10) + '    <vertices>' + chr(10) + vs + chr(10) + '    </vertices>' + chr(10) + '    <triangles>' + chr(10) + ts + chr(10) + '    </triangles>' + chr(10) + '   </mesh>' + chr(10) + '  </object>', 1)
+        mdl = mdl.replace('</components>', ' <component p:path="/3D/Objects/object_1.model" objectid="4" p:UUID="00010002-b206-40ff-9872-83e8017abed1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>' + chr(10) + '   </components>', 1)
+        meta = ''.join(f'      <metadata key="{k}" value="{v}" />' + chr(10) for k, v in mod[1].items())
+        cfg = cfg.replace('    </part>', '    </part>' + chr(10) + '    <part id="4" subtype="modifier_part" uuid="51d17843-7a32-47a7-bb0b-71b78baf25d7">' + chr(10) + '      <metadata key="name" value="clamp_solid" />' + chr(10) + f'      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 {h:.5f} 0 0 0 1" />' + chr(10) + meta + f'      <mesh_stat face_count="{nm_}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0" />' + chr(10) + '    </part>', 1)
     cfg = cfg.replace('P2_LEFT_L04B_04HF_100R_6W_DEVELOPMENT_HOLD', name)
     cfg = cfg.replace('174726', str(len(faces)))
     cfg = cfg.replace('value="1 0 0 0 0 1 0 0 0 0 1 51 0 0 0 1"', f'value="1 0 0 0 0 1 0 0 0 0 1 {h:.5f} 0 0 0 1"')

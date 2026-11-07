@@ -1,11 +1,11 @@
 # Left arm: one order for the upper arm and the elbow rig test
 
-2026-11-07. **Fasteners and bearings only.** Everything else prints. This covers:
+2026-11-07. **Fasteners, bearings and consumables.** Everything else prints. This covers:
 
 - the **upper arm** (`prints/upper-arm/`);
 - the **elbow rig test** (`prints/test-pass-1/`, run before the forearm goes on).
 
-Quantities are what's needed, with no spares. Small packs usually cover the rest. No listing has been checked for stock or price, apart from the 6808.
+Quantities are what's needed, with no spares, except where a row says so. Small packs usually cover the rest. No listing has been checked for stock or price, apart from the 6808.
 
 The rig and the arm share parts where a part comes out of the rig undamaged, so nothing is bought twice. After the rig, inspect anything you reuse: a bent screw, a stripped thread or a rough bearing gets replaced.
 
@@ -15,20 +15,21 @@ The rig and the arm share parts where a part comes out of the rig undamaged, so 
 | --- | --- | --- |
 | 6808-2RS, 40 × 52 × 7 | **2** | Ordered: HiPicco 2-pack, arriving Monday. One for the left arm and rig, one for the future right arm. If the rig roughens the first, the second becomes the left arm's |
 
-The moving-parts audit adds no other bearing, bushing or thrust washer. See `MOVING_INTERFACES.md`.
+The moving-parts audit adds no other bearing, bushing or thrust washer. See `MOVING_INTERFACES.md`. **Optional, don't buy yet:** a PTFE thrust washer, 40 ID, 0.5 thick, only if the rig shows the fork cheek closing its 0.8 mm gap in normal motion.
 
 ## 2. Screws, nuts, washers and pins
 
 | Part | Qty | Arm | Rig | Use |
 | --- | --- | --- | --- | --- |
-| M3 × 25 button head, ISO 7380, class 8.8+ | **6** | 6 | shared | Carrier and hoop into the elbow RS02, cut to 24.0 for the arm. Runs uncut in the rig nuts |
-| DIN 9021 M3 washer, Ø9 × 0.8 | **9** | 9 | shared | 6 under the hoop screws, 3 under the retainers |
+| M3 × 25 button head, ISO 7380, class 8.8+ | **15** | 6 | 6 | Carrier and hoop into the elbow RS02, cut to 24.0 for the arm. Runs uncut in the rig nuts. Own set each, plus about 20% |
+| DIN 9021 M3 washer, Ø9 × 0.8 | **22** | 9 | 9 | 6 under the hoop screws and 3 under the retainers, on each. Own set each, plus about 20% |
+| DIN 6796 M3 conical spring washer | **15** | 6 | 6 | On each DIN 9021 under the hoop screws, cone toward the head. Own set each, plus about 20% |
 | M3 × 6 button head, thread-forming for plastic | **3** | 3 | shared | 6808 retainers |
 | M3 × 6 button head | **4** | 4 | | Cable window cover |
 | M3 heat-set insert, 4 mm long, Ø4 hole | **4** | 4 | | Cover bosses |
 | M3 hex nut | **6** | | 6 | Rig housing pockets |
 | M4 × 30 socket cap, DIN 912, class 8.8+ | **6** | 6 | | Top hub into the yaw RS02 |
-| DIN 125 M4 washer, Ø9 × 0.8 | **12** | 12 | shared | Two under each top hub screw, and two under each fork sector screw in the rig |
+| DIN 125 M4 washer, Ø9 × 0.8 | **36** | 18 | 12 | Three under each top hub screw, two under each fork sector screw in the rig. Own set each, plus about 20% |
 | M4 × 16 button head, ISO 7380 | **6** | | 6 | Fork sector to the dummy output |
 | M4 hex nut | **6** | | 6 | Dummy output slots |
 | Ø4 × 8 steel dowel pin | **3** | | 3 | Dummy output to fork sector |
@@ -38,7 +39,7 @@ The moving-parts audit adds no other bearing, bushing or thrust washer. See `MOV
 | M5 × 40 bolt and nut | **2** | | 2 | Lever in its socket |
 | M6 bolts to suit your board | **4** | | 4 | Rig housing legs, Ø6.5 holes |
 
-"Shared" means the rig borrows the arm's parts. If you build the arm while the rig is still running, you need a second set of those.
+"Shared" means the rig borrows the arm's parts. The clamp screws and washers are bought as two sets, so the arm and the rig can be built at the same time.
 
 M4 × 14 button heads for the real fork come later, with the forearm.
 
@@ -56,7 +57,8 @@ The 14-way ribbon and the elbow cable guard are a separate small order, once the
 
 | Part | Qty | Notes |
 | --- | --- | --- |
-| Medium thread-locker (Loctite 243 class) | 1 | Hoop and hub screws, M8 nuts. Use it sparingly: keep it off bare PETG, because it can crack it |
+| Medium thread-locker (Loctite 243 class) | 1 | Hoop and hub screws only after the 1-week retorque, and the M8 nuts. Tip threads only: keep it off bare PETG, because it can crack it |
+| Paint marker | 1 | Witness marks on every clamp screw for the retorques |
 
 ## 5. Tools
 

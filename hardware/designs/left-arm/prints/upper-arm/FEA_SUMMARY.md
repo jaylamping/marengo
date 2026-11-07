@@ -8,8 +8,8 @@
 
 - **No steel rings or sleeves.** Joey's rule: print everything except fasteners and bearings. The six M3 screws clamp the carrier and hoop straight onto the RS02 shoulder. DIN 9021 washers sit under the heads at 0.35 N·m, about 580 N and 10 MPa. The hub M4s each get two DIN 125 washers at 0.6 N·m.
 - **Hoop holes Ø3.3, hub holes Ø4.3.** The hoop ligament from hole to bore pad grows from 1.1 to 2.05 mm.
-- **Carrier:** the ring's 2 mm is folded in, so the carrier face meets the hoop at X 151.7. There's a Ø9.4 washer seat, and the floor at X 149.05 prints at 149.1. Head top is at X 146.6 or higher, so the finger clears by at least 0.6 mm. The pilot is gone; the screws locate the carrier in Ø3.2 holes.
-- **Hot spots:** an r 1.5 fillet on both hoop-to-tube corners and the fuse pad gap closed. A seat lip was tried and removed, because its root became the new peak.
+- **Carrier:** the ring's 2 mm is folded in, so the carrier face meets the hoop at X 151.7. There's a Ø9.4 seat for a DIN 9021 and a DIN 6796. The floor is at X 149.75 in CAD and prints at 149.7, leaving a 2.0 mm web. Head top is at X 146.65 or higher once the spring washer is loaded, so the finger clears by at least 0.65 mm. The pilot is gone; the screws locate the carrier in Ø3.2 holes.
+- **Hot spots:** an r 1.5 fillet along both concave edges where the hoop neck meets the tube wall, X 152 to 165, and the fuse pad gap closed. The inboard root corner at X 151.7 has a 2.5 mm chamfer on both sides now; R4 found the +Z one missing. A seat lip was tried and removed, because its root became the new peak.
 - **Washer capture, cover bosses at Y 268, slow-cure epoxy:** the capture stack and the epoxy are gone with the sleeves. The Y 268 bosses are 6.85 to 8.83 deep, with a 1 mm floor.
 
 ## Joint model
@@ -30,16 +30,18 @@ The hoop is PETG and the RS02 is a 10 mm steel rim on the seat. Six M3 rods are 
 
 ## Carrier at 17 N·m
 
-444 N on the stop band at r 38.25, 1 mm mesh, about 330,000 nodes. The screw holes are fixed rigidly, with no pilot. With 580 N preload per screw and friction 0.3, the clamp alone carries about 38 N·m at r 36.5, so in practice the holes see little of this.
+444 N on the stop band at r 38.25, 1 mm mesh, about 330,000 nodes. The screw holes are fixed rigidly, with no pilot. With 580 N preload per screw and friction 0.3, the clamp alone carries about 38 N·m at r 36.5. **That's a fresh-clamp upper bound.** After the PETG relaxes it is more like 12 to 30 N·m. Once the clamp slips, the two-hole case is the bound for the carrier, and bearing on the hoop ligament takes over. Screw bending into the RS02 isn't modelled, so watch for it in rig test 5.
 
 | Case | SF | Layer SF | Where |
 | --- | --- | --- | --- |
-| Stop 0, all six holes | 2.31 | 1.71 | Stop wall root |
+| Stop 0, all six holes | 2.14 | 1.68 | Hole wall in the web |
 | Stop 124, all six holes | 1.84 | 1.35 | Stop wall root |
-| Stop 0, only the nearest two holes | 2.02 | 1.78 | Hole wall |
-| Stop 124, only the nearest two holes | 1.66 | 1.21 | Stop wall root |
+| Stop 0, only the nearest two holes | 1.50 | 1.74 | Hole wall in the web |
+| Stop 124, only the nearest two holes | 1.61 | 1.18 | Stop wall root |
 
-All six holes pass. The two-hole case is a bound that assumes no clamp friction at all, and it misses the layer target by 0.09. The stop is meant to be the weak link, and rig test 5 measures it.
+These are on the R4 carrier, with the 2.0 mm web under the spring washer.
+
+All six holes pass. The two-hole case is the bound once the clamp has slipped. It meets SF 1.5 but misses the 1.3 layer target by 0.12 at the 124 stop. The stop is meant to be the weak link, and rig test 5 measures it.
 
 ## Failure order
 
@@ -52,7 +54,7 @@ Without steel, the screws carry about a third of the earlier preload, so the RS0
 | Hoop button heads to fork finger | 0.6 mm or more at the upper three holes, 6.8 mm or more at the lower three |
 | Cover to arm overlap | About 1.0 mm³ at every angle, a sliver at the seating rim. The earlier 0.04 mm³ figure was wrong |
 | Fork cheek running gap | 0.9 mm on the arm, 0.8 mm in the rig. See `../../MOVING_INTERFACES.md` |
-| Bed contact on the upper arm | 256 mm² |
+| Bed contact on the upper arm | About 287 mm² in the first layer |
 
 ## Open
 

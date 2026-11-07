@@ -6,13 +6,13 @@ These are test pieces, not load-bearing arm parts. Don't fit them to the robot, 
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `PF03_roll_spacer.3mf` | PETG | 1 h 0 m | 23.7 g | Axis vertical | Reprint at 100% infill. The last one weighed 11 g |
 | 2 | `layer_coupons.3mf` | PETG | 2 h 43 m | 70.3 g | 5 bars standing, 5 flat | Real layer strength, test 1 |
-| 3 | `elbow_carrier.3mf` | PETG | 1 h 15 m | 32.8 g | Outboard face | Fit check only, with the real 6808, tests 2 and 3 |
-| 4 | `elbow_carrier_strength.3mf` | PETG | 1 h 26 m | 37.6 g | Inboard face | The carrier for the stop tests |
+| 3 | `elbow_carrier.3mf` | PETG | 1 h 15 m | 32.5 g | Outboard face | Fit check only, with the real 6808, tests 2 and 3 |
+| 4 | `elbow_carrier_strength.3mf` | PETG | 1 h 26 m | 37.4 g | Inboard face | The carrier for the stop tests |
 | 5 | `dummy_output.3mf` | Bambu PLA Basic | 44 m | 14.6 g | Cheek face, spacer beside it | Output disc and the M8 spacer |
-| 6 | `dummy_housing.3mf` | Bambu PLA Basic | 4 h 32 m | 197.3 g | Carrier face | Stands in for the RS02 and upper arm. 25% infill |
+| 6 | `dummy_housing.3mf` | Bambu PLA Basic | 4 h 50 m | 210.1 g | Carrier face | Stands in for the RS02 and upper arm. 25% infill |
 | 7 | `fork_sector.3mf` | PETG | 8 h 49 m | 343.9 g | Outboard cheek | Stop and failure tests |
 
-Total: about 20 h 33 m and 720 g, including support and brim.
+Total: about 20 h 50 m and 733 g, including support and brim.
 
 **2026-11-07:** the housing and both carriers changed to the all-printed joint, so nothing in the rig is steel except fasteners and the bearing. The dummy output and fork sector geometry didn't change; two DIN 125 M4 washers replace the 2 mm hub ring in the fork sector seat, and the M4 × 16 still passes through the nuts.
 
@@ -65,7 +65,7 @@ As well as the arm hardware in `../../BUY_LIST.md`:
 
 ## Checked
 
-- Re-sliced with these fixes. All plates fit, no slicer warnings. Settings match the P2 project except the outer brim, Cool Plate Super Tack, 25% infill on the housing, and Bambu PLA Basic on the dummy housing and dummy output. PLA is stiffer, so the fixtures still aren't what breaks first. The dummy output carries the test torque through the M8 head, so check its hex pocket after each test. The outer brim shows on every plate except the fit-check carrier, whose brim the slicer dropped.
+- Re-sliced with these fixes. All plates fit, no slicer warnings. Settings match the P2 project except the outer brim, Cool Plate Super Tack, 25% infill on the housing with a 100% modifier round the six carrier screws and under the clamp face, and Bambu PLA Basic on the dummy housing and dummy output. PLA is stiffer, so the fixtures still aren't what breaks first. The dummy output carries the test torque through the M8 head, so check its hex pocket after each test. The outer brim shows on every plate.
 - Fork sector, dummy output, spacer and carrier against the dummy housing, elbow 0, 30, 60, 90, 110 and 124: no interference, only the contact at the 0 degree stop. The sweep doesn't include screw heads or the M8 bolt.
 - Finger to hoop screw head: 0.55 mm by the stack (head top X 146.55, finger tip X 146.0). Check it by hand at assembly, because print tolerance can use that up.
 - After recheck R2: no slit at Y 141 to 142 and no slots at the cheek roots, by rays through the mesh. What is left at the cheek roots is under 0.5 mm wide on the outer edge, and it prints closed. One solid body. The sweep above was rerun on the new output and spacer with the same result.
