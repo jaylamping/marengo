@@ -6,7 +6,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | --- | --- | --- | --- | --- |
 | Sol | Codex CLI | `-m gpt-6.1-sol` | `-s read-only` | 8.5 min |
 | Astra | Codex CLI | `-m gpt-6-astra` | `-s read-only` | 9 min |
-| Fable high (replaces Grok from 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort high` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | 25 min on the subscription, rev C |
+| Fable high (replaces Grok from 2026-11-06, Joey; **gate rounds only from 2026-11-07**) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort high` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | 25 min on the subscription, rev C |
 | Opus high (added 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-opus-5-5 --effort high` | same as Fable | not yet timed |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
@@ -14,6 +14,10 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | DeepSeek V4.1 Flash, GLM 5.3, Kimi K3.1 Pro (trial, see "Trial reviewers") | OpenCode | `run_opencode.sh <model>` (`--agent review`) | Read-only agent, check hashes after | No review yet: all three hung on rev B2 |
 
 Run times are from one run. Allow 20 minutes.
+
+**Fable runs at gate rounds only (Joey, 2026-11-07).** Gate rounds are the first review of a new design, pre-layout, pre-print, pre-order, and final sign-off. Routine fix-check rounds run Opus, Sol, Astra and Muse, plus Composer once it passes its trial. Fable costs about $14 and 33 min a round. Opus finds more overall (22 unique, half the false findings), but Fable's few unique catches decided rev B3 and B4 (interrupt current, pulse loop resistance). The second bullet of the prompt line below covers those blind spots in rounds without Fable.
+
+Every reviewer prompt includes: "Check worst-case corners, not nominal: tolerances, pulse/AC impedance as well as DC, interrupt current at the real trip time, and the energy and pulse ratings behind any claimed protection."
 
 Power board gate 3 (2026-11-06): with `Bash(sha256sum*)` only, Fable and Opus cannot rerun scripts; add `Bash(python3 *)` when the packet has scripts to rerun, and check hashes after.
 
