@@ -1,5 +1,7 @@
 # Neck: approach options and recommendation (rev 0, 2026-11-07)
 
+**DECIDED (Joey, 2026-11-07 06:30Z): option C, three axes on three bus servos.** "Just because we are currently using all robstride right now doesn't mean we can't use other hardware if it makes sense."
+
 Thread "Design the neck mechanism". This is the approach decision only. No CAD yet.
 
 Picture: [NECK_OPTIONS.png](NECK_OPTIONS.png) (front view, to scale, Argon head baseline).
