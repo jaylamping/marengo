@@ -14,7 +14,7 @@ b=pcbnew.BOARD(); b.SetCopperLayerCount(4)
 # ---- blocks: (X0,X1,Y0,Y1) in floorplan coordinates. Rev B5 (docs: pdb/design/LAYOUT_RULES_REVB.md):
 # single-sided; pack pair on the top edge; flow RS1 -> bank A -> bank B (upper fan) -> bus caps -> port breakers -> pigtails
 BLK=dict(
- soft=(-44.0,-11.0,311.0,328.4), absorb=(-11.0,25.5,312.5,331.0), clamp=(18.0,44.0,268.0,312.0),
+ soft=(-44.0,-11.0,311.0,328.4), absorb=(-11.0,25.5,312.5,330.4), clamp=(18.0,44.0,268.0,312.0),
  bankctl=(-28.5,-17.8,268.0,310.5), latch=(-42.0,-29.0,254.0,310.5),
  L1=(9.5,42.5,236.0,253.5), L3=(9.5,42.5,218.5,236.0), L5=(9.5,42.5,201.0,218.5),
  L2=(-42.5,-9.5,236.0,253.5), L4=(-42.5,-9.5,218.5,236.0), L6=(-42.5,-9.5,201.0,218.5),

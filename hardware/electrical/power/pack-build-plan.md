@@ -19,7 +19,7 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
   continuous / 150 A peak, common port, 0.6 A active balance, Bluetooth, RS485/CAN through add-on modules, and
   133 × 81 × 18 mm, so it fits the 170 × 90 × 20 mm rear-face envelope. It switches the low side, so **nothing may touch
   pack B− except the JK**. It has no precharge and no hardware remote-off input (section 3). The pack sense board and the
-  2 × 10 connector are dropped. The pack is cells, Class T fuse, JK, XT90S, and a charge XT60.
+  2 × 10 connector are dropped. The pack is cells, Class T fuse, JK, AS150U, and a charge XT60.
 - **Charge to 4.15 V per cell (53.9 V), not 4.2 (agreed).** This leaves room for regen in a full pack and adds cycle life
   for about 3% of capacity. Use an adjustable-voltage charger at 4 A, ending in an XT60.
 - **Busbars are wide plates, not 10 mm strip.** A 10 mm nickel strip cannot carry 60 A. The pack doc's nickel line is
@@ -31,12 +31,12 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
 
 ```
  cells 13S2P (26 x P50B, wide Ni plates)
-   B13+ ── 60 A Class T fuse ── 10 AWG ─────────────────────── P+ ──┬── XT90S ──► power board (rear top corner, D2)
-   B0−  ── JK B− │JK-BD6A17S8P│ C−/P− ── 10 AWG ─────────────── P− ──┤
+   B13+ ── 60 A Class T fuse ── 8 AWG ──────────────────────── P+ ──┬── AS150U ─► power board (rear top corner, D2)
+   B0−  ── JK B− │JK-BD6A17S8P│ C−/P− ── 8 AWG ──────────────── P− ──┤
    B0..B13 taps ─┘ (JK balance plug)  2 NTC on the cells         └── XT60 charge pigtail (charger, 53.9 V CC/CV)
 ```
 
-- **On the pack:** cells, plates, Class T fuse, the JK BMS on the rear face, XT90S, XT60 charge pigtail, the JK's two NTC
+- **On the pack:** cells, plates, Class T fuse, the JK BMS on the rear face, AS150U, XT60 charge pigtail, the JK's two NTC
   probes, printed case, foam, wrap.
 - **Ground rule (low-side BMS):** the robot's only ground is P− (the JK's C−). Nothing touches B−: not the charger, not
   the regen clamp, not the bench supply, not a laptop. Charger, board and robot all connect at P+/P−.
@@ -63,9 +63,9 @@ off-the-shelf JK on the pack. Git history keeps the old design.
 
 ### Where the pack mates (board thread, main 9ce67a0)
 
-The power connector mates at the **pack's rear top corner, behind the D2 door**. The board's ring-lugged 10 AWG pair runs
-over the pack's top edge (inside the strap window, X −5 to +25) to an XT90. The pack side has a short XT90S pigtail
-(about 60 mm, 10 AWG) from P+/P−, parked in a printed saddle so nothing hangs loose when the door is open.
+The power connector mates at the **pack's rear top corner, behind the D2 door**. The board's soldered 8 AWG pair runs
+over the pack's top edge (inside the strap window, X −5 to +25) to an Amass AS150U female (rev B5, Joey: the pack-to-board run
+is the heaviest in the robot). The pack side has a short AS150U male pigtail (anti-spark, about 60 mm, 8 AWG) from P+/P−, parked in a printed saddle so nothing hangs loose when the door is open.
 
 ### Pack heat for the shell's airflow sizing (estimate, for frame gate review 2 item F)
 
@@ -105,15 +105,15 @@ goes through the tray rail into the case. The rear face stays free for a possibl
 | Part | Position (torso coords) | Note |
 | --- | --- | --- |
 | Pack fuse | inside the case, empty top-corner grid slot, about X +34, Y 333, Z −40 to +30, axis along Z | nothing behind the rear face |
-| Mated XT90S pair | flat on the rear face, axis along X: X −15 to +43, Y 323 to 345, Z −45 to −60 incl. a printed saddle | pack pigtail enters at the +X end; board pair comes over the top in X −5 to 25 and enters at the −X end |
+| Mated AS150U pair | flat on the rear face, axis along X: X −15 to +43, Y 323 to 345, Z −45 to −60 incl. a printed saddle | pack pigtail enters at the +X end; board pair comes over the top in X −5 to 25 and enters at the −X end |
 | JK-BD6A17S8P BMS | rear face, long axis along Y: X −40.5 to +40.5, Y 186 to 319, Z −45 to −65 (18 mm board + about 2 mm standoffs) | FET heatsink faces rearward toward D2 |
 | XT60 charge pigtail | parked flat at X −42 to −17, Y 325 to 345, Z −45 to −58 | reached through D2 |
 
-XT90 sizes are from memory (verify): about 22 × 12 mm section, about 45 mm mated length.
+AS150U: 70 A continuous, 140 A instantaneous, 8 AWG (retailer listings; no Amass datasheet found, confirm with Amass). Its envelope is larger than the XT90's that this table was drawn for: re-check the saddle and the mated length against the part before printing.
 
 ### Connector rule
 
-Only one power connector now: the XT90S (anti-spark) mates last and comes off first. The JK's balance plug stays inside the
+Only one power connector now: the AS150U (anti-spark) mates last and comes off first. The JK's balance plug stays inside the
 pack and is never unplugged in service. When building, plug the JK's balance harness in **only after checking every tap
 voltage in order with the meter**. Then connect B−, then the NTCs. Follow the JK manual's order (verify).
 
@@ -148,7 +148,7 @@ for 30 A. On 2026-11-06 RS60 was out of stock at NKON and not listed at IMR Batt
 factor of two (datasheet × 2). Charging stops at 4.15 V, so usable energy is about 450 Wh (estimate).
 
 **Pack resistance (estimate):** 12.8 mΩ ÷ 2 = 6.4 mΩ per pair, × 13 = 83 mΩ, plus about 5 mΩ of plates, fuse, leads and
-XT90 = **about 90 mΩ**. At 60 A the pack sags about 5.4 V and makes about 320 W of heat for as long as it lasts. At the
+AS150U = **about 90 mΩ**. At 60 A the pack sags about 5.4 V and makes about 320 W of heat for as long as it lasts. At the
 200 W bench average (4.3 A) that heat is 1.7 W, which doesn't matter. At 20 A continuous it is 36 W, so long hard runs will
 warm the pack. That is what the two NTCs are for. The measured number replaces this estimate after section 8, step 6.
 
@@ -283,7 +283,7 @@ No crimper needed. Joey already owns a multimeter.
    in groups of no more than a few cells. Watches and rings off.
 4. **Never weld or solder with the series links complete unless needed.** Weld the parallel pairs first, then the series
    plates one at a time. The pack voltage climbs as you go; at 54 V a dropped tool across the stack is a real arc.
-5. **Pack out of the robot:** XT90 capped (the female housing on the board side is shrouded; put a cap on the male pack
+5. **Pack out of the robot:** AS150U capped (the female housing on the board side is shrouded; put a cap on the male pack
    side), sense connector in its holder, stored at 50 to 60% (about 3.75 V per cell) if it sits for more than two weeks.
 6. **A swollen, hot, hissing or sweet-smelling pack goes outside onto concrete** and gets left alone. No water on a
    lithium fire indoors; get it outside if safe to, otherwise distance.
@@ -324,7 +324,7 @@ handheld welder, needs no crimper (pre-crimped leads), and skips the extinguishe
 | Nickel plate 0.15 mm (40 mm+ wide) + 0.15 × 8 mm tab strip | $30 | |
 | Cell holders, fish paper, Kapton, foam, wrap | $45 | |
 | 60 A pack fuse **rated ≥ 58 V DC (never a 32 V automotive part)** + matching holder, spare fuse | $15 to 40 | see section 1 fuse note |
-| XT90S, XT60, 10 AWG + 22 AWG silicone wire | $35 | |
+| AS150U pair, XT60, 8 AWG + 22 AWG silicone wire | $40 | |
 | XT60 charge pigtail parts | $5 | |
 | Printed case (PC FR or ASA) | $15 | filament |
 | Handheld spot welder | $40 | Joey's pick |

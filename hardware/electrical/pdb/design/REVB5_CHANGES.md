@@ -25,7 +25,7 @@ Legs move to rev C. Their port footprints stay on the board, unfitted.
 
 | Item | What changed | Check |
 | --- | --- | --- |
-| Reverse polarity | J1/J2 M4 studs replaced by one soldered 10 AWG pair, BAT and GND side by side, ending in an XT90 that only mates the pack's XT90S one way | check.py: BAT on one two-pole connector |
+| Reverse polarity | J1/J2 M4 studs replaced by one soldered 8 AWG pair, BAT and GND side by side, ending in an Amass AS150U (70 A continuous) that only mates the pack one way. Joey (16:45Z): the pack-to-board run is the heaviest in the robot, so AS150U on 8 AWG rather than XT90 | check.py: BAT on one two-pole connector |
 | Limb short drops the whole bus | Every port gets its own breaker: TPS48111-Q1 plus an IPB017. Short trip at 35–45 A within 1.6 µs, overload at 30 A for about 16 ms, latch-off cleared by an E-stop cycle, enabled from RUN. Each limb's + and return now leave on one soldered pair (no GND studs). The 20 A pigtail fuses stay as wire protection | **tools/port_sim.py:** 50 nH to 1 µH wiring, 0.5–1 µH pack lead, 0 or 50 A on the other limbs. RS1 peaks at 130 A or less, against U8 158 A and U1 160 A minimum: the faulted port always opens first |
 | Crashed Pi leaves motors live | TPS3431 watchdog in series with the latch's seal-in NPN. The Pi toggles WD_FEED every 50–100 ms; with no falling edge for 270–355 ms the latch drops and stays off until reset. Powered from VCTL, not the Pi, so a dead Pi, a floating pin or a dead watchdog rail all drop the latch. It can only drop the latch, never hold it | **latch_sim:** missed heartbeat drops it, it stays off after WDO releases, and reset is blocked while the watchdog is low (all hFE corners) |
 
@@ -119,19 +119,19 @@ It also has D2PAK-7s on 20 cm² pours with 30 vias each. An iron can't do those.
 | 2 × 67L120 thermostats (Heilind $5.57 each) | $11 |
 | 3 × limb fuses + holders (aux and legs unfitted) | $13 |
 | Class T 60 A + holder (fuse from Sager) | $40 |
-| XT90 pair, Mini-Fit / Micro-Fit housings and crimps, GH leads, wire | $27 |
+| AS150U pair, 8 AWG, Mini-Fit / Micro-Fit housings and crimps, GH leads, wire | $32 |
 | JK BMS JK-BD6A17S8P + comm module | $100 |
 | HB2-BS545 E-stop | $15 |
 | **Off-board** | **about $240** |
 
-**Whole power system, excluding cells: about $390 lean (hand assembly), about $420 with JLC SMT assembly.** That's down from about $575–595 at rev B4. The protection added in this round is in that number: three port breakers about $25 and the watchdog about $2. The JK BMS is now the biggest single line.
+**Whole power system, excluding cells: about $395 lean (hand assembly), about $425 with JLC SMT assembly.** That's down from about $575–595 at rev B4. The protection added in this round is in that number: three port breakers about $25 and the watchdog about $2. The JK BMS is now the biggest single line.
 
 ## Decisions that are Joey's
 
-1. **XT90 rating.** Amass rates the XT90 at 45 A continuous / 90 A momentary, below the board's 60 A. That's fine for arms and waist. For legs (rev C), move the pack and board to AS150.
-2. **Back-to-back banks** for electrical reverse blocking: left out (above). It would strand regen on the bus whenever the E-stop opens.
-3. **Assembly route:** JLC SMT assembly (recommended) or stencil plus hot plate.
-4. **Buy the APZ absorber caps now.** It's a last-time buy: 3 per board plus 2 spares.
+1. **Pack connector: decided.** Amass AS150U on 8 AWG (Joey, 16:45Z).
+2. **Back-to-back banks: decided, no** (Joey, 16:45Z). Banks stay as they are; the keyed plug carries reverse polarity.
+3. **Assembly route: decided, JLC SMT assembly** (Joey, 16:45Z), with a big review (Fable plus several Opus) on the routed board before ordering, and the first 5 boards treated as prototypes.
+4. **APZ absorber caps: decided, optional.** Their line is marked obsolete; buying 3 per board plus spares now is about $20 of insurance, not a requirement (Joey, 16:45Z). The active alternate stays open: Würth 875585961005 (33 µF 100 V, 4 cans) needs its ESR and a sim.
 
 ## Not resolved here
 
