@@ -9,9 +9,9 @@
 | Sol | Codex | high | 22.0 | NO-GO | Pass |
 | Fable | Claude CLI, API | high | 23.9 | NO-GO | Pass. $10.44 from the JSON output |
 | Argon | agy on Joey-PC | high | 17.8 | Discarded | **Fail**, 15 of 49 values. **Removed from the group by Joey** |
-| DeepSeek V4.1 Flash (trial) | OpenCode Go | high | 45 + 23, timed out | None | No review. First run ended at 59 s on a denied shell call, retry hung with no output |
-| GLM 5.3 (trial) | OpenCode Go | high | 45, timed out | None | No review: 407 characters of preamble, then hung |
-| Kimi K3.1 Pro (trial) | OpenCode Go | high | 45, timed out | None | No review: its subagents were denied, then it hung |
+| DeepSeek V4.1 Flash (trial) | OpenCode Go | high | 45 + 23, timed out | None | No review. First run ended at 59 s on a denied shell call. The retry hit the Go quota and hung |
+| GLM 5.3 (trial) | OpenCode Go | high | 45, timed out | None | No review: hit the Go quota at 08:39Z, then hung |
+| Kimi K3.1 Pro (trial) | OpenCode Go | high | 45, timed out | None | No review: hit the Go quota at 08:42Z, then hung |
 | Opus (agy) | Antigravity quota | high | running | | Started 09:09Z as the routing test. Folds in as a follow-up |
 
 Hashes matched before the round and after each run. All pass ERC and check.py. Each finding was checked against the netlist or datasheets unless the row says otherwise.
@@ -88,7 +88,7 @@ The review is 102 KB with five blockers, but 34 of its 49 cited values don't mat
 
 ## Open models: none delivered
 
-All three hung headless on Windows, the same way OpenCode did on the Mac. Two of them were using subagents when they stopped, and DeepSeek's first run ended on a denied shell call. They score as time-limit misses. Next try: disable OpenCode's task tool and shell for these runs in config, then rerun them on the seeded packet before another real round.
+The Go plan's quota ran out mid-round. GLM and Kimi hit "Go usage limit exceeded" at 08:39 and 08:42Z, and DeepSeek's retry hit it on its first request. `opencode run` doesn't exit on that error: it hangs with no output until the timeout. Permissions weren't the cause. They score as time-limit misses. The recipe now probes first, kills a run on a quota error, and uses a read-only agent with no subagents, one model at a time. They rerun as a late trial once the quota resets or Extra Usage is on.
 
 ## My errors
 

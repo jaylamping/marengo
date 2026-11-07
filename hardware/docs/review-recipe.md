@@ -11,7 +11,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
 | ~~Argon~~ (removed 2026-11-07, Joey, after two off-target reviews) | Antigravity `agy` | `--model gemini-4-argon-high` | | |
-| DeepSeek V4.1 Flash, GLM 5.3, Kimi K3.1 Pro (trial, see "Trial reviewers") | OpenCode | `-m opencode-go/<model> --variant high --agent plan` | Plan agent, check hashes after | No review yet: all three hung on rev B2 |
+| DeepSeek V4.1 Flash, GLM 5.3, Kimi K3.1 Pro (trial, see "Trial reviewers") | OpenCode | `run_opencode.sh <model>` (`--agent review`) | Read-only agent, check hashes after | No review yet: all three hung on rev B2 |
 
 Run times are from one run. Allow 20 minutes.
 
@@ -62,14 +62,30 @@ On Joey-PC, `agy` 1.5.2 is at `C:/Users/joeyl/AppData/Local/agy/bin/agy.exe`, an
 
 Open models run through OpenCode on the Go plan. They're scored on the scorecard and don't gate until they've passed the seeded test packet. Joey's main pick is DeepSeek V4.1 Flash, with GLM 5.3 and Kimi K3.1 Pro.
 
+Run them one at a time with [`run_opencode.sh`](../tools/review/run_opencode.sh), never in parallel:
+
 ```bash
-opencode run -m opencode-go/deepseek-v4.1-flash --variant high --agent plan --format json "$P" > reviews/opencode-deepseek.json 2> reviews/opencode-deepseek.log </dev/null
+cp hardware/tools/review/opencode-review-agent.md ~/.config/opencode/agents/review.md   # once per machine
+bash hardware/tools/review/run_opencode.sh deepseek-v4.1-flash /c/Temp/<packet> <prompt file> 45
 ```
 
-**Status, rev B2 (2026-11-07): none delivered a review.** The smoke test passed for GLM and Kimi in 8 and 26 s, but on the real packet all three hung headless on Windows after starting subagents or being denied a shell call. DeepSeek's first smoke test hit a 429 overload. Before another round, turn off OpenCode's `task` and `bash` tools for these runs in config, and prove them on the seeded packet.
+It does three things:
+- Probes the model with a one-word prompt first, and stops (exit 3) if that fails.
+- Runs `opencode run --pure -m opencode-go/<model> --variant high --agent review --print-logs --format json`.
+- Kills the run (exit 4) as soon as its log shows a usage-limit, retry or credential error.
 
-- Always run under `timeout`. The final text is in the JSON events, in `text` parts, with tokens and cost in `step_finish`.
-- `--agent plan` held in the smoke test: asked to write a file and edit another, GLM and Kimi refused and changed nothing. Check hashes after anyway.
+The `review` agent ([opencode-review-agent.md](../tools/review/opencode-review-agent.md)) denies `bash`, `task`, `edit`, `webfetch`, `websearch`, `external_directory` and `doom_loop`, and allows only read, glob, grep and list. Use deny, never ask: ask has no one to answer it headless. Check it with `opencode agent list`.
+
+**Why, rev B2 (2026-11-07): none delivered a review, because the Go quota ran out mid-round.**
+- GLM and Kimi got "Go usage limit exceeded" inside explore subagents at 08:39 and 08:42Z. DeepSeek's retry got it on its first request at 08:52Z.
+- `opencode run` 1.19.5 doesn't exit on that error. It logs it, then hangs with no output until `timeout` kills it, which here was 45 min.
+- Permissions didn't cause it: the plan agent allowed bash and task. DeepSeek's first run was a separate failure (a 429 overload, then a denied `python -c`).
+- I reproduced the hang with a "reply OK" prompt at 09:25Z: 90 s, no output, the same log error. The runner now stops that case in 60 s.
+
+The Go plan is $10 a month. Each model's 5-hour cap is 20 % of its monthly limit, and its weekly cap is 50 %. Three models in parallel with subagents re-reading a 54-file packet spent it in one round (GLM alone took 269k input tokens). Before a round, check the Go page in the OpenCode console. Extra Usage there falls back to pay-as-you-go credit instead of blocking.
+
+- The final text is in the JSON events, in `text` parts, with tokens and cost in `step_finish`. The shared log is `~/.local/share/opencode/log/opencode.log`; `--print-logs` gives each run its own copy.
+- Read-only is by agent config, so check hashes after.
 - A key that shows a tick in OpenCode isn't proven valid. `opencode auth login` replaces it, and the error says which problem it is.
 
 ## Reviewer audit

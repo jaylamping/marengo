@@ -65,9 +65,9 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B2 | gpt-6-astra | high | 12 | 0 | 0 | 0 | on (checked) | 0 | 19.7 | sub | | |
 | PDB rev B2 | muse-wonder-1.0 | high | 9 | 2 | 0 | 1 | on (checked) | 0 | 15.8 | sub | | Passed the gate arithmetic that B1 overturned |
 | PDB rev B2 | gemini-4-argon-high | high | 0 | 0 | 0 | 0 | **off** | 0 | 17.8 | sub | | Scores zero. 15 of 49 cited values match. **Strike 2: removed** |
-| PDB rev B2 | deepseek-v4.1-flash (trial) | high | 0 | 0 | 0 | 0 | no review | 1 | 68 | Go, $0.006 | | Miss. Denied shell call, then hung |
-| PDB rev B2 | glm-5.3 (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 45 | Go, $0.075 | | Miss. Hung after subagents |
-| PDB rev B2 | kimi-k3.1-pro (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 45 | Go, $0.024 | | Miss. Subagents denied, then hung |
+| PDB rev B2 | deepseek-v4.1-flash (trial) | high | 0 | 0 | 0 | 0 | no review | 1 | 68 | Go, $0.006 | | Miss. Denied shell call; retry hit the Go quota and hung |
+| PDB rev B2 | glm-5.3 (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 45 | Go, $0.075 | | Miss. Go quota ran out, then hung |
+| PDB rev B2 | kimi-k3.1-pro (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 45 | Go, $0.024 | | Miss. Go quota ran out, then hung |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
 ## By model
