@@ -44,7 +44,13 @@ R1M RST_IN 0 10k
 C2N2 RST_IN RST_C 2.2n
 R1K RST_C L_B 1k
 Q4 RUN L_PB LOOP_RET Q3906
-Q5 L_PC L_B 0 Q3904
+Q5 L_PC L_B L_E Q3904
+* rev B5 watchdog: series NPN in Q5's emitter, base from the 3.3 V watchdog rail through 22k, WDO (switch) pulls it low
+VWD VWD 0 DC 3.3
+RWD VWD WDO 22k
+SWD WDO 0 CW 0 SW1
+VCW CW 0 PWL({wdo})
+QWD L_E WDO 0 Q3904
 R100K LOOP_RET L_PB 100k
 R10KA L_PB L_PC 10k
 R1K2 RUN 0 1.2k
@@ -75,10 +81,10 @@ destroy all
 .endc
 .end
 '''
-def run(tr,loop,rst,tend,bfn=416.4,bfp=180.7,mid=20,vbus=0):
+def run(tr,loop,rst,tend,bfn=416.4,bfp=180.7,mid=20,vbus=0,wdo='0 0 1 0'):
     out=os.path.join(tempfile.gettempdir(),'latch_sim.dat').replace('\\','/')
     if os.path.exists(out): os.remove(out)
-    net=NET.format(tr=tr,loop=loop,rst=rst,tend=tend,out=out,bfn=bfn,bfp=bfp,mid=mid,vbus=vbus)
+    net=NET.format(tr=tr,loop=loop,rst=rst,tend=tend,out=out,bfn=bfn,bfp=bfp,mid=mid,vbus=vbus,wdo=wdo)
     p=os.path.join(tempfile.gettempdir(),'latch_sim.cir'); open(p,'w').write(net)
     ng.ngSpice_Command(b'remcirc'); ng.ngSpice_Command(('source '+p.replace('\\','/')).encode())
     rows=[[float(x) for x in l.split()] for l in open(out) if l.strip()]
@@ -112,4 +118,11 @@ for cn,bn,bp in CORN:
     for mid,vb,want in ((1,0,False),(8,0,False),(17,0,True),(17,3,True),(17,10,False),(27,27,False)):
         r=run('1m','0 1 1 1',f'0 0 {t0} 0 {t0+1e-4} 1 {t0+0.02} 1 {t0+0.0201} 0 1 0','0.06',bn,bp,mid,vb)
         v=at(r,0.05)[1]; case(f'{cn}: MID {mid} V, VBUS {vb} V, reset '+('closes it' if want else 'is blocked'),(v>6.0) if want else (v<H),f'RUN {v:.2f} V')
+    # rev B5 watchdog: a missed heartbeat (WDO low 200 ms) drops a closed latch and it stays off; unfed, reset can't close it
+    r=run('1m','0 1 1 1',f'0 0 {t0} 0 {t0+1e-4} 1 {t0+0.02} 1 {t0+0.0201} 0 1 0','0.5',bn,bp,wdo='0 0 0.1 0 0.1001 1 0.3 1 0.3001 0 1 0')
+    case(f'{cn}: watchdog released, reset closes it',at(r,0.09)[1]>6.0,f'RUN {at(r,0.09)[1]:.2f} V')
+    case(f'{cn}: missed heartbeat drops it',at(r,0.2)[1]<H,f'RUN {at(r,0.2)[1]:.2f} V')
+    case(f'{cn}: stays off after WDO releases',at(r,0.45)[1]<H,f'RUN {at(r,0.45)[1]:.2f} V')
+    r=run('1m','0 1 1 1',f'0 0 {t0} 0 {t0+1e-4} 1 {t0+0.02} 1 {t0+0.0201} 0 1 0','0.1',bn,bp,wdo='0 1 1 1')
+    case(f'{cn}: watchdog low (Pi dead), reset is blocked',max(x[1] for x in r)<H,f'RUN max {max(x[1] for x in r):.2f} V')
 print('FAILS',fails)

@@ -77,7 +77,7 @@ conn(8,'E-stop: 1 NC out, 2 GND, 3 NC return, 4 GND, 5-6 reset NO, 7 GND, 8 butt
 g=Grid(s,284.48,185.42,20.32,30.48,520)
 g.R('680R 0.5W','VCTL','LOOP_OUT','Resistor_SMD:R_2010_5025Metric'); g.Z('SMAJ15A','LOOP_RET','GND','Diode_SMD:D_SMA'); g.R('4.7k','VCTL','RST_SRC'); g.R('10k','RST_IN','GND'); g.C('2.2nF C0G','RST_IN','RST_C',C603); g.R('1k','RST_C','L_B')
 Q(PNP,'MMBT3906',(419.1,205.74),'L_PB','LOOP_RET','RUN')
-Q(NPN,'MMBT3904',(469.9,205.74),'L_B','GND','L_PC')
+Q(NPN,'MMBT3904',(469.9,205.74),'L_B','L_E','L_PC')  # emitter through the watchdog switch (block 2a)
 g=Grid(s,505,185.42,20.32,30.48,630)
 g.R('100k','LOOP_RET','L_PB'); g.R('10k','L_PB','L_PC'); g.R('1.2k','RUN','GND',R603); g.R('10k','RUN','L_B'); g.R('10k','L_B','GND')
 g.nl(); g.C('10nF','L_B','GND'); tp(g,'RUN')
@@ -118,7 +118,7 @@ nic(s,'Sensor_Energy:INA228','U6','INA228AIDGSR',(272,378),'Package_SO:TSSOP-10_
 g=Grid(s,305,367,20.32,30.48,330); g.C('100nF','+3V3_PI','GND'); tp(g,'+12V')
 for nm,x,n in (('Jetson',360,'+12V_JET'),('Pi 5 V buck',400,'+12V_PI'),('fans',440,'+12V_FAN')):
     conn(2,'12 V to '+nm+' (fused, block 10c)',(x,378),MF2,[n,'GND'])
-conn(5,'Pi: 3V3, SDA, SCL, GND, E-stop pressed (low)',(490,378),GH(5),['+3V3_PI','I2C_SDA','I2C_SCL','GND','ESTOP_PI_N'],ref='J21')
+conn(7,'Pi: 3V3, SDA, GND, SCL, E-stop pressed (low), heartbeat out, port fault (low)',(490,378),GH(7),['+3V3_PI','I2C_SDA','GND','I2C_SCL','ESTOP_PI_N','WD_FEED','PORT_FLT_N'],ref='J21')
 g=Grid(s,515,367,20.32,30.48,530); g.F('+3V3_PI')
 note('''Ahead of the E-stop: motors off, compute stays up. Soft start in block 5a; the converter's negative-logic ON/OFF is held off until U7's PGD is good (block 10).
 Off board on the top front rail (frame 3877317), baseplate down, 4x M3 into its threaded baseplate (50.8 x 15.24 mm, 3 mm max depth). J24 sits on the board's top edge, -X half. -Vin and -Vout both go to GND: the robot has one ground, P-.
@@ -285,6 +285,21 @@ Overload: RIWRN 26.1k = 30 A (11.9 x RSET / (RSNS x IOC)), CTMR 1 uF with 100k a
 Latch clears only when EN drops: an E-stop cycle, then reset. FLT_I of every port pulls PORT_FLT_N (Pi header): the Pi names the port whose output is low.
 Start: EN and INP come from RUN through one diode (a pin fault can't drive RUN). The bus starts from 0 under U1, so the port wakes at VS 3 V with BST up (0.22 uF, about 20 ms): the gate rises through 100k into 100 nF (diode-coupled, 10M bleed, so PD never sees it), about 1 kV/s at the output: 20 mF of drive capacitance draws about 20 A, under the 30 A overload level. After that the drive caps follow the bus.
 Off (E-stop, trip): the body diode still returns regen from the limb to the bus and the clamp. SK810L on each output carries the wiring current when the FET opens. 15 V zener gate to source.''',(860,735),210)
+
+# ---------- rev B5: Pi heartbeat watchdog (Opus round 5 M-1, Joey 2026-11-07) ----------
+head('2a. Pi heartbeat watchdog: no heartbeat, no latch',(450,610))
+s.refc['U']=max(s.refc['U'],24)
+uw=s.nref('U')
+mkic('TPS3431',[('1','VDD','power_in'),('2','CWD','passive'),('3','EN','input'),('4','GND','power_in'),('5','SET1','input'),('6','WDI','input'),('7','WDO','open_collector'),('8','ENOUT','open_collector'),('9','EP','power_in')],'Package_SON:VSON-8-1EP_3x3mm_P0.65mm_EP1.65x2.4mm','https://www.ti.com/lit/ds/symlink/tps3431.pdf','Programmable watchdog timer with enable, 1.8-6.5 V, open-drain WDO')
+nic(s,LIBNAME+':TPS3431',uw,'TPS3431DRBR',(480,660),'Package_SON:VSON-8-1EP_3x3mm_P0.65mm_EP1.65x2.4mm',{'1':'VWD','2':'CWD','3':'VWD','4':'GND','5':'VWD','6':'WDI','7':'WDO_N','8':None,'9':'GND'},ds='https://www.ti.com/lit/ds/symlink/tps3431.pdf')
+g=Grid(s,520,625,17,30,700)
+g.R('2.2k','VCTL','VWD',R603); g.Z('BZT52C3V3','VWD','GND'); g.C('100nF 25V X7R','VWD','GND'); g.C('3.3nF C0G','CWD','GND',C603); g.F('VWD')
+g.nl(); g.R('10k','WD_FEED','WDI'); g.R('100k','WDI','GND'); g.R('22k','VWD','WDO_N')
+Q(NPN,'MMBT3904',(640,670),'WDO_N','GND','L_E')
+wnote('''The Pi toggles WD_FEED from its control loop (software, not a PWM peripheral) every 50-100 ms; the watchdog wants a falling edge at WDI at least every 270 ms (CWD 3.3 nF C0G: 77.4 x C + 55 ms = 310 ms typ, 270-355 ms with the +-9.5 % timer and 5 % cap band). Miss it and WDO goes low for 200 ms: the NPN in Q5's emitter turns off, the seal-in breaks and RUN falls like a loop open. The latch stays off after WDO releases: only a reset press re-arms it.
+Fail-safe: the NPN only conducts while the watchdog's own rail (3.3 V zener from VCTL, not the Pi) feeds its base through 22k and WDO is released. Pi dead, unpowered, rebooting, hung or its pin floating (100k pull-down): no edges, no latch. Watchdog rail lost: no base drive, no latch. It sits in series, so it can only drop the latch, never hold it (a shorted NPN just removes the watchdog).
+While the Pi stays dead the watchdog repeats 310 ms released / 200 ms low; a reset press in a released window closes the latch until the next low, under 0.36 s, with no drive commands (the Pi is dead). The first 0.3 s after VCTL comes up the watchdog is released before its first timeout.
+Software requirement: drive CanTimeout set and read back before every enable.''',(450,700),190)
 writelib()
 s.write([('/'+ROOT,'1')])
 print('ok',{k:v for k,v in s.refc.items() if not k.startswith('#')})

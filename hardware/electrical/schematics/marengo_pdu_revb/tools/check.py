@@ -65,7 +65,12 @@ rs=[r for r in comp if r[0]=='R' and fo in (n(r,1),n(r,2))]; ro=({n(rs[0],1),n(r
 ok(n('U2',8)==n('U2',5)=='BAT_CTL' and len(f1)==1 and ro and diode('BAT_CTL',ro),'LDO fed from BAT through a fuse, a series R and a series diode, EN tied')
 ok(not diode('BAT_CTL','VCTL') and any(r[0]=='D' and n(r,1)=='VCTL' and n(r,2)=='GND' for r in comp),'no OUT-to-IN diode (series diode instead), VCTL clamped')
 ok(any(val(c).startswith('10uF') for c in [r for r,p in nets['VCTL'] if r[0]=='C']),'VCTL output cap 10 uF')
-ok(n('Q4',2)=='LOOP_RET' and n('Q4',3)=='RUN' and n('Q5',2)=='GND','latch pair')
+ok(n('Q4',2)=='LOOP_RET' and n('Q4',3)=='RUN' and n('Q5',2)=='L_E','latch pair, seal-in NPN emitter through the watchdog switch')
+wd=[q for q in comp if q[0]=='Q' and n(q,3)=='L_E' and n(q,2)=='GND']
+uw=[u for u in comp if val(u).startswith('TPS3431')]
+ok(len(wd)==1 and len(uw)==1 and n(wd[0],1)==n(uw[0],7) and two('VWD',n(uw[0],7),('R',)) and n(uw[0],1)=='VWD' and not any(x=='J21' for x,p in nets['VWD']),'watchdog: WDO pulls the series NPN base low; base fed from the watchdog rail, not the Pi')
+ok(two('VCTL','VWD',('R',)) and any(r[0]=='D' and n(r,1)=='VWD' and n(r,2)=='GND' for r in comp),'watchdog rail from VCTL through a resistor and zener')
+ok(n('J21',6)=='WD_FEED' and two('WD_FEED',n(uw[0],6),('R',)) and two(n(uw[0],6),'GND',('R',)),'heartbeat from the Pi through a series R, pulled down at the watchdog')
 ok(n('J20',1)=='LOOP_OUT' and n('J20',2)=='GND' and n('J20',3)=='LOOP_RET','loop pins split by GND')
 ok(not any(n('J20',p) in('VCTL',) for p in range(1,9)),'no bare 12 V on the loop connector')
 ok(n('J20',4)=='GND' and n('J20',5)=='RST_SRC','GND between loop return and reset source')
@@ -114,7 +119,7 @@ ok(n('J23',1)=='SPARE_ON' and n('J23',2)=='GND' and n('U18',5)=='SPARE_ON' and n
 ok(not any(r in ('U18','J23') for r,p in nets['RUN']),'SPARE_ON does not touch the latch')
 ok(len(legs)==3*(4+20),'aux and legs DNP (4 limb parts + 20 breaker parts each): '+str(len(legs)))
 ok(not [r for r,p in nets['GND'] if r[0]=='J' and val(r).startswith('GND stud')],'no GND studs: each limb return sits beside its +')
-ok(n('J21',1)=='+3V3_PI' and n('J21',2)=='I2C_SDA' and n('J21',3)=='I2C_SCL' and n('J21',4)=='GND','Pi header')
+ok(n('J21',1)=='+3V3_PI' and n('J21',2)=='I2C_SDA' and n('J21',3)=='GND' and n('J21',4)=='I2C_SCL' and n('J21',7)=='PORT_FLT_N','Pi header: GND between SDA and SCL, port fault line')
 ok(n('J20',8)=='ESTOP_NO' and n('J20',7)=='GND','button NO on the loop connector, GND between it and reset')
 ok(two('NO_PU','ESTOP_NO') and diode('NO_PU','+3V3_PI') and two('ESTOP_NO','ESTOP_PI_N') and n('J21',5)=='ESTOP_PI_N','NO pull-up from the Pi rail through a blocking diode, series R to the Pi')
 ok(n('D6',3)=='ESTOP_PI_N','clamp on the Pi pin')
