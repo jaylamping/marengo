@@ -37,8 +37,8 @@ LDO=custom('TPS7A4001','tps7a4001',ds='https://www.ti.com/lit/ds/symlink/tps7a40
 
 # ---------- battery in and E-stop bank ----------
 head('1. Battery in and E-stop bank B (LM5069-1, two FETs). Bank A, in series ahead of it, is block 7',(25.4,22))
-term('M4 terminal, BMS P+',(40.64,45.72),'BAT')
-term('M4 terminal, BMS P-',(40.64,68.58),'GND')
+conn(2,'Pack: 10 AWG pigtail pair to an XT90 (mates the pack XT90S), 1 BAT, 2 GND',(40.64,45.72),'Connector_Wire:SolderWire-6sqmm_1x02_P14mm_D3.5mm_OD7mm_Relief',['BAT','GND'],ref='J1')
+s.refc['J']=2  # J2 (the second stud) is gone; later refs keep their numbers
 g=Grid(s,68.58,38.1,20.32,30.48,150)
 g.Z('5.0SMDJ58A','BAT','GND',SMC); g.C('1uF 100V','BAT','GND',C1210); g.C('100nF 100V','SH_P','GND',C805); g.F('BAT'); g.F('GND'); g.F('SH_P')
 nic(s,'Device:R_Shunt','RS1','0.5mR CSS4J-4026R-L500F 5W',(177.8,48.26),SH,{'1':'BAT','2':'SH_P','3':'SH_N','4':'SW_D'})
@@ -61,7 +61,8 @@ FETs: 0.85 mOhm for the pair, 5.2 W hot at 60 A, 1.3 W at 30 A, the same again i
 The 2 mA also pulls VBUS down through U1's OUT-GATE zener, against the 54 uA of its internal 1 MOhm SENSE-OUT path, so VBUS reads near 0 V with the banks open.
 Body diodes of both banks pass regen back to the pack with the banks open. OVLO tied low: opening on overvoltage would strand regen on the bus.
 LM5069-1 latches on a fault. Clear: E-stop cycle, then reset.
-BAT spike: the absorber in block 10 (3 x 47 uF) takes the lead current when a bank opens fast, 5.0SMDJ58A is the backstop. FETs and U1 are 100 V.''',(300,92))
+BAT spike: the absorber in block 10 (3 x 47 uF) takes the lead current when a bank opens fast, 5.0SMDJ58A is the backstop. FETs and U1 are 100 V.
+Polarity (rev B5): one soldered pigtail pair, side by side, to an XT90 that only mates the pack's XT90S one way. Nothing on the main path blocks a reversed pack: both banks' body diodes would conduct and D1 becomes the crowbar, so the keyed plug and the bring-up polarity check carry it.''',(300,92))
 
 # ---------- control rail and latch ----------
 head('2. Control rail and E-stop latch (no logic IC)',(25.4,172))
