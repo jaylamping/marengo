@@ -1,6 +1,6 @@
 # Left arm: closed-loop calibration and test rig
 
-Status: **proposal for Joey's decision (2026-11-07).** Nothing is bought, built or wired yet. The control and analysis code belongs in the software project; this document specifies it only.
+Status: **approved by Joey 2026-11-07 06:25Z** (option A, Logitech BRIO, foam catch pad as the hard-stop fail-safe). Nothing built or wired yet. The control and analysis code belongs in the software project; this document specifies it only.
 
 Goal (Joey, 2026-11-07): a 100 % closed feedback loop with a clearly defined calibration circuit and success criteria, so Claude can run calibration and testing of the left arm on its own for hours, and so we catch the hurdles that will show up once the arm starts moving.
 
@@ -49,13 +49,15 @@ Encoder plus torque data alone catches 6 partly and 4 indirectly. The camera cat
 
 ## 5. The rig (option A)
 
-**Camera.** Joey's webcam, model to be confirmed. Requirements: 1080p (720p works with larger tags), manual focus and manual exposure (autofocus and auto exposure must be OFF during runs, or the calibration breaks), USB to the bench host. If it has fixed focus that is fine.
+**Camera.** Joey's **Logitech BRIO** (4K webcam, USB 3). Settings for every run: 4K (3840 × 2160) stills at the holds, 1080p for live monitoring between holds; field of view set to 78° in Logitech's tool; **autofocus off, auto exposure off, auto white balance off**, all set over UVC (`v4l2-ctl` on Linux) and read back in preflight, because any of them drifting breaks the lens calibration. RightLight / HDR off. Use the USB 3 port on the host.
+
+Resolution check (**estimate**, measured in C0): at 1 m with the 78° field of view the image is about 1.6 m wide, so 4K gives about 0.42 mm per pixel and a 50 mm tag spans about 120 px. That is comfortably enough for the C0 noise gate when averaging over a 1–2 s hold. 4K detection on a Pi 5 will be slow (roughly a frame or two per second), which is fine because measurements are taken at static holds.
 
 **Mount.** Rigid, not on the same surface as the torso stand if that surface flexes. Camera about 0.8–1.2 m from the shoulder, looking at the arm's front quarter (about 30–45° off the front) and slightly from above, so the whole reachable space of the test circuit is in frame. A printed clamp on a piece of 2020 bolted to the bench is enough. Exact position is decided once the model and field of view are known.
 
 **Reference tag on the frame.** Two tags on a plate bolted to the aluminium torso frame (not the shell). Every link pose is measured relative to this frame tag, so a bumped camera does not corrupt results; it only triggers a re-check.
 
-**Link tags.** AprilTag family `tag36h11`, laser-printed on matte paper, glued to flat printed PETG plates (about 50 × 50 mm, a few grams each). At least one plate per moving link (upper arm, elbow fork / forearm, wrist flange), two per link where the link rotates out of view. Plates clip or screw to existing hardpoints on the links, never to the shell, and their pose on the link is found by the calibration itself (no precise mounting needed). Tag size and count are finalized after the webcam model is known.
+**Link tags.** AprilTag family `tag36h11`, laser-printed on matte paper, glued to flat printed PETG plates (about 50 × 50 mm, a few grams each). At least one plate per moving link (upper arm, elbow fork / forearm, wrist flange), two per link where the link rotates out of view. Plates clip or screw to existing hardpoints on the links, never to the shell, and their pose on the link is found by the calibration itself (no precise mounting needed). Tag size: 50 mm black square (the BRIO resolves this well at 1 m); go to 40 mm only where a link face is too small.
 
 **Camera calibration target.** A ChArUco board printed on paper and glued flat to something rigid (foamcore or a printed plate), used once per camera setup to measure the lens.
 
@@ -197,16 +199,17 @@ Not built here; listed so the software project can pick it up.
 
 | Item | Status | Cost |
 |---|---|---|
-| Webcam | Joey owns it (model?) | $0 |
+| Webcam | Joey owns a Logitech BRIO | $0 |
 | Camera mount (printed clamp + 2020 offcut) | print | ~$1 |
 | Tag plates, ~6–8 (PETG) + paper tags | print | ~$1 |
 | ChArUco board on foamcore or a printed plate | print | ~$2 |
 | LED desk lamp | likely owned | $0–15 |
 | Foam catch pad | likely owned | $0–10 |
 
-## 13. Open questions for Joey
+## 13. Decisions and remaining questions
 
-1. Webcam model and resolution (decides tag size and expected accuracy).
-2. Where the robot stands during testing, and whether there is a rigid spot about 1 m away for the camera.
-3. OK with the arm falling onto a foam pad as the fail-safe when a run stops hard? (The alternative, a soft tether that catches the arm, is possible but adds setup.)
-4. Is the bench host the Pi 5 for the left arm too (can1), with the camera on it?
+Decided (Joey, 2026-11-07 06:25Z): option A; camera is his Logitech BRIO; the arm dropping onto a foam pad is the accepted fail-safe when a run stops hard.
+
+Still open (settled when the rig is set up, no need to decide now):
+1. Where the robot stands during testing, and the rigid spot about 1 m away for the camera.
+2. Bench host for the left arm: the Pi 5 on can1 with the BRIO on it is assumed.
