@@ -39,6 +39,19 @@ Anything hidden is logged to `sw_hidden_<pid>.log` in the temp folder, and `HAD 
 
 No console windows showed, from Python, PowerShell, git or Bambu Studio.
 
+**A launch takes focus about 6 times in its first 20 s, and nothing tried stops it.** So reuse one instance across scripts with `session()` and don't restart between runs. Each measured on one launch, Joey-PC, 2026-11-07:
+
+| Launch | Focus events | Note |
+| --- | --- | --- |
+| Hidden (`SW_HIDE`), event hider | 6 to 7 | Splash, main window, welcome screen, untitled dialog, CAM window |
+| `SW_SHOWMINNOACTIVE` | 6 | No better |
+| CAM add-in off for the launch, welcome screen setting off | 6 | Removes the CAM window only. SolidWorks writes the add-in value back at exit, so a toggle would change Joey's settings unless restored after every exit. Not used |
+| `LockSetForegroundWindow` | 7 | Call fails, our process isn't allowed to set the foreground |
+| `/b` switch | | Never registers in the ROT, so it can't be attached |
+| Separate Windows desktop | | Not in the ROT after 2.5 minutes, so it can't be attached |
+
+Turning off SOLIDWORKS CAM at startup in Tools, Add-Ins would remove that one window for good, but that is Joey's own setting.
+
 Use `end_session(state_file)` to close an instance. Calling `session(state_file).close()` when the instance is already gone starts a new one just to close it.
 
 If something won't run hidden, use `inst.minimize()`, which never takes focus. `inst.hide()` hides on demand. From another process, or for a stuck instance of your own, call `hide_windows(pid)`.
