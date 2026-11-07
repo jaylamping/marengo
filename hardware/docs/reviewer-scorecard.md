@@ -69,6 +69,9 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B2 | deepseek-v4.1-flash (trial) | high | 0 | 0 | 0 | 0 | no review | 1 | 68 | Go, <$0.01 (console) | | Miss. Denied shell call; retry hit the Go quota and hung |
 | PDB rev B2 | glm-5.3 (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 45 | Go, $1.03 (console) | | Miss. Go quota ran out, then hung |
 | PDB rev B2 | kimi-k3.1-pro (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 45 | Go, $2.56 (console) | | Miss. Go quota ran out, then hung |
+| PDB rev B2 late | deepseek-v4.1-flash (trial) | high | 14 | 3 | 4 | 0 | on (checked) | 0 | 12.6 | CheaperInference, ~$0.06 | 3.2 | First delivered open-model review. Unique: U2 short puts the pack on VCTL; SPARE_ON cap; INA228 strapping |
+| PDB rev B2 late | glm-5.3 (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 24 | CheaperInference, $2.02 (cap) | | Miss. Stopped at the $2 cap before its final answer |
+| PDB rev B2 late | kimi-k3.1-pro (trial) | high | 0 | 0 | 0 | 0 | no review | 1 | 21 | CheaperInference, $1.08 | | Miss. The provider cut the stream twice |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
 ## By model
@@ -85,6 +88,6 @@ Totals of the rows above. Compare them with care: rounds differ, and not every m
 | muse-wonder-1.0 | 7 | 73 | 20 | 3 | 2 | 0 | 0 | 7.8 |
 | gemini-4-argon-high (removed) | 5 | 25 | 11 | 6 | 0 | 2 | 7 | 25.6 |
 | grok-4.7-high-fast (dropped) | 2 | 23 | 3 | 0 | 0 | 0 | 1 | 12.5 |
-| deepseek-v4.1-flash (trial) | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 68.0 |
-| glm-5.3 (trial) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 45.0 |
-| kimi-k3.1-pro (trial) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 45.0 |
+| deepseek-v4.1-flash (trial) | 2 | 14 | 3 | 4 | 0 | 0 | 1 | 40.3 |
+| glm-5.3 (trial) | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 34.5 |
+| kimi-k3.1-pro (trial) | 2 | 0 | 0 | 0 | 0 | 0 | 1 | 33.0 |

@@ -13,6 +13,9 @@
 | GLM 5.3 (trial) | OpenCode Go | high | 45, timed out | None | No review: hit the Go quota at 08:39Z, then hung |
 | Kimi K3.1 Pro (trial) | OpenCode Go | high | 45, timed out | None | No review: hit the Go quota at 08:42Z, then hung |
 | Opus (agy) | Antigravity quota | high | 24.6 | NO-GO | Pass, 42 of 42 names. Late, folded in below |
+| DeepSeek V4.1 Flash (trial, late) | OpenCode review agent, CheaperInference | high | 12.6 | NO-GO | Pass, 49 of 49 names, 16 of 18 values. Folded in below |
+| GLM 5.3 (trial, late) | OpenCode review agent, CheaperInference | high | 24, cap | None | Stopped at the $2 spend cap after 40 steps, before writing a review |
+| Kimi K3.1 Pro (trial, late) | OpenCode review agent, CheaperInference | high | 15 + 6 | None | The provider cut the stream both times ("The stream ended before completion") |
 
 Hashes matched before the round and after each run. All pass ERC and check.py. Each finding was checked against the netlist or datasheets unless the row says otherwise.
 
@@ -71,6 +74,21 @@ Opus ran on the Antigravity quota, finishing at 09:33Z: 24.6 min, 903k input, 13
 
 Rejected: the brick footprint "insert diagonal" (closed by my own check below), and "a 97 A limit trips a 100 A class bus" (the design is 60 A, so this is my prompt's wording again, though a demand peak over 97 A for 0.3 ms is worth measuring). Opus also adds an area option: drop U10 and RS10, and move Q7 to a 5×6 package, which gives about 97.7 % with legs, if Q7's start-into-short SOA holds.
 
+## Follow-up: DeepSeek V4.1 Flash (late trial)
+
+DeepSeek ran on CheaperInference with the read-only review agent: 12.6 min, about $0.06, hashes held. Most of it repeats the accepted list (M2 clamp energy, B2 brick, M4 NO input, M6 C5, M3 U9, SPARE_SW at its limit, the 57 ms close time) and Opus's M12. New and real:
+
+| # | Finding | How verified | Smallest fix |
+| --- | --- | --- | --- |
+| M14 | U2 (TPS7A4001) is a single part between the pack and VCTL. An input-to-output short puts up to 54.6 V on VCTL, and U3, Q4 and Q5 are 40 V parts. What they fail into isn't known, so the latch could fail on. | Netlist VCTL members. Failure mode not analysed | Clamp VCTL (15 V zener or TVS sized to blow a fuse) or add a resistor ahead of U2 |
+| minor | The brick needs an external input capacitor ("external input capacitor required", IQB p2 note). U7's 1.5 to 3.8 ms timer at 70 W can't charge much: it fits about 50 µF. Opus raised the same with 220 µF. DeepSeek's 1000 µF is the output-load column, not the input | IQB text, Opus's arithmetic | Get the required value from the maker, then size C19 and the power limit for it |
+| minor | SPARE_ON (U18) has no output capacitor | Netlist: SPARE_ON has only J23 and U18 | Add 1 µF |
+| minor | INA228s strapped to SDA or SCL need the datasheet's hold-time care | INA228 address table | Check the Pi's I2C timing, or move those addresses |
+| minor | A harness short to the bus overloads R9 (1.3 W in 0.25 W) and R10 (0.38 W in 0402) | Arithmetic | Larger parts, or accept: the harness short already stops the robot |
+| minor | No protection per 12 V output: a fan short hiccups the brick and drops compute | Netlist J5 to J7 | Fuse the fan output at least |
+
+Wrong: the clamp "loses power 2.4 ms after a BMS trip" (with a low-side BMS everything floats together, and regen holds VBUS and VCTL up), the A SOA "~228 A at 20 µs" (scaled from one 10 ms point), and 300 °C body diodes in sustained regen (the banks are on in normal running). It also called FLT on the UVLO node "valid" and missed Opus's B3. Its clamp number, 56.46 V, ignores the 19.1M hysteresis resistor; I get about 56.6 V on. The note's 56.8 V needs a recheck.
+
 ## Closed by my own check
 
 | Item | Result |
@@ -97,6 +115,9 @@ The review is 102 KB with five blockers, but 34 of its 49 cited values don't mat
 | Fable | 930 in, 99,692 out, 352,719 cache write, 4,134,541 cache read | $10.44, from `total_cost_usd` |
 | Argon | 1,029,951 in, 92,311 out, 13,180 thinking, 2,214,745 cache read | Subscription |
 | Wonder, Sol, Astra | No per-run figure | Subscription |
+| DeepSeek, late | 376k in, 114k out and reasoning, 4.6M cache read, from the JSON | About $0.06 at CheaperInference list prices. The dashboard is the bill |
+| GLM, late | 1.28M in, 86k out, 5.8M cache read. Little of the input was cached | $2.02, stopped at the cap |
+| Kimi, late | Two tries | $0.83 + $0.25 |
 | OpenCode trials | Go console: 77 requests, 3.9M tokens. Kimi 1.7M cache read, 883k cache write, 42k out. GLM 293k in, 712k cache read, 98k out | **$3.59 on the Go console**: Kimi $2.56, GLM $1.03, DeepSeek under $0.01. That used all of the 5-hour window, 40 % of the week and 20 % of the month. OpenCode's own figure was about $0.10 |
 
 ## Open models: none delivered
