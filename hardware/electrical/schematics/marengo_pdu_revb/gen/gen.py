@@ -268,8 +268,9 @@ g.C('1uF 100V X7R','VBUS','GND',C1210)   # local HF cap at Q6/D4 (r5 layout 14)
 g.nl()
 for _ in range(3): nic(s,'Connector:TestPoint',s.nref('TP'),'TP GND',g.at(),'TestPoint:TestPoint_Keystone_5015_Micro_Mini',{'1':'GND'})
 for net in ('GATE','GATE_A','UVLO','FLT_A'): nic(s,'Connector:TestPoint',s.nref('TP'),'TP '+net,g.at(),'TestPoint:TestPoint_Pad_D1.0mm',{'1':net})
-# rev B5 hand assembly: bring-up probe pads on the power nodes and the safety outputs (TP14-TP23)
-for net in ('BAT','SW_D','ABS','CL_D','V_L1','V_L2','V_L3','PORT_FLT_N','WDO_N','+3V3_PI'): nic(s,'Connector:TestPoint',s.nref('TP'),'TP '+net,g.at(),'TestPoint:TestPoint_Pad_D1.0mm',{'1':net})
+# rev B5 hand assembly: probe pads on internal power nodes and the watchdog output (TP14-TP16). BAT, CL_D, the limb
+# outputs, PORT_FLT_N and +3V3_PI are already exposed on J1, J3/J25, the pigtail pads and J21.
+for net in ('SW_D','ABS','WDO_N'): nic(s,'Connector:TestPoint',s.nref('TP'),'TP '+net,g.at(),'TestPoint:TestPoint_Pad_D1.0mm',{'1':net})
 wnote('''Fifth 47 uF 80 V hybrid on VBUS (EEH-ZC1K470P, active line; the APZ 68 uF is obsolete): 235 uF in all, the value tools/port_sim.py uses.
 Second SK810L beside D7: the unread forward curve at 300-900 A was worth up to 8 V on BAT at 30 mOhm (absorber_sim D7 sweep, 94 V); two in parallel halve it, so the worst corner stays at about 91 V, as with the assumed 10 mOhm.
 Clamp duty: CL_OUT (0/12.1 V) through 100k/1k into U17 IN+ (IN- on GND): 120 mV at 100 % duty, 4.7 ms RC. The Pi reads duty x 120 mV and integrates duty x VBUS^2 / 10 Ohm for the brake-energy cap.
@@ -322,6 +323,10 @@ Software requirement: drive CanTimeout set and read back before every enable.'''
 # absorber cans 4-6, last so earlier refs keep their numbers: the APZ line is obsolete (Joey, 16:46Z)
 g=Grid(s,38.1,900,25.4,30.48,200)
 for _ in range(5): g.CP('47uF 80V EEH-ZC1K470P','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x10.5')  # 8 cans in all: 75 V worst, 6 % under rating
+# bank A drain ceramics (rev B5 thermal study): the bank turns off in 50-200 ns, so the copper between the absorber and
+# the drain kicks the drain. 4.4 uF here holds BAT at 74 V and the drain under 85 V with a 2 nH absorber loop
+# (THERMAL_OPTION.md); without them BAT reaches 78-111 V. Placed right at the drains, GND pads straight to L2.
+g.C('2.2uF 100V X7R','SW_D','GND',C1210,k=2)
 writelib()
 s.write([('/'+ROOT,'1')])
 print('ok',{k:v for k,v in s.refc.items() if not k.startswith('#')})

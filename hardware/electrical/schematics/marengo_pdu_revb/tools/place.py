@@ -14,7 +14,7 @@ b=pcbnew.BOARD(); b.SetCopperLayerCount(4)
 # ---- blocks: (X0,X1,Y0,Y1) in floorplan coordinates. Rev B5 (docs: pdb/design/LAYOUT_RULES_REVB.md):
 # single-sided; pack pair on the top edge; flow RS1 -> bank A -> bank B (upper fan) -> bus caps -> port breakers -> pigtails
 BLK=dict(
- soft=(-44.0,-11.0,311.0,328.4), bankactl=(17.8,25.0,268.0,302.4), clamp=(29.0,42.5,254.0,272.0),
+ soft=(-44.0,-11.0,311.0,328.4), bankactl=(17.8,25.0,268.0,301.2), clamp=(29.0,42.5,254.0,272.0),
  bankctl=(-28.5,-17.8,268.0,310.5), latch=(-42.0,-29.0,254.0,310.5),
  L1=(9.5,42.5,236.0,253.5), L3=(9.5,42.5,218.5,236.0), L5=(9.5,42.5,201.0,218.5),
  L2=(-42.5,-9.5,236.0,253.5), L4=(-42.5,-9.5,218.5,236.0), L6=(-42.5,-9.5,201.0,218.5),
@@ -25,21 +25,42 @@ def put(blk,refs):
 put('bankctl','R63 TP3 C1 R54 R55 R56 C43 Q13 R33 R34 D12 D17 R52 TP6 C2 U1 R1 R2 R3 R4 R5 R6 C3 C4 D2 Q3 TP10 TP12')
 put('latch','U2 C5 R7 R8 TP1 J20 R9 D3 R10 R11 C6 R12 Q4 Q5 R13 R14 R15 R16 R17 C7 TP2 F1 C39 D8 D9 D10 D11 R59 C42 D14 R48 R49 R50 Q10 Q11 D16 R57 R58 Q14 D22 TP7')
 put('bankactl','U8 C27 C28 C29 R27 R28 R29 R30 R31 R32 R35 R36 R37 C40 C46 R61 R62 TP11 TP13')
-put('clamp','R53 R46 D4 Q6 C49 R23 R24 TP8')
+put('clamp','R46 D4 Q6 C49 R23 R24 TP8')
+put('bankctl','TP14'); put('bankactl','TP15'); put('latch','TP16')   # hand-assembly probe pads (SW_D, ABS, WDO_N)
 put('out','U3 U4 R18 R19 R20 R21 R22 R64 C8 C9 R65 R66 C48')
-put('soft','RS9 Q7 U7 R25 R26 C19 C20 TP5 C14 C15 F2 R51 D15 Q12 R60')
-put('out','U17 C30 R47 D18 RS8 U6 C16 C17 C18 TP4 C41 F3 F4 F5 D20 U9 RS10 U10 R38 R39 R40 R41 R42 R43 C31 C32 C33 C34 C35 C36 D5 D19 U18 TP9 R44 R45 C37 D6 D13 R67 U25 R128 R129 R130 R131 Q21 C80 C81 D41')
+put('soft','Q7 U7 R25 R26 C19 C20 TP5 C14 C15 F2 R51 D15 Q12 R60')
+put('out','U17 C30 R47 D18 RS8 U6 C16 C17 C18 TP4 C41 F3 F4 F5 D20 U9 RS10 U10 R38 R39 R40 R41 R42 R43 C31 C32 C33 C34 C35 C36 D5 D19 U18 TP9 R44 R45 C37 D6 D13')
+put('latch','U25 R128 R129 R130 R131 Q21 C80 C81 D41 R67')   # watchdog beside the latch it drops (L_E, Q5)
+RES={}; PFIX={}
 PORT={1:('RS2','U11','C21','U19','Q15',68,50,23),2:('RS3','U12','C22','U20','Q16',78,55,26),3:('RS4','U13','C23','U21','Q17',88,60,29),
       4:('RS5','U14','C24','U22','Q18',98,65,32),5:('RS6','U15','C25','U23','Q19',108,70,35),6:('RS7','U16','C26','U24','Q20',118,75,38)}
+# block -> reserved rects (X0,X1,Y0,Y1), kept free of parts (via fields, pour necks)
 for k,(rs,ina,cd,u,q,r0,c0,d0) in PORT.items():
-    put(f'L{k}',' '.join([rs,ina,cd,u,q]+[f'R{r0+i}' for i in range(10)]+[f'C{c0+i}' for i in range(5)]+[f'D{d0+i}' for i in range(3)]))
+    put(f'L{k}',' '.join([cd,u]+[f'R{r0+i}' for i in range(10)]+[f'C{c0+i}' for i in range(5)]+[f'D{d0+i}' for i in range(2)]))
+    s=1 if k%2 else -1; X0,X1,Y0,Y1=BLK[f'L{k}']
+    PFIX[rs]=(s*14.6,Y1-2.15,0 if s>0 else 180); PFIX[q]=(s*25.9,Y0+8.75,90); PFIX[f'D{d0+2}']=(s*35.4,Y0+5.0,90)
+    PFIX[ina]=(s*14.45,Y1-7.6,0)   # meter in the Kelvin channel, straight under the shunt
+    RES.setdefault('out',[]).append((min(s*6.8,s*9.0),max(s*6.8,s*9.0),Y1-7.5,Y1))   # VBUS via field at the shunt's bus pad, on the out block's edge
+    RES[f'L{k}']=[(min(s*38.8,s*42.5),max(s*38.8,s*42.5),Y0,Y0+5.2)]   # the D_L copper runs in the gap between the shunt and FET courtyards     # V_L neck from the output clamp to the pigtail
 FIX={}   # ref: (X,Y,rot,back); back is never used: the board is single-sided (Joey, 2026-11-07)
 FIX['J1']=(8.0,335.0,0,False); FIX['J3']=(29.0,333.9,0,False); FIX['J25']=(37.0,333.9,0,False); FIX['J24']=(-30.0,334.0,0,False)
-FIX['RS1']=(0.0,308.0,0,False); FIX['D7']=(9.2,307.5,90,False); FIX['D21']=(16.0,307.5,90,False)
+# power flow (routing stage 1): RS1 vertical, BAT pad up, SW_D pad down, Kelvin pads on the left; D7/D21 between the BAT
+# pour and the cans, ABS pads down; RS9 BAT end toward the pack pour; R53 (ABS_N-GND link) under the can stack
+FIX['RS1']=(0.0,309.3,270,False); FIX['D7']=(14.8,308.4,90,False); FIX['D21']=(21.65,308.4,90,False)
+FIX['RS9']=(-20.4,326.4,180,False); FIX['R53']=(45.5,270.3,0,False)
+FIX['C87']=(-8.6,307.6,90,False); FIX['C88']=(-13.1,307.6,90,False)   # bank A drain ceramics, SW_D pad down onto the drain pour
 # absorber: six 10 x 10 cans in a 2 x 3 block right of the pack keep-out (X -5..25, Y 315-340), D7 pair beside RS1
 for k,r in enumerate(('C38','C44','C45','C82','C83','C84','C85','C86')): FIX[r]=(30.75+11.5*(k%2),320.7-13.8*(k//2),90,False); FIX['D1']=(-14.5,334.5,90,False)
 FIX['Q8']=(-9.0,296.0,0,False); FIX['Q9']=(9.0,296.0,0,False); FIX['Q1']=(-9.0,276.0,0,False); FIX['Q2']=(9.0,276.0,0,False)
-for k,r in enumerate(('C10','C11','C12','C13','C47')): FIX[r]=(-23.2+k*11.6,260.5,90,False)
+for k,r in enumerate(('C10','C11','C12','C13','C47')): FIX[r]=(-23.2+k*11.6,260.5,270,False)   # + pad up, toward bank B's sources
+# heatsink (THERMAL_OPTION.md option D): 4 x M3 through the board into the finned block under the FET zone (X -33..33, Y 200-305)
+# 2-point mount on the centre line (two screws clamp it flat and fix its rotation): one in the 8.6 mm gap between
+# bank A and bank B (a hole in the MID pour), one at the bottom of the out block
+HSINK=[(0.0,286.0),(0.0,204.0)]
+for X,Y in HSINK:
+    blk=next((b_ for b_,(x0,x1,y0,y1) in BLK.items() if x0<=X<=x1 and y0<=Y<=y1),None)
+    if blk: RES.setdefault(blk,[]).append((X-3.4,X+3.4,Y-3.4,Y+3.4))
+RES.setdefault('soft',[]).append((-16.0,-11.0,323.6,328.4))   # BAT neck from RS9 to D1 and the pack pour
 for Y,r in ((244.7,'J8'),(227.2,'J10'),(209.7,'J12')): FIX[r]=(45.0,Y,90,False)
 for Y,r in ((244.7,'J9'),(227.2,'J11'),(209.7,'J13')): FIX[r]=(-45.0,Y,90,False)
 for X,r in ((-31.0,'J21'),(-19.0,'J5'),(-10.5,'J6'),(-2.0,'J7'),(6.5,'J23'),(17.5,'J22')): FIX[r]=(X,195.0,0,False)
@@ -69,10 +90,12 @@ def place_at(fp,X,Y,rot=0,back=False):
     # centre the courtyard on (X,Y)
     bb=bbox(fp); c=bb.GetCenter(); t=P(X,Y)
     fp.Move(pcbnew.VECTOR2I(t.x-c.x,t.y-c.y))
+FIX.update({r:(X,Y,rot,False) for r,(X,Y,rot) in PFIX.items()})
 for r,(X,Y,rot,back) in FIX.items(): place_at(fps[r],X,Y,rot,back)
 rep={}
 GAP=0.25  # courtyards already carry their own margin
-def maxrects(W,H,items):
+BGAP={**{f'L{k}':0.0 for k in range(1,7)},'out':0.0,'soft':0.0,'latch':0.0}   # port blocks: courtyards touching (0.5 mm between 0603 bodies), hand-solderable
+def maxrects(W,H,items,occ=(),GAP=GAP):
     """MaxRects, best short side fit, 0/90 rotation. items: (w,h,ref). Returns ref->(x,y,rot) with x,y the lower-left from the block's top-left going down."""
     free=[(0.0,0.0,W,H)]; out={}
     def split(fr,u):
@@ -84,6 +107,11 @@ def maxrects(W,H,items):
         if uy>y: r.append((x,y,w,uy-y))
         if uy+uh<y+h: r.append((x,uy+uh,w,y+h-uy-uh))
         return r
+    for u in occ:
+        nf=[]
+        for fr in free: nf+=split(fr,u)
+        free=[a for a in nf if a[2]>0.3 and a[3]>0.3]
+        free=[a for a in free if not any(a is not c and a[0]>=c[0]-1e-9 and a[1]>=c[1]-1e-9 and a[0]+a[2]<=c[0]+c[2]+1e-9 and a[1]+a[3]<=c[1]+c[3]+1e-9 for c in free)]
     for w0,h0,ref in items:
         best=None
         for (fx,fy,fw,fh) in free:
@@ -104,7 +132,13 @@ for blk,(X0,X1,Y0,Y1) in BLK.items():
     for r in refs:
         fp=fps[r]; bb=bbox(fp); items.append((pcbnew.ToMM(bb.GetWidth()),pcbnew.ToMM(bb.GetHeight()),r))
     items.sort(key=lambda i:-i[0]*i[1])
-    res=maxrects(X1-X0,Y1-Y0,items); over=[]
+    occ=[]
+    for f in fps.values():   # fixed parts inside the block
+        if f.GetReference() in FIX:
+            bb=bbox(f); fx0=pcbnew.ToMM(bb.GetX())-OX-50; fx1=fx0+pcbnew.ToMM(bb.GetWidth()); fy1=340-(pcbnew.ToMM(bb.GetY())-OY); fy0=fy1-pcbnew.ToMM(bb.GetHeight())
+            if fx1>X0 and fx0<X1 and fy1>Y0 and fy0<Y1: occ.append((fx0-X0-GAP/2,Y1-fy1-GAP/2,fx1-fx0+GAP,fy1-fy0+GAP))
+    for (rx0,rx1,ry0,ry1) in RES.get(blk,[]): occ.append((rx0-X0,Y1-ry1,rx1-rx0,ry1-ry0))
+    res=maxrects(X1-X0,Y1-Y0,items,occ,BGAP.get(blk,GAP)); over=[]
     for w,h,r in items:
         q=res[r]
         if q is None: over.append(r); continue
@@ -132,6 +166,8 @@ for sx_ in (-1,1):
         gnd=nets.get(('J2','1'));
         b.Add(h); h.SetPosition(P(sx_*46,Y))
 TIE=[(-7.0,336.0),(23.0,336.0)]+[(s*45.0,Y-8.75) for s in (-1,1) for Y in (244.7,227.2,209.7)]  # one hole per pair: the tie loops through it and round the board edge
+for k,(X,Y) in enumerate(HSINK):
+    h=pcbnew.FootprintLoad(FPDIR+'MountingHole.pretty','MountingHole_3.2mm_M3'); h.SetReference(f'HS{k+1}'); b.Add(h); h.SetPosition(P(X,Y))
 for X,Y in TIE:
     for d in (0,):
         h=pcbnew.FootprintLoad(FPDIR+'MountingHole.pretty','MountingHole_2.2mm_M2'); h.SetReference(f'TH{len([f for f in b.GetFootprints() if f.GetReference().startswith("TH")])+1}')

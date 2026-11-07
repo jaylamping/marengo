@@ -6,10 +6,10 @@
 
 - 100 × 150 mm, set by the carrier. M3 holes at X ±46, Y 194 / 265 / 336.
 - **Single-sided: every part on the front face.** The rear has 6 mm to the carrier, and a back-side part would need a second reflow pass (Joey, 2026-11-07).
-- 4 layers, **2 oz on all four**, 1.6 mm thick.
+- 4 layers, 1.6 mm, **2 oz outer / 1 oz inner** (JLC's standard stackup; rev B5 thermal option D takes the FET heat into a heatsink, so the copper only carries current).
   - L1: positive pours and parts.
   - L2: solid GND, unbroken under the banks, the absorber, the bus caps and the port FETs.
-  - L3: GND in the return corridor, plus a positive mirror under the banks.
+  - L3: GND in the return corridor (the second GND return plane), signals where needed.
   - L4: positive mirror, with GND wherever the positive path isn't.
 - Rating to lay out for: **60 A continuous, under 90 A peak.** Keep at least 30 mm of effective main-path width on at least 3 layers, and at least 2 layers of GND return. At layer changes, use about 1 A per 0.3 mm via: 60 or more vias per main-path transition.
 
@@ -18,13 +18,20 @@
 - **Flow order down the board:** BAT pair (top edge) → absorber cluster and RS1 → bank A → bank B (under the upper fan) → bus caps → port breakers → limb pigtails. Remove the old B → A → B detour.
 - **Pack entry:** the BAT and GND 8 AWG pair (4.5 mm holes, 8 mm pads, 14 mm pitch; to an XT90) sits side by side on the top edge, in the frame's pack cable path. **Keep-out: no components in X −5..25, Y 315–340** (the leads run up the face and bend over the top edge at R15 from about Y 330); the pads sit in that strip. Solid connections to all four layers, no thermal reliefs. A cable-tie hole each side of the pair.
 - **Absorber cluster:**
-  - C38, C44, C45, D7 + its twin, and the R53 copper link all within 25 mm, at the BAT entry.
+  - D7, D21 and the eight cans in one cluster at the BAT entry; R53 (the ABS_N to GND link) under the can stack.
   - ABS and ABS_N are pours directly over unbroken L2.
   - R53 is at least 5 mm wide, with 10 or more vias to L2 and L3.
-  - Loop budget is 10 nH or less: extract it after layout and add it to absorber_sim.
-- **FET copper (2.7 W per FET at 60 A):**
-  - L1 tab pads plus all the drain pour that fits; L3 and L4 carry mirrored drain pours.
-  - 30 × 0.3 mm vias under each tab, filled and capped or kept out of the paste aperture.
+  - **Loop budget about 2 nH**, not 10 (rev B5 thermal study: with a 50–200 ns bank turn-off, 5 nH gives BAT 88–102 V
+    and 10 nH gives 102–111 V without drain ceramics). Extract it after layout and run it in absorber_sim.
+- **Bank A drain ceramics C87/C88** (2 × 2.2 µF 100 V 1210, SW_D to GND): right beside RS1's SW_D pad and the bank A tabs,
+  GND pads straight down to L2 with 4 or more vias each. They hold BAT at 74 V and the drain under 85 V.
+- **FET copper and the heatsink (option D, [THERMAL_OPTION.md](THERMAL_OPTION.md)):**
+  - 2.7 W per FET at 60 A goes down into a finned heatsink under the board (X −33..33, Y 200–305).
+  - About 50 × 0.3 mm vias per tab, at the pad edge and under it, tented on L4 and kept out of the paste aperture so they
+    don't wick solder on the hot plate.
+  - L4: bare copper (no mask, ENIG) 15 × 15 mm under each FET, for the insulating gap pad. Nothing else on L4 inside
+    the heatsink zone except those pads and GND fill.
+  - Heatsink holes HS1 (0, 286) and HS2 (0, 204), M3, no copper within 2 mm; the MID pour flows around HS1.
   - Keep all four bank FETs inside the upper fan footprint (|X| ≤ 20, Y 264–304).
   - Check with a coupon or quick FEM; a clip-on heatsink per bank is the fallback.
 - **Bus caps:**
