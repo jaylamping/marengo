@@ -3635,7 +3635,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "2.2uH XAL7030-222MEB"
+		(property "Value" "2.2uH XAL7030-222MEC"
 			(at 116.84 50.8 0)
 			(effects
 				(font

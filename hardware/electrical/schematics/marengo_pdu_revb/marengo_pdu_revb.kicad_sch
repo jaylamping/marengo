@@ -8458,7 +8458,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.5mR CSS4J-4026R-L500F 5W"
+		(property "Value" "0.5mR Bourns CSS4J-4026R-L500F 5W"
 			(at 172.72 64.77 0)
 			(effects
 				(font
@@ -19698,7 +19698,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "5mR 2512 Kelvin WSK2512R0050FEA"
+		(property "Value" "5mR 2512 Kelvin WSK25125L000FEA"
 			(at 54.61 478.79 0)
 			(effects
 				(font
@@ -21418,7 +21418,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1.5mR 2512 Kelvin WSK25121L500FEA"
+		(property "Value" "2mR 2512 CSS2H-2512K-2L00F 5W"
 			(at 655.32 62.23 0)
 			(effects
 				(font
@@ -22372,7 +22372,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1.5mR 2512 Kelvin WSK25121L500FEA"
+		(property "Value" "2mR 2512 CSS2H-2512K-2L00F 5W"
 			(at 655.32 102.87 0)
 			(effects
 				(font
@@ -23271,7 +23271,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1.5mR 2512 Kelvin WSK25121L500FEA"
+		(property "Value" "2mR 2512 CSS2H-2512K-2L00F 5W"
 			(at 655.32 142.24 0)
 			(effects
 				(font
@@ -24170,7 +24170,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1.5mR 2512 Kelvin WSK25121L500FEA"
+		(property "Value" "2mR 2512 CSS2H-2512K-2L00F 5W"
 			(at 655.32 182.88 0)
 			(effects
 				(font
@@ -25069,7 +25069,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1.5mR 2512 Kelvin WSK25121L500FEA"
+		(property "Value" "2mR 2512 CSS2H-2512K-2L00F 5W"
 			(at 655.32 222.25 0)
 			(effects
 				(font
@@ -25968,7 +25968,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1.5mR 2512 Kelvin WSK25121L500FEA"
+		(property "Value" "2mR 2512 CSS2H-2512K-2L00F 5W"
 			(at 655.32 262.89 0)
 			(effects
 				(font
@@ -31063,7 +31063,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "5mR 2512 Kelvin WSK2512R0050FEA"
+		(property "Value" "5mR 2512 Kelvin WSK25125L000FEA"
 			(at 655.32 516.89 0)
 			(effects
 				(font
@@ -45702,7 +45702,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS48111AQDGXRQ1"
+		(property "Value" "TPS48111LQDGXRQ1"
 			(at 875.03 119.38 0)
 			(effects
 				(font
@@ -46758,7 +46758,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "3.4k 1%"
+		(property "Value" "4.64k 1%"
 			(at 1002.03 66.04 0)
 			(effects
 				(font
@@ -46872,7 +46872,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "26.1k 1%"
+		(property "Value" "20k 1%"
 			(at 1017.27 66.04 0)
 			(effects
 				(font
@@ -49176,7 +49176,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS48111AQDGXRQ1"
+		(property "Value" "TPS48111LQDGXRQ1"
 			(at 875.03 223.52 0)
 			(effects
 				(font
@@ -50232,7 +50232,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "3.4k 1%"
+		(property "Value" "4.64k 1%"
 			(at 1002.03 171.45 0)
 			(effects
 				(font
@@ -50346,7 +50346,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "26.1k 1%"
+		(property "Value" "20k 1%"
 			(at 1017.27 171.45 0)
 			(effects
 				(font
@@ -52650,7 +52650,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS48111AQDGXRQ1"
+		(property "Value" "TPS48111LQDGXRQ1"
 			(at 875.03 328.93 0)
 			(effects
 				(font
@@ -53706,7 +53706,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "3.4k 1%"
+		(property "Value" "4.64k 1%"
 			(at 1002.03 276.86 0)
 			(effects
 				(font
@@ -53820,7 +53820,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "26.1k 1%"
+		(property "Value" "20k 1%"
 			(at 1017.27 276.86 0)
 			(effects
 				(font
@@ -56124,7 +56124,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS48111AQDGXRQ1"
+		(property "Value" "TPS48111LQDGXRQ1"
 			(at 875.03 434.34 0)
 			(effects
 				(font
@@ -57180,7 +57180,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "3.4k 1%"
+		(property "Value" "4.64k 1%"
 			(at 1002.03 381 0)
 			(effects
 				(font
@@ -57294,7 +57294,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "26.1k 1%"
+		(property "Value" "20k 1%"
 			(at 1017.27 381 0)
 			(effects
 				(font
@@ -59598,7 +59598,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS48111AQDGXRQ1"
+		(property "Value" "TPS48111LQDGXRQ1"
 			(at 875.03 539.75 0)
 			(effects
 				(font
@@ -60654,7 +60654,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "3.4k 1%"
+		(property "Value" "4.64k 1%"
 			(at 1002.03 486.41 0)
 			(effects
 				(font
@@ -60768,7 +60768,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "26.1k 1%"
+		(property "Value" "20k 1%"
 			(at 1017.27 486.41 0)
 			(effects
 				(font
@@ -63072,7 +63072,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS48111AQDGXRQ1"
+		(property "Value" "TPS48111LQDGXRQ1"
 			(at 875.03 643.89 0)
 			(effects
 				(font
@@ -64128,7 +64128,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "3.4k 1%"
+		(property "Value" "4.64k 1%"
 			(at 1002.03 591.82 0)
 			(effects
 				(font
@@ -64242,7 +64242,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "26.1k 1%"
+		(property "Value" "20k 1%"
 			(at 1017.27 591.82 0)
 			(effects
 				(font
@@ -66528,7 +66528,7 @@
 			)
 		)
 	)
-	(text "Why: a hard limb short used to latch the whole bus (U1 trips in under 0.4 ms, long before a 20 A fuse melts). Each port now opens itself first.\nShort circuit: RISCP 3.4k on 1.5 mOhm = 35-45 A (15.6 uA x (R + 464)), PD low within 1.6 us, then 22R to the gate: Miller about 0.16 us, so the drain-side di/dt stays a few A/ns against the 2.2 uF and the bus\ncaps. tools/port_sim.py: for 50 nH to 1 uH of wiring, 0.5-1 uH pack lead, 0-50 A on the other limbs, RS1 peaks at 130 A or less against U8 158 A and U1 160 A minimum: the port always opens first. A short at the\nboard pads (50 nH) puts about 1.1-1.4 kA through the FET for under 2 us (5-14 mJ; IPB017: 1024 A pulse, 979 mJ avalanche), which is why the port uses the bank FET. A short in the harness (200 nH or more) is\n400-540 A.\nOverload: RIWRN 26.1k = 30 A (11.9 x RSET / (RSNS x IOC)), CTMR 1 uF with 100k across it: about 16 ms, then latch-off. The 20 A pigtail fuse stays as wire protection and as backup for a shorted FET.\nLatch clears only when EN drops: an E-stop cycle, then reset. FLT_I of every port pulls PORT_FLT_N (Pi header): the Pi names the port whose output is low.\nStart: EN and INP come from RUN through one diode (a pin fault can't drive RUN). The bus starts from 0 under U1, so the port wakes at VS 3 V with BST up (0.22 uF, about 20 ms): the gate rises through 100k into\n100 nF (diode-coupled, 10M bleed, so PD never sees it), about 1 kV/s at the output: 20 mF of drive capacitance draws about 20 A, under the 30 A overload level. After that the drive caps follow the bus.\nOff (E-stop, trip): the body diode still returns regen from the limb to the bus and the clamp. SK810L on each output carries the wiring current when the FET opens. 15 V zener gate to source."
+	(text "Why: a hard limb short used to latch the whole bus (U1 trips in under 0.4 ms, long before a 20 A fuse melts). Each port now opens itself first.\nShort circuit: RISCP 4.64k on 2 mOhm = 35-45 A (15.6 uA x (R + 464)); the shunt is a 2-terminal 5 W metal strip on the split-pad Kelvin land (each end bridges its current and sense pads), 1.8 W at the 30 A trip\nlevel, PD low within 1.6 us, then 22R to the gate: Miller about 0.16 us, so the drain-side di/dt stays a few A/ns against the 2.2 uF and the bus caps. tools/port_sim.py: for 50 nH to 1 uH of wiring, 0.5-1 uH\npack lead, 0-50 A on the other limbs, RS1 peaks at 130 A or less against U8 158 A and U1 160 A minimum: the port always opens first. A short at the board pads (50 nH) puts about 1.1-1.4 kA through the FET for\nunder 2 us (5-14 mJ; IPB017: 1024 A pulse, 979 mJ avalanche), which is why the port uses the bank FET. A short in the harness (200 nH or more) is 400-540 A.\nOverload: RIWRN 20k = 30 A (11.9 x RSET / (RSNS x IOC)), CTMR 1 uF with 100k across it: about 16 ms, then latch-off. The 20 A pigtail fuse stays as wire protection and as backup for a shorted FET.\nLatch clears only when EN drops: an E-stop cycle, then reset. FLT_I of every port pulls PORT_FLT_N (Pi header): the Pi names the port whose output is low.\nStart: EN and INP come from RUN through one diode (a pin fault can't drive RUN). The bus starts from 0 under U1, so the port wakes at VS 3 V with BST up (0.22 uF, about 20 ms): the gate rises through 100k into\n100 nF (diode-coupled, 10M bleed, so PD never sees it), about 1 kV/s at the output: 20 mF of drive capacitance draws about 20 A, under the 30 A overload level. After that the drive caps follow the bus.\nOff (E-stop, trip): the body diode still returns regen from the limb to the bus and the clamp. SK810L on each output carries the wiring current when the FET opens. 15 V zener gate to source."
 		(exclude_from_sim no)
 		(at 860 735 0)
 		(effects
@@ -66569,7 +66569,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "TPS3431DRBR"
+		(property "Value" "TPS3431SDRBR"
 			(at 474.98 679.45 0)
 			(effects
 				(font

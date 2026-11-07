@@ -4,9 +4,9 @@ Question: for a hard short on one limb port, does that port's TPS48111 open befo
 response) or U8's comparator (158 A min) sees its threshold on RS1? And what does the port FET take?
 Model: pack EMF 54.6 V, loop R, lead L into BAT; RS1 + both banks (on) into VBUS; the bus caps with ESR and ESL; the
 other limbs as a constant load (their drive caps left out, which is pessimistic: they would also feed the short);
-the faulted port: copper, 1.5 mOhm shunt, FET as a switch, SK810L clamp to GND on the port output, the 20 A pigtail
+the faulted port: copper, 2 mOhm shunt, FET as a switch, SK810L clamp to GND on the port output, the 20 A pigtail
 fuse, then wiring L and R into a dead short at t = 0.
-Port trip: TPS48111-Q1 short-circuit comparator at the top of its band (RISCP 3.4k: 35-45 A on 1.5 mOhm), tSC max
+Port trip: TPS48111-Q1 short-circuit comparator at the top of its band (RISCP 4.64k: 35-45 A on 2 mOhm), tSC max
 1.6 us to PD low, then PD (4 A peak) empties the gate to the plateau and through Miller (gate charge from the FET
 datasheets, max values; the slew cap is behind a diode, so PD doesn't see it). The 'slow' rows use a 0.25 A sink
 to show how much the strong pull-down matters.
@@ -26,8 +26,8 @@ def sim(net,probes,tend):
     p=os.path.join(tempfile.gettempdir(),'port_sim.cir'); open(p,'w').write(deck)
     ng.ngSpice_Command(b'remcirc'); ng.ngSpice_Command(('source '+p.replace('\\','/')).encode())
     return [[float(x) for x in l.split()] for l in open(out) if l.strip()]
-NCAP,CAP,ESR,ESL=5,47e-6,0.045,3e-9   # 5 x EEH-ZC1K470P, ESR 36 mOhm + 25 % for ageing and temperature
-I_CB=0.068/1.5e-3; T_CB=1.6e-6
+NCAP,CAP,ESR,ESL=5,47e-6,0.045,3e-9   # 5 x EEH-ZC1K470P, ESR 36 mOhm + 25 % for ageing and temperature; port shunt 2 mOhm (rev B5)
+I_CB=0.0906/2e-3; T_CB=1.6e-6
 FET={'IPB017N10N5LF':dict(ron=1.7e-3*1.75,qpl=120e-9,qgd=51e-9),'BSC040N10NS5':dict(ron=4.0e-3*1.75,qpl=46e-9,qgd=17e-9)}
 def run(fet,lw,rw,ioth,lp,rl,helper,ts=1.0):
     f=FET[fet]; isink=4.0 if helper else 0.25
@@ -44,7 +44,7 @@ LCU B2 BUS 5n IC={ioth}
 IOTH BUS 0 {ioth}
 {caps}LPC BUS P0 10n IC=0
 RPC P0 P1 0.3m
-RSH P1 P2 1.5m
+RSH P1 P2 2m
 BFET P2 VL I=V(P2,VL)*{1/f['ron']}*max(1e-7,min(1,1-(time-{ts})/{tm}))
 DCL 0 VL DSCH
 RFU VL W1 3.2m
@@ -52,7 +52,7 @@ LW W1 W2 {lw} IC=0
 RW W2 0 {rw}
 '''
     r=sim(net,'i(ll) v(p1) v(p2) v(vl) i(lw)','60u')
-    t=[x[0] for x in r]; ipk=[x[1] for x in r]; iport=[(x[3]-x[5])/1.5e-3 for x in r]
+    t=[x[0] for x in r]; ipk=[x[1] for x in r]; iport=[(x[3]-x[5])/2e-3 for x in r]
     return t,ipk,iport,[x[5]-x[7] for x in r],tpl,tm,r
 def case(fet,lw,rw,ioth,lp,rl,helper):
     t,ipk,iport,_,tpl,tm,_=run(fet,lw,rw,ioth,lp,rl,helper)

@@ -88,18 +88,18 @@ counting spares. Spares are about 15 % (minimum 2) on cheap passives, small diod
 expensive parts get none. The off-board parts (BMS, Class T fuse, brake resistors, thermostats, harness) are in the pack
 plan and REVB5_CHANGES.
 
-**Part numbers to fix before ordering** (pricing research; schematic not yet changed):
+**Part numbers fixed** (2026-11-07, schematic and BOM updated):
 
-| In the BOM now | Problem | Fix |
+| Was | Problem | Now |
 | --- | --- | --- |
-| TPS48111AQDGXRQ1 | not orderable anywhere | TPS48111**L**QDGXRQ1, **after checking the L variant's fault behaviour against our latch-off wiring** |
+| TPS48111AQDGXRQ1 | not orderable | TPS48111**L**QDGXRQ1: TI's only orderable TPS48111-Q1 code (datasheet ordering addendum), the same device |
 | TPS3431DRBR | doesn't exist | TPS3431**S**DRBR |
-| WSK2512R0050FEA (5 mΩ) | Vishay's code for 5 mΩ is different | WSK2512**5L000**FEA |
-| WSK25121L500FEA (1.5 mΩ, 6 ports) | not listed at any distributor | find a stocked 4-terminal 1.5 mΩ 2512 (Bourns CSS2H-2512K class); WSLP is 2-terminal, so it would lose the Kelvin pads |
-| CSS4J-4026R-L500F | it is a Bourns part, not Isabellenhuette | text only |
-| XAL7030-222MEB | listed obsolete | XAL7030-222MEC |
-| Mini-Fit "5566-02A" | a series code | Molex 39-28-1023 |
-| 0466xxx.NR fuses | LCSC carries .NRHF only | same ratings, either is fine |
+| WSK2512R0050FEA (5 mΩ) | wrong Vishay code | WSK2512**5L000**FEA |
+| WSK25121L500FEA (1.5 mΩ, 6 ports) | not stocked, and WSK2512 is only 1 W (about 26 A continuous at 1.5 mΩ) | **Bourns CSS2H-2512K-2L00F, 2 mΩ, 5 W at 70 °C**, on the same split-pad Kelvin land. Thresholds kept: RISCP 3.4k → 4.64k (about 40 A short circuit), RIWRN 26.1k → 20k (30 A overload). port_sim: 0 bank trips; latch_sim 0 fails |
+| CSS4J-4026R-L500F | it's a Bourns part | text only |
+| XAL7030-222MEB | obsolete | XAL7030-222MEC |
+| Mini-Fit "5566-02A" | series code | order Molex 39-28-1023 (footprint unchanged) |
+| 0466xxx.NR fuses | LCSC carries .NRHF | either is fine |
 
 Biggest lines (2 sets, cheapest source):
 - 16 × IPB017N10N5LF: about $51 (LCSC/Rochester) vs $88 at DigiKey.

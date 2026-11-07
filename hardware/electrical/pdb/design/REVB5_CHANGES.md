@@ -157,8 +157,6 @@ With the shunt and basic-part mapping the board lands at **about 100-105 dollars
 
 - **Buck control loop.** TI's compensation for this L and C. The pigtail plus the 330 µF on the main board resonate near 20 kHz, so measure the loop at bring-up (a 0R injection resistor is fitted for it).
 - **Unverified part numbers:**
-  - WSK2512 1.5 mΩ / 2 mΩ / 5 mΩ codes (the footprint is right; confirm the exact MPN and value in stock);
-  - TPS48111AQDGXRQ1 orderable suffix;
-  - XAL7030-222MEB.
+  - resolved 2026-11-07, see PRODUCTION_RUN.md section 4 (limb shunts now 2 mΩ Bourns CSS2H-2512K-2L00F, 5 W).
 - **BMS seller (JBD SP17S005 60 A):** JBD's own store isn't confirmed; check silkscreen and FETs on delivery (pack plan 3.1).
 - **Drive capacitance per limb.** It sets the port start current; 20 mF total draws about 20 A, under the 30 A overload level.

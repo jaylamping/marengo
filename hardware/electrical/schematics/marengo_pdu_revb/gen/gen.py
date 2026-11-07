@@ -46,7 +46,7 @@ conn(2,'Pack: 8 AWG pigtail pair to an XT90 (mates the pack XT90S), 1 BAT, 2 GND
 s.refc['J']=2  # J2 (the second stud) is gone; later refs keep their numbers
 g=Grid(s,68.58,38.1,20.32,30.48,150)
 g.Z('5.0SMDJ58A','BAT','GND',SMC); g.C('1uF 100V X7R soft-term','BAT','GND',C1210); g.C('100nF 100V X7R soft-term','SH_P','GND',C805); g.F('BAT'); g.F('GND'); g.F('SH_P')
-nic(s,'Device:R_Shunt','RS1','0.5mR CSS4J-4026R-L500F 5W',(177.8,48.26),SH,{'1':'BAT','2':'SH_P','3':'SH_N','4':'SW_D'})
+nic(s,'Device:R_Shunt','RS1','0.5mR Bourns CSS4J-4026R-L500F 5W',(177.8,48.26),SH,{'1':'BAT','2':'SH_P','3':'SH_N','4':'SW_D'})
 Qb='marengo_revb:IPB017N10N5LF'
 nic(s,Qb,'Q1','IPB017N10N5LFATMA1',(228.6,48.26),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':'G1','2':'VBUS','3':'VBUS','4':'MID','5':'VBUS','6':'VBUS','7':'VBUS'})
 nic(s,Qb,'Q2','IPB017N10N5LFATMA1',(292.1,48.26),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':'G2','2':'VBUS','3':'VBUS','4':'MID','5':'VBUS','6':'VBUS','7':'VBUS'})
@@ -131,7 +131,7 @@ INA228 addresses, no strap on SDA: L arm 0x40, R arm 0x41, aux 0x43, L leg 0x44,
 
 # ---------- brick soft start ----------
 head('5a. Brick soft start (ahead of the E-stop switch)',(25.4,440))
-nic(s,'Device:R_Shunt','RS9','5mR 2512 Kelvin WSK2512R0050FEA',(60,462),SHK,{'1':'BAT','2':'SH9_P','3':'SH9_N','4':'BRK_D'})
+nic(s,'Device:R_Shunt','RS9','5mR 2512 Kelvin WSK25125L000FEA',(60,462),SHK,{'1':'BAT','2':'SH9_P','3':'SH9_N','4':'BRK_D'})
 nic(s,Qb,'Q7','IPB017N10N5LFATMA1',(115,462),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':'BRK_G1','2':'BRK_IN','3':'BRK_IN','4':'BRK_D','5':'BRK_IN','6':'BRK_IN','7':'BRK_IN'})
 nic(s,'Power_Management:LM5069MM-2','U7','LM5069MMX-2',(190,470),'Package_SO:MSOP-10_3x3mm_P0.5mm',{'1':'SH9_N','2':'SH9_P','3':'SH9_P','4':'GND','5':'GND','6':'BRK_T','7':'BRK_P','8':'BRK_PG','9':'BRK_IN','10':'BRK_GATE'},ds='https://www.ti.com/lit/ds/symlink/lm5069.pdf')
 g=Grid(s,240,452,20.32,30.48,340)
@@ -149,7 +149,7 @@ PORTDNP=[]
 for k,(nm,a1,a0,d) in enumerate(LIMBS):
     y=34+k*40; K=k+1
     rs=f'RS{K+1}'; u=f'U{10+K}'; t=f'L{K}'
-    nic(s,'Device:R_Shunt',rs,'1.5mR 2512 Kelvin WSK25121L500FEA',(660,y+12),SHK,{'1':'VBUS','2':f'SH{t}_P','3':f'SH{t}_N','4':f'D_{t}'})
+    nic(s,'Device:R_Shunt',rs,'2mR 2512 CSS2H-2512K-2L00F 5W',(660,y+12),SHK,{'1':'VBUS','2':f'SH{t}_P','3':f'SH{t}_N','4':f'D_{t}'})
     vb=f'D_{t}' if t=='L2' else f'V_{t}'   # R arm meter reads the port input: VBUS even with every port off
     nic(s,'Sensor_Energy:INA228',u,INA,(715,y+12),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':a1,'2':a0,'3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':vb,'9':f'SH{t}_N','10':f'SH{t}_P'},ds=INADS)
     gg=Grid(s,750,y+6,12,30,770); c=gg.C('100nF 25V X7R','+3V3_PI','GND')
@@ -186,7 +186,7 @@ U17 reads MID on its VBUS pin, and clamp duty on IN+ (block 10d). VBUS alone can
 head('8. Spare 12 V outputs',(560,472))
 mkic('TPS259541DSG',[('1','dVdt','passive'),('2','EN/UVLO','input'),('3','IN','passive'),('4','IN','passive'),('5','OUT','passive'),('6','FLT','open_collector'),('7','ILM','passive'),('8','GND','power_in'),('9','EP','power_in')],'Package_SON:Texas_DSG0008A_WSON-8-1EP_2x2mm_P0.5mm_EP0.9x1.6mm','https://www.ti.com/lit/ds/symlink/tps2595.pdf','TPS2595 eFuse, 18 V 4 A 34 mOhm, 13.7 V clamp, auto-retry')
 nic(s,LIBNAME+':TPS259541DSG','U9','TPS259541DSGR',(600,500),'Package_SON:Texas_DSG0008A_WSON-8-1EP_2x2mm_P0.5mm_EP0.9x1.6mm',{'1':'SP_DV','2':'SP_EN','3':'+12V','4':'+12V','5':'SP_SW1','6':None,'7':'SP_ILM','8':'GND','9':'GND'},ds='https://www.ti.com/lit/ds/symlink/tps2595.pdf')
-nic(s,'Device:R_Shunt','RS10','5mR 2512 Kelvin WSK2512R0050FEA',(660,500),SHK,{'1':'SP_SW1','2':'SHSP_P','3':'SHSP_N','4':'SPARE_SW'})
+nic(s,'Device:R_Shunt','RS10','5mR 2512 Kelvin WSK25125L000FEA',(660,500),SHK,{'1':'SP_SW1','2':'SHSP_P','3':'SHSP_N','4':'SPARE_SW'})
 nic(s,'Sensor_Energy:INA228','U10',INA,(715,500),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':'+3V3_PI','2':'I2C_SCL','3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':'SPARE_SW','9':'SHSP_N','10':'SHSP_P'},ds=INADS)
 conn(4,'SPARE_SW, off with the motors (2 x 2, keyed apart from the 2-pin outputs)',(765,500),MF4,['SPARE_SW','GND','SPARE_SW','GND'])
 conn(2,'SPARE_ON, always on',(810,500),MF2,['SPARE_ON','GND'])
@@ -285,10 +285,10 @@ g.D('BAV19W','RUN_P','RUN'); g.R('10k','PORT_FLT_N','+3V3_PI'); g.F('RUN_P')
 for k in range(6):
     K=k+1; t=f'L{K}'; y=95+k*105
     u=s.nref('U'); q=s.nref('Q'); refs=[u,q]
-    nic(s,LIBNAME+':TPS48111-Q1',u,'TPS48111AQDGXRQ1',(880,y),'marengo_revb:TPS48100_DGX_VSSOP-19',{'1':f'EN_{t}','2':'GND','3':f'INP_{t}','4':None,'5':'PORT_FLT_N','6':'GND','7':'GND','8':f'IWRN_{t}','9':f'TMR_{t}','10':'GND','11':None,'12':f'BST_{t}','13':f'V_{t}','14':f'GPD_{t}','15':f'GPU_{t}','17':f'SH{t}_N','18':f'CSP_{t}','19':f'ISCP_{t}','20':f'SH{t}_P'},ds='https://www.ti.com/lit/ds/symlink/tps4811-q1.pdf')
+    nic(s,LIBNAME+':TPS48111-Q1',u,'TPS48111LQDGXRQ1',(880,y),'marengo_revb:TPS48100_DGX_VSSOP-19',{'1':f'EN_{t}','2':'GND','3':f'INP_{t}','4':None,'5':'PORT_FLT_N','6':'GND','7':'GND','8':f'IWRN_{t}','9':f'TMR_{t}','10':'GND','11':None,'12':f'BST_{t}','13':f'V_{t}','14':f'GPD_{t}','15':f'GPU_{t}','17':f'SH{t}_N','18':f'CSP_{t}','19':f'ISCP_{t}','20':f'SH{t}_P'},ds='https://www.ti.com/lit/ds/symlink/tps4811-q1.pdf')
     nic(s,Qb,q,'IPB017N10N5LFATMA1',(950,y),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':f'G_{t}','2':f'V_{t}','3':f'V_{t}','4':f'D_{t}','5':f'V_{t}','6':f'V_{t}','7':f'V_{t}'})
     g=Grid(s,985,y-30,15,30,1160)
-    refs+=[g.R('100R',f'SH{t}_P',f'CSP_{t}'),g.R('3.4k 1%',f'ISCP_{t}',f'SH{t}_N'),g.R('26.1k 1%',f'IWRN_{t}','GND'),g.R('100k',f'TMR_{t}','GND')]
+    refs+=[g.R('100R',f'SH{t}_P',f'CSP_{t}'),g.R('4.64k 1%',f'ISCP_{t}',f'SH{t}_N'),g.R('20k 1%',f'IWRN_{t}','GND'),g.R('100k',f'TMR_{t}','GND')]
     g.C('1uF 16V X7R',f'TMR_{t}','GND',C603); refs.append(f"C{s.refc['C']}")
     g.C('220nF 25V X7R',f'BST_{t}',f'V_{t}',C603); refs.append(f"C{s.refc['C']}")
     g.C('100nF 100V X7R',f'SH{t}_P','GND',C805); refs.append(f"C{s.refc['C']}")
@@ -300,8 +300,8 @@ for k in range(6):
     if K in PORTDNP:
         for r in refs: dnp(r)
 wnote('''Why: a hard limb short used to latch the whole bus (U1 trips in under 0.4 ms, long before a 20 A fuse melts). Each port now opens itself first.
-Short circuit: RISCP 3.4k on 1.5 mOhm = 35-45 A (15.6 uA x (R + 464)), PD low within 1.6 us, then 22R to the gate: Miller about 0.16 us, so the drain-side di/dt stays a few A/ns against the 2.2 uF and the bus caps. tools/port_sim.py: for 50 nH to 1 uH of wiring, 0.5-1 uH pack lead, 0-50 A on the other limbs, RS1 peaks at 130 A or less against U8 158 A and U1 160 A minimum: the port always opens first. A short at the board pads (50 nH) puts about 1.1-1.4 kA through the FET for under 2 us (5-14 mJ; IPB017: 1024 A pulse, 979 mJ avalanche), which is why the port uses the bank FET. A short in the harness (200 nH or more) is 400-540 A.
-Overload: RIWRN 26.1k = 30 A (11.9 x RSET / (RSNS x IOC)), CTMR 1 uF with 100k across it: about 16 ms, then latch-off. The 20 A pigtail fuse stays as wire protection and as backup for a shorted FET.
+Short circuit: RISCP 4.64k on 2 mOhm = 35-45 A (15.6 uA x (R + 464)); the shunt is a 2-terminal 5 W metal strip on the split-pad Kelvin land (each end bridges its current and sense pads), 1.8 W at the 30 A trip level, PD low within 1.6 us, then 22R to the gate: Miller about 0.16 us, so the drain-side di/dt stays a few A/ns against the 2.2 uF and the bus caps. tools/port_sim.py: for 50 nH to 1 uH of wiring, 0.5-1 uH pack lead, 0-50 A on the other limbs, RS1 peaks at 130 A or less against U8 158 A and U1 160 A minimum: the port always opens first. A short at the board pads (50 nH) puts about 1.1-1.4 kA through the FET for under 2 us (5-14 mJ; IPB017: 1024 A pulse, 979 mJ avalanche), which is why the port uses the bank FET. A short in the harness (200 nH or more) is 400-540 A.
+Overload: RIWRN 20k = 30 A (11.9 x RSET / (RSNS x IOC)), CTMR 1 uF with 100k across it: about 16 ms, then latch-off. The 20 A pigtail fuse stays as wire protection and as backup for a shorted FET.
 Latch clears only when EN drops: an E-stop cycle, then reset. FLT_I of every port pulls PORT_FLT_N (Pi header): the Pi names the port whose output is low.
 Start: EN and INP come from RUN through one diode (a pin fault can't drive RUN). The bus starts from 0 under U1, so the port wakes at VS 3 V with BST up (0.22 uF, about 20 ms): the gate rises through 100k into 100 nF (diode-coupled, 10M bleed, so PD never sees it), about 1 kV/s at the output: 20 mF of drive capacitance draws about 20 A, under the 30 A overload level. After that the drive caps follow the bus.
 Off (E-stop, trip): the body diode still returns regen from the limb to the bus and the clamp. SK810L on each output carries the wiring current when the FET opens. 15 V zener gate to source.''',(860,735),210)
@@ -311,7 +311,7 @@ head('2a. Pi heartbeat watchdog: no heartbeat, no latch',(450,610))
 s.refc['U']=max(s.refc['U'],24)
 uw=s.nref('U')
 mkic('TPS3431',[('1','VDD','power_in'),('2','CWD','passive'),('3','EN','input'),('4','GND','power_in'),('5','SET1','input'),('6','WDI','input'),('7','WDO','open_collector'),('8','ENOUT','open_collector'),('9','EP','power_in')],'Package_SON:VSON-8-1EP_3x3mm_P0.65mm_EP1.65x2.4mm','https://www.ti.com/lit/ds/symlink/tps3431.pdf','Programmable watchdog timer with enable, 1.8-6.5 V, open-drain WDO')
-nic(s,LIBNAME+':TPS3431',uw,'TPS3431DRBR',(480,660),'Package_SON:VSON-8-1EP_3x3mm_P0.65mm_EP1.65x2.4mm',{'1':'VWD','2':'CWD','3':'VWD','4':'GND','5':'VWD','6':'WDI','7':'WDO_N','8':None,'9':'GND'},ds='https://www.ti.com/lit/ds/symlink/tps3431.pdf')
+nic(s,LIBNAME+':TPS3431',uw,'TPS3431SDRBR',(480,660),'Package_SON:VSON-8-1EP_3x3mm_P0.65mm_EP1.65x2.4mm',{'1':'VWD','2':'CWD','3':'VWD','4':'GND','5':'VWD','6':'WDI','7':'WDO_N','8':None,'9':'GND'},ds='https://www.ti.com/lit/ds/symlink/tps3431.pdf')
 g=Grid(s,520,625,17,30,700)
 g.R('2.2k','VCTL','VWD',R603); g.Z('BZT52C3V3','VWD','GND'); g.C('100nF 25V X7R','VWD','GND'); g.C('3.3nF C0G','CWD','GND',C603); g.F('VWD')
 g.nl(); g.R('10k','WD_FEED','WDI'); g.R('100k','WDI','GND'); g.R('22k','VWD','WDO_N')

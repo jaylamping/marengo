@@ -20,7 +20,7 @@ head('12 V buck: LM5146, 48 V to 12 V, 12 A, 400 kHz',(20,20))
 nic(s,'Connector_Generic:Conn_02x06_Odd_Even','J1','J24 mate: 1-2 +VIN, 3-4 GND, 5 ON/OFF (low = on), 6 GND, 7-9 GND, 10-12 +12 V',(40,70),'Connector_Molex:Molex_Micro-Fit_3.0_43045-1212_2x06_P3.00mm_Vertical',
     {'1':'VIN_P','2':'VIN_P','3':'GND','4':'GND','5':'ON_N','6':'GND','7':'GND','8':'GND','9':'GND','10':'VOUT','11':'VOUT','12':'VOUT'})
 g=Grid(s,80,50,17,30,300)
-g.D('SK810L-TP','VIN_P','GND',SMC); g.C('1uF 100V X7R','VIN_P','GND',C1210); g.L('2.2uH XAL7030-222MEB','VIN_P','VIN','Inductor_SMD:L_Coilcraft_XAL7030-222')
+g.D('SK810L-TP','VIN_P','GND',SMC); g.C('1uF 100V X7R','VIN_P','GND',C1210); g.L('2.2uH XAL7030-222MEC','VIN_P','VIN','Inductor_SMD:L_Coilcraft_XAL7030-222')
 g.CP('47uF 100V EEE-TK2A470AQ','VIN','GND','Capacitor_SMD:CP_Elec_10x10'); g.C('2.2uF 100V X7R','VIN','GND',C1210,k=5); g.C('100nF 100V X7R','VIN','GND',C603)
 g.F('VIN_P'); g.F('VIN'); g.F('GND')
 nic(s,LIBN+':LM5146','U1','LM5146RGYR',(120,140),'Package_DFN_QFN:Texas_RGY_R-PVQFN-N20_EP2.05x3.05mm_ThermalVias',

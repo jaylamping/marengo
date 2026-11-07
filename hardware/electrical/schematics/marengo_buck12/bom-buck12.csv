@@ -14,7 +14,7 @@
 "D1","SK810L-TP","Diode_SMD:D_SMC","1",""
 "D2","BAT46W","Diode_SMD:D_SOD-123","1",""
 "J1","J24 mate: 1-2 +VIN, 3-4 GND, 5 ON/OFF (low = on), 6 GND, 7-9 GND, 10-12 +12 V","Connector_Molex:Molex_Micro-Fit_3.0_43045-1212_2x06_P3.00mm_Vertical","1",""
-"L1","2.2uH XAL7030-222MEB","Inductor_SMD:L_Coilcraft_XAL7030-222","1",""
+"L1","2.2uH XAL7030-222MEC","Inductor_SMD:L_Coilcraft_XAL7030-222","1",""
 "L2","6.8uH XAL1010-682MED","Inductor_SMD:L_Coilcraft_XAL1010-XXX","1",""
 "Q1","BSC070N10NS5ATMA1","Package_TO_SOT_SMD:TDSON-8-1","1",""
 "Q2","BSC040N10NS5ATMA1","Package_TO_SOT_SMD:TDSON-8-1","1",""
