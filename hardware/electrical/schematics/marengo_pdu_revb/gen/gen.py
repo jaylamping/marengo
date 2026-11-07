@@ -210,10 +210,13 @@ g.D('MBRS3100T3G','ABS','BAT',SMC); g.CP('47uF 100V polymer','ABS','GND','Capaci
 g.two('Device:Fuse','F','250mA 63V 0466.250','BAT','BAT_CTL','Fuse:Fuse_1206_3216Metric'); g.C('1uF 100V','BAT_CTL','GND',C1210); g.F('BAT_CTL'); g.D('BAV19W','BAT_CTL','VCTL'); g.Z('SMAJ15A','VCTL','GND','Diode_SMD:D_SMA')
 g.D('BAV19W','RUN_B','RUN'); g.D('BAV19W','RUN_A','RUN'); g.D('BAV19W','FLT_A','UVLO')
 g.nl(); g.R('33k','MID','MID_S'); g.C('22nF 100V','MID','GND',C805); g.D('BAT46W','NO_PU','+3V3_PI'); g.CP('330uF 25V','+12V','GND','Capacitor_SMD:CP_Elec_8x10.5')
-wnote('''Absorber (B1): a fast breaker trip leaves the pack lead's current with nowhere to go. The diode lets BAT dump it into 47 uF, so a 200 A, 1 uH lead (20 mJ) charges it about 7 V, plus 6 V across a 30 mOhm ESR at 200 A: about 70 V peak. Polymer, ESR 30 mOhm or less. Measure the lead and scope a 60 A stop. 100k bleeds it. The cap charges through the diode when the BMS closes: 47 uF, 0.07 J, check the BMS takes it.
+g.C('1uF 25V','RST_SRC','GND',C603); g.Z('BZT52C10','MID','MID_Z'); g.R('220k','MID_Z','MID_B'); g.R('220k','MID_B','GND'); g.R('100k','VCTL','INT_B')
+s.refc['Q']=max(s.refc.get('Q',0),9)
+Q(NPN,'MMBT3904',(268,562),'INT_B','GND','RST_SRC'); Q(NPN,'MMBT3904',(295,562),'MID_B','GND','INT_B')
+wnote('''Block 10. Absorber (B1): a fast breaker trip leaves the pack lead's current with nowhere to go. The diode lets BAT dump it into 47 uF, so a 200 A, 1 uH lead (20 mJ) charges it about 7 V, plus 6 V across a 30 mOhm ESR at 200 A: about 70 V peak. Polymer, ESR 30 mOhm or less. Measure the lead and scope a 60 A stop. 100k bleeds it. The cap charges through the diode when the BMS closes: 47 uF, 0.07 J, check the BMS takes it.
 F1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps under the 40 V parts and F1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.
 RUN_A, RUN_B and FLT_A diodes (B3): a U1 pin 2-3 bridge or an EN fault can no longer drive RUN, so one fault loses one bank at most.
-33k on U17 VBUS (M13). 22 nF SRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land in it and the compute loads.''',(150,552),95)
+1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock (M1): Q10 shorts RST_SRC until MID is over about 11 V through the 10 V zener and Q11, so with bank B shorted and the bus down, reset does nothing; healthy MID is 17 V at a 36 V pack. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF SRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land in it and the compute loads.''',(300,130),120)
 writelib()
 s.write([('/'+ROOT,'1')])
 print('ok',{k:v for k,v in s.refc.items() if not k.startswith('#')})

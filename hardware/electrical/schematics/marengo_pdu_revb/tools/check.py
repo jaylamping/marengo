@@ -61,6 +61,9 @@ ok(not any(n('J20',p) in('VCTL',) for p in range(1,9)),'no bare 12 V on the loop
 ok(n('J20',4)=='GND' and n('J20',5)=='RST_SRC','GND between loop return and reset source')
 ok(two('VCTL','LOOP_OUT') and two('VCTL','RST_SRC'),'loop and reset fed through resistors')
 ok(not two('LOOP_RET','RST_IN'),'reset is not fed from the loop return (a held button must not re-arm)')
+ok(two('RST_SRC','GND',('C',)),'reset source slowed by a cap: reset held at power-up does not arm the latch')
+qi=[q for q in comp if q[0]=='Q' and n(q,3)=='RST_SRC' and n(q,2)=='GND']
+ok(len(qi)==1 and two('VCTL',n(qi[0],1),('R',)) and any(r[0]=='Q' and n(r,3)==n(qi[0],1) and n(r,1)=='MID_B' for r in comp),'reset interlock: RST_SRC held low until MID is healthy')
 # clamp
 ok(n('U3',3)==n('U4',1) and n('U3',6)=='VCTL','reference on IN-, comparator on VCTL')
 ok('Q6' in comp and 'CL_D' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'CL_G' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'GND' in [pin.get(('Q6',str(p))) for p in range(1,10)],'clamp FET D, G, S')

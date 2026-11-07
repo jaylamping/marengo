@@ -98,7 +98,9 @@ On the sheet, block 10 holds the new parts, so earlier refs keep their numbers. 
 | M10 | MID divider is 47k + 47k: hot leakage moves MID by under 5 V, so the self-test bands (0.4 to 0.6 × pack healthy) hold |
 | minor | 22 nF from MID to GND for U8 |
 | Fit | Six limb "−" terminals replaced by two GND studs. Check the stud and lug current |
-| Open | M8: rerun the latch sim at power-up with reset held. M1: no hardware reset interlock yet. M11: measurements. Brick placement (B2) waits for Joey's converter pick. The floorplan PNG predates this round |
+| M8 | Confirmed by simulation: with reset held and VCTL ramping in 20 µs, the latch armed (RUN 7 V). Fixed with 1 µF on RST_SRC. [`tools/latch_sim.py`](../../schematics/marengo_pdu_revb/tools/latch_sim.py) runs KiCad's ngspice and passes 36 cases at hFE 80 to 600, with ramps from 20 µs to 10 ms. U2's 309 mA current limit means VCTL can't rise faster than about 0.2 ms |
+| M1 | Reset interlock: Q10 holds RST_SRC low until MID is over about 11 V (BZT52C10 and Q11). With bank B shorted and the bus down, reset does nothing; healthy MID is 17 V or more. Simulated: blocked at MID 1 V and 8 V, closes at 17 V. Limit: if drive caps hold VBUS up, a shorted B reads healthy until they bleed down |
+| Open | M11: measurements. Brick placement (B2) waits for Joey's converter pick. The floorplan PNG predates this round |
 
 ## The fit decision
 

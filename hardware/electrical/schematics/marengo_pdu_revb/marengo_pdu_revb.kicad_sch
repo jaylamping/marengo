@@ -36202,16 +36202,1077 @@
 			)
 		)
 	)
-	(text "Absorber (B1): a fast breaker trip leaves the pack lead's current with nowhere to go. The diode\nlets BAT dump it into 47 uF, so a 200 A, 1 uH lead (20 mJ) charges it about 7 V, plus 6 V\nacross a 30 mOhm ESR at 200 A: about 70 V peak. Polymer, ESR 30 mOhm or less. Measure the lead\nand scope a 60 A stop. 100k bleeds it. The cap charges through the diode when the BMS closes:\n47 uF, 0.07 J, check the BMS takes it.\nF1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps\nunder the 40 V parts and F1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.\nRUN_A, RUN_B and FLT_A diodes (B3): a U1 pin 2-3 bridge or an EN fault can no longer drive RUN,\nso one fault loses one bank at most.\n33k on U17 VBUS (M13). 22 nF SRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on\n+12V: spare-output shorts and servo back-feed (M9) land in it and the compute loads."
+	(symbol
+		(lib_id "Device:C")
+		(at 139.7 560.07 0)
+		(unit 1)
 		(exclude_from_sim no)
-		(at 150 552 0)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "9f1689e4-f770-52db-9030-181e05453f20")
+		(property "Reference" "C42"
+			(at 142.24 558.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF 25V"
+			(at 142.24 561.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 139.7 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 139.7 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 139.7 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "6f1aeeb7-14f9-5ff2-b73b-9c91506858c0")
+		)
+		(pin "2"
+			(uuid "7c9ddc36-d95c-56ba-b5f8-802b244be571")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "C42")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 139.7 556.26)
+			(xy 139.7 553.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "90c000ad-f9e2-5fa4-9b5c-d64c7c73c4e9")
+	)
+	(label "RST_SRC"
+		(at 139.7 553.72 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "9031996e-f16a-5ec5-bafc-f7f55efafce0")
+	)
+	(wire
+		(pts
+			(xy 139.7 563.88)
+			(xy 139.7 566.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c690fe2e-2585-50f3-8229-fc3fe6b9e672")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 139.7 566.42 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "547e8e5b-4e4e-50f8-9ac3-110bc90df357")
+		(property "Reference" "#PWR117"
+			(at 143.51 565.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 143.51 567.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 139.7 566.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 139.7 566.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 139.7 566.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "58b95bb1-ce75-5cd5-ba29-3737fb45b9d5")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR117")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 165.1 560.07 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d0827275-c40b-5888-bb98-e03219da518e")
+		(property "Reference" "D14"
+			(at 167.64 558.8 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BZT52C10"
+			(at 167.64 561.34 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 165.1 560.07 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 165.1 560.07 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 165.1 560.07 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "40872e3c-7179-52e8-9aab-85b10af12031")
+		)
+		(pin "2"
+			(uuid "262fba98-ed94-5bf2-888e-078501a01c60")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "D14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 165.1 556.26)
+			(xy 165.1 553.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2f7b877b-849a-5222-b533-9b598e5b6057")
+	)
+	(label "MID"
+		(at 165.1 553.72 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "866a2786-a79b-519e-9a95-240f6fdeacd3")
+	)
+	(wire
+		(pts
+			(xy 165.1 563.88)
+			(xy 165.1 566.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5c97311a-fd9f-581e-abb4-3505aabaae0e")
+	)
+	(label "MID_Z"
+		(at 165.1 566.42 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "526777dc-8f94-5139-866a-361c24046f5a")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 190.5 560.07 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f398e8c1-b868-5ae1-ac8e-87a496107655")
+		(property "Reference" "R48"
+			(at 193.04 558.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "220k"
+			(at 193.04 561.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 190.5 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 190.5 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 190.5 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "05b994ec-c3e3-53b3-97f4-4fa34f30d829")
+		)
+		(pin "2"
+			(uuid "82b066c6-aa52-54d2-8a53-9d27d18f53c5")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "R48")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 190.5 556.26)
+			(xy 190.5 553.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f7191b9b-50ea-5aa1-9998-633d0d583b2d")
+	)
+	(label "MID_Z"
+		(at 190.5 553.72 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "fb6f9074-eb9b-5299-a6db-f2c11c44d6a6")
+	)
+	(wire
+		(pts
+			(xy 190.5 563.88)
+			(xy 190.5 566.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b72cc389-5fa9-5023-8c4d-755d7dcccd9b")
+	)
+	(label "MID_B"
+		(at 190.5 566.42 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "ed478ce6-88bb-5362-897b-6f924391f686")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 215.9 560.07 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2b21aaed-5b3c-53b7-9fda-51c4454d2567")
+		(property "Reference" "R49"
+			(at 218.44 558.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "220k"
+			(at 218.44 561.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 215.9 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 215.9 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 215.9 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "8ee4189d-a395-5e97-97eb-5e50aa4d2e21")
+		)
+		(pin "2"
+			(uuid "f229095e-1a63-5aeb-9887-cf8ff7546d89")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "R49")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 215.9 556.26)
+			(xy 215.9 553.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f69ed217-0ebd-546e-9f41-69991aaf5ee3")
+	)
+	(label "MID_B"
+		(at 215.9 553.72 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "dd534f0e-7952-51b3-944a-101f0eef40c3")
+	)
+	(wire
+		(pts
+			(xy 215.9 563.88)
+			(xy 215.9 566.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "59b90b55-9436-570c-901c-e67007c68099")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 215.9 566.42 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "18c09ebc-9ca2-5834-bc10-5c509308aab2")
+		(property "Reference" "#PWR118"
+			(at 219.71 565.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 219.71 567.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 215.9 566.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 215.9 566.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 215.9 566.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "81b8ae71-434c-5a09-9ab1-42f95774491c")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR118")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 241.3 560.07 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7ff3a99f-af5c-589c-a2ff-dc7e25c9c364")
+		(property "Reference" "R50"
+			(at 243.84 558.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100k"
+			(at 243.84 561.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 241.3 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 241.3 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 241.3 560.07 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a67b0a66-cbdf-5ce8-a3bf-478c04255ca2")
+		)
+		(pin "2"
+			(uuid "4cad93de-fa0d-544f-9189-b935bae13ec4")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "R50")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 241.3 556.26)
+			(xy 241.3 553.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "210a4b40-6ff3-559a-9121-a8106d37cb31")
+	)
+	(label "VCTL"
+		(at 241.3 553.72 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "cfc74641-2701-5003-a50c-d891b03fce70")
+	)
+	(wire
+		(pts
+			(xy 241.3 563.88)
+			(xy 241.3 566.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c5de5ed5-e7e0-5dfc-b720-59a3ccbdc683")
+	)
+	(label "INT_B"
+		(at 241.3 566.42 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c7fcfcc7-3686-500d-94fb-3d782853541d")
+	)
+	(symbol
+		(lib_id "Transistor_BJT:Q_NPN_BEC")
+		(at 267.97 562.61 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f581d683-ebb4-5679-91a9-c890ea510052")
+		(property "Reference" "Q10"
+			(at 262.89 546.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MMBT3904"
+			(at 262.89 579.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 267.97 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 267.97 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 267.97 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fa1353ed-b67b-5841-9fcf-c900211791de")
+		)
+		(pin "2"
+			(uuid "d0e6794e-262c-59b4-ab80-2c641e2073e1")
+		)
+		(pin "3"
+			(uuid "8491a82f-fe7b-5fbb-8c57-b9ce4e76bf10")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "Q10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 262.89 562.61)
+			(xy 257.81 562.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "746a19b8-1411-5251-955c-ac0d61124bea")
+	)
+	(label "INT_B"
+		(at 257.81 562.61 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "49c2dc10-f7e9-514f-aa55-839e2db18d2b")
+	)
+	(wire
+		(pts
+			(xy 270.51 567.69)
+			(xy 270.51 572.77)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fb226c63-e1cd-550a-ad26-26d51350acc5")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 270.51 572.77 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "b17cf46b-5881-5df7-a341-25b4235cf526")
+		(property "Reference" "#PWR119"
+			(at 274.32 571.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 274.32 574.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 270.51 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 270.51 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 270.51 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "7930516a-c8c0-5168-9a7f-e64957530782")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR119")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 270.51 557.53)
+			(xy 270.51 552.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c0b104cb-ce5b-5be0-878f-f1155629ca2e")
+	)
+	(label "RST_SRC"
+		(at 270.51 552.45 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5328cb90-e99b-5877-a71c-130decad3704")
+	)
+	(symbol
+		(lib_id "Transistor_BJT:Q_NPN_BEC")
+		(at 294.64 562.61 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "23b1a8a4-b11d-5d5e-bd5f-2e7b348a9991")
+		(property "Reference" "Q11"
+			(at 289.56 546.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MMBT3904"
+			(at 289.56 579.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 294.64 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 294.64 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 294.64 562.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "619f2230-f474-5056-a4d5-1e0097acc635")
+		)
+		(pin "2"
+			(uuid "fdaa76ba-0c20-563d-b5f8-dda355c1a5ea")
+		)
+		(pin "3"
+			(uuid "e26d6cb4-68b9-5323-90bc-9781405087fd")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "Q11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 289.56 562.61)
+			(xy 284.48 562.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2a366321-b370-5fc5-ac19-41041122c8a7")
+	)
+	(label "MID_B"
+		(at 284.48 562.61 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "51a2bf1c-cab8-5140-90c2-dc22ba36e983")
+	)
+	(wire
+		(pts
+			(xy 297.18 567.69)
+			(xy 297.18 572.77)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8ef7b078-d2b4-556e-a7d1-b103cee720db")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 297.18 572.77 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "0d4864a7-4a9c-576d-a3f3-73fd113d48c8")
+		(property "Reference" "#PWR120"
+			(at 300.99 571.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 300.99 574.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 297.18 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 297.18 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 297.18 572.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "4b3adc4b-6aef-5fb0-af6c-573a8d3ca26e")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR120")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 297.18 557.53)
+			(xy 297.18 552.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d5b1c78-ae45-59cf-9d5a-8e90bda83b3b")
+	)
+	(label "INT_B"
+		(at 297.18 552.45 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "eb6d7d69-5126-5e5a-84f4-ac10506ddabd")
+	)
+	(text "Block 10. Absorber (B1): a fast breaker trip leaves the pack lead's current with nowhere to go. The diode lets BAT dump\nit into 47 uF, so a 200 A, 1 uH lead (20 mJ) charges it about 7 V, plus 6 V across a 30 mOhm ESR at 200 A: about 70 V\npeak. Polymer, ESR 30 mOhm or less. Measure the lead and scope a 60 A stop. 100k bleeds it. The cap charges through the\ndiode when the BMS closes: 47 uF, 0.07 J, check the BMS takes it.\nF1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps under the 40 V parts and\nF1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.\nRUN_A, RUN_B and FLT_A diodes (B3): a U1 pin 2-3 bridge or an EN fault can no longer drive RUN, so one fault loses one\nbank at most.\n1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock\n(M1): Q10 shorts RST_SRC until MID is over about 11 V through the 10 V zener and Q11, so with bank B shorted and the bus\ndown, reset does nothing; healthy MID is 17 V at a 36 V pack. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF\nSRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land\nin it and the compute loads."
+		(exclude_from_sim no)
+		(at 300 130 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left top)
 		)
-		(uuid "90c000ad-f9e2-5fa4-9b5c-d64c7c73c4e9")
+		(uuid "4f67c399-b05c-5739-9f56-52c99d85a2a6")
 	)
 	(sheet_instances
 		(path "/"
