@@ -8,7 +8,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | Astra | Codex CLI | `-m gpt-6-astra` | `-s read-only` | 9 min |
 | Fable high (replaces Grok from 2026-11-06, Joey; **from 2026-11-07: big reviews only, never routine fix-check rounds**) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort high` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | 25 min on the subscription, rev C |
 | Opus high (added 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-opus-5-5 --effort high` | same as Fable | not yet timed |
-| Composer 2.5 Fast (trial, added 2026-11-07, Joey; Cursor sub) | cursor-agent, from PowerShell | `--model composer-2.5-fast` (no effort setting; the bracket form is rejected) | `-p --mode ask --trust --workspace . --output-format json`. Review text is in `result` | 2.6 min |
+| Composer 2.5 Fast (runs in **every** round from 2026-11-07, Joey: free on the Cursor sub. On trial: findings verified like DeepSeek's, and not counted toward the gate until it lands a real unique finding with no false blocker) | cursor-agent, from PowerShell | `--model composer-2.5-fast` (no effort setting; the bracket form is rejected) | `-p --mode ask --trust --workspace . --output-format json`. Review text is in `result` | 2.6 min |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
 | ~~Argon~~ (removed 2026-11-07, Joey, after two off-target reviews) | Antigravity `agy` | `--model gemini-4-argon-high` | | |
