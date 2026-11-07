@@ -38,10 +38,18 @@ PORT={1:('RS2','U11','C21','U19','Q15',68,50,23),2:('RS3','U12','C22','U20','Q16
 for k,(rs,ina,cd,u,q,r0,c0,d0) in PORT.items():
     put(f'L{k}',' '.join([cd,u]+[f'R{r0+i}' for i in range(10)]+[f'C{c0+i}' for i in range(5)]+[f'D{d0+i}' for i in range(2)]))
     s=1 if k%2 else -1; X0,X1,Y0,Y1=BLK[f'L{k}']
-    PFIX[rs]=(s*14.6,Y1-2.15,0 if s>0 else 180); PFIX[q]=(s*25.9,Y0+8.75,90); PFIX[f'D{d0+2}']=(s*35.4,Y0+5.0,90)
-    PFIX[ina]=(s*14.45,Y1-7.6,0)   # meter in the Kelvin channel, straight under the shunt
-    RES.setdefault('out',[]).append((min(s*6.8,s*9.0),max(s*6.8,s*9.0),Y1-7.5,Y1))   # VBUS via field at the shunt's bus pad, on the out block's edge
-    RES[f'L{k}']=[(min(s*38.8,s*42.5),max(s*38.8,s*42.5),Y0,Y0+5.2)]   # the D_L copper runs in the gap between the shunt and FET courtyards     # V_L neck from the output clamp to the pigtail
+    # right ports as drawn; left ports are the same row turned 180 degrees about the block centre, so the FET's gate pin
+    # stays on the inner side and the source pins face the pigtail (a mirror image isn't possible single-sided)
+    if s>0:
+        PFIX[rs]=(14.6,Y1-2.15,0); PFIX[q]=(25.9,Y0+8.75,90); PFIX[f'D{d0+2}']=(35.4,Y0+5.0,90)
+        PFIX[ina]=(14.45,Y1-7.6,0)   # meter in the Kelvin channel, straight under the shunt
+        RES.setdefault('out',[]).append((6.8,9.0,Y1-7.5,Y1))   # VBUS via field at the shunt's bus pad, on the out block's edge
+        RES[f'L{k}']=[(38.8,42.5,Y0,Y0+5.2)]   # V_L neck; the D_L copper runs in the gap between the shunt and FET courtyards
+    else:
+        PFIX[rs]=(-14.6,Y0+2.15,180); PFIX[q]=(-25.9,Y1-8.75,270); PFIX[f'D{d0+2}']=(-35.4,Y1-5.0,270)
+        PFIX[ina]=(-14.45,Y0+7.6,180)
+        RES.setdefault('out',[]).append((-9.0,-6.8,Y0,Y0+7.5))
+        RES[f'L{k}']=[(-42.5,-38.8,Y1-5.2,Y1)]     # V_L neck from the output clamp to the pigtail
 FIX={}   # ref: (X,Y,rot,back); back is never used: the board is single-sided (Joey, 2026-11-07)
 FIX['J1']=(8.0,335.0,0,False); FIX['J3']=(29.0,333.9,0,False); FIX['J25']=(37.0,333.9,0,False); FIX['J24']=(-30.0,334.0,0,False)
 # power flow (routing stage 1): RS1 vertical, BAT pad up, SW_D pad down, Kelvin pads on the left; D7/D21 between the BAT
@@ -62,7 +70,7 @@ for X,Y in HSINK:
     if blk: RES.setdefault(blk,[]).append((X-3.4,X+3.4,Y-3.4,Y+3.4))
 RES.setdefault('soft',[]).append((-16.0,-11.0,323.6,328.4))   # BAT neck from RS9 to D1 and the pack pour
 for Y,r in ((244.7,'J8'),(227.2,'J10'),(209.7,'J12')): FIX[r]=(45.0,Y,90,False)
-for Y,r in ((244.7,'J9'),(227.2,'J11'),(209.7,'J13')): FIX[r]=(-45.0,Y,90,False)
+for Y,r in ((244.7,'J9'),(227.2,'J11'),(209.7,'J13')): FIX[r]=(-45.0,Y,270,False)   # + at the top, toward the turned FET's pins
 for X,r in ((-31.0,'J21'),(-19.0,'J5'),(-10.5,'J6'),(-2.0,'J7'),(6.5,'J23'),(17.5,'J22')): FIX[r]=(X,195.0,0,False)
 # ---- nets and footprints
 nets={}

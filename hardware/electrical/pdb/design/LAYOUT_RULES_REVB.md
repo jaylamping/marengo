@@ -43,6 +43,13 @@
   - the 2.2 µF drain cap at the drain;
   - the SK810L output clamp at the source;
   - the shunt Kelvin pair runs to both the TPS48111 (VS, CS+ through 100 Ω, CS−) and the INA237.
+- **D2PAK-7 drain lead:** pin 4 (the centre lead) and the tab are the same drain but separate pads; a 0.5 mm track joins
+  them under the package body (it keeps 0.6 mm to pins 3 and 5). Pin 4 splits the source pins, so pins 2–3 reach the
+  source copper through vias at their outer ends into the L4 mirror. Pins 5–7 carry the source current on L1; three of
+  the five source leads are plenty for 30 A.
+- **Left limb ports** are the right ports' power row turned 180° (shunt, FET, output clamp, pigtail, meter), so every port
+  FET has its gate pin on the inner side and its source pins facing the pigtail.
+- **Brake headers J3/J25:** VBUS and CL_D run up the can column on L4 as 2 mm tracks (X 34.5 and 40.5).
 - **Limb outputs:** each limb's + and return are on one pigtail pair at the board edge, twisted from the exit. Add a strain-relief tie hole beside each pair.
 - **Brake headers J3/J25:** at the top edge. The −X pair runs above the board, not through the 6 mm gap behind it.
 
