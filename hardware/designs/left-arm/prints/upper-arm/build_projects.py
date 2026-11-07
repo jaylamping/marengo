@@ -34,15 +34,25 @@ JOBS = {
     'carrier': lambda: UP_X(read_stl(S / 'UA2_CARRIER.STL')),
     'p2': lambda: read_stl(S / 'P2_L05.STL'),
     'fit_coupons': lambda: coupons_plate(),
+    'guard': lambda: YZ(read_stl(S / 'GUARD.STL')),
     'cover': lambda: YZ(read_stl(S / 'UA2_COVER.STL')),
 }
+SEAT_XY = [0.0, 0.0]
+
+
 def coupons_plate():
-    """Hoop ring, hub core and bearing seat ring, cut from the final parts, printed the same way up."""
+    """Hoop ring, bearing seat ring, hub core and carrier sector, cut from the final parts, printed the same way up."""
     out = []
     dx = 0.0
-    for n in ('coupon_hoop', 'coupon_seat', 'coupon_hub'):
+    for n in ('coupon_hoop', 'coupon_seat', 'coupon_hub', 'coupon_carrier'):
         v = UP_X(read_stl(S / f'{n}.STL'))
         v = v - v.min(0)
+        if n == 'coupon_seat':
+            SEAT_XY[:] = [dx + np.ptp(v[:, 0]) / 2, np.ptp(v[:, 1]) / 2]
+        if n == 'coupon_carrier':  # beside the hub core, the row is full
+            out.append(v + [hx, np.ptp(hub[:, 1]) + 12, 0])
+            continue
+        hx, hub = dx, v
         out.append(v + [dx, 0, 0])
         dx += np.ptp(v[:, 0]) + 12
     return np.vstack(out)
@@ -52,7 +62,8 @@ def coupons_plate():
 BRIM = {'brim_type': 'outer_only', 'brim_width': '5'}
 EXTRA = {}
 # keeps support out of the bearing seat, r 28 about the elbow axis, carrier inboard face down
-BLOCK = {'carrier': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1)}
+BLOCK = {'carrier': lambda lo, hi: disc((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 28.0, lo[2] - 1, hi[2] + 1),
+         'fit_coupons': lambda lo, hi: disc(lo[0] + SEAT_XY[0], lo[1] + SEAT_XY[1], 28.0, lo[2] - 1, hi[2] + 1)}
 
 
 def disc(cx, cy, r, z0, z1, n=48):
