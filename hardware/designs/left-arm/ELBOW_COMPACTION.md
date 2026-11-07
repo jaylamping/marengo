@@ -29,7 +29,7 @@ Static FEA, 2 mm mesh, PETG, loads include the placeholder hand, pack and tube. 
 
 The fork misses both twist and fore-aft targets now that the tube is shorter, at the gusset ends near Y 150. Before this move, the fork twist was SF 1.82, layer 1.48. It needs rework before any full forearm print. Local peaks right at the finger contact band are much higher and unresolved; the dummy test measures that.
 
-Not done yet: B1 carrier slot and its FEA, the ribbon fixed-end route past the stub end, hand connector keep-out, full upper arm fine-mesh rerun, and a real output bearing rating for the RS00.
+B1 carrier slot, its FEA and the upper arm fine-mesh rerun are done, see `prints/upper-arm/FEA_SUMMARY.md`. Not done yet: hand connector keep-out and a real output bearing rating for the RS00.
 
 ## Pass 2, stack 4 mm outboard
 

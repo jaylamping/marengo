@@ -8,11 +8,11 @@ Supplier names are starting points. No listing below has been checked for stock,
 
 ## Custom cut
 
-These go to a laser or waterjet shop, because the hole positions are specific to this arm and no catalog part will fit. The files are in `dxf/`: `elbow_ring_84x66x2.dxf` and `hub_ring_32x16x2.dxf`. They are 1:1 in millimetres, circles only, so set the units to mm on upload and order 1 and 2 off. The elbow ring pattern is mirror symmetric, so it can go in either way up.
+These go to a laser or waterjet shop, because the hole positions are specific to this arm and no catalog part will fit. The files are in `dxf/`: `elbow_ring_84x66x2.dxf` and `hub_ring_32x16x2.dxf`. They are 1:1 in millimetres, circles, lines and arcs, so set the units to mm on upload and order 1 and 2 off. The elbow ring pattern is mirror symmetric, so it can go in either way up.
 
 | Part | Qty | Spec | Where it goes |
 | --- | --- | --- | --- |
-| Elbow ring | 1 | Ø84 OD, Ø66 ID, 2 mm steel, 6 × Ø3.4 holes on r 36.5 at 63.9, 103.9, 143.9, 223.9, 263.9 and 303.9 degrees | Between carrier and hoop, X 149.7 to 151.7 |
+| Elbow ring | 1 | Ø84 OD, Ø66 ID, 2 mm steel, 6 × Ø3.4 holes on r 36.5 at 63.9, 103.9, 143.9, 223.9, 263.9 and 303.9 degrees, ribbon notch at 180 degrees, 19 wide to r 38. If already cut, file the notch by hand | Between carrier and hoop, X 149.7 to 151.7 |
 | Hub ring | 2 | Ø32 OD, Ø16 ID, 2 mm steel, 6 × Ø4.5 holes on the Ø24 circle, 60 degrees apart | One on the flat at Y 298, one in the fork ring seat |
 
 Search terms: "laser cut steel parts", "custom waterjet steel". SendCutSend and OSH Cut both take DXF uploads.
