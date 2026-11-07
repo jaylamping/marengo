@@ -6,7 +6,7 @@ f = lambda s, b=False: ImageFont.truetype(FB if b else F, s)
 D = json.load(open('parts.json')); P = D['parts']
 S = 4.0  # px per mm
 LABEL = {'rs03_pitch': 'RS03 pitch', 'rs03_boss': '', 'rs03_pitch_out': '', 'pitch_bracket': 'pitch bracket', 'pitch_wing': '', 'shelf': 'shelf', 'pi5': 'Pi 5 + HAT', 'pi_stub': 'Pi stub',
-         'imu_old': 'IMU', 'pdb_logic': 'logic board', 'pdb_carrier': '', 'pdb_sheet': '', 'pdb_m3': '', 'pdb': 'power board', 'brake_res': 'brake R', 'rs03_waist': 'RS03 waist', 'waist_adapter': 'waist adapter', 'jetson': 'Jetson Orin Nano', 'fan_exhaust': 'fan', 'fan_intake': 'fan',
+         'imu_old': 'IMU', 'pdb_logic': 'logic board', 'pdb_carrier': '', 'pdb_sheet': '', 'pdb_m3': '', 'pdb': 'power board', 'brake_res_1': 'brake R', 'brake_res_-1': 'brake R', 'rs03_waist': 'RS03 waist', 'waist_adapter': 'waist adapter', 'jetson': 'Jetson Orin Nano', 'fan_exhaust': 'fan', 'fan_intake': 'fan',
          'compute3': '', 'battery': 'battery option', 'packrail': '', 'pack_bms': 'BMS', 'pack': '13S2P pack', 'bno085': '', 'harness': 'harness'}
 def lab(p):
     for k, v in LABEL.items():
