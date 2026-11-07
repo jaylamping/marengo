@@ -185,6 +185,10 @@ plan stage -> preflight -> run -> measure -> analyse -> gate
 
 Each session is saved in one folder: plan, drive telemetry, tag detections, selected frames and the results summary. Calibration records go next to the existing ones in `docs/commissioning/calibrations/` (software project decides the exact format).
 
+### Gesture iteration (e.g. a human wave)
+
+Joey (2026-11-07): commanded gestures like "a standard human wave" have never come out cleanly. Once C1–C7 pass, the same rig iterates gestures: the target is written as a measurable path (hand height and forward position, elbow angle, wave arc in degrees, frequency, number of cycles), the arm performs it at C7's safe speeds, the camera records the real hand and elbow path, and Claude scores it against the target and adjusts the joint trajectory, repeating until the score passes. A reference clip of a person waving, filmed by the same BRIO, can supply the target path. Same safety rules as C7; a new gesture's first run is attended.
+
 ## 11. Spec for the software project
 
 Not built here; listed so the software project can pick it up.
@@ -194,6 +198,7 @@ Not built here; listed so the software project can pick it up.
 - Analysis tools: circle fit for axis identification (C2), least-squares geometry fit for C3, backlash and repeatability stats, drift tracking for C8.
 - Drive preflight: read back and verify 0x700B, 0x7018, 0x7017, 0x7028 and the damper parameter before every run.
 - MCP access for Claude: start / stop a stage, fetch results and frames.
+- Gesture scoring: compare the camera-measured hand and elbow path with a target path (section 10, gesture iteration).
 
 ## 12. Bill of materials
 
