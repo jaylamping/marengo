@@ -15879,7 +15879,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100uF 80V HHXF800GRA101MJH0G"
+		(property "Value" "68uF 80V APZ1012680M080R"
 			(at 370.84 331.47 0)
 			(effects
 				(font
@@ -15888,7 +15888,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_10x14.3"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x12.6"
 			(at 368.3 330.2 0)
 			(effects
 				(font
@@ -16048,7 +16048,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100uF 80V HHXF800GRA101MJH0G"
+		(property "Value" "68uF 80V APZ1012680M080R"
 			(at 408.94 331.47 0)
 			(effects
 				(font
@@ -16057,7 +16057,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_10x14.3"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x12.6"
 			(at 406.4 330.2 0)
 			(effects
 				(font
@@ -16217,7 +16217,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100uF 80V HHXF800GRA101MJH0G"
+		(property "Value" "68uF 80V APZ1012680M080R"
 			(at 447.04 331.47 0)
 			(effects
 				(font
@@ -16226,7 +16226,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_10x14.3"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x12.6"
 			(at 444.5 330.2 0)
 			(effects
 				(font
@@ -16386,7 +16386,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100uF 80V HHXF800GRA101MJH0G"
+		(property "Value" "68uF 80V APZ1012680M080R"
 			(at 485.14 331.47 0)
 			(effects
 				(font
@@ -16395,7 +16395,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_10x14.3"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_10x12.6"
 			(at 482.6 330.2 0)
 			(effects
 				(font
@@ -16714,7 +16714,7 @@
 		)
 		(uuid "b7dfccb8-88d5-5809-bfa4-c9b65743fad5")
 	)
-	(text "400 uF, 80 V. The drives have their own. Can is 10 x 16.5: land owed, and it only clears under the higher ceiling, away from the fans. Part number unverified (rev B4 audit): open."
+	(text "272 uF, 80 V: 4 x APZ1012680M080R, 50 mOhm, 10 x 13 mm (Joey, 2026-11-07). The drives have their own bulk. VBUS peaks about 58 V: 27 % margin. Regen overshoot about 0.66 V before the clamp acts."
 		(exclude_from_sim no)
 		(at 355.6 318 0)
 		(effects
@@ -38771,7 +38771,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0R"
+		(property "Value" "copper link"
 			(at 364.49 459.74 0)
 			(effects
 				(font
@@ -38780,7 +38780,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+		(property "Footprint" "NetTie:NetTie-2_SMD_Pad2.0mm"
 			(at 361.95 458.47 0)
 			(effects
 				(font

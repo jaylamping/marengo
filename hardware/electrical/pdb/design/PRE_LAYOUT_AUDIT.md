@@ -144,3 +144,52 @@ APZ1012680M080R: DigiKey SG/FI showed 1,000 in stock (undated), about $2.57 each
 | Sensata 67L120 (metal bracket) | 120 ±5 °C / ≥ 85 °C | TO-220, M3 | 48 at DigiKey US per one aggregator (undated); 0 on DigiKey FR/ES |
 | Sensata 67L115P / 67L115 | 115 ±5 °C / ≥ 80 °C | TO-220, M3 | Not checked. Same datasheet, 5 °C earlier trip, also acceptable |
 | RS PRO 222-8237 | 120 °C / 105 °C, auto reset | Flange, tab terminals | 63 at RS UK (undated). Read its datasheet before choosing: the ratings aren't confirmed yet |
+
+## Decisions applied (Joey, 2026-11-07 15:12Z)
+
+1. **Absorber:** keep APZ1012470M100R. Order from a DigiKey region that shows stock, and buy 2 spares. The alternate is APC1012470M100R: same can, 35 mΩ, 15,000 h.
+2. **Bus caps:** C10–C13 are 4 × APZ1012680M080R, 68 µF 80 V, on the existing 10 × 12.6 land. That's 272 µF in total.
+3. **Thermostat:** Sensata 67L120 (metal bracket) is primary, 67L120P the alternate.
+4. **Placement:**
+   - C45 goes on the back face under bank B.
+   - R53 becomes direct copper: a NetTie-2 footprint, at least 5 mm wide in layout. Cut it only to fit the 10b option.
+   - Bank A moves into the fan zone beside bank B. The latch block moves up to the top strip, with about 0.8 cm² spilling beside C44.
+
+ERC clean, check.py 92/92, latch_sim 54/54. The floorplan is updated.
+
+## Rough cost estimate (2026-11-07)
+
+These are estimated distributor prices at qty 1 from typical catalogue pricing, with a ±25 % band. They aren't quotes. Run bom-digikey-upload.csv for real prices.
+
+**Board parts, one board: about $215**
+
+| Group | Estimate |
+| --- | --- |
+| Power FETs, 5 × IPB017N10N5LF | $28 |
+| Controllers: TPS48100, 2 × LM5069, TPS7A4001, TLV1805, LM4040, 2 × TPS259541 | $24 |
+| 7 × INA228 | $39 |
+| 8 × CSS4J shunts | $14 |
+| Absorber 3 × APZ 47 µF 100 V, bus 4 × APZ 68 µF 80 V, EEH-ZA1E331P | $23 |
+| 13 × Würth REDCUBE M4 terminals | $46 |
+| Micro-Fit, JST GH, test points | $13 |
+| Diodes, small transistors, fuses + holder | $13 |
+| MLCCs, resistors (including the 0.1 % and pulse parts) | $18 |
+
+**PCB:** 4 layers, 2 oz outer, 100 × 150 mm, qty 5. JLCPCB about $60–120 including shipping; PCBWay about $100–180. That's about $15–35 per board. Bare boards only: no assembly, and the THR terminals are hand-soldered.
+
+**Off-board power parts: about $230, or about $345 with the BMS and E-stop button**
+
+| Part | Estimate |
+| --- | --- |
+| Murata DVE0125V2NBC | $85 |
+| Converter adapter parts (EEE-TK2A470AQ, SK810L, caps) plus a small adapter PCB | $15 |
+| 2 × Arcol HS50 20R J | $20 |
+| Sensata 67L120 thermostat | $10 |
+| Limb fuses: 6 × Littelfuse 997 MINI + inline holders | $25 |
+| Class T 60 A pack fuse + holder | $40 |
+| Mating connectors and crimps: Micro-Fit plugs, JST GH leads, ring lugs | $25 |
+| Wire: 18 AWG silicone, twisted pairs, loop wiring | $10 |
+| JK BMS JK-BD6A17S8P | about $100 |
+| HB2-BS545 E-stop button | about $15 |
+
+**Total for one powered board set: about $500–600** (one board's parts, one board's share of the PCB order, the off-board parts, the BMS and the E-stop). Cells and the pack aren't included.

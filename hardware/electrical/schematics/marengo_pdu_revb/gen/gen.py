@@ -9,8 +9,8 @@ TPFP='TestPoint:TestPoint_Keystone_5015_Micro_Mini'
 GH=lambda n:f'Connector_JST:JST_GH_SM0{n}B-GHS-TB_1x0{n}-1MP_P1.25mm_Horizontal'
 MF2='Connector_Molex:Molex_Micro-Fit_3.0_43045-0212_2x01_P3.00mm_Vertical'
 SH='Resistor_SMD:R_Shunt_Isabellenhuette_BVR4026'
-CP='Capacitor_SMD:CP_Elec_10x14.3'
-CAP100='100uF 80V HHXF800GRA101MJH0G'
+CP='Capacitor_SMD:CP_Elec_10x12.6'
+CAP100='68uF 80V APZ1012680M080R'
 s=Sheet('root','marengo power board rev B','A0',comment='Rev B: a part goes in only if leaving it out would hurt. Parts list: hardware/electrical/pdb/REV_B_PARTS.md. Rev A stays as reference.')
 s.file='marengo_pdu_revb.kicad_sch'; s.refc['Q']=2
 def dnp(ref):
@@ -103,7 +103,7 @@ head('4. Bus capacitors',(355.6,308))
 g=Grid(s,368.3,330,38.1,30.48,560)
 for _ in range(4): g.CP(CAP100,'VBUS','GND',CP)
 g.F('VBUS'); tp(g,'VBUS')
-note('400 uF, 80 V. The drives have their own. Can is 10 x 16.5: land owed, and it only clears under the higher ceiling, away from the fans. Part number unverified (rev B4 audit): open.',(355.6,318))
+note('272 uF, 80 V: 4 x APZ1012680M080R, 50 mOhm, 10 x 13 mm (Joey, 2026-11-07). The drives have their own bulk. VBUS peaks about 58 V: 27 % margin. Regen overshoot about 0.66 V before the clamp acts.',(355.6,318))
 
 # ---------- brick ----------
 head('5. 12 V converter: Murata DVE0125V2NBC on the -X front post plate, pigtail J24 (block 10)',(25.4,352))
@@ -221,7 +221,7 @@ nic(s,'Transistor_FET:Q_NMOS_GSD',s.nref('Q'),'2N7002',(240,402),SOT23,{'1':'BRK
 g.R('10k 0.75W','FLT_D','UVLO','Resistor_SMD:R_2010_5025Metric')
 head('10b. Absorber close option (M3): 0R fitted, the rest DNP',(355.6,445))
 g=Grid(s,362,458,17,30.48,445)
-g.R('0R','ABS_N','GND','Resistor_SMD:R_2512_6332Metric')
+g.R('copper link','ABS_N','GND','NetTie:NetTie-2_SMD_Pad2.0mm')  # R53: direct copper (Joey, 2026-11-07), at least 5 mm wide in layout; cut it only to fit 10b
 g.R('2R 2512 pulse-rated 100mJ','ABS_N','GND','Resistor_SMD:R_2512_6332Metric'); dnp(f"R{s.refc['R']}")
 g.R('100k','VCTL','PRE_G'); dnp(f"R{s.refc['R']}")
 g.C('100nF','PRE_G','GND'); dnp(f"C{s.refc['C']}")

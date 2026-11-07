@@ -50,19 +50,22 @@ box(-48.4,-37.8,303.4,325,COL['conn'],'J24\n12 V\npigtail\n2×6',fs=7.2,z=5)
 yt0,yt1=305,339; ht=yt1-yt0
 w=lambda a:a/.6/ht
 x=-36.5; box(x,x+w(A['soft']),yt0,yt1,COL['fet'],f"Converter soft\nstart, F2, ON/OFF\n{A['soft']/.6/100:.1f} cm²",fs=8); x+=w(A['soft'])
-box(x,x+w(A['banka']),yt0,yt1,COL['fet'],f"E-stop bank A\nTPS48100,\n2 FETs\n{A['banka']/.6/100:.1f} cm²",fs=8); x+=w(A['banka'])
+# latch moved up here so bank A sits in the fan zone (Joey, 2026-11-07); its overflow spills into the pocket beside C44
+lx1=10.4; box(x,lx1,yt0,yt1,COL['logic'],f"E-stop latch, control\nrail, interlock, loop\nconnector, pressed input\n{A['latch']/.6/100:.1f} cm²",fs=8)
+spill=A['latch']/.6-(lx1-x)*ht; sw=spill/(325.8-yt0); box(18.6,18.6+sw,yt0,325.8,COL['logic'],'',fs=6); x=lx1
+print('latch spill mm2',round(spill),'width',round(sw,1))
 cw=A['clamp']/.6/(325.8-yt0); box(36.5-cw,36.5,yt0,325.8,COL['pow'],f"Clamp\n{A['clamp']/.6/100:.1f}\ncm²",fs=7.5)
 print('top strip ends at X',round(x,1),'J26 starts at',round(17.0-T/2,1),'clamp starts at',round(36.5-cw,1))
 # second row, Y 268 to 302
 y0,y1=268,302
 w=lambda a:a/.6/(y1-y0)
 x=-36.5
-for k,name,c in (('bank','E-stop bank B\nLM5069-1, 2 FETs, shunt,\nabsorber','fet'),('latch','E-stop latch, control\nrail, interlock, loop\nconnector, pressed input','logic')):
+for k,name,c in (('bank','E-stop bank B\nLM5069-1, 2 FETs, shunt,\nabsorber (C45 on the back face)','fet'),('banka','E-stop bank A\nTPS48100, 2 FETs\n(in the fan zone)','fet')):
     box(x,x+w(A[k]),y0,y1,COL[c],f'{name}\n{A[k]/.6/100:.1f} cm²',fs=8); x+=w(A[k])
 print('second row ends at X',round(x,1),'limit 36.5')
 # bus caps in the strip between the fans, true size
 for k in range(4):
-    X=-18.3+k*12.2; box(X-6.1,X+6.1,238,250.2,COL['cap'],'100 µF',fs=7.5)
+    X=-18.3+k*12.2; box(X-6.1,X+6.1,238,250.2,COL['cap'],'68 µF',fs=7.5)
 # meters
 mh=A['limb']/2/.6/11.9
 for X0,X1,t in ((-36.5,-24.6,'R side meters'),(24.6,36.5,'L side meters')):

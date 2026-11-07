@@ -81,8 +81,8 @@ d=[r for r in comp if r[0]=='D' and val(r).startswith('MBRS')]
 ok(len([r for r in d if n(r,1)=='VBUS' and n(r,2)=='CL_D'])==1,'one freewheel diode')
 ok(diode('ABS','BAT') and len([c for c in [r for r,p in nets['ABS'] if r[0]=='C'] if val(c).startswith('47uF') and not dnp(c)])==3 and any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS'] if r[0]=='C']) and two('ABS','GND',('R',)),'battery-side absorber: diode, cap, bleed')
 absn=[r for r in comp if r[0]=='R' and {n(r,1),n(r,2)}=={'ABS_N','GND'}]
-ok(any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS_N'] if r[0]=='C']) and [r for r in absn if not dnp(r) and val(r)=='0R'] and all(dnp(r) for r in absn if val(r)!='0R'),'absorber ground leg: 0R fitted, close-surge option DNP')
-ok(sum(1 for c in comp if c[0]=='C' and val(c).startswith('100uF'))==4,'four bus caps')
+ok(any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS_N'] if r[0]=='C']) and [r for r in absn if not dnp(r) and val(r)=='copper link'] and all(dnp(r) for r in absn if val(r)!='copper link'),'absorber ground leg: copper link fitted, close-surge option DNP')
+ok(sum(1 for c in comp if c[0]=='C' and val(c).startswith('68uF 80V'))==4,'four bus caps')
 # meters
 addr={}
 SYM={'GND':0,'+3V3_PI':1,'I2C_SDA':2,'I2C_SCL':3}
