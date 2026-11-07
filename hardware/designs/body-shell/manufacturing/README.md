@@ -194,6 +194,11 @@ Each stage is cheaper than the next. Nothing goes to a full panel until the earl
 | C7 | Wall coupons at 2.0, 2.4 and 3.0 mm, 1 kg drop weight | Pick the wall thickness |
 | C8 | Grille sample: free area and a finger probe | ≥ 50% open, slots ≤ 6 mm |
 | C9 | TPU pad crush: 60 × 60 × 30 blocks at 3 infills, weight drop or slow press | Absorbs the per-pad share of the back-fall energy within 25 mm |
+| C10 | Screw cap Ø7.9 in Ø8.2 × 4.2 counterbore, clearance steps 0.10–0.20 mm | Cap stays in by hand, pries out with a fingernail |
+| C11 | Bracket foot with the 5.8 × 1.6 slot key on a real 2020 rail + T-nut, M5 torqued | Key seats, bracket does not rotate |
+| C12 | D2 magnet pair in shear (door block vs U2 pad), plus the M2.5 plastite lock | Door holds shut over C6 drops with locks out; record the pull force |
+| C13 | M2.5 × 6 plastite into the Ø2.2 × 5 pilot with 1 mm skin, 5 cycles | No strip, no bulge on the outer face |
+| C14 | Lower back panel printed tilted 45° (5 h) vs split face down (9 h) | Accept tilt only if the face-up stepping is invisible at arm length |
 
 ## 8b. SolidWorks pilot, upper front left (2026-11-06)
 
