@@ -35,15 +35,18 @@ The front edge is cut back near the elbow so the fork folds past the tube. The l
 
 ## FEA
 
-Linear static, PETG as in the upper arm baseline, layers across the fork. M4 holes fixed, bearing seat as a hinge, M3 holes loaded rigidly. The same limits on that model apply as in `../upper-arm/GATE2_REVIEW.md`.
+**Superseded.** The table below was run before the elbow compaction and is stale. The current fork numbers are in `../ELBOW_COMPACTION.md`: fore-aft SF 1.27, layer 1.27, and twist SF 1.32, layer 0.9, against targets of 2.0 / 1.5. Both fail at the gusset ends near Y 150. The fork needs rework before any full forearm print.
 
-| Case at the hand, Y 20 | Peak, MPa | Safety factor | Layer safety factor | Tip deflection, mm |
+Old run, for history only: linear static, PETG as in the upper arm baseline, layers across the fork. M4 holes fixed, bearing seat as a hinge, M3 holes loaded rigidly. The same limits on that model apply as in `../upper-arm/GATE2_REVIEW.md`.
+
+| Case at the hand, Y 20 (pre-compaction) | Peak, MPa | Safety factor | Layer safety factor | Tip deflection, mm |
 | --- | --- | --- | --- | --- |
 | 100 N fore-aft, about the 17 N·m elbow peak | 18.6 | 2.4 | 1.9 | 2.5 |
 | 100 N lateral + 14 N·m RS00 torque, before the last gusset trim | 14.9 | 3.0 | 1.8 | 1.9 |
 
 ## Still to do
 
+- Fork rework: fore-aft and twist SF fail at the gusset ends near Y 150. See `../ELBOW_COMPACTION.md`.
 - Steel ring at the M4 heads, as on the rev C hub.
 - Bearing fit and retention: a 2 mm lip on the outer side, nothing yet on the inner race.
 - Fuse pocket for the RS00 drop, about 30 × 12 × 8 mm, through a service opening.
