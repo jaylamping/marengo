@@ -341,8 +341,10 @@ box('pack', 32, '13S2P 21700 pack, 95 x 162 x 79, 2.2 kg: 26 x Molicel P45B/P50B
 box('pack_bms', 32, 'JK-BD6A17S8P BMS 133 x 81 x 18 on standoffs, pack rear face, long axis along Y, FET heatsink facing rearward to D2 (battery thread, Joey picked on-pack BMS, main d42e88f)', (-40.5, 186, -65), (40.5, 319, -45), COL['pdb'], 'electronics', (0, 0, -90), mass_g=180, material='JK-BD6A17S8P', opacity=0.8,
     note='Rides on the pack inside the D2 opening (|X| <= 60), 5 mm inside the frame rear face; slides out with the pack. Replaces the pack sense board.')
 # battery thread 20:13Z (provisional until the case CAD): mated XT90S lying flat on the pack rear face, axis along X; XT60 charge pigtail beside it; fuse inside the case
-box('pack_xt90', 32, 'Mated XT90S pair on a printed saddle, flat on the pack rear face, axis along X (battery thread, provisional)', (-15, 323, -60), (43, 345, -45), '#e0c23a', 'electronics', (0, 0, -90), mass_g=30, material='XT90S', opacity=0.8)
-box('pack_chg_xt60', 32, 'XT60 charge pigtail, parked flat on the pack rear face (battery thread, on-pack BMS)', (-42, 325, -58), (-17, 345, -45), '#e0c23a', 'electronics', (0, 0, -90), mass_g=10, material='XT60', opacity=0.8)
+# battery thread ec2513d (2026-11-07): XT90S pack half captured in a printed pocket in the case wall at X +10..+45, mating face -X; board half
+# plugs in from -X (58 mm mated, verify with parts), its 8 AWG pair bends up in the old XT60 space toward the top path (X -5..25).
+box('pack_xt90', 32, 'XT90S: pack half in a printed case-wall pocket (X +10..+45), board half plugs in from -X; 58 mm mated (provisional, verify with parts); 8 AWG board leads bend up from the -X end', (-13, 323, -60), (45, 345, -45), '#e0c23a', 'electronics', (0, 0, -90), mass_g=30, material='XT90S', opacity=0.8)
+box('pack_chg_xt60', 32, 'XT60 charge pigtail parked flat on the pack TOP in a recessed printed clip, lying along Z, 14 AWG leads (battery thread); nothing above Y 353 (0.4 mm under the shared rail)', (-45, 345, -45), (-20, 353.2, -20), '#e0c23a', 'electronics', (0, 0, -90), mass_g=10, material='XT60', opacity=0.8)
 for sx in (1, -1):
     # Joey 16:32Z cradle, SolidWorks model main f9621274 (../cradle/): web |X| 48-51.5, feet over the bottom side rail and under the shelf rail,
     # ledge and front lip, thumbscrew boss at Y 252.6 Z -5. Envelope boxes here; the STEP is the source.
