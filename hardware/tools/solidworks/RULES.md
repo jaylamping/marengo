@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, r"J:\code\marengo\hardware\tools\solidworks")
 from sw_instance import launch
 
-with launch() as inst:          # new SLDWORKS.exe, attached by PID
+with launch() as inst:          # new SLDWORKS.exe, hidden, attached by PID
     sw = inst.sw                # ordinary SldWorks COM object
     cw = inst.load_simulation() # only if the session needs FEA
     ...
@@ -18,9 +18,29 @@ with launch() as inst:          # new SLDWORKS.exe, attached by PID
 
 To reuse one instance across separate script runs, use `session(state_file)` with a PID file the session owns, and call `inst.close()` when finished.
 
+## Hidden by default
+
+Joey uses the PC while sessions work, so SolidWorks must never pop up or take focus. `launch()` and `session()` now start hidden. Pass `visible=True` only when someone needs to see the window.
+
+A hidden launch does three things:
+
+- Starts SLDWORKS.exe with its window hidden.
+- Starts a small separate process that hides every window of that PID, ten times a second, until the PID exits. It keeps working during a blocking solve, when COM can't be called.
+- Sets `Visible` and `UserControl` to False.
+
+Setting `sw.Visible = False` alone is not enough. It read back True and the window stayed up.
+
+Anything hidden is logged to `sw_hidden_<pid>.log` in the temp folder, and `HAD FOCUS` marks a window that took focus. **A hidden modal dialog blocks the instance, so if a script hangs, read that log first.**
+
+If something won't run hidden, use `inst.minimize()`, which never takes focus. `inst.hide()` hides on demand. From another process, or for a stuck instance of your own, call `hide_windows(pid)`.
+
+For Bambu Studio, use the CLI (`--slice`), which opens no window.
+
+solidworks-mcp servers start their instance through their own code, so they don't get this until that build is changed.
+
 ## Rules
 
-1. Each session starts its own instance with `launch()` and uses that handle.
+1. Each session starts its own instance with `launch()` and uses that handle. Keep it hidden.
 2. Never use `GetActiveObject`, `Dispatch("SldWorks.Application")` or anything else that reaches "the running SolidWorks". It can land in another session's instance.
 3. Never call `ExitApp`, close documents in, or kill a PID the session did not start.
 4. One file belongs to one session. Other sessions open a copy, read-only. Agree ownership before writing.
@@ -43,10 +63,19 @@ Joey-PC, SolidWorks 2026 SP0, 2026-11-06, with another session's instance open t
 | Exit own instance, other instance still responding | Pass |
 | RAM | About 950 MB idle, 1.3 GB with Simulation, 1.6 GB after the solve |
 
+Hidden mode, Joey-PC, 2026-11-07:
+
+| Check | Result |
+| --- | --- |
+| Launch to ready | Pass. Splash and welcome screen hidden within 0.1 s of appearing. No window took focus |
+| Open, modify, save and STL export | Pass |
+| Simulation add-in, mesh and solve, 307,835 nodes | Pass, 29 to 35 s. No new windows and no focus change during the run |
+| Exit | Pass, hider process stops by itself |
+
 Two startup problems came up. `launch()` handles both:
 
 - Two SolidWorks processes starting at the same moment can stall, so launches queue on a lock file.
-- A third process stops at a modal prompt, "A journal file could not be created. Auto recover will not work". `launch()` clicks OK on exactly that prompt, in its own PID only, and sets `no_auto_recover`.
+- A third process stops at a modal prompt, "A journal file could not be created. Auto recover will not work". `launch()` clicks OK on exactly that prompt, in its own PID only, even when it is hidden, and sets `no_auto_recover`.
 
 Four instances ran at once in the solidworks-mcp test, each in its own PID, with no modeling load on all four.
 

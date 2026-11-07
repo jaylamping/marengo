@@ -2,7 +2,7 @@
 
     from sw_instance import launch
 
-    with launch() as inst:
+    with launch() as inst:      # hidden, never takes focus
         sw = inst.sw
         ...
 
@@ -13,6 +13,7 @@ instance. Never use GetActiveObject or Dispatch('SldWorks.Application').
 import msvcrt
 import os
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -62,7 +63,7 @@ def _clear_journal_prompt(pid):
     tops = []
 
     def find(h, _):
-        if win32process.GetWindowThreadProcessId(h)[1] == pid and win32gui.IsWindowVisible(h) and win32gui.GetClassName(h) == "#32770":
+        if win32process.GetWindowThreadProcessId(h)[1] == pid and win32gui.GetClassName(h) == "#32770":
             tops.append(h)
         return True
 
@@ -75,6 +76,63 @@ def _clear_journal_prompt(pid):
             win32gui.PostMessage(texts["OK"], win32con.BM_CLICK, 0, 0)
             return True
     return False
+
+
+def hide_windows(pid):
+    """Hide every visible top-level window of this PID. Works while COM is blocked by a solve. Returns what it hid."""
+    hid = []
+
+    def find(h, _):
+        if win32process.GetWindowThreadProcessId(h)[1] == pid and win32gui.IsWindowVisible(h):
+            win32gui.ShowWindow(h, win32con.SW_HIDE)
+            hid.append((win32gui.GetClassName(h), win32gui.GetWindowText(h)))
+        return True
+
+    win32gui.EnumWindows(find, None)
+    return hid
+
+
+def minimize_windows(pid):
+    """Fallback for anything that will not run hidden: minimize this PID's windows without taking focus."""
+    hid = []
+
+    def find(h, _):
+        if win32process.GetWindowThreadProcessId(h)[1] == pid and win32gui.IsWindowVisible(h):
+            win32gui.ShowWindow(h, win32con.SW_SHOWMINNOACTIVE)
+            hid.append((win32gui.GetClassName(h), win32gui.GetWindowText(h)))
+        return True
+
+    win32gui.EnumWindows(find, None)
+    return hid
+
+
+def hider_log(pid):
+    return os.path.join(tempfile.gettempdir(), f"sw_hidden_{pid}.log")
+
+
+def _watch_hidden(pid):
+    """Keep this PID's windows hidden until it exits. Anything hidden is logged, because a hidden modal dialog blocks the instance."""
+    seen = set()
+    while psutil.pid_exists(pid):
+        fore = win32gui.GetForegroundWindow()
+        took = fore and win32process.GetWindowThreadProcessId(fore)[1] == pid
+        for item in hide_windows(pid):
+            if item not in seen or took:
+                seen.add(item)
+                with open(hider_log(pid), "a", encoding="utf8") as f:
+                    f.write(f"{time.strftime('%H:%M:%S')} {item[0]} | {item[1]}{' | HAD FOCUS' if took else ''}\n")
+        time.sleep(0.1)
+
+
+def _start_hider(pid):
+    """A separate process, so it keeps working while this one waits on a blocking COM call and after it exits."""
+    exe = sys.executable
+    w = exe.replace("python.exe", "pythonw.exe")
+    subprocess.Popen(
+        [w if os.path.exists(w) else exe, os.path.abspath(__file__), "--hide-watch", str(pid)],
+        creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
+        close_fds=True,
+    )
 
 
 def _attach_by_pid(pid):
@@ -101,6 +159,12 @@ class Instance:
 
     def __exit__(self, *exc):
         self.close()
+
+    def hide(self):
+        return hide_windows(self.pid)
+
+    def minimize(self):
+        return minimize_windows(self.pid)
 
     def rss_mb(self):
         return round(psutil.Process(self.pid).memory_info().rss / 1e6)
@@ -145,14 +209,23 @@ class Instance:
             pass
 
 
-def launch(timeout=300, visible=True):
-    """Start a new SolidWorks process and return an Instance attached to it by PID."""
+def launch(timeout=300, visible=False):
+    """Start a new SolidWorks process and return an Instance attached to it by PID.
+
+    Hidden by default, so it never pops up or takes focus. Pass visible=True only when someone needs to see it.
+    """
     if not os.path.exists(EXE):
         raise RuntimeError(f"SolidWorks not found at {EXE}")
     pythoncom.CoInitialize()
     with _LaunchLock(2 * timeout):
-        proc = subprocess.Popen([EXE])
+        si = subprocess.STARTUPINFO()
+        if not visible:
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = win32con.SW_HIDE
+        proc = subprocess.Popen([EXE], startupinfo=si)
         pid = proc.pid
+        if not visible:
+            _start_hider(pid)
         start = time.time()
         disp = None
         while time.time() - start < timeout:
@@ -185,6 +258,8 @@ def launch(timeout=300, visible=True):
     if got != pid:
         raise RuntimeError(f"attached to PID {got}, expected {pid}")
     sw.Visible = visible
+    if not visible:
+        sw.UserControl = False
     inst = Instance(pid, sw)
     inst.no_auto_recover = journal
     return inst
@@ -203,14 +278,18 @@ def attach(pid):
     return Instance(pid, sw)
 
 
-def session(state_file):
+def session(state_file, visible=False):
     """Reuse this session's instance across script runs, keyed by a PID file the session owns."""
     state = str(state_file)
     if os.path.exists(state):
         pid = int(open(state).read().strip())
         if psutil.pid_exists(pid) and psutil.Process(pid).name().lower() == "sldworks.exe":
             return attach(pid)
-    inst = launch()
+    inst = launch(visible=visible)
     with open(state, "w") as f:
         f.write(str(inst.pid))
     return inst
+
+
+if __name__ == "__main__" and len(sys.argv) == 3 and sys.argv[1] == "--hide-watch":
+    _watch_hidden(int(sys.argv[2]))
