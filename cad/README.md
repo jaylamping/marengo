@@ -29,7 +29,7 @@ cad/
   torso/  waist/  shoulder/  upper-arm/  elbow/  forearm/  hand/
   arm/                        whole-arm assemblies only (marengo_arm_left_asm, marengo_arm_right_asm)
   shell/                      body shell panels
-  hip/  leg/  head/           created when that work starts
+  hip/  leg/  head/  neck/    created when that work starts
   # function folders
   vendor/                     robstride/<rs00|rs02|rs03|rs04>/, frame-hardware/, compute/, fasteners/, incoming/
   reference/                  read-only references (torso STEP, datum reports)

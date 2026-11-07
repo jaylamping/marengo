@@ -15,7 +15,8 @@
     "shell",
     "hip",
     "leg",
-    "head"
+    "head",
+    "neck"
   ],
   "functionFolders": {
     "manifests": { "extensions": [".json"] },
