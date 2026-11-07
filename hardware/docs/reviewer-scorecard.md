@@ -90,6 +90,16 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B4 task | Argon (task: figure reading), gemini-4-argon-high | high | 2 | 1 | 0 | 0 | on (checked) | 0 | 8.8 | Gemini quota | | Arcol right, including "no pulse curve: NOT IN SOURCE". DVE derating read up to 13 % low (conservative). IPB017 SOA log-log read 1.5-2x high with "high" confidence: 1 of 10 within 25 %. Scored per figure set: 2 usable, 1 false |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
+## Round wall time
+
+All reviewers run concurrently (recipe), so a round takes as long as its slowest reviewer. Failed or hung trial runs aren't counted.
+
+| Round | Wall time (min) | Slowest reviewer | Next slowest |
+| --- | --- | --- | --- |
+| PDB rev B2 | 24.6 | Opus (agy) | Fable 23.9 |
+| PDB rev B3 | 34.9 | Opus: agy 6.3, then API 28.6 | Astra 32.7 |
+| PDB rev B4 | 32.7 | Fable | Sol 29.8 |
+
 ## By model
 
 Totals of the rows above. Compare them with care: rounds differ, and not every model ran in every round.
