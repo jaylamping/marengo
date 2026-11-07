@@ -195,8 +195,8 @@ the heartbeat toggled from the control loop every 50 to 100 ms, `canTimeout` ≤
 meters on one Pi I²C controller, the startup self-test, the brake clamp caps (30 W average over 60 s until the heat test, 3 kJ
 per burst), the brown-out current budget and the E-stop input debounce.
 
-**Note:** REV_B_PARTS.md gives the limb shunt as 2 mΩ in the parts table and 1.5 mΩ in the meter row. The power board thread
-is resolving it; read the value from that doc when you write the meter scaling.
+**Limb shunts are 2 mΩ** (Bourns CSS2H, 45 A = 90 mV, ADCRANGE 0), confirmed by the power board thread on 2026-11-07;
+an older 1.5 mΩ figure in REV_B_PARTS.md was stale. The MID meter's shunt input reads brake clamp duty, not current.
 
 **Can start now** against the spec and the `vcan` sim (item 4). **Hardware ready:** after the board's review and fab order.
 
