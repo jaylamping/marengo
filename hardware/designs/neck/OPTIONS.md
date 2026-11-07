@@ -119,7 +119,9 @@ the drive. That only works if the frame thread leaves room under the collar.
    the bay himself. Fixed limits: top rails Y 475-495 at Z ±50..70, usable bay |X| < 78 between the shoulder
    motors, top-rail T-slots free except the H1/H2 nuts (front X ±60, rear X ±85). The neck also needs a mount: a plate on the top rails with T-nuts.
 3. **Power ("Plan the custom power and peripheral board").** The servos run on 12 V from the 150 W brick.
-   Expect about 1 A typical. Power thread (04:46Z) will solve the E-stop gap on the board: one "motion 12 V"
+   Expect about 1 A typical. UPDATE 06:41Z (Joey approved on the power thread): the board gets generic SPARE_SW
+   (E-stop switched, ~4 A: neck + jaw servos, total kept under 4 A by servo config) and SPARE_ON (unswitched, ~2 A:
+   head electronics). Earlier plan: Power thread (04:46Z) will solve the E-stop gap on the board: one "motion 12 V"
    output switched by the same E-stop latch as the motor bus, through a load switch limited to about 4 A.
    It feeds the neck servos and the jaw servo; displays, camera and audio stay unswitched. Because the brick
    also feeds compute, servo torque/current is capped in servo config to stay inside 4 A (no 8 A stall peaks).
