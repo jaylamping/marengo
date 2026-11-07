@@ -1,0 +1,58 @@
+{
+ "moulded_pitch": 12.5,
+ "installed_pitch": 10.4,
+ "moulded_free_length": 62.5,
+ "neutral_psi_deg": 69.3,
+ "flank": 4.45,
+ "crest_range": [
+  31.8,
+  79.3
+ ],
+ "states": {
+  "squashed": {
+   "fold_pitch": 6.35,
+   "bending_strain_pct": 9.1,
+   "depth": 8.41,
+   "arc_R": 1.81,
+   "OD_r": 41.51,
+   "bore_r": 31.89,
+   "hoop_strain_pct": 1.3,
+   "test_gap_flange_to_rim": 38.6
+  },
+  "installed": {
+   "fold_pitch": 10.4,
+   "bending_strain_pct": 3.2,
+   "depth": 7.9,
+   "arc_R": 2.2,
+   "OD_r": 41.25,
+   "bore_r": 32.15,
+   "hoop_strain_pct": 0.6,
+   "test_gap_flange_to_rim": 50.7
+  },
+  "moulded": {
+   "fold_pitch": 12.5,
+   "bending_strain_pct": 0.0,
+   "depth": 7.4,
+   "arc_R": 2.5,
+   "OD_r": 41.0,
+   "bore_r": 32.4,
+   "hoop_strain_pct": 0.0,
+   "test_gap_flange_to_rim": 57.0
+  },
+  "stretched": {
+   "fold_pitch": 15.86,
+   "bending_strain_pct": 5.8,
+   "depth": 6.13,
+   "arc_R": 3.29,
+   "OD_r": 40.37,
+   "bore_r": 33.03,
+   "hoop_strain_pct": -1.6,
+   "test_gap_flange_to_rim": 67.1
+  }
+ },
+ "bore_min_r": 31.89,
+ "head_end_offset_mm": 5.0,
+ "rod_outer_radius_in_bellows": 30.3,
+ "rod_gap_to_fold_root_mm": 1.6,
+ "sleeve_note": "tube sleeve r 33 up to h 48 does not fit this bore; stop the tube at the spigot (h 20) in the full-bellows pass"
+}
