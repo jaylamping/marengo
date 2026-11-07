@@ -1,6 +1,6 @@
 # Power board rev B, fixed board: schematic review
 
-2026-11-07. Packet built from main at 29a6598c (54 hashed files), run on Joey-PC at High effort with a 45 minute limit. **Result: NO-GO for layout.** Two blockers and 11 majors are accepted. Earlier close-order and wiring problems did not come back: every reviewer who checked FLT's static behaviour and the pin maps found them right. What's left is mainly protection that isn't proven, and numbers of mine that were wrong. Nothing here has been fixed yet.
+2026-11-07. Packet built from main at 29a6598c (54 hashed files), run on Joey-PC at High effort with a 45 minute limit. **Result: NO-GO for layout.** Two blockers and 11 majors are accepted, plus one blocker and two majors from Opus's late run. Earlier close-order and wiring problems did not come back: every reviewer who checked FLT's static behaviour and the pin maps found them right. What's left is mainly protection that isn't proven, and numbers of mine that were wrong. Nothing here has been fixed yet.
 
 | Reviewer | Tool | Effort | Minutes | Verdict | On-target check |
 | --- | --- | --- | --- | --- | --- |
@@ -12,7 +12,7 @@
 | DeepSeek V4.1 Flash (trial) | OpenCode Go | high | 45 + 23, timed out | None | No review. First run ended at 59 s on a denied shell call. The retry hit the Go quota and hung |
 | GLM 5.3 (trial) | OpenCode Go | high | 45, timed out | None | No review: hit the Go quota at 08:39Z, then hung |
 | Kimi K3.1 Pro (trial) | OpenCode Go | high | 45, timed out | None | No review: hit the Go quota at 08:42Z, then hung |
-| Opus (agy) | Antigravity quota | high | running | | Started 09:09Z as the routing test. Folds in as a follow-up |
+| Opus (agy) | Antigravity quota | high | 24.6 | NO-GO | Pass, 42 of 42 names. Late, folded in below |
 
 Hashes matched before the round and after each run. All pass ERC and check.py. Each finding was checked against the netlist or datasheets unless the row says otherwise.
 
@@ -57,6 +57,19 @@ Hashes matched before the round and after each run. All pass ERC and check.py. E
 ## The fit decision
 
 None of the four reviewers chose moving parts to the back face, which is the plan Joey approved. Fable argues against it: 6 mm standoffs, the pack behind, no airflow. Sol and Wonder prefer smaller RS9 and RS10 shunts; Astra and Fable prefer dropping U10 and RS10. Fable's other idea is the best one I've seen: the limb "−" terminals are all GND, so merging six into two shared studs frees about 690 mm², enough to cover B1's absorber too. B1 adds 150 to 300 mm² at the battery entry, so this needs deciding again. It needs a current check on the shared studs.
+
+## Follow-up: Opus through agy (late)
+
+Opus ran on the Antigravity quota, finishing at 09:33Z: 24.6 min, 903k input, 138k output and 8.8M cache-read tokens. The hashes matched after. It repeats B1's spike, B2, M2, M3, M6 and the RS part-number minor. These are new; I checked the first two in the netlist:
+
+| # | Finding | How verified | Smallest fix |
+| --- | --- | --- | --- |
+| B3 | **One solder bridge defeats both banks.** U1 pin 2 (VIN, on SH_P) sits next to pin 3 (UVLO) at 0.5 mm pitch. If they bridge, U1 turns on whatever RUN does, and the pack drives RUN backwards through R5 (33k) into R15 (1.2k) and the dividers. RUN sits at about 1.7 V with the E-stop pressed, so EN_A is about 1.6 V, above TPS4810's 1.08 to 1.19 V turn-off. A stays on too. The bridge also puts pack voltage on U8 FLT (20 V abs max). So "RUN is the only shared signal" is true on the schematic, not in a fault. | Netlist: R5 RUN–UVLO, R15 RUN–GND, R27/R28 10k/100k, R38/R39 100k/68k. LM5069 p3 pinout. My own node arithmetic agrees | Feed R5 and R27 from RUN through separate diodes. Keep FLT off a node the pack can reach: a series resistor and zener at FLT, or a cascode. Coat U1 pins 2–3 |
+| M12 | **J20 pin 3 (LOOP_RET) is next to pin 4 (RST_SRC, VCTL through 4.7k).** A short there, or a Q4 or Q5 C–E short, holds RUN at about 2.1 V with the E-stop pressed. B opens but A stays enabled, and the board re-arms on release without reset. Positive opening doesn't cover it. check.py only checks pins 1–3. | Netlist J20 pin map. Opus's arithmetic, not re-run | Re-pin J20 with GND between pins 3 and 4 |
+| M13 | U17 VBUS (pin 8) sits on MID with no series resistor. The B1 spike above 85 V can kill it and carry pack voltage toward +3V3_PI. | INA228 p3 | 20 to 47k in series, recalibrate |
+| minor | +12V has only 2 × 22 µF bulk, so a spare-output short can dip compute. If anyone fits the brick's suggested 220 µF input cap, U7's timer can't charge it and the brick never starts. Brick OVP up to 170 % is about 20.4 V, over TPS2595's 20 V IN. | Opus. The OVP figure isn't checked | Add 220 to 470 µF on +12V. Note the BRK_IN limit. Check the OVP figure |
+
+Rejected: the brick footprint "insert diagonal" (closed by my own check below), and "a 97 A limit trips a 100 A class bus" (the design is 60 A, so this is my prompt's wording again, though a demand peak over 97 A for 0.3 ms is worth measuring). Opus also adds an area option: drop U10 and RS10, and move Q7 to a 5×6 package, which gives about 97.7 % with legs, if Q7's start-into-short SOA holds.
 
 ## Closed by my own check
 

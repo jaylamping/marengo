@@ -61,6 +61,7 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B | muse-wonder-1.0 | default (high) | 12 | 5 | 2 | 1 | on (checked) | 0 | 8.6 | sub | 4.3 | Confirmed the wrong 544 W power limit |
 | PDB rev B | gemini-4-argon-high | high | 0 | 0 | 0 | 0 | **off** | 5 | 31.4 | sub | | Scores zero. Invented a different board. 24 of 80 cited values match the netlist, against 4 of 4 and 29 of 30 for the others. **Strike 1** |
 | PDB rev B2 | claude-fable-5-1 | high | 6 | 0 | 1 | 0 | on (checked) | 0 | 23.9 | $10.44 (JSON) | 23.9 | Unique: latch can arm with reset held at power-up |
+| PDB rev B2 | claude-opus-5-5 (agy) | high | 12 | 2 | 4 | 0 | on (checked) | 0 | 24.6 | Antigravity quota | 6.2 | First agy run. Unique: a UVLO solder bridge back-drives RUN and keeps bank A on; J20 pins 3-4 restart without reset |
 | PDB rev B2 | gpt-6.1-sol | high | 13 | 0 | 1 | 0 | on (checked) | 0 | 22 | sub | 22 | Unique: U2 reverse output-to-input |
 | PDB rev B2 | gpt-6-astra | high | 12 | 0 | 0 | 0 | on (checked) | 0 | 19.7 | sub | | |
 | PDB rev B2 | muse-wonder-1.0 | high | 9 | 2 | 0 | 1 | on (checked) | 0 | 15.8 | sub | | Passed the gate arithmetic that B1 overturned |
@@ -77,6 +78,7 @@ Totals of the rows above. Compare them with care: rounds differ, and not every m
 | Model | Runs | Real | False | Unique | False conf | Off target | Retries | Mean min |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | claude-opus-5-5 | 7 | 73 | 5 | 18 | 0 | 0 | 0 | 17.3 |
+| claude-opus-5-5 (agy) | 1 | 12 | 2 | 4 | 0 | 0 | 0 | 24.6 |
 | claude-fable-5-1 | 9 | 75 | 10 | 7 | 0 | 0 | 0 | 21.9 |
 | gpt-6.1-sol | 10 | 101 | 5 | 5 | 0 | 0 | 1 | 12.2 |
 | gpt-6-astra | 7 | 81 | 3 | 3 | 0 | 0 | 1 | 12.3 |
