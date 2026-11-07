@@ -10,8 +10,8 @@ rebuilds them, `check_overlaps.py` and `mass_estimate.py` give the numbers below
 | --- | --- | --- | --- | --- |
 | `marengo_torso_cradle_side_right` (-X) | 1 | 55,370 | 70.3 | 61 |
 | `marengo_torso_cradle_side_left` (+X) | 1 | 55,370 | 70.3 | 61 |
-| `marengo_torso_cradle_top_strap` | 1 | 7,017 | 8.9 | 8.9 |
-| Set | | | 149.5 | 132 |
+| `marengo_torso_cradle_top_strap` (two hooks) | 1 set | 5,217 | 6.6 | 6.6 |
+| Set | | | 147.2 | 130 |
 
 Solid mass is SolidWorks volume × 1.27 g/cm3. The gyroid figure is a voxel estimate with 1.68 mm walls, so the 3.5 mm web prints almost solid.
 Windows open 34 % of the web. The left side is the same script with X mirrored, not a linked mirror feature.
@@ -44,18 +44,23 @@ Windows open 34 % of the web. The left side is the same script with X mirrored, 
 | Extrusions, corner brackets, their fasteners, brake plate and resistor, `harness_side_*`, gussets, shelf plate | No overlap. Touching at the mounting faces, 0.5 mm from the foot tongue to the bracket legs, 0.98 mm to the shelf plate |
 | `packrail_*` | Overlaps throughout: the cradle replaces these, and `parts.json` still lists them |
 | `pdb_sheet` | **Real.** The lip takes 5.5 × 150 × 0.5 mm per side: the sheet must narrow to \|X\| ≤ 42 |
-| `harness_pack` | **Real.** The strap takes Y 345.5 to 348.5 of this reserve, leaving Y 348.5 to 353.6 (5.1 mm) for the 10 AWG pair and sense harness, 6.1 mm to the shelf plate |
+| `harness_pack` | Clear. The reserve is now X −5 to 25, in the strap gap, so the leads have the full Y 345 to 353.6 (8.6 mm) |
 | `pdb_carrier` | Touches the Z 37.5 face, as intended |
 | Pack | 0.5 mm per side at the webs, 0.5 mm under the strap, 0 mm at the ledge and lip, which bear it |
-| Strap to side | No overlap: 0.2 mm per side at the web, 0.4 mm in slot height |
+| Hook to side | No overlap: 0.2 mm at the web, 0.4 mm in slot height |
 
 Both thumbscrews pull the pack toward their own web, so with the pack centred, tightening closes the 0.5 mm gaps by bowing the webs inward. That needs a check at assembly: it may want a spacer or a limit on tightening.
 
 Not checked: strength (no FEA), and the thumbscrew head against the shell (assumed Ø18 × 6.5 for the frame check).
 Print suggestion, untested: stand each side on its rear edge so the C section lies in the layer plane.
 
-## Pending change (frame thread, 2026-11-06 17:3xZ)
+## Lead gap (2026-11-07)
 
-The pack power leads (10 AWG silicone, 5.2 to 5.8 mm OD) cross the pack top along Z and do not fit the 5.1 mm left above the strap.
-Next SolidWorks pass: cut a **30 mm wide gap through the top strap** at X −5 to +25 (over the lead path), so the strap becomes two
-hooks from the webs; the leads then have the full 8.6 mm (Y 345 to 353.6) in that window. Battery thread prefers this to 12 AWG.
+The pack power leads (10 AWG silicone, 5.2 to 5.8 mm OD) cross the pack top along Z and did not fit the 5.1 mm left above the strap.
+The strap now has a **30 mm gap at X −5 to +25**, through its full height and depth (`Lead_gap` in `build_cradle.py`), so the leads get Y 345 to 353.6 (8.6 mm) there.
+It is now two separate bodies, 6.6 g together: the right hook is X −54.2 to −5 (4.1 g), the left X 25 to 54.2 (2.6 g).
+
+**Open: the hooks have no lateral retention.** Each hook still sits in its web slot with its lip and detent, and still bears the pack.
+But the detent bump reaches only 0.3 mm into the web (bump tip at |X| 51.2, web outer face at 51.5), and it stayed seated only because the far lip held the one-piece strap in X.
+A hook's inner end is now free, so it can slide 0.3 mm outward, lift off its detent, then back out of the rear of the slot, or keep sliding out of the web. Nothing in `parts.json` stops it at that height.
+Only friction holds the hooks, so they need a positive stop before this prints. No fix is modelled yet, and the hooks have had no FEA as cantilevers.

@@ -18,6 +18,8 @@ NULL = wc.VARIANT(pythoncom.VT_DISPATCH, None)
 PLANES = {"front": "Front Plane", "top": "Top Plane", "right": "Right Plane"}
 MM = 1e-3
 BLIND, START_PLANE, START_OFFSET = 0, 0, 3
+LEAD_GAP = ((-5, 345, -16), (25, 349, 6))
+STRAP_NOTE = "Pack cradle top strap, rev A, two hooks, lead gap X -5 to 25"
 
 
 class Part:
@@ -177,7 +179,8 @@ def build_strap(sw):
         p.sketch("right")
         p.circle(5, 342.5, 4)
         p.extrude(a, b, f"Detent_{n}")
-    p.finish("marengo_torso_cradle_top_strap", "Pack cradle top strap, rev A")
+    p.box(*LEAD_GAP, "Lead_gap", cut=True)  # 30 mm over the pack lead path, leaves two separate hooks
+    p.finish("marengo_torso_cradle_top_strap", STRAP_NOTE)
 
 
 if __name__ == "__main__":
