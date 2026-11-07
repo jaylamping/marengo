@@ -18,6 +18,8 @@ for c in getall(get(N,'components'),'comp'):
     a=bb.GetWidth()/MM*bb.GetHeight()/MM
     rows.append((a,ref,str(get(c,'value')[1])[:30],d,any(p.HasHole() for p in fp.Pads())))
 rows.sort(reverse=True)
+import json
+if len(sys.argv)>2: json.dump([dict(a=r[0],ref=r[1],val=r[2],dnp=r[3],tht=r[4]) for r in rows],open(sys.argv[2],'w'))
 BOARD=100*150
 tot=sum(r[0] for r in rows); fit=sum(r[0] for r in rows if not r[3]); tht=sum(r[0] for r in rows if r[4]); 
 print('parts',len(rows),'fitted',sum(1 for r in rows if not r[3]))

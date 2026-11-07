@@ -46,19 +46,19 @@ nic(s,Qb,'Q1','IPB017N10N5LFATMA1',(228.6,48.26),'Package_TO_SOT_SMD:TO-263-7_Ta
 nic(s,Qb,'Q2','IPB017N10N5LFATMA1',(292.1,48.26),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':'G2','2':'VBUS','3':'VBUS','4':'SW_D','5':'VBUS','6':'VBUS','7':'VBUS'})
 g=Grid(s,335.28,38.1,20.32,30.48,420)
 g.R('10R','GATE','G1'); g.R('10R','GATE','G2')
-nic(s,'Power_Management:LM5069MM-1','U1','LM5069MMX-1',(63.5,114.3),'Package_SO:MSOP-10_3x3mm_P0.5mm',{'1':'SH_N','2':'SH_P','3':'UVLO','4':'GND','5':'GND','6':'TIMER','7':'PWR','8':'PGD','9':'VBUS','10':'GATE'},ds='https://www.ti.com/lit/ds/symlink/lm5069.pdf')
+nic(s,'Power_Management:LM5069MM-1','U1','LM5069MMX-1',(63.5,114.3),'Package_SO:MSOP-10_3x3mm_P0.5mm',{'1':'SH_N','2':'SH_P','3':'UVLO','4':'GND','5':'GND','6':'TIMER','7':'PWR','8':None,'9':'VBUS','10':'GATE'},ds='https://www.ti.com/lit/ds/symlink/lm5069.pdf')
 g=Grid(s,114.3,96.52,20.32,30.48,420)
 g.R('34k 1%','PWR','GND'); g.C('22nF C0G','TIMER','GND',C603); g.D('BAV19W','CDV','GATE'); g.C('100nF 100V C0G','CDV','GND',C1210); g.R('1k','GATE','CDV_B')
 g.R('33k','RUN','UVLO'); g.R('33k','UVLO','GND')
 Q(PNP,'MMBTA92',(275,111.76),'CDV_B','CDV','GND')
-note('''The bank is the soft start for everything: BMS sees no inrush. Reset closes it, loop open drops it. No software in the path.
+note('''The bank is the soft start for all the motor capacitance: BMS sees no inrush. Reset closes it, loop open drops it. No software in the path. Compute is not behind it.
 Rs 0.5 mOhm: limit 97-123 A (VCL 48.5-61.5 mV), breaker 160-260 A (VCB 80-130 mV). Above peak draw and JK DOC 80 A. 1.8 W at 60 A.
 Start: Cdv 100 nF, gate 10-22 uA, 100-220 V/s, 0.25-0.55 s to full. Bus ceiling 9.4 mF at 2.06 A hot DC SOA line (112 W, 45 K Tj rise). Drive caps unmeasured.
 Power limit 544 W, RPWR = 125k x Rs x P, 5 mV floor per SNVS452G sec 9.2.1.2.3. Timer 22 nF: 1.0 ms typ, 1.8 ms max.
 Fault check: 675 W (+24 %) is 12.4 A at 54.6 V against about 15 A at 1.8 ms, 70 C, one FET, scaled from the 10 ms curve as sqrt(t). Read the real curve at layout.
 FETs: 0.85 mOhm for the pair, 5.2 W hot at 60 A, 1.3 W at 30 A. UVLO low sinks the gate at 2 mA: about 170 us off.
 Body diodes pass regen back to the pack with the bank open. OVLO tied low: opening on overvoltage would strand regen on the bus.
-LM5069-1 latches on a fault. Clear: E-stop cycle, then reset. PGD (open drain) holds the brick off until the bus is up, per TI's keep-the-load-off note.
+LM5069-1 latches on a fault. Clear: E-stop cycle, then reset.
 SMDJ58A: catches the battery lead's inductive kick when the bank opens. Clears 54.6 V, FETs and U1 are 100 V.''',(300,92))
 
 # ---------- control rail and latch ----------
@@ -104,9 +104,9 @@ note('400 uF, 80 V. The drives have their own. Can is 10 x 16.5: land owed, and 
 
 # ---------- brick ----------
 head('5. 12 V brick',(25.4,352))
-nic(s,'marengo_revb:IQB150W8-12','U5','IQB150W8-12',(66,385),'marengo_revb:IQB150W8',{'1':'VBUS','2':'PGD','3':'GND','5':'GND','6':None,'7':'+12V_RAW','8':'+12V_RAW','4':'GND'})
+nic(s,'marengo_revb:IQB150W8-12','U5','IQB150W8-12',(66,385),'marengo_revb:IQB150W8',{'1':'BRK_IN','2':'BRK_PG','3':'GND','5':'GND','6':None,'7':'+12V_RAW','8':'+12V_RAW','4':'GND'})
 g=Grid(s,114.3,367,20.32,30.48,200)
-g.C('2.2uF 100V','VBUS','GND',C1210,k=2); g.C('22uF 25V','+12V_RAW','GND',C1210,k=2); g.F('+12V_RAW')
+g.C('2.2uF 100V','BRK_IN','GND',C1210,k=2); g.C('22uF 25V','+12V_RAW','GND',C1210,k=2); g.F('+12V_RAW')
 nic(s,'Device:R_Shunt','RS8','2mR CSS4J-4026K-2L00F 6W',(218,378),SH,{'1':'+12V_RAW','2':'SH12_P','3':'SH12_N','4':'+12V'})
 nic(s,'Sensor_Energy:INA228','U6','INA228AIDGSR',(272,378),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':'+3V3_PI','2':'I2C_SDA','3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':'+12V','9':'SH12_N','10':'SH12_P'},ds='https://www.ti.com/lit/ds/symlink/ina228.pdf')
 g=Grid(s,305,367,20.32,30.48,330); g.C('100nF','+3V3_PI','GND'); tp(g,'+12V')
@@ -114,10 +114,23 @@ for nm,x in (('Jetson',360),('Pi 5 V buck',400),('fans',440)):
     conn(2,'12 V to '+nm,(x,378),MF2,['+12V','GND'])
 conn(4,'Pi: 3V3, SDA, SCL, GND',(490,378),GH(4),['+3V3_PI','I2C_SDA','I2C_SCL','GND'],ref='J21')
 g=Grid(s,515,367,20.32,30.48,530); g.F('+3V3_PI')
-note('''On the bus, so the brick drops with the E-stop and the Pi goes with it. PGD on R.C keeps it off during the ramp: it starts at 9 V and would load the FETs mid-ramp.
+note('''Ahead of the E-stop: motors off, compute stays up. Soft start in block 5a, BRK_PG on R.C keeps the brick off until its input is up.
 -Vout is tied to GND here: the robot has one ground, P-. RS+ and RS- tied at the pins, Trim open. Input caps at the pins; the EMC filter is left out.
 150 W at 12 V, 89 %: 18 W at full load, about 6 W at 50 W. Natural-air derating starts near 30 C. 12.7 mm tall: keep clear of the fan gap.
 INA228 addresses: L arm 0x40, R arm 0x41, waist 0x42, aux 0x43, L leg 0x44, R leg 0x45, 12 V 0x46. Powered by the Pi's 3.3 V; Pi pull-ups on I2C.''',(25.4,404))
+
+
+# ---------- brick soft start ----------
+head('5a. Brick soft start (ahead of the E-stop switch)',(25.4,440))
+nic(s,'Device:R_Shunt','RS9','5mR CSS4J-4026K-5L00F',(60,462),SH,{'1':'BAT','2':'SH9_P','3':'SH9_N','4':'BRK_D'})
+nic(s,Qb,'Q7','IPB017N10N5LFATMA1',(115,462),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':'BRK_G1','2':'BRK_IN','3':'BRK_IN','4':'BRK_D','5':'BRK_IN','6':'BRK_IN','7':'BRK_IN'})
+nic(s,'Power_Management:LM5069MM-2','U7','LM5069MMX-2',(190,470),'Package_SO:MSOP-10_3x3mm_P0.5mm',{'1':'SH9_N','2':'SH9_P','3':'SH9_P','4':'GND','5':'GND','6':'BRK_T','7':'BRK_P','8':'BRK_PG','9':'BRK_IN','10':'BRK_GATE'},ds='https://www.ti.com/lit/ds/symlink/lm5069.pdf')
+g=Grid(s,240,452,20.32,30.48,340)
+g.R('10R','BRK_GATE','BRK_G1'); g.R('37.4k 1%','BRK_P','GND'); g.C('47nF C0G','BRK_T','GND',C603); g.C('100nF 100V','SH9_P','GND',C805); g.F('SH9_P'); g.F('BRK_IN'); tp(g,'BRK_IN')
+note('''Same controller as the bank, so one part family. -2 retries on its own: a compute fault does not need a BMS cycle. UVLO on VIN, OVLO low: on whenever the pack is.
+Power-limit start, no dV/dt network: 60 W limit (Rs 5 mOhm, 5 mV floor at 54.6 V), about 1.1 A at full pack. 4.4 uF plus the brick's own input caps (not published) charges in under 1 ms at 20 uF.
+Timer 47 nF: 2.2 ms typ, 1.5-3.8 ms. Limit 9.7-12.3 A clears the worst brick draw, 4.7 A at 36 V. Fault check: 75 W is 1.4 A for up to 3.8 ms, against 12 A at 10 ms on the datasheet SOA. Q7 is the linear FET for that reason.
+Compute is on whenever the BMS is on. Loss at 3 A: 0.05 W shunt, 0.03 W FET.''',(240,488))
 
 # ---------- limbs ----------
 head('6. Limb outputs: terminal pair, 1 mOhm shunt, INA228. Fuses inline in the pigtails.',(645,22))

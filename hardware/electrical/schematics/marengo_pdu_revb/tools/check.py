@@ -28,9 +28,14 @@ ok(n('U1',3)=='UVLO' and len(two('RUN','UVLO'))==1 and len(two('UVLO','GND'))==1
 ok(not any(n(r,p) in('BAT','VBUS') for r,p in pin if r!='x' and n(r,p)=='UVLO'),'UVLO has no path to the bus')
 # nothing bulky ahead of the bank
 bat=[r for r,p in nets['BAT'] if r[0]=='C']
-ok(all(val(c).startswith('1uF') for c in bat),'only 1 uF on the battery side: '+str(bat))
-ok(not any(r.startswith('U5') for r,p in nets['BAT']),'brick behind the bank')
-ok(n('U5',1)=='VBUS' and n('U5',3)=='GND' and n('U5',2)==n('U1',8),'brick on VBUS, R.C on PGD')
+ok(all(val(c).startswith('1uF') for c in bat),'only 1 uF directly on BAT: '+str(bat))
+ok(not any(r=='U5' for r,p in nets['BAT']+nets['VBUS']),'brick on neither BAT nor VBUS')
+ok(n('U5',1)=='BRK_IN' and n('U5',3)=='GND' and n('U5',2)==n('U7',8),'brick behind its own soft start, R.C on U7 PGD')
+ok(n('RS9',1)=='BAT' and n('RS9',4)==n('Q7',4) and n('Q7',2)=='BRK_IN','brick path from BAT, ahead of the E-stop bank')
+ok(n('U7',2)==n('RS9',2) and n('U7',1)==n('RS9',3) and n('U7',3)==n('U7',2),'U7 Kelvin, UVLO on VIN')
+ok(n('U7',4)=='GND' and n('U7',9)=='BRK_IN','U7 OVLO low, OUT on BRK_IN')
+ok(not any(r in ('U7','Q7') for r,p in nets['RUN']+nets['VCTL']),'E-stop latch does not touch the brick path')
+ok(all(val(c).startswith('2.2uF') for c in [r for r,p in nets['BRK_IN'] if r[0]=='C']),'brick input caps only 2.2 uF')
 ok(n('U5',4)=='GND' and n('U5',5)=='GND' and n('U5',7)==n('U5',8),'brick -Vout grounded, sense tied')
 # latch
 ok(n('U2',8)=='BAT' and n('U2',5)=='BAT','LDO on the battery side, EN tied')
