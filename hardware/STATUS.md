@@ -86,6 +86,8 @@ fault table under it. Headlines (rev B5, not yet built):
 
 These are hardware-side asks; nothing in them is decided for software.
 
+**What to build next, in priority order:** [left-arm/testing/SOFTWARE_PREP.md](designs/left-arm/testing/SOFTWARE_PREP.md) (the software work the left arm tests need, ranked). The specs below are the detail behind it.
+
 | Spec | Where |
 |---|---|
 | Calibration loop: camera service, `circuit` runner with stop rules, fit/analysis tools, drive parameter preflight, MCP access, gesture scoring | [CALIBRATION_LOOP.md section 11](designs/left-arm/testing/CALIBRATION_LOOP.md#11-spec-for-the-software-project) |
