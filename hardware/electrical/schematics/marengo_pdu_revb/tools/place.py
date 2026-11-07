@@ -14,7 +14,7 @@ b=pcbnew.BOARD(); b.SetCopperLayerCount(4)
 # ---- blocks: (X0,X1,Y0,Y1) in floorplan coordinates. Rev B5 (docs: pdb/design/LAYOUT_RULES_REVB.md):
 # single-sided; pack pair on the top edge; flow RS1 -> bank A -> bank B (upper fan) -> bus caps -> port breakers -> pigtails
 BLK=dict(
- soft=(-44.0,-11.0,311.0,328.4), absorb=(-11.0,25.5,312.5,330.4), clamp=(18.0,44.0,268.0,312.0),
+ soft=(-44.0,-11.0,311.0,328.4), clamp=(18.0,47.5,268.0,286.0),
  bankctl=(-28.5,-17.8,268.0,310.5), latch=(-42.0,-29.0,254.0,310.5),
  L1=(9.5,42.5,236.0,253.5), L3=(9.5,42.5,218.5,236.0), L5=(9.5,42.5,201.0,218.5),
  L2=(-42.5,-9.5,236.0,253.5), L4=(-42.5,-9.5,218.5,236.0), L6=(-42.5,-9.5,201.0,218.5),
@@ -22,19 +22,20 @@ BLK=dict(
 G={}
 def put(blk,refs):
     for r in refs.split(): G[r]=blk
-put('absorb','C38 C44 C45 R53 R46 C1')
-put('bankctl','R54 R55 R56 C43 Q13 R33 R34 D12 D17 R52 TP6 C2 U1 R1 R2 R3 R4 R5 R6 C3 C4 D2 Q3 TP10 TP12')
+put('bankctl','R63 TP3 C1 R54 R55 R56 C43 Q13 R33 R34 D12 D17 R52 TP6 C2 U1 R1 R2 R3 R4 R5 R6 C3 C4 D2 Q3 TP10 TP12')
 put('latch','U2 C5 R7 R8 TP1 J20 R9 D3 R10 R11 C6 R12 Q4 Q5 R13 R14 R15 R16 R17 C7 TP2 F1 C39 D8 D9 D10 D11 R59 C42 D14 R48 R49 R50 Q10 Q11 D16 R57 R58 Q14 D22 TP7')
-put('clamp','U3 U4 R18 R19 R20 R21 R22 R23 R24 R64 C8 C9 D4 Q6 C49 R65 R66 C48 U17 C30 R47 D18 TP8 R63 TP3 U8 C27 C28 C29 R27 R28 R29 R30 R31 R32 R35 R36 R37 C40 C46 R61 R62 TP11 TP13')
+put('clamp','R53 R46 U3 U4 R18 R19 R20 R21 R22 R23 R24 R64 C8 C9 D4 Q6 C49 R65 R66 C48 TP8 U8 C27 C28 C29 R27 R28 R29 R30 R31 R32 R35 R36 R37 C40 C46 R61 R62 TP11 TP13')
 put('soft','RS9 Q7 U7 R25 R26 C19 C20 TP5 C14 C15 F2 R51 D15 Q12 R60')
-put('out','RS8 U6 C16 C17 C18 TP4 C41 F3 F4 F5 D20 U9 RS10 U10 R38 R39 R40 R41 R42 R43 C31 C32 C33 C34 C35 C36 D5 D19 U18 TP9 R44 R45 C37 D6 D13 R67 U25 R128 R129 R130 R131 Q21 C80 C81 D41')
+put('out','U17 C30 R47 D18 RS8 U6 C16 C17 C18 TP4 C41 F3 F4 F5 D20 U9 RS10 U10 R38 R39 R40 R41 R42 R43 C31 C32 C33 C34 C35 C36 D5 D19 U18 TP9 R44 R45 C37 D6 D13 R67 U25 R128 R129 R130 R131 Q21 C80 C81 D41')
 PORT={1:('RS2','U11','C21','U19','Q15',68,50,23),2:('RS3','U12','C22','U20','Q16',78,55,26),3:('RS4','U13','C23','U21','Q17',88,60,29),
       4:('RS5','U14','C24','U22','Q18',98,65,32),5:('RS6','U15','C25','U23','Q19',108,70,35),6:('RS7','U16','C26','U24','Q20',118,75,38)}
 for k,(rs,ina,cd,u,q,r0,c0,d0) in PORT.items():
     put(f'L{k}',' '.join([rs,ina,cd,u,q]+[f'R{r0+i}' for i in range(10)]+[f'C{c0+i}' for i in range(5)]+[f'D{d0+i}' for i in range(3)]))
 FIX={}   # ref: (X,Y,rot,back); back is never used: the board is single-sided (Joey, 2026-11-07)
 FIX['J1']=(8.0,335.0,0,False); FIX['J3']=(29.0,333.9,0,False); FIX['J25']=(37.0,333.9,0,False); FIX['J24']=(-30.0,334.0,0,False)
-FIX['RS1']=(0.0,308.0,0,False); FIX['D7']=(12.0,307.5,0,False); FIX['D21']=(-12.0,307.5,0,False); FIX['D1']=(-14.5,334.5,90,False)
+FIX['RS1']=(0.0,308.0,0,False); FIX['D7']=(9.2,307.5,90,False); FIX['D21']=(16.0,307.5,90,False)
+# absorber: six 10 x 10 cans in a 2 x 3 block right of the pack keep-out (X -5..25, Y 315-340), D7 pair beside RS1
+for k,r in enumerate(('C38','C44','C45','C82','C83','C84')): FIX[r]=(30.75+11.5*(k%2),320.7-13.8*(k//2),90,False); FIX['D1']=(-14.5,334.5,90,False)
 FIX['Q8']=(-9.0,296.0,0,False); FIX['Q9']=(9.0,296.0,0,False); FIX['Q1']=(-9.0,276.0,0,False); FIX['Q2']=(9.0,276.0,0,False)
 for k,r in enumerate(('C10','C11','C12','C13','C47')): FIX[r]=(-23.2+k*11.6,260.5,90,False)
 for Y,r in ((244.7,'J8'),(227.2,'J10'),(209.7,'J12')): FIX[r]=(45.0,Y,90,False)

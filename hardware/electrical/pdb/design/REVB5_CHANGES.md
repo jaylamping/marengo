@@ -60,7 +60,7 @@ Legs move to rev C. Their port footprints stay on the board, unfitted.
 | Compute brown-out under motor load (M-2) | Buck UVLO 27.2 V off. Software: load-aware current budget and shutdown trigger (REV_B_PARTS) |
 | Brake-energy cap can't be computed (M-3) | CL_OUT through 100k/1k and 4.7 µF into U17 IN+: 120 mV at 100 % duty. The Pi reads the duty |
 | One thermostat for two resistors (F4) | Second 67L120 on the −X plate, in series in the loop (off-board) |
-| APZ caps obsolete (HIGH) | Bus caps changed (above). **Absorber: buy every APZ1012470M100R needed now, 3 per board plus 2 spares** (Mouser 1,235 and DigiKey 6,799 in stock on the review snapshot). The long-term alternate (Würth 875585961005, 33 µF 100 V, 4 cans) needs its ESR and a sim |
+| APZ caps obsolete (HIGH) | Bus caps changed (above). **Absorber, Joey 16:46Z: the APZ is dropped.** Now 6 × EEH-ZC1K470P (47 µF 80 V hybrid, the same part as the bus caps: one line item, 11 per board, with Chemi-Con and Würth 80 V hybrids as second sources, JLC-placeable). absorber_sim, all corners: **79.1 V worst** (APZ baseline 91.3 V), so every can stays under its 80 V rating. Rejected: 100 V MLCCs (120 × 1210 still 92.5 V once DC bias is counted), 100 V aluminium (8 × 12.5 mm cans to reach 75.5 V, ESR unverified), and a TVS-only absorber (hundreds of amps is far beyond any TVS's clamp). Cost about $7 against $11; area about +3 cm², placed in a 2 × 3 block right of the pack keep-out. The BMS close current rises to 325–363 A (from about 300 A): bench step 2 still decides 10b |
 | U18 EN overvoltage on back-feed | R42 68k → 33k: EN is 4.96 V at 20 V |
 | D18 order code doesn't exist | Nexperia BZT52H-C68,115 (SOD-123F) |
 | Brake cap needs a bench number | New bring-up step: 50 W total for 20 min with the real gussets; the software cap is set at 80 % of the power that holds the plate at 110 °C |
@@ -93,7 +93,7 @@ The board has leadless parts:
 
 It also has D2PAK-7s on 20 cm² pours with 30 vias each. An iron can't do those. **Plan: JLC (or PCBWay) assembles the SMT side; the Micro-Fit, Mini-Fit, GH and fuse holder, plus the pigtails, are hand-soldered.**
 - JLC charges a setup fee and about $3 per unique "extended" part per order, so the 5-board order carries roughly $100–150 of assembly fees.
-- TPS48100, TPS48111 and the APZ cans may need JLC global sourcing or consignment.
+- TPS48100 and TPS48111 may need JLC global sourcing or consignment.
 - The alternative is a stencil plus a hot plate at home: about $10, but it's a real risk on the 2 × 2 mm WSON parts.
 
 ## Cost (estimates, ±25 %; run the carts before ordering)
@@ -106,7 +106,7 @@ It also has D2PAK-7s on 20 cm² pours with 30 vias each. An iron can't do those.
 | Controllers: TPS48100, 3 × TPS48111, 2 × LM5069, TPS7A4001, TLV1805, LM4040, 2 × TPS259541, TPS3431 | $25 |
 | 6 × INA237 | $9 |
 | Shunts: CSS4J 0.5 mΩ, 6 × WSK2512 | $12 |
-| Caps: 3 × APZ absorber, 5 × EEH-ZC bus, EEH-ZA 330 µF, MLCCs | $26 |
+| Caps: 11 × EEH-ZC (6 absorber, 5 bus), EEH-ZA 330 µF, MLCCs | $22 |
 | Diodes, small transistors | $5 |
 | Connectors, fuse holder and fuses, test points | $17 |
 | Small resistors | $3 |
@@ -131,7 +131,7 @@ It also has D2PAK-7s on 20 cm² pours with 30 vias each. An iron can't do those.
 1. **Pack connector: decided.** XT90S / XT90 on 8 AWG (the AS150U doesn't fit the pack corner). **Open for legs (rev C):** pack-corner redesign for an AS150.
 2. **Back-to-back banks: decided, no** (Joey, 16:45Z). Banks stay as they are; the keyed plug carries reverse polarity.
 3. **Assembly route: decided, JLC SMT assembly** (Joey, 16:45Z), with a big review (Fable plus several Opus) on the routed board before ordering, and the first 5 boards treated as prototypes.
-4. **APZ absorber caps: decided, optional.** Their line is marked obsolete; buying 3 per board plus spares now is about $20 of insurance, not a requirement (Joey, 16:45Z). The active alternate stays open: Würth 875585961005 (33 µF 100 V, 4 cans) needs its ESR and a sim.
+4. **APZ: dropped** (Joey, 16:46Z). The absorber is 6 × EEH-ZC1K470P, the bus-cap part.
 
 ## Not resolved here
 

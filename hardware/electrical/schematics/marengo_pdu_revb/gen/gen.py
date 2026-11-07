@@ -66,7 +66,7 @@ FETs: 0.85 mOhm for the pair, 5.2 W hot at 60 A, 1.3 W at 30 A, the same again i
 The 2 mA also pulls VBUS down through U1's OUT-GATE zener, against the 54 uA of its internal 1 MOhm SENSE-OUT path, so VBUS reads near 0 V with the banks open.
 Body diodes of both banks pass regen back to the pack with the banks open. OVLO tied low: opening on overvoltage would strand regen on the bus.
 LM5069-1 latches on a fault. Clear: E-stop cycle, then reset.
-BAT spike: the absorber in block 10 (3 x 47 uF) takes the lead current when a bank opens fast, 5.0SMDJ58A is the backstop. FETs and U1 are 100 V.
+BAT spike: the absorber in blocks 10 and 10d (6 x 47 uF) takes the lead current when a bank opens fast, 5.0SMDJ58A is the backstop. FETs and U1 are 100 V.
 Polarity (rev B5): one soldered 8 AWG pigtail pair, side by side, to an XT90 that only mates the pack's XT90S one way (Joey: the pack run is the heaviest connector run in the robot). Nothing on the main path blocks a reversed pack: both banks' body diodes would conduct and D1 becomes the crowbar, so the keyed plug and the bring-up polarity check carry it.''',(300,92))
 
 # ---------- control rail and latch ----------
@@ -214,7 +214,7 @@ Information only: the NC loop does the stopping.''',(355.6,566))
 head('10. Rev B2 protection parts (refs appended so earlier refs keep their numbers)',(25.4,515))
 s.refc['D']=max(s.refc.get('D',0),6)
 g=Grid(s,38.1,530,25.4,30.48,340)
-g.D('SK810L-TP','ABS','BAT',SMC); g.CP('47uF 100V APZ1012470M100R','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x12.6'); g.R('100k','ABS','GND',R1206)
+g.D('SK810L-TP','ABS','BAT',SMC); g.CP('47uF 80V EEH-ZC1K470P','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x10.5'); g.R('100k','ABS','GND',R1206)
 g.two('Device:Fuse','F','250mA 125V 0466.250','BAT','BAT_F','Fuse:Fuse_1206_3216Metric'); g.C('1uF 100V','BAT_CTL','GND',C1210); g.F('BAT_CTL'); g.D('ES1D','BAT_CTL','BAT_R','Diode_SMD:D_SMA'); g.Z('SMAJ15A','VCTL','GND','Diode_SMD:D_SMA')
 g.D('BAV19W','RUN_B','RUN'); g.D('BAV19W','RUN_A','RUN'); g.Z('BZT52C12','FLT_A','GND')
 g.nl(); g.R('33k','MID','MID_S'); g.C('22nF 100V','MID','GND',C805); g.D('BAT46W','NO_PU','+3V3_PI'); g.CP('330uF 25V EEH-ZA1E331P','+12V','GND','Capacitor_SMD:CP_Elec_10x10.5')
@@ -235,7 +235,7 @@ g.R('100k','VCTL','PRE_G'); dnp(f"R{s.refc['R']}")
 g.C('100nF','PRE_G','GND'); dnp(f"C{s.refc['C']}")
 g.R('1M','PRE_G','GND'); dnp(f"R{s.refc['R']}")
 q=s.nref('Q'); nfet5(s,q,'BSC040N10NS5ATMA1',(400,492),'ABS_N','PRE_G','GND'); dnp(q)
-wnote('''Block 10. Absorber: a bank trip into a bus short cuts 350-890 A. tools/absorber_sim.py (pack 54.6 V, no pack yet), worst corners: 0.05 Ohm pulse loop (cell AC resistance), 0.5-1 uH, D1 at 71.2 V, C -20 %, trip 8.8-17.5 us. Three 47 uF cans give BAT 80-91 V; one gave 98-118 V. Measure lead L and pulse R at bring-up. 100k bleeds it. BMS close drives about 300 A into three cans for a few us: bench it on the JK.
+wnote('''Block 10. Absorber: a bank trip into a bus short cuts 350-890 A. tools/absorber_sim.py (pack 54.6 V, no pack yet), worst corners: 0.05 Ohm pulse loop (cell AC resistance), 0.5-1 uH, D1 at 71.2 V, C -20 %, trip 8.8-17.5 us. Six 47 uF 80 V hybrids (EEH-ZC1K470P, the bus-cap part) give BAT 79 V or less: every can stays under its 80 V rating (rev B5: the APZ 100 V line is obsolete). Measure lead L and pulse R at bring-up. 100k bleeds it. BMS close drives about 300 A into three cans for a few us: bench it on the JK.
 U2 feed: F1, 22R, ES1D in series, then 1 uF. A shorted U2 puts the pack on VCTL: 22R holds it to about 1.6 A, so SMAJ15A clamps under 19.2 V (Q6 gate 20 V) and F1 (50 A breaking) opens. The series diode keeps C5 from back-driving U2 when BAT collapses, and 22R keeps C39's inrush far under F1's I2t.
 Absorber close option (M3), DNP: if the JK trips when it closes onto C38, remove the 0R and fit 2R + the delayed NMOS + its RC: 25 A at close, clamp unchanged (absorber_sim.py).
 RUN_A and RUN_B diodes: a U1 pin 2-3 bridge or an EN fault can't drive RUN. FLT reaches UVLO through BAT46W + 10k (2010) with a 12 V zener on FLT_A: FLT low holds UVLO near 1.9 V; a bridged UVLO puts at most 5.5 mA into FLT and 12.7 V on it (15 V recommended).
@@ -247,7 +247,7 @@ Q(NPN,'MMBT3904',(345,562),'VB_B','GND','RST_SRC')
 # Rev B4 review fixes, appended so earlier refs keep their numbers
 head('10c. Rev B4 review parts',(25.4,610))
 g=Grid(s,38.1,625,40.64,35.56,560)
-g.CP('47uF 100V APZ1012470M100R','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x12.6'); g.CP('47uF 100V APZ1012470M100R','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x12.6')
+g.CP('47uF 80V EEH-ZC1K470P','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x10.5'); g.CP('47uF 80V EEH-ZC1K470P','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x10.5')
 g.R('22R CRCW251222R0FKEGHP','BAT_F','BAT_R','Resistor_SMD:R_2512_6332Metric'); g.D('BAT46W','FLT_A','FLT_D'); g.Z('BZT52H-C68,115','MID_S','GND','Diode_SMD:D_SOD-123F'); g.R('220R','BRK_OND','BRK_ON',R603)
 g.R('0R','SH_P','CSP_A',R603); g.R('0R','SH_N','CSN_A',R603); g.C('1nF C0G','CSP_A','CSN_A',C603); dnp(f"C{s.refc['C']}")
 g.D('B340A-13-F','SPARE_ON','GND','Diode_SMD:D_SMA'); g.R('4.7k 2W','VBUS','GND','Resistor_SMD:R_2512_6332Metric'); dnp(f"R{s.refc['R']}")
@@ -317,6 +317,9 @@ wnote('''The Pi toggles WD_FEED from its control loop (software, not a PWM perip
 Fail-safe: the NPN only conducts while the watchdog's own rail (3.3 V zener from VCTL, not the Pi) feeds its base through 22k and WDO is released. Pi dead, unpowered, rebooting, hung or its pin floating (100k pull-down): no edges, no latch. Watchdog rail lost: no base drive, no latch. It sits in series, so it can only drop the latch, never hold it (a shorted NPN just removes the watchdog).
 While the Pi stays dead the watchdog repeats 310 ms released / 200 ms low; a reset press in a released window closes the latch until the next low, under 0.36 s, with no drive commands (the Pi is dead). The first 0.3 s after VCTL comes up the watchdog is released before its first timeout.
 Software requirement: drive CanTimeout set and read back before every enable.''',(450,700),190)
+# absorber cans 4-6, last so earlier refs keep their numbers: the APZ line is obsolete (Joey, 16:46Z)
+g=Grid(s,38.1,900,25.4,30.48,200)
+for _ in range(3): g.CP('47uF 80V EEH-ZC1K470P','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x10.5')
 writelib()
 s.write([('/'+ROOT,'1')])
 print('ok',{k:v for k,v in s.refc.items() if not k.startswith('#')})

@@ -106,3 +106,22 @@ print('\nD7 series resistance sweep (r5 review: the SK810L curve at hundreds of 
 for L in (0.5e-6,1e-6):
     for t in (8.8e-6,17.5e-6):
         print(f'{L*1e6:4.1f}u t_open {t*1e6:4.1f}u | '+'  '.join(f'RS {rd*1e3:.0f}m: {trip(L,112.8e-6,0.0167,t,r_loop=0.05,bv=71.2,rd=rd)[0]:5.1f}V' for rd in (0.01,0.02,0.03)))
+
+def worst(C,esr,rd):
+    w=0
+    for L in (0.5e-6,1e-6):
+        for rl in (0.1,0.05):
+            for t in (8.8e-6,13e-6,17.5e-6):
+                w=max(w,trip(L,C,esr,t,r_loop=rl,bv=71.2,rd=rd)[0])
+    return w
+print('\nRev B5 absorber choice (Joey 16:46Z: commodity parts, 2+ sources, JLC-placeable). Worst of all corners (L 0.5/1 uH, R 0.05/0.1,')
+print('t_open 8.8/13/17.5 us, D1 at 71.2 V), two D7 in parallel at 5 and 15 mOhm:')
+print('  APZ1012470M100R x3 (baseline, obsolete), 47 uF 100 V -20 %, 50 mOhm:',' '.join(f'{worst(112.8e-6,0.05/3,rd):5.1f}V' for rd in (0.005,0.015)))
+for n in (4,5,6,8):
+    print(f'  EEH-ZC1K470P x{n} (fitted: 6), 47 uF 80 V -20 %, 45 mOhm aged:',' '.join(f'{worst(n*37.6e-6,0.045/n,rd):5.1f}V' for rd in (0.005,0.015)))
+for n in (80,120):
+    print(f'  {n} x 1210 4.7 uF 100 V X7R, about 1.0 uF each at 55-90 V bias, 5 mOhm:',f'{worst(n*1.0e-6,0.005/n,0.005):5.1f}V')
+for n in (4,8):
+    print(f'  {n} x 100 uF 100 V low-ESR aluminium (150 mOhm, 12.5 mm cans):',f'{worst(n*80e-6,0.15/n,0.005):5.1f}V')
+print('BMS close onto six discharged cans (the 10b decision rides on this bench test):')
+for L in (0.5e-6,1e-6): print(f'  L {L*1e6:.1f}u: peak {close(L,225.6e-6,0.0075)[1]:5.0f} A')

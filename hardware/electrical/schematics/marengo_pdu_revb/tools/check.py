@@ -87,7 +87,7 @@ hs=[r for r in comp if r[0]=='J' and val(r).startswith('HS50')]
 ok(len(hs)==2 and all(n(j,1)=='VBUS' and n(j,2)=='CL_D' for j in hs),'two brake resistors (2 x HS50 20R), each on its own header between VBUS and the FET drain')
 d=[r for r in comp if r[0]=='D' and val(r).startswith('MBRS')]
 ok(len([r for r in d if n(r,1)=='VBUS' and n(r,2)=='CL_D'])==1,'one freewheel diode')
-ok(len(diode('ABS','BAT'))==2 and len([c for c in [r for r,p in nets['ABS'] if r[0]=='C'] if val(c).startswith('47uF') and not dnp(c)])==3 and any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS'] if r[0]=='C']) and two('ABS','GND',('R',)),'battery-side absorber: diode, cap, bleed')
+ok(len(diode('ABS','BAT'))==2 and len([c for c in [r for r,p in nets['ABS'] if r[0]=='C'] if val(c).startswith('47uF') and not dnp(c)])==6 and any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS'] if r[0]=='C']) and two('ABS','GND',('R',)),'battery-side absorber: diode, cap, bleed')
 absn=[r for r in comp if r[0]=='R' and {n(r,1),n(r,2)}=={'ABS_N','GND'}]
 ok(any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS_N'] if r[0]=='C']) and [r for r in absn if not dnp(r) and val(r)=='copper link'] and all(dnp(r) for r in absn if val(r)!='copper link'),'absorber ground leg: copper link fitted, close-surge option DNP')
 ok(sum(1 for c in comp if c[0]=='C' and val(c).startswith('47uF 80V') and n(c,1)=='VBUS')==5,'five bus caps (235 uF)')
