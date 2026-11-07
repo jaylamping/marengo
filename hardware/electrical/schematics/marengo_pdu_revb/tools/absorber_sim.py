@@ -188,3 +188,14 @@ for labs in (3e-9,5e-9):
                         try: v,vd=rtrip(L,8*37.6e-6,0.045/8,t_open,tf,rl,2e-9,labs,cdr,cbat); w=max(w,v); wd=max(wd,vd)
                         except Exception: pass
         print(f'  LABS {labs*1e9:.0f} nH, CBAT {cbat*1e6:3.1f} uF, CDR {cdr*1e6:3.1f} uF: BAT {w:5.1f} V, bank A drain {wd:5.1f} V'+('   <- fitted' if (cbat,cdr)==(8.8e-6,4.4e-6) else ''))
+# extracted from the routed copper by tools/absorber_loop.py (pass LABS_NH / LBAR_NH to override)
+import os
+labs=float(os.environ.get('LABS_NH','5.4'))*1e-9; lbar=float(os.environ.get('LBAR_NH','2.0'))*1e-9
+w=wd=0
+for tf in (50e-9,200e-9):
+    for L in (0.5e-6,1e-6):
+        for rl in (0.1,0.05):
+            for t_open in (8.8e-6,17.5e-6):
+                try: v,vd=rtrip(L,8*37.6e-6,0.045/8,t_open,tf,rl,lbar,labs,4.4e-6,8.8e-6); w=max(w,v); wd=max(wd,vd)
+                except Exception: pass
+print(f'\nExtracted loop: LABS {labs*1e9:.2f} nH, LBAR {lbar*1e9:.2f} nH, fitted ceramics, all corners: BAT {w:5.1f} V, bank A drain {wd:5.1f} V')

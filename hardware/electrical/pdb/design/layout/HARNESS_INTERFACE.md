@@ -15,8 +15,9 @@ board, where it leaves, and what each run ends in. In-torso routing is the frame
 - **X, Y are the board floorplan coordinates.** These are the same numbers as the torso frame docs: board X −50..50 (robot's
   left = +X), Y 190..340 (+Y up, the top edge at Y 340). They match the torso only while the board sits at its floorplan
   position. Joey places the board in the upper cavity, so the frame thread applies one rigid transform to the whole package.
-- **Z = 0 is the board's bottom face.** Components are on +Z (top face at Z 1.6) and the heatsink is on −Z (gap pad −0.5..0,
-  base −6..−0.5, fins to −25).
+- **Z = 0 is the board's bottom face.** Components are on +Z (top face at Z 1.6) and the heatsink is on −Z (option D, chosen:
+  thermal pad −0.5..0, 116 × 69 mm footprint at X −34.5..34.5, Y 200–316, base to −5.1, fins to −36.5). Air runs along Y;
+  `KO_heatsink_air_inlet` / `_outlet` keep 20 mm free at both ends of the fins.
 - **Units:** mm. All parts are on the top side; the bottom carries only the heatsink.
 
 ## 2. Exits

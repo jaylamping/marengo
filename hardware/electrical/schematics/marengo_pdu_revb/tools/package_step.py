@@ -23,11 +23,18 @@ a.add(board,name='board_with_parts',color=cq.Color(0.1,0.35,0.15))
 # Mini-Fit Jr about 22 mm)
 for r,h in (('J3',22),('J25',22),('J5',16),('J6',16),('J7',16),('J22',16),('J23',16),('J24',16)):
     x0,x1,y0,y1=conn[r]['box']; a.add(box(x0,x1,y0,y1,T,T+h),name=f'{r}_approx',color=cq.Color(0.2,0.2,0.2))
-# heatsink (THERMAL_OPTION.md option D): insulating gap pad, base, fins along Y
-a.add(box(-35,35,200,305,-0.5,0),name='heatsink_gap_pad',color=cq.Color(0.6,0.6,0.9))
-hs=box(-35,35,200,305,-6.0,-0.5)
-for k in range(12): hs=hs.union(box(-34.25+k*6.0,-32.75+k*6.0,200,305,-25.0,-6.0))
-a.add(hs,name='heatsink_70x105x25',color=cq.Color(0.75,0.75,0.78))
+# heatsink (THERMAL_OPTION.md option D, chosen by Joey 2026-11-07): commodity 120 x 69 x 36 mm extruded aluminium, 27 fins
+# along Y, 4.6 mm base, hacksaw-cut to 116 mm to clear the THT pins of J5-J7/J22/J23 (Y 197) and F2 (Y 319): X -34.5..34.5,
+# Y 200..316, on a 0.5 mm insulating thermal pad;
+# 2 x M3 through HS1 (0, 286) and HS2 (0, 204) into holes drilled and tapped in the base on its centre fin
+HX0,HX1,HY0,HY1,HB,HH=-34.5,34.5,200.0,316.0,4.6,36.0
+a.add(box(HX0,HX1,HY0,HY1,-0.5,0),name='heatsink_thermal_pad',color=cq.Color(0.6,0.6,0.9))
+hs=box(HX0,HX1,HY0,HY1,-0.5-HB,-0.5)
+for k in range(27):
+    x=HX0+0.4+k*(69.0-0.8)/26
+    hs=hs.union(box(x-0.4,x+0.4,HY0,HY1,-0.5-HH,-0.5-HB))
+for X,Y in ((0.0,286.0),(0.0,204.0)): hs=hs.cut(cq.Workplane().circle(1.25).extrude(10).translate((X,Y,-0.5-10)))
+a.add(hs,name='heatsink_120x69x36',color=cq.Color(0.75,0.75,0.78))
 # keep-outs (translucent red): what must stay free for plugs, cables and air
 KO={'KO_pack_8AWG_leads_R15_bend':(-5,25,325,358,-12,22),
     'KO_brake_plugs_J3_J25':(25,41,327.5,365,T,30),
@@ -36,8 +43,8 @@ KO={'KO_pack_8AWG_leads_R15_bend':(-5,25,325,358,-12,22),
     'KO_estop_plug_J20':(-70,-35,295,311,T,9),
     'KO_limb_pigtails_right':(42,80,203,252,-6,20),
     'KO_limb_pigtails_left':(-80,-42,203,252,-6,20),
-    'KO_heatsink_air_inlet':(-35,35,305,325,-25,-0.5),
-    'KO_heatsink_air_outlet':(-35,35,180,200,-25,-0.5)}
+    'KO_heatsink_air_inlet':(-35,35,316,336,-37,-0.5),
+    'KO_heatsink_air_outlet':(-35,35,180,200,-37,-0.5)}
 for n,(x0,x1,y0,y1,z0,z1) in KO.items(): a.add(box(x0,x1,y0,y1,z0,z1),name=n,color=cq.Color(0.9,0.1,0.1,0.25))
 # ---- wires
 COL={'red':(0.8,0.05,0.05),'black':(0.08,0.08,0.08),'orange':(1.0,0.45,0.0),'yellow':(0.95,0.85,0.1),'blue':(0.1,0.3,0.9),

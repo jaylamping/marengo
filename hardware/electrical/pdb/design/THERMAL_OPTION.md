@@ -2,7 +2,8 @@
 
 2026-11-07. Joey (17:34Z): uncomfortable using the PCB as the heatsink; fine with heatsinks, bus bars and separately cooled
 paths; will place the power hardware in the torso's upper cavity himself (the 24 mm envelope is no longer a constraint).
-This page compares the options and recommends one. **Nothing in the schematic or layout has changed for it yet.**
+This page compares the options and recommends one. **Chosen: option D (Joey, decision card 2026-11-07 19:39Z).** The layout
+has carried it since stage 1 (via arrays, bare L4 pads, HS1/HS2); the parts are below under "Parts (chosen)".
 
 ## Recommendation
 
@@ -20,8 +21,8 @@ Why not through-hole FETs:
   1.7 mΩ conduction and the port short-circuit pulse.
 
 Option D, against the current board:
-- **Same parts, same circuit and the same simulations.** It adds a heatsink, a thermal pad and four screws.
-- About $20 per set.
+- **Same parts, same circuit and the same simulations.** It adds a heatsink, a thermal pad and two screws.
+- About $25 per set.
 - **Junction temperature at 60 A: about 75–80 °C** with fan air, against about 90–100 °C (estimate, unverified) from the
   board copper alone.
 
@@ -101,12 +102,14 @@ The heatsink takes all 16 W: about 1.5 K/W with fan air → +24 K. Ambient insid
 **Tj ≈ 40 + 24 + 13 ≈ 77 °C**. The board copper still spreads and sheds some heat in parallel, so this is the pessimistic
 side. Without fan air, the heatsink (about 3 K/W natural) gives about 101 °C, still under 125 °C.
 
-Layout changes for D (when adopted):
+Layout for D (done since stage 1):
 - 50 vias per tab, at the pad edge and under the tab. Tent them on the bottom (the gap pad is insulating). Keep them out of
   the paste aperture so they don't wick solder on the hot plate.
 - Bare bottom copper (solder mask off, ENIG) under each FET, 15 × 15 mm per tab.
-- Four M3 holes for the heatsink: nylon screws, or steel screws with insulating shoulder washers.
-- No THT pins inside the heatsink footprint (checked: none at the current placement).
+- Two M3 holes for the heatsink, HS1 (0, 286) and HS2 (0, 204), non-plated with a copper keep-out around each; the screw
+  heads sit on solder mask and the heatsink floats (insulated by the pad).
+- No THT pins inside the heatsink footprint: the nearest are the Micro-Fit pins at Y 196.9 and F2 at Y 319.0, hence the
+  116 mm cut (Y 200–316).
 
 ## Simulation effects
 
@@ -143,15 +146,22 @@ datasheets checked states the lead inductance (LD/LS). The 35 nH figure assumes 
 
 **3. latch_sim:** not affected. It doesn't depend on the FET package.
 
-## Cost, 2 sets (option D)
+## Parts (chosen)
 
-| Item | Each | 2 sets |
-| --- | --- | --- |
-| Finned aluminium heatsink, about 100 × 70 × 25 mm (extrusion cut to length) | $8–15 | $16–30 |
-| Insulating gap pad, 3 W/mK, 0.5 mm, about 100 × 70 mm | $4–8 | $8–16 |
-| 4 × M3 nylon screws + spacers | $2 | $4 |
-| ENIG under the FET pads | already in the board quote | – |
-| **Total** | | **about $30–50** |
+| Item | Part | Each | 2 sets |
+| --- | --- | --- | --- |
+| Heatsink | Commodity extruded aluminium, **120 × 69 × 36 mm, 27 fins, 4.6 mm base** (sold by JVFYI and others on Amazon/AliExpress/eBay). Hacksaw-cut to 116 mm and deburr. Drill 2.5 mm and tap M3 at 82 mm spacing on the centre line (positions below) | $10–14 | $20–28 |
+| Thermal pad | Electrically insulating silicone pad, 0.5 mm, at least 116 × 69 mm per set (e.g. ARCTIC TP-3 200 × 100 × 0.5 mm, cut one 116 × 69 piece per sheet) | $10–12 | $20–24 |
+| Screws | 2 × M3 × 12 stainless pan head + 2 × M3 flat washers per set | $0.50 | $1 |
+| **Total** | | **about $21–27 per set** | **about $41–53** |
+
+Hole positions in the heatsink base (heatsink end at board Y 200): **4.0 mm and 86.0 mm from that end, on the centre line
+(X 0)**, matching HS2 (Y 204) and HS1 (Y 286). The commodity part has a fin on its centre line, so the tapped hole runs
+into the fin root (about 8 mm of thread). Tools: 2.5 mm drill, M3 tap. No other machining.
+
+Thermal check with this part: about 2.2 K/W in natural convection and about 1.0–1.2 K/W at 1–2 m/s (vendor class figures
+for 120 × 69 × 36; the 100 mm version is listed at 2.6 K/W natural). At 16 W with fan air: Tj ≈ 40 + 19 + 13 ≈ 72 °C;
+without fan air ≈ 88 °C.
 
 The FETs, board and stencils don't change. The two 2.2 µF drain capacitors (option-independent) add about $0.50 per board.
 
@@ -161,9 +171,9 @@ The FETs, board and stencils don't change. The two 2.2 µF drain capacitors (opt
 | --- | --- |
 | Board | 100 × 150 × 1.6 mm, all parts on the front |
 | Tallest front-side parts | about 12.5 mm (Mini-Fit Jr headers J3/J25), 10.5 mm (cans), 9.6 mm (Micro-Fit headers) |
-| Heatsink | under the back, about 70 × 105 mm footprint centred on X 0, Y 200–305 (board coordinates), 25 mm tall including the 0.5 mm pad and fins |
-| Overall | about **150 × 100 × 40 mm** (12.5 front + 1.6 board + 25 heatsink) |
-| Mounting | the board's 6 × M3 holes at X ±46, Y 194 / 265 / 336; the heatsink hangs off the board on its own 4 × M3 (insulated); nothing is bolted to the frame through the heatsink |
+| Heatsink | under the back, 69 × 116 mm footprint, X −34.5..34.5, Y 200–316 (board coordinates), 36.5 mm tall including the 0.5 mm pad; fins along Y |
+| Overall | about **150 × 100 × 51 mm** (12.5 front + 1.6 board + 36.5 heatsink and pad); plugs and cables add more on the front (see HARNESS_INTERFACE.md) |
+| Mounting | the board's 6 × M3 holes at X ±46, Y 194 / 265 / 336; the heatsink hangs off the board on its own 2 × M3 (HS1, HS2; insulated by the pad); nothing is bolted to the frame through the heatsink |
 | Airflow | along the fins, parallel to the board's long side (Y). **Minimum about 1 m/s over the fins.** One 40 mm intake (5–8 CFM) ducted across a 70 × 20 mm fin section gives about 2–3 m/s |
 | Fins' clear space | 20 mm free beyond the fin tips; the air inlet and outlet at the heatsink's short ends kept open |
 | Cable exits | top edge (Y 340): pack 8 AWG pair (X 1 and 15), brake Mini-Fit pairs (X 29, 37, 18 AWG), 12 V converter pigtail J24 (X −41 to −19, 18 AWG). Left and right edges (X ±45): limb pigtails, 14 AWG pairs at Y 209–249. Bottom edge (Y 195): Pi GH 7-pin (X −31, 26–28 AWG), Micro-Fit 12 V outputs (X −19 to 18, 18–20 AWG) |
@@ -173,7 +183,7 @@ The FETs, board and stencils don't change. The two 2.2 µF drain capacitors (opt
 tools/package_step.py). It's an assembly with:
 - the board with every KiCad 3D model, plus approximate blocks for the Micro-Fit and Mini-Fit headers, which have no
   model;
-- the 70 × 105 × 25 mm finned heatsink and its gap pad;
+- the 116 × 69 × 36 mm finned heatsink (27 fins, tapped holes) and its thermal pad;
 - translucent red keep-out bodies (`KO_*`) for the pack lead bend, the plugs and cable exits on every edge, and the
   heatsink's air inlet and outlet.
 

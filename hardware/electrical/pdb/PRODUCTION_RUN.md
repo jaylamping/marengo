@@ -17,7 +17,7 @@ so 5 + 5 bare boards are ordered and 2 + 2 are built. **All prices are estimates
 | JLC shipping, DHL | about $25–45 |
 | JLC prepaid duty (US DDP: 35 % on boards, 90 % on stencils) | about $55–75 |
 | **Total, 2 sets** | **about $490–575** |
-| Heatsink kit for the recommended thermal option D ([THERMAL_OPTION.md](design/THERMAL_OPTION.md)), 2 sets | about $30–50 |
+| Heatsink kit, thermal option D (chosen; [THERMAL_OPTION.md](design/THERMAL_OPTION.md)): 120 × 69 × 36 mm extruded heatsink cut to 116 mm, insulating 0.5 mm pad, 2 × M3, 2 sets | about $41–53 |
 | Tools (section 6), one-off | about $110–200 |
 
 **Why this is above the $370–470 estimated earlier:** US duty adds about $110–130 across parts, boards and stencils. JLC's
@@ -189,7 +189,9 @@ Work on the buck board first; it's the practice run. Inspect and test between ev
    - the 8 AWG pack pair last, the largest chisel tip at about 400 °C. Heat the pad and the wire together until the solder
      wicks fully into the hole.
 7. Cable ties through the tie holes; clean the flux again.
-8. Heatsink (option D): gap pad on the clean bottom copper, heatsink on with the insulated M3 screws, torqued evenly.
+8. Heatsink (option D): cut the 120 mm heatsink to 116 mm, drill 2.5 mm and tap M3 at 4.0 and 86.0 mm from the cut end on
+   the centre line, deburr. Thermal pad on the clean bottom copper, heatsink on with 2 × M3 × 12 stainless + washers through
+   HS1/HS2, snug and even (about 0.5 N·m).
 9. Bring-up per [REV_B_PARTS.md](REV_B_PARTS.md) steps 1–13, starting at the current-limited bench supply. Never go
    straight to the pack.
 

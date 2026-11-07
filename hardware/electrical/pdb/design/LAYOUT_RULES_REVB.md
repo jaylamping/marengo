@@ -21,12 +21,14 @@
   - D7, D21 and the eight cans in one cluster at the BAT entry; R53 (the ABS_N to GND link) under the can stack.
   - ABS and ABS_N are pours directly over unbroken L2.
   - R53 is at least 5 mm wide, with 10 or more vias to L2 and L3.
-  - **Loop:** the routed absorber loop is about 3–5 nH (SMC diode bodies, can ESL, the 2.6 mm comb spines), so 2 nH
-    isn't reachable with these parts. The ceramics below take the fast edge instead.
+  - **Loop:** extracted from the routed copper by `tools/absorber_loop.py`: **LABS 5.4 nH**, LBAR 2.0 nH. Microstrip over In1
+    (h 0.21 mm) per segment, weighted by its share of the current, plus assumed part ESLs: 1.5 nH per SMC diode, 3 nH per
+    can, 1 nH for RS1. The ABS_N spine down to R53 is the largest term (about 2.4 nH), because R53 sits at the bottom of
+    the stack. 2 nH isn't reachable with these parts; the ceramics below take the fast edge instead.
 - **Pack-entry ceramics C89–C92** (4 × 4.7 µF 100 V 1210, BAT to GND, about 8.8 µF at 54 V bias): two between RS1 and D7,
   two in the BAT arm by D1, GND pads via-gridded to In1. **Bank A drain ceramics C87/C88** (2 × 4.7 µF 100 V): beside
   RS1's SW_D pad, GND vias to In1. absorber_sim (real turn-off, all corners): BAT 73.8–73.9 V, bank A drain 81–84 V,
-  with a 3–5 nH absorber loop.
+  with a 3–5 nH absorber loop; **at the extracted 5.4 / 2.0 nH: BAT 73.8 V, bank A drain 84.5 V** (100 V FETs).
 - **FET copper and the heatsink (option D, [THERMAL_OPTION.md](THERMAL_OPTION.md)):**
   - 2.7 W per FET at 60 A goes down into a finned heatsink under the board (X −33..33, Y 200–305).
   - About 50 × 0.3 mm vias per tab, at the pad edge and under it, tented on L4 and kept out of the paste aperture so they
