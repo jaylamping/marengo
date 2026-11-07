@@ -284,6 +284,15 @@ real door.** Locks: 2 × M2.5 × 8 plastite at Y ±53 (pads start at |Y| 50, 2.5
 Z 1158 in the pack column. Rule agreed with the frame thread: the XT90S/fuse stays inside |X| ≤ 45, torso Z ≥ −68, so nothing on the pack reaches the door
 (22.8 mm from the door blocks to the pack sense board).
 
+**HOLD before any shell print (Joey, 2026-11-07):** the updated torso frame isn't assembled and validated yet. Print nothing
+(fit kit included) until it is. Then:
+1. Measure the as-built frame: outer faces of the upper and lower boxes, gusset faces and screw heads, the H1–H6 slot positions,
+   the RS03 face position (Y ±135.5) and the pitch axis height.
+2. Update the frame boxes in `frame_clearance.py` and `mounts.json` with the measured values, then rerun the clearance check.
+   Today's minimum is 7.8 mm at the gussets, so a mm or two is absorbed by the brackets (standoffs) without touching the panels.
+3. Only if a panel surface itself has to move: change the generator, re-export sections, and rebuild the affected panels in
+   SolidWorks (one hidden long-lived instance, started while Joey is not gaming). Then re-slice the fit kit and the panel.
+
 ## 9. Open items
 
 **Arm-thread tip-over recheck (main 022da44):** with only 10 mm of stop the frame yields (side 400 MPa, back 584, limit 145). It holds
