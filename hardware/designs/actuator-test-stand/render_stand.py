@@ -3,6 +3,7 @@
 
 Renders with three.js in headless Chromium (Playwright). Needs an unpacked three npm package:
   npm pack three@0.160.0 && tar xzf three-0.160.0.tgz   -> pass its 'package' folder as THREE_DIR (env or argv[1]).
+Run: python render_stand.py <three package dir> rs02
 """
 import http.server
 import json
@@ -19,23 +20,30 @@ OUT = HERE / "out"
 P = "marengo_teststand_"
 WHITE, GREY, DARK, TEAL, ORANGE, BLUE, GOLD = "#ecebe6", "#8d939b", "#4a4e54", "#2a9d8f", "#f08a24", "#3d6fb6", "#d4a017"
 ANCHOR_X = 200.0
-PARTS = [  # file, colour, exploded offset (stand frame, mm), legend label
-    ("ref_rail_2020x420", DARK, (0, 0, -70), "bench rail 2020 x 420 (Joey's extrusion)"),
-    (P + "upright_rs03", TEAL, (0, 0, 0), "upright, RS03"),
-    ("ref_rs03_vendor", GREY, (0, -110, 0), "RS03 (vendor model)"),
-    (P + "adapter_rs03", ORANGE, (0, 50, 0), "output adapter, RS03"),
-    ("ref_lever_2020x300", DARK, (0, 100, 0), "lever 2020 x 300 (Joey's extrusion)"),
-    (P + "clamp_cap", ORANGE, (0, 150, 0), "lever clamp cap"),
-    (P + "load_block", BLUE, (0, 150, 0), "load block (M8x60 pin)"),
-    (P + "anchor", BLUE, (0, 80, -70), "scale anchor (M8 pin)"),
-    (P + "lock_post", GOLD, (0, 80, -70), "T3 lock post"),
-]
-VIEWS = [
-    ("STAND_RS03_ASSEMBLED.png", False, [((-260, 520, 330), "front three-quarter, lever side"), ((-380, -480, 300), "rear three-quarter, actuator side")],
-     "RS03 test stand, assembled. Lever shown horizontal; scale anchor at X 200, T3 lock post at r 150 (both slide on the rail)."),
-    ("STAND_RS03_EXPLODED.png", True, [((-300, 620, 420), "exploded, lever side")],
-     "RS03 test stand, exploded. Fasteners: M4x16 (8 housing + 6 output), M5 + T-nuts, 4x M5x30 + nuts, 2x M8x60."),
-]
+def list_parts(k):
+    K = k.upper()
+    return [  # file, colour, exploded offset (stand frame, mm), legend label
+        ("ref_rail_2020x420", DARK, (0, 0, -70), "bench rail 2020 x 420 (Joey's extrusion)"),
+        (P + f"upright_{k}", TEAL, (0, 0, 0), f"upright, {K}"),
+        (f"ref_{k}_vendor", GREY, (0, -110, 0), f"{K} (vendor model)"),
+        (P + f"adapter_{k}", ORANGE, (0, 50, 0), f"output adapter, {K}"),
+        ("ref_lever_2020x300", DARK, (0, 100, 0), "lever 2020 x 300 (Joey's extrusion)"),
+        (P + "clamp_cap", ORANGE, (0, 150, 0), "lever clamp cap"),
+        (P + "load_block", BLUE, (0, 150, 0), "load block (M8x60 pin)"),
+        (P + "anchor", BLUE, (0, 80, -70), "scale anchor (M8 pin)"),
+        (P + "lock_post", GOLD, (0, 80, -70), "T3 lock post"),
+    ]
+
+
+def list_views(k):
+    K = k.upper()
+    return [
+        (f"STAND_{K}_ASSEMBLED.png", False, [((-260, 520, 330), "front three-quarter, lever side"), ((-380, -480, 300), "rear three-quarter, actuator side")],
+         f"{K} test stand, assembled. Lever shown horizontal; scale anchor at X 200, T3 lock post at r 150 (both slide on the rail)."),
+        (f"STAND_{K}_EXPLODED.png", True, [((-300, 620, 420), "exploded, lever side")],
+         f"{K} test stand, exploded. Fasteners: see README (housing screws, M4x16 output screws, M5 + T-nuts, 4x M5x30 + nuts, M8 pins)."),
+    ]
+
 
 PAGE = """<!doctype html><html><head><style>body{margin:0;background:#fff;font-family:Helvetica,Arial,sans-serif}
 #t{position:absolute;top:14px;left:24px;font-size:22px} .s{position:absolute;top:52px;font-size:18px;color:#333}
@@ -74,7 +82,8 @@ SHOT = """const {chromium} = require('playwright');
   await pg.screenshot({path: out}); await b.close(); })();"""
 
 
-def main(three_dir):
+def main(three_dir, k):
+    PARTS, VIEWS = list_parts(k), list_views(k)
     """Python serves the page; Node's preinstalled Playwright takes the screenshot."""
     import subprocess
     work = Path(tempfile.mkdtemp())
@@ -103,4 +112,4 @@ def main(three_dir):
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1] if len(sys.argv) > 1 else os.environ["THREE_DIR"]))
+    main(Path(sys.argv[1] if len(sys.argv) > 1 else os.environ["THREE_DIR"]), sys.argv[2] if len(sys.argv) > 2 else "rs03")

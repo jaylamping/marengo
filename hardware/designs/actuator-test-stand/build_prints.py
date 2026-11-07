@@ -8,7 +8,7 @@ hole under 8 mm, a 1.5 mm counterbore step or the 20 mm channel bridge); Joey's 
 
 Settings by purpose (Joey 2026-11-07): the adapter carries the lever torque, so 6 walls 100 %. Everything else is a
 rig fixture loaded far below its strength (see README load check), so 4 walls 25 % gyroid.
-Run on Joey-PC: python build_prints.py [plate ...]
+Run on Joey-PC: python build_prints.py [plate ...]   (RS02 only: python build_prints.py teststand_rs02_upright teststand_rs02_adapter)
 """
 import importlib.util
 import json
@@ -45,6 +45,8 @@ LOADED = {"layer_height": "0.2", "wall_loops": "6", "sparse_infill_density": "10
 PLATES = {
     "teststand_rs03_upright": ([(P + "upright_rs03", FRONT_DOWN)], FIXTURE),
     "teststand_rs03_adapter": ([(P + "adapter_rs03", FRONT_DOWN)], LOADED),
+    "teststand_rs02_upright": ([(P + "upright_rs02", FRONT_DOWN)], FIXTURE),
+    "teststand_rs02_adapter": ([(P + "adapter_rs02", FRONT_DOWN)], LOADED),
     "teststand_fixtures": ([(P + "clamp_cap", FRONT_DOWN), (P + "load_block", FRONT_DOWN), (P + "lock_post", X_SIDE), (P + "anchor", X_SIDE)], FIXTURE),
 }
 

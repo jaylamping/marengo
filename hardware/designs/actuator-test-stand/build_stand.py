@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actuator test stand, RS03 set (first in Joey's test order RS03, RS02, RS00, RS04). CadQuery, mm.
+"""Actuator test stand: per-size upright + output adapter (RS03, RS02 so far; Joey's order RS03, RS02, RS00, RS04) and shared fixtures. CadQuery, mm.
 
 Stand frame (all parts are built in it):
   X along the bench rail (2020, clamped to the bench), +X toward the scale anchor.
@@ -33,21 +33,40 @@ M5_NUT_AF, M5_NUT_T = 8.15, 4.3   # DIN 934 M5 nut is 8.0 AF x 4.0, plus print c
 M8_HEAD_AF, M8_HEAD_T = 13.2, 5.6  # ISO 4017 M8 hex head is 13 AF x 5.3
 LEVER_W = 20.1          # 2020 lever channel width (20.0 nominal + 0.1 print allowance, clamp takes up the rest)
 
-# ---- RS03 interface ----------------------------------------------------------------------------------------------
+# ---- actuator interfaces (vendor STEP, RobStride Product_Information CAN2.0, commit b05095a) --------------------------
+# housing: screws into the housing front face (the face the output protrudes from), angles in the STEP XY frame, which maps
+# straight onto the stand's XZ (X = x, Z = AXIS_Z + y). grip = screw length under the head inside the upright.
 RS03 = dict(
-    name="rs03",
-    housing_bc=98.0, housing_n=8, housing_start=22.5,   # 8x M4 on D98 at 22.5 + k*45
+    name="rs03", step="RS03/RS03-20261030.stp", step_c=(0.0, 0.0), step_out_z=0.0,
+    housing_bc=98.0, housing_ang=[22.5 + 45 * k for k in range(8)],   # 8x M4, 8 deep (drawing)
+    h_clr=M4_CLR, h_head=M4_HEAD, h_grip=9.0,                           # M4x16: 9 grip, 7 in the housing
     bore=74.0,                                          # clears the D70 front boss
-    output_bc=30.36, output_n=6,
+    output_bc=30.36, output_n=6,                        # 6x M4, 6 deep
     contact_d=44.0,                                     # stays inside the D46 output disc
     boss=2.5,                                           # output face is 2.5 proud of the housing face
-    ear_r=52.0,                                         # ear lugs reach about R50.7 (connector bump); keep ribs outside 54
+    w=60.0, rib_x=52.0,                                 # plate half-width; ribs X 52..60 clear the ears (R52)
 )
+RS02 = dict(
+    name="rs02", step="RS02/RS02-20261030.stp", step_c=(54.084, 40.164), step_out_z=-27.5,
+    housing_bc=73.0, housing_ang=[-6.1 + 40 * k for k in range(9)],    # 9x M3 on D73 (drawing: 9-M3, 8 deep)
+    h_clr=3.4, h_head=6.2, h_grip=8.0,                                  # M3x14: 8 grip, 6 in the housing
+    bore=48.0,                                          # clears the D43 output flange
+    output_bc=24.0, output_n=6,                         # 6x M4 on D24 (drawing: 7 min; STEP 6)
+    contact_d=41.0,                                     # bears on the raised D29.7 output pad; the D43 flange is 0.5 behind it
+    boss=4.0,                                           # output face is 4.0 proud of the housing face
+    cb_slot=True,                                       # D24 output circle puts counterbores across the channel walls
+    w=48.0, rib_x=40.0,                                 # housing is D78.5; ribs stay below Z 72
+)
+ACTUATORS = {"rs03": RS03, "rs02": RS02}
 
 PLATE_T = 12.0
 PLATE_BACK_Y = -2.0                 # housing front face sits here
 PLATE_FRONT_Y = PLATE_BACK_Y + PLATE_T   # +10, flush with the rail's front face
-OUT_FACE_Y = PLATE_BACK_Y + RS03["boss"]  # +0.5, actuator output face
+
+
+def out_face_y(a):
+    return PLATE_BACK_Y + a["boss"]
+
 
 # adapter stack along Y (from the output face forward)
 HUB_Y0 = PLATE_FRONT_Y + 1.5        # 1.5 mm running gap to the upright face
@@ -99,19 +118,22 @@ def yz_profile(points, x0, x1):
 def upright(a=RS03):
     """Vertical plate the actuator bolts to by its 8 housing M4s, foot bolted to the rail top with 4x M5 T-nuts.
     Printed front face down: bore and screw holes print as vertical holes, ribs stand up."""
-    w = 60.0
+    w = a["w"]
+    top = a["housing_bc"] / 2 + 11.0  # RS03: 60
     plate = (cq.Workplane("XZ", origin=(0, PLATE_FRONT_Y, 0))
-             .polyline([(-w, FOOT_T), (w, FOOT_T), (w, AXIS_Z + 45), (w - 15, AXIS_Z + 60), (-w + 15, AXIS_Z + 60), (-w, AXIS_Z + 45)]).close()
+             .polyline([(-w, FOOT_T), (w, FOOT_T), (w, AXIS_Z + top - 15), (w - 15, AXIS_Z + top), (-w + 15, AXIS_Z + top), (-w, AXIS_Z + top - 15)]).close()
              .extrude(PLATE_T))
     foot = box(-96, 96, -40, PLATE_FRONT_Y, 0, FOOT_T)
     body = plate.union(foot)
     for sx in (-1, 1):  # rear ribs, outside the housing ears
         rib = yz_profile([(PLATE_BACK_Y + 0.01, FOOT_T - 0.01), (-40, FOOT_T - 0.01), (-40, FOOT_T + 6), (PLATE_BACK_Y + 0.01, 72)], 0, 8)
-        body = body.union(rib.translate((sx * 56 - 4, 0, 0)))  # X 52..60, inside the plate edge
+        body = body.union(rib.translate((sx * (a["rib_x"] + 4) - 4, 0, 0)))  # 8 thick, inside the plate edge
     body = body.cut(y_cyl(a["bore"], PLATE_BACK_Y - 1, PLATE_FRONT_Y + 1, 0, AXIS_Z))
-    for x, z in bolt_circle(a["housing_bc"], a["housing_n"], a["housing_start"]):
-        body = body.cut(y_cyl(M4_CLR, PLATE_BACK_Y - 1, PLATE_FRONT_Y + 1, x, AXIS_Z + z))
-        body = body.cut(y_cyl(M4_HEAD, PLATE_FRONT_Y - 3.0, PLATE_FRONT_Y + 1, x, AXIS_Z + z))  # M4x16: 9 grip, 7 in the ear
+    r = a["housing_bc"] / 2
+    for ang in a["housing_ang"]:
+        x, z = r * math.cos(math.radians(ang)), r * math.sin(math.radians(ang))
+        body = body.cut(y_cyl(a["h_clr"], PLATE_BACK_Y - 1, PLATE_FRONT_Y + 1, x, AXIS_Z + z))
+        body = body.cut(y_cyl(a["h_head"], PLATE_BACK_Y + a["h_grip"], PLATE_FRONT_Y + 1, x, AXIS_Z + z))
     for x in (-86, -70, 70, 86):  # foot to rail-top slot T-nuts
         body = body.cut(z_cyl(M5_CLR, -1, FOOT_T + 1, x, 0))
     return body
@@ -120,15 +142,18 @@ def upright(a=RS03):
 def adapter(a=RS03):
     """Output adapter: D44 spigot bolted to the output with 6x M4, hub with a channel the 2020 lever drops into,
     lever end stop, 4 captive M5 nuts for the clamp cap. Printed spigot face down. 100 % infill (part under load)."""
-    spig = y_cyl(a["contact_d"], OUT_FACE_Y, HUB_Y0 + 0.01, 0, AXIS_Z)
+    of = out_face_y(a)
+    spig = y_cyl(a["contact_d"], of, HUB_Y0 + 0.01, 0, AXIS_Z)
     hub = y_cyl(HUB_D, HUB_Y0, WALL_Y1, 0, AXIS_Z)
     body = spig.union(hub)
     chan = box(STOP_X, 40, FLOOR_Y1, WALL_Y1 + 1, AXIS_Z - LEVER_W / 2, AXIS_Z + LEVER_W / 2)
     body = body.cut(chan)
-    body = body.cut(y_cyl(16, OUT_FACE_Y - 1, OUT_FACE_Y + 1.0, 0, AXIS_Z))  # relief over the output centre features
+    body = body.cut(y_cyl(min(16.0, a["output_bc"] - 14), of - 1, of + 1.0, 0, AXIS_Z))  # relief over the output centre features
     for x, z in bolt_circle(a["output_bc"], a["output_n"], 30.0):  # clocked 30 deg: two holes in the channel floor, four under the walls
-        body = body.cut(y_cyl(M4_CLR, OUT_FACE_Y - 1, WALL_Y1 + 1, x, AXIS_Z + z))
-        body = body.cut(y_cyl(M4_HEAD, OUT_FACE_Y + 10.0, WALL_Y1 + 1, x, AXIS_Z + z))  # M4x16: 10 grip, 6 in the output
+        body = body.cut(y_cyl(M4_CLR, of - 1, WALL_Y1 + 1, x, AXIS_Z + z))
+        body = body.cut(y_cyl(M4_HEAD, of + 10.0, WALL_Y1 + 1, x, AXIS_Z + z))
+        if a.get("cb_slot") and abs(z) > 0.1:  # run the counterbore into the channel as a slot: no knife cusp where it meets the wall
+            body = body.cut(box(x - M4_HEAD / 2, x + M4_HEAD / 2, of + 10.0, WALL_Y1 + 1, AXIS_Z + min(0, z), AXIS_Z + max(0, z)))  # M4x16: 10 grip, 6 in the output
     for x, z in CLAMP_XZ:
         body = body.cut(y_cyl(M5_CLR, HUB_Y0 - 1, WALL_Y1 + 1, x, AXIS_Z + z))
         body = body.cut(hex_y(M5_NUT_AF, HUB_Y0 - 1, HUB_Y0 + M5_NUT_T, x, AXIS_Z + z))
@@ -204,8 +229,8 @@ def rail(length=420.0):
 
 
 PARTS = {
-    "marengo_teststand_upright_rs03": upright,
-    "marengo_teststand_adapter_rs03": adapter,
+    **{f"marengo_teststand_upright_{k}": (lambda a=a: upright(a)) for k, a in ACTUATORS.items()},
+    **{f"marengo_teststand_adapter_{k}": (lambda a=a: adapter(a)) for k, a in ACTUATORS.items()},
     "marengo_teststand_clamp_cap": clamp_cap,
     "marengo_teststand_load_block": load_block,
     "marengo_teststand_anchor": anchor,
@@ -213,15 +238,15 @@ PARTS = {
 }
 
 
-def vendor_rs03():
-    """RS03 vendor STEP placed in the stand frame: STEP z = 0 is the output face, +z goes back into the housing,
-    STEP +y (connector side) up."""
-    step = Path("/tmp/claude-0/rs/Product Literature/CAN2.0/RS03/RS03-20261030.stp")
+def vendor(a):
+    """Vendor STEP placed in the stand frame: output face on out_face_y, axis on (0, AXIS_Z), STEP +y up.
+    (x, y, z)_step -> (X, Y, Z) = (x - cx, out_face_y - (z - z_out), AXIS_Z + y - cy)."""
+    step = Path("/tmp/claude-0/rs/Product Literature/CAN2.0") / a["step"]
     if not step.exists():
         return None
-    m = cq.importers.importStep(str(step))
-    # (x, y, z)_step -> (X, Y, Z) = (x, OUT_FACE_Y - z, AXIS_Z + y): rotate +90 about X then translate
-    return m.rotate((0, 0, 0), (1, 0, 0), 90).translate((0, OUT_FACE_Y, AXIS_Z))
+    cx, cy = a["step_c"]
+    m = cq.importers.importStep(str(step)).translate((-cx, -cy, -a["step_out_z"]))
+    return m.rotate((0, 0, 0), (1, 0, 0), 90).translate((0, out_face_y(a), AXIS_Z))
 
 
 def common_volume(a, b):
@@ -247,22 +272,23 @@ def main():
         v = s.val()
         print(f"{name}: volume {v.Volume() / 1000:.1f} cm3, solids {len(s.solids().vals())}, bbox {[round(t, 1) for t in (v.BoundingBox().xlen, v.BoundingBox().ylen, v.BoundingBox().zlen)]}")
     ref = {"lever_2020x300": lever(), "rail_2020x420": rail()}
-    act = vendor_rs03()
-    if act is not None:
-        ref["rs03_vendor"] = act
-    for name, s in ref.items():
-        cq.exporters.export(s, str(OUT / f"ref_{name}.stl"), tolerance=0.05, angularTolerance=0.2)
-    # interference check, every pair
-    allp = {**solids, **ref}
-    allp["marengo_teststand_anchor"] = solids["marengo_teststand_anchor"].translate((ANCHOR_X, 0, 0))
-    names = list(allp)
+    for name, sh in ref.items():
+        cq.exporters.export(sh, str(OUT / f"ref_{name}.stl"), tolerance=0.05, angularTolerance=0.2)
+    shared = {n: sh for n, sh in solids.items() if not any(n.endswith("_" + k) for k in ACTUATORS)}
+    shared["marengo_teststand_anchor"] = shared["marengo_teststand_anchor"].translate((ANCHOR_X, 0, 0))
     bad = []
-    for i in range(len(names)):
-        for j in range(i + 1, len(names)):
-            a, b = allp[names[i]], allp[names[j]]
-            v = common_volume(a, b)
-            if v > 0.5:
-                bad.append((names[i], names[j], round(v, 1)))
+    for k, a in ACTUATORS.items():  # one assembly per actuator size: its upright + adapter + vendor model + shared parts
+        allp = {**shared, **ref, f"upright_{k}": solids[f"marengo_teststand_upright_{k}"], f"adapter_{k}": solids[f"marengo_teststand_adapter_{k}"]}
+        act = vendor(a)
+        if act is not None:
+            allp[f"{k}_vendor"] = act
+            cq.exporters.export(act, str(OUT / f"ref_{k}_vendor.stl"), tolerance=0.05, angularTolerance=0.2)
+        names = list(allp)
+        for i in range(len(names)):
+            for j in range(i + 1, len(names)):
+                v = common_volume(allp[names[i]], allp[names[j]])
+                if v > 0.5:
+                    bad.append((k, names[i], names[j], round(v, 1)))
     print("interference > 0.5 mm3:", bad or "none")
     return 1 if bad else 0
 
