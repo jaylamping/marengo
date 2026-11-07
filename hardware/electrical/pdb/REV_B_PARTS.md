@@ -23,7 +23,7 @@ the repo as a reference.
 | ----- | ----- | ------------ |
 | Battery in | M4 terminals from the BMS output | |
 | E-stop switch | Two FET banks in series, both from the E-stop latch. Bank B: hot-swap controller (soft start = precharge for all limbs). Bank A: second bank with its own TPS48100 driver, closes first, slow turn-off, own short-circuit trip. Reset latch (Joey: press reset at every power-up) | Safety, no software in the path. All bulk capacitance sits behind it, so the BMS never sees inrush. One shorted FET can't defeat the E-stop. |
-| Braking clamp | Comparator, FET, HS25 10 Ω on the frame | A full pack or a BMS trip during regen would push the bus past the drives' 60 V fault. |
+| Braking clamp | Comparator, FET, Arcol HS50 10R J on the frame (Joey, 2026-11-07: bigger for redundancy; place it with the frame thread) | A full pack or a BMS trip during regen would push the bus past the drives' 60 V fault. |
 | Bus capacitors | A few electrolytics at the clamp and switch | The drives have their own. Limb cap boards (Unitree style) get added if the bench shows ringing. |
 | 12 V rail | Board-mount 150 W brick, e.g. Mean Well IQB150W8-12 (quarter brick, 9–75 V in, 12 V 12.5 A) (Joey deferred to me), with a heatsink on the baseplate | No converter to design; small. It derates above 30 C at 20 LFM. |
 | Limb outputs (arms, waist, aux; legs later) | Terminal pair + shunt + one INA228 meter each (Joey: yes to meters) | Amps per limb at all times. No per-limb switching (Joey: OK to lose it). |

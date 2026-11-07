@@ -13040,7 +13040,7 @@
 		)
 		(uuid "29eddbb7-cd23-5e0a-9abd-744a2d80e443")
 	)
-	(text "3. Braking clamp: 56.8 V on, 55.8 V off, 57.5 V worst case, into the HS25"
+	(text "3. Braking clamp: 56.8 V on, 55.8 V off, 57.5 V worst case, into the HS50"
 		(exclude_from_sim no)
 		(at 25.4 262 0)
 		(effects
@@ -15120,7 +15120,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, HS25 +"
+		(property "Value" "M4 terminal, HS50 +"
 			(at 325.12 303.53 0)
 			(effects
 				(font
@@ -15210,7 +15210,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, HS25 -"
+		(property "Value" "M4 terminal, HS50 -"
 			(at 325.12 326.39 0)
 			(effects
 				(font
@@ -15282,7 +15282,7 @@
 		)
 		(uuid "9a8368ac-1d95-5191-bf93-fd7c65d55705")
 	)
-	(text "Arcol HS25 10 Ohm on the frame plate: 322 W, 5.7 A. Threshold values are rev A's, unchanged.\nSelf-powered: VCTL lives as long as the bus or the pack does. If the FET sticks on, the plate thermostat opens the loop and the bank drops the bus.\nTLV1805 drives the FET directly: 100 mA peak, 0.3 us into 4 nF. Rev A's driver, meter, shunt, status FET and NTC are gone, and a smaller FET replaces the IPT015.\nLeg stage later: fit 2 Ohm and recheck this FET, 29 A gives about 5 W."
+	(text "Arcol HS50 10R J on the frame plate: 322 W, 5.7 A while on. 50 W on Arcol's standard heatsink, 32 g: about 1.4 kJ, 4.5 s at 322 W, before it gets hot. Threshold values are rev A's, unchanged.\nSelf-powered: VCTL lives as long as the bus or the pack does. If the FET sticks on, the plate thermostat opens the loop and the bank drops the bus.\nTLV1805 drives the FET directly: 100 mA peak, 0.3 us into 4 nF. Rev A's driver, meter, shunt, status FET and NTC are gone, and a smaller FET replaces the IPT015.\nLeg stage later: fit 2 Ohm and recheck this FET, 29 A gives about 5 W."
 		(exclude_from_sim no)
 		(at 355.6 280 0)
 		(effects

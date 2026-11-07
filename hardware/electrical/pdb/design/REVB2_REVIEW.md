@@ -64,6 +64,23 @@ Hashes matched before the round and after each run. All pass ERC and check.py. E
 - **Open:** the brick on a frame plate (B2), and a bigger braking resistor (M2). Those areas stay parametric until he answers.
 - GLM 5.3 and Kimi K3.1 Pro are out of the reviewer group for now. DeepSeek V4.1 Flash stays as a trial on CheaperInference.
 
+## Braking resistor: HS50 (Joey, 2026-11-07, "for redundancy")
+
+Arcol publishes no pulse or short-time overload rating for the HS range; its datasheet says to ask (sales@arcolresistors.com). So I sized it on thermal mass. I assumed 0.9 J/g·K, half the mass taking heat in a burst, and 100 K of rise from a 50 °C ambient, well under the 200 °C hot spot. These are estimates, not ratings.
+
+| Part | On std heatsink | No heatsink | Mass | Burst estimate | At 322 W | Body (L × W × H) | Holes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| HS25 (was) | 25 W | 9 W | 14 g | 0.6 kJ | 2 s | 51.0 × 28.0 × 14.8 | 18.3 × 19.8, Ø3.2 |
+| **HS50** | 50 W | 14 W | 32 g | 1.4 kJ | 4.5 s | 72.5 × 28.0 × 14.8 | 39.7 × 21.4, Ø3.2 |
+| HS75 | 75 W | 24 W | 85 g | 3.8 kJ | 12 s | 72.0 × 47.5 × 24.1 | 29.0 × 37.0, Ø4.4 |
+
+- **The worst burst I can name** is a fall once legs are on: 40 kg dropping 1 m is 400 J, if all of it came back as regen, which overstates it. The arm stage is tens of joules.
+- **Why HS50:** the HS25 covers that fall with about 1.5× margin, and the HS50 with about 3.5×. So the HS50 is the smallest part that gives the redundancy Joey asked for.
+- **What none of them cover:** a stuck-on Q6 (298 W continuous). Every HS size up to the HS150 needs the NC thermostat in the loop for that, so it stays.
+- **The 10 Ω stays.** The clamp math is unchanged.
+- **Fit:** it does **not** fit where the HS25 went. The front bottom rail slot is |X| ≤ 25.5, so 51 mm, and the HS50 is 72.5 mm long. Its 28.0 mm width (datasheet A max) fills the Y 154 to 182 slot with no margin, the same as the HS25. In that orientation it would need |X| ≤ 36.3, which runs into the rule to keep the LP bottom-edge connectors at |X| > 36. The frame thread has to place it.
+- **Price:** about $2.30 to $4 each in snapshots (Newark $2.26, Octopart $2.71, Findchips $4.06 at 10). Digi-Key is HS5010RJ-ND with a 21-week lead time. Check live stock.
+
 ## Fix round 2 (2026-11-07)
 
 On the sheet, block 10 holds the new parts, so earlier refs keep their numbers. ERC is clean, check.py passes 80 of 80, and the courtyard total is 8,832 mm²: 98 % of the one-sided budget with legs, down from 100.6 %.
