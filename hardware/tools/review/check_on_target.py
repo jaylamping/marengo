@@ -5,7 +5,7 @@ each in the packet's text files. Real refs aren't enough: a made-up review can r
 R29 = 30.1 kOhm), so with a netlist in the packet it also compares each "R29 = value" it cites with the netlist.
 Exit 1 if any review is under a limit."""
 import os,re,sys
-LIMIT=0.75; VALUE_LIMIT=0.7
+LIMIT=0.75; VALUE_LIMIT=0.7; MIN_VALUES=10  # a review's proposed values also get counted, so a few cites prove nothing
 TEXT=('.md','.txt','.py','.json','.net','.kicad_sch','.kicad_sym','.kicad_mod','.csv','.rpt','.sh')
 REF=re.compile(r'\b(?:RS|TP|[UQRCDJF])\d{1,4}\b')  # no L: reviewers write L120 for a line number
 TICK=re.compile(r'`([^`\n]{2,60})`')
@@ -50,7 +50,7 @@ def main():
         if not n: print('skip',os.path.basename(p),': cites no names, read it by hand'); continue
         miss=sorted(x for x in n if x.lower() not in low)
         share=1-len(miss)/len(n); good,wrong=values(t,comps)
-        ok=share>=LIMIT and (good+wrong<3 or good/(good+wrong)>=VALUE_LIMIT)
+        ok=share>=LIMIT and (good+wrong<MIN_VALUES or good/(good+wrong)>=VALUE_LIMIT)
         print(f"{'ok  ' if ok else 'FAIL'} {os.path.basename(p)}: {len(n)-len(miss)} of {len(n)} names found, {share:.0%}; {good} of {good+wrong} cited values match the netlist")
         if miss: print('     not in the packet:',', '.join(miss[:12]))
         bad+=not ok

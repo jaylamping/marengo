@@ -60,7 +60,14 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B | claude-fable-5-1 | high | 11 | 1 | 1 | 0 | on (checked) | 0 | 19.1 | about $12, estimated | 19.1 | Unique catch: U1 power limit |
 | PDB rev B | muse-wonder-1.0 | default (high) | 12 | 5 | 2 | 1 | on (checked) | 0 | 8.6 | sub | 4.3 | Confirmed the wrong 544 W power limit |
 | PDB rev B | gemini-4-argon-high | high | 0 | 0 | 0 | 0 | **off** | 5 | 31.4 | sub | | Scores zero. Invented a different board. 24 of 80 cited values match the netlist, against 4 of 4 and 29 of 30 for the others. **Strike 1** |
-
+| PDB rev B2 | claude-fable-5-1 | high | 6 | 0 | 1 | 0 | on (checked) | 0 | 23.9 | $10.44 (JSON) | 23.9 | Unique: latch can arm with reset held at power-up |
+| PDB rev B2 | gpt-6.1-sol | high | 13 | 0 | 1 | 0 | on (checked) | 0 | 22 | sub | 22 | Unique: U2 reverse output-to-input |
+| PDB rev B2 | gpt-6-astra | high | 12 | 0 | 0 | 0 | on (checked) | 0 | 19.7 | sub | | |
+| PDB rev B2 | muse-wonder-1.0 | high | 9 | 2 | 0 | 1 | on (checked) | 0 | 15.8 | sub | | Passed the gate arithmetic that B1 overturned |
+| PDB rev B2 | gemini-4-argon-high | high | 0 | 0 | 0 | 0 | **off** | 0 | 17.8 | sub | | Scores zero. 15 of 49 cited values match. **Strike 2: removed** |
+| PDB rev B2 | deepseek-v4.1-flash (trial) | high | 0 | 0 | 0 | 0 | no review | 1 | 68 | Go, $0.006 | | Miss. Denied shell call, then hung |
+| PDB rev B2 | glm-5.3 (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 45 | Go, $0.075 | | Miss. Hung after subagents |
+| PDB rev B2 | kimi-k3.1-pro (trial) | high | 0 | 0 | 0 | 0 | no review | 0 | 45 | Go, $0.024 | | Miss. Subagents denied, then hung |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
 ## By model
@@ -70,9 +77,12 @@ Totals of the rows above. Compare them with care: rounds differ, and not every m
 | Model | Runs | Real | False | Unique | False conf | Off target | Retries | Mean min |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | claude-opus-5-5 | 7 | 73 | 5 | 18 | 0 | 0 | 0 | 17.3 |
-| claude-fable-5-1 | 8 | 69 | 10 | 6 | 0 | 0 | 0 | 21.6 |
-| gpt-6.1-sol | 9 | 88 | 5 | 4 | 0 | 0 | 1 | 11.1 |
-| gpt-6-astra | 6 | 69 | 3 | 3 | 0 | 0 | 1 | 11.1 |
-| muse-wonder-1.0 | 6 | 64 | 18 | 3 | 1 | 0 | 0 | 6.5 |
-| gemini-4-argon-high | 4 | 25 | 11 | 6 | 0 | 1 | 7 | 27.6 |
+| claude-fable-5-1 | 9 | 75 | 10 | 7 | 0 | 0 | 0 | 21.9 |
+| gpt-6.1-sol | 10 | 101 | 5 | 5 | 0 | 0 | 1 | 12.2 |
+| gpt-6-astra | 7 | 81 | 3 | 3 | 0 | 0 | 1 | 12.3 |
+| muse-wonder-1.0 | 7 | 73 | 20 | 3 | 2 | 0 | 0 | 7.8 |
+| gemini-4-argon-high (removed) | 5 | 25 | 11 | 6 | 0 | 2 | 7 | 25.6 |
 | grok-4.7-high-fast (dropped) | 2 | 23 | 3 | 0 | 0 | 0 | 1 | 12.5 |
+| deepseek-v4.1-flash (trial) | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 68.0 |
+| glm-5.3 (trial) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 45.0 |
+| kimi-k3.1-pro (trial) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 45.0 |

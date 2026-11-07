@@ -1,0 +1,95 @@
+# Power board rev B, fixed board: schematic review
+
+2026-11-07. Packet built from main at 29a6598c (54 hashed files), run on Joey-PC at High effort with a 45 minute limit. **Result: NO-GO for layout.** Two blockers and 11 majors are accepted. Earlier close-order and wiring problems did not come back: every reviewer who checked FLT's static behaviour and the pin maps found them right. What's left is mainly protection that isn't proven, and numbers of mine that were wrong. Nothing here has been fixed yet.
+
+| Reviewer | Tool | Effort | Minutes | Verdict | On-target check |
+| --- | --- | --- | --- | --- | --- |
+| Wonder | Muse | high | 15.8 | NO-GO | Pass, 47 of 50 values |
+| Astra | Codex | high | 19.7 | NO-GO | Pass |
+| Sol | Codex | high | 22.0 | NO-GO | Pass |
+| Fable | Claude CLI, API | high | 23.9 | NO-GO | Pass. $10.44 from the JSON output |
+| Argon | agy on Joey-PC | high | 17.8 | Discarded | **Fail**, 15 of 49 values. **Removed from the group by Joey** |
+| DeepSeek V4.1 Flash (trial) | OpenCode Go | high | 45 + 23, timed out | None | No review. First run ended at 59 s on a denied shell call, retry hung with no output |
+| GLM 5.3 (trial) | OpenCode Go | high | 45, timed out | None | No review: 407 characters of preamble, then hung |
+| Kimi K3.1 Pro (trial) | OpenCode Go | high | 45, timed out | None | No review: its subagents were denied, then it hung |
+| Opus (agy) | Antigravity quota | high | running | | Started 09:09Z as the routing test. Folds in as a follow-up |
+
+Hashes matched before the round and after each run. All pass ERC and check.py. Each finding was checked against the netlist or datasheets unless the row says otherwise.
+
+## Blockers (accepted)
+
+| # | Finding | Raised by | How verified | Smallest fix |
+| --- | --- | --- | --- | --- |
+| B1 | **Pack-side turn-off still isn't bounded.** My 150 Ω fix doesn't set di/dt. Crss is 25 pF at 50 V, so once VDS rises the gate loses control and di/dt follows the clamp voltage and lead inductance. U1's own breaker also trips with 230 mA of gate pull-down, in 1.2 µs. D1 clamps 93.6 V at 32 A and 120.9 V at 160 A, on a node of 100 V controllers. A controller killed this way may fail with its gate high, which is an E-stop failure. | Fable, Sol, Astra, Wonder | IPB017 p4, LM5069. TVS data from Littelfuse via Sol and Astra | Diode-fed absorber on BAT (47 to 100 µF, 100 V, with bleed), so the BMS never sees its inrush, plus a 5 kW class TVS. Measure lead inductance and scope a 60 A stop |
+| B2 | **The brick's place isn't settled.** At 50 C the curve gives about 50 % with no heatsink at 20 LFM, and 75 % with one: 6.3 A and 9.4 A against 10.1 A. A heatsink plus 100 LFM is full output to 70 C. But the top reaches Z 66.8, and the brick's own +0.5 mm takes it past the unapproved Z 67. The body also runs 1.15 mm into the fan zone. | Wonder (blocker); Fable, Sol, Astra (major) | IQB p4 curve read by me, p8 tolerance. Sol read 55 and 75 %, Astra 60 and 80 % | Decide before placement: frame-plate brick on a pigtail, or get Z 67 approved with tolerance, and specify the airflow |
+
+## Majors (accepted)
+
+| # | Finding | Raised by | How verified |
+| --- | --- | --- | --- |
+| M1 | My "comparator covers reset with B shorted" is wrong. A closes hard, and current passes 200 A in about 4 µs at 1 µH while the comparator waits about 10 µs. It's a late breaker, not a limit, and the BMS may trip first. Removing C29 is the fastest setting. A hardware reset interlock would be the real fix. | Sol, Astra (blockers); Fable, Wonder | Datasheet timing. Kept as major: it needs a shorted B and a reset after a failed self-test |
+| M2 | Accepting the clamp with a 5 A cap doesn't cover energy. HS25 is 25 W on its heatsink, so 322 W is 7.8 % duty at best. The cap can't bound passive regen in an E-stop, a fall or a BMS event. A Q6 short gives 298 W until a thermostat nobody has specified opens. | Sol, Astra (blockers); Wonder; Fable on the thermostat | HS25 data via Sol and Astra. Kept as major: it's off-board and doesn't hold layout. **Joey's acceptance needs revisiting with an energy limit** |
+| M3 | U9 is the only break for the neck servos. If it shorts, they stay powered through an E-stop. | Sol (blocker), Astra; Wonder and Fable (minor) | Netlist. Needs a decision: a second switch, or accept |
+| M4 | The NO input feeds the Pi rail. A bus short puts 15.5 mA through R44 (0.8 W in a 1206) straight into +3V3_PI, 20.7 mA with D6. My note counted only 5 mA, and a powered-off Pi can't absorb it. | Astra (blocker), Sol, Wonder; Fable (minor) | Netlist, arithmetic |
+| M5 | The 1.5× SOA margin is wrong: about 1.05 to 1.1×. The sheet scaled the curve as √t, and TI uses t^0.346. 16 A at 0.82 ms and 70 C against 14.8 A. Fix: C3 to 4.7 nF. | Fable, Sol, Astra | Three independent readings agree. I didn't re-read the graph |
+| M6 | U2's capacitors are at the minimum. C5 is 4.7 µF nominal in 0805 against a required 4.7 µF effective, and C1 is 1 µF. If VCTL goes unstable, the latch and clamp go with it. Fit 10 µF and a dedicated input cap. | Sol, Astra, Wonder; Fable (rev B round) | TPS7A4001 p11 |
+| M7 | U2 has no reverse protection. OUT is limited to IN + 0.3 V, and BAT can collapse under C5. | Sol | TPS7A4001 p4 |
+| M8 | The latch simulation is stale, and reset held at power-up may arm it: C6 couples VCTL's ramp into L_B, 0.24 to 0.88 V across R17 against about 0.55 V hot. | Fable (mechanism); Sol, Astra, Wonder (stale evidence) | Netlist. Mechanism not simulated. Rerun ngspice |
+| M9 | Neither eFuse handles back-driven servos. OUT is limited to IN + 0.3 V with no reverse blocking, and regen can feed the compute rail. | Sol, Astra | TPS2595 p5 |
+| M10 | MID thresholds ignore FET leakage: up to 100 µA per FET at 125 C against about 0.14 mA of divider current. Valid only cold, with defined supply and wait conditions. | Sol, Astra | IPB017 p4 |
+| M11 | Carried over from the last round, still unmeasured: drive capacitance, brick input capacitance, FET thermal model. | All four | |
+
+## Minors (accepted)
+
+| Finding | Raised by |
+| --- | --- |
+| "RUN is the only shared signal" is now false: FLT also links U8 to U1. FLT shows BST is up, not that A conducted. If the FLT trace is open, close order is lost. Test it at bring-up. | Sol, Astra, Wonder |
+| U8 lacks the recommended 22 nF from SRC to GND. Add one on MID. | Fable, Sol, Astra |
+| My notes: close time is about 57 ms typ, 35 to 115 ms, not 26 ms. "A short stops in 5 µs" is wrong: the eFuse holds its limit until thermal shutdown, then retries. The 158 to 242 A band is interpolated. | Fable, Sol, Astra, Wonder |
+| RS2 to RS7 part number: Bourns lists CSS4J-4026R-1L00, not 4026K. C10 to C13: maker lists HHXF800ARA101MJH0G. Check both before ordering. | Sol, Astra |
+| R40 at 1 % can fall below the 487 Ω minimum. | Astra |
+| 57.5 V isn't a guaranteed ceiling: comparator hysteresis is typical only, and reference drift adds. Fable and Wonder get about 57.4 V. | Sol, Astra |
+| At 36 V, a brick overload can reach U7's 9.7 A minimum limit. | Fable |
+| U9 and U18 FLT are unconnected, so the Pi can't see retries. | Wonder |
+| Positive-opening and minimum load for the HB2-BS545 are assumed. Joey's acceptance rests on the first, so get the contact block's data. | Sol, Fable, Wonder |
+| Bus caps' land is 14.3 mm for a 16.5 mm can. | All four |
+
+## The fit decision
+
+None of the four reviewers chose moving parts to the back face, which is the plan Joey approved. Fable argues against it: 6 mm standoffs, the pack behind, no airflow. Sol and Wonder prefer smaller RS9 and RS10 shunts; Astra and Fable prefer dropping U10 and RS10. Fable's other idea is the best one I've seen: the limb "−" terminals are all GND, so merging six into two shared studs frees about 690 mm², enough to cover B1's absorber too. B1 adds 150 to 300 mm² at the battery entry, so this needs deciding again. It needs a current check on the shared studs.
+
+## Closed by my own check
+
+| Item | Result |
+| --- | --- |
+| Brick footprint mirror (Wonder B3, Fable m6) | Correct. Pins and inserts match the p8 top view. Not a finding |
+
+## Rejected
+
+| Claim | Raised by | Why |
+| --- | --- | --- |
+| Add a backup RC delay on U1 UVLO. | Wonder | A bring-up test covers an open trace, and the discharge path is the problem already rejected in the fix |
+| BRK_PG needs a pull-up. | Wonder | R.C open means on, and PGD only sinks |
+| 6 to 10 µs gate arithmetic passes. | Wonder | Superseded by B1 |
+| 100 A continuous isn't demonstrated. | Astra | My prompt's "100 A class" wording. The design is 60 A |
+
+## Argon: discarded and removed
+
+The review is 102 KB with five blockers, but 34 of its 49 cited values don't match the netlist, and it describes an SMCJ58A on MID, CS_SEL on pin 16, and parts that aren't on the board. Its questions aren't the packet's. This run used no subagent, read 298 files itself, and was told to cite only what it saw, so subagents aren't the cause. Two off-target reviews in two rounds meet the removal rule. Joey removed it at 09:07Z and waived the effort trial.
+
+## Usage
+
+| Reviewer | Tokens | Cost |
+| --- | --- | --- |
+| Fable | 930 in, 99,692 out, 352,719 cache write, 4,134,541 cache read | $10.44, from `total_cost_usd` |
+| Argon | 1,029,951 in, 92,311 out, 13,180 thinking, 2,214,745 cache read | Subscription |
+| Wonder, Sol, Astra | No per-run figure | Subscription |
+| OpenCode trials | DeepSeek 33k in and 0.9k out on try 1. GLM 269k in. Kimi 9k in | $0.006, $0.075 and $0.024 as OpenCode reports them, on the Go plan |
+
+## Open models: none delivered
+
+All three hung headless on Windows, the same way OpenCode did on the Mac. Two of them were using subagents when they stopped, and DeepSeek's first run ended on a denied shell call. They score as time-limit misses. Next try: disable OpenCode's task tool and shell for these runs in config, then rerun them on the seeded packet before another real round.
+
+## My errors
+
+M1, M5 and the notes above are mine: I claimed protection and margins I hadn't proven, and B1's fix used a gate-charge estimate where the physics doesn't apply. On the brick, I took 9.4 A as a no-heatsink figure when it's with a heatsink, and I gave a heatsink without the airflow that actually fixes it.

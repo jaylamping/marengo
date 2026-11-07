@@ -1,6 +1,6 @@
 # Adversarial review recipe
 
-How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bash. Copy it for any hardware gate. All four tools were already logged in, so nothing needed installing or signing in.
+How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bash, updated since. Copy it for any hardware gate. All four tools were already logged in, so nothing needed installing or signing in.
 
 | Reviewer | Tool | Model flag | Read-only by | Rev B run time |
 | --- | --- | --- | --- | --- |
@@ -10,11 +10,12 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | Opus high (added 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-opus-5-5 --effort high` | same as Fable | not yet timed |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
 | Wonder | Muse | `--model muse-wonder-1.0` | Prompt only, so check hashes after | 9 min |
-| Argon | Antigravity `agy` (MacBook only) | `--model gemini-4-argon-high` (always High effort, Joey 2026-11-06) | Prompt plus a read-only `--settings` allow list, check hashes after | 26.5 min (left-arm rev C) |
+| ~~Argon~~ (removed 2026-11-07, Joey, after two off-target reviews) | Antigravity `agy` | `--model gemini-4-argon-high` | | |
+| DeepSeek V4.1 Flash, GLM 5.3, Kimi K3.1 Pro (trial, see "Trial reviewers") | OpenCode | `-m opencode-go/<model> --variant high --agent plan` | Plan agent, check hashes after | No review yet: all three hung on rev B2 |
 
 Run times are from one run. Allow 20 minutes.
 
-Power board gate 3 (2026-11-06): with `Bash(sha256sum*)` only, Fable and Opus cannot rerun scripts; add `Bash(python3 *)` when the packet has scripts to rerun, and check hashes after. Without sed and awk in its allow list, Argon exited 0 with an empty review after 25 min.
+Power board gate 3 (2026-11-06): with `Bash(sha256sum*)` only, Fable and Opus cannot rerun scripts; add `Bash(python3 *)` when the packet has scripts to rerun, and check hashes after.
 
 Fable and Opus: run each as a fresh session with only the packet folder, never from the thread that wrote the packet, so it has no memory of the author's reasoning. Both run on the **API credits**, not the Claude subscription, at **high** effort (Joey 2026-11-06 06:33Z: "high effort for both", API route confirmed). Claude Code bills the API account whenever `ANTHROPIC_API_KEY` is set in the shell, and the subscription when it is not, so set the key for these two commands only:
 
@@ -33,7 +34,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
  python -c "import json;d=json.load(open('reviews/claude-opus.json',encoding='utf-8'));open('reviews/claude-opus.md','w',encoding='utf-8').write(d['result'])") &
 ```
 
-Cost per review, from the published API prices (2026-11-06; Fable 5.1 $10 in / $50 out per million tokens, Opus 5.5 $4 / $20) and a torso-frame-sized packet (about 200k tokens read, 20 to 40k tokens of thinking and review written at high): **Fable about $3 to $4, Opus about $1.50 to $2**. Check the balance at https://platform.claude.com/settings/billing before a round; if the credits are gone, drop the key and the Fable run falls back to the subscription (Opus too). The JSON output saved beside each review carries the token usage and `total_cost_usd`: read those, not this estimate. First real data point (power board rev B, 2026-11-07, about 540k cache write, 1.16M cache read, 79k output): Fable about $12, estimated from the session transcript, so allow three times the figure above until the JSON gives a billed number.
+Cost per review, from the published API prices (2026-11-06; Fable 5.1 $10 in / $50 out per million tokens, Opus 5.5 $4 / $20) and a torso-frame-sized packet (about 200k tokens read, 20 to 40k tokens of thinking and review written at high): **Fable about $3 to $4, Opus about $1.50 to $2**. Check the balance at https://platform.claude.com/settings/billing before a round; if the credits are gone, drop the key and the Fable run falls back to the subscription (Opus too). The JSON output saved beside each review carries the token usage and `total_cost_usd`: read those, not this estimate. Real data points, power board rev B, 2026-11-07: Fable about $12 (estimated from the transcript) and **$10.44** (`total_cost_usd`, 353k cache write, 4.1M cache read, 100k output). Allow three times the estimate above.
 
 A thread may also run it from the cloud as a fresh (not forked) agent pointed at the packet path with the same prompt; record which way it ran.
 
@@ -41,48 +42,58 @@ Always pass the model flag. Codex without `-m` did not give Sol. Grok 4.8 Fast w
 
 cursor-agent launched from Git Bash can be blocked by the repo's `.cursor` pre-tool hook (`impeccable-before-edit.js` dies with a bash syntax error, every file read rejected, exit still 0, 30 s). Launch it from PowerShell with the same flags (torso frame gate, 2026-11-06). Check that the review actually read files before trusting an exit 0.
 
-Antigravity (Argon) is on the MacBook, not Joey-PC: `agy` 1.3.4 at `~/.local/bin/agy` (checked 2026-11-06 05:40Z, signed in, `agy models` lists `gemini-4-argon-high`, a one-word smoke test answered in 7 s). Run it from the Mac against the packet. Prompt must be attached to the flag (`-p='...'`), or `-p` swallows the next flag as the prompt:
+## agy, for Claude models only
+
+Argon is out of the group, so nothing here runs Gemini. agy stays for the Claude and GPT quota in Joey's Google AI Ultra plan. `agy models` on Joey-PC lists `claude-opus-5-5-low`, `-medium`, `-high` and `claude-sonnet-5-5-low`, `-medium`, `-high`.
+
+**Claude routing, Joey 2026-11-07, for reviews and similar workflows:** first the Antigravity quota through agy (`claude-opus-5-5-high`), then the Anthropic API key, then our own subscriptions last. Fable isn't on agy, so it goes API first, then subscription. A run on agy is a different setup from one on the Claude CLI, so it gets its own scorecard row, "Opus High (agy)".
+
+On Joey-PC, `agy` 1.5.2 is at `C:/Users/joeyl/AppData/Local/agy/bin/agy.exe`, and it may not be on PATH in open shells. What the rev B rounds showed:
+
+- Headless mode soft-denies any tool it can't match and ends the run, with exit 0 and an empty review. Never use `--dangerously-skip-permissions`.
+- `command(...)` allow entries match exact command lines, so `command(Get-ChildItem *)` did not match `Get-ChildItem -Recurse -Name`. There is no `read` entry. It uses PowerShell.
+- The way through was no shell at all. Add this to the prompt: run no shell commands, use only file tools.
+- Reading outside the workspace also ends the run. Pass every folder it needs with `--add-dir`, including `C:/Program Files/KiCad/10.0/share/kicad/footprints`.
+- The prompt must be attached to the flag (`-p='...'`), or `-p` swallows the next flag.
+- Run it with `--output-format stream-json --log-file <path>`. The final `result` event carries the review in `response`, plus token usage and `denied_actions`.
+- Read-only is by prompt only, so check the hashes after.
+
+## Trial reviewers
+
+Open models run through OpenCode on the Go plan. They're scored on the scorecard and don't gate until they've passed the seeded test packet. Joey's main pick is DeepSeek V4.1 Flash, with GLM 5.3 and Kimi K3.1 Pro.
 
 ```bash
-AGY_ALLOW='{"permissions":{"allow":["command(sed)","command(awk)","command(cat)","command(ls)","command(head)","command(tail)","command(wc)","command(find)","command(grep)","command(shasum)","command(sha256sum)","command(python3)","command(python)"]}}'
-(agy --model gemini-4-argon-high --disable-slash-commands --print-timeout 0 \
-  --add-dir "$PWD" --settings "$AGY_ALLOW" -p="$P" > reviews/antigravity-argon.md 2> reviews/antigravity-argon.log </dev/null
- echo "argon exit $?" >> reviews/STATUS.txt) &
+opencode run -m opencode-go/deepseek-v4.1-flash --variant high --agent plan --format json "$P" > reviews/opencode-deepseek.json 2> reviews/opencode-deepseek.log </dev/null
 ```
 
-agy 1.5.1 (2026-11-06) auto-denies its `command` tool in headless mode and exits 0 after ~20 s with an empty review and the log line "a tool required the command permission that headless mode cannot prompt for". The `--settings` allow list above (session only, never saved) lets it read and rerun scripts; do not use `--dangerously-skip-permissions`. Run it from a scratch `git worktree` of the packet branch, not the main clone, and check the hashes after. Left-arm rev C pass 2 run: 1587 s (26.5 min), 57 KB review.
+**Status, rev B2 (2026-11-07): none delivered a review.** The smoke test passed for GLM and Kimi in 8 and 26 s, but on the real packet all three hung headless on Windows after starting subagents or being denied a shell call. DeepSeek's first smoke test hit a 429 overload. Before another round, turn off OpenCode's `task` and `bash` tools for these runs in config, and prove them on the seeded packet.
 
-Read-only is by prompt only (like Muse); `--mode plan` is ignored with slash commands disabled, and there is no sandbox flag that forbids writes, so check the hashes after.
-
-On Joey-PC, agy 1.5.2 (power board rev B, 2026-11-07, six tries):
-
-- `command(...)` allow entries match exact command lines. `command(Get-ChildItem *)` did not match `Get-ChildItem -Recurse -Name`. There is no `read` entry.
-- It uses PowerShell, so any shell call can soft-deny and end the run empty with exit 0. Add this to its prompt: run no shell commands, use only file tools.
-- Reading outside the workspace also ends the run. Pass every folder it needs with `--add-dir`, including `C:/Program Files/KiCad/10.0/share/kicad/footprints`.
-- Run it with `--output-format stream-json --log-file <path>`. The final `result` event carries the review in `response`, plus token usage and `denied_actions`. Without it, an empty review tells you nothing.
-- **Check that the review is about the packet.** That run returned 100 KB of confident findings on a design that doesn't exist, with exit 0 and matching hashes. Grep its part values and refs against the netlist before reading further, and compare its questions to `PACKET.md`.
+- Always run under `timeout`. The final text is in the JSON events, in `text` parts, with tokens and cost in `step_finish`.
+- `--agent plan` held in the smoke test: asked to write a file and edit another, GLM and Kimi refused and changed nothing. Check hashes after anyway.
+- A key that shows a tick in OpenCode isn't proven valid. `opencode auth login` replaces it, and the error says which problem it is.
 
 ## Reviewer audit
 
 Joey's rules, 2026-11-07. Results go in [reviewer-scorecard.md](reviewer-scorecard.md), one row per run, keyed on model and effort.
 
-- **Effort.** High, passed explicitly on every run. If a model has no High or close equivalent, use the provider's recommended default. The scorecard records which one ran. Codex takes `-c model_reasoning_effort=high` (tested 2026-11-07, the log prints `reasoning effort: high`). Muse takes `--reasoning-effort high`. Fable and Opus take `--effort high`. Argon's level is in its model name.
+- **Effort.** High, passed explicitly on every run. If a model has no High or close equivalent, use the provider's recommended default. The scorecard records which one ran. Codex takes `-c model_reasoning_effort=high` (tested 2026-11-07, the log prints `reasoning effort: high`). Muse takes `--reasoning-effort high`. Fable and Opus take `--effort high`. OpenCode takes `--variant high`.
 - **Time limit.** Reviewers run in parallel with 45 minutes per round. A late review counts as a miss: its findings get read later and become follow-up items. A big packet can get a longer limit if it's set up front.
 - **Retries.** One retry for a real tool failure, then the reviewer sits out the round.
-- **On target.** Before anyone reads a review, run `hardware/tools/review/check_on_target.py`. An off-target review scores zero. It checks the names a review cites and, with a netlist, the values it cites. Rev B's made-up Argon review passed on names alone, so a review that only passes names on a mechanical packet still needs a look against the questions.
+- **On target.** Before anyone reads a review, run `hardware/tools/review/check_on_target.py`. An off-target review scores zero. It checks the names a review cites and, with a netlist, the values it cites. A made-up review passed on names alone (rev B Argon), so a review that only passes names on a mechanical packet still needs a look against the questions. Exit 0 and matching hashes prove nothing about the content.
 - **Removal.** Two off-target or made-up reviews in five rounds, or more false than real findings over the last 3 rounds with no unique catches.
 - **On notice.** Three time-limit misses in five rounds, or three rounds with no unique find.
 - **No removal on one effort level.** First give it one trial at another level on the seeded test packet (rev B's close-order bug). Effort trials only ever run on that packet, never on real rounds.
-- **Current standing.** Argon has one strike.
+- **Current standing.** Argon removed 2026-11-07 by Joey after two off-target reviews, waiving the effort trial. Everyone else is clear.
 
 ## Usage per reviewer
 
 | Reviewer | Per-run figure | Where to look |
 | --- | --- | --- |
 | Fable, Opus | `--output-format json`: tokens and `total_cost_usd` | https://platform.claude.com/settings/billing for the billed figure |
-| Argon | Tokens in the stream-json `result` event, no cost | Antigravity's Models & Usage screen. It has separate Gemini and Claude and GPT limits, weekly and 5-hour, as percentages |
+| OpenCode trials | Tokens and cost in `step_finish` events | The Go plan's page in the OpenCode console |
+| Claude through agy, if used | Tokens in the stream-json `result` event, no cost | Antigravity's Models & Usage screen: separate Gemini and Claude and GPT limits, weekly and 5-hour, as percentages |
 | Wonder | None in stdout or the log. `muse trace inspect` not yet tried | `muse usage`, or Muse's web Usage page: percent of window and week for the whole account, which can lag by up to an hour |
-| Sol, Astra | Not checked yet. Sessions are logged in `-o` and the `.log` | Not checked yet |
+| Sol, Astra | Not checked yet. Sessions are logged in the `.log` | Not checked yet |
 
 ## 1. Build the packet
 
