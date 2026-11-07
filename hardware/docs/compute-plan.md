@@ -56,7 +56,7 @@ The key point: nothing in the roadmap up to walking needs more on-robot compute 
 
 - Part of the compute stack even though it's not on the robot: policy training in sim, the bigger models over the house network, and offline calibration fitting. (ADR 0014 still says 3070 Ti; the PC now has a 5080.)
 - 16 GB of VRAM fits: Whisper large-v3-turbo, 7–14 B LLMs at Q4 with room for context, small VLMs, and a 3 B VLA like GR00T in bf16 (about 6.5 GB of weights). 27–32 B dense models at Q4 are a squeeze or don't fit; those go to a cloud provider.
-- It's also Joey's gaming PC, so the robot has to cope with the GPU being busy or the PC being off (section 8).
+- It's also Joey's gaming PC, so the robot has to cope with the GPU being busy or the PC being off (section 7).
 
 ## 3. The CAN bottleneck (the one that bites first)
 
@@ -116,7 +116,7 @@ Two takeaways:
 - **Power:** Pi 5 V/5 A and Jetson 12 V barrel both come off the power board; the Jetson is on one of the two spare 12 V outputs. Together ~15–35 W.
 - **Heat:** already in the chest budget (60–75 W total including both pitch RS03s) with two 40 mm exhaust fans behind the D1 door ([body-shell manufacturing README](../designs/body-shell/manufacturing/README.md)). An Orin NX would sit in the same envelope (10–25 W modes; the dev kit's carrier and cooler are the same size).
 
-## 8. Joey's direction (2026-11-07)
+## 7. Joey's direction (2026-11-07)
 
 The robot stays in the house for now. Pi = everything that isn't inference (CAN, connectivity, telemetry, logging). Jetson = small, latency-critical inference. Everything heavier goes to the 5080 when it fits, otherwise to the fastest cloud provider.
 
@@ -129,7 +129,7 @@ How to make that work:
 - **Routing order:** Jetson (small, latency-critical) → 5080 (CUDA, fits in 16 GB) → MacBook (big models, during sessions) → cloud (everything else, or when nothing local is up).
 - **Fastest providers.** For open-weight models, Groq and Cerebras run hundreds to over a thousand tokens/s with low time to first token. For the best plans from words, a frontier model is slower but smarter. Measure from the house before picking.
 
-## 9. Learning direction (Joey 2026-11-07)
+## 8. Learning direction (Joey 2026-11-07)
 
 Joey does not want a robot that only replays a fixed list of actions. His picture: train every core movement and interaction as a primitive skill first (move hand to a Cartesian point and hold, turn head toward a sound, stand in place). A reasoning model then works out what a command means ("what is a wave, which hand, I'm right dominant"), composes the skills into a sequence, and the results feed back so the robot keeps improving, including updating its own weights from each day's events.
 
@@ -147,7 +147,7 @@ Hardware consequences:
 - **Log everything, keep it.** Joint commands and feedback, IMU, audio and camera from the Jetson, operator commands and outcomes. Needs an NVMe SSD on the Jetson (the dev kit has M.2 slots) and on the Pi (M.2 HAT), sized for days of data, with a nightly offload to the PC.
 - **Leave room for a bigger on-robot module.** If the model moves onto the robot later, the compute bay, the 12 V output and the chest fans should take an Orin NX 16 GB without rework, and ideally not rule out a Thor-class module (40–130 W) without a redesign.
 
-## 10. Open questions for Joey
+## 9. Open questions for Joey
 
 1. Which Pi 5 do you have, 4, 8 or 16 GB? (8 GB or more is plenty; 4 GB is still fine for control.)
 2. Has the Jetson been flashed to JetPack 6.2 or later (Super mode)?
