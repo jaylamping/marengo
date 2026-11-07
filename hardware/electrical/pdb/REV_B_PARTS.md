@@ -47,8 +47,8 @@ the repo as a reference.
 | Pi buck, 25.5 W at about 90 % | 2.4 A | 2.4 A |
 | 4 fans, about 0.15 A each (assumed) | 0.6 A | 0.6 A |
 | SPARE_ON | 1.0 A | About 2.1 A |
-| SPARE_SW | 4.0 A | 4.42 A |
-| Total | **10.1 A, 121 W, 40 %** | **11.6 A, 46 %** |
+| SPARE_SW | 3.0 A (servo cap; U9's minimum limit is 3.87 A) | 4.42 A |
+| Total | **9.1 A, 109 W, 36 %** | **11.6 A, 46 %** |
 
 The current fits with margin, and the heat now goes into the frame:
 - **Loss:** at 93 to 94.6 %, the 140 W ceiling loses about 9 W.
@@ -56,7 +56,7 @@ The current fits with margin, and the heat now goes into the frame:
 - **Input UVLO:** fixed on the DVE at 32 to 36 V on, 30 to 34 V off. Near an empty pack under load sag, compute can drop before the BMS cuts out. **Software requirement: shut compute down cleanly at a pack voltage of 38 V or more.**
 
 Off-board parts at the converter end, in the fuse and cap zone at the -X end of the rail (X -40 to -29):
-- 33 µF 100 V aluminium low-ESR, plus 1 µF 100 V ceramic, across +VIN/-VIN at the pins. Murata tests with 33 µF at the pins, and the 150 mm lead is 75 to 150 nH.
+- 47 µF 100 V aluminium (EEE-TK2A470AQ, see the adapter table below), plus 1 µF 100 V ceramic, across +VIN/-VIN at the pins. The 150 mm lead is 75 to 150 nH.
 - Strain relief.
 
 The 20 A fuse required by Murata is F2, at the board end. That protects the pigtail from its source. U7 already limits at 9.7 to 12.3 A, so F2 only backs up a shorted Q7.
@@ -93,8 +93,10 @@ No short across the rows puts +VIN on +VOUT. Before first power, check polarity 
 
 ## Bring-up measurements that gate layout sign-off
 
-1. **Pack-lead inductance** and loop resistance, BAT to P−, with the real pack, BMS and leads. tools/absorber_sim.py assumes 0.5–1 µH and 0.1 Ω, giving BAT 81–83 V on a trip. Rerun it with the measured values. Over 90 V means more absorber.
-2. **BMS close into the absorber.** Simulated 190–230 A for a few µs. Close the JK onto a bare board 20 times: it must not trip.
+1. **Pack-lead inductance and pulse loop resistance**, BAT to P−, with the real pack, BMS and leads. Measure resistance with a pulse (µs scale), not a DC meter: the cells' AC resistance is half their DC value. tools/absorber_sim.py worst corners (0.05 Ω, 0.5–1 µH, D1 at 71.2 V, C −20 %, trip up to 17.5 µs) give BAT 80–91 V with the three fitted cans. Rerun it with the measured values. Over 90 V means more absorber or a faster trip.
+2. **BMS close into the absorber.** About 300 A for a few µs with three cans (two cans simulate 250–290 A, one 190–230 A). Close the JK onto a bare board 20 times: it must not trip. If it does, fit the 10b option (2 Ω pulse-rated + delayed NMOS: 25 A), after confirming Q13's µs pulse rating.
+5. **Drive bus bleed.** After a stop, time VBUS from 54 V to 3 V with all drives connected. Over 30 s: fit the DNP VBUS bleeder (R63) at a value chosen from the measured capacitance.
+6. **DVE input capacitance and start.** Scope U7's start into the converter at 36 V and 54.6 V: Q7 must reach PGD inside the 7–17 ms timer (C19 220 nF) with margin.
 3. **Scope a 60 A E-stop** and a bus short behind a current-limited source, on BAT and MID.
 4. **Converter baseplate** at 140 W steady: under 100 °C.
 
@@ -110,4 +112,10 @@ No short across the rows puts +VIN on +VOUT. Before first power, check polarity 
 | Servo back-feed into +12V (rev B3 review M8) | U9 and U18 don't block reverse current; C41 and the compute loads take it | **Software: keep the neck and jaw servo current cap, and never back-drive them faster than their rated speed.** |
 | U9 is the only break for the neck and jaw servos (rev B2 M3) | Accepted by Joey: the neck never moves fast | None |
 | A Q4 or Q5 C–E short makes the latch re-arm on button release without a reset press (rev B3 M5) | Accepted by Joey, 2026-11-07, alongside the single-channel E-stop path. Stop still works | **Bring-up and periodic test: press, release, and confirm the motors stay off until reset.** |
-| Reset needs MID healthy and VBUS under about 6 V (rev B3 M1, Joey's go 2026-11-07) | After a stop, reset is blocked until the drives' caps bleed down | **Software/operator: wait for VBUS under 3 V before pressing reset**; the Pi shows it from U11 |
+| Reset needs MID healthy and VBUS under 6–8.5 V (rev B3 M1, Joey's go 2026-11-07; threshold corrected in rev B4) | After a stop, reset is blocked until the drives' caps bleed down | **Software/operator: wait for VBUS under 3 V before pressing reset.** U11 reads V_L1, after the left-arm pigtail fuse: show VBUS as the highest of the fitted limb meters |
+| INA228 addresses (rev B4: no strap on SDA) | | **Software: L arm 0x40, R arm 0x41, aux 0x43, L leg 0x44, R leg 0x45, SPARE_SW 0x47, waist 0x4C, 12 V 0x4D, MID 0x4F.** |
+| Self-test window (rev B4) | Hot FET leakage, 200 µA per bank at 125 °C, moves MID by up to about 4 V | **Software: healthy MID is 0.33 to 0.60 × pack** (replaces 0.38 to 0.55). The A-shorted and B-shorted rules are unchanged |
+| E-stop pressed input (rev B4) | 100k series: a Pi pull-down reads it as pressed, a pull-up as released | **Software: configure that GPIO with no pull.** |
+| U1 latches off after a bus peak over 97 A lasting 147–383 µs (rev B4) | | **Software/drives: keep total bus current under 90 A peaks** (BMS peak is 150 A) |
+| Bus capacitance on the drives (rev B4) | U1 starts the bus at 100–220 V/s; 10 mF takes 1–2.2 A against a 413 W minimum power limit (652 W typical) | **Drive interface requirement: total drive bus capacitance at most 20 mF, and no drive load until the bus is above 45 V** |
+| Neck and jaw servos (rev B4) | STS3215 comes in 7.4 V and 12 V versions | **Buy the 12 V version.** |

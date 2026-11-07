@@ -79,6 +79,13 @@ Backfill limits: older summaries weren't written for this, so the counts are as 
 | PDB rev B3 | claude-opus-5-5 | high | 8 | 0 | 1 | 0 | on (checked) | 0 | 28.6 | $6.66 (API) | 28.6 | Unique: DVE output caps at the pins. Ran on the API after agy's quota ran out |
 | PDB rev B3 | claude-opus-5-5 (agy) | high | 0 | 0 | 0 | 0 | no review | 0 | 6.3 | Antigravity quota | | Quota ran out mid-run; not scored against the model |
 | PDB rev B3 | deepseek-v4.1-flash (trial) | high | 2 | 6 | 0 | 0 | on (names), wrong in substance | 1 | 18.5 | CheaperInference, ~$0.13 | | Six confident false blockers (INA228 addresses, reversed soft start, D6 nets...). Try 1 hit OpenCode's output cap |
+| PDB rev B4 | claude-fable-5-1 | high | 12 | 2 | 2 | 0 | on (checked) | 0 | 32.7 | $14.47 (JSON) | 16.4 | Unique: cell AC resistance puts the pulse loop at 0.05 ohm (decisive for the absorber); C39 inrush against F1 I2t |
+| PDB rev B4 | claude-opus-5-5 | high | 16 | 1 | 3 | 0 | on (checked) | 0 | 24.8 | $4.80 (API) | 8.3 | Unique: series D8 fix; SPARE_SW budget at U9's limit; C5 DC-bias; INA228 SDA straps. API after agy quota ran out |
+| PDB rev B4 | claude-opus-5-5 (agy) | high | 0 | 0 | 0 | 0 | no review | 0 | | Antigravity quota | | Quota out at start; not scored against the model |
+| PDB rev B4 | gpt-6.1-sol | high | 15 | 0 | 3 | 0 | on (checked) | 0 | 29.8 | sub | 9.9 | Unique: FLT-high failure enables B (diode fix); Q12 drain short; R40 tolerance. Settled the 652 W power limit, with Astra |
+| PDB rev B4 | gpt-6-astra | high | 16 | 0 | 2 | 0 | on (checked) | 0 | 18.4 | sub | 9.2 | Unique: D5 should be a Schottky; STS3215 12 V variant |
+| PDB rev B4 | muse-wonder-1.0 | high | 18 | 2 | 2 | 0 | on (checked) | 0 | 18.8 | sub | 9.4 | Unique: U11 reads after the L-arm fuse; Q3 vendor pinout. Still quoted 544 W |
+| PDB rev B4 | deepseek-v4.1-flash (trial) | high | 4 | 12 | 1 | 2 | **values off** | 0 | 6.5 | CheaperInference, $0.07 | 6.5 | Unique: unfused compute outputs. 42 of 72 cited values match; false blockers on the power limit and U2. **Strike 1** |
 Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
 
 ## By model
@@ -87,14 +94,14 @@ Totals of the rows above. Compare them with care: rounds differ, and not every m
 
 | Model | Runs | Real | False | Unique | False conf | Off target | Retries | Mean min |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| claude-opus-5-5 | 8 | 81 | 5 | 19 | 0 | 0 | 0 | 18.7 |
+| claude-opus-5-5 | 9 | 97 | 6 | 22 | 0 | 0 | 0 | 19.4 |
 | claude-opus-5-5 (agy) | 2 | 12 | 2 | 4 | 0 | 0 | 0 | 15.5 |
-| claude-fable-5-1 | 10 | 87 | 10 | 10 | 0 | 0 | 0 | 22.7 |
-| gpt-6.1-sol | 11 | 115 | 5 | 6 | 0 | 0 | 1 | 13.2 |
-| gpt-6-astra | 8 | 95 | 3 | 5 | 0 | 0 | 1 | 14.9 |
-| muse-wonder-1.0 | 8 | 82 | 21 | 4 | 2 | 0 | 0 | 8.7 |
+| claude-fable-5-1 | 11 | 99 | 12 | 12 | 0 | 0 | 0 | 23.6 |
+| gpt-6.1-sol | 12 | 130 | 5 | 9 | 0 | 0 | 1 | 14.6 |
+| gpt-6-astra | 9 | 111 | 3 | 7 | 0 | 0 | 1 | 15.3 |
+| muse-wonder-1.0 | 9 | 100 | 23 | 6 | 2 | 0 | 0 | 9.8 |
 | gemini-4-argon-high (removed) | 5 | 25 | 11 | 6 | 0 | 2 | 7 | 25.6 |
 | grok-4.7-high-fast (dropped) | 2 | 23 | 3 | 0 | 0 | 0 | 1 | 12.5 |
-| deepseek-v4.1-flash (trial) | 3 | 16 | 9 | 4 | 0 | 0 | 2 | 33.0 |
+| deepseek-v4.1-flash (trial) | 4 | 20 | 21 | 5 | 2 | 1 | 2 | 26.4 |
 | glm-5.3 (removed) | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 34.5 |
 | kimi-k3.1-pro (removed) | 2 | 0 | 0 | 0 | 0 | 0 | 1 | 33.0 |
