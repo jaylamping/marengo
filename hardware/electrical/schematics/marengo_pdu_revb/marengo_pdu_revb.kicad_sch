@@ -13596,7 +13596,7 @@
 		)
 		(uuid "29eddbb7-cd23-5e0a-9abd-744a2d80e443")
 	)
-	(text "3. Braking clamp: 56.8 V on, 55.8 V off, 57.5 V worst case, into the HS150"
+	(text "3. Braking clamp: 56.8 V on, 55.8 V off, 57.5 V worst case, into 2 x HS50 20R in parallel"
 		(exclude_from_sim no)
 		(at 25.4 262 0)
 		(effects
@@ -15676,7 +15676,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, HS150 +"
+		(property "Value" "M4 terminal, HS50 A (+X) +"
 			(at 325.12 303.53 0)
 			(effects
 				(font
@@ -15766,7 +15766,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "M4 terminal, HS150 -"
+		(property "Value" "M4 terminal, HS50 A (+X) -"
 			(at 325.12 326.39 0)
 			(effects
 				(font
@@ -15838,7 +15838,7 @@
 		)
 		(uuid "9a8368ac-1d95-5191-bf93-fd7c65d55705")
 	)
-	(text "Arcol HS150 10R J on the +X gusset plate, with thermal compound (frame 3877317), leads to J3/J4 on the board's top edge, +X half, twisted: 322 W, 5.7 A while on. MBRS3100 carries the lead and winding inductance at turn-off, so lead length sets EMI, not FET stress. Rated 150 W only on Arcol's 995 cm2 plate, and the gusset is smaller, so it works on burst energy: 175 g, a 10 s burst at 284 W is about +18 C. Software caps braking at 50 W average over 60 s and 3 kJ per burst. NC bimetal thermostat (open about 120 C, Airpax 67L class) clamped to the body, in the E-stop loop. Threshold values are rev A's, unchanged.\nSelf-powered: VCTL lives as long as the bus or the pack does. If the FET sticks on, the resistor's thermostat opens the loop and the bank drops the bus.\nTLV1805 drives the FET directly: 100 mA peak, 0.3 us into 4 nF. Rev A's driver, meter, shunt, status FET and NTC are gone, and a smaller FET replaces the IPT015.\nLeg stage later: fit 2 Ohm and recheck this FET, 29 A gives about 5 W."
+	(text "Two Arcol HS50 20R J in parallel, 10 Ohm total, one on each gusset (+X: J3/J4; -X: J25/J26, block 10c; place all four on the board's top edge, +X half, because the -X leads cross under the board, about 150 mm longer), on the 5 mm countersunk Al plates with thermal compound. Each lead pair is twisted. At the 56.8 V threshold: 5.7 A, 322 W total, 2.84 A and 161 W per resistor. MBRS3100 carries the lead and winding inductance at turn-off, so lead length sets EMI, not FET stress. Each is rated 50 W only on Arcol's 535 cm2 plate, so it works on burst energy: 32 g each, about 29 J/K, so a 3 kJ burst is about +50 C per body. Software caps braking at 50 W average over 60 s and 3 kJ per burst, total. Thermostat 67L120P (opens at 120 C) under one body, in the E-stop loop. Threshold values are rev A's, unchanged.\nSelf-powered: VCTL lives as long as the bus or the pack does. If the FET sticks on, the resistor's thermostat opens the loop and the bank drops the bus.\nTLV1805 drives the FET directly: 100 mA peak, 0.3 us into 4 nF. Rev A's driver, meter, shunt, status FET and NTC are gone, and a smaller FET replaces the IPT015.\nLeg stage later: fit 2 Ohm and recheck this FET, 29 A gives about 5 W."
 		(exclude_from_sim no)
 		(at 355.6 280 0)
 		(effects
@@ -42270,6 +42270,186 @@
 			(justify left top)
 		)
 		(uuid "74718580-767a-58e9-b320-04af2ccb7a3b")
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x01")
+		(at 199.39 660.4 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "784ce638-d824-54d1-b9ec-054693179b86")
+		(property "Reference" "J25"
+			(at 194.31 648.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "M4 terminal, HS50 B (-X) +"
+			(at 194.31 671.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TerminalBlock_Wuerth:Wuerth_REDCUBE-THR_WP-THRSH_74651194_THR"
+			(at 199.39 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 199.39 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 199.39 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "f79b8035-2b30-5eb3-bfe2-525fa1675b89")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "J25")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 194.31 660.4)
+			(xy 189.23 660.4)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9050c5ce-95e3-5ddb-b20c-7ca0210983a6")
+	)
+	(label "VBUS"
+		(at 189.23 660.4 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "91eefa6d-4cab-5c29-801c-bbcad7cc0593")
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x01")
+		(at 240.03 660.4 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "0ed9fe0e-2eda-532b-b8f7-96f61b0874fa")
+		(property "Reference" "J26"
+			(at 234.95 648.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "M4 terminal, HS50 B (-X) -"
+			(at 234.95 671.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TerminalBlock_Wuerth:Wuerth_REDCUBE-THR_WP-THRSH_74651194_THR"
+			(at 240.03 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 240.03 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 240.03 660.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "9c87f18e-6490-50e6-b114-cbb44aab8e1f")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "J26")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 234.95 660.4)
+			(xy 229.87 660.4)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d3335162-d2aa-55e1-b05b-0b8a4a2539cd")
+	)
+	(label "CL_D"
+		(at 229.87 660.4 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "6ca95ebc-d502-5d1f-b880-16f3c160f1c8")
 	)
 	(sheet_instances
 		(path "/"

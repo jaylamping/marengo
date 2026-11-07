@@ -85,15 +85,15 @@ Brake resistor NC thermostat: wire it in series in the loop harness, no board pa
 Button HB2-BS545, 22 mm mushroom, twist release, 1NC + 1NO, 660 V AC 10 A, control-rated only: NC in this loop, NO to the Pi (block 9). RUN also enables bank A (block 7) and SPARE_SW (block 8).''',(284.48,240))
 
 # ---------- clamp ----------
-head('3. Braking clamp: 56.8 V on, 55.8 V off, 57.5 V worst case, into the HS150',(25.4,262))
+head('3. Braking clamp: 56.8 V on, 55.8 V off, 57.5 V worst case, into 2 x HS50 20R in parallel',(25.4,262))
 nic(s,TLV,'U3','TLV1805DBVR',(63.5,292),'Package_TO_SOT_SMD:SOT-23-6',{'1':'CL_OUT','2':'GND','3':'VREF_CL','4':'CL_SENSE','5':'GND','6':'VCTL'})
 nic(s,'Reference_Voltage:LM4040DBZ-2.5','U4','LM4040AIM3-2.5',(127,292),SOT23,{'1':'VREF_CL','2':'GND','3':None})
 g=Grid(s,152.4,277,20.32,30.48,290)
 g.R('9.09k','VCTL','VREF_CL'); g.C('100nF','VCTL','GND'); g.R('499k 0.1%','VBUS','CL_DIV',R1206); g.R('604k 0.1%','CL_DIV','CL_SENSE',R1206); g.R('51.1k 0.1%','CL_SENSE','GND'); g.R('19.1M','CL_OUT','CL_SENSE'); g.C('100pF C0G','CL_SENSE','GND')
 g.nl(); g.R('10R','CL_OUT','CL_G'); g.R('100k','CL_G','GND'); g.D('MBRS3100T3G','VBUS','CL_D',SMC)
 nfet5(s,'Q6','BSC040N10NS5ATMA1',(254,322),'CL_D','CL_G','GND')
-term('M4 terminal, HS150 +',(330.2,292),'VBUS'); term('M4 terminal, HS150 -',(330.2,314.96),'CL_D')
-note('''Arcol HS150 10R J on the +X gusset plate, with thermal compound (frame 3877317), leads to J3/J4 on the board's top edge, +X half, twisted: 322 W, 5.7 A while on. MBRS3100 carries the lead and winding inductance at turn-off, so lead length sets EMI, not FET stress. Rated 150 W only on Arcol's 995 cm2 plate, and the gusset is smaller, so it works on burst energy: 175 g, a 10 s burst at 284 W is about +18 C. Software caps braking at 50 W average over 60 s and 3 kJ per burst. NC bimetal thermostat (open about 120 C, Airpax 67L class) clamped to the body, in the E-stop loop. Threshold values are rev A's, unchanged.
+term('M4 terminal, HS50 A (+X) +',(330.2,292),'VBUS'); term('M4 terminal, HS50 A (+X) -',(330.2,314.96),'CL_D')
+note('''Two Arcol HS50 20R J in parallel, 10 Ohm total, one on each gusset (+X: J3/J4; -X: J25/J26, block 10c; place all four on the board's top edge, +X half, because the -X leads cross under the board, about 150 mm longer), on the 5 mm countersunk Al plates with thermal compound. Each lead pair is twisted. At the 56.8 V threshold: 5.7 A, 322 W total, 2.84 A and 161 W per resistor. MBRS3100 carries the lead and winding inductance at turn-off, so lead length sets EMI, not FET stress. Each is rated 50 W only on Arcol's 535 cm2 plate, so it works on burst energy: 32 g each, about 29 J/K, so a 3 kJ burst is about +50 C per body. Software caps braking at 50 W average over 60 s and 3 kJ per burst, total. Thermostat 67L120P (opens at 120 C) under one body, in the E-stop loop. Threshold values are rev A's, unchanged.
 Self-powered: VCTL lives as long as the bus or the pack does. If the FET sticks on, the resistor's thermostat opens the loop and the bank drops the bus.
 TLV1805 drives the FET directly: 100 mA peak, 0.3 us into 4 nF. Rev A's driver, meter, shunt, status FET and NTC are gone, and a smaller FET replaces the IPT015.
 Leg stage later: fit 2 Ohm and recheck this FET, 29 A gives about 5 W.''',(355.6,280))
@@ -246,6 +246,7 @@ g.D('B340A-13-F','SPARE_ON','GND','Diode_SMD:D_SMA'); g.R('4.7k 2W','VBUS','GND'
 g.two('Device:Fuse','F','5A 32V 0466005','+12V','+12V_JET','Fuse:Fuse_1206_3216Metric'); g.two('Device:Fuse','F','5A 32V 0466005','+12V','+12V_PI','Fuse:Fuse_1206_3216Metric'); g.two('Device:Fuse','F','2A 32V 0466002','+12V','+12V_FAN','Fuse:Fuse_1206_3216Metric')
 g.Z('SMBJ15A','+12V','GND','Diode_SMD:D_SMB')  # servo back-feed clamp (Joey, 2026-11-07)
 wnote('''Rev B4 review: two more absorber cans (three in all). U2 feed 22R and series ES1D. FLT diode BAT46W (pull-down only). 68 V zener on U17 VBUS. 220R in Q12's drain. U8 sense RC placeholder: 0R fitted, 1 nF DNP. Schottky on SPARE_ON (and D5 on SPARE_SW). VBUS bleeder footprint, DNP: fit it only if the drives don't bleed the bus. Fuses on the Jetson, Pi buck and fan outputs (the DVE limits at about 30 A). SMBJ15A on +12V: servo back-feed clamp, 16.7 V min breakdown, so it never conducts at 12 V.''',(25.4,700),160)
+term('M4 terminal, HS50 B (-X) +',(200,660),'VBUS'); term('M4 terminal, HS50 B (-X) -',(240,660),'CL_D')
 dnp('C29')  # bank A comparator at its fastest: TMR with R37 only (rev B3 review B2)
 writelib()
 s.write([('/'+ROOT,'1')])

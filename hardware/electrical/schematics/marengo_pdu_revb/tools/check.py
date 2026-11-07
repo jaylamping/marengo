@@ -76,7 +76,7 @@ ok(any(q[0]=='Q' and n(q,3)=='RST_SRC' and n(q,2)=='GND' and n(q,1)=='VB_B' for 
 # clamp
 ok(n('U3',3)==n('U4',1) and n('U3',6)=='VCTL','reference on IN-, comparator on VCTL')
 ok('Q6' in comp and 'CL_D' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'CL_G' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'GND' in [pin.get(('Q6',str(p))) for p in range(1,10)],'clamp FET D, G, S')
-ok(len([r for r,p in nets['CL_D'] if r[0]=='J'])==1,'brake terminal on the FET drain')
+ok(len([r for r,p in nets['CL_D'] if r[0]=='J'])==2 and len([r for r,p in nets['VBUS'] if r[0]=='J' and val(r).startswith('M4 terminal, HS50')])==2,'two brake resistors (2 x HS50 20R), each between VBUS and the FET drain')
 d=[r for r in comp if r[0]=='D' and val(r).startswith('MBRS')]
 ok(len([r for r in d if n(r,1)=='VBUS' and n(r,2)=='CL_D'])==1,'one freewheel diode')
 ok(diode('ABS','BAT') and len([c for c in [r for r,p in nets['ABS'] if r[0]=='C'] if val(c).startswith('47uF') and not dnp(c)])==3 and any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS'] if r[0]=='C']) and two('ABS','GND',('R',)),'battery-side absorber: diode, cap, bleed')
