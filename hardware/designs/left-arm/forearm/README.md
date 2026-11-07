@@ -9,6 +9,10 @@
 - Mass: 161 g, solid PETG.
 - Width across the fork: 80 mm.
 
+## Open item, 2026-11-07: RS02 shoulder-to-output length
+
+Before the forearm is printed, measure a real RS02 from the mounting shoulder (the flat ring with the nine M3 holes, where the Ø78.5 body steps down to the Ø65 back) to the output face (the raised Ø43 disc with the six M4 holes). The vendor drawing gives 31.5 to 32.0 mm, and the hoop seat to fork cheek gap is 32.0 mm. The vendor 3D model gives 33.9 mm. If the real part reads about 33.9, move the fork's outboard cheek out about 2 mm. Details in `../renders/elbow/README.md`.
+
 ## Changes needed on the upper arm
 
 - **Stub moves inboard.** The current stub puts the bearing at X 133.7 to 140.7, which fills the cable band. The fork assumes a stub to X 124.7, with the bearing at X 124.7 to 131.7. That leaves X 132.7 to 143.7 free.
