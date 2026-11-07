@@ -65,7 +65,7 @@ off-the-shelf smart BMS on the pack (JK at first, JBD from rev B5). Git history 
 
 The power connector mates at the **pack's rear top corner, behind the D2 door**. The board's soldered 8 AWG pair runs
 over the pack's top edge (inside the strap window, X −5 to +25) to an XT90 (rev B5: 8 AWG fine-strand silicone, the heaviest run in
-the robot; the XT90 solder cups take 8 AWG). The pack side has a short XT90S pigtail (anti-spark, about 60 mm, 8 AWG) from P+/P−, parked in a printed saddle so nothing hangs loose when the door is open.
+the robot; the XT90 solder cups take 8 AWG). The pack side has the XT90S (anti-spark) half mounted in the case wall at the rear top corner (rear-corner table), with its leads inside the case.
 
 ### Pack heat for the shell's airflow sizing (estimate, for frame gate review 2 item F)
 
@@ -105,7 +105,7 @@ goes through the tray rail into the case. The rear face stays free for a possibl
 | Part | Position (torso coords) | Note |
 | --- | --- | --- |
 | Pack fuse | inside the case, empty top-corner grid slot, about X +34, Y 333, Z −40 to +30, axis along Z | nothing behind the rear face |
-| Mated XT90S pair | flat on the rear face, axis along X: X −15 to +43, Y 323 to 345, Z −45 to −60 incl. a printed saddle | pack pigtail enters at the +X end; board pair comes over the top in X −5 to 25 and enters at the −X end |
+| Pack-side XT90S half, **case-wall mount (option a, 2026-11-07)** | captured in a printed pocket at the rear top corner, X +10 to +45, Y 323 to 345, Z −45 to −60, mating face toward −X; leads stay inside the case (short 8 AWG runs to the fuse and BMS P−), no external bend | the board half plugs in from −X; its 8 AWG bend room falls between the XT90S and the XT60. The pocket clamps the housing with a printed collar and two M3 screws so mating force (about 40 N, verify) and pull-out never load the solder joints |
 | BMS (JBD SP17S005, 102 × 65 × 10 mm) | rear face, long axis along Y, inside X −40.5 to +40.5, Y 186 to 319, Z −45 to −65 (the old JK envelope; the JBD uses about 102 of the 133 mm) | FET side faces rearward toward D2 |
 | XT60 charge pigtail | parked flat at X −42 to −17, Y 325 to 345, Z −45 to −58 | reached through D2 |
 
