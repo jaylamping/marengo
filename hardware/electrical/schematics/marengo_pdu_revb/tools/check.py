@@ -75,6 +75,8 @@ ok(len([r for r,p in nets['CL_D'] if r[0]=='J'])==1,'brake terminal on the FET d
 d=[r for r in comp if r[0]=='D' and val(r).startswith('MBRS')]
 ok(len([r for r in d if n(r,1)=='VBUS' and n(r,2)=='CL_D'])==1,'one freewheel diode')
 ok(diode('ABS','BAT') and any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS'] if r[0]=='C']) and two('ABS','GND',('R',)),'battery-side absorber: diode, cap, bleed')
+absn=[r for r in comp if r[0]=='R' and {n(r,1),n(r,2)}=={'ABS_N','GND'}]
+ok(any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS_N'] if r[0]=='C']) and [r for r in absn if not dnp(r) and val(r)=='0R'] and all(dnp(r) for r in absn if val(r)!='0R'),'absorber ground leg: 0R fitted, close-surge option DNP')
 ok(sum(1 for c in comp if c[0]=='C' and val(c).startswith('100uF'))==4,'four bus caps')
 # meters
 addr={}
@@ -86,7 +88,8 @@ ok(len(addr)==9,'nine meters')
 for k in range(2,8):
     r=f'RS{k}'; u=f'U{k+9}'
     ok(n(r,1)=='VBUS' and n(u,10)==n(r,2) and n(u,9)==n(r,3) and n(u,8)==n(r,4),r+' Kelvin to '+u)
-legs=[r for r in comp if dnp(r) and r!='C29']
+OPT={r for r in comp if {n(r,1),n(r,2),n(r,4)}&{'PRE_G','ABS_N'}}|{'C29'}
+legs=[r for r in comp if dnp(r) and r not in OPT]
 ok(n('U9',2)=='SP_EN' and len(two('RUN','SP_EN'))==1 and n('U9',3)==n('U9',4)=='+12V','SPARE_SW eFuse enabled by RUN, fed from +12V')
 ok(n('RS10',1)==n('U9',5) and n('U10',10)==n('RS10',2) and n('U10',9)==n('RS10',3) and n('U10',8)==n('RS10',4)=='SPARE_SW','RS10 Kelvin to U10')
 ok(n('J22',1)=='SPARE_SW' and n('J22',2)=='GND','SPARE_SW output')

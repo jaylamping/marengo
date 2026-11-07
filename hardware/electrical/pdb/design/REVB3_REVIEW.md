@@ -68,7 +68,10 @@ Hashes matched before and after every run. ERC was clean and check.py passed 83 
 | M3 | **Quantified, not changed.** Simulated BMS close onto the bare absorber: 190–230 A at 47 µF. A plain series resistor or cold NTC fixes the close (0.5 Ω gives 73–76 A, 2 Ω gives 25 A) but ruins the clamp: BAT reaches 186 V and 259 V on a trip. An NTC never warms up, because the absorber carries no steady current. What works is a 2 Ω resistor in the cap's ground leg, bypassed by a low-side NMOS (for example BSC040N10NS5, already in the BOM) that turns on about 10 ms after VCTL comes up. That's 4 parts: the close is 25 A and the clamp is unchanged. Proposed, not fitted: it waits for the JK bench result (bring-up step 2) |
 | M1, M5 | Held for Joey |
 
-ERC is clean and check.py passes 83 of 83. The minors aren't done yet.
+| Minors | R9 is 680 Ω 0.5 W (2010). R15 and R48 are 0603. R11 (RST_IN) is 10k: the latch sim reruns all 45 cases and passes. RS2–RS7 are CSS4J-4026R-1L00F. The comparator spread and U2 current limit are corrected on the sheet. The 544 against 652 W power-limit dispute stays open for TI's calculator. Accepted without change: the HS50 hot-spot caveat, Pi-off back-power at 0.5 mA, and typical comparator hysteresis |
+| M3 option | Block 10b: C38's ground leg goes through a fitted 0R (R53). The DNP set is 2 Ω 2512 (R54), the 100k/100 nF/1M gate delay (R55, C43, R56), and Q13 (BSC040N10NS5). If the JK trips at close, remove the 0R and fit the rest, with no respin |
+
+ERC is clean, check.py passes 84 of 84, and the latch sim passes 45 cases. Area is 7,211 mm², 80 % of the one-sided budget with legs.
 
 ## Rejected
 

@@ -71,11 +71,11 @@ g.C('10uF 50V X7R','VCTL','GND',C1206); g.R('464k','VCTL','FB_CTL'); g.R('49.9k'
 note('12.1 V, 11 mA. On the battery side, so regen through the body diodes keeps it up with the BMS open. Runs the latch and the clamp. 0.5 W at 54.6 V.\nFed through F1 with its own 1 uF, clamped by a 15 V TVS, reverse diode OUT to IN: block 10.',(114.3,232))
 conn(8,'E-stop: 1 NC out, 2 GND, 3 NC return, 4 GND, 5-6 reset NO, 7 GND, 8 button NO',(241.3,200),GH(8),['LOOP_OUT','GND','LOOP_RET','GND','RST_SRC','RST_IN','GND','ESTOP_NO'],ref='J20')
 g=Grid(s,284.48,185.42,20.32,30.48,520)
-g.R('680R 0.25W','VCTL','LOOP_OUT',R1206); g.Z('SMAJ15A','LOOP_RET','GND','Diode_SMD:D_SMA'); g.R('4.7k','VCTL','RST_SRC'); g.R('1M','RST_IN','GND'); g.C('2.2nF C0G','RST_IN','RST_C',C603); g.R('1k','RST_C','L_B')
+g.R('680R 0.5W','VCTL','LOOP_OUT','Resistor_SMD:R_2010_5025Metric'); g.Z('SMAJ15A','LOOP_RET','GND','Diode_SMD:D_SMA'); g.R('4.7k','VCTL','RST_SRC'); g.R('10k','RST_IN','GND'); g.C('2.2nF C0G','RST_IN','RST_C',C603); g.R('1k','RST_C','L_B')
 Q(PNP,'MMBT3906',(419.1,205.74),'L_PB','LOOP_RET','RUN')
 Q(NPN,'MMBT3904',(469.9,205.74),'L_B','GND','L_PC')
 g=Grid(s,505,185.42,20.32,30.48,630)
-g.R('100k','LOOP_RET','L_PB'); g.R('10k','L_PB','L_PC'); g.R('1.2k','RUN','GND'); g.R('10k','RUN','L_B'); g.R('10k','L_B','GND')
+g.R('100k','LOOP_RET','L_PB'); g.R('10k','L_PB','L_PC'); g.R('1.2k','RUN','GND',R603); g.R('10k','RUN','L_B'); g.R('10k','L_B','GND')
 g.nl(); g.C('10nF','L_B','GND'); tp(g,'RUN')
 note('''Seal-in latch, ngspice checked at hFE 80: stays off at power-up even with reset held, reset closes it, a 50 us contact bounce rides through,
 loop open drops it in about 100 us, re-closing the loop does nothing, a reset held through a loop cycle does nothing, a new press works 5 ms after release.
@@ -130,11 +130,11 @@ nic(s,Qb,'Q7','IPB017N10N5LFATMA1',(115,462),'Package_TO_SOT_SMD:TO-263-7_TabPin
 nic(s,'Power_Management:LM5069MM-2','U7','LM5069MMX-2',(190,470),'Package_SO:MSOP-10_3x3mm_P0.5mm',{'1':'SH9_N','2':'SH9_P','3':'SH9_P','4':'GND','5':'GND','6':'BRK_T','7':'BRK_P','8':'BRK_PG','9':'BRK_IN','10':'BRK_GATE'},ds='https://www.ti.com/lit/ds/symlink/lm5069.pdf')
 g=Grid(s,240,452,20.32,30.48,340)
 g.R('10R','BRK_GATE','BRK_G1'); g.R('37.4k 1%','BRK_P','GND'); g.C('100nF C0G','BRK_T','GND',C805); g.C('100nF 100V','SH9_P','GND',C805); g.F('SH9_P'); g.F('BRK_IN'); tp(g,'BRK_IN')
-note('''Same controller as the bank, so one part family. -2 retries on its own: a compute fault does not need a BMS cycle. UVLO on VIN, OVLO low: on whenever the pack is.
+wnote('''Same controller as the bank, so one part family. -2 retries on its own: a compute fault does not need a BMS cycle. UVLO on VIN, OVLO low: on whenever the pack is.
 Power-limit start, no dV/dt network: 70 W limit (Rs 5 mOhm, same equation as U1), about 1.3 A at full pack. 4.4 uF plus the brick's own input caps (not published) charges in under 1 ms at 20 uF.
-Timer 47 nF: 2.2 ms typ, 1.5-3.8 ms. Limit 9.7-12.3 A clears the worst brick draw, 4.7 A at 36 V. Brick input capacitance is unpublished: about 40 uF is the most the minimum timer covers, so measure one brick.
+Timer 100 nF: 4.7 ms typ, 3.1-8 ms. Limit 9.7-12.3 A clears the converter's worst draw, about 4.2 A at 36 V. It charges about 48 uF at the converter end plus the DVE's unpublished internal capacitance at the low power limit.
 Fault check: 87 W is 1.6 A for up to 3.8 ms, against 12 A at 10 ms on the datasheet SOA. Q7 is the linear FET for that reason.
-Compute is on whenever the BMS is on. Loss at 3 A: 0.05 W shunt, 0.03 W FET.''',(240,488))
+Compute is on whenever the BMS is on. Loss at 3 A: 0.05 W shunt, 0.03 W FET.''',(240,486),100)
 
 # ---------- limbs ----------
 head('6. Limb outputs: terminal pair, 1 mOhm shunt, INA228. Fuses inline in the pigtails.',(645,22))
@@ -142,7 +142,7 @@ LIMBS=[('L arm','GND','GND',0),('R arm','GND','+3V3_PI',0),('waist','GND','I2C_S
 for k,(nm,a1,a0,d) in enumerate(LIMBS):
     y=34+k*40; K=k+1
     rs=f'RS{K+1}'; u=f'U{10+K}'; t=f'L{K}'
-    nic(s,'Device:R_Shunt',rs,'1mR CSS4J-4026K-1L00F 6W',(660,y+12),SH,{'1':'VBUS','2':f'SH{t}_P','3':f'SH{t}_N','4':f'V_{t}'})
+    nic(s,'Device:R_Shunt',rs,'1mR CSS4J-4026R-1L00F 6W',(660,y+12),SH,{'1':'VBUS','2':f'SH{t}_P','3':f'SH{t}_N','4':f'V_{t}'})
     nic(s,'Sensor_Energy:INA228',u,'INA228AIDGSR',(715,y+12),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':a1,'2':a0,'3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':f'V_{t}','9':f'SH{t}_N','10':f'SH{t}_P'},ds='https://www.ti.com/lit/ds/symlink/ina228.pdf')
     gg=Grid(s,750,y+6,12,30,770); c=gg.C('100nF','+3V3_PI','GND')
     cref=f"C{s.refc['C']}"
@@ -206,11 +206,11 @@ Information only: the NC loop does the stopping.''',(355.6,566))
 head('10. Rev B2 protection parts (refs appended so earlier refs keep their numbers)',(25.4,515))
 s.refc['D']=max(s.refc.get('D',0),6)
 g=Grid(s,38.1,530,25.4,30.48,340)
-g.D('SK810L-TP','ABS','BAT',SMC); g.CP('47uF 100V APZ1012470M100R','ABS','GND','Capacitor_SMD:CP_Elec_10x12.6'); g.R('100k','ABS','GND',R1206)
+g.D('SK810L-TP','ABS','BAT',SMC); g.CP('47uF 100V APZ1012470M100R','ABS','ABS_N','Capacitor_SMD:CP_Elec_10x12.6'); g.R('100k','ABS','GND',R1206)
 g.two('Device:Fuse','F','250mA 63V 0466.250','BAT','BAT_CTL','Fuse:Fuse_1206_3216Metric'); g.C('1uF 100V','BAT_CTL','GND',C1210); g.F('BAT_CTL'); g.D('BAV19W','BAT_CTL','VCTL'); g.Z('SMAJ15A','VCTL','GND','Diode_SMD:D_SMA')
 g.D('BAV19W','RUN_B','RUN'); g.D('BAV19W','RUN_A','RUN'); g.Z('BZT52C15','FLT_A','GND')
 g.nl(); g.R('33k','MID','MID_S'); g.C('22nF 100V','MID','GND',C805); g.D('BAT46W','NO_PU','+3V3_PI'); g.CP('330uF 25V polymer','+12V','GND','Capacitor_SMD:CP_Elec_8x10.5')
-g.C('1uF 25V','RST_SRC','GND',C603); g.Z('BZT52C10','MID','MID_Z'); g.R('220k','MID_Z','MID_B'); g.R('220k','MID_B','GND'); g.R('100k','VCTL','INT_B')
+g.C('1uF 25V','RST_SRC','GND',C603); g.Z('BZT52C10','MID','MID_Z'); g.R('220k','MID_Z','MID_B',R603); g.R('220k','MID_B','GND'); g.R('100k','VCTL','INT_B')
 s.refc['Q']=max(s.refc.get('Q',0),9)
 Q(NPN,'MMBT3904',(268,562),'INT_B','GND','RST_SRC'); Q(NPN,'MMBT3904',(295,562),'MID_B','GND','INT_B')
 # 12 V converter pigtail: the DVE moved off the board (Joey, 2026-11-07)
@@ -219,8 +219,17 @@ g=Grid(s,114.3,398,20.32,30.48,200)
 g.two('Device:Fuse','F','20A 58V MINI 0997020.WXN','BRK_IN','BRK_F','Fuse:Fuseholder_Blade_Mini_Keystone_3568'); g.R('470k','BRK_IN','BRK_PG',R1206); g.Z('BZT52C12','BRK_PG','GND'); g.F('+12V_RAW')
 nic(s,'Transistor_FET:Q_NMOS_GSD',s.nref('Q'),'2N7002',(240,402),SOT23,{'1':'BRK_PG','2':'GND','3':'BRK_ON'})
 g.R('10k 0.75W','FLT_A','UVLO','Resistor_SMD:R_2010_5025Metric')
+head('10b. Absorber close option (M3): 0R fitted, the rest DNP',(355.6,445))
+g=Grid(s,362,458,17,30.48,445)
+g.R('0R','ABS_N','GND','Resistor_SMD:R_2512_6332Metric')
+g.R('2R 1W','ABS_N','GND','Resistor_SMD:R_2512_6332Metric'); dnp(f"R{s.refc['R']}")
+g.R('100k','VCTL','PRE_G'); dnp(f"R{s.refc['R']}")
+g.C('100nF','PRE_G','GND'); dnp(f"C{s.refc['C']}")
+g.R('1M','PRE_G','GND'); dnp(f"R{s.refc['R']}")
+q=s.nref('Q'); nfet5(s,q,'BSC040N10NS5ATMA1',(400,492),'ABS_N','PRE_G','GND'); dnp(q)
 wnote('''Block 10. Absorber: a bank trip into a bus short cuts 350-480 A. tools/absorber_sim.py (pack 54.6 V, 0.1 Ohm loop, 0.5-1 uH assumed, no pack yet) gives BAT 81-83 V peak with this 47 uF, 50 mOhm part and D1. Measure the lead at bring-up. 100k bleeds it. BMS close drives 190-230 A into it for a few us: bench it on the JK.
 F1, 1 uF, BAV19W and SMAJ15A (M14, M6, M7): a shorted U2 puts the pack on VCTL; the TVS clamps under the 40 V parts and F1 opens. The BAV19W keeps C5 from back-driving U2 if BAT collapses.
+Absorber close option (M3), DNP: if the JK trips when it closes onto C38, remove the 0R and fit 2R + the delayed NMOS + its RC: 25 A at close, clamp unchanged (absorber_sim.py).
 RUN_A and RUN_B diodes: a U1 pin 2-3 bridge or an EN fault can't drive RUN. FLT reaches UVLO through 10k (2010, 0.75 W) with a 15 V zener on FLT_A: FLT low holds UVLO near 1.7 V, and a bridged UVLO puts at most 5.5 mA into FLT and 15 V on it (20 V max).
 Converter: F2 20 A on the board end protects the pigtail (U7 already limits at 9.7-12.3 A; F2 backs up a shorted Q7). The DVE has no reverse protection, so the keyed connector carries polarity. U7 PGD high (good) turns on the 2N7002, which pulls ON/OFF to -Vin: on. 470k and the 12 V zener bias the gate from BRK_IN, so it doesn't depend on VCTL.
 1 uF on RST_SRC (M8): a reset held at power-up no longer arms the latch (tools/latch_sim.py, 36 cases). Reset interlock (M1): Q10 shorts RST_SRC until MID is over about 11 V through the 10 V zener and Q11, so with bank B shorted and the bus down, reset does nothing; healthy MID is 17 V at a 36 V pack. It loads MID by about 30 uA. 33k on U17 VBUS (M13). 22 nF SRC to GND, TI's recommendation for U8. BAT46W (M4). 330 uF on +12V: spare-output shorts and servo back-feed (M9) land in it and the compute loads.''',(300,130),120)
