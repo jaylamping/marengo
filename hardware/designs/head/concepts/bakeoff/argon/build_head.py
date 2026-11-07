@@ -41,7 +41,7 @@ P = dict(
     hinge_x=-45.0, hinge_z=EYE_Z + 2.5, strap_r=16.0,  # pivot boss near the back of the face, 0.02 D above eye (MASTER_C)
     ear_pad=4.0,                 # the strap end stands proud of the head (the "ear" tab of MASTER_A)
     boss_r=8.5, boss_step_r=5.5, boss_pin_r=2.8,      # concentric boss: disc, raised step, recessed centre
-    floor_t=4.0, neck_hole_r=42.0,
+    floor_t=4.0, neck_hole_r=44.0,   # clears the r41 TPU bellows (neck thread, BELLOWS.md)
     # crest / mohawk: a thin sharp fin (MASTER_A): fine point between the eyes, narrow over the forehead,
     # peak at the top front of the dome, dropping cleanly into the crown with no second spike behind it
     crest_tip_z=EYE_Z - 32.0, crest_w=4.5, crest_h_face=4.5, crest_h_peak=21.0, crest_peak_deg=80.0,
