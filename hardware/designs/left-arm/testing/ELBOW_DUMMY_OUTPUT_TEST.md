@@ -75,7 +75,7 @@ Use the real screw types and lengths from the fixed design. Torque values come f
 
 ## Print process
 
-Same for every printed part, and the process used for P1 and P2: P2S, 0.4 mm High Flow nozzle, Generic PETG, Textured PEI, 0.20 mm layers, 6 walls, 100% rectilinear infill, normal supports, auto 45 degree threshold, Z gap 0.20, interface 2/2, 255 °C nozzle, 70 °C bed.
+Same for every printed part, and the process used for P1 and P2: P2S, 0.4 mm High Flow nozzle, Generic PETG, Cool Plate Super Tack, 0.20 mm layers, 6 walls, 100% rectilinear infill, normal supports, auto 45 degree threshold, Z gap 0.20, interface 2/2, 255 °C nozzle, 70 °C bed.
 
 Dry the filament the same way for all parts, keep the spool the same if possible, and record the spool for each print.
 
