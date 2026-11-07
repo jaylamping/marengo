@@ -17,7 +17,7 @@
 
 ## Ribbon slot
 
-- **Location:** theta 180, at the top under the RS02 port slot, 19 wide, cut 1.5 mm into the carrier spigot, X 149.7 to 151.2. It stays 24 degrees or more from the hoop counterbores.
+- **Location:** theta 180, at the top under the RS02 port slot, 19 wide, cut 1.5 mm into the carrier spigot, X 149.7 to 151.2. The nearest hoop screw holes, at 143.9 and 223.9 degrees, are 12 mm or more from the slot edge.
 - **Route:** tube cavity, port slot (23 wide, ribbon 17.8), through the new notch in the steel ring, along the carrier slot, across the stub end, into the Ø30 bore.
 - **Theta 330 not used.** It is on the far side of the elbow from the tube, so the ribbon would need about 100 mm of exposed run around the carrier.
 - **The tube floor exit is not used.** It is 6 × 7.5 mm, too small for a 17.8 mm ribbon. The port slot replaces it.

@@ -11,7 +11,7 @@ Settings are the test pass 1 process: P2S, 0.4 mm High Flow, Generic PETG, 0.20 
 | 3 | `upper_arm.3mf` | 8 h 24 m | 264.6 g | Inboard side, hoop flat | Layers across X, as in the FEA. The RS02 seat at X 165 faces up, clean |
 | 4 | `p2.3mf` | 5 h 54 m | 188.8 g | As P2 L04B, same 45 degree plate rotation | Only if you want a new P2, see below |
 
-Total: about 15 h 18 m and 489 g, including support and brim. Without P2, 9 h 24 m and 300 g.
+Total: about 16 h 18 m and 489 g, including support and brim. Without P2, 10 h 24 m and 300 g.
 
 ## P2
 

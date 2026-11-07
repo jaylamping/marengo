@@ -3,6 +3,8 @@
 hardware/designs/left-arm/envelope/*.stl filter=lfs diff=lfs merge=lfs -text
 hardware/designs/head/**/*.step filter=lfs diff=lfs merge=lfs -text
 hardware/designs/left-arm/prints/**/*.3mf filter=lfs diff=lfs merge=lfs -text
+hardware/designs/left-arm/prints/**/*.stl filter=lfs diff=lfs merge=lfs -text
+hardware/designs/left-arm/prints/**/*.step filter=lfs diff=lfs merge=lfs -text
 hardware/designs/torso-frame/cradle/*.stl filter=lfs diff=lfs merge=lfs -text
 hardware/designs/torso-frame/cradle/*.step filter=lfs diff=lfs merge=lfs -text
 hardware/designs/body-shell/prints/**/*.3mf filter=lfs diff=lfs merge=lfs -text
