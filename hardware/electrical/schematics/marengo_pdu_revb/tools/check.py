@@ -46,7 +46,10 @@ pk=[r for r in comp if r[0]=='J' and n(r,1)=='BAT']
 ok(len(pk)==1 and n(pk[0],2)=='GND' and not any(r[0]=='J' and r!=pk[0] for r,p in nets['BAT']),'pack in on one keyed two-pole connector, BAT and GND side by side')
 # nothing bulky ahead of the bank
 bat=[r for r,p in nets['BAT'] if r[0]=='C']
-ok(all(val(c).startswith('1uF') for c in bat),'only 1 uF directly on BAT: '+str(bat))
+# rev B5 layout stage 2: the pack-entry ceramics (4 x 4.7 uF 100 V) take the bank-trip edge; about 14 mJ at 54.6 V, which
+# the XT90S anti-spark plug absorbs, and the BMS close is set by the absorber cans. No bulk or polarized capacitance here.
+def uf(v): import re; m=re.match(r'([\d.]+)uF',v); return float(m[1]) if m else 99
+ok(all('CP_' not in str(get(comp[c],'footprint')[1]) and uf(val(c))<=4.7 for c in bat) and sum(uf(val(c)) for c in bat)<=20,'only ceramics, 20 uF or less, directly on BAT: '+str(bat))
 jb=[r for r in comp if r[0]=='J' and val(r).startswith('12 V converter pigtail')]
 ok(len(jb)==1 and not any(r==jb[0] for r,p in nets['BAT']+nets['VBUS']),'converter connector on neither BAT nor VBUS')
 jb=jb[0] if jb else 'J0'

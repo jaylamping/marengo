@@ -326,7 +326,11 @@ for _ in range(5): g.CP('47uF 80V EEH-ZC1K470P','ABS','ABS_N','Capacitor_SMD:CP_
 # bank A drain ceramics (rev B5 thermal study): the bank turns off in 50-200 ns, so the copper between the absorber and
 # the drain kicks the drain. 4.4 uF here holds BAT at 74 V and the drain under 85 V with a 2 nH absorber loop
 # (THERMAL_OPTION.md); without them BAT reaches 78-111 V. Placed right at the drains, GND pads straight to L2.
-g.C('2.2uF 100V X7R','SW_D','GND',C1210,k=2)
+g.C('4.7uF 100V X7R','SW_D','GND',C1210,k=2)
+# pack-entry ceramics (layout stage 2): the routed absorber loop is 3-5 nH (SMC diode bodies, can ESL, the comb spines), not
+# the 2 nH first budgeted. About 8.8 uF of ceramics at BAT (4 x 4.7 uF 100 V, about 2 uF each at 54 V bias) takes the fast
+# edge: BAT 73.8 V and the bank A drain 80-82 V with a 5 nH loop (absorber_sim, LAYOUT_RULES).
+g.C('4.7uF 100V X7R','BAT','GND',C1210,k=4)
 writelib()
 s.write([('/'+ROOT,'1')])
 print('ok',{k:v for k,v in s.refc.items() if not k.startswith('#')})

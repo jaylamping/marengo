@@ -21,10 +21,12 @@
   - D7, D21 and the eight cans in one cluster at the BAT entry; R53 (the ABS_N to GND link) under the can stack.
   - ABS and ABS_N are pours directly over unbroken L2.
   - R53 is at least 5 mm wide, with 10 or more vias to L2 and L3.
-  - **Loop budget about 2 nH**, not 10 (rev B5 thermal study: with a 50–200 ns bank turn-off, 5 nH gives BAT 88–102 V
-    and 10 nH gives 102–111 V without drain ceramics). Extract it after layout and run it in absorber_sim.
-- **Bank A drain ceramics C87/C88** (2 × 2.2 µF 100 V 1210, SW_D to GND): right beside RS1's SW_D pad and the bank A tabs,
-  GND pads straight down to L2 with 4 or more vias each. They hold BAT at 74 V and the drain under 85 V.
+  - **Loop:** the routed absorber loop is about 3–5 nH (SMC diode bodies, can ESL, the 2.6 mm comb spines), so 2 nH
+    isn't reachable with these parts. The ceramics below take the fast edge instead.
+- **Pack-entry ceramics C89–C92** (4 × 4.7 µF 100 V 1210, BAT to GND, about 8.8 µF at 54 V bias): two between RS1 and D7,
+  two in the BAT arm by D1, GND pads via-gridded to In1. **Bank A drain ceramics C87/C88** (2 × 4.7 µF 100 V): beside
+  RS1's SW_D pad, GND vias to In1. absorber_sim (real turn-off, all corners): BAT 73.8–73.9 V, bank A drain 81–84 V,
+  with a 3–5 nH absorber loop.
 - **FET copper and the heatsink (option D, [THERMAL_OPTION.md](THERMAL_OPTION.md)):**
   - 2.7 W per FET at 60 A goes down into a finned heatsink under the board (X −33..33, Y 200–305).
   - About 50 × 0.3 mm vias per tab, at the pad edge and under it, tented on L4 and kept out of the paste aperture so they

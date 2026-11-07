@@ -68818,7 +68818,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "2.2uF 100V X7R"
+		(property "Value" "4.7uF 100V X7R"
 			(at 167.64 901.7 0)
 			(effects
 				(font
@@ -68987,7 +68987,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "2.2uF 100V X7R"
+		(property "Value" "4.7uF 100V X7R"
 			(at 193.04 901.7 0)
 			(effects
 				(font
@@ -69133,6 +69133,682 @@
 			(project "marengo_pdu_revb"
 				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
 					(reference "#PWR232")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 38.1 930.91 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "92043943-ddd0-559f-82fa-e88ed98d8bd1")
+		(property "Reference" "C89"
+			(at 40.64 929.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "4.7uF 100V X7R"
+			(at 40.64 932.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1210_3225Metric"
+			(at 38.1 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 38.1 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 38.1 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "79b32a50-32db-5176-8edb-38006a5e7c99")
+		)
+		(pin "2"
+			(uuid "aeb06b68-f1e3-5a49-9e25-f1a0d3539d51")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "C89")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 38.1 927.1)
+			(xy 38.1 924.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "86afea5f-b288-5e83-a7df-8944cce944d4")
+	)
+	(label "BAT"
+		(at 38.1 924.56 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "83532365-ed47-57c9-b6a8-a7674f89a861")
+	)
+	(wire
+		(pts
+			(xy 38.1 934.72)
+			(xy 38.1 937.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "71a2d99a-0c35-52ee-8622-c1e8da8f7770")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 38.1 937.26 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "b7df1387-4fc9-539a-938c-a277b897932c")
+		(property "Reference" "#PWR233"
+			(at 41.91 935.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 41.91 938.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 38.1 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 38.1 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 38.1 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "9537151d-b0b9-5474-a29d-87bd09860f97")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR233")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 63.5 930.91 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "765dc33d-0024-5555-a84c-75e225bbb3e9")
+		(property "Reference" "C90"
+			(at 66.04 929.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "4.7uF 100V X7R"
+			(at 66.04 932.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1210_3225Metric"
+			(at 63.5 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 63.5 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 63.5 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fbbd3ffb-eb8d-5c7c-a143-6ebe06f56a80")
+		)
+		(pin "2"
+			(uuid "0d03b070-a6a0-5c7b-a79e-f91c7842cdb2")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "C90")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 63.5 927.1)
+			(xy 63.5 924.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1f0e3662-77b4-5751-9e94-b97b1a2cc019")
+	)
+	(label "BAT"
+		(at 63.5 924.56 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d9ea732b-40d0-58dc-ba86-df31c1a6c95d")
+	)
+	(wire
+		(pts
+			(xy 63.5 934.72)
+			(xy 63.5 937.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "926b5a30-60be-5c88-ba71-cce5e29a68ef")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 63.5 937.26 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "5ab3b485-c563-5e13-95c2-829e172f73da")
+		(property "Reference" "#PWR234"
+			(at 67.31 935.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 67.31 938.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 63.5 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 63.5 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 63.5 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e1bd88df-fac0-5357-ba97-a198b096f372")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR234")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 88.9 930.91 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "74b5c9e8-1739-58b2-821c-ff57742b9df1")
+		(property "Reference" "C91"
+			(at 91.44 929.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "4.7uF 100V X7R"
+			(at 91.44 932.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1210_3225Metric"
+			(at 88.9 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 88.9 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 88.9 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "098521f7-c944-5085-86cb-29ef93b54adc")
+		)
+		(pin "2"
+			(uuid "94f3abca-0371-5a78-afa3-2e84cfd0b096")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "C91")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 88.9 927.1)
+			(xy 88.9 924.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8fd3213a-66ca-552e-862b-7965e45fb859")
+	)
+	(label "BAT"
+		(at 88.9 924.56 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f5b07604-511d-55eb-a2ab-333246560ec2")
+	)
+	(wire
+		(pts
+			(xy 88.9 934.72)
+			(xy 88.9 937.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "84b2cd28-5913-555c-aeea-4ec02fbc6144")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 88.9 937.26 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "8e655384-7ec1-52ac-a2f5-47a406d31ef4")
+		(property "Reference" "#PWR235"
+			(at 92.71 935.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 92.71 938.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 88.9 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 88.9 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 88.9 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "11cef75a-9d18-5e94-b324-078dde889975")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR235")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 114.3 930.91 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "84ad1e99-4ed9-5708-9171-240fdf279759")
+		(property "Reference" "C92"
+			(at 116.84 929.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "4.7uF 100V X7R"
+			(at 116.84 932.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1210_3225Metric"
+			(at 114.3 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 114.3 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 114.3 930.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d80de569-9448-5723-9c6e-b32031c8ac59")
+		)
+		(pin "2"
+			(uuid "f31330c4-f2ce-5f65-9a67-6db840f16654")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "C92")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 114.3 927.1)
+			(xy 114.3 924.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5f8f97fe-7106-57de-9064-4dffffb90950")
+	)
+	(label "BAT"
+		(at 114.3 924.56 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "082275c3-f7b3-5e8d-82dd-e93545628368")
+	)
+	(wire
+		(pts
+			(xy 114.3 934.72)
+			(xy 114.3 937.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "debeeca3-4183-5522-927b-b897e1850bc4")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 114.3 937.26 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "37a6e5fc-8678-58e9-a198-29d1c47dce7c")
+		(property "Reference" "#PWR236"
+			(at 118.11 935.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 118.11 938.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 114.3 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 114.3 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 114.3 937.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "4ddcdc55-e418-51ab-897a-14e9f6d9f01c")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR236")
 					(unit 1)
 				)
 			)

@@ -114,6 +114,20 @@ track('/CL_D',L1,[(37.47,268.48),(37.5,271.0)],2.0)
 track('/CL_D',L1,[(32.0,262.26),(34.0,263.6),(34.0,266.0),(36.2,268.2),(37.47,268.48)],1.2)   # round C49
 v=pcbnew.PCB_VIA(b); v.SetPosition(P(36.0,265.4)); v.SetDrill(pcbnew.FromMM(0.4)); v.SetWidth(pcbnew.FromMM(0.8)); v.SetNet(NET['/VBUS']); b.Add(v)
 track('/VBUS',L1,[(36.0,263.19),(36.0,265.4)],1.0); track('/VBUS',L4,[(36.0,265.4),(36.0,266.9)],1.5)   # C49 to the L4 brake feed
+# power GND pads straight down to the In1/In2 planes: a via grid inside each pad (0.3 mm drill, tented, small enough
+# not to starve the joint on the hot plate)
+GNDREFS='C10 C11 C12 C13 C47 C49 C87 C88 C89 C90 C91 C92 D1 D25 D28 D31 D34 D37 D40 R53 C14 C15'.split()
+for r in GNDREFS:
+    fp=b.FindFootprintByReference(r)
+    if not fp: continue
+    for p in fp.Pads():
+        if p.GetNetname()!='GND': continue
+        bb=p.GetBoundingBox(); x0,y1=C(pcbnew.VECTOR2I(bb.GetX(),bb.GetY())); x1,y0=C(pcbnew.VECTOR2I(bb.GetRight(),bb.GetBottom()))
+        nx=max(1,int((x1-x0-0.6)/1.0)+1); ny=max(1,int((y1-y0-0.6)/1.0)+1)
+        for i in range(nx):
+            for j in range(ny):
+                X=(x0+x1)/2+(i-(nx-1)/2)*1.0; Y=(y0+y1)/2+(j-(ny-1)/2)*1.0
+                v=pcbnew.PCB_VIA(b); v.SetPosition(P(X,Y)); v.SetDrill(pcbnew.FromMM(0.3)); v.SetWidth(pcbnew.FromMM(0.6)); v.SetNet(NET['GND']); b.Add(v)
 # ---------------- report pads of other nets inside each pour ----------------
 pads=[(fp.GetReference(),p) for fp in b.GetFootprints() for p in fp.Pads()]
 bad={}

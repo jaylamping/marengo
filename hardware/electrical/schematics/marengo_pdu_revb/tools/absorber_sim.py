@@ -14,6 +14,7 @@ pf=OUT(lambda s,i,u:0); ef=NUL(lambda *a:0); ng.ngSpice_Init(pf,pf,ef,None,None,
 MODT='''
 .model DTVS D(IS=1e-12 N=1 RS=0.55 BV={bv} IBV=1m)
 .model DSCH D(IS=50u N=1.1 RS={rd} BV=100 IBV=1u)
+.model DAVL D(IS=1e-12 N=1 RS=0.02 BV=110 IBV=1m)
 '''
 MOD=MODT.format(bv=64.4,rd=0.01)
 def sim(net,probes,tend):
@@ -144,3 +145,46 @@ VPRE CN 0 0
                 ts=[x[0] for x in r if x[3]>th]
                 return (max(ts)-min(ts))*1e6 if ts else 0
             print(f'  C {C*1e6:3.0f}u L {L*1e6:.1f}u R {rl:.2f}: peak {max(x[3] for x in r):4.0f} A; us above 180/300 A: {dur(180):4.1f} {dur(300):4.1f}')
+
+# rev B5 layout stage 2: a real turn-off. The bank's current falls linearly over tf (50-200 ns) instead of a conductance
+# ramp, the absorber branch has its own inductance LABS (D7/D21 bodies, can ESL, comb copper: 3-5 nH estimated from
+# the routed board), LBAR is the copper from the absorber node to the bank A drain, CBAT the pack-entry ceramics
+# (4 x 4.7 uF 100 V, about 8.8 uF at 54 V bias) and CDR the bank A drain ceramics (C87/C88, about 4.4 uF). The bank
+# FETs avalanche at about 110 V (DAV).
+def rnet(L,C,esr,rl,lbar,labs,cdr,cbat,sw):
+    return f"""t
+VB EMF 0 54.6
+RL EMF L1 {rl}
+LL L1 BAT {L} IC=0
+D1 0 BAT DTVS
+D7 BAT ABS DSCH
+RESR ABS CA {esr}
+LABS CA C1 {labs} IC=0
+C38 C1 0 {C} IC=54.4
+LCB BAT CB1 1n IC=0
+CBAT CB1 0 {cbat} IC=54.6
+LBAR BAT BX {lbar} IC=0
+LDR BX DX 0.5n IC=0
+CDR DX 0 {cdr} IC=54.6
+DAV BUS BX DAVL
+{sw}
+RSH BUS 0 1m
+"""
+def rtrip(L,C,esr,t_open,tf,rl,lbar,labs,cdr,cbat):
+    global MOD; MOD=MODT.format(bv=71.2,rd=0.005)
+    r=sim(rnet(L,C,esr,rl,lbar,labs,cdr,cbat,'BSW BX BUS I=V(BX,BUS)*500'),'i(lbar)',f'{t_open:.3e}'); i0=r[-1][1]
+    sw=f'BSW BX BUS I=min(V(BX,BUS)*500,max(0,{i0*1.02}*(1-(time-{t_open})/{tf})))'
+    r=sim(rnet(L,C,esr,rl,lbar,labs,cdr,cbat,sw),'v(bat) i(ll) v(bx)',f'{t_open+tf+60e-6:.3e}')
+    MOD=MODT.format(bv=64.4,rd=0.01)
+    return max(x[1] for x in r),max(x[5] for x in r)
+print();print('Rev B5 layout: real turn-off (tf), absorber loop LABS, pack-entry ceramics CBAT, bank A drain ceramics CDR; 8 cans, all corners:')
+for labs in (3e-9,5e-9):
+    for cbat,cdr in ((1e-12,4.4e-6),(8.8e-6,4.4e-6),(8.8e-6,8.8e-6)):
+        w=wd=0
+        for tf in (50e-9,200e-9):
+            for L in (0.5e-6,1e-6):
+                for rl in (0.1,0.05):
+                    for t_open in (8.8e-6,17.5e-6):
+                        try: v,vd=rtrip(L,8*37.6e-6,0.045/8,t_open,tf,rl,2e-9,labs,cdr,cbat); w=max(w,v); wd=max(wd,vd)
+                        except Exception: pass
+        print(f'  LABS {labs*1e9:.0f} nH, CBAT {cbat*1e6:3.1f} uF, CDR {cdr*1e6:3.1f} uF: BAT {w:5.1f} V, bank A drain {wd:5.1f} V'+('   <- fitted' if (cbat,cdr)==(8.8e-6,4.4e-6) else ''))
