@@ -1,73 +1,61 @@
-# Left upper arm FEA and fit summary
+# Left upper arm FEA summary, printed joint
 
-2026-11-07. SolidWorks Simulation, PETG E 1900 MPa, Poisson 0.38, yield 45 MPa, layer factor 0.5, so layer allowable 22.5 MPa. Steel E 200 GPa. Results stay on Joey-PC, not in git. Layer SF is normal stress across the print layers, normal X, for all parts here.
+2026-11-07. SolidWorks Simulation, PETG E 1900 MPa, Poisson 0.38, yield 45 MPa, layer factor 0.5, so layer allowable 22.5 MPa. Layers lie across X. Results stay on Joey-PC, not in git.
 
-## What changed after the gate review
+**Stage:** the robot stays stationary and supported, so falls and tip-over aren't load cases. This is the break-it-now pass. The one hard rule is that a printed part gives before an RS02 or RS03 is damaged. Targets: SF 2.0 and layer 1.5 on the arm, 1.5 and 1.3 on the carrier at 17 N·m.
 
-- **Ribbon:** Joey chose the rolling loop on the back of the elbow under a printed guard. B1 is dropped: no slot in the carrier, no notch in the ring, and the tube floor exit is closed.
-- **My error in the last package:** the carrier slot was cut on the wrong side of its plane, X 148.1 to 149.7, so its FEA was for the wrong part. That slot is gone. Every cut in this package was checked with rays through the exported mesh.
-- **Steel-only clamp:** hoop 13.40 thick, sleeves 13.45. Hub 21.80, sleeves 21.86. The hoop faces land on the 0.2 mm layer grid: bed at X 131.99, faces at X 151.79 and 165.19.
-- **Fit clearance:** Ø5.2 hoop holes, Ø6.2 hub holes, Ø52.2 bearing seat. Pads in the Ø66 bore at each hole bring it to Ø65.6 locally. The RS02 body is Ø65. The wall from hole to bore is 1.1 mm.
-- **Carrier:** a pilot in the Ø66 ring, r 32.9, 0.1 mm clearance. Hole walls Ø6.05 and 1.5 tall with three steel washers, in place of Ø6.4 and 1.0 tall.
-- **Fuses:** rows across the tube for 35 mm holders, wedge and void under the pad filled.
-- **Root corner:** 2.5 mm chamfer at X 151.7, Y 254.9, and the floor exit filled.
+## What changed
 
-## Load cases
+- **No steel rings or sleeves.** Joey's rule: print everything except fasteners and bearings. The six M3 screws clamp the carrier and hoop straight onto the RS02 shoulder. DIN 9021 washers sit under the heads at 0.35 N·m, about 580 N and 10 MPa. The hub M4s each get two DIN 125 washers at 0.6 N·m.
+- **Hoop holes Ø3.3, hub holes Ø4.3.** The hoop ligament from hole to bore pad grows from 1.1 to 2.05 mm.
+- **Carrier:** the ring's 2 mm is folded in, so the carrier face meets the hoop at X 151.7. There's a Ø9.4 washer seat, and the floor at X 149.05 prints at 149.1. Head top is at X 146.6 or higher, so the finger clears by at least 0.6 mm. The pilot is gone; the screws locate the carrier in Ø3.2 holes.
+- **Hot spots:** an r 1.5 fillet on both hoop-to-tube corners and the fuse pad gap closed. A seat lip was tried and removed, because its root became the new peak.
+- **Washer capture, cover bosses at Y 268, slow-cure epoxy:** the capture stack and the epoxy are gone with the sleeves. The Y 268 bosses are 6.85 to 8.83 deep, with a 1 mm floor.
 
-Load at the elbow axis, arm fixed at the six top hub holes.
+## Joint model
 
-| Case | Force | Moment | Source |
-| --- | --- | --- | --- |
-| LC1A | 300 N along Z | 17 N·m about X | 60 N·m at the shoulder over 215 mm is 279 N, plus 2× gravity on 1.07 kg. 17 N·m is the RS02 peak |
-| LC1B | LC1A reversed | | |
-| LC1C | 300 N along X, lateral | 17 N·m about X | Same force in the shoulder roll direction |
-| LC2 | None | 17 N·m about Y, the arm axis | Yaw RS02 peak |
+The hoop is PETG and the RS02 is a 10 mm steel rim on the seat. Six M3 rods are bonded to the rim and pass through the Ø3.3 holes with 0.15 mm clearance. A 2.8 mm PETG plate stands in for the carrier web. Preload is 580 N per screw, applied over a Ø9 patch on the web and on the rim. Contacts: PETG on PETG and PETG on steel, friction 0.3; rod in hole, 0.2. The arm is fixed at the six hub holes and the load goes on the rim. Mesh is 2 mm, with 0.8 on the hole walls, the seat and the corner.
 
-## Upper arm joint model
+| Case | Load at the elbow axis | Worst hoop SF, at the hole edge | Seat face near the RS02 shoulder edge | Ligament mid-thickness | Hoop-to-tube corner | Layer SF | Seat opens, mm | Slip, mm |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| LC1A | 300 N along Z, 17 N·m about X | 1.88 | 1.80 | 4.91 | 4.00 | 2.03 | 0.001 | 0.006 |
+| LC1B | LC1A reversed: −300 N Z, +17 N·m X | 2.33 | 2.33 | 5.04 | 4.21 | 2.83 | 0.001 | 0.007 |
+| LC1C | 300 N along X, −17 N·m about X | 2.01 | 2.01 | 4.47 | 2.95 | 2.45 | 0.009 | 0.003 |
+| LC2 | 17 N·m about Y, the arm axis | 2.92 | 3.29 | 4.91 | 5.33 | 2.79 | 0.003 | 0.001 |
+| LC3A | 120 N along X, 34 N·m about Z, sideways hand contact | **0.74** | **0.61** | 2.32 | 1.19 | **0.56** | 0.030 | 0.009 |
 
-The last package's SF 1.79, layer 1.16 for LC1C came from loading the bare hole walls. This model has steel sleeves, the elbow ring and an RS02 rim as bodies, bonded to each other, and the PETG hoop touching them only through no-penetration contact on the hole walls and both hoop faces. Sleeve bending at the hole edges is included.
+**LC1 and LC2: nothing is grossly under.** The worst is SF 1.80 on the seat face at r 39.2, right at the edge of the RS02 shoulder contact. That edge is where a stiff part ends on PETG, so it reads high on any mesh. The ligament is no longer a concern at 4.5 or more, the corner is at 2.95 or more, and every layer SF is 2.0 or more. The joint doesn't slip or open under these loads.
 
-**Preload is not a separate load.** At 1.0 N·m the M3 screws carry about 1670 N, against about 130 N of shear per screw in the worst case, so the steel stack doesn't slip and acts as one rigid part. This assumes that, it doesn't model it. PETG nodes on the steel contact surfaces can't be told apart from steel nodes, so they're left out. The first PETG row is about 0.02 mm off the wall.
-
-Target SF 2.0, layer 1.5. 2 mm mesh with 0.8 mm on the hole walls.
-
-| Case | SF, worst PETG node | SF, 0.5 mm off the hole | SF, 1.0 mm off the hole | Layer SF |
-| --- | --- | --- | --- | --- |
-| LC1A | 1.54 | 1.91 | 1.91 | 2.71 |
-| LC1B | 1.34 | 1.99 | 2.32 | 3.38 |
-| LC1C | 1.65 | 1.96 | 1.96 | 1.73 |
-| LC2 | 2.81 | 3.64 | 4.16 | 2.05 |
-
-**Layer SF passes on all four. Von Mises at 1.0 mm off the hole passes LC1B and LC2 and misses by a little on two cases**, both away from the hole wall: LC1A 1.91 on the seat face at r 39.5, where the edge of the RS02 shoulder lands, and LC1C 1.96 at the hoop-to-tube corner, X 152.8, Y 254.9, Z −22. Neither is the 1.0 mm ligament. I've left these for the review rather than add more material.
-
-**Mesh check, LC1C before the root chamfer, 0.8 and 0.5 mm on the hole walls:** worst node 24.9 to 28.1 MPa, rising, 0.5 mm off 23.2 to 26.1, rising, 1.0 mm off 22.10 to 22.19, settled. So the worst node is an edge singularity where the rim edge lands on the hoop face, and the stress 1 mm away has converged. The 0.5 mm figure has not fully converged, so judge on the 1.0 mm column and treat the first millimetre as local yield at the contact edge.
+**LC3A fails.** A sideways push of 120 N at the hand pries the hoop on the RS02 shoulder. The seat edge and the port-slot corner yield locally at about 0.6, and the joint opens 0.03 mm. That's the printed part giving first, which keeps the rule. But it means **no sideways bench pushes over about 40 N at the hand** until rig test 7 measures the real limit. If the arm needs to take side loads later, that's the case for stepping up material.
 
 ## Carrier at 17 N·m
 
-444 N on the stop band at r 38.25, 1 mm mesh, about 314,000 nodes. Pilot held radially. Target SF 1.5, layer 1.3.
+444 N on the stop band at r 38.25, 1 mm mesh, about 330,000 nodes. The screw holes are fixed rigidly, with no pilot. With 580 N preload per screw and friction 0.3, the clamp alone carries about 38 N·m at r 36.5, so in practice the holes see little of this.
 
-| Case | SF | Layer SF | Clear SF | Clear layer SF |
-| --- | --- | --- | --- | --- |
-| Stop 0, all six holes | 2.35 | 2.27 | 2.6 | 3.78 |
-| Stop 124, all six holes | 2.63 | 2.26 | 3.34 | 4.18 |
-| Stop 0, only the nearest two holes | 2.34 | 2.26 | 2.64 | 3.75 |
-| Stop 124, only the nearest two holes | 2.63 | 2.25 | 3.35 | 4.12 |
+| Case | SF | Layer SF | Where |
+| --- | --- | --- | --- |
+| Stop 0, all six holes | 2.31 | 1.71 | Stop wall root |
+| Stop 124, all six holes | 1.84 | 1.35 | Stop wall root |
+| Stop 0, only the nearest two holes | 2.02 | 1.78 | Hole wall |
+| Stop 124, only the nearest two holes | 1.66 | 1.21 | Stop wall root |
 
-**Passes.** The numbers barely change with fewer holes, because the peak is at the stop wall. Bearing on the hole walls by hand: 17 N·m is 78 N per hole if all six share, on 9 mm², 8.7 MPa. With two holes it's 26 MPa, which is why the holes get opened to fit the washers. This model fixes the hole walls rigidly, without clearance.
+All six holes pass. The two-hole case is a bound that assumes no clamp friction at all, and it misses the layer target by 0.09. The stop is meant to be the weak link, and rig test 5 measures it.
+
+## Failure order
+
+Without steel, the screws carry about a third of the earlier preload, so the RS02 threads see less. The joint slips or the PETG crushes long before an M3 thread is at risk. Under overload, the first thing to give is either the printed stop (17 N·m rated, 25.5 to 34 N·m to break in the rig) or, for side loads, the hoop seat edge. Both are printed. The RS02 output bearing still carries every side moment directly, and its rating is unknown, so the side-load limit above stays until the rig measures it.
 
 ## Fit
 
 | Check | Result |
 | --- | --- |
-| Elbow 0 to 124 by 5 degrees, yaw ±60 at 0, 90 and 124 | Clear. Stop contact at 0 as designed. Cover to arm overlap of 0.04 mm³ at every angle, unchanged from rev C |
-| Hoop button heads to fork finger, all elbow angles | 0.55 mm at the three upper holes, 6.8 mm or more at the lower three |
-| Yaw ±90, arm against P2 and spacer | 32 mm minimum |
-| Collar M4 heads to P2 | 7.5 mm at roll 0, 5.6 at 2 degrees, 2.8 at 5 degrees |
+| Hoop button heads to fork finger | 0.6 mm or more at the upper three holes, 6.8 mm or more at the lower three |
+| Cover to arm overlap | About 1.0 mm³ at every angle, a sliver at the seating rim. The earlier 0.04 mm³ figure was wrong |
+| Fork cheek running gap | 0.9 mm on the arm, 0.8 mm in the rig. See `../../MOVING_INTERFACES.md` |
+| Bed contact on the upper arm | 256 mm² |
 
 ## Open
 
-- **Failure order:** printed parts failing before the actuators is still not shown. RobStride gives no bearing or thread rating. The rig test gives the printed side only.
-- **Hole-edge yield:** the first millimetre at the hoop seat face may yield locally at peak load. It's on the steel-only stack, so it shouldn't lose preload, but the rig test should watch for it.
-- **Sleeve fit:** the retaining compound is assumed to give full bearing round each hole. Without it, a 0.1 mm gap puts the load on fewer holes.
-- **Test pass 1 carriers** have the old holes and no pilot, so they're fit checks for this carrier, not strength proof of it.
-- **Fork strength** is still short of target, see the forearm notes. It doesn't affect these prints.
+- **Clamp creep:** PETG under the washers relaxes. Assembly retorques at 1 hour and 1 day, and rig test 8 measures it.
+- **Side-load limit:** LC3A above. Rig test 7 gives the real number.
+- **RS02 ratings:** RobStride gives no bearing or thread rating, so failure order against the actuator stays a comparison against the rig's printed failure loads.

@@ -1,6 +1,6 @@
 # Elbow dummy output test plan
 
-2026-11-06. Draft. Joey chose to keep the compact, centred elbow and measure what fails first before printing the full arm (`../upper-arm/REVC_GATE_REVIEW.md`). No real RS02 is loaded in any test.
+2026-11-06. Draft. Joey chose to keep the compact, centred elbow. The upper arm prints now, and this rig runs before the forearm goes on. The robot stays stationary and supported until the legs exist, so this is the stage to break things: **the one hard rule is that a printed part gives before an RS02 or RS03 is damaged.** Until test 7 has run, no sideways push over about 40 N at the hand on the real arm: the FEA puts local yield at the hoop seat near 70 N. No real RS02 is loaded in any test.
 
 Print files, times and the print order are in `../prints/test-pass-1/`. Pass levels marked **proposed** need Joey's agreement before the first test.
 
@@ -67,9 +67,9 @@ Everything here is meant to be possible at home.
 | Fit coupon | PETG | Ø52 seat and Ø40 stub with the floor bore, one real 6808 |
 | Carrier | PETG | Real part after the CAD fixes |
 | Fork sector | PETG | Fork cut across the tube near Y 118, keeping both cheeks, gussets, stub and finger, with a solid crown and a socket for the lever. Printed with the outboard cheek down |
-| Dummy housing | PETG, printed, over-built | RS02 stator stand-in: 6 M3 at r 36.5 on the real Ø73 circle, using the same hole clock as the hoop, with sleeves and steel ring as designed, into captive nuts |
+| Dummy housing | PETG, printed, over-built | RS02 stator stand-in: 6 M3 at r 36.5 on the real Ø73 circle, using the same hole clock as the hoop, the carrier clamped straight on the printed face as on the arm, into captive nuts |
 | Dummy output | PETG, printed | 6 M4 on Ø24 into captive nuts that slide in from the rim, and three Ø4 steel dowels. An M8 hex head sits in a pocket behind the nuts, so torque can enter here. Stack in `../prints/test-pass-1/PRINT_ORDER.md` |
-| Real parts | | One 6808, the planned M3 and M4 screws, sleeves, washers and rings |
+| Real parts | | One 6808, the planned M3 and M4 screws and washers. No steel rings or sleeves |
 
 Use the real screw types and lengths from the fixed design. Torque values come from CAD work, and are recorded for each joint.
 
@@ -172,20 +172,33 @@ Hold the dummy housing and pull the fork sector along the elbow axis through the
 
 Start at 100 N along the axis, and at a 19.5 N·m side moment, the load behind the 385 N couple. Increase by 25% steps.
 
-**Proposed pass:** both starting loads held for 30 seconds with no cracks. The printed parts fail, or a screw pulls through the PETG, before a steel nut or sleeve gives. The fixture has no aluminium thread, so this tests only the printed joint. Record the failure load, and the matching forces at the 6808 and output face, using the 50.6 mm span. These are the numbers to compare with an RS02 limit.
+**Proposed pass:** both starting loads held for 30 seconds with no cracks. The printed parts fail, or a screw pulls through the PETG, before a steel nut gives. The fixture has no aluminium thread, so this tests only the printed joint. Record the failure load, and the matching forces at the 6808 and output face, using the 50.6 mm span. These are the numbers to compare with an RS02 limit.
 
-Replace any nut or sleeve that has been loaded to failure.
+Replace any nut or screw that has been loaded to failure.
 
 ## Record
 
 For each test: date, spool, print orientation, part revision, screw torque, room temperature, load steps, failure load, failed part, photos. Put results in `ELBOW_DUMMY_OUTPUT_RESULTS.md` beside this plan.
 
+### Test 8: clamp creep
+
+The hoop and carrier clamp PETG directly, so preload falls as the plastic relaxes. Mark each M3 head and the carrier with paint, then tighten to the torque in `../prints/upper-arm/ASSEMBLY_ORDER.md`.
+
+1. Measure how far each screw turns on a retorque at 1 hour, 1 day and 1 week, before any test loads.
+2. Repeat at 1 hour after test 5, the stop cycles.
+
+**Proposed pass:** under a quarter turn at the 1 day retorque, and no witness-mark movement between carrier and housing after the stop cycles. Record the turn at each screw. If the marks move, the clamp has slipped.
+
+### Test 9: reuse the bearing
+
+After the break tests, press the 6808 out. Spin it by hand and feel for roughness, notches and play. Only a smooth bearing with no play goes in the arm. A rough one goes in the bin, and the second 6808 takes its place. Check any screw you plan to reuse for bending or thread damage.
+
 ## After the tests
 
 | Result | Action |
 | --- | --- |
-| All pass, printed stop fails first | Fix lengths and wiring openings, then print the full parts |
-| Stop fails under 34 N·m | Enlarge the finger and recess, or move the weak feature to the carrier, and retest |
+| All pass, printed stop fails first at 25.5 N·m or above | Fix lengths and wiring openings, then fit the forearm. Failing between 25.5 and 34 N·m is a pass. 34 N·m is only recorded |
+| Stop fails under 25.5 N·m | Enlarge the finger and recess, or move the weak feature to the carrier, and retest |
 | Thread or screw joint fails first | Change the joint before any more strength work |
 | Carrier mounting fails first | Rework the carrier; the upper arm hoop may be next in line |
 | Layer strength under 22.5 MPa | Rescale all layer SFs and recheck both parts |

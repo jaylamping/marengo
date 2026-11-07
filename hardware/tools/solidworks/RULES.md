@@ -39,6 +39,8 @@ Anything hidden is logged to `sw_hidden_<pid>.log` in the temp folder, and `HAD 
 
 No console windows showed, from Python, PowerShell, git or Bambu Studio.
 
+**A launch stalls at the splash screen while another instance is mid-solve.** It resumes once the solve stops. So coordinate a short hold with any thread that is solving before you launch, and hold between cases if another thread asks.
+
 **A launch takes focus about 6 times in its first 20 s, and nothing tried stops it.** So reuse one instance across scripts with `session()` and don't restart between runs. Each measured on one launch, Joey-PC, 2026-11-07:
 
 | Launch | Focus events | Note |
