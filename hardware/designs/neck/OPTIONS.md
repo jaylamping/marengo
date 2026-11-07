@@ -95,6 +95,14 @@ the drive. That only works if the frame thread leaves room under the collar.
   if needed. A small MCU in the head (round displays, jaw servo, mics, speaker amp) on USB2 keeps the
   conductor count low. A ribbon clock-spring like the elbow's is the fallback if the loop fights the servo.
 
+## Head thread inputs (04:46Z, measured from the Argon STLs, not weighed)
+
+- Shell X -65..65, Y ±61, Z 56..236 (crest to 253). Jaw X -61..83, Y ±71, Z 50..172. Chin at X ~83, Z 50.
+- Jaw pivot bosses at X -45, Z ~156, Y ±72. Jaw floor 4 mm thick; the neck hole leaves 1 mm radial clearance to the ribs.
+- Mass estimate ~0.95 kg, COM on the centre line at Z ~140. That matches the 1.0 / 1.3 kg assumption here.
+- The head thread agrees with the bellows boot. Its top flange fixes to the head shell, not the jaw.
+  Speech probably needs only 5-8° of jaw travel, which halves the floor sweep (Joey to confirm).
+
 ## Things this touches in other threads
 
 1. **Head ("Design the robot's head").** The jaw floor has a neck hole r 42 around a r 36 neck. If the jaw
