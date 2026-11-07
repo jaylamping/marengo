@@ -57,6 +57,7 @@ On Joey-PC, `agy` 1.5.2 is at `C:/Users/joeyl/AppData/Local/agy/bin/agy.exe`, an
 - The prompt must be attached to the flag (`-p='...'`), or `-p` swallows the next flag.
 - Run it with `--output-format stream-json --log-file <path>`. The final `result` event carries the review in `response`, plus token usage and `denied_actions`.
 - Read-only is by prompt only, so check the hashes after.
+- **Check agy's Claude/GPT quota before every round, not the Gemini usage page.** That quota is separate from the Gemini app usage on Joey's Ultra plan (joey.lamping8@gmail.com). The Gemini page can show 0 % while agy reports "Individual quota reached ... Resets in …". Smoke-test it first: `agy --model claude-opus-5-5-high -p='Reply with exactly: OK. Run no tools.' --output-format json`. If it fails with RESOURCE_EXHAUSTED, note the reset time and go to the API. On 2026-11-07 the window reset at about 14:08Z.
 
 ## Trial reviewers
 
