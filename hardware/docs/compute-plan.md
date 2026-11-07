@@ -129,7 +129,25 @@ How to make that work:
 - **Routing order:** Jetson (small, latency-critical) → 5080 (CUDA, fits in 16 GB) → MacBook (big models, during sessions) → cloud (everything else, or when nothing local is up).
 - **Fastest providers.** For open-weight models, Groq and Cerebras run hundreds to over a thousand tokens/s with low time to first token. For the best plans from words, a frontier model is slower but smarter. Measure from the house before picking.
 
-## 9. Open questions for Joey
+## 9. Learning direction (Joey 2026-11-07)
+
+Joey does not want a robot that only replays a fixed list of actions. His picture: train every core movement and interaction as a primitive skill first (move hand to a Cartesian point and hold, turn head toward a sound, stand in place). A reasoning model then works out what a command means ("what is a wave, which hand, I'm right dominant"), composes the skills into a sequence, and the results feed back so the robot keeps improving, including updating its own weights from each day's events.
+
+This supersedes ADR 0014's "primitive selection from a fixed catalog" as the long-term goal (software project to update). Two learning speeds:
+
+- **Fast, no weight change:** keep a memory of plans that worked and what Joey corrected, and feed it back as context next time.
+- **Slow, nightly:** fine-tune (LoRA) the planner on the day's logged episodes, on the 5080 or the Mac overnight. Feasible today for 4–8 B models. Needs a score for each episode (camera check, Joey's feedback) and an eval suite: new weights only go live if they beat the old ones, and the old ones are kept.
+
+Whatever the model learns, motion still goes through the Pi's limit checks.
+
+Weight-space programming ([MIT CSAIL post, 2026-11-02](https://rikiyat.github.io/blog/weight-space-programming/)): an LLM reads and edits network weights directly from a goal, no gradient descent. Early and small (17 k to 1.5 M parameter policies, edits on a 0.8 B LLM); the authors say edits unlock existing abilities rather than add missing ones. Most relevant here at small scale: our motor policies are that size. Watch item, not the plan of record.
+
+Hardware consequences:
+
+- **Log everything, keep it.** Joint commands and feedback, IMU, audio and camera from the Jetson, operator commands and outcomes. Needs an NVMe SSD on the Jetson (the dev kit has M.2 slots) and on the Pi (M.2 HAT), sized for days of data, with a nightly offload to the PC.
+- **Leave room for a bigger on-robot module.** If the model moves onto the robot later, the compute bay, the 12 V output and the chest fans should take an Orin NX 16 GB without rework, and ideally not rule out a Thor-class module (40–130 W) without a redesign.
+
+## 10. Open questions for Joey
 
 1. Which Pi 5 do you have, 4, 8 or 16 GB? (8 GB or more is plenty; 4 GB is still fine for control.)
 2. Has the Jetson been flashed to JetPack 6.2 or later (Super mode)?
