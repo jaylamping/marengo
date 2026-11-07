@@ -33,8 +33,21 @@ JOBS = {
     'upper_arm': lambda: UP_X(read_stl(S / 'UA2_ARM.STL')),
     'carrier': lambda: UP_X(read_stl(S / 'UA2_CARRIER.STL')),
     'p2': lambda: read_stl(S / 'P2_L05.STL'),
+    'fit_coupons': lambda: coupons_plate(),
     'cover': lambda: YZ(read_stl(S / 'UA2_COVER.STL')),
 }
+def coupons_plate():
+    """Hoop ring, hub core and bearing seat ring, cut from the final parts, printed the same way up."""
+    out = []
+    dx = 0.0
+    for n in ('coupon_hoop', 'coupon_seat', 'coupon_hub'):
+        v = UP_X(read_stl(S / f'{n}.STL'))
+        v = v - v.min(0)
+        out.append(v + [dx, 0, 0])
+        dx += np.ptp(v[:, 0]) + 12
+    return np.vstack(out)
+
+
 # settings that differ from the P2 project, on purpose
 BRIM = {'brim_type': 'outer_only', 'brim_width': '5'}
 EXTRA = {}
