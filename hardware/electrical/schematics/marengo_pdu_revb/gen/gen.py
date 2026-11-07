@@ -85,16 +85,16 @@ Brake resistor NC thermostat: wire it in series in the loop harness, no board pa
 Button HB2-BS545, 22 mm mushroom, twist release, 1NC + 1NO, 660 V AC 10 A, control-rated only: NC in this loop, NO to the Pi (block 9). RUN also enables bank A (block 7) and SPARE_SW (block 8).''',(284.48,240))
 
 # ---------- clamp ----------
-head('3. Braking clamp: 56.8 V on, 55.8 V off, 57.5 V worst case, into the HS50',(25.4,262))
+head('3. Braking clamp: 56.8 V on, 55.8 V off, 57.5 V worst case, into the HS150',(25.4,262))
 nic(s,TLV,'U3','TLV1805DBVR',(63.5,292),'Package_TO_SOT_SMD:SOT-23-6',{'1':'CL_OUT','2':'GND','3':'VREF_CL','4':'CL_SENSE','5':'GND','6':'VCTL'})
 nic(s,'Reference_Voltage:LM4040DBZ-2.5','U4','LM4040AIM3-2.5',(127,292),SOT23,{'1':'VREF_CL','2':'GND','3':None})
 g=Grid(s,152.4,277,20.32,30.48,290)
 g.R('9.09k','VCTL','VREF_CL'); g.C('100nF','VCTL','GND'); g.R('499k 0.1%','VBUS','CL_DIV',R1206); g.R('604k 0.1%','CL_DIV','CL_SENSE',R1206); g.R('51.1k 0.1%','CL_SENSE','GND'); g.R('19.1M','CL_OUT','CL_SENSE'); g.C('100pF C0G','CL_SENSE','GND')
 g.nl(); g.R('10R','CL_OUT','CL_G'); g.R('100k','CL_G','GND'); g.D('MBRS3100T3G','VBUS','CL_D',SMC)
 nfet5(s,'Q6','BSC040N10NS5ATMA1',(254,322),'CL_D','CL_G','GND')
-term('M4 terminal, HS50 +',(330.2,292),'VBUS'); term('M4 terminal, HS50 -',(330.2,314.96),'CL_D')
-note('''Arcol HS50 10R J on the +X gusset plate (frame 3877317), leads to J3/J4 on the board's top edge, +X half, twisted: 322 W, 5.7 A while on. MBRS3100 carries the lead and winding inductance at turn-off, so lead length sets EMI, not FET stress. 50 W on Arcol's standard heatsink, 32 g: about 1.4 kJ, 4.5 s at 322 W, before it gets hot. Threshold values are rev A's, unchanged.
-Self-powered: VCTL lives as long as the bus or the pack does. If the FET sticks on, the plate thermostat opens the loop and the bank drops the bus.
+term('M4 terminal, HS150 +',(330.2,292),'VBUS'); term('M4 terminal, HS150 -',(330.2,314.96),'CL_D')
+note('''Arcol HS150 10R J on the +X gusset plate, with thermal compound (frame 3877317), leads to J3/J4 on the board's top edge, +X half, twisted: 322 W, 5.7 A while on. MBRS3100 carries the lead and winding inductance at turn-off, so lead length sets EMI, not FET stress. Rated 150 W only on Arcol's 995 cm2 plate, and the gusset is smaller, so it works on burst energy: 175 g, a 10 s burst at 284 W is about +18 C. Software caps braking at 50 W average over 60 s and 3 kJ per burst. NC bimetal thermostat (open about 120 C, Airpax 67L class) clamped to the body, in the E-stop loop. Threshold values are rev A's, unchanged.
+Self-powered: VCTL lives as long as the bus or the pack does. If the FET sticks on, the resistor's thermostat opens the loop and the bank drops the bus.
 TLV1805 drives the FET directly: 100 mA peak, 0.3 us into 4 nF. Rev A's driver, meter, shunt, status FET and NTC are gone, and a smaller FET replaces the IPT015.
 Leg stage later: fit 2 Ohm and recheck this FET, 29 A gives about 5 W.''',(355.6,280))
 

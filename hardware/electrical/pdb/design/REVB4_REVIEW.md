@@ -43,7 +43,7 @@ ERC is clean and check.py passes 91 of 91; it now also checks the series feed, t
 
 ## For Joey
 
-1. **Braking resistor energy.** Sol and Astra (blockers), Muse, Opus and Fable all say the same: HS50 is 50 W on Arcol's heatsink, and the 5 A software cap lets about 284 W in. The "32 g × aluminium = 1.4 kJ" argument isn't a rating; hotspot temperature and pulse capability govern. The thermostat has no part number or setpoint. This doesn't change the board, but the acceptance needs one of:
+1. **Decided, Joey 2026-11-07: HS150 10R + an NC thermostat opening at about 120 °C + a software energy cap (50 W average over 60 s, 3 kJ per burst); ask Arcol for pulse data. HS200 only if the bench shows more than 50 W sustained.** **Braking resistor energy.** Sol and Astra (blockers), Muse, Opus and Fable all say the same: HS50 is 50 W on Arcol's heatsink, and the 5 A software cap lets about 284 W in. The "32 g × aluminium = 1.4 kJ" argument isn't a rating; hotspot temperature and pulse capability govern. The thermostat has no part number or setpoint. This doesn't change the board, but the acceptance needs one of:
    - (a) a software energy cap: about 1 kJ per burst at about 15 % duty, and a named thermostat;
    - (b) a bigger resistor (Arcol HS150/HS200, or two HS50 in series-parallel on the gusset).
    **My recommendation: (b) with a named NC thermostat**, because regen energy isn't something the board can see.
