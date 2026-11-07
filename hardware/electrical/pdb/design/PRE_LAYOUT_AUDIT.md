@@ -106,3 +106,41 @@ Conduction loss at a 60 A bus, using the hot Rds(on) (1.7 mΩ max × about 1.75 
 - The MID meter group (U17, its zener, the CS RC placeholder) moves to the bottom free zone.
 - Courtyards about 7,900 mm², 88 % of the one-sided 60 % budget. area.py says 90 % with its stricter count.
 - **About 8 cm² free remains.** C45 is the open placement question (issue 2).
+
+## Options for Joey (2026-11-07): absorber, bus caps, thermostat
+
+### Absorber caps (100 V rating required; nothing below 100 V)
+
+Peak BAT is from absorber_sim at the worst corners: 0.05 Ω pulse loop, 0.5–1 µH, D1 at 71.2 V, C −20 %, trip at 8.8–17.5 µs. Specs are from the Kyocera AVX APZ and APC datasheets.
+
+| Option | Parts | ESR, ripple | Peak BAT | Stock / price | Fits the floorplan? |
+| --- | --- | --- | --- | --- | --- |
+| A (now) | 3 × APZ1012470M100R, 47 µF, 10 × 13 mm | 50 mΩ, 0.9 A | 79.8–90.8 V | US DigiKey 0; other DigiKey regions showed 4,475 to 9,296 (undated snapshots). About $3.60 | As now (C45 is the open question) |
+| B | 3 × **APC1012470M100R**, 47 µF 100 V, same 1012 can, 15,000 h | **35 mΩ**, 2.3 A | 79.7–91.3 V | Not found on distributor pages yet. Ask Mouser/DigiKey | Drop-in footprint |
+| C | 4 × APC1012470M100R | 35 mΩ | **75.6–85.7 V** | As B | One more can, 149 mm²: no room without the back face |
+| D | 6 × APZ0811220M100R, 22 µF 100 V, 8 × 11 mm | 50 mΩ, 0.6 A | 80.8–93.2 V | Not checked | Three more cans: no |
+| ✗ | 100 V aluminium electrolytic (about 0.3 Ω) | | 109–131 V | | Fails: ESR dominates. Not usable even with film or ceramic in parallel, because the ceramic's effective µF at 55 V is too small to carry a 500 A pulse |
+
+**Recommendation:** keep A. Order from a DigiKey region or Mouser that shows stock, and buy spares. B is the second source in the same footprint once its stock is confirmed.
+
+### Bus caps C10–C13 (HHXF800GRA101MJH0G is unverified)
+
+VBUS peaks at about 58 V: 57.5 V clamp worst case plus about 0.7 V of regen overshoot. An 80 V part has 27 % margin, so 80 V is acceptable here. 100 V isn't needed on the bus, which sits behind the banks and the absorber.
+
+| Option | Parts | Bulk | Area vs now | Regen overshoot (30 A step, about 6 µs clamp response) |
+| --- | --- | --- | --- | --- |
+| 1 | 4 × APZ1012680M080R, 68 µF 80 V, 50 mΩ, 10 × 13 mm | 272 µF (−32 %) | **Same** (10 × 12.6 land, about 149 mm² each) | about 0.66 V (was 0.45 V) |
+| 2 | 6 × APZ1012680M080R | 408 µF | +298 mm²: the board goes from about 90 % to about 92 % of its area budget | about 0.44 V |
+| 3 | 8 × Panasonic EEH-ZC1K470P, 47 µF 80 V, 36 mΩ, 10 × 10.2 mm | 376 µF | +590 mm² | about 0.48 V |
+
+APZ1012680M080R: DigiKey SG/FI showed 1,000 in stock (undated), about $2.57 each, with a 24-week factory lead time.
+
+**Recommendation: option 1.** The drives carry their own DC-link bulk, so the board's bulk only sets local decoupling and clamp overshoot. 0.66 V is far inside the 2.5 V between the 57.5 V clamp and the drives' 60 V fault. U1's start (power limit, timer) gets easier with less C. If you'd rather keep 400 µF, take option 2 and put two cans on the back face.
+
+### Thermostat (in-stock alternatives to the 67L120P)
+
+| Part | Opens / closes | Mount | Stock seen |
+| --- | --- | --- | --- |
+| Sensata 67L120 (metal bracket) | 120 ±5 °C / ≥ 85 °C | TO-220, M3 | 48 at DigiKey US per one aggregator (undated); 0 on DigiKey FR/ES |
+| Sensata 67L115P / 67L115 | 115 ±5 °C / ≥ 80 °C | TO-220, M3 | Not checked. Same datasheet, 5 °C earlier trip, also acceptable |
+| RS PRO 222-8237 | 120 °C / 105 °C, auto reset | Flange, tab terminals | 63 at RS UK (undated). Read its datasheet before choosing: the ratings aren't confirmed yet |
