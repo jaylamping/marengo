@@ -5,15 +5,19 @@ left leg and the top of the cross band (2 oz), stitched to In2. The path stays c
 outside the latch parts' via-free column, across Y 259-266 between the left port fields and the VBUS row, then down
 X -7..-1 to RS8. Freerouting drops the vias from RS8/C17/C16 to the strip.
 Run with KiCad's Python, in place: <kicad python> tools/route_12v.py <board.kicad_pcb>   (idempotent)"""
-import sys
+import os,sys
 import pcbnew
+YB=float(os.environ.get('PDU_YBOT','190'))   # board bottom edge (tools/place.py); option A puts RS8 in the bottom band
 OX,OY=100,100
 def P(X,Y): return pcbnew.VECTOR2I(pcbnew.FromMM(OX+X+50),pcbnew.FromMM(OY+340-Y))
 b=pcbnew.LoadBoard(sys.argv[1]); N=b.FindNet('/+12V_RAW')
-for z in list(b.Zones()):
-    if z.GetNetname()=='/+12V_RAW': b.Remove(z)
-for t in list(b.GetTracks()):
-    if t.GetNetname()=='/+12V_RAW': b.Remove(t)
+# KiCad 10's SWIG proxies go stale after any Remove() in a session, so an old strip is removed, saved, and the script
+# re-runs itself on a fresh load
+old=[t for t in b.GetTracks() if t.GetNetname()=='/+12V_RAW']+[z for z in b.Zones() if z.GetNetname()=='/+12V_RAW']
+if old:
+    for o in old: b.Remove(o)
+    b.Save(sys.argv[1]); import subprocess; sys.exit(subprocess.call([sys.executable]+sys.argv))
+TRK=[t for t in b.GetTracks()]
 def zone(layer,rects,name):
     z=pcbnew.ZONE(b); z.SetLayer(layer); z.SetNet(N); z.SetAssignedPriority(6); z.SetZoneName(name)
     z.SetLocalClearance(pcbnew.FromMM(0.5)); z.SetMinThickness(pcbnew.FromMM(0.25))
@@ -24,14 +28,31 @@ def zone(layer,rects,name):
         for X,Y in ((x0,y0),(x1,y0),(x1,y1),(x0,y1)): o.Append(P(X,Y))
     o.Simplify(); b.Add(z)
 TOP=[(-40.5,-21.0,328.6,331.4),(-30.0,-21.0,331.4,334.4)]           # band under J24's GND row, fingers to pins 10-12
-zone(pcbnew.In2_Cu,TOP+[(-40.5,-33.5,258.8,331.4),(-40.5,-1.2,258.8,265.8),(-7.2,-1.2,228.0,265.8)],'+12V_RAW In2')
+zone(pcbnew.In2_Cu,TOP+[(-40.5,-33.5,258.8,331.4),(-40.5,-1.2,258.8,265.8),(-7.2,-1.2,228.0 if YB>=190 else YB+12.0,265.8)],'+12V_RAW In2')
 zone(pcbnew.B_Cu,TOP+[(-40.5,-33.5,255.5,331.4),(-40.5,-14.0,255.5,261.0)],'+12V_RAW L4')
 n=0
+PADS=[p for p in b.GetPads()]
+def free(v):
+    """the stitch via must clear every pad, track and via of another net by 0.3 mm on F.Cu and B.Cu (the latch block sits
+    on top of the left leg), and stay off holes"""
+    for L in (pcbnew.F_Cu,pcbnew.B_Cu):
+        s=v.GetEffectiveShape(L)
+        for p in PADS:
+            if p.GetNetCode()!=N.GetNetCode() and p.IsOnLayer(L) and s.Collide(p.GetEffectiveShape(L),pcbnew.FromMM(0.3)): return False
+            if p.HasHole() and s.Collide(p.GetEffectiveHoleShape(),pcbnew.FromMM(0.3)): return False
+        for t in TRK:
+            if t!=v and t.GetNetCode()!=N.GetNetCode() and t.IsOnLayer(L) and s.Collide(t.GetEffectiveShape(L),pcbnew.FromMM(0.3)): return False
+    return True
 def via(X,Y):
+    """first free spot within 1.5 mm of (X, Y) on a 0.25 mm grid"""
     global n
-    v=pcbnew.PCB_VIA(b); v.SetPosition(P(X,Y)); v.SetDrill(pcbnew.FromMM(0.3)); v.SetWidth(pcbnew.FromMM(0.6)); v.SetNet(N); b.Add(v); n+=1
+    v=pcbnew.PCB_VIA(b); v.SetDrill(pcbnew.FromMM(0.3)); v.SetWidth(pcbnew.FromMM(0.6)); v.SetNet(N)
+    for dx,dy in sorted({(i*0.25,j*0.25) for i in range(-6,7) for j in range(-6,7)},key=lambda d:d[0]**2+d[1]**2):
+        v.SetPosition(P(X+dx,Y+dy))
+        if free(v) and not any(t.GetClass()=='PCB_VIA' and t.GetNetCode()==N.GetNetCode() and (t.GetPosition()-v.GetPosition()).EuclideanNorm()<pcbnew.FromMM(1.2) for t in TRK):
+            b.Add(v); TRK.append(v); n+=1; return
 for Y in range(262,329,3):
-    for X in (-38.5,-35.5): via(X,Y)
+    for X in (-38.0,-35.0): via(X,Y)
 for X in range(-32,-14,2): via(X,259.9)
 pcbnew.ZONE_FILLER(b).Fill(b.Zones())
 b.Save(sys.argv[1]); print('+12V_RAW zones on In2 and L4,',n,'stitch vias')
