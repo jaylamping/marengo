@@ -15,9 +15,9 @@ Evidence labels: **datasheet** (read today from the maker's sheet), **vendor pag
 - **Cells: Molicel P50B, not P45B.** It is 60 A continuous against 45 A, 12.8 mΩ DC resistance against 15 mΩ, and 10% more
   energy in the same can (datasheet). It is in stock today at $10.50 each for 10 or more; P45B is sold out at the cheaper
   vendor (vendor page). 28 cells (26 plus 2 spares) is about $295.
-- **BMS: a cheap off-the-shelf smart 13S 60 A common-port BMS on the pack: JBD (Jiabaida) lead, Daly alternate (rev B5,
-  2026-11-07; the JK-BD6A17S8P at about $100 was dropped on cost).** Bluetooth/UART telemetry, programmable cell and
-  current thresholds, short-circuit delay 200–800 µs. It switches the low side, so **nothing may touch pack B− except the
+- **BMS: JBD SP17S005, 60 A, 13S Li-ion, common port, on the pack; Daly smart 13S 60 A as backup (rev B5, 2026-11-07;
+  the JK-BD6A17S8P at about $100 was dropped on cost).** Bluetooth and UART telemetry, 102 × 65 × 10 mm, short circuit
+  900 ± 180 A at 400–800 µs. It switches the low side, so **nothing may touch pack B− except the
   BMS**. It has no precharge and no hardware remote-off input (section 3). The pack sense board and the 2 × 10 connector are
   dropped. The pack is cells, Class T fuse, BMS, XT90S, and a charge XT60.
 - **Charge to 4.15 V per cell (53.9 V), not 4.2 (agreed).** This leaves room for regen in a full pack and adds cycle life
@@ -106,7 +106,7 @@ goes through the tray rail into the case. The rear face stays free for a possibl
 | --- | --- | --- |
 | Pack fuse | inside the case, empty top-corner grid slot, about X +34, Y 333, Z −40 to +30, axis along Z | nothing behind the rear face |
 | Mated XT90S pair | flat on the rear face, axis along X: X −15 to +43, Y 323 to 345, Z −45 to −60 incl. a printed saddle | pack pigtail enters at the +X end; board pair comes over the top in X −5 to 25 and enters at the −X end |
-| BMS (JBD 13S 60 A) | rear face, long axis along Y, inside X −40.5 to +40.5, Y 186 to 319, Z −45 to −65 (the JK envelope; the JBD is expected smaller, verify) | FET side faces rearward toward D2 |
+| BMS (JBD SP17S005, 102 × 65 × 10 mm) | rear face, long axis along Y, inside X −40.5 to +40.5, Y 186 to 319, Z −45 to −65 (the old JK envelope; the JBD uses about 102 of the 133 mm) | FET side faces rearward toward D2 |
 | XT60 charge pigtail | parked flat at X −42 to −17, Y 325 to 345, Z −45 to −58 | reached through D2 |
 
 XT90 sizes are from memory (verify): about 22 × 12 mm section, about 45 mm mated length. Rating: Amass XT90 45 A continuous, enough for arms and waist. The AS150U (70–80 A) was modelled by the frame thread on 2026-11-07 and doesn't fit this corner: 8 AWG bend room needs about 100 mm in X where the corner has 90. **Open for legs (rev C): a pack-corner redesign, e.g. a recessed vertical AS150 pocket.**
@@ -162,57 +162,79 @@ warm the pack. That is what the two NTCs are for. The measured number replaces t
   3.4 to 3.6 V). Any cell under 3.0 V or more than 30 mV from the median goes back.
 - Cells ship ground-only as UN3480 dangerous goods. Expect a hazmat fee and no air shipping.
 
-## 3. BMS: cheap smart 13S 60 A common-port board (JBD lead, Daly alternate)
+## 3. BMS: JBD SP17S005, 13S Li-ion, 60 A, common port (Daly backup)
 
 Rev B5 (Joey, 2026-11-07): not paying about $100 for the JK. The board does the safety work (soft-start banks, port
 breakers, clamp, E-stop), so the BMS only has to protect the cells, report telemetry and open on a hard short.
 
-### 3.1 Model choice
+### 3.1 The pick
 
-| Model | Rating | Short circuit | Comms, settings | Price | Pick |
-| --- | --- | --- | --- | --- | --- |
-| **JBD (Jiabaida) smart 13S Li-ion 60 A, common port** | 60 A charge and discharge | delay 200 µs (60 A listing); 400 µs typ / 800 µs max (JBD SP17S005 manual); threshold about 300–360 A by listing | UART with Bluetooth dongle, RS485 option; every cell and current threshold programmable (JBD/Overkill app and manual) | about $40–55 | **lead** |
-| Daly smart 13S 60 A, common port | 60 A, discharge OC 120 A | delay 200–500 µs (one seller says 10–500 µs) | Bluetooth / UART / RS485 / CAN by version; threshold programming on the smart version unconfirmed | about $45–60 | alternate |
-| JK-BD6A17S8P (rev B4 pick) | 80 A / 150 A | not stated | Bluetooth, RS485/CAN module | about $100 with module | dropped (cost) |
+**JBD (Jiabaida) SP17S005, 60 A version, set to 13S, ternary Li-ion (NMC), not LiFePO4.** From the JBD spec sheet
+(jiabaida.com SP17S005, [copy on AliExpress's CDN](https://ae01.alicdn.com/kf/Sb06fca3ee8ac4e26a9c68014176cd670D.pdf)):
 
-Sources (seller and third-party data, verify on the unit): [JBD 13S 60 A listing](https://srikobatteries.com/product/smart-jiabaida-jbd-13s-48v-lithium-ion-60a-common-port-battery-protection-module/),
-[JBD SP17S005 manual](https://manuals.plus/ae/1005007599328909), [Overkill Solar JBD manual](https://emotion-e.com/mediafiles/Datenblatt/JBD%20BMS/BMS_JBD_Montageanleitung%2079%20Seiten%20eng.pdf),
-[Daly 13S 60 A](https://manuals.plus/asin/B0CXM5Y78Y), [Daly smart 13S 60 A](https://sigmanortec.ro/en/smart-bms-13s-module-daly-60a-bluetooth-48v).
-**Size: verify against the rear-face envelope (170 × 90 × 20 mm) before ordering;** both are expected smaller than the
-JK's 133 × 81 mm. Order the UART-to-USB or RS485 lead with it: the Pi needs the telemetry.
+| Item | SP17S005, 60 A version |
+| --- | --- |
+| Strings, chemistry | 10–17S, picks the count automatically (set 13 in the app if it misreads); order the **Li-ion** version |
+| Port | common port (charge and discharge share P−), low-side MOSFETs, 80 V TOLL parts, ≤ 10 mΩ path |
+| Comms | Bluetooth (built in) and non-isolated UART (standard); no RS485 or CAN on this model. The Pi reads it over UART with a USB-UART lead |
+| Size | **102 × 65 × 10 mm** (80 A version 12 mm thick): fits the 170 × 90 × 20 mm rear-face space easily |
+| Charge over-current | 70 ± 5 A, 7–13 s |
+| Discharge over-current 1 | 70 ± 5 A, 20–40 s |
+| Discharge over-current 2 | 225 ± 45 A, 200–800 ms |
+| Short circuit | **900 ± 180 A, 400–800 µs**, recovers 5 s after the load is removed |
+| Cell over-voltage range | up to 4.25 V (4.20 V default; set 4.22 V) |
+| Balance | passive, 30–90 mA, from 3.90 V |
+| Draw | ≤ 10 mA running, sleeps after 60 s with no current or comms |
+| Price | about $40–65 depending on seller and add-ons |
 
-**What the board assumed from the JK, re-checked for JBD/Daly (absorber_sim close case, 8 cans):**
-- **BMS close into the absorber.** 345–394 A peak at 0.1 Ω loop (up to 590 A at 0.05 Ω), but above 180 A for only
-  36–52 µs and above 300 A for 18–38 µs. The JBD's 200 µs minimum delay is 4× longer, so it should not trip. Daly at its
-  200 µs floor is the same; the "10 µs" seller figure would trip, which is another reason Daly is the alternate. **Bring-up
-  step 2 still gates 10b** (close the BMS onto a bare board 20 times).
-- **No precharge** on either. Unchanged: every bulk capacitor on the board sits behind the soft-start banks; the XT90S
-  anti-spark resistor precharges the absorber cans at plug-in.
-- **No hardware remote-off** that counts as safety. JBD has a soft-switch lead; it is not the E-stop's second break. The
-  board's hardware E-stop bank stays the safety path.
-- **Reverse-polarity backstop.** Reversed, D1 crowbars the pack and the BMS sees a discharge short. JBD opens in 200–800 µs,
-  Daly in 200–500 µs; D1 survives about 0.4–1.6 ms. Typical units clear in time, worst case does not. **Unchanged: the
-  keyed XT90 and the bring-up polarity check carry this.**
-- **Peak current.** The board's 90 A peaks are far below a 300 A+ short-circuit level. The discharge over-current setting
-  (below) must ride through them.
-- **Charge and regen.** Charge OC is programmable on JBD (seconds-scale delay). When the BMS opens the charge FET the robot
-  still runs through the FET body diode (common-port behaviour, verify), and regen goes to the board clamp.
-- Wakes on a charger connection (or the JBD soft switch).
+**Where to buy (verify before ordering).** I could not confirm which online store is JBD's own:
+- [jiabaida-bms.com, 13S 11–15S 20–60 A smart BMS](https://jiabaida-bms.com/products/jbd-smart-bms-13s-14s-11-15s-48v-20a-30a-40a-50a-60a-lithium-battery-pcb-with-balance-uart-rs485-1): the 13S Li-ion 60 A option is about $64–67 (the higher price includes RS485). The site carries the Jiabaida name; not verified as factory-owned.
+- AliExpress store 1379203 is called "the JBD store" in an Endless-Sphere post (one buyer had a unit fail right away); not verified.
+- On delivery, check that the silkscreen says SP17S005, that the FETs are 80 V TOLL parts, and that the app reads 13 cells at the meter's voltages.
 
-### 3.2 Settings (program over Bluetooth, then record the screen in pack-test-log.md)
+**Endless-Sphere "JBD smart BMS heads up" thread.** The site's bot check blocked every fetch, so I only have search
+snippets. The warning there is about the wiring: the 10–17S instructions are hard to follow (one buyer had to get a
+diagram from the seller), and a wrong cell count is fixed in the app's parameters if the wiring is right. Others report
+the app dropping its connection. **None of the snippets mention counterfeits or a firmware safety fault.** What this means
+for us: wire the balance leads to JBD's 13S diagram, meter every tap before plugging in (build step 6), and confirm 13 cells
+in the app. Read the thread in a browser before buying.
+
+**Backup: Daly smart BMS, Li-ion 13S 48 V 60 A, common port, UART plus Bluetooth** ([Amazon B09Y5W5XPB](https://www.amazon.com/dp/B09Y5W5XPB),
+DALY brand listing; about 128 × 66 × 13 mm). Short-circuit delay 200–500 µs by listing; the threshold is not published (a
+non-smart sheet gives discharge OC 120 A). Many cheap Daly units on eBay and AliExpress are fakes, so buy from the DALY
+brand store only. Price about $50–75.
+
+### 3.2 What the board assumed from the JK, re-checked for the JBD
+
+- **BMS close into the absorber** (absorber_sim close case, 8 cans): 345–395 A peak at 0.1 Ω loop, up to 590 A at 0.05 Ω,
+  above 180 A for 36–52 µs. That is under the JBD's 720 A minimum short-circuit level, and the 225 A level needs 200 ms or
+  more. **It cannot trip on the close.** For Daly, the 200 µs minimum delay is 4× the pulse. Bring-up step 2 still gates 10b.
+- **Reverse polarity: the JBD is no backstop.** D1's crowbar current (500–1000 A) may sit under the JBD's 720–1080 A
+  short-circuit level, which leaves the 200–800 ms over-current trip; D1 survives about 0.4–1.6 ms. The Class T is
+  slower still. **The keyed XT90 and the bring-up polarity check carry this, as already agreed.**
+- **No precharge, no hardware off switch** (the JBD has an optional soft switch, not a safety input). Unchanged: every bulk
+  capacitor on the board sits behind the soft-start banks, the XT90S anti-spark resistor precharges the absorber cans at
+  plug-in, and the board's hardware E-stop bank stays the safety path.
+- **Peak current.** The board's 90 A peaks last far less than the 20–40 s level-1 delay. Above 65 A for 20 s it trips.
+- **Charge and regen.** The JBD's charge over-current is 70 ± 5 A, above what the cells should take (P50B 25 A each), so
+  the BMS doesn't protect the cells against regen. The host's 30 A braking cap and the board's 57.5 V clamp do. When the BMS
+  opens its charge FET the robot still runs through the FET body diode (common-port behaviour, verify), and regen goes to
+  the clamp.
+- **Balancing is weak** (30–90 mA passive vs the JK's 0.6 A active). Fine for a new, matched pack. Watch the cell spread in
+  the app; if it grows past 30 mV, balance on the bench.
+
+### 3.3 Settings (program over Bluetooth, then record the screen in pack-test-log.md)
 
 | Function | Setting | Why |
 | --- | --- | --- |
-| Cell count / chemistry | 13S, Li-ion (NCM) | |
+| Cell count / chemistry | 13S, Li-ion (NMC) | |
 | Normal end of charge | charger CV 53.9 V (4.15 V per cell) | regen headroom, cycle life |
 | Cell over-voltage protection | 4.22 V, release 4.10 V, delay as long as the app allows (about 1 s+) | braking into a full pack shouldn't trip it |
 | Cell under-voltage protection | 2.8 V, release 3.0 V | host disarms motors at 3.0 V from telemetry |
-| Discharge over-current | the highest the app allows, at least 70 A, longest delay | rides through the board's 90 A peaks; port breakers handle limb faults. If the 60 A board caps it at 60 A, buy the 80 A version (about $10 more) |
-| Charge over-current (regen + charger) | 30 A, about 1 s delay | P50B max charge is 25 A per cell. Host caps braking at 30 A (5 A above 95% charge or below 5 °C) |
-| Short circuit | on, longest threshold the app allows, delay 200 µs or more | must not trip on the absorber close (36–52 µs above 180 A) |
+| Over-current, short circuit | leave the 60 A version's hardware table (70 A / 225 A / 900 A) | the board's port breakers and banks handle every board-side fault faster |
 | Charge temperature | 0 to 45 °C | |
 | Discharge temperature | up to 60 °C | |
-| Balancing | start 3.9 V, trigger 10 mV | passive, small; fine for a matched pack |
+| Balancing | start 3.9 V, trigger 15 mV (JBD defaults) | |
 | Regen backstop | power board clamp at 57.5 V (4.42 V per cell) into the brake resistor | when the BMS opens its charge FET or the pack is full |
 
 If the BMS opens its charge FET, discharge still flows through the FET body diode (common-port BMS behaviour, verify), so the
@@ -321,7 +343,7 @@ Each step has a pass/fail check. A failure stops the build until it is understoo
 | 8. First charge | Charger at 2 A to 53.9 V, attended, logging every 15 min | cells stay within 20 mV; pack under 35 °C |
 | 9. Capacity | Electronic load at 3 A (C/3) to 3.0 V per cell | at least 9.4 Ah (94% of 10 Ah); cells within 50 mV at the end |
 | 10. Recharge and rest | Charge to 53.9 V, rest 7 days, measure | self-discharge under 20 mV per cell over 7 days |
-| 11. Onto the robot | Through the power board's soft-start E-stop bank, pack fuse in place, nothing on B−. Arms on first; legs need the 3P or second-pack decision | BMS telemetry reaches the Pi over UART/RS485 |
+| 11. Onto the robot | Through the power board's soft-start E-stop bank, pack fuse in place, nothing on B−. Arms on first; legs need the 3P or second-pack decision | BMS telemetry reaches the Pi over UART |
 
 Record the results (cell IRs, pair sorting, DCIR, capacity, charge logs) in `hardware/electrical/power/pack-test-log.md`
 when the build happens. Per the review gates, a review packet with these results goes out **before the pack is first
@@ -343,7 +365,7 @@ handheld welder, needs no crimper (pre-crimped leads), and skips the extinguishe
 | Printed case (PC FR or ASA) | $15 | filament |
 | Handheld spot welder | $40 | Joey's pick |
 | **Total, pack** | **about $480** | |
-| *On the power board budget (Joey):* JBD 13S 60 A smart BMS + UART/RS485 lead about $50, trimmable 4 A charger $50 | *about $100* | |
+| *On the power board budget (Joey):* JBD SP17S005 60 A + USB-UART lead about $50, trimmable 4 A charger $50 | *about $100* | |
 
 Optional later: a 150 W electronic load ($40) for a controlled capacity test (otherwise the board's coulomb counter measures
 capacity); a stronger welder for a copper-busbar leg pack; a cell IR meter ($35) if the multimeter can't grade cells (a DC
@@ -357,7 +379,7 @@ Dropped 2026-11-06 22:44Z with the move to an on-pack BMS. The BMS's own balance
 
 | Item | Owner | Status |
 | --- | --- | --- |
-| JBD 13S 60 A smart BMS: buy with the UART/RS485 lead; verify size, DOC ≥ 70 A settable (else the 80 A version), short-circuit delay ≥ 200 µs and body-diode behaviour on the unit | this thread | when the pack is bought |
+| JBD SP17S005 60 A, Li-ion: confirm the seller (section 3.1), buy a USB-UART lead, check silkscreen, 13-cell reading and body-diode behaviour on the unit; read the Endless-Sphere thread first | this thread | when the pack is bought |
 | Measured pack DCIR | this thread | after build step 6 |
 | Measured per-arm bus current | arm trunk thread | after the bench shoulder runs |
 | Legs: 13S3P (39 cells, about 3.3 kg) or a pelvis pack in parallel | this thread + frame | later, when the leg loads are known |

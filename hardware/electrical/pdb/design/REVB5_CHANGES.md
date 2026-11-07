@@ -35,7 +35,7 @@ Legs move to rev C. Their port footprints stay on the board, unfitted.
 - Nothing on the main path blocks a reversed pack: both banks' body diodes conduct and D1 becomes the crowbar.
 - U2's feed is blocked by D8. U8 VS is rated −65 V. The absorber is isolated by D7 (and its new twin). The buck input has its own SK810L crowbar behind U7.
 - U1 and U7 VIN, the BAT MLCCs, the INA VBUS pins and the drives would see about −5 V while D1 conducts.
-- **The Class T fuse does not clear before D1 fails.** At 500–1000 A it is in its time-current region (tens of ms), and D1's surge rating is about 374 A²s. A TVS normally fails short, which keeps it crowbarring until the BMS's short-circuit trip (JBD 200–800 µs, Daly 200–500 µs, against D1's 0.4–1.6 ms: typical units clear in time, worst case does not) or the Class T opens.
+- **The Class T fuse does not clear before D1 fails.** At 500–1000 A it is in its time-current region (tens of ms), and D1's surge rating is about 374 A²s. A TVS normally fails short, which keeps it crowbarring until the BMS trips or the Class T opens. The JBD SP17S005 60 A short-circuit level is 900 ± 180 A, so with 500–1000 A in D1 it may only trip on its 200–800 ms over-current level, against D1's 0.4–1.6 ms: the BMS is no backstop.
 - So the keyed plug plus the bring-up polarity check carry this, as approved.
 - **Back-to-back banks (bank A flipped to block reverse) were evaluated and left out.** With the banks open, regen could no longer return to the pack and would strand on the bus, which changes how the E-stop behaves. That makes it Joey's decision, not a clean fix.
 
@@ -120,7 +120,7 @@ It also has D2PAK-7s on 20 cm² pours with 30 vias each. An iron can't do those.
 | 3 × limb fuses + holders (aux and legs unfitted) | $13 |
 | Class T 60 A + holder (fuse from Sager) | $40 |
 | XT90 pair, 8 AWG, Mini-Fit / Micro-Fit housings and crimps, GH leads, wire | $29 |
-| Smart 13S 60 A BMS (JBD; Daly alternate) + UART/RS485 lead (was JK + module, $100) | $50 |
+| JBD SP17S005 60 A BMS (Daly backup) + USB-UART lead (was JK + module, $100) | $50 |
 | HB2-BS545 E-stop | $15 |
 | **Off-board** | **about $190** |
 
@@ -160,5 +160,5 @@ With the shunt and basic-part mapping the board lands at **about 100-105 dollars
   - WSK2512 1.5 mΩ / 2 mΩ / 5 mΩ codes (the footprint is right; confirm the exact MPN and value in stock);
   - TPS48111AQDGXRQ1 orderable suffix;
   - XAL7030-222MEB.
-- **BMS on the unit (JBD 13S 60 A):** short-circuit delay ≥ 200 µs (absorber close), DOC settable to 70 A or more (else the 80 A version), size against the rear-face envelope.
+- **BMS seller (JBD SP17S005 60 A):** JBD's own store isn't confirmed; check silkscreen and FETs on delivery (pack plan 3.1).
 - **Drive capacitance per limb.** It sets the port start current; 20 mF total draws about 20 A, under the 30 A overload level.
