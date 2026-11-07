@@ -1,0 +1,53 @@
+{
+ "A": {
+  "arm_pen_0": 0.0,
+  "arm_gap_0": 0.79,
+  "arm_pen_60": 0.0,
+  "arm_gap_60": 0.79,
+  "arm_pen_90": 0.0,
+  "arm_gap_90": 0.8,
+  "arm_pen_124": 0.0,
+  "arm_gap_124": 0.8,
+  "arm_pen_130": 4.18,
+  "arm_gap_130": -4.18,
+  "rs00_min_room": 1.7,
+  "bore_wall_min": 2.63,
+  "envelope_cm3": 562.3,
+  "area_cm2": 546.4,
+  "mass_est_g": 210
+ },
+ "B": {
+  "arm_pen_0": 0.0,
+  "arm_gap_0": 0.79,
+  "arm_pen_60": 0.0,
+  "arm_gap_60": 0.79,
+  "arm_pen_90": 0.0,
+  "arm_gap_90": 0.8,
+  "arm_pen_124": 0.0,
+  "arm_gap_124": 0.8,
+  "arm_pen_130": 4.18,
+  "arm_gap_130": -4.18,
+  "rs00_min_room": 1.71,
+  "bore_wall_min": 2.6,
+  "envelope_cm3": 601.7,
+  "area_cm2": 564.2,
+  "mass_est_g": 215
+ },
+ "C": {
+  "arm_pen_0": 0.0,
+  "arm_gap_0": 0.8,
+  "arm_pen_60": 0.0,
+  "arm_gap_60": 0.8,
+  "arm_pen_90": 0.0,
+  "arm_gap_90": 0.8,
+  "arm_pen_124": 0.0,
+  "arm_gap_124": 0.25,
+  "arm_pen_130": 4.18,
+  "arm_gap_130": -4.18,
+  "rs00_min_room": 1.7,
+  "bore_wall_min": 2.63,
+  "envelope_cm3": 593.3,
+  "area_cm2": 578.0,
+  "mass_est_g": 220
+ }
+}
