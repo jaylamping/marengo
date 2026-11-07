@@ -42096,7 +42096,171 @@
 		)
 		(uuid "e2974236-2bb5-5e0c-b875-d4f91beb2455")
 	)
-	(text "Rev B4 review: two more absorber cans (three in all). U2 feed 22R and series ES1D. FLT diode BAT46W (pull-down only). 68 V zener on U17 VBUS. 220R in Q12's\ndrain. U8 sense RC placeholder: 0R fitted, 1 nF DNP. Schottky on SPARE_ON (and D5 on SPARE_SW). VBUS bleeder footprint, DNP: fit it only if the drives don't\nbleed the bus. Fuses on the Jetson, Pi buck and fan outputs (the DVE limits at about 30 A)."
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 78.74 660.4 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "61c58d04-2a05-5a01-a25b-c00f4e47ca56")
+		(property "Reference" "D20"
+			(at 81.28 659.13 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SMBJ15A"
+			(at 81.28 661.67 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMB"
+			(at 78.74 660.4 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 78.74 660.4 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 78.74 660.4 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "775cf292-951c-505f-8ba8-fb82e494817c")
+		)
+		(pin "2"
+			(uuid "e5ffa7b5-95de-571e-833b-6e34ab3dfcde")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "D20")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 78.74 656.59)
+			(xy 78.74 654.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "68c0cfc7-5159-5859-8522-55455ce42706")
+	)
+	(label "+12V"
+		(at 78.74 654.05 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "42033dc5-e8ea-5b1a-b3a6-61f42f0b948d")
+	)
+	(wire
+		(pts
+			(xy 78.74 664.21)
+			(xy 78.74 666.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "31d351b1-5785-50ac-b67b-9340e3f41228")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 78.74 666.75 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(dnp no)
+		(uuid "3a4dee44-ff7e-5dee-999c-ceec2ba9fb17")
+		(property "Reference" "#PWR135"
+			(at 82.55 665.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 82.55 668.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 78.74 666.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 78.74 666.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 78.74 666.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2c25d405-d8d4-5c66-b4b6-448c181dfe72")
+		)
+		(instances
+			(project "marengo_pdu_revb"
+				(path "/4f491891-0d70-55da-8cdc-5f706f605109"
+					(reference "#PWR135")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(text "Rev B4 review: two more absorber cans (three in all). U2 feed 22R and series ES1D. FLT diode BAT46W (pull-down only). 68 V zener on U17 VBUS. 220R in Q12's\ndrain. U8 sense RC placeholder: 0R fitted, 1 nF DNP. Schottky on SPARE_ON (and D5 on SPARE_SW). VBUS bleeder footprint, DNP: fit it only if the drives don't\nbleed the bus. Fuses on the Jetson, Pi buck and fan outputs (the DVE limits at about 30 A). SMBJ15A on +12V: servo back-feed clamp, 16.7 V min breakdown, so it\nnever conducts at 12 V."
 		(exclude_from_sim no)
 		(at 25.4 700 0)
 		(effects
@@ -42105,7 +42269,7 @@
 			)
 			(justify left top)
 		)
-		(uuid "68c0cfc7-5159-5859-8522-55455ce42706")
+		(uuid "74718580-767a-58e9-b320-04af2ccb7a3b")
 	)
 	(sheet_instances
 		(path "/"

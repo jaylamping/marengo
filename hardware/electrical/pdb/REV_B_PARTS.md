@@ -94,9 +94,10 @@ No short across the rows puts +VIN on +VOUT. Before first power, check polarity 
 ## Bring-up measurements that gate layout sign-off
 
 1. **Pack-lead inductance and pulse loop resistance**, BAT to P−, with the real pack, BMS and leads. Measure resistance with a pulse (µs scale), not a DC meter: the cells' AC resistance is half their DC value. tools/absorber_sim.py worst corners (0.05 Ω, 0.5–1 µH, D1 at 71.2 V, C −20 %, trip up to 17.5 µs) give BAT 80–91 V with the three fitted cans. Rerun it with the measured values. Over 90 V means more absorber or a faster trip.
-2. **BMS close into the absorber.** About 300 A for a few µs with three cans (two cans simulate 250–290 A, one 190–230 A). Close the JK onto a bare board 20 times: it must not trip. If it does, fit the 10b option (2 Ω pulse-rated + delayed NMOS: 25 A), after confirming Q13's µs pulse rating.
+2. **BMS close into the absorber.** About 300 A for a few µs with three cans (two cans simulate 250–290 A, one 190–230 A). Close the JK onto a bare board 20 times: it must not trip. **Decided (Joey, 2026-11-07): 10b stays DNP, gated on this test.** If the JK trips, fit the 10b option (2 Ω pulse-rated + delayed NMOS: 25 A), after confirming Q13's µs pulse rating.
 5. **Drive bus bleed.** After a stop, time VBUS from 54 V to 3 V with all drives connected. Over 30 s: fit the DNP VBUS bleeder (R63) at a value chosen from the measured capacitance.
 6. **DVE input capacitance and start.** Scope U7's start into the converter at 36 V and 54.6 V: Q7 must reach PGD inside the 7–17 ms timer (C19 220 nF) with margin.
+7. **Servo back-feed.** Back-drive the neck and jaw servos by hand as fast as they go, with U9 on and then off, and scope +12V and SPARE_SW. +12V must stay under 16 V. The SMBJ15A (D20) clamps above 16.7 V; if it conducts, cap back-drive speed in software.
 3. **Scope a 60 A E-stop** and a bus short behind a current-limited source, on BAT and MID.
 4. **Converter baseplate** at 140 W steady: under 100 °C.
 

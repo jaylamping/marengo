@@ -112,4 +112,5 @@ ok(not any(n(u,p)=='I2C_SDA' for u in addr.values() for p in (1,2)),'no INA228 a
 for j,nm in (('J5','Jetson'),('J6','Pi buck'),('J7','fans')):
     ok(any(r[0]=='F' and {n(r,1),n(r,2)}=={'+12V',n(j,1)} for r in comp),nm+' output fused')
 ok(all(any(r[0]=='D' and n(r,1)==o and n(r,2)=='GND' for r in comp) for o in (n('U9',5),'SPARE_ON')),'eFuse outputs clamped to GND')
+ok(any(r[0]=='D' and n(r,1)=='+12V' and n(r,2)=='GND' and val(r).startswith('SMBJ15') for r in comp),'+12V back-feed TVS')
 print('audited',cnt[0]); print('FAILS',len(fail))

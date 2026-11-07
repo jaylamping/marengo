@@ -47,11 +47,11 @@ ERC is clean and check.py passes 91 of 91; it now also checks the series feed, t
    - (a) a software energy cap: about 1 kJ per burst at about 15 % duty, and a named thermostat;
    - (b) a bigger resistor (Arcol HS150/HS200, or two HS50 in series-parallel on the gusset).
    **My recommendation: (b) with a named NC thermostat**, because regen energy isn't something the board can see.
-2. **Servo back-feed (rev B3 M8 acceptance).** Sol and Astra say "C41 and the compute loads take it" isn't bounded: about 485 µF holds only 44 mJ from 12 to 18 V, and the compute load can be zero during shutdown. Options:
+2. **Decided, Joey 2026-11-07: (b), done.** SMBJ15A (D20) on +12V, plus bring-up step 7 (back-drive scope test). **Servo back-feed (rev B3 M8 acceptance).** Sol and Astra say "C41 and the compute loads take it" isn't bounded: about 485 µF holds only 44 mJ from 12 to 18 V, and the compute load can be zero during shutdown. Options:
    - (a) a bench measurement: back-drive the neck at speed and scope +12V;
    - (b) a 15 V TVS on +12V, one part.
    **My recommendation: (b)**, plus (a) at bring-up.
-3. **10b fitted by default?** Fable says fit it, because a JK trip on close is a 60 s lockout. Muse and Opus say keep it DNP until the bench test. With three cans the close surge is about 300 A. I've left it DNP and gated on the bench test, because Q13's µs pulse rating (it would then carry the trip current) isn't confirmed.
+3. **Decided, Joey 2026-11-07: stays DNP, gated on the JK bench test.** **10b fitted by default?** Fable says fit it, because a JK trip on close is a 60 s lockout. Muse and Opus say keep it DNP until the bench test. With three cans the close surge is about 300 A. I've left it DNP and gated on the bench test, because Q13's µs pulse rating (it would then carry the trip current) isn't confirmed.
 
 ## Before layout starts (not schematic)
 
