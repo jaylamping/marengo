@@ -138,6 +138,7 @@ about **75 cm² net free area** at each end (about 150 cm² gross with a 50% ope
 - **Intake (low):** V1 side grilles, 2 × ~130 cm² gross, louvres angled down; abdomen band gaps.
 - **Exhaust (high):** the two 40 mm fans blow out through D1's louvres (louvre free area at least the fans' 2 × 12.5 cm²; fan guard 6 mm max); neck ring gap.
 - **Front intake fans (frame 733b9d0):** two 40 mm fans, X ±20, fan bodies Z 70–80 behind U3: upper Y 264–304 (frame d01106a, dropped 8 mm so the U1/U3 seam lap at Y 315 stays intact), lower Y 193–233. U3 gets two front grilles (≤ 6 mm slots, ~40 × 40 open each).
+- **Brake resistor HS50 / 12 V brick on the lower post front faces (frame ceee607, 2026-11-07):** room inside U3 in front of the frame face (inner wall, |X| 38–75) is 14.6 mm at Y 176, 20.7 at Y 225, 26.9 at Y 259, 31.4 at Y 285, 35.4 at Y 315. The HS50 (16.8 proud) at Y 176–249 hits the wall below ~Y 200. With 10 mm air it needs its bottom at Y ≥ 259; the brick (13 proud) needs Y ≥ 239. Panels are PETG HF (only caps and grilles are PLA), so 10 mm air is enough and no vent is needed; keep the HS50 at |X| ≥ 45, clear of the PLA upper grille (X 0–40, Y 264–304).
 - **Variants:** D1 plain, louvred, or with a 40 × 10 mm fan (each ~2.4 L/s; two fans move ~4.8 L/s, enough for 70 W at a 12 K rise). V1 lattice
   or open mesh. The swap interface stays fixed.
 - Slots no wider than 6 mm (fingers, cable snags). The shoulder RS03s also shed heat through their exposed output faces.
