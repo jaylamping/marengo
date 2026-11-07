@@ -34,8 +34,8 @@ Anything hidden is logged to `sw_hidden_<pid>.log` in the temp folder, and `HAD 
 
 **What was popping up on 2026-11-07:** a watcher logged every window for a real run. Two things showed.
 
-- `sldexitapp.exe`, started by SolidWorks on exit, opened a visible **SOLIDWORKS Error Report** that stayed on screen and took focus. It is a child process, so hiding the SolidWorks PID didn't cover it. `close()` now also stops that child, and the hider covers child processes.
-- Each launch briefly took focus for the splash, the main window and the welcome screen. Polling at 10 Hz was too slow for that.
+- `sldexitapp.exe`, started by SolidWorks on exit, opened a visible **SOLIDWORKS Error Report** that stayed on screen and took focus. It is a separate process, `sldexitapp.exe /SWPID=<pid>`, so hiding the SolidWorks PID didn't cover it, and it appears on a crash as well as on exit. `close()` now also stops that child. The hider covers child processes and any `sldexitapp.exe` naming its PID, and stays up for 60 s after the instance has gone.
+- Each launch can briefly take focus for the splash, main window, welcome screen and CAM window, during the first 20 s or so. A window hidden on show has no time to paint, and the hider hands focus back, but **Windows gives no way to refuse focus from another process, so a fullscreen game can still lose focus for a moment at launch.** Launch before starting a game, or keep launches few.
 
 No console windows showed, from Python, PowerShell, git or Bambu Studio.
 

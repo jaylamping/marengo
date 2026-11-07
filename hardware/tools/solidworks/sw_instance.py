@@ -128,7 +128,9 @@ def _watch_hidden(pid):
         if p in ours:
             return True
         try:
-            if psutil.Process(p).ppid() in ours:
+            q = psutil.Process(p)
+            crash = q.name().lower() == "sldexitapp.exe" and f"/SWPID={pid}" in " ".join(q.cmdline()).upper()
+            if crash or q.ppid() in ours:
                 ours.add(p)
                 return True
         except psutil.Error:
@@ -168,6 +170,7 @@ def _watch_hidden(pid):
         state["prev"] = fore
     msg = wt.MSG()
     sweep = 0
+    gone = None
     while True:
         user.MsgWaitForMultipleObjectsEx(0, None, 500, 0x04FF, 0)
         while user.PeekMessageW(ctypes.byref(msg), 0, 0, 0, 1):
@@ -181,7 +184,9 @@ def _watch_hidden(pid):
                 except psutil.Error:
                     pass
             alive = [q for q in ours if psutil.pid_exists(q)]
-            if not alive:
+            # A crash report can appear after the instance has gone, so stay a minute longer.
+            gone = (gone or time.time()) if not alive else None
+            if gone and time.time() - gone > 60:
                 return
             for q in alive:
                 hide_windows(q)
