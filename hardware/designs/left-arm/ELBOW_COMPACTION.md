@@ -6,7 +6,7 @@
 
 ## Pass 3, stop and RS00 at 120 mm
 
-2026-11-06. Status: in progress, paused at a saved point. **Still do not print the full arm.** The upper arm body and carrier are saved with the gate fixes. The forearm below is a first redesign and misses its targets.
+2026-11-06. Status: the upper arm and carrier are released for printing 2026-11-07, see `prints/upper-arm/PRINT_ORDER.md`. **The forearm is not released.** The forearm below is a first redesign and misses its targets.
 
 - RS00 flange moved up to 120 mm below the elbow, Joey's choice. Elbow stop moved to 124 degrees. Gap at 124: 5.2 mm to the RS00, 5.9 mm to the fork crown. Interference, 32 poses with yaw, is clear apart from the old 0.04 mm³ cover overlap and the contact at the 0 degree stop.
 - New part `marengo_forearm_distal_left`: Ø64 tube on the RS00 output, 58.5 cm³. The fork keeps a static skirt to Y 74.26 for the ribbon clock-spring, and a 11 x 1.5 mm ribbon groove that leaves 1.5 mm of wall.

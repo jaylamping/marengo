@@ -1,6 +1,6 @@
 # Left upper arm print order
 
-2026-11-07. **Not released yet: the recheck comes first.** Everything prints except fasteners and bearings.
+2026-11-07. **Released 2026-11-07 after the R4 recheck**, see `GATE_REVIEW.md`. Everything prints except fasteners and bearings.
 
 **Decision (Joey):** the upper arm prints now, and the elbow rig test runs before the forearm is fitted, not before this print.
 
