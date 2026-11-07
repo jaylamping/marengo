@@ -6,13 +6,13 @@ These are test pieces, not load-bearing arm parts. Don't fit them to the robot, 
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `PF03_roll_spacer.3mf` | PETG | 1 h 0 m | 23.7 g | Axis vertical | Reprint at 100% infill. The last one weighed 11 g |
 | 2 | `layer_coupons.3mf` | PETG | 2 h 43 m | 70.3 g | 5 bars standing, 5 flat | Real layer strength, test 1 |
-| 3 | `elbow_carrier.3mf` | PETG | 1 h 15 m | 32.5 g | Outboard face | Fit check only, with the real 6808, tests 2 and 3 |
+| 3 | `elbow_carrier.3mf` | PETG | 1 h 14 m | 32.5 g | Outboard face | Fit check only, with the real 6808, tests 2 and 3 |
 | 4 | `elbow_carrier_strength.3mf` | PETG | 1 h 26 m | 37.4 g | Inboard face | The carrier for the stop tests |
 | 5 | `dummy_output.3mf` | Bambu PLA Basic | 44 m | 14.6 g | Cheek face, spacer beside it | Output disc and the M8 spacer |
 | 6 | `dummy_housing.3mf` | Bambu PLA Basic | 4 h 50 m | 210.1 g | Carrier face | Stands in for the RS02 and upper arm. 25% infill |
-| 7 | `fork_sector.3mf` | PETG | 8 h 49 m | 343.9 g | Outboard cheek | Stop and failure tests |
+| 7 | `fork_sector.3mf` | PETG | 8 h 49 m | 343.7 g | Outboard cheek | Stop and failure tests |
 
-Total: about 20 h 50 m and 733 g, including support and brim.
+Total: about 20 h 50 m and 732 g, including support and brim.
 
 **2026-11-07:** the housing and both carriers changed to the all-printed joint, so nothing in the rig is steel except fasteners and the bearing. The dummy output and fork sector geometry didn't change; two DIN 125 M4 washers replace the 2 mm hub ring in the fork sector seat, and the M4 × 16 still passes through the nuts.
 

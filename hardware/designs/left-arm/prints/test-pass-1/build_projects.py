@@ -118,6 +118,35 @@ def output_plate():
     return np.vstack([o, s])
 
 
+
+SYS = Path(os.environ.get('APPDATA', '')) / 'BambuStudio/system/BBL'
+
+
+def system_preset(kind, n):
+    """A Bambu system preset with its inherits chain resolved."""
+    p = SYS / kind / f'{n}.json'
+    if not p.exists():
+        return {}
+    d = json.loads(p.read_text(encoding='utf8'))
+    b = system_preset(kind, d['inherits']) if 'inherits' in d else {}
+    b.update(d)
+    return b
+
+
+def mark_overrides(ps, ours=()):
+    """List every key that differs from the system presets, so Bambu Studio keeps our values instead of reloading the preset's."""
+    meta = {'name', 'from', 'inherits', 'type', 'instantiation', 'setting_id', 'include', 'compatible_printers', 'compatible_printers_condition', 'version', 'print_settings_id', 'filament_settings_id', 'printer_settings_id'}
+    fil = ps.get('filament_settings_id') or ['']
+    out = []
+    for kind, n in [('process', ps.get('print_settings_id', ''))] + [('filament', f) for f in fil] + [('machine', ps.get('printer_settings_id', ''))]:
+        ref = system_preset(kind, n)
+        keys = sorted(k for k, v in ref.items() if k not in meta and k in ps and ps[k] != v and not (isinstance(v, list) and isinstance(ps[k], list) and len(v) == 1 and all(x == v[0] for x in ps[k])))
+        out.append(';'.join(keys))
+    extra = [k for k in ours if k in ps and k != 'curr_bed_type' and k not in out[0].split(';')]
+    out[0] = ';'.join(sorted([k for k in out[0].split(';') if k] + extra))
+    ps['different_settings_to_system'] = out
+    return ps
+
 def disc(cx, cy, r, z0, z1, n=48):
     """Solid cylinder, as triangles, for a support blocker. Plate-up coordinates of the job."""
     a = np.linspace(0, 2 * np.pi, n, endpoint=False)
@@ -180,6 +209,7 @@ def project(name, tri, out):
     ps.update(EXTRA.get(name, {}))
     if name in PLA_JOBS:
         to_pla(ps)
+    mark_overrides(ps, set(BRIM) | set(EXTRA.get(name, {})))
     src = out / f'{name}_input.3mf'
     with zipfile.ZipFile(src, 'w', zipfile.ZIP_DEFLATED) as o:
         for i in z.infolist():

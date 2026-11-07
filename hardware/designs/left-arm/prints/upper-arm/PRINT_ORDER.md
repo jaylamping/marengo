@@ -11,10 +11,10 @@ Settings are the test pass 1 process: P2S, 0.4 mm High Flow, Generic PETG, or Ba
 | 1 | `seat_ring_only.3mf` | PETG | 21 m | 9.2 g | Same way up as the carrier | Only the Ø52.2 seat, Ø50 shoulder and Ø40 stub. The 6808 has never been fitted to a print, so check that one fit first. 3 walls, 15% infill |
 | 2 | `carrier.3mf` | PETG | 1 h 22 m | 35.9 g | Inboard face | Same way up as the strength carrier in test pass 1 |
 | 3 | `cover.3mf` | Bambu PLA Basic | 26 m | 4.5 g | Standing on its end | Thin curved shell |
-| 4 | `upper_arm.3mf` | PETG | 7 h 52 m | 241.5 g | | . **50% infill, with 100% over the hoop body and seat, the hoop-to-tube corners and the hub block** |
+| 4 | `upper_arm.3mf` | PETG | 7 h 52 m | 241.5 g | Flat on the hub, X 131.99 | Layers across X, as in the FEA. The RS02 seat faces up, clean. **50% infill, with 100% over the hoop body and seat, the hoop-to-tube corners and the hub block** |
 | 5 | `p2.3mf` | PETG | 5 h 54 m | 188.8 g | As P2 L04B, same 45 degree plate rotation | Only if you want a new P2, see below |
 
-Total for plates 2 to 5: about 15 h 36 m and 470 g, including support and brim. Without P2, 9 h 42 m and 282 g.
+Total for plates 2 to 5: about 15 h 36 m and 471 g, including support and brim. Without P2, 9 h 41 m and 282 g.
 
 The fit ring has a thin wall, so it reads slightly looser than the carrier. Pull any low stubs of support out of the carrier seat before pressing the bearing.
 

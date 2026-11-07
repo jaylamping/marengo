@@ -4,7 +4,7 @@ Open each file as a complete project, not a geometry import. Each 3MF is already
 
 Check these in Bambu Studio before you press print. If anything differs, stop and fix it before printing, because presets can reset values.
 
-**After opening a project, always confirm the plate type, walls and infill against this table, and that the print time matches `PRINT_ORDER.md`.** A preset can switch them when the project opens. If the print time is far off, a preset has changed something.
+Each project lists its changes from the Bambu system presets, so Bambu Studio keeps them when it opens the file. Files from before 2026-11-07 midday didn't, and showed 15% infill on opening. **After opening a project, always confirm the plate type, walls and infill against this table, and that the print time matches `PRINT_ORDER.md`.** A preset can switch them when the project opens. If the print time is far off, a preset has changed something.
 
 | Setting | Value |
 | --- | --- |
