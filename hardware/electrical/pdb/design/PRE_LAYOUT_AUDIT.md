@@ -1,5 +1,7 @@
 # Power board rev B4: pre-layout audit
 
+> **Superseded in part by rev B5** ([REVB5_CHANGES.md](REVB5_CHANGES.md), 2026-11-07): the battery terminals, limb terminals, bus caps, meters, shunts, 12 V converter, cost estimate and the C45 back-face placement changed. The footprint checks below still hold for the parts that stayed.
+
 2026-11-07, schematic at main bd433155 (203 parts, 187 fitted). It covers four things:
 - the orderable part numbers (MPNs) and the footprint land patterns;
 - the thermal copper for the power FETs;

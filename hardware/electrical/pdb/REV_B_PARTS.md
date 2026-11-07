@@ -1,126 +1,138 @@
 # Power board rev B: agreed parts list
 
-2026-11-06 22:44Z. These are Joey's answers to the clean sheet ([REV_B_CLEAN_SHEET.md](REV_B_CLEAN_SHEET.md)). The rule is: a
-part goes in only if leaving it out would hurt, and a cheap off-the-shelf part is preferred where one exists. Rev A stays in
-the repo as a reference.
+2026-11-06 22:44Z, updated for rev B5 on 2026-11-07 (Opus round 5, Joey's go at 15:49Z: [design/REVB5_CHANGES.md](design/REVB5_CHANGES.md)).
+
+These are Joey's answers to the clean sheet ([REV_B_CLEAN_SHEET.md](REV_B_CLEAN_SHEET.md)). The rule: a part goes in only if leaving it out would hurt, and a cheap off-the-shelf part is preferred where one exists. Rev A stays in the repo as a reference.
+
+**Rating: 60 A continuous, under 90 A peak.** Legs come on a rev C board; their port footprints stay unfitted on this one.
 
 ## Off the board (bought)
 
 | What | Choice | Notes |
 | ---- | ------ | ----- |
-| BMS | **JK-BD6A17S8P** on the pack's rear face (battery thread pick, pack plan d42e88f section 3) | 80 A continuous / 150 A peak, 8–17S Li-ion, common port, 0.6 A active balance, 3 temperature sensors, Bluetooth, RS485 or CAN through an add-on module (order with it). 133 × 81 × 18 mm, fits 170 × 90 × 20. About $85 plus the module. **No precharge** (the board's soft-start bank covers all bulk capacitance) and **no hardware remote-off** (it can't be the E-stop's second break). Settings: OVP 4.22 V, UVP 2.8 V, DOC 80 A at the longest delay, COC 50 A for about 1 s, charge 0–45 °C. Charging uses an XT60 pigtail on the pack's P+/P−, so there is no charge port on the board; the host blocks arming while the BMS shows charge current. The robot's only ground is P−. |
-| Pack fuse | Class T 60 A | On the pack, unchanged. |
+| BMS | **JK-BD6A17S8P** on the pack's rear face (battery thread pick, pack plan d42e88f section 3) | 80 A continuous / 150 A peak, 8–17S Li-ion, common port, 0.6 A active balance, 3 temperature sensors, Bluetooth, RS485 or CAN through an add-on module (order with it). 133 × 81 × 18 mm, fits 170 × 90 × 20. About $85 plus the module. **No precharge** (the board's soft-start bank covers all bulk capacitance) and **no hardware remote-off** (it can't be the E-stop's second break). Settings: OVP 4.22 V, UVP 2.8 V, DOC 80 A at the longest delay, COC 50 A for about 1 s, charge 0–45 °C. Charging uses an XT60 pigtail on the pack's P+/P−, so there is no charge port on the board. Software refuses drive Enable while BMS telemetry shows charge current, or while telemetry is stale (the Pi can't block reset). The robot's only ground is P−. |
+| Pack connector | **XT90S on the pack, XT90 on the board's soldered 10 AWG pair** (rev B5) | Keyed, so a plug-in can't be reversed. Amass rates the XT90 at 45 A continuous / 90 A momentary: fine for arms and waist. For legs (rev C), move both ends to AS150 |
+| Pack fuse | Class T 60 A, on the pack | Buy the fuse from Sager. It does not clear a reversed pack before D1 fails (REVB5_CHANGES): the keyed plug and the polarity check carry that |
 | E-stop button | **HB2-BS545**, 22 mm mushroom, twist to release, 1NC + 1NO | 660 V AC 10 A, control-rated only, so it breaks the small loop and never the motor current. NC in the loop. NO to the Pi as "E-stop pressed". |
 | CAN | Isolated USB-CAN adapters at the Pi (gs_usb / SocketCAN), one per bus used | The board doesn't touch CAN. |
 | BMS telemetry | **Isolated** USB-RS485 adapter or isolated CAN, to the Pi | The BMS port sits on B−, the robot on P−. A non-isolated adapter ties them together, so load current can use the comm cable when the BMS opens. About $25 to $40 plus software. |
-| Brake resistor thermostat | **Sensata Airpax 67L120P**: 6700 series, TO-220, open on rise ("L"), 120 ±5 °C, resets at 85 °C or above (9 °C minimum differential), plastic bracket ("P": 2000 VAC terminals to case, VDE). Fallback is 67L120, the same part with a nickel-plated copper bracket (1480 VAC) | Datasheet: Sensata 6700 series (2018), contacts 0.5 A resistive at 48 VDC, 50 mΩ max, 20,000 cycles. The E-stop loop carries about 17 mA (12 V through R9 680 Ω), far inside that. Clamp its bracket on the plate strip under one HS50 body, or clip it to that body's inboard face, with thermal compound. The two resistors split the power evenly, so put it on the plate that runs hotter at the bench. Wire it in series in the NC loop (J20 pins 1–3), with the button's NC contact. Stock: DigiKey showed 67L120 at 0 stock on 2026-11-07; check DigiKey and Mouser before ordering |
-| Limb fuses | Littelfuse 997 58 V MINI blade fuses in inline holders in each pigtail | Same as the arm trunk. |
+| Brake resistor thermostats | **Two Sensata Airpax 67L120**, one on each resistor's plate, wired in series in the NC loop (rev B5) | 6700 series, TO-220, open on rise ("L"), 120 ±5 °C, resets at 85 °C or above. Contacts 0.5 A at 48 VDC; the loop carries about 17 mA. $5.57 at Heilind (2,035 in stock) on 2026-11-07. Clamp each bracket to its plate strip under the HS50 body with thermal compound. Two, so an open resistor or lead can't leave the other one unwatched |
+| Brake resistors | 2 × Arcol HS50 20R J (Ohmite at DigiKey; $6.11 at Arrow/TTI). Order the 20 Ω part (HS5010RJ is 10 Ω) | One per gusset, leads to the Mini-Fit Jr headers J3 (+X) and J25 (−X) |
+| Limb fuses | Littelfuse 997 58 V MINI blade fuses in inline holders in each pigtail: 20 A | Wire protection and backup for a shorted port FET. The port breaker clears faults first. **Operator rule: fit or remove limb fuses and connectors only with VBUS under 3 V** |
+| 12 V converter | **Own 12 A buck board** (LM5146, [marengo_buck12](../schematics/marengo_buck12)) on the -X rail, on the J24 pigtail. **Fallback: Murata DVE0125V2NBC + adapter** on the same pigtail | See "12 V converter" below |
 | Pi 5.1 V | 12 → 5 V 5 A buck module at the Pi | |
-| Other rails | None (Joey: no other loads expected) | Add a small module at a load if one appears. |
+| Other rails | None (Joey: no other loads expected) | Add a small module at a load if one appears. USB-C PD was evaluated and rejected: the Jetson takes a barrel jack and nothing else needs PD |
 
 ## On the board (one board, existing 100 × 150 mm slot in front of the pack)
 
 | Block | Parts | Why it stays |
 | ----- | ----- | ------------ |
-| Battery in | M4 terminals from the BMS output | |
+| Battery in | One soldered 10 AWG pair, BAT and GND side by side on the top edge, to an XT90 | Keyed; lower pack-loop inductance than the old split studs |
 | E-stop switch | Two FET banks in series, both from the E-stop latch. Bank B: hot-swap controller (soft start = precharge for all limbs). Bank A: second bank with its own TPS48100 driver, closes first, slow turn-off, own short-circuit trip. Reset latch (Joey: press reset at every power-up) | Safety, no software in the path. All bulk capacitance sits behind it, so the BMS never sees inrush. One shorted FET can't defeat the E-stop. |
-| Braking clamp | Comparator, FET, **two Arcol HS50 20R J in parallel** (10 Ω total), one on each gusset (+X and −X), on the 5 mm countersunk aluminium plates with thermal compound, leads to J3/J4 (+X) and J25/J26 (−X). Thermostat **67L120P** on the plate strip under one resistor body (or clipped to its inboard face), in the E-stop loop (Joey, 2026-11-07, rev B4 review: the HS150 doesn't fit the shell, and on a ~60 cm² gusset it would only be a 45–60 W part) | A full pack or a BMS trip during regen would push the bus past the drives' 60 V fault. Ask Arcol for HS50 short-time overload and pulse data. |
-| Bus capacitors | A few electrolytics at the clamp and switch | The drives have their own. Limb cap boards (Unitree style) get added if the bench shows ringing. |
-| 12 V rail | Murata DVE0125V2NBC (eighth brick with baseplate, 36–75 V in, 12 V 25 A, 94.6 %, negative-logic on/off), picked by Joey 2026-11-07. $85 at Digi-Key (Joey checked), against $106 for the IQB150W8-12. Off the board on the top front rail (frame 79500b9), pigtail J24 to the board's top edge | 2× the current of the IQB, conduction-cooled into the frame, frees about 2,200 mm² of board. |
-| Limb outputs (arms, waist, aux; legs later) | Terminal pair + shunt + one INA228 meter each (Joey: yes to meters) | Amps per limb at all times. No per-limb switching (Joey: OK to lose it). |
-| 12 V meter | One INA228 | Compute power in telemetry. |
-| SPARE_SW 12 V output (replaces the Motion 12 V row, 2026-11-07) | TPS259541 eFuse, 3.87 to 4.42 A limit, soft start, INA228, 2-pin output, enabled by the E-stop latch | Generic switched output, off with the motors. First use: 3 STS3215 neck servos and the jaw servo, with servo current capped in firmware. |
-| SPARE_ON 12 V output (replaces the Head 12 V row, 2026-11-07) | TPS259541 eFuse, about 2 A limit, 2-pin output, unswitched | Generic always-on output that stays up through an E-stop. First use: head electronics. |
-| Bank check meter | One INA228 reading MID, the node between the banks | Pi startup self-test. VBUS alone can't show one shorted bank. |
-| Pi link | Header to the Pi: I2C plus E-stop pressed (low) | The Pi reads all meters and the button; no supervisor chip. |
+| Heartbeat watchdog (rev B5) | TPS3431 in series with the latch's seal-in NPN, on its own 3.3 V rail from VCTL | A hung, crashed or unpowered Pi drops the motors within 270–355 ms; it can only drop the latch, never hold it |
+| Braking clamp | Comparator, FET, **two Arcol HS50 20R J in parallel** (10 Ω total), one on each gusset (+X and −X), on the 5 mm countersunk aluminium plates with thermal compound | A full pack or a BMS trip during regen would push the bus past the drives' 60 V fault. Clamp duty goes to the Pi through U17's shunt input (rev B5) |
+| Bus capacitors | 5 × Panasonic EEH-ZC1K470P, 47 µF 80 V hybrid, 235 µF | The drives have their own. Active part line (the APZ 68 µF is obsolete) |
+| Limb ports (arms, waist; aux and legs unfitted) | Per port: 1.5 mΩ Kelvin shunt, **TPS48111-Q1 breaker + IPB017 FET** (rev B5), INA237 meter, soldered + / return pigtail pair | A limb fault trips only its own port: 35–45 A in 1.6 µs, or 30 A for about 16 ms, latch-off until an E-stop cycle (tools/port_sim.py) |
+| 12 V meter | One INA237 | Compute power in telemetry. |
+| SPARE_SW 12 V output | TPS259541 eFuse, 3.87 to 4.42 A limit, soft start, INA237, 2 × 2 Micro-Fit (keyed apart from the 2-pin outputs), enabled by the E-stop latch | Generic switched output, off with the motors. First use: 3 STS3215 neck servos and the jaw servo, with servo current capped in firmware. |
+| SPARE_ON 12 V output | TPS259541 eFuse, about 2 A limit, 2-pin output, unswitched | Generic always-on output that stays up through an E-stop. First use: head electronics. |
+| Bank check meter | One INA237 reading MID, the node between the banks; its shunt input reads clamp duty | Pi startup self-test. VBUS alone can't show one shorted bank. |
+| Pi link | JST GH 7: 3V3, SDA, GND, SCL, E-stop pressed (low), heartbeat out, port fault (low) | The Pi reads all meters and the button, feeds the watchdog and sees port trips; no supervisor chip. |
 
-## Next
+## 12 V converter (rev B5: own buck, DVE fallback)
 
-1. Done: JK-BD6A17S8P (see above).
-2. Done: HB2-BS545 (see above).
-3. Schematic done, ERC clean (`hardware/electrical/schematics/marengo_pdu_revb`). Short review, then layout.
-
-## 12 V budget against the 25 A converter (DVE0125V2NBC)
+Budget:
 
 | Load | Expected | Hard ceiling |
 | ---- | -------- | ------------ |
-| Jetson Orin Nano, 25 W | 2.1 A | 2.1 A |
+| Jetson Orin Nano, 25 W (barrel jack, 9–20 V) | 2.1 A | 2.1 A |
 | Pi buck, 25.5 W at about 90 % | 2.4 A | 2.4 A |
 | 4 fans, about 0.15 A each (assumed) | 0.6 A | 0.6 A |
 | SPARE_ON | 1.0 A | About 2.1 A |
 | SPARE_SW | 3.0 A (servo cap; U9's minimum limit is 3.87 A) | 4.42 A |
-| Total | **9.1 A, 109 W, 36 %** | **11.6 A, 46 %** |
+| Total | **9.1 A, 109 W** | **11.6 A, 140 W** |
 
-The current fits with margin, and the heat now goes into the frame:
-- **Loss:** at 93 to 94.6 %, the 140 W ceiling loses about 9 W.
-- **Baseplate limit:** 110 °C with no derating (IPC 9592); thermal shutdown is 130 °C. From a 50 °C torso, the baseplate-to-air path through plate and rail must be 6 K/W or better. Use a thermal pad, and bolt the full plate face to the rail. Bench check: 140 W steady, baseplate under 100 °C.
-- **Input UVLO:** fixed on the DVE at 32 to 36 V on, 30 to 34 V off. Near an empty pack under load sag, compute can drop before the BMS cuts out. **Software requirement: shut compute down cleanly at a pack voltage of 38 V or more.**
+**Buck board** (separate small board on the -X rail, bolted with a thermal pad where the DVE sat):
+- **Controller and power train:** LM5146 at 400 kHz, Q1 BSC070N10NS5, Q2 BSC040N10NS5, Coilcraft XAL1010-682 (6.8 µH, 8.9 mΩ, 21.8 A Isat), 5 × 22 µF out.
+- **Input:** SK810L reverse crowbar, 1 µF, XAL7030 2.2 µH filter, 47 µF aluminium (EEE-TK2A470AQ) damping, 5 × 2.2 µF hot-loop ceramics.
+- **Valley current limit** at about 12–13 A hot. **UVLO** 30.2 V on, 27.2 V off: below the 30.5 V worst sag at 90 A from a 38 V pack.
+- **Loss and efficiency:** about 4 W at 12 A (about 97 %).
+- **Why separate:** heat goes to the frame, switching noise stays away from the meters and the latch, and the main board has no pour budget left.
+- **J24 pinout is unchanged.** Pin 5 low = on (U7 PGD good). With pin 5 open the board stays off, so the DVE fallback plugs into the same pigtail.
 
-Off-board parts at the converter end, in the fuse and cap zone at the -X end of the rail (X -40 to -29):
-- 47 µF 100 V aluminium (EEE-TK2A470AQ, see the adapter table below), plus 1 µF 100 V ceramic, across +VIN/-VIN at the pins. The 150 mm lead is 75 to 150 nH.
-- Strain relief.
+Main-board side, unchanged:
+- **F2** is a 20 A MINI blade fuse (0997020.WXN) in a Keystone 3568 holder at the board end.
+- **U7** limits at 9.7–12.3 A and soft-starts the converter input.
+- **Pigtail:** Molex Micro-Fit 3.0 43025-1200 plugs at both ends, 18 AWG, twisted in pairs, about 150 mm. Pin n faces pin n+6 across the rows:
 
-The 20 A fuse required by Murata is F2, at the board end. That protects the pigtail from its source. U7 already limits at 9.7 to 12.3 A, so F2 only backs up a shorted Q7.
-
-Pigtail: twisted pairs, 18 AWG.
-- Input: 2 wires each way, about 4.2 A at 36 V.
-- +12 V: 3 wires each way. At 12 A that's about 25 mV in the wire and about 80 mV in the Micro-Fit contacts, so about 0.1 V in all.
-
-## 12 V converter: adapter and pigtail (rev B3 fixes)
-
-The DVE needs parts at its own pins. The rev B3 review found its output had no capacitance there (M9), its input damping was unspecified (M7), and it had no reverse-polarity protection (B3). These parts go on a small adapter board soldered to the DVE pins, in the rail's fuse and cap zone (X −40 to −29):
-
-| Part | Value | Why |
+| J24 pin | Net | Faces |
 | --- | --- | --- |
-| Input bulk | 47 µF 100 V aluminium, Panasonic EEE-TK2A470AQ (SMD, ESR about 0.42 Ω) | Its ESR damps the pigtail (75–150 nH) against the board's 4.4 µF, over-damped at about 0.4 Ω against Z0 of about 0.18 Ω |
-| Input HF | 1 µF 100 V X7R 1210 | At the pins |
-| Reverse crowbar | SK810L-TP, cathode on +VIN, anode on −VIN | A swapped pair clamps reverse at about 1 V. U7 limits it to 9.7–12.3 A and times out, so it retries at low duty. F2 never needs to blow |
-| Output bulk | 100 µF 25 V hybrid polymer (Panasonic EEH-ZA1E101P class, confirm) | Murata asks for 100 µF minimum low-ESR at the output, and the DVE has no sense pins |
-| Output HF | 10 µF 25 V X7R 1206 + 1 µF X7R | Murata's output test setup |
-| Strain relief | Clamp on the plate | Pigtail |
+| 1, 2 | +VIN (BRK_F, after F2) | 7, 8: −VOUT (GND) |
+| 3, 4 | −VIN (GND) | 9: −VOUT; 10: +VOUT |
+| 5 | ON/OFF, low = on | 11: +VOUT. A short there turns the converter off |
+| 6 | −VIN (GND) | 12: +VOUT |
+| 7, 8, 9 | −VOUT (GND) | |
+| 10, 11, 12 | +VOUT (+12V_RAW) | |
 
-Pigtail J24, Molex Micro-Fit 3.0, 43025-1200 plug, 18 AWG, twisted in pairs, about 150 mm. Pin n faces pin n+6 across the rows:
+**DVE fallback.** Murata DVE0125V2NBC: 25 A, input UVLO fixed at 32–36 V on and 30–34 V off. It needs its adapter board:
+- 47 µF 100 V EEE-TK2A470AQ plus 1 µF on the input;
+- SK810L reverse crowbar;
+- 100 µF 25 V hybrid plus 10 µF and 1 µF on the output;
+- a strain-relief clamp.
 
-| J24 pin | Net | DVE pin | Faces |
-| --- | --- | --- | --- |
-| 1, 2 | +VIN (BRK_F, after F2) | 1 | 7, 8: −VOUT (GND) |
-| 3, 4 | −VIN (GND) | 4 | 9: −VOUT; 10: +VOUT |
-| 5 | ON/OFF, low = on | 2 | 11: +VOUT. A short there turns the converter off |
-| 6 | −VIN (GND) | 4 | 12: +VOUT |
-| 7, 8, 9 | −VOUT (GND) | 5 | |
-| 10, 11, 12 | +VOUT (+12V_RAW) | 16 | |
-
-No short across the rows puts +VIN on +VOUT. Before first power, check polarity at the adapter with a meter. F2 is a Littelfuse 0997020.WXN: MINI blade, 20 A, 58 V DC, 1 kA breaking. It sits in the Keystone 3568 holder at the board end.
+Buy it from Sager ($70.99) if it's needed.
 
 ## Bring-up measurements that gate layout sign-off
 
-1. **Pack-lead inductance and pulse loop resistance**, BAT to P−, with the real pack, BMS and leads. Measure resistance with a pulse (µs scale), not a DC meter: the cells' AC resistance is half their DC value. tools/absorber_sim.py worst corners (0.05 Ω, 0.5–1 µH, D1 at 71.2 V, C −20 %, trip up to 17.5 µs) give BAT 80–91 V with the three fitted cans. Rerun it with the measured values. Over 90 V means more absorber or a faster trip.
-2. **BMS close into the absorber.** About 300 A for a few µs with three cans (two cans simulate 250–290 A, one 190–230 A). Close the JK onto a bare board 20 times: it must not trip. **Decided (Joey, 2026-11-07): 10b stays DNP, gated on this test.** If the JK trips, fit the 10b option (2 Ω pulse-rated + delayed NMOS: 25 A), after confirming Q13's µs pulse rating.
+1. **Pack-lead inductance and pulse loop resistance**, BAT to P−, with the real pack, BMS and leads. Measure resistance with a pulse (µs scale): the cells' AC resistance is half their DC value. Also measure the **DC pack resistance** for the software current budget. tools/absorber_sim.py worst corners give BAT 80–91 V with three cans and two D7 diodes; rerun it with the measured values. Over 90 V means more absorber or a faster trip.
+2. **BMS close into the absorber.** About 300 A for a few µs with three cans. Close the JK onto a bare board 20 times: it must not trip. **Decided (Joey, 2026-11-07): 10b stays DNP, gated on this test.**
+3. **Polarity at the plug** (rev B5). Before the first close, meter the XT90 on the pack harness and on the board pair: BAT on the + contact. Repeat after any harness work.
+4. **Port short** (rev B5). At reduced pack voltage, behind a current-limited source, with drives on the other limbs: short one limb port behind its fuse. The port must latch off (PORT_FLT_N low, its output low), the banks must stay closed, and an E-stop cycle plus reset must clear it. Scope RS1 and the port shunt.
 5. **Drive bus bleed.** After a stop, time VBUS from 54 V to 3 V with all drives connected. Over 30 s: fit the DNP VBUS bleeder (R63) at a value chosen from the measured capacitance.
-6. **DVE input capacitance and start.** Scope U7's start into the converter at 36 V and 54.6 V: Q7 must reach PGD inside the 7–17 ms timer (C19 220 nF) with margin.
-7. **Servo back-feed.** Back-drive the neck and jaw servos by hand as fast as they go, with U9 on and then off, and scope +12V and SPARE_SW. +12V must stay under 16 V. The SMBJ15A (D20) clamps above 16.7 V; if it conducts, cap back-drive speed in software.
-Brake resistor harness (frame main 72a3889, mirrored HS50s on the ±X gussets): each resistor gets its own twisted pair of **18 AWG** silicone wire (2.84 A peak per resistor, a few seconds at a time) with ring lugs on the M4 terminals. +X pair: about 50 mm to J3/J4. −X pair: about 200 mm (about 150 mm longer, crossing under the board) to J25/J26, which sit beside J3/J4 on the top edge, +X half. Thermostat 67L120P on the +X plate strip with 1 × M3, then a twisted 24 AWG pair into the NC loop. Before first power, check that both resistors measure 20 Ω each, and 10 Ω across the pair.
+6. **Converter start.** Scope U7's start into the buck board at 36 V and 54.6 V: U7 must reach PGD inside its timer, then the buck starts. **Measure the buck loop** with an injection resistor in place of its 0R (crossover near 40 kHz, phase margin at least 45°). Load-step 1 → 10 A. 140 W steady: FETs and inductor under 100 °C.
+7. **Servo back-feed.** Back-drive the neck and jaw servos by hand as fast as they go, with U9 on and then off, and scope +12V and SPARE_SW. +12V must stay under 16 V. The SMBJ15A (D20) clamps above 16.7 V; if it conducts, cap back-drive speed in software. U18 clamps SPARE_ON above about 13.3 V.
+8. **Brake resistor thermostats.** With the board running and the motors enabled, heat each thermostat with a heat gun. The loop must open at 115–125 °C: RUN drops, both banks open, and the latch stays off. After it cools below 85 °C, the motors must stay off until reset is pressed.
+9. **Brake heat test** (rev B5). Run the clamp at 50 W total for 20 min with the real gussets fitted, and log both plate temperatures. Set the software average cap at 80 % of the power that holds the hotter plate at 110 °C.
+10. **Watchdog** (rev B5). With the motors enabled, stop the heartbeat: RUN must fall within 270–355 ms and stay off until reset. With the Pi off, reset must not hold the latch. Repeat as a periodic test.
+11. **Close order.** Scope RUN, U1 UVLO, FLT_A and GATE at reset (pads on the board). UVLO must not stay above 2.45 V longer than U1's insertion delay before FLT_A goes low.
+12. **I²C levels.** Scope the low level at an INA237 with the motors and the Jetson loaded: under 0.4 V.
+13. **Scope a 60 A E-stop** and a bus short behind a current-limited source, on BAT and MID.
 
-8. **Brake resistor thermostat.** With the board running and the motors enabled, heat the thermostat with a heat gun. Log its bracket temperature with a thermocouple. The loop must open at 115–125 °C: RUN drops, both banks open, and the latch stays off. After it cools below 85 °C, the motors must stay off until reset is pressed. Record the open and reset temperatures.
-3. **Scope a 60 A E-stop** and a bus short behind a current-limited source, on BAT and MID.
-4. **Converter baseplate** at 140 W steady: under 100 °C.
+Brake resistor harness (frame main 72a3889, mirrored HS50s on the ±X gussets):
+- Each resistor gets its own twisted pair of **18 AWG** silicone wire (2.84 A peak per resistor, a few seconds at a time) into a Mini-Fit Jr 2-pin plug.
+- +X pair: about 50 mm to J3. −X pair: about 200 mm to J25, both on the top edge, running above the board.
+- Each thermostat on its plate strip with 1 × M3, then a twisted 24 AWG pair; the two are in series in the NC loop.
+- Before first power and at each service, check that both resistors measure 20 Ω each, and 10 Ω across the pair.
 
-## Accepted risks and software requirements (Joey, 2026-11-07)
+## Accepted risks and software requirements (Joey, 2026-11-07; rev B5 rows marked)
 
 | Item | Decision | Requirement |
 | ---- | -------- | ----------- |
 | E-stop control path is one channel. A loop short or RUN shorted to VCTL holds both banks on. | Accepted. The HB2-BS545 NC contact is positive-opening, so a welded contact is covered by the button's mechanism. | None on the board. Keep the loop harness protected. |
-| Clamp takes 5.7 A, 322 W, against 30 A of host regen: 2.84 A and 161 W per resistor. Each HS50 is rated 50 W only on Arcol's 535 cm² plate, and no pulse rating is published, so they work on burst energy (32 g each, about 29 J/K: a 3 kJ burst is about +50 °C per body) | Accepted with 2 × HS50 20R + thermostat (Joey, 2026-11-07) | **Software: cap braking at about 5 A when the pack is nearly full**, or whenever the BMS isn't accepting charge. **Also cap clamp energy, in total for both resistors: 50 W average over a rolling 60 s window, and 3 kJ per burst.** Software tracks resistor energy as clamp on-time × V²/10 Ω from the bus voltage. At either limit it stops braking and makes a safe stop. Bench: log both resistor body temperatures during the hardest planned braking |
-| Reset can't be blocked by the Pi. | Bank A's short-circuit trip now covers a shorted bank B. | **Software: run the MID and VBUS self-test before reset and tell the operator not to press reset on a failure.** |
-| Pressed input is information only. | | **Software: debounce it in software.** |
-| Self-test reads (rev B3 review M6) | | **Software: read MID only with VBUS under 3 V, banks open, at least 5 s after the last stop.** Healthy MID is 0.38 to 0.55 × pack, from BMS telemetry. MID within 2 V of pack means A is shorted; MID under 3 V means B is shorted. Any other reading is a fail. |
-| Servo back-feed into +12V (rev B3 review M8) | U9 and U18 don't block reverse current; C41 and the compute loads take it | **Software: keep the neck and jaw servo current cap, and never back-drive them faster than their rated speed.** |
-| U9 is the only break for the neck and jaw servos (rev B2 M3) | Accepted by Joey: the neck never moves fast | None |
-| A Q4 or Q5 C–E short makes the latch re-arm on button release without a reset press (rev B3 M5) | Accepted by Joey, 2026-11-07, alongside the single-channel E-stop path. Stop still works | **Bring-up and periodic test: press, release, and confirm the motors stay off until reset.** |
-| Reset needs MID healthy and VBUS under 6–8.5 V (rev B3 M1, Joey's go 2026-11-07; threshold corrected in rev B4) | After a stop, reset is blocked until the drives' caps bleed down | **Software/operator: wait for VBUS under 3 V before pressing reset.** U11 reads V_L1, after the left-arm pigtail fuse: show VBUS as the highest of the fitted limb meters |
-| INA228 addresses (rev B4: no strap on SDA) | | **Software: L arm 0x40, R arm 0x41, aux 0x43, L leg 0x44, R leg 0x45, SPARE_SW 0x47, waist 0x4C, 12 V 0x4D, MID 0x4F.** |
-| Self-test window (rev B4) | Hot FET leakage, 200 µA per bank at 125 °C, moves MID by up to about 4 V | **Software: healthy MID is 0.33 to 0.60 × pack** (replaces 0.38 to 0.55). The A-shorted and B-shorted rules are unchanged |
-| E-stop pressed input (rev B4) | 100k series: a Pi pull-down reads it as pressed, a pull-up as released | **Software: configure that GPIO with no pull.** |
-| U1 latches off after a bus peak over 97 A lasting 147–383 µs (rev B4) | | **Software/drives: keep total bus current under 90 A peaks** (BMS peak is 150 A) |
-| Bus capacitance on the drives (rev B4) | U1 starts the bus at 100–220 V/s; 10 mF takes 1–2.2 A against a 413 W minimum power limit (652 W typical) | **Drive interface requirement: total drive bus capacitance at most 20 mF, and no drive load until the bus is above 45 V** |
-| Neck and jaw servos (rev B4) | STS3215 comes in 7.4 V and 12 V versions | **Buy the 12 V version.** |
+| **Heartbeat (rev B5)** | The watchdog drops the latch without a heartbeat | **Software: toggle WD_FEED (J21 pin 6) from the control loop itself, not a PWM peripheral, every 50–100 ms. A falling edge at least every 270 ms.** Stop toggling to drop the motors on purpose |
+| **Drive timeout (rev B5)** | Covers a hung Pi between heartbeat edges and any drive that misses a command | **Software: write CanTimeout on every drive (50 ms or less) and read it back before every enable; refuse enable if any drive reads 0 or above the limit. Re-verify after every drive power cycle** |
+| **Port faults (rev B5)** | A port latches off on its own | **Software: when PORT_FLT_N (J21 pin 7) goes low, name the port whose output meter reads low (U11 L arm, U13 waist; U12 reads the R arm port input, so the R arm is the one left when the other outputs are up), log it, and tell the operator to fix it before the E-stop cycle and reset that clears it** |
+| Clamp takes 5.7 A, 322 W, against 30 A of host regen: 2.84 A and 161 W per resistor | Accepted with 2 × HS50 20R + two thermostats | **Software: cap braking at about 5 A when the pack is nearly full**, or whenever the BMS isn't accepting charge. **Cap clamp energy, total for both resistors: average from the bench heat test (until then 30 W) over a rolling 60 s window, and 3 kJ per burst.** Energy = clamp duty × VBUS² / 10 Ω, with duty = U17 shunt voltage / 120 mV (rev B5). At either limit, stop braking and make a safe stop |
+| **Compute brown-out (rev B5)** | Buck UVLO 27.2 V off, under the worst sag | **Software: total drive current budget = (V_rest − 35 V) / R_pack_measured, tapering as the pack falls. Shut compute down on min cell at or under 3.0 V, filtered pack at or under 38 V, or BMS telemetry lost for more than 5 s** |
+| Reset can't be blocked by the Pi. | Bank A's short-circuit trip covers a shorted bank B. | **Software: run the self-test before reset and tell the operator not to press reset on a failure.** |
+| Pressed input is information only. | | **Software: debounce it.** Configure that GPIO with no pull, and treat it as invalid until configured |
+| **Self-test (one window, rev B5)** | Hot FET leakage moves MID by up to about 4 V | **Software: test only with VBUS under 3 V (U12), banks open, at least 5 s after the last stop, and pack at 40 V or more from BMS telemetry. Correct MID for U17's input divider (÷ Rin / (Rin + 33k), Rin calibrated per board). Healthy: corrected MID 0.33 to 0.62 × pack. Within 2 V of pack: A shorted. Under 3 V: B shorted. Anything else fails.** |
+| Servo back-feed into +12V | U9 and U18 don't block reverse current; C41 and the compute loads take it | **Software: keep the neck and jaw servo current cap, and never back-drive them faster than their rated speed.** |
+| U9 is the only break for the neck and jaw servos | Accepted by Joey: the neck never moves fast | None |
+| A Q4 or Q5 C–E short makes the latch re-arm on button release without a reset press | Accepted by Joey, alongside the single-channel E-stop path | **Bring-up and periodic test: press, release, and confirm the motors stay off until reset.** |
+| Reset needs MID healthy and VBUS under 6–8.5 V | After a stop, reset is blocked until the drives' caps bleed down | **Software/operator: wait for VBUS under 3 V (U12) before pressing reset.** |
+| Meters (rev B5: INA237) | Same addresses; 16-bit, no energy accumulator | **Software: L arm 0x40, R arm 0x41, aux 0x43, L leg 0x44, R leg 0x45, SPARE_SW 0x47, waist 0x4C, 12 V 0x4D, MID 0x4F. INA237 register map. Shunts: limbs 1.5 mΩ, 12 V 2 mΩ, SPARE_SW 5 mΩ (ADCRANGE 1). Dedicate one Pi I²C controller to the board** |
+| U1 latches off after a bus peak over 97 A lasting 147–383 µs | Software can't see sub-ms peaks | **Drives: set each drive's current and power limits so the sum for everything that can move at once stays at or under 90 A; read them back at startup like CanTimeout** |
+| Bus capacitance on the drives | U1 starts the bus at 100–220 V/s; a port starts its limb at about 1 kV/s | **Drive interface requirement: total drive bus capacitance at most 20 mF, and no drive load until the bus is above 45 V** |
+| Neck and jaw servos | STS3215 comes in 7.4 V and 12 V versions | **Buy the 12 V version.** |
+
+## Fault decode (rev B5)
+
+| ESTOP_PI_N | PORT_FLT_N | MID (U17, corrected) | VBUS (U12) | Port outputs | Meaning | Action |
+| --- | --- | --- | --- | --- | --- | --- |
+| low | any | any | any | any | E-stop pressed | Release, then reset |
+| high | low | ≈ pack | up | one low | That port tripped (short or overload) | Find the fault on that limb, then E-stop cycle and reset |
+| high | high | ≈ pack | low | low | Bank B tripped (U1 latched) | E-stop cycle, then reset; check for a bus fault first |
+| high | high | ≈ 0.47 × pack | low | low | Loop open (a thermostat or the harness), watchdog trip, or U8 tripped | The Pi knows if it stopped the heartbeat. Otherwise check both thermostats (wait for under 85 °C) and the loop harness, then reset |
+| high | high | under 3 V | low | low | Bank B shorted | Don't reset. Repair |
+| high | high | within 2 V of pack | low | low | Bank A shorted | Don't reset. Repair |
