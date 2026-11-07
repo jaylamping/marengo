@@ -12,7 +12,7 @@ import trimesh
 HERE = Path(__file__).parent
 PITCH = 0.1
 PARTS = json.loads((HERE.parent / "generator" / "parts.json").read_text())["parts"]
-LO, HI = np.array([-58.0, 339.0, -16.0]), np.array([-28.0, 351.0, 6.0])  # right side window
+LO, HI = np.array([-58.0, 339.0, -19.0]), np.array([-28.0, 351.0, 9.0])  # right side window
 
 
 def fill(mesh, lo, hi):
@@ -58,9 +58,9 @@ def main():
         print(" seated overlap voxels", (S & H).sum(), f"= {(S & H).sum() * PITCH**3:.2f} mm3")
         for dx in (0.1, 0.2):
             print(f" shifted in {dx}:", (S & np.roll(H, int(dx / PITCH), 0)).sum(), f" out {dx}:", (S & np.roll(H, -int(dx / PITCH), 0)).sum())
-        for dz in (-0.2, -0.4, -0.6, 0.2):
+        for dz in (-0.7, -0.5, -0.3, 0.3, 0.5, 0.7):  # the slot ends are the Z stops, 0.5 per end
             print(f" shifted Z {dz}:", (S & np.roll(H, int(dz / PITCH), 2)).sum())
-        # Walk out along X: which Y band hits the side at each step. The barb and the pin should be all that does.
+        # Walk out along X: which Y band hits the side at each step. The barb should be all that does.
         yy = np.arange(LO[1] + PITCH / 2, HI[1], PITCH)
         for dx in (0.3, 0.6, 1, 2, 3.5, 4.5, 8):
             n = int(dx / PITCH)

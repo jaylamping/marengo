@@ -20,7 +20,10 @@ PLANES = {"front": "Front Plane", "top": "Top Plane", "right": "Right Plane"}
 MM = 1e-3
 BLIND, START_PLANE, START_OFFSET = 0, 0, 3
 LEAD_GAP = ((-5, 345, -16), (25, 349, 6))
-STRAP_NOTE = "Pack cradle top strap, rev A, two snap hooks, lead gap X -5 to 25"
+STRAP_NOTE = "Pack cradle top strap, rev B fit-check, two snap hooks, lead gap X -5 to 25"
+SLOT = (-15.5, 5.5, 345.5, 348.9, 0.4)  # Z, Y and corner radius: hook Z -15 to 5 plus 0.5 per end, R0.4 still clears its corners
+STOP = 49  # |X| where the full 20 mm bar starts again: 1.2 mm past the tongue tip, inside the 3.5 mm web
+SLIT = -9  # rear of the bar: tongue Z -15 to -9, 2 mm slit to the bar at Z -7, so the 21.7 mm bridge cannot fuse to the tongue
 
 
 class Part:
@@ -91,6 +94,19 @@ class Part:
             sm.CreateArc(*p(x, y + dy), *p(x + r, y + dy), *p(x - r, y + dy), 1)
             sm.CreateArc(*p(x, y - dy), *p(x - r, y - dy), *p(x + r, y - dy), 1)
 
+    def rounded_rect(self, u0, u1, v0, v1, r):
+        """Rectangle u0 to u1, v0 to v1 with corner radius r, for a sketch already open."""
+        sm = self.sm
+        p = lambda u, v: (u * MM, v * MM, 0)
+        sm.CreateLine(*p(u0 + r, v0), *p(u1 - r, v0))
+        sm.CreateArc(*p(u1 - r, v0 + r), *p(u1 - r, v0), *p(u1, v0 + r), 1)
+        sm.CreateLine(*p(u1, v0 + r), *p(u1, v1 - r))
+        sm.CreateArc(*p(u1 - r, v1 - r), *p(u1, v1 - r), *p(u1 - r, v1), 1)
+        sm.CreateLine(*p(u1 - r, v1), *p(u0 + r, v1))
+        sm.CreateArc(*p(u0 + r, v1 - r), *p(u0 + r, v1), *p(u0, v1 - r), 1)
+        sm.CreateLine(*p(u0, v1 - r), *p(u0, v0 + r))
+        sm.CreateArc(*p(u0 + r, v0 + r), *p(u0, v0 + r), *p(u0 + r, v0), 1)
+
     def triangle(self, pts):
         for (u0, v0), (u1, v1) in zip(pts, pts[1:] + pts[:1]):
             self.sm.CreateLine(u0 * MM, v0 * MM, 0, u1 * MM, v1 * MM, 0)
@@ -117,6 +133,30 @@ def bx(s, x0, x1):
     return min(a, b), max(a, b)
 
 
+def strap_slot(p, s):
+    """Closed slot through the web. Its ends stop the hook in Z. Right Plane sketch x = -Z."""
+    z0, z1, y0, y1, r = SLOT
+    a, b = bx(s, 47, 53)
+    p.sketch("right")
+    p.rounded_rect(-z1, -z0, y0, y1, r)
+    p.extrude(a, b, "Strap_slot", cut=True)
+
+
+def top_root(p, s, z0, z1, name):
+    p.sketch("front")
+    p.triangle([(s * 51.5, 349.62), (s * 55, 349.62), (s * 51.5, 346.12)])
+    p.extrude(z0, z1, name)
+
+
+def top_root_rear(p, s, z0):
+    """Web to top foot chamfer behind the slot. Its forward end is 45 deg so the print, front edge down, needs no support under it."""
+    top_root(p, s, z0, SLOT[0], "Top_root_rear")
+    a, b = bx(s, 51.5, 55.5)
+    p.sketch("right")
+    p.triangle([(-SLOT[0], 346.12), (-SLOT[0], 349.62), (3.5 - SLOT[0], 349.62)])
+    p.extrude(a, b, "Top_root_rear_end", cut=True)
+
+
 def build_side(sw, s, label):
     p = Part(sw, CAD / f"marengo_torso_cradle_side_{label}.SLDPRT")
 
@@ -136,9 +176,8 @@ def build_side(sw, s, label):
     p.sketch("front")
     p.triangle([(s * 51.5, 179), (s * 55, 179), (s * 51.5, 182.5)])
     p.extrude(-44, 37.5, "Bottom_root")
-    p.sketch("front")
-    p.triangle([(s * 51.5, 349.62), (s * 55, 349.62), (s * 51.5, 346.12)])
-    p.extrude(5.2, 37.5, "Top_root")  # forward of the strap slot, the lips run through here
+    top_root(p, s, SLOT[1], 37.5, "Top_root")  # stops either side of the strap slot, the lips run through there
+    top_root_rear(p, s, -44)
     # Thumbscrew boss, Right Plane sketch x = -Z. M4 x 16 head seats on the boss face, tip 4.5 mm past the centred pack side.
     a, b = bx(s, 51.5, 59)
     p.sketch("right")
@@ -165,13 +204,8 @@ def build_side(sw, s, label):
     p.circle(s * 51.75, 200, 4.2)
     p.circle(s * 51.75, 330, 4.2)
     p.extrude(32, 37.5, "M3_insert_holes", cut=True)
-    # Strap slot, open at the rear edge, and the detent pocket for the strap lip
-    box(47, 53, 345.5, 348.9, -51, 5.2, "Strap_slot", cut=True)
-    a, b = bx(s, 50.7, 52.5)
-    p.sketch("right")
-    p.circle(5, 342.5, 4.4)
-    p.extrude(a, b, "Strap_detent", cut=True)
-    p.finish(f"marengo_torso_cradle_side_{label}", f"Pack cradle side, {label}, rev A")
+    strap_slot(p, s)
+    p.finish(f"marengo_torso_cradle_side_{label}", f"Pack cradle side, {label}, rev B fit-check")
 
 
 def build_strap(sw):
@@ -180,24 +214,19 @@ def build_strap(sw):
     for s, n in ((-1, "R"), (1, "L")):
         a, b = bx(s, 51.7, 54.2)
         p.box((a, 340.5, -15), (b, 348.5, 5), f"Lip_{n}")
-        # Detent pin, 30 deg lead-in from dia 4 at the lip to the tip at |X| 50.9. The pocket floor is at 50.7
-        a, b = bx(s, 50.9, 51.7)
-        p.sketch("right")
-        p.circle(5, 342.5, 4 if s < 0 else 3.05)  # the extrude starts at -X, so the left pin grows from its tip
-        p.extrude(a, b, f"Detent_{n}", draft=(30, s > 0))
     p.box(*LEAD_GAP, "Lead_gap", cut=True)  # 30 mm over the pack lead path, leaves two separate hooks
     for s, n in ((-1, "R"), (1, "L")):
-        # Snap tongue, rear 7.2 mm of the bar, rooted at |X| 30, 1.6 thick, free end at the web inner face
+        # Snap tongue, rear 6 mm of the bar, rooted at |X| 30, 1.6 thick, free end at the web inner face
         def cut(x0, x1, y0, y1, z0, z1, name):
             a, b = bx(s, x0, x1)
             p.box((a, y0, z0), (b, y1, z1), name, cut=True)
 
-        cut(30, 47.8, 345, 346.9, -16, -7.8, f"Tongue_relief_{n}")
-        cut(30, 47.8, 345, 349, -7.8, -7, f"Tongue_slit_{n}")
-        cut(47.8, 51.7, 345, 349, -16, -7, f"Tongue_end_{n}")
+        cut(30, 47.8, 345, 346.9, -16, SLIT, f"Tongue_relief_{n}")
+        cut(30, 47.8, 345, 349, SLIT, -7, f"Tongue_slit_{n}")
+        cut(47.8, STOP, 345, 349, -16, -7, f"Tongue_end_{n}")  # leaves the bar full width in the web, so both slot ends stop it in Z
         p.sketch("front")
         p.triangle([(s * 47.8, 348.5), (s * 47.8, 350), (s * 46.8, 350), (s * 42.8, 348.5)])  # catch face on the web side
-        p.extrude(-15, -7.8, f"Barb_{n}")
+        p.extrude(-15, SLIT, f"Barb_{n}")
     p.finish("marengo_torso_cradle_top_strap", STRAP_NOTE)
 
 

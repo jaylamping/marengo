@@ -21,3 +21,17 @@ Each plate 58 × 140 × 6 mm, about 38 g at 100 %.
 
 **Screws change with the thicker plate:** the 7 T-nut screws per plate are **M5 × 12** (not × 10); the 2 end-tap screws stay
 **M5 × 35** (9 mm of thread in the tapped rail end) or M5 × 40 if you have them. Orientation: all four plates are really the same part (a mirrored plate is just the other one flipped over), so any plate fits any corner. On the frame, the narrow arm runs UP the upper post (X ±93 to 113), the wide bottom sits on the lower post (X ±55 to 75), and the R15 rounded corner is at the outside of the step.
+
+## Cradle and board carrier, fit-check set
+
+**Fit-check only, not crash-rated.** Light settings for everything (Joey 2026-11-07), since nothing in this set depends on print strength yet. Made by `build_prints.py` with the Bambu Studio CLI: P2S 0.4 mm nozzle, Joe PETG HF, Cool Plate SuperTack, 0.28 mm layers, 3 walls, 15 % gyroid.
+
+| File | What | Orientation | Supports | Time | Filament |
+| --- | --- | --- | --- | --- | --- |
+| `marengo_torso_cradle_sides_x2.3mf` | Both cradle sides on one plate | Front edge down (Z 37.5 on the bed) | Tree, 3 g, three places | 3 h 3 min | 104 g |
+| `marengo_torso_cradle_hooks.3mf` | Both snap hooks | Rear face down (Z −15 on the bed) | None | 22 min | 5 g |
+| `marengo_torso_board_carrier.3mf` | Power board carrier | Rear face down (Z 37.5 on the bed) | None | 1 h 1 min | 34 g |
+
+Print the hooks first. They take about 20 minutes and show whether the 2 mm slit stayed open, the 19 mm bridge held and the tongue flexes. The click itself needs a side's web slot, so check that once a side is printed.
+
+The sides use tree supports in three places only (bottom foot tongue, thumbscrew boss, ledge tip), see `../cradle/README.md`. The plate has a 5 mm brim. Pull the supports off the boss and tongue, and check the M3 pilots and M5 slots are clear.

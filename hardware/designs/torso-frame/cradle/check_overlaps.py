@@ -12,7 +12,8 @@ RIGHT = {
     "bottom_foot_strip": ((-55, 175, -44), (-51.5, 179, 37.5)),
     "bottom_foot_tongue": ((-75, 175, -21.5), (-55, 179, 21.5)),
     "bottom_root": ((-55, 179, -44), (-51.5, 182.5, 37.5)),
-    "top_root": ((-55, 346.12, 5.2), (-51.5, 349.62, 37.5)),
+    "top_root": ((-55, 346.12, 5.5), (-51.5, 349.62, 37.5)),
+    "top_root_rear": ((-55, 346.12, -44), (-51.5, 349.62, -15.5)),
     "top_foot": ((-75, 349.62, -44), (-51.5, 353.62, 37.5)),
     "ledge": ((-48, 179, -45), (-40, 183, 34)),
     "front_lip": ((-48, 179, 34), (-42, 345, 37.5)),
@@ -30,9 +31,10 @@ for s, n, inner in ((-1, "r", 5), (1, "l", 25)):
 
     ALL[f"strap_rail_{n}"] = side(inner, 51.7, 345.5, 348.5, -7, 5)
     ALL[f"strap_root_{n}"] = side(inner, 30, 345.5, 348.5, -15, -7)
-    ALL[f"strap_tongue_{n}"] = side(30, 47.8, 346.9, 348.5, -15, -7.8)
-    ALL[f"strap_barb_{n}"] = side(42.8, 47.8, 348.5, 350, -15, -7.8)
+    ALL[f"strap_tongue_{n}"] = side(30, 47.8, 346.9, 348.5, -15, -9)
+    ALL[f"strap_barb_{n}"] = side(42.8, 47.8, 348.5, 350, -15, -9)
     ALL[f"strap_lip_{n}"] = side(51.7, 54.2, 340.5, 348.5, -15, 5)
+    ALL[f"strap_stop_{n}"] = side(49, 51.7, 345.5, 348.5, -15, -7)
 
 
 def boxes_of(p):
@@ -82,7 +84,7 @@ import trimesh  # noqa: E402
 
 from mass_estimate import PITCH, fill  # noqa: E402
 
-for path in sorted(HERE.glob("*.stl")):
+for path in sorted(HERE.glob("*side*.stl")) + sorted(HERE.glob("*strap*.stl")):
     mesh = trimesh.load(path)
     grid = fill(mesh)
     lo = mesh.bounds[0]
