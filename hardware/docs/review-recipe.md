@@ -6,7 +6,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 | --- | --- | --- | --- | --- |
 | Sol | Codex CLI | `-m gpt-6.1-sol` | `-s read-only` | 8.5 min |
 | Astra | Codex CLI | `-m gpt-6-astra` | `-s read-only` | 9 min |
-| Fable high (replaces Grok from 2026-11-06, Joey; **from 2026-11-07: power-board final layout sign-off only**) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort high` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | 25 min on the subscription, rev C |
+| Fable high (replaces Grok from 2026-11-06, Joey; **from 2026-11-07: big reviews only, never routine fix-check rounds**) | Claude Code CLI, fresh session, **API credits** | `--model claude-fable-5-1 --effort high` | `-p` print mode, `--allowedTools Read,Glob,Grep,Bash(sha256sum*)` | 25 min on the subscription, rev C |
 | Opus high (added 2026-11-06, Joey) | Claude Code CLI, fresh session, **API credits** | `--model claude-opus-5-5 --effort high` | same as Fable | not yet timed |
 | Composer 2.5 Fast (trial, added 2026-11-07, Joey; Cursor sub) | cursor-agent, from PowerShell | `--model composer-2.5-fast` (no effort setting; the bracket form is rejected) | `-p --mode ask --trust --workspace . --output-format json`. Review text is in `result` | 2.6 min |
 | ~~Grok~~ (dropped 2026-11-06) | cursor-agent | `--model grok-4.7-high-fast` | `--mode ask` | 12.5 min |
@@ -16,7 +16,7 @@ How the gate 2 round on the left upper arm ran on Joey-PC, Windows, from Git Bas
 
 Run times are from one run. Allow 20 minutes.
 
-**Fable is out of routine rounds (Joey, 2026-11-07 14:51Z).** It runs exactly one more pass: the power board's final layout sign-off (gate 3, before the board is powered and carries load). Opus covers Fable's role in every other round, because it matched or beat Fable on real and unique findings at about a third of the cost (reviewer-scorecard.md, standing note). The worst-case line in every prompt covers the two blind spots Fable's unique catches exposed.
+**Fable is out of routine rounds (Joey, 2026-11-07 14:51Z, clarified 14:52Z).** The owning thread may add it to any big review: high-stakes gates, and power- or physics-heavy sign-offs such as the power board's final layout sign-off. It never runs in routine fix-and-recheck rounds. Opus covers Fable's role there, because it matched or beat Fable on real and unique findings at about a third of the cost (reviewer-scorecard.md, standing note). The worst-case line in every prompt covers the two blind spots Fable's unique catches exposed.
 
 Every reviewer prompt includes: "Check worst-case corners, not nominal: tolerances, pulse/AC impedance as well as DC, interrupt current at the real trip time, and the energy and pulse ratings behind any claimed protection."
 

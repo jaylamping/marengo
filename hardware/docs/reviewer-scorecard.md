@@ -93,7 +93,7 @@ Not scored: `torso-frame/review/packet3` has reviews but no summary in the same 
 
 ## Standing note: Fable phased out (Joey, 2026-11-07)
 
-Fable 5.1 has left routine review rounds. It runs one pass only, at the power board's final layout sign-off (gate 3, before powered and load-bearing use). Opus 5.5 covers its role elsewhere. The evidence:
+Fable 5.1 has left routine review rounds. The owning thread may assign it to any big review: high-stakes gates, and power- or physics-heavy sign-offs such as the power board's final layout sign-off. It never runs in routine fix-and-recheck rounds, where Opus 5.5 covers its role. The evidence:
 
 | Round | Model | Real | Unique | Cost | Minutes |
 | --- | --- | --- | --- | --- | --- |
@@ -102,7 +102,7 @@ Fable 5.1 has left routine review rounds. It runs one pass only, at the power bo
 | PDB rev B4 | Fable | 12 | 2 | $14.47 | 32.7 |
 | PDB rev B4 | Opus (API) | 16 | 3 | $4.80 | 24.8 |
 
-Across all runs, Opus has 97 real / 6 false / 22 unique in 9 runs, against Fable's 99 / 12 / 12 in 11. Opus costs about a third as much per run. Fable keeps the final power gate because of two unique catches that each changed the design:
+Across all runs, Opus has 97 real / 6 false / 22 unique in 9 runs, against Fable's 99 / 12 / 12 in 11. Opus costs about a third as much per run. Fable stays available for big reviews because of two unique catches that each changed the design:
 - **R3:** the board's own trips cut 500–800 A, not 200 A.
 - **R4:** cell AC resistance puts the pulse loop at about 0.05 Ω, which forced three absorber cans.
 
