@@ -3,6 +3,18 @@
 Bambu Lab P2S, Bambu Studio. Start from the system profiles named here and change only the lines listed. The 3MF project files
 come with the print release after gate 2; this checklist is what they will contain.
 
+## Material per part (Joey 2026-11-07: regular PLA for internal non-structural parts, PETG only where needed)
+
+| Part | Material | Why |
+| --- | --- | --- |
+| Panels, doors, D3 hatches, collars | PETG HF | outer crash covers next to warm RS03s; PLA is brittle in a fall and softens ~60 °C |
+| Hardpoint brackets (16) | PETG HF | they carry the panels and the fall load; the panel boss must break first |
+| Screw caps (23) | **PLA** | cosmetic plugs, no load |
+| Front intake grilles (2) | **PLA** | non-structural, in the cool intake air |
+| Fit-kit pilot patch | PETG HF | it tests the real PETG panel skin |
+
+The fit kit stays all PETG (its caps are 0.7 g; a mixed plate is not worth it).
+
 ## Every shell part (panels, doors, grilles, caps, brackets)
 
 | Setting | Value | Why |
