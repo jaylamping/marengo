@@ -102,7 +102,30 @@ async function plates() {
   }
   window.__plates = list.map(r => r.name);
 }
+function label(text, pos, col) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 160; const x = c.getContext('2d');
+  x.fillStyle = 'rgba(255,255,255,0.92)'; x.fillRect(0, 0, 1024, 160); x.fillStyle = col; x.fillRect(0, 0, 16, 160);
+  x.font = 'bold 54px sans-serif'; x.fillStyle = '#111'; const [a, b] = text.split('|'); x.fillText(a, 34, 66); x.font = '40px sans-serif'; x.fillText(b ?? '', 34, 128);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false })); sp.scale.set(230, 36, 1); sp.position.copy(pos); sp.renderOrder = 9; root.add(sp);
+}
+function fitkit() {
+  // fit-kit check (2026-11-07): where the H1 and H3 front LEFT brackets go on the real frame. Robot left = +Y.
+  frame();
+  const ghost = new THREE.MeshStandardMaterial({ color: 0xff8a1f, roughness: 0.6, transparent: true, opacity: 0.25 });
+  const hot = new THREE.MeshStandardMaterial({ color: 0x18c23a, roughness: 0.4, emissive: 0x0a5a18 });
+  for (const h of mounts.hardpoints) for (const p of h.pts) {
+    if (h.id === 'C') continue;
+    const pick = (h.id === 'H1' && p[1] > 0) || (h.id === 'H3' && p[0] > 0 && p[1] > 0);
+    const f = h.face; const g = f.includes('X') ? new THREE.BoxGeometry(pick ? 30 : 20, pick ? 30 : 20, pick ? 22 : 10) : new THREE.BoxGeometry(10, 20, 20);
+    const o = f.includes('X') ? [Math.sign(p[0]) * (pick ? 11 : 5), 0, 0] : [0, Math.sign(p[1]) * 5, 0];
+    add(new THREE.Mesh(g, pick ? hot : ghost)).position.copy(P(p[0] + o[0], p[1] + o[1], p[2] + o[2]));
+    if (pick && h.id === 'H1') label('H1 hook post|top front rail, 60 mm to the robot\'s left', P(p[0] + 30, p[1] + 190, p[2] + 15), '#18c23a');
+    if (pick && h.id === 'H3') label('H3 pin bracket|step rail, 35 mm to the robot\'s left', P(p[0] + 30, p[1] + 170, p[2] - 80), '#18c23a');
+  }
+  label('FRONT VIEW|robot\'s left = your right', P(150, -150, F0 + 20), '#888');
+}
 if (MODE === 'plates') await plates();
+else if (MODE === 'fitkit') fitkit();
 else {
   if (XR) { frame(); hardpoints(); }
   await pieces(XR ? 0.22 : 1, MODE === 'explode');
