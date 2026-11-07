@@ -18,7 +18,7 @@ From the left-arm layout, forearm draft, and the RS00 manual (`hardware/docs/rob
 |---|---|---|
 | Last actuator | RobStride RS00, lower-arm yaw (pronation/supination). No wrist pitch or deviation. | layout/README.md |
 | RS00 torque | 5 N·m rated at 100 rpm, 14 N·m peak, 315 rpm no load, 48 V nominal, 24 to 60 V | RS00 manual §1.2, 1.3 |
-| RS00 output interface | 6 × M3 on a 50 mm circle, reached through a Ø40 ring in the forearm tube | forearm/README.md |
+| RS00 output interface | 6 × M3 on a 27 mm circle, Ø34.6 output face (vendor STEP). The 6 × M3 on Ø50 is the RS00 housing, not the output. The hand bolts to the forearm's wrist flange: 6 × M3 heat-set inserts on Ø50 with a Ø35 pilot, on the turning tube that rides the RS00 output | `../actuator-test-stand/README.md`, forearm B |
 | Forearm | Ø64 round tube, 3 mm wall, 195 mm elbow to wrist; 51.4 mm from RS00 output to forearm end | layout, forearm README |
 | Hand placeholder | 90 mm stub, Ø60 proxy; "hand" excluded from every torque figure so far | layout, envelope README |
 | Elbow actuator | RS02: 6 N·m rated, 17 N·m peak | RS02 manual |
@@ -29,7 +29,7 @@ From the left-arm layout, forearm draft, and the RS00 manual (`hardware/docs/rob
 
 Consequences:
 
-- **The hand is a bolt-on module on a Ø50 six-hole flange.** Anything we build or buy needs an adapter plate to that pattern. Nothing can route through the RS00 (it is not hollow for our purposes), so forearm-mounted tendon motors in the Optimus sense are out. "Forearm" motors for us means a motor block between the RS00 output and the palm, which is exactly how ORCA, RUKA and LEAP package theirs.
+- **The hand is a bolt-on module on the Ø50 six-hole wrist flange** (on the turning tube; the tube bolts to the RS00 output, 6 × M3 on Ø27). Anything we build or buy needs an adapter plate to that pattern. Nothing can route through the RS00 (it is not hollow for our purposes), so forearm-mounted tendon motors in the Optimus sense are out. "Forearm" motors for us means a motor block between the RS00 output and the palm, which is exactly how ORCA, RUKA and LEAP package theirs.
 - **The hand needs its own low-voltage rail.** Every commercial hand runs at 12 or 24 V (Inspire 12 to 48 V, LinkerBot 24 V, O6 12 V, Dex3 12 to 58 V). Hobby bus servos run at 5 to 12 V. The arm trunk is 48 V, so the hand module or the forearm needs a small DC-DC (for example 48 V to 12 V, 60 W class) with its own fuse. This is a power-board-thread item.
 - **The hand needs its own control link.** Commercial hands speak RS-485, USB, Ethernet, or CAN. Hobby servo hands speak half-duplex TTL serial. The cleanest plan is a small MCU in the hand module that talks to the finger servos and presents one CAN node on the arm bus, so the hand looks like a sixth RobStride to the controller. That is a code-project item but it changes the harness (one extra CAN drop, one extra power drop).
 - **Mass at the wrist is the biggest number nobody has budgeted.** See 5.2.
@@ -171,7 +171,7 @@ The arm has pronation/supination (RS00) but no wrist flexion or deviation. Human
 2. **Hand module carries a 2-DOF parallel wrist** (RUKA v2 style). Better, heavier, more tendons through the wrist centre.
 3. **Add a real wrist actuator to the arm.** Out of scope: no spare RobStrides, and the forearm is frozen around the RS00.
 
-Option 1 also gives the hand a natural place to put the servo pack: a printed "wrist block" bolted to the Ø50 flange, housing 17 servos in two rows, the DC-DC, and the MCU, with the flexion joint at its distal end and the palm beyond. That block is also where the tendons get re-tensioned and where a service door goes.
+Option 1 also gives the hand a natural place to put the servo pack: a printed "wrist block" bolted to the Ø50 wrist flange, housing 17 servos in two rows, the DC-DC, and the MCU, with the flexion joint at its distal end and the palm beyond. That block is also where the tendons get re-tensioned and where a service door goes.
 
 ### 5.4 Electrical integration (hand-off to the power-board and trunk threads)
 
@@ -195,7 +195,7 @@ Print ORCA's palm, one full finger and the thumb from the MIT repo on the P2S, d
 ### 6.2 Phase 1: Marengo hand v1 (the build)
 
 - 16 finger DOF (4 thumb, 3 × 4 fingers: MCP flex, MCP abduct, PIP flex with DIP coupled) + 1 wrist flexion = 17 servos, ORCA layout, our own palm and phalanx geometry at male proportions and a shell-matching outer skin.
-- Wrist block on the Ø50 six-hole RS00 flange, servos in two rows, DC-DC and CAN MCU inside, service door, spring tensioners.
+- Wrist block on the Ø50 six-hole wrist flange (turning tube on the RS00 output), servos in two rows, DC-DC and CAN MCU inside, service door, spring tensioners.
 - Mass target 800 g at the flange. Parts ~$1.5k to $2.5k per hand (17 × XC330 is the bulk).
 - Gate 1 (layout freeze): finger geometry, tendon routing diagram, mass estimate, wrist-block envelope against the forearm fold. Gate 2 before first prints. Gate 3 before it goes on the arm.
 - Same adversarial reviewer set as the arm.

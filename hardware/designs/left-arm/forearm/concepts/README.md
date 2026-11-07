@@ -54,7 +54,7 @@ This only changes the distal tube length. All three shapes work with any of thes
 
 ## Test weights (shown on every render)
 
-The renders show a wrist adapter on the RS00 output pattern (6 × M3 on Ø50) with a captured M8 stud along the forearm axis. On the stud are two 250 g pucks (Ø60 × 30, PLA, filled and weighed) and an M8 nut. The stack CoM is about 40 mm past the wrist face, 235 mm from the elbow axis.
+The renders show a wrist adapter on the wrist flange (6 × M3 on Ø50; the RS00 output itself is 6 × M3 on Ø27, and Ø50 is its housing) with a captured M8 stud along the forearm axis. On the stud are two 250 g pucks (Ø60 × 30, PLA, filled and weighed) and an M8 nut. The stack CoM is about 40 mm past the wrist face, 235 mm from the elbow axis.
 
 **First-pass torque estimate**, arm straight out horizontal. These use the URDF masses of the current forearm and hand links and vendor rated torques (RS02 6 / 17 N·m, RS03 20 / 60 N·m, RS00 5 / 14 N·m, see `../../../hand/RESEARCH.md`):
 
@@ -62,7 +62,7 @@ The renders show a wrist adapter on the RS00 output pattern (6 × M3 on Ø50) wi
 | --- | --- | --- | --- | --- |
 | Elbow RS02 | 2.7 N·m | 4.0 N·m | 6 N·m | about 1.08 kg |
 | Shoulder pitch RS03, full reach | 7.5 N·m | 11.3 N·m | 20 N·m | about 1.8 kg |
-| RS00 yaw | about 0, stack on the axis | | 5 N·m | Output bearing moment about 1.0 N·m; bearing rating not published |
+| RS00 yaw | about 0, stack on the axis | | 5 N·m | Output bearing moment about 1.0 N·m; the RS00 manual publishes no bearing rating |
 
 The RS02 and RS03 margins still hold at full horizontal reach with 500 g. The number printed on the adapter will be the lower of the torque limit and the forearm FEA limit. **The current fork fails FEA already** (fore-aft SF 1.27, twist layer 0.9; see `../../ELBOW_COMPACTION.md`), so no stack goes on the arm until the new forearm passes.
 
