@@ -57,6 +57,13 @@ Hashes matched before the round and after each run. All pass ERC and check.py. E
 | Positive-opening and minimum load for the HB2-BS545 are assumed. Joey's acceptance rests on the first, so get the contact block's data. | Sol, Fable, Wonder |
 | Bus caps' land is 14.3 mm for a 16.5 mm can. | All four |
 
+## Joey's decisions, 2026-11-07 10:58Z
+
+- **M3 accepted.** U9 stays the only break for the neck and jaw servos. Joey: "the neck shouldn't ever be moving too fast so i think the risks are acceptable at this time."
+- **Fit:** merge the six limb "−" terminals into two shared GND studs, Fable's idea. It needs a current check on the studs.
+- **Open:** the brick on a frame plate (B2), and a bigger braking resistor (M2). Those areas stay parametric until he answers.
+- GLM 5.3 and Kimi K3.1 Pro are out of the reviewer group for now. DeepSeek V4.1 Flash stays as a trial on CheaperInference.
+
 ## The fit decision
 
 None of the four reviewers chose moving parts to the back face, which is the plan Joey approved. Fable argues against it: 6 mm standoffs, the pack behind, no airflow. Sol and Wonder prefer smaller RS9 and RS10 shunts; Astra and Fable prefer dropping U10 and RS10. Fable's other idea is the best one I've seen: the limb "−" terminals are all GND, so merging six into two shared studs frees about 690 mm², enough to cover B1's absorber too. B1 adds 150 to 300 mm² at the battery entry, so this needs deciding again. It needs a current check on the shared studs.

@@ -60,7 +60,7 @@ On Joey-PC, `agy` 1.5.2 is at `C:/Users/joeyl/AppData/Local/agy/bin/agy.exe`, an
 
 ## Trial reviewers
 
-Open models run through OpenCode with Joey's CheaperInference account as the main route, and the Go plan as the fallback. They're scored on the scorecard and don't gate until they've passed the seeded test packet. Joey's main pick is DeepSeek V4.1 Flash, with GLM 5.3 and Kimi K3.1 Pro.
+Open models run through OpenCode with Joey's CheaperInference account as the main route, and the Go plan as the fallback. They're scored on the scorecard and don't gate until they've passed the seeded test packet. DeepSeek V4.1 Flash is the only one in use. GLM 5.3 and Kimi K3.1 Pro were removed by Joey on 2026-11-07, for now; their rows below stay for reference.
 
 | Model | OpenCode id | $/M input, cache read, output (2026-11-07) |
 | --- | --- | --- |
@@ -115,7 +115,7 @@ Joey's rules, 2026-11-07. Results go in [reviewer-scorecard.md](reviewer-scoreca
 - **Removal.** Two off-target or made-up reviews in five rounds, or more false than real findings over the last 3 rounds with no unique catches.
 - **On notice.** Three time-limit misses in five rounds, or three rounds with no unique find.
 - **No removal on one effort level.** First give it one trial at another level on the seeded test packet (rev B's close-order bug). Effort trials only ever run on that packet, never on real rounds.
-- **Current standing.** Argon removed 2026-11-07 by Joey after two off-target reviews, waiving the effort trial. Everyone else is clear.
+- **Current standing.** Argon removed 2026-11-07 by Joey after two off-target reviews, waiving the effort trial. GLM 5.3 and Kimi K3.1 Pro removed 2026-11-07 by Joey, for now: no review in two rounds. Everyone else is clear.
 
 ## Usage per reviewer
 

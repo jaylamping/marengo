@@ -2,7 +2,7 @@
 
 One row per run, keyed on model and effort. Rules are in [review-recipe.md](review-recipe.md), "Reviewer audit". Add rows when a round's summary is written.
 
-**Standing:** Argon has one strike (rev B, off target). Trial reviewers don't gate until they pass the seeded test packet.
+**Standing:** Argon REMOVED 2026-11-07 by Joey, after two off-target reviews. GLM 5.3 and Kimi K3.1 Pro REMOVED 2026-11-07 by Joey, for now, after delivering no review in two rounds. DeepSeek V4.1 Flash stays as a trial reviewer on CheaperInference. Trial reviewers don't gate until they pass the seeded test packet.
 
 How to read the columns:
 
