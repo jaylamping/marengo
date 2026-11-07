@@ -27,7 +27,8 @@ For one arm. Buy about 20 percent over on screws and washers. No listing has bee
 | Hub sleeve | 6 | Ø6 OD, 4.3 ID, 21.86 long, steel, square ends | In the top hub, 0.06 proud of its 21.80 thickness |
 | Bearing | 1 | 6808-2RS | Carrier seat |
 | Hoop screw | 6 | Button head, class 8.8 or better, M3 × 25 **cut to 24.0** | Carrier into the elbow RS02, 7.0 mm of thread against the 8 mm in the RS02 drawing |
-| Carrier spacer washer | 18 | DIN 433 M3, Ø6 × 0.5, steel | **Three per screw** in the Ø6.05 carrier hole, in place of the hoop washer |
+| Carrier spacer washer | 12 | DIN 433 M3, Ø6 × 0.5, steel | **Two per screw** in the Ø6.05 carrier hole. For the next carrier revision |
+| Carrier capture washer | 6 | DIN 125 M3, Ø7 × 0.5, steel | **One per screw**, on top of the two spacers, under the head. It overlaps the PETG floor and holds the carrier axially |
 | Retainer screw | 3 | Button head, M3 × 6, thread-forming | Holds the 6808 outer race |
 | Retainer washer | 3 | DIN 9021 M3 | Under the retainer heads |
 | Top hub screw | 6 | DIN 912, M4 × 30, class 12.9 | Top hub into the yaw RS02 output, 6.14 mm of thread against 7 mm minimum in the RS02 drawing |

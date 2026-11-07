@@ -40,7 +40,8 @@ Search terms: "unthreaded spacer 5 mm OD M3", "unthreaded spacer 6 mm OD M4" at 
 | --- | --- | --- | --- |
 | Bearing | 1 | 6808-2RS, 40 × 52 × 7 mm | Carrier seat on the fork stub |
 | Hoop screw | 6 | Button head, class 8.8 or better, M3 × 25 cut to 24.0. Gives 7.0 mm against the 8 mm depth in the RS02 drawing | Carrier into the RS02 elbow housing |
-| Carrier spacer washer | 18 | DIN 433 M3, Ø6 × 0.5, steel | Three per screw in the Ø6.05 carrier hole |
+| Carrier spacer washer | 12 | DIN 433 M3, Ø6 × 0.5, steel | Two per screw in the Ø6.05 carrier hole |
+| Carrier capture washer | 6 | DIN 125 M3, Ø7 × 0.5, steel | One per screw under the head, holds the carrier axially |
 | Retainer screw | 3 | Button head, M3 × 6, thread-forming for plastic | Holds the 6808 outer race, Ø2.7 pilot |
 | Retainer washer | 3 | DIN 9021 M3, Ø9 × 0.8, steel | Under the retainer heads, clamps the race |
 | Top hub screw | 6 | DIN 912 socket cap, M4 × 30, steel | Top hub into the RS02 yaw output |

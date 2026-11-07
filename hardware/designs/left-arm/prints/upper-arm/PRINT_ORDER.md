@@ -25,10 +25,10 @@ Use the real parts, and write down what you get.
 | Hoop ring | RS02 slides into the bore and sits on the seat | By hand, no force. RS02 body is Ø65, bore Ø66 with Ø65.6 pads at the holes | Scrape the pads |
 | Hoop ring | Ø5 sleeve in each Ø5.2 hole | Slides in by hand | Open by hand with a Ø5.2 drill held in fingers or a pin vise. **Never ream it hard: the wall to the bore is 1.1 mm** |
 | Hub core | Ø6 sleeve in each Ø6.2 hole | Slides in by hand | Clear support with a Ø6.2 drill by hand |
-| Seat ring | 6808 into the Ø52.2 seat | Firm hand press, no rock | Too tight: change the CAD offset before printing the carrier. Too loose: use retaining compound |
+| Seat ring | 6808 into the Ø52.2 seat. The coupon wall is thinner than the carrier's, so it reads slightly looser | Firm hand press, no rock | Too tight: change the CAD offset before printing the carrier. Too loose: use retaining compound |
 | Carrier sector | Ø6 washers in the Ø6.05 holes | Two DIN 433 drop in by hand | Open with a Ø6 drill by hand |
 | Carrier sector | Ø7 washer in the Ø7.05 land above them | One DIN 125 drops in by hand | Open with a Ø7 drill by hand |
-| Carrier sector | Sector flat on a plate, two DIN 433 in a hole, straight edge across them | Steel stands 0 to 0.15 proud of the printed floor, target 0.05. **PETG proud of the steel is a fail**, because preload would go through the plastic | Scrape the floor with a Ø7 countersink turned by hand |
+| Carrier sector | Sector flat on a plate, two DIN 433 in a hole, straight edge across them | Steel stands 0.10 to 0.25 proud of the printed floor. **PETG proud of the steel is a fail**, because preload would go through the plastic | Under 0.10: scrape the floor with a Ø7 countersink turned by hand. Over 0.25: don't scrape, measure the two washers and tell me, because the carrier would float too far |
 | Carrier sector | Ø65.8 pilot into the steel Ø66 ring | Slides in, small shake | Sand the pilot |
 
 If a coupon misses by more than a scrape, tell me the numbers and I'll change the CAD before the long print.
@@ -36,6 +36,8 @@ If a coupon misses by more than a scrape, tell me the numbers and I'll change th
 The seat ring has the same support blocker as the carrier, so its bore prints as the carrier's does. A few low stubs of support stay near the bed in both: pull them out before pressing the bearing.
 
 **The hoop coupon prints on its cut face.** It checks the bore, seat and hole fits. It doesn't check the 13.40 thickness or the sanding of the inboard face, because the real hoop face prints on support. Those checks happen on the real arm, in `ASSEMBLY_ORDER.md`.
+
+The floor in the Ø6.05 hole can only land on a 0.2 mm layer. The hole is 0.85 tall in CAD and prints 0.8, so two 0.5 washers stand 0.2 proud before the floor droops. A 1.0 tall hole would start at zero and droop proud of the steel, so 0.8 is the safe choice and the band above suits it.
 
 The carrier sector is cut from the next carrier revision, with the Ø7 washer seat. The `carrier.3mf` in this commit is the previous one and doesn't have that seat.
 
