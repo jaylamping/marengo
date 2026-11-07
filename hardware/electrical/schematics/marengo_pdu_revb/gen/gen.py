@@ -49,14 +49,14 @@ g=Grid(s,335.28,38.1,20.32,30.48,420)
 g.R('10R','GATE','G1'); g.R('10R','GATE','G2')
 nic(s,'Power_Management:LM5069MM-1','U1','LM5069MMX-1',(63.5,114.3),'Package_SO:MSOP-10_3x3mm_P0.5mm',{'1':'SH_N','2':'SH_P','3':'UVLO','4':'GND','5':'GND','6':'TIMER','7':'PWR','8':None,'9':'VBUS','10':'GATE'},ds='https://www.ti.com/lit/ds/symlink/lm5069.pdf')
 g=Grid(s,114.3,96.52,20.32,30.48,420)
-g.R('34k 1%','PWR','GND'); g.C('22nF C0G','TIMER','GND',C603); g.D('BAV19W','CDV','GATE'); g.C('100nF 100V C0G','CDV','GND',C1210); g.R('1k','GATE','CDV_B')
+g.R('34k 1%','PWR','GND'); g.C('10nF C0G','TIMER','GND',C603); g.D('BAV19W','CDV','GATE'); g.C('100nF 100V C0G','CDV','GND',C1210); g.R('1k','GATE','CDV_B')
 g.R('33k','RUN','UVLO'); g.R('33k','UVLO','GND')
 Q(PNP,'MMBTA92',(275,111.76),'CDV_B','CDV','GND')
 note('''The bank is the soft start for all the motor capacitance: BMS sees no inrush. Reset closes it, loop open drops it. No software in the path. Compute is not behind it.
 Rs 0.5 mOhm: limit 97-123 A (VCL 48.5-61.5 mV), breaker 160-260 A (VCB 80-130 mV). Above peak draw and JK DOC 80 A. 1.8 W at 60 A.
 Start: Cdv 100 nF, gate 10-22 uA, 100-220 V/s, 0.25-0.55 s to full. Bus ceiling 9.4 mF at 2.06 A hot DC SOA line (112 W, 45 K Tj rise). Drive caps unmeasured.
-Power limit 544 W, RPWR = 125k x Rs x P, 5 mV floor per SNVS452G sec 9.2.1.2.3. Timer 22 nF: 1.0 ms typ, 1.8 ms max.
-Fault check: 675 W (+24 %) is 12.4 A at 54.6 V against about 15 A at 1.8 ms, 70 C, one FET, scaled from the 10 ms curve as sqrt(t). Read the real curve at layout.
+Power limit 652 W at 54.6 V, 480-810 W with tolerance: RPWR = 1.3e5 x Rs x (P - 1.18 mV x VDS / Rs), SNVS452G eq 10, VSNS 6 mV over the 5 mV floor. Timer 10 nF: 0.47 ms typ, 0.31-0.82 ms.
+Fault check: 810 W is 14.8 A at 54.6 V for up to 0.82 ms, against about 22 A at 0.82 ms, 70 C, one FET, scaled from the 10 ms curve as sqrt(t): 1.5 x. Read the real curve at layout.
 FETs: 0.85 mOhm for the pair, 5.2 W hot at 60 A, 1.3 W at 30 A, the same again in bank A. UVLO low sinks the gate at 2 mA: about 170 us off.
 The 2 mA also pulls VBUS down through U1's OUT-GATE zener, against the 54 uA of its internal 1 MOhm SENSE-OUT path, so VBUS reads near 0 V with the banks open.
 Body diodes of both banks pass regen back to the pack with the banks open. OVLO tied low: opening on overvoltage would strand regen on the bus.
@@ -119,7 +119,7 @@ conn(5,'Pi: 3V3, SDA, SCL, GND, E-stop pressed (low)',(490,378),GH(5),['+3V3_PI'
 g=Grid(s,515,367,20.32,30.48,530); g.F('+3V3_PI')
 note('''Ahead of the E-stop: motors off, compute stays up. Soft start in block 5a, BRK_PG on R.C keeps the brick off until its input is up.
 -Vout is tied to GND here: the robot has one ground, P-. RS+ and RS- tied at the pins, Trim open. Input caps at the pins; the EMC filter is left out.
-150 W at 12 V, 89 %: 18 W at full load, about 6 W at 50 W. Natural-air derating starts near 30 C. 12.7 mm tall: keep clear of the fan gap.
+150 W at 12 V, 89 %: 18 W at full load, about 6 W at 50 W. Derating starts near 30 C at 20 LFM: fit a heatsink on the baseplate, in the Z 67 strip, see REV_B_PARTS. 12.7 mm tall: keep clear of the fan gap.
 INA228 addresses: L arm 0x40, R arm 0x41, waist 0x42, aux 0x43, L leg 0x44, R leg 0x45, 12 V 0x46, SPARE_SW 0x47, MID 0x48. Powered by the Pi's 3.3 V; Pi pull-ups on I2C.''',(25.4,404))
 
 
@@ -131,8 +131,9 @@ nic(s,'Power_Management:LM5069MM-2','U7','LM5069MMX-2',(190,470),'Package_SO:MSO
 g=Grid(s,240,452,20.32,30.48,340)
 g.R('10R','BRK_GATE','BRK_G1'); g.R('37.4k 1%','BRK_P','GND'); g.C('47nF C0G','BRK_T','GND',C603); g.C('100nF 100V','SH9_P','GND',C805); g.F('SH9_P'); g.F('BRK_IN'); tp(g,'BRK_IN')
 note('''Same controller as the bank, so one part family. -2 retries on its own: a compute fault does not need a BMS cycle. UVLO on VIN, OVLO low: on whenever the pack is.
-Power-limit start, no dV/dt network: 60 W limit (Rs 5 mOhm, 5 mV floor at 54.6 V), about 1.1 A at full pack. 4.4 uF plus the brick's own input caps (not published) charges in under 1 ms at 20 uF.
-Timer 47 nF: 2.2 ms typ, 1.5-3.8 ms. Limit 9.7-12.3 A clears the worst brick draw, 4.7 A at 36 V. Fault check: 75 W is 1.4 A for up to 3.8 ms, against 12 A at 10 ms on the datasheet SOA. Q7 is the linear FET for that reason.
+Power-limit start, no dV/dt network: 70 W limit (Rs 5 mOhm, same equation as U1), about 1.3 A at full pack. 4.4 uF plus the brick's own input caps (not published) charges in under 1 ms at 20 uF.
+Timer 47 nF: 2.2 ms typ, 1.5-3.8 ms. Limit 9.7-12.3 A clears the worst brick draw, 4.7 A at 36 V. Brick input capacitance is unpublished: about 40 uF is the most the minimum timer covers, so measure one brick.
+Fault check: 87 W is 1.6 A for up to 3.8 ms, against 12 A at 10 ms on the datasheet SOA. Q7 is the linear FET for that reason.
 Compute is on whenever the BMS is on. Loss at 3 A: 0.05 W shunt, 0.03 W FET.''',(240,488))
 
 # ---------- limbs ----------
@@ -154,21 +155,23 @@ s.refc['J']=21
 # ---------- bank A ----------
 head('7. E-stop bank A: second series bank, own driver, ahead of bank B',(560,300))
 T48=custom('TPS48100-Q1','tps48100-q1',fp='marengo_revb:TPS48100_DGX_VSSOP-19',ds='https://www.ti.com/lit/ds/symlink/tps4810-q1.pdf',et={'12':'passive','14':'passive','15':'passive'})
-nic(s,T48,'U8','TPS48100QDGXRQ1',(600,340),'marengo_revb:TPS48100_DGX_VSSOP-19',{'1':'EN_A','2':'GND','3':'EN_A','4':None,'5':None,'6':'GND','7':'GND','8':'GND','9':'GND','10':'GND','11':None,'12':'BST_A','13':'MID','14':'GATE_A','15':'GATE_A','17':'VS_A','18':'VS_A','19':None,'20':'VS_A'},ds='https://www.ti.com/lit/ds/symlink/tps4810-q1.pdf')
+nic(s,T48,'U8','TPS48100QDGXRQ1',(600,340),'marengo_revb:TPS48100_DGX_VSSOP-19',{'1':'EN_A','2':'GND','3':'EN_A','4':None,'5':'UVLO','6':'GND','7':'GND','8':'ISCP_A','9':'TMR_A','10':'GND','11':None,'12':'BST_A','13':'MID','14':'G1PD_A','15':'GATE_A','17':'SH_N','18':'SH_P','19':None,'20':'VS_A'},ds='https://www.ti.com/lit/ds/symlink/tps4810-q1.pdf')
 nic(s,Qb,'Q8','IPB017N10N5LFATMA1',(680,330),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':'GA1','2':'MID','3':'MID','4':'SW_D','5':'MID','6':'MID','7':'MID'})
 nic(s,Qb,'Q9','IPB017N10N5LFATMA1',(745,330),'Package_TO_SOT_SMD:TO-263-7_TabPin4',{'1':'GA2','2':'MID','3':'MID','4':'SW_D','5':'MID','6':'MID','7':'MID'})
 g=Grid(s,650,362,17,30.48,830)
-g.R('10k','RUN','EN_A'); g.R('100k','EN_A','GND'); g.R('100R','SW_D','VS_A'); g.C('100nF 100V','VS_A','GND',C805); g.C('1uF 25V','BST_A','MID',C603); g.R('1M','GATE_A','MID'); g.R('10R','GATE_A','GA1'); g.R('10R','GATE_A','GA2'); g.F('VS_A')
+g.R('10k','RUN','EN_A'); g.R('100k','EN_A','GND'); g.R('100R','SH_P','VS_A'); g.C('100nF 100V','VS_A','GND',C805); g.C('2.2uF 25V','BST_A','MID',C805); g.R('1M','GATE_A','MID'); g.R('10R','GATE_A','GA1'); g.R('10R','GATE_A','GA2'); g.F('VS_A')
 g.nl(392)
-g.R('220k 1%','SW_D','MID',R1206); g.R('220k 1%','MID','GND',R1206); tp(g,'MID')
+g.R('220k 1%','SW_D','MID',R1206); g.R('220k 1%','MID','GND',R1206); tp(g,'MID'); g.R('150R','G1PD_A','GATE_A',R603); g.R('40.2k 1%','ISCP_A','GND'); g.R('100k','TMR_A','GND'); g.C('680pF C0G','TMR_A','GND',C603)
 nic(s,'Sensor_Energy:INA228','U17','INA228AIDGSR',(600,420),'Package_SO:TSSOP-10_3x3mm_P0.5mm',{'1':'I2C_SDA','2':'GND','3':None,'4':'I2C_SDA','5':'I2C_SCL','6':'+3V3_PI','7':'GND','8':'MID','9':'GND','10':'GND'},ds='https://www.ti.com/lit/ds/symlink/ina228.pdf')
-g=Grid(s,740,392,17,30.48,800); g.C('100nF','+3V3_PI','GND')
+g=Grid(s,790,392,17,30.48,830); g.C('100nF','+3V3_PI','GND')
 wnote('''Own driver: a FET usually dies shorted gate to drain, which would pull a shared gate net to the pack and hold the other bank on. RUN is the only shared signal.
-Both banks face the same way, drains toward the pack, so regen stays open. Bank B keeps U1, the shunt and the soft start. A closes first, onto MID only (about 30-50 ms), and sees no soft-start stress.
-Driver wired as rev A U302 (SLVSGC0 Fig 7-11, simple driver, short-circuit comparator off). EN and INP1 together: off in about 1.2 us, so A is the fast edge at E-stop and D1 takes the lead's kick. Check at the bench.
-Driver off holds gate to source with no path to GND, so MID can be biased: 220k + 220k and the 1 MOhm INA228 VBUS input give 0.45 x pack, 0.25 mA.
-Self-test before reset, pack 36-54.6 V: U17 MID 16-25 V and U11 VBUS under 3 V is healthy. MID over 34 V: A shorted. MID under 3 V: B shorted. VBUS high: both shorted, or the bus has not bled down yet.
-U17 uses VBUS only, IN+ and IN- on GND. VBUS alone cannot see one shorted bank, which is why MID is read. Do not press reset on a failed self-test: with B shorted, A closes on the bus with no soft start.''',(650,428),165)
+Both banks face the same way, drains toward the pack, so regen stays open. Bank B keeps U1, the shunt and the soft start.
+Close order: U8 FLT holds U1 UVLO low until BST is up (26 ms typ, up to about 115 ms with 2.2 uF), so A closes first by logic, not by timing. A closes onto MID only. FLT also blocks B if U8 has no charge pump or has tripped.
+Off edge: EN falls first, 4.6 us typ, 6.5 us max, then G1PD pulls 390 nC through 150R: about 10 us, so 6 A/us at 60 A, against a 100 us latch. D1 stays as the backstop. Check at the bench.
+Short-circuit comparator on RS1: 40.2k gives 99 mV, 79-121 mV, 158-242 A, above U1's limit. TMR 100k + 680 pF: about 10 us, latch-off, cleared by an E-stop cycle. It covers reset with B shorted: A opens, and FLT holds B off.
+Driver off holds gate to source with no path to GND, so MID can be biased: 220k + 220k and the 0.8-1.2 MOhm INA228 VBUS input give 0.43-0.47 x pack, 0.25 mA.
+Self-test before reset, pack 36-54.6 V, BMS telemetry for pack voltage: U17 MID 15-26 V and U11 VBUS under 3 V is healthy. MID within 2 V of pack: A shorted. MID under 3 V: B shorted. VBUS high: both shorted, or the bus has not bled down yet, about 11 s on board caps, longer with drives.
+U17 uses VBUS only, IN+ and IN- on GND. VBUS alone cannot see one shorted bank, which is why MID is read.''',(650,428),165)
 
 # ---------- spare 12 V outputs ----------
 head('8. Spare 12 V outputs',(560,472))
@@ -180,9 +183,14 @@ conn(2,'SPARE_SW, off with the motors',(765,500),MF2,['SPARE_SW','GND'])
 conn(2,'SPARE_ON, always on',(810,500),MF2,['SPARE_ON','GND'])
 g=Grid(s,560,535,17,30.48,830)
 g.R('100k','RUN','SP_EN'); g.R('68k','SP_EN','GND'); g.R('487R 1%','SP_ILM','GND'); g.C('3.3nF C0G','SP_DV','GND',C603); g.C('100nF 25V','+12V','GND'); g.C('22uF 25V','SP_SW1','GND',C1210); g.Z('SMAJ15A','SP_SW1','GND','Diode_SMD:D_SMA'); g.C('100nF','+3V3_PI','GND')
-g.two('Device:Fuse','F','1812L200/16DR','+12V','SPARE_ON','Fuse:Fuse_1812_4532Metric')
 wnote('''SPARE_SW: RUN enables it, so it drops with the motor bank. The divider keeps 7.7 V of RUN under the 6 V EN limit. Limit 3.87-4.42 A (487R). dV/dt 3.3 nF: about 12 V/ms. One switch: a shorted U9 stays on. Current and volts at 0x47, 5 mOhm, ADCRANGE 1.
-SPARE_ON: unswitched, polyfuse 2 A hold, 3.5 A trip, 16 V. Both spares sit behind RS8, so the 12 V meter counts them.''',(560,562),150)
+SPARE_ON: block 8a. Both spares sit behind RS8, so the 12 V meter counts them.''',(560,562),150)
+
+head('8a. SPARE_ON eFuse',(440,425))
+nic(s,LIBNAME+':TPS259541DSG','U18','TPS259541DSG',(480,450),'Package_SON:Texas_DSG0008A_WSON-8-1EP_2x2mm_P0.5mm_EP0.9x1.6mm',{'1':'SPON_DV','2':'SPON_EN','3':'+12V','4':'+12V','5':'SPARE_ON','6':None,'7':'SPON_ILM','8':'GND','9':'GND'},ds='https://www.ti.com/lit/ds/symlink/tps2595.pdf')
+g=Grid(s,440,478,17,30.48,555)
+g.R('100k','+12V','SPON_EN'); g.R('68k','SPON_EN','GND'); g.R('1.02k 1%','SPON_ILM','GND'); g.C('3.3nF C0G','SPON_DV','GND',C603); g.C('100nF 25V','+12V','GND')
+note('Unswitched, about 2 A limit. Same part as U9: a short stops in 5 us and leaves compute up.',(440,503))
 
 # ---------- E-stop pressed ----------
 head('9. E-stop pressed: button NO contact to the Pi',(355.6,506))

@@ -1,6 +1,6 @@
 # Power board rev B: schematic review
 
-2026-11-07. Packet built from main at ee4967b2 (54 hashed files), run on Joey-PC. Three reviewers were asked, two gave usable reviews. **Result: not ready for layout.** Two blockers and 11 majors are accepted. Both blockers come from the second bank added in 11e71d78. Nothing has been fixed yet: Joey sees the findings first.
+2026-11-07. Packet built from main at ee4967b2 (54 hashed files), run on Joey-PC. Three reviewers were asked, two gave usable reviews. **Result: not ready for layout.** Two blockers and 11 majors are accepted. Both blockers come from the second bank added in 11e71d78. Status of each is under "Decisions and fixes".
 
 | Reviewer | Tool | Elapsed | Verdict | Note |
 | --- | --- | --- | --- | --- |
@@ -9,6 +9,24 @@
 | Argon high | agy 1.5.2 | 31.4 min on the sixth try | **discarded** | Reviewed a design that doesn't exist, see below |
 
 Hashes matched before the run and after every run. Each finding below was checked against the netlist or datasheets unless the row says otherwise. SMDJ58A, HB2-BS545, HS25, BAT54S and shunt datasheets weren't in the packet.
+
+## Decisions and fixes (2026-11-07)
+
+Joey accepted two risks, and the fixes went into the schematic the same day. The fixed board goes back through review.
+
+| Finding | Outcome |
+| --- | --- |
+| M3 E-stop control path | **Accepted risk.** The HB2-BS545 NC contact is positive-opening. |
+| M6 clamp | **Accepted risk.** Requirement on software: cap braking at about 5 A when the pack is nearly full. |
+| B1 close order | Fixed: U8 FLT holds U1's UVLO low until A can close. |
+| B2 hard turn-off | Fixed: 150 Ω in the G1PD path, about 10 µs edge. Bench measurement still owed. |
+| M1 shorted bank B | Fixed: U8 short-circuit comparator on RS1, 158 to 242 A, latch-off. |
+| M2 12 V derating | Heatsink on the brick, part to pick, needs Z 67. Bench check owed. |
+| M4 power limit | Fixed: notes corrected to 652 W, timer 10 nF. |
+| M5 telemetry | Fixed: isolated adapter in the parts list. |
+| M7 SPARE_ON | Fixed: second TPS259541, polyfuse removed. |
+| M8, M9, M10 | Open: measure drive and brick capacitance, make a thermal model. |
+| M11 floorplan | Bank A now beside bank B. Fill 100.6 %, Z 67 still unapproved. |
 
 ## Blockers (accepted)
 

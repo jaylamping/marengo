@@ -476,3 +476,21 @@ All are value, OTP or note changes. None changes topology.
 **Spares.** TPS259541: 13.7 V clamp, auto-retry. 487R gives 3.87-4.42 A. In limit at low output voltage U9 heats fast, and thermal shutdown auto-retries at 93 ms, so a stalled neck blinks rather than latches. SMAJ15A on its output for inductive kick (OUT must stay above -1.2 V). RS10 reuses the 5 mOhm shunt line.
 
 **Area.** 111 parts and 8116 mm2 before, 145 parts and 9043 mm2 now: 90 % to 100.5 % of the one-sided 60 % budget with legs, 90 % without. Bank A's floorplan spot fits by area but is away from bank B: a 60 A detour to fix at layout.
+
+## Rev B fixes after review, 2026-11-07
+
+Findings in REVB_REVIEW.md.
+
+**Close order (B1).** U8 FLT now holds U1's UVLO low until U8's BST is up. A reviewer proposed an RC delay on UVLO; rejected, because the discharge path needs a transistor or dumps the capacitor into RUN and holds it up for milliseconds. FLT costs no parts, makes the order logic rather than timing, and also blocks bank B if U8 has lost its charge pump or tripped. FLT is 20 V abs max and 52 to 110 Ω; it sinks 0.23 mA from a 3.5 V node. C28 goes to 2.2 µF: FLT now reacts to BST droop, and 1 µF derated could dip through UVLO at turn-on.
+
+**Hard turn-off (B2).** G1PD reaches the gates through 150 Ω, so plateau current is about 28 mA and 282 nC of Qgd takes about 10 µs. 6 A/µs at 60 A, 6 V across 1 µH. A's stop adds under 20 µs to a 100 µs latch. Energy about 16 mJ per stop at 60 A.
+
+**Shorted bank B (M1).** U8's comparator is on RS1 Kelvin. 40.2 kΩ gives 99 mV typ, 79 to 121 mV, 158 to 242 A, interpolated from the 28 kΩ and 140 kΩ table points: above U1's 123 A limit and overlapping its breaker, so normal faults stay with U1. VS moved to SH_P, ahead of the shunt, so VS and CS+ agree. Latch-off with 100 kΩ + 680 pF, as rev A's U301.
+
+**Power limit (M4).** 34 kΩ stays: lower runs into the 5 mV floor at 54.6 V. The limit is 652 W, and the timer drops from 22 to 10 nF to win the margin back. The timer doesn't run in a normal dV/dt start unless the bus reaches about 54 mF.
+
+**SPARE_ON (M7).** Same eFuse as SPARE_SW, 1.02 kΩ. The polyfuse is gone.
+
+**Floorplan (M11).** Bank A moved beside bank B in the top row, and the 12 V block moved below the caps. The 12 V path gets longer: 12 A, not 60 A. Fill is 100.6 % with legs, 90.4 % without.
+
+Not fixed, by design: the minors in REVB_REVIEW.md except FLT, C28 and the self-test window.
