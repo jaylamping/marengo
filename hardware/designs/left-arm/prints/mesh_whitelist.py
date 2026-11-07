@@ -25,7 +25,47 @@ WHITELIST = {
             {'box': ((151.6, 252.3, -7.5), (152.0, 252.7, -1.5)), 'reason': '0.2 mm ROOT_EASE back face inside the port slot, one layer, not a blade'},
         ],
     },
+    'carrier': {
+        'thin': [
+            {'box': ((140.0, 229.9, -10.7), (143.7, 231.4, -9.1)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 182.9, 3.6), (143.7, 184.3, 5.2)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 183.3, 10.3), (143.7, 184.8, 11.7)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 233.3, -4.8), (143.7, 234.9, -3.6)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 223.5, -16.6), (143.7, 225.1, -15.3)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 217.8, -19.7), (143.7, 219.0, -18.1)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 182.7, 3.0), (143.7, 184.4, 5.2)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 217.6, -19.9), (143.7, 219.0, -18.1)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 223.5, -16.7), (143.7, 225.3, -15.4)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 230.3, -10.9), (143.7, 231.5, -9.1)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 183.2, 10.3), (143.7, 184.7, 11.9)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+            {'box': ((140.0, 233.3, -4.8), (143.7, 235.1, -3.6)), 'reason': 'C2_RET retainer pocket circle crossing the 6808 seat bore: a cusp that tapers to zero over about 1 mm, inside the seat, not a free blade'},
+        ],
+    },
+    'p2': {
+        'thin': [
+            {'box': ((-111.5, 17.5, -73.5), (-108.9, 19.0, -55.0)), 'reason': 'keyhole: the circle meets the slot edge at a shallow angle, a vertical cusp tapering to zero inside the keyhole; P2 geometry belongs to the P2 thread'},
+            {'box': ((-92.0, 33.9, -66.5), (-89.9, 35.8, -63.5)), 'reason': 'hole cusp, 1.3 mm2, 2 mm tall, inside the hole; P2 geometry belongs to the P2 thread'},
+            {'box': ((-68.7, 38.6, -66.5), (-67.3, 40.3, -63.5)), 'reason': 'hole cusp, 0.5 mm2, inside the hole; P2 geometry belongs to the P2 thread'},
+        ],
+    },
+    'fork_sector': {
+        'corners': [
+            {'pt': (131.75, 150.0, 4.49), 'reason': 'end of the 0.05 mm step where TRANSITION meets YOKE on the outboard face, below layer height, not a blade (fold check passes)'},
+            {'pt': (131.75, 150.0, -20.01), 'reason': 'other end of the same 0.05 mm step'},
+        ],
+        'thin': [
+            {'box': ((149.6, 145.5, -26.5), (152.0, 147.0, -22.5)), 'reason': 'skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it'},
+            {'box': ((145.9, 149.0, -26.5), (156.5, 150.5, -25.1)), 'reason': 'skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it'},
+            {'box': ((198.0, 149.5, -25.9), (204.9, 150.5, -19.5)), 'reason': 'skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it'},
+            {'box': ((175.8, 149.0, -26.5), (184.4, 150.5, -25.2)), 'reason': 'skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it'},
+            {'box': ((179.5, 145.5, -26.5), (181.7, 147.1, -24.0)), 'reason': 'skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it'},
+            {'box': ((132.1, 149.5, -26.3), (135.5, 150.5, -24.3)), 'reason': 'skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it'},
+            {'box': ((131.2, 149.5, -25.6), (133.5, 150.5, -19.5)), 'reason': 'skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it'},
+            {'box': ((135.5, 149.4, -26.5), (138.9, 150.5, -25.1)), 'reason': 'skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it'},
+        ],
+    },
     'seat_ring_only': {'bodies': 2},
     'layer_coupons': {'bodies': None},
     'dummy_output': {'bodies': 2},
 }
+WHITELIST['elbow_carrier'] = WHITELIST['elbow_carrier_strength'] = WHITELIST['carrier']  # same mesh as the arm carrier

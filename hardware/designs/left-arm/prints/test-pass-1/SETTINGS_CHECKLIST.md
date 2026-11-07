@@ -15,7 +15,7 @@ Each project lists its changes from the Bambu system presets, so Bambu Studio ke
 | Plate | Cool Plate Super Tack, no glue |
 | Layer height | 0.20 mm, first layer 0.20 mm |
 | Walls | 6 |
-| Infill | 100%, except `dummy_housing.3mf` at 40%, pattern shows as Rectilinear in the GUI (`zig-zag` in the file) |
+| Infill | 100%, except `dummy_housing.3mf` at 25%, pattern shows as Rectilinear in the GUI (`zig-zag` in the file) |
 | Top and bottom | 5 top layers, 3 bottom layers |
 | Supports | **Tree (auto), Tree Hybrid style**, 45 degree threshold, not limited to the build plate. Normal supports in PETG can be impossible to remove. The carrier and seat ring keep their support blocker in the bearing seat |
 | Support Z gap | 0.20 mm top and bottom |
@@ -33,3 +33,9 @@ Before each print:
 4. Write down the spool for each print.
 
 No slicer warnings on any file. Times and weights are slicer estimates.
+
+Mesh gate, 2026-11-07:
+
+- Every 3MF here was built through `hardware/tools/mesh_check.py`. The build script stops before writing a 3MF if a part has a stray body, a sliver, a knife edge or a wall under 0.6 mm that isn't on the whitelist (`../mesh_whitelist.py`, with a reason for each entry).
+- The report is committed next to each 3MF as `<part>_meshcheck.txt`, and a six-view picture sheet as `renders/<part>_sheet.png`. Look at the sheet's bed-side views before printing.
+- STLs are exported at 0.01 mm deviation and 5 degrees. A coarse export is what put blades on the first upper arm.

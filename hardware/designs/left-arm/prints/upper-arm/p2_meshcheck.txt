@@ -1,0 +1,11 @@
+mesh check: p2 (source P2_L05.STL, CAD coordinates)
+faces 43862, bounds [[-129.5, -37.5, -73.0], [-9.18, 72.0, 28.96]]
+[PASS] bodies 1 (allowed 1), watertight True
+[PASS] sharp vertices over 150 deg: 0 unlisted, 0 listed design corners
+[PASS] knife edges (fold over 170 deg, edge over 1 mm): 0 unlisted, 0 listed
+[INFO] needle triangles (min angle under 1 deg, edge over 2 mm): 1389, tessellation only unless a check above fails
+[PASS] walls thinner than 0.6 mm over 0.5 mm2: 0 unlisted, 3 listed
+    listed   22.6 mm2, min 0.14 mm, box [-111.0, 18.0, -73.0] to [-109.4, 18.5, -55.5]: keyhole: the circle meets the slot edge at a shallow angle, a vertical cusp tapering to zero inside the keyhole; P2 geometry belongs to the P2 thread
+    listed   1.3 mm2, min 0.21 mm, box [-91.5, 34.4, -66.0] to [-90.4, 35.3, -64.0]: hole cusp, 1.3 mm2, 2 mm tall, inside the hole; P2 geometry belongs to the P2 thread
+    listed   0.5 mm2, min 0.22 mm, box [-68.2, 39.1, -66.0] to [-67.8, 39.8, -64.0]: hole cusp, 0.5 mm2, inside the hole; P2 geometry belongs to the P2 thread
+RESULT: PASS

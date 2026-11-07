@@ -210,3 +210,20 @@ Harmless Muse notes: a malformed `poteto-mode` skill warning, and "Agent delegat
 3. Read all four yourself. Check each finding against the files before accepting it. At gate 2, three were rejected, including one claimed blocker, and one suggested fix was impossible.
 4. Write `reviews/SUMMARY.md`: accepted, with who raised it and how you checked it; rejected, with the reason; superseded; can wait.
 5. Report your own errors plainly. Publish the summary, not the raw reviews. Example: `hardware/designs/left-arm/upper-arm/GATE2_REVIEW.md`.
+
+## Print mesh gate
+
+Added 2026-11-07, after surface slivers on the left upper arm got past two reviews. Every print file goes through these steps before it is called ready:
+
+1. **Export fine.** Use SolidWorks STL Custom quality, 0.01 mm deviation and 5 degree angle (swSTLQuality 78 = 3, swSTLDeviation 2 = 1e-5 m, swSTLAngleTolerance 3 = 0.0873 rad). The coarse default turns a smooth tube into flat facets that cut through fillets and leave blades.
+2. **Run `hardware/tools/mesh_check.py` from the build script, before any 3MF is written.** The build fails unless:
+   - the part is one watertight body, or the allowed body count for a listed multi-body part;
+   - no vertex has an angle defect over 150 degrees, except whitelisted design corners;
+   - there are no knife edges (adjacent faces folded past 170 degrees along an edge over 1 mm);
+   - no ray-sampled wall is thinner than 0.6 mm over 0.5 mm² or more, except whitelisted spots.
+
+   Needle triangles (min angle under 1 degree, edge over 2 mm) are counted, not failed. CAD tessellation makes thousands of them on flat fans; a needle only matters when it forms a knife edge or a thin wall, which the checks above catch.
+3. **Whitelist only after looking.** Each entry in the per-design whitelist (left arm: `hardware/designs/left-arm/prints/mesh_whitelist.py`) gives a point or box and a reason. Look at the spot in a render and in the CAD first. "Hidden", "inside a pocket" or "below layer height" are reasons. "Probably fine" is not.
+4. **Commit the evidence with the 3MF:** `<part>_meshcheck.txt` next to each 3MF, and `renders/<part>_sheet.png`, six views including the bed side at 2x scale.
+5. **Verify a fix against the whole part, never only the reported spot.** Re-run the gate and a ray scan of the whole surface. For a turned or lofted surface, scan it radially and compare against the expected surface, not against the neighbours.
+6. **Clip to the real surface.** When a cut has to follow a curved surface, use a revolve or a surface-following profile, not stepped prisms. Steps leave a sawtooth and can notch the part.

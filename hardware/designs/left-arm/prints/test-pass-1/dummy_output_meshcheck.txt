@@ -1,0 +1,8 @@
+mesh check: dummy_output (plate coordinates)
+faces 9978, bounds [[0.0, 0.0, 0.0], [67.0, 35.0, 13.19]]
+[PASS] bodies 2 (allowed 2), watertight True
+[PASS] sharp vertices over 150 deg: 0 unlisted, 0 listed design corners
+[PASS] knife edges (fold over 170 deg, edge over 1 mm): 0 unlisted, 0 listed
+[INFO] needle triangles (min angle under 1 deg, edge over 2 mm): 391, tessellation only unless a check above fails
+[PASS] walls thinner than 0.6 mm over 0.5 mm2: 0 unlisted, 0 listed
+RESULT: PASS

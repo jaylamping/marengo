@@ -1,0 +1,18 @@
+mesh check: fork_sector (source test_fork_sector.STL, CAD coordinates)
+faces 25358, bounds [[131.7, 70.0, -26.01], [207.19, 238.86, 42.96]]
+[PASS] bodies 1 (allowed 1), watertight True
+[PASS] sharp vertices over 150 deg: 0 unlisted, 2 listed design corners
+    listed   [131.75, 150.0, 4.49] 178 deg: end of the 0.05 mm step where TRANSITION meets YOKE on the outboard face, below layer height, not a blade (fold check passes)
+    listed   [131.75, 150.0, -20.01] 178 deg: other end of the same 0.05 mm step
+[PASS] knife edges (fold over 170 deg, edge over 1 mm): 0 unlisted, 0 listed
+[INFO] needle triangles (min angle under 1 deg, edge over 2 mm): 1876, tessellation only unless a check above fails
+[PASS] walls thinner than 0.6 mm over 0.5 mm2: 0 unlisted, 8 listed
+    listed   4.0 mm2, min 0.05 mm, box [150.1, 146.0, -26.0] to [151.5, 146.5, -23.0]: skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it
+    listed   3.2 mm2, min 0.03 mm, box [146.4, 149.5, -26.0] to [156.0, 150.0, -25.6]: skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it
+    listed   2.6 mm2, min 0.03 mm, box [198.5, 150.0, -25.4] to [204.4, 150.0, -20.0]: skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it
+    listed   2.2 mm2, min 0.08 mm, box [176.3, 149.5, -26.0] to [183.9, 150.0, -25.7]: skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it
+    listed   1.3 mm2, min 0.08 mm, box [180.0, 146.0, -26.0] to [181.2, 146.6, -24.5]: skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it
+    listed   1.0 mm2, min 0.05 mm, box [132.6, 150.0, -25.8] to [135.0, 150.0, -24.8]: skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it
+    listed   0.7 mm2, min 0.05 mm, box [131.7, 150.0, -25.1] to [133.0, 150.0, -20.0]: skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it
+    listed   0.7 mm2, min 0.04 mm, box [136.0, 149.9, -26.0] to [138.4, 150.0, -25.6]: skin where the TRANSITION loft grazes the YOKE flat at Z -26 or the GUSSET_IN end, 0.03 to 0.08 mm, sits on the surface, not proud; the slicer drops it
+RESULT: PASS
