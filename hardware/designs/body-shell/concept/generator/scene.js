@@ -289,7 +289,13 @@ if (q.get('stl')) {
   const base = 'giantout/' + q.get('stl') + '/';
   const man = await (await fetch(base + 'parts.json')).json();
   const loader = new STLLoader(); const m4 = new THREE.Matrix4().set(0, 1, 0, OFFX, 0, 0, 1, F1 + 40 + Number(q.get('hz') ?? 0), 1, 0, 0, 0, 0, 0, 0, 1);
-  for (const it of man) { const g = loader.parse(await (await fetch('giantout/' + it.file)).arrayBuffer()); g.applyMatrix4(m4); const gs = BGU.toCreasedNormals(g, 35 * Math.PI / 180); const mt = (q.get('jawcol') && it.file.endsWith('/jaw.stl')) ? M.jaw : (M[it.mat] || M.white); mt.side = THREE.DoubleSide; add(new THREE.Mesh(gs, mt)); }
+  for (const it of man) { const g = loader.parse(await (await fetch('giantout/' + it.file)).arrayBuffer()); { // neck study pose (head frame, before m4): lift = taller neck, pitch/roll/yaw about the U-joint at z 70 + lift
+    const LIFT = Number(q.get('lift') ?? 0), PITCH = Number(q.get('pitch') ?? 0) * Math.PI / 180, ROLL = Number(q.get('roll') ?? 0) * Math.PI / 180, YAWD = Number(q.get('yaw') ?? 0) * Math.PI / 180;
+    const UJ = 70 + LIFT, f = it.file.split('/').pop();
+    if (f === 'neck.stl') { const pa = g.attributes.position; for (let i = 0; i < pa.count; i++) { const z = pa.getZ(i); if (z > 12) pa.setZ(i, 12 + (z - 12) * (62 + LIFT - 12) / 50); } pa.needsUpdate = true; }
+    else if (f !== 'collar.stl') { const mm = new THREE.Matrix4().makeTranslation(0, 0, UJ).multiply(new THREE.Matrix4().makeRotationZ(YAWD)).multiply(new THREE.Matrix4().makeRotationY(PITCH)).multiply(new THREE.Matrix4().makeRotationX(ROLL)).multiply(new THREE.Matrix4().makeTranslation(0, 0, LIFT - UJ)); g.applyMatrix4(mm); }
+  }
+  g.applyMatrix4(m4); const gs = BGU.toCreasedNormals(g, 35 * Math.PI / 180); const mt = (q.get('jawcol') && it.file.endsWith('/jaw.stl')) ? M.jaw : (M[it.mat] || M.white); mt.side = THREE.DoubleSide; add(new THREE.Mesh(gs, mt)); }
 }
 const headRows = [[F1 + 70, 50, 60, 58, 3.4], [F1 + 96, 60, 76, 72, 3.6], [F1 + 190, 64, 82, 80, 3.6], [F1 + 252, 56, 70, 72, 3.2], [F1 + 276, 34, 44, 46, 2.6], [F1 + 284, 4, 4, 4, 2]];
 const SHOW_HEAD = false;
