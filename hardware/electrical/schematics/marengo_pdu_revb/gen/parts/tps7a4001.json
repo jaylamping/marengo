@@ -1,0 +1,109 @@
+{
+ "part": "TPS7A4001DGNR",
+ "datasheet": {
+  "doc": "SBVS162",
+  "rev": "B",
+  "url": "https://www.ti.com/lit/ds/symlink/tps7a4001.pdf"
+ },
+ "package": "HVSSOP-8 DGN with PowerPAD",
+ "kicad_footprint": "Package_SO:HVSSOP-8-1EP_3x3mm_P0.65mm_EP1.57x1.89mm",
+ "kicad_symbol": null,
+ "pins": [
+  {
+   "num": 1,
+   "name": "OUT",
+   "etype": "power_out"
+  },
+  {
+   "num": 2,
+   "name": "FB",
+   "etype": "input"
+  },
+  {
+   "num": 3,
+   "name": "NC",
+   "etype": "no_connect"
+  },
+  {
+   "num": 4,
+   "name": "GND",
+   "etype": "power_in"
+  },
+  {
+   "num": 5,
+   "name": "EN",
+   "etype": "input"
+  },
+  {
+   "num": 6,
+   "name": "NC",
+   "etype": "no_connect"
+  },
+  {
+   "num": 7,
+   "name": "NC",
+   "etype": "no_connect"
+  },
+  {
+   "num": 8,
+   "name": "IN",
+   "etype": "power_in"
+  },
+  {
+   "num": "EP",
+   "name": "PAD",
+   "etype": "power_in"
+  }
+ ],
+ "ref_circuit": [
+  {
+   "ref": "CIN",
+   "value": ">=1 uF 100 V",
+   "page": "p9-10"
+  },
+  {
+   "ref": "COUT",
+   "value": ">=4.7 uF",
+   "page": "p10"
+  },
+  {
+   "ref": "R1 OUT-FB / R2 FB-GND",
+   "value": "464 k / 49.9 k",
+   "page": "p10 R1=R2(VOUT/VREF-1), R2 current >=10 uA"
+  },
+  {
+   "ref": "EN",
+   "value": "tie to IN",
+   "page": "p3"
+  }
+ ],
+ "calcs": [
+  {
+   "f": "VOUT=1.173*(1+R1/R2)",
+   "in": "464 k, 49.9 k",
+   "result": "12.08 V, 23.5 uA in divider"
+  },
+  {
+   "f": "LDO heat",
+   "in": "5 mA, 45 V drop",
+   "result": "0.23 W"
+  }
+ ],
+ "abs_max": {
+  "IN": "105 V per earlier read"
+ },
+ "gotchas": [
+  "Dead below about 7 V; 12 V rail droops below 14 V VIN. Above 37 V bus it is fine."
+ ],
+ "doc_deviations": [],
+ "unverified": [
+  "PowerPAD size vs KiCad land",
+  "abs max line not re-read in this pass"
+ ],
+ "electrical": {
+  "VIN": "7 to 100 V",
+  "VREF": "1.161/1.173/1.185 V",
+  "IGND": "25/65 uA",
+  "ILIM": "51/117/200 mA"
+ }
+}

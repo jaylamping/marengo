@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "marengo_revb")(type "KiCad")(uri "${KIPRJMOD}/marengo_revb.pretty")(options "")(descr "rev B project footprints"))
+)
