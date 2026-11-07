@@ -62,6 +62,19 @@ On Joey-PC, agy 1.5.2 (power board rev B, 2026-11-07, six tries):
 - Run it with `--output-format stream-json --log-file <path>`. The final `result` event carries the review in `response`, plus token usage and `denied_actions`. Without it, an empty review tells you nothing.
 - **Check that the review is about the packet.** That run returned 100 KB of confident findings on a design that doesn't exist, with exit 0 and matching hashes. Grep its part values and refs against the netlist before reading further, and compare its questions to `PACKET.md`.
 
+## Reviewer audit
+
+Joey's rules, 2026-11-07. Results go in [reviewer-scorecard.md](reviewer-scorecard.md), one row per run, keyed on model and effort.
+
+- **Effort.** High, passed explicitly on every run. If a model has no High or close equivalent, use the provider's recommended default. The scorecard records which one ran. Codex takes `-c model_reasoning_effort=high` (tested 2026-11-07, the log prints `reasoning effort: high`). Muse takes `--reasoning-effort high`. Fable and Opus take `--effort high`. Argon's level is in its model name.
+- **Time limit.** Reviewers run in parallel with 45 minutes per round. A late review counts as a miss: its findings get read later and become follow-up items. A big packet can get a longer limit if it's set up front.
+- **Retries.** One retry for a real tool failure, then the reviewer sits out the round.
+- **On target.** Before anyone reads a review, run `hardware/tools/review/check_on_target.py`. An off-target review scores zero. It checks the names a review cites and, with a netlist, the values it cites. Rev B's made-up Argon review passed on names alone, so a review that only passes names on a mechanical packet still needs a look against the questions.
+- **Removal.** Two off-target or made-up reviews in five rounds, or more false than real findings over the last 3 rounds with no unique catches.
+- **On notice.** Three time-limit misses in five rounds, or three rounds with no unique find.
+- **No removal on one effort level.** First give it one trial at another level on the seeded test packet (rev B's close-order bug). Effort trials only ever run on that packet, never on real rounds.
+- **Current standing.** Argon has one strike.
+
 ## Usage per reviewer
 
 | Reviewer | Per-run figure | Where to look |
@@ -69,7 +82,7 @@ On Joey-PC, agy 1.5.2 (power board rev B, 2026-11-07, six tries):
 | Fable, Opus | `--output-format json`: tokens and `total_cost_usd` | https://platform.claude.com/settings/billing for the billed figure |
 | Argon | Tokens in the stream-json `result` event, no cost | Antigravity's Models & Usage screen. It has separate Gemini and Claude and GPT limits, weekly and 5-hour, as percentages |
 | Wonder | None in stdout or the log. `muse trace inspect` not yet tried | `muse usage`, or Muse's web Usage page: percent of window and week for the whole account, which can lag by up to an hour |
-| Sol, Astra | Not checked yet | Not checked yet |
+| Sol, Astra | Not checked yet. Sessions are logged in `-o` and the `.log` | Not checked yet |
 
 ## 1. Build the packet
 
@@ -114,11 +127,11 @@ P="$(cat reviews/PROMPT.txt)"
 M=/c/Users/joeyl/AppData/Local/Programs/muse/muse.cmd
 I="-i views/SHEET_1.png -i views/SHEET_2.png"
 
-(codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral $I \
+(codex exec -m gpt-6.1-sol -c model_reasoning_effort=high -s read-only --skip-git-repo-check --ephemeral $I \
   -o reviews/codex-sol.md "$P" > reviews/codex-sol.log 2>&1 </dev/null
  echo "sol exit $?" >> reviews/STATUS.txt) &
 
-(codex exec -m gpt-6-astra -s read-only --skip-git-repo-check --ephemeral $I \
+(codex exec -m gpt-6-astra -c model_reasoning_effort=high -s read-only --skip-git-repo-check --ephemeral $I \
   -o reviews/codex-astra.md "$P" > reviews/codex-astra.log 2>&1 </dev/null
  echo "astra exit $?" >> reviews/STATUS.txt) &
 
@@ -128,7 +141,7 @@ I="-i views/SHEET_1.png -i views/SHEET_2.png"
   --output-format text "$P" > reviews/cursor-grok.md 2> reviews/cursor-grok.log </dev/null
  echo "cursor-grok exit $?" >> reviews/STATUS.txt) &
 
-("$M" exec --model muse-wonder-1.0 --workspace . --prompt-file reviews/PROMPT.txt \
+("$M" exec --model muse-wonder-1.0 --reasoning-effort high --workspace . --prompt-file reviews/PROMPT.txt \
   --image views/SHEET_1.png --image views/SHEET_2.png \
   > reviews/muse-wonder.md 2> reviews/muse-wonder.log </dev/null
  echo "muse exit $?" >> reviews/STATUS.txt) &
@@ -147,7 +160,7 @@ Harmless Muse notes: a malformed `poteto-mode` skill warning, and "Agent delegat
 
 ## 4. After the run
 
-1. `cat reviews/STATUS.txt`: every line should say exit 0. An empty `cursor-grok.log` is normal.
+1. `cat reviews/STATUS.txt`: every line should say exit 0. An empty `cursor-grok.log` is normal. Exit 0 proves nothing about the content: run `python -X utf8 -I hardware/tools/review/check_on_target.py <packet> reviews/*.md` before reading any review.
 2. `sha256sum -c SHA256SUMS.txt --quiet` again, to prove nothing changed. This is the only check on Muse.
 3. Read all four yourself. Check each finding against the files before accepting it. At gate 2, three were rejected, including one claimed blocker, and one suggested fix was impossible.
 4. Write `reviews/SUMMARY.md`: accepted, with who raised it and how you checked it; rejected, with the reason; superseded; can wait.

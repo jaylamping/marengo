@@ -1,0 +1,78 @@
+# Reviewer scorecard
+
+One row per run, keyed on model and effort. Rules are in [review-recipe.md](review-recipe.md), "Reviewer audit". Add rows when a round's summary is written.
+
+**Standing:** Argon has one strike (rev B, off target). Trial reviewers don't gate until they pass the seeded test packet.
+
+How to read the columns:
+
+- **Real:** accepted findings the summary credits to this reviewer. The backfill counts blockers and majors, or the summary's main accepted list where it doesn't rank them. Minors are left out.
+- **False:** claims rejected in the summary and credited to this reviewer. A claim shared by two reviewers counts for both.
+- **Unique:** accepted findings credited to this reviewer alone.
+- **False conf:** a real problem it checked and passed.
+- **Min / unique:** minutes divided by unique findings, blank at zero.
+
+Backfill limits: older summaries weren't written for this, so the counts are as good as their attribution. False confirmations weren't recorded before rev B, so 0 there means not recorded. Most older rows have no cost figure. Packet fidelity was checked with `hardware/tools/review/check_on_target.py` where the packet is in the repo (torso gate 2), and otherwise by the fact that findings were accepted against the files.
+
+## Runs
+
+| Round | Model | Effort | Real | False | Unique | False conf | Fidelity | Retries | Min | Cost | Min / unique | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Torso gate 1 | gpt-6.1-sol | config high | 17 | 3 | 0 | 0 | on | 0 | 9.2 | sub | | |
+| Torso gate 1 | gpt-6-astra | config high | 19 | 3 | 2 | 0 | on | 0 | 6.7 | sub | 3.4 | |
+| Torso gate 1 | grok-4.7-high-fast | in model name | 14 | 2 | 0 | 0 | on | 1 | 12.5 | sub | | First try blocked by a repo hook |
+| Torso gate 1 | muse-wonder-1.0 | default (high) | 14 | 2 | 0 | 0 | on | 0 | 5.1 | sub | | |
+| Upper arm gate 2 | gpt-6.1-sol | config high | 13 | 0 | 0 | 0 | on | 0 | 8.5 | sub | | |
+| Upper arm gate 2 | gpt-6-astra | config high | 14 | 0 | 0 | 0 | on | 0 | 9 | sub | | |
+| Upper arm gate 2 | grok-4.7-high-fast | in model name | 9 | 1 | 0 | 0 | on | 0 | 12.5 | sub | | Dropped from the panel 2026-11-06 |
+| Upper arm gate 2 | muse-wonder-1.0 | default (high) | 12 | 2 | 1 | 0 | on | 0 | 9 | sub | 9 | |
+| Torso gate 2 | gpt-6.1-sol | config high | 12 | 0 | 0 | 0 | on (checked) | 1 | 11.1 | sub | | `-i` swallowed the prompt on try 1 |
+| Torso gate 2 | gpt-6-astra | config high | 11 | 0 | 1 | 0 | on (checked) | 1 | 11.6 | sub | 11.6 | Same |
+| Torso gate 2 | claude-opus-5-5 | high | 15 | 0 | 3 | 0 | on (checked) | 0 | 16 | API, not recorded | 5.3 | |
+| Torso gate 2 | gemini-4-argon-high | high | 8 | 1 | 0 | 0 | on (checked) | 0 | 16.1 | sub | | |
+| Torso gate 2 | claude-fable-5-1 | high | 11 | 0 | 1 | 0 | on (checked) | 0 | 18.3 | API, not recorded | 18.3 | |
+| Torso gate 2 | muse-wonder-1.0 | default (high) | 5 | 0 | 0 | 0 | on (checked) | 0 | 4.2 | sub | | |
+| PDB rev A gate 3, pass 1 | gpt-6.1-sol | unknown (Mac) | 16 | 1 | 1 | 0 | on | 0 | 10.7 | sub | 10.7 | |
+| PDB rev A gate 3, pass 1 | gpt-6-astra | unknown (Mac) | 12 | 0 | 0 | 0 | on | 0 | 11.8 | sub | | |
+| PDB rev A gate 3, pass 1 | claude-opus-5-5 | high | 15 | 3 | 0 | 0 | on | 0 | 17 | API, not recorded | | 2 false blockers |
+| PDB rev A gate 3, pass 1 | claude-fable-5-1 | high | 12 | 4 | 0 | 0 | on | 0 | 18.5 | API, not recorded | | |
+| PDB rev A gate 3, pass 1 | gemini-4-argon-high | high | 11 | 8 | 2 | 0 | on | 1 | 36.4 | sub | 18.2 | Unique catches include M8. 5 false blockers. Cited footprint files that don't exist: an early warning, not a strike |
+| PDB rev A gate 3, pass 1 | muse-wonder-1.0 | default (high) | 13 | 4 | 0 | 0 | on | 0 | 4.2 | sub | | |
+| PDB rev A gate 3, pass 2 | gpt-6.1-sol | unknown (Mac) | 9 | 1 | 2 | 0 | on | 0 | 11.7 | sub | 5.8 | |
+| PDB rev A gate 3, pass 2 | claude-opus-5-5 | high | 12 | 2 | 5 | 0 | on | 0 | 17.6 | API, not recorded | 3.5 | |
+| PDB rev A gate 3, pass 2 | claude-fable-5-1 | high | 7 | 4 | 1 | 0 | on | 0 | 22.9 | API, not recorded | 22.9 | |
+| PDB rev A gate 3, pass 3 | gpt-6.1-sol | unknown (Mac) | 3 | 0 | 0 | 0 | on | 0 | 8.5 | sub | | |
+| PDB rev A gate 3, pass 3 | claude-opus-5-5 | high | 7 | 0 | 2 | 0 | on | 0 | 13.6 | API, not recorded | 6.8 | |
+| PDB rev A gate 3, pass 3 | claude-fable-5-1 | high | 4 | 0 | 0 | 0 | on | 0 | 15.8 | API, not recorded | | |
+| PDB rev A gate 3, pass 4 | gpt-6.1-sol | unknown (Mac) | 5 | 0 | 1 | 0 | on | 0 | 7.5 | sub | 7.5 | |
+| PDB rev A gate 3, pass 4 | claude-opus-5-5 | high | 7 | 0 | 3 | 0 | on | 0 | 15.9 | API, not recorded | 5.3 | |
+| Upper arm rev C | gpt-6.1-sol | high | 10 | 0 | 0 | 0 | on | 0 | 18.7 | sub | | |
+| Upper arm rev C | gpt-6-astra | high | 10 | 0 | 0 | 0 | on | 0 | 18.1 | sub | | |
+| Upper arm rev C | claude-fable-5-1 | high | 10 | 1 | 0 | 0 | on | 0 | 25.2 | sub | | |
+| Upper arm rev C | gemini-4-argon-high | high | 6 | 2 | 4 | 0 | on | 1 | 26.5 | sub | 6.6 | Found the blocked cable exit and the rear hub M4 alone |
+| Upper arm rev C | muse-wonder-1.0 | default (high) | 8 | 5 | 0 | 0 | on | 0 | 7.9 | sub | | |
+| Upper arm print package | gpt-6.1-sol | config high | 3 | 0 | 0 | 0 | on | 0 | 14.2 | sub | | Counts blockers only |
+| Upper arm print package | gpt-6-astra | config high | 3 | 0 | 0 | 0 | on | 0 | 9.4 | sub | | Counts blockers only |
+| Upper arm print package | claude-opus-5-5 | high | 6 | 0 | 1 | 0 | on | 0 | 16 | not recorded | 16 | Cloud agent. Counts blockers only |
+| Upper arm print package | claude-fable-5-1 | high | 5 | 0 | 1 | 0 | on | 0 | 25 | not recorded | 25 | Cloud agent. Counts blockers only |
+| Test pass 1 | claude-fable-5-1 | high | 9 | 0 | 2 | 0 | on | 0 | 28 | not recorded | 14 | Cloud agent |
+| Test pass 1 | claude-opus-5-5 | high | 11 | 0 | 4 | 0 | on | 0 | 25 | not recorded | 6.3 | Cloud agent |
+| PDB rev B | claude-fable-5-1 | high | 11 | 1 | 1 | 0 | on (checked) | 0 | 19.1 | about $12, estimated | 19.1 | Unique catch: U1 power limit |
+| PDB rev B | muse-wonder-1.0 | default (high) | 12 | 5 | 2 | 1 | on (checked) | 0 | 8.6 | sub | 4.3 | Confirmed the wrong 544 W power limit |
+| PDB rev B | gemini-4-argon-high | high | 0 | 0 | 0 | 0 | **off** | 5 | 31.4 | sub | | Scores zero. Invented a different board. 24 of 80 cited values match the netlist, against 4 of 4 and 29 of 30 for the others. **Strike 1** |
+
+Not scored: `torso-frame/review/packet3` has reviews but no summary in the same form. Score it if its findings get a summary.
+
+## By model
+
+Totals of the rows above. Compare them with care: rounds differ, and not every model ran in every round.
+
+| Model | Runs | Real | False | Unique | False conf | Off target | Retries | Mean min |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| claude-opus-5-5 | 7 | 73 | 5 | 18 | 0 | 0 | 0 | 17.3 |
+| claude-fable-5-1 | 8 | 69 | 10 | 6 | 0 | 0 | 0 | 21.6 |
+| gpt-6.1-sol | 9 | 88 | 5 | 4 | 0 | 0 | 1 | 11.1 |
+| gpt-6-astra | 6 | 69 | 3 | 3 | 0 | 0 | 1 | 11.1 |
+| muse-wonder-1.0 | 6 | 64 | 18 | 3 | 1 | 0 | 0 | 6.5 |
+| gemini-4-argon-high | 4 | 25 | 11 | 6 | 0 | 1 | 7 | 27.6 |
+| grok-4.7-high-fast (dropped) | 2 | 23 | 3 | 0 | 0 | 0 | 1 | 12.5 |
