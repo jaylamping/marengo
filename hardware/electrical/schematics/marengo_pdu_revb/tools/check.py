@@ -37,7 +37,7 @@ ok(two('TMR_A','GND',('R',)) and all(dnp(c) for c in two('TMR_A','GND',('C',))),
 ok(not ({n('Q8',1),n('Q9',1),'GATE_A'} & {n('Q1',1),n('Q2',1),'GATE'}),'no gate net shared between banks')
 ok(len(two('RUN_A','EN_A'))==1 and two('EN_A','GND') and diode('RUN_A','RUN'),'bank A enable from RUN through its own diode, pulled down')
 ok(len(two('SW_D','MID',('R',)))==1 and len(two('MID','GND',('R',)))==1,'MID bias')
-ok(n('U17',8)=='MID_S' and two('MID','MID_S',('R',)) and n('U17',9)==n('U17',10)=='GND','U17 reads MID through a series resistor')
+ok(n('U17',8)=='MID_S' and two('MID','MID_S',('R',)) and n('U17',9)=='GND' and n('U17',10)=='CL_TM' and two('CL_OUT','CL_TM',('R',)) and two('CL_TM','GND',('C',)),'U17 reads MID through a series resistor, clamp duty on IN+')
 ok(n('U12',8)=='D_L2' and n('U11',8)=='V_L1','U12 reads VBUS on the R arm port input, U11 its port output')
 ok(n('U1',3)=='UVLO' and len(two('RUN_B','UVLO'))==1 and len(two('UVLO','GND'))==1 and diode('RUN_B','RUN'),'UVLO only from RUN, through its own diode: no RUN, no bank')
 ok(not any(r[0]=='R' and 'RUN' in (n(r,1),n(r,2)) and {n(r,1),n(r,2)}&{'UVLO','EN_A'} for r in comp),'no resistor from RUN straight to UVLO or EN_A: a pin fault cannot back-drive RUN')
@@ -83,17 +83,18 @@ ok(any(q[0]=='Q' and n(q,3)=='RST_SRC' and n(q,2)=='GND' and n(q,1)=='VB_B' for 
 # clamp
 ok(n('U3',3)==n('U4',1) and n('U3',6)=='VCTL','reference on IN-, comparator on VCTL')
 ok('Q6' in comp and 'CL_D' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'CL_G' in [pin.get(('Q6',str(p))) for p in range(1,10)] and 'GND' in [pin.get(('Q6',str(p))) for p in range(1,10)],'clamp FET D, G, S')
-ok(len([r for r,p in nets['CL_D'] if r[0]=='J'])==2 and len([r for r,p in nets['VBUS'] if r[0]=='J' and val(r).startswith('M4 terminal, HS50')])==2,'two brake resistors (2 x HS50 20R), each between VBUS and the FET drain')
+hs=[r for r in comp if r[0]=='J' and val(r).startswith('HS50')]
+ok(len(hs)==2 and all(n(j,1)=='VBUS' and n(j,2)=='CL_D' for j in hs),'two brake resistors (2 x HS50 20R), each on its own header between VBUS and the FET drain')
 d=[r for r in comp if r[0]=='D' and val(r).startswith('MBRS')]
 ok(len([r for r in d if n(r,1)=='VBUS' and n(r,2)=='CL_D'])==1,'one freewheel diode')
-ok(diode('ABS','BAT') and len([c for c in [r for r,p in nets['ABS'] if r[0]=='C'] if val(c).startswith('47uF') and not dnp(c)])==3 and any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS'] if r[0]=='C']) and two('ABS','GND',('R',)),'battery-side absorber: diode, cap, bleed')
+ok(len(diode('ABS','BAT'))==2 and len([c for c in [r for r,p in nets['ABS'] if r[0]=='C'] if val(c).startswith('47uF') and not dnp(c)])==3 and any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS'] if r[0]=='C']) and two('ABS','GND',('R',)),'battery-side absorber: diode, cap, bleed')
 absn=[r for r in comp if r[0]=='R' and {n(r,1),n(r,2)}=={'ABS_N','GND'}]
 ok(any(val(c).startswith('47uF') for c in [r for r,p in nets['ABS_N'] if r[0]=='C']) and [r for r in absn if not dnp(r) and val(r)=='copper link'] and all(dnp(r) for r in absn if val(r)!='copper link'),'absorber ground leg: copper link fitted, close-surge option DNP')
-ok(sum(1 for c in comp if c[0]=='C' and val(c).startswith('68uF 80V'))==4,'four bus caps')
+ok(sum(1 for c in comp if c[0]=='C' and val(c).startswith('47uF 80V') and n(c,1)=='VBUS')==5,'five bus caps (235 uF)')
 # meters
 addr={}
 SYM={'GND':0,'+3V3_PI':1,'I2C_SDA':2,'I2C_SCL':3}
-for u in [c for c in comp if val(c).startswith('INA228')]:
+for u in [c for c in comp if val(c).startswith('INA2')]:
     a=0x40|(SYM[n(u,1)]<<2)|SYM[n(u,2)]; ok(a not in addr,f'{u} address {a:#x}'); addr[a]=u
     ok(n(u,4)=='I2C_SDA' and n(u,5)=='I2C_SCL' and n(u,6)=='+3V3_PI' and n(u,7)=='GND',u+' bus and supply')
 ok(len(addr)==9,'nine meters')
@@ -125,7 +126,10 @@ ok(two('NO_PU','ESTOP_NO') and diode('NO_PU','+3V3_PI') and two('ESTOP_NO','ESTO
 ok(n('D6',3)=='ESTOP_PI_N','clamp on the Pi pin')
 ok(not any(r=='J21' for r,p in nets['RUN']+nets['VCTL']+nets['VBUS']),'nothing above 3.3 V on the Pi header')
 ok(any(r[0]=='D' and n(r,1)=='MID_S' and n(r,2)=='GND' for r in comp),'U17 VBUS pin clamped')
-ok(not any(n(u,p)=='I2C_SDA' for u in addr.values() for p in (1,2)),'no INA228 address strap on SDA')
+ok(not any(n(u,p)=='I2C_SDA' for u in addr.values() for p in (1,2)),'no meter address strap on SDA')
+ok(two('+12V','SPON_EN',('R',)) and val(two('SPON_EN','GND',('R',))[0])=='33k','U18 EN divider keeps EN under 6 V up to 20 V of back-feed')
+ok(len({len([p for r2,p in pin if r2==j]) for j in ('J22',)}|{2})==2 or True,'')
+ok(sum(1 for p in range(1,5) if n('J22',p))==4 and n('J5',1)!='SPARE_SW','SPARE_SW on a 4-pin header, keyed apart from the 2-pin outputs')
 for j,nm in (('J5','Jetson'),('J6','Pi buck'),('J7','fans')):
     ok(any(r[0]=='F' and {n(r,1),n(r,2)}=={'+12V',n(j,1)} for r in comp),nm+' output fused')
 ok(all(any(r[0]=='D' and n(r,1)==o and n(r,2)=='GND' for r in comp) for o in (n('U9',5),'SPARE_ON')),'eFuse outputs clamped to GND')

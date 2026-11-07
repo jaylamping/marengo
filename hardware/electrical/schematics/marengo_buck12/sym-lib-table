@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "marengo_buck12")(type "KiCad")(uri "${KIPRJMOD}/marengo_buck12.kicad_sym")(options "")(descr "buck board symbols"))
+)

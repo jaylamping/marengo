@@ -23,7 +23,7 @@ def sim(net,probes,tend):
     p=os.path.join(tempfile.gettempdir(),'abs_sim.cir'); open(p,'w').write(deck)
     ng.ngSpice_Command(b'remcirc'); ng.ngSpice_Command(('source '+p.replace('\\','/')).encode())
     return [[float(x) for x in l.split()] for l in open(out) if l.strip()]
-def trip(L,C,esr,t_open,t_off=2e-6,r_loop=0.1,rpre=0,bv=64.4,rd=0.01):
+def trip(L,C,esr,t_open,t_off=2e-6,r_loop=0.1,rpre=0,bv=64.4,rd=0.01,conv=False):
     global MOD; MOD=MODT.format(bv=bv,rd=rd)
     # pre-charged absorber (IC) and a short on the bus at t=0
     pre=f'RPRE CN 0 {rpre}\n' if rpre else 'VPRE CN 0 0\n'
@@ -38,8 +38,25 @@ C38 C1 CN {C} IC=54.4
 {pre}BSW BAT BUS I=V(BAT,BUS)*500*max(0,min(1,1-(time-{t_open})/{t_off}))
 RSH BUS 0 1m
 '''
-    r=sim(net,'v(bat) i(ll)',f'{t_open+t_off+40e-6:.3e}'); MOD=MODT.format(bv=64.4,rd=0.01)
+    if conv: net+=CONV
+    r=sim(net,'v(bat) i(ll)'+(' v(brk_in) v(vin)' if conv else ''),f'{t_open+t_off+60e-6:.3e}'); MOD=MODT.format(bv=64.4,rd=0.01)
+    if conv: return max(x[1] for x in r),max(x[3] for x in r),max(x[5] for x in r),max(x[7] for x in r)
     return max(x[1] for x in r),max(x[3] for x in r)
+# rev B5: the 12 V buck's input, ahead of the E-stop: U7 path (RS9 + Q7), BRK_IN caps (2 x 2.2 uF derated to 2.2 uF), F2,
+# the J24 pigtail (150 nH, 15 mOhm both ways), the buck board's 1 uF, 2.2 uH filter, 47 uF aluminium (0.42 Ohm) and
+# 5 x 2.2 uF ceramics (about 5 uF at 55 V), loaded by the buck as about 158 W of constant power (144 W at 91 %).
+CONV='''RU7 BAT BRK_IN 7m
+CBI BRK_IN 0 2.2u IC=54.4
+RF2 BRK_IN P1 18m
+LPIG P1 VIN_P 150n IC=2.9
+CVP VIN_P 0 1u IC=54.4
+LF VIN_P V2 2.2u IC=2.9
+RLF V2 VIN 6m
+CCER VIN 0 5u IC=54.4
+RAL VIN A1 0.42
+CAL A1 0 47u IC=54.4
+BLOAD VIN 0 I=158/max(V(VIN),20)
+'''
 def close(L,C,esr,rpre=0,r_loop=0.1):
     # BMS closes onto a discharged absorber: peak current through D7
     pre=f'RPRE CN 0 {rpre}\n' if rpre else 'VPRE CN 0 0\n'
@@ -68,6 +85,14 @@ for L in (0.5e-6,1e-6):
 print('\nSame trip with that series R left in the branch (what a plain R or cold NTC costs):')
 for rp in (0.5,2.0):
     v,i=trip(0.5e-6,47e-6,0.05,8.8e-6,rpre=rp); print(f'L 0.5u C 47u series R {rp} ohm: peak BAT {v:.1f} V')
+print('\nBuck input during a bank trip (rev B5, LM5146 VIN and FETs 100 V abs max), 3 cans -20 %, D1 at 71.2 V, D7 RS 10 and 30 mOhm:')
+print(f"{'L':>5} {'Rloop':>5} {'t_open':>6} {'D7 RS':>6} | {'BAT':>6} {'BRK_IN':>7} {'buck VIN':>8}")
+for L in (0.5e-6,1e-6):
+    for rl in (0.1,0.05):
+        for t in (8.8e-6,17.5e-6):
+            for rd in (0.01,0.03):
+                v,i,vb,vi=trip(L,112.8e-6,0.0167,t,r_loop=rl,bv=71.2,rd=rd,conv=True)
+                print(f'{L*1e6:4.1f}u {rl:5.2f} {t*1e6:5.1f}u {rd*1e3:4.0f}m | {v:5.1f}V {vb:6.1f}V {vi:7.1f}V')
 print('\nCorners (rev B4 review): pulse loop R 0.05 Ohm (cell AC resistance), D1 at max BV 71.2 V, C38 -20 %, D7 RS 3 mOhm..10 mOhm,')
 print('T_OPEN 8.8 / 13 / 17.5 us (U8 delay counts from threshold crossing, which itself takes 2-8 us).')
 print(f"{'L':>5} {'Rloop':>5} {'C':>6} {'BV':>5} {'t_open':>6} | {'peak BAT':>8} {'I cut':>6}")
@@ -77,3 +102,7 @@ for L in (0.5e-6,1e-6):
             for t in (8.8e-6,13e-6,17.5e-6):
                 v,i=trip(L,C,esr,t,r_loop=rl,bv=71.2)
                 print(f'{L*1e6:4.1f}u {rl:5.2f} {lab:>6} {71.2:5.1f} {t*1e6:5.1f}u | {v:7.1f}V {i:5.0f}A')
+print('\nD7 series resistance sweep (r5 review: the SK810L curve at hundreds of amps is unread), 3 cans -20 %, D1 71.2 V, 0.05 Ohm:')
+for L in (0.5e-6,1e-6):
+    for t in (8.8e-6,17.5e-6):
+        print(f'{L*1e6:4.1f}u t_open {t*1e6:4.1f}u | '+'  '.join(f'RS {rd*1e3:.0f}m: {trip(L,112.8e-6,0.0167,t,r_loop=0.05,bv=71.2,rd=rd)[0]:5.1f}V' for rd in (0.01,0.02,0.03)))
