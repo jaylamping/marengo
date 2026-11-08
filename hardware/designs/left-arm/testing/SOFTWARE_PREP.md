@@ -15,7 +15,7 @@ Hardware state, joint table and IDs: [hardware/STATUS.md](../../../STATUS.md).
 ## Start here
 
 1. **Read the tenets.** They are the yardstick for every item below.
-2. **Write the skeleton YAML** (item 1). No hardware needed; everything reads it.
+2. **Set up the new crate layout** (section below) and **write the skeleton YAML** (item 1). No hardware needed; everything reads it.
 3. **Lift the hard-won knowledge** out of the old code into notes and test vectors (item 2), before anything is deleted.
 4. **Build the new CAN layer and its simulated drive together** (items 3 and 4), on `vcan` first.
 5. **Buy one USB-CAN adapter**, confirm it, and bring the left drives up on it loose on the bench (item 5).
@@ -34,6 +34,29 @@ Hardware state, joint table and IDs: [hardware/STATUS.md](../../../STATUS.md).
 | Camera rig (Logitech BRIO, AprilTag plates) | Plan approved; camera owned; plates not printed | Item 9 |
 | Arm on the robot torso | Waits for Joey's rebuilt torso frame | Items 8 and 9 on the real geometry |
 | Power board (rev B5) | Being routed; review, then fab | Item 10. The bench uses the 24 V supply and a physical E-stop until then |
+
+## Names and crate layout (Joey, 2026-11-08)
+
+Plain names that say what each piece does (tenet 7). The Napoleon names go. New code gets the new names from day one; the old
+crates are **not renamed**, they're deleted when their replacement passes, so nobody pays for a rename twice. Proposed layout,
+about 10 crates in place of 15 crates and 6 bins (binaries keep a `marengo-` prefix so they read clearly in `ps` and systemd):
+
+| New | Does | Replaces |
+|---|---|---|
+| `skeleton` | Loads and checks the skeleton YAML | marengo-config, config/*.yaml |
+| `robstride` | RobStride codec, no I/O | the codec half of today's robstride |
+| `can` | Bus threads, tick schedule, drive scan and set-ID | the bus half of robstride, Davout's CAN code, motor-repl |
+| `safety` | Drive preflight and the short host rule list (tenet 3) | Davout |
+| `control` | The control modes the tests need | Berthier |
+| `dynamics` | Kinematics, gravity, calibration fits | armee-kinematics, armee-dynamics |
+| `telemetry` | MCAP recording, metrics export, logging setup | marengo-store, marengo-candump, marengo-host-metrics, marengo-support, Chappe's log layer |
+| `api` | The one interface to the realtime process | Chappe, armee-proto |
+| `marengo-runtime` (bin) | The one realtime process | marengo-pi |
+| `marengo-sim-drive` (bin) | Simulated drives on `vcan` | sim-harness |
+| `marengo-cli` (bin) | Scan, set ID, independent disable, one-off checks | motor-repl, parts of marengo-log-cli |
+| `ui/` and `marengo-mcp` | Operator UI (and its thin bridge) and agent tools, both clients of `api` | Consul, marengo-gateway, marengo-pi-mcp |
+
+Final names are the software project's call; the rule is "names say what things do".
 
 ## 1. The skeleton YAML (tenets 1 and 2)
 
