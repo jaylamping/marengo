@@ -223,7 +223,7 @@ Still open (settled when the rig is set up, no need to decide now):
 
 Added 2026-11-07 with forearm B and its 6808 support pair (`../forearm/README.md`). The test weights stand in for the hand during gravity-compensation and calibration runs.
 
-**Hardware.** A PETG wrist adapter bolts to the wrist flange: 6 × M3 × 10 into the flange's heat-set inserts on Ø50, with a Ø34.8 pilot boss in the flange's Ø35 recess. An M8 × 100 fully threaded bolt sits head-down in the adapter's hex pocket as a stud along the forearm axis. Printed PLA pucks slide on, 250 g (30.0 mm tall) and 100 g (15.0 mm tall) when filled. Each has a sealed cavity and a 3-screw lid. An M8 nut and washer lock the stack. CAD is in `cad/parts/test_weights/`.
+**Hardware.** A PETG wrist adapter bolts to the wrist flange: 6 × M3 × 10 into the flange's heat-set inserts on Ø50, with a Ø34.8 pilot boss in the flange's Ø35 recess. An M8 × 100 fully threaded bolt sits head-down in the adapter's hex pocket as a stud along the forearm axis. Printed PLA pucks slide on, 250 g (30.0 mm tall) and 100 g (15.0 mm tall) when filled. Each has a sealed cavity and a lid held by 3 × M3 × 8 socket heads into Ruthex heat-set inserts in the puck bosses. An M8 nut and washer lock the stack. CAD is in `cad/parts/test_weights/`.
 
 **Datum.** The adapter's bottom face is the stack datum. It is 12.0 mm below the wrist flange face, and the flange face is 195.0 mm from the elbow axis along the forearm, so the datum is **207.0 mm from the elbow axis**. Pucks stack down from the datum with no gaps.
 

@@ -78,7 +78,7 @@ Added 2026-11-07 for forearm B with the 6808 support pair (`forearm/README.md`).
 | Part | Per arm | Both arms | Use |
 | --- | --- | --- | --- |
 | 6808-2RS, 40 × 52 × 7 | 2 | **4** | Forearm support pair. The 10-pack also covers the elbow bearing of the right arm, fit checks and spares |
-| Heat-set insert M3 × 5.7 (Ruthex / CNC Kitchen), Ø4.0 printed hole, 7 deep | 21 | **42** | Fork rim 6, sleeve bottom 3 (wrist cap), tube end 6 (wrist flange), wrist flange 6 (hand). Buy a 100-pack for coupons and spares |
+| Heat-set insert M3 × 5.7 (Ruthex / CNC Kitchen), Ø4.0 printed hole, 7 deep | 21 | **42** | Fork rim 6, sleeve bottom 3 (wrist cap), tube end 6 (wrist flange), wrist flange 6 (hand). Plus 12 for the four puck lids (shared). Buy a 100-pack for coupons and spares |
 | M3 × 6 socket head, ISO 4762 | 12 | **24** | RS00 housing to the RS00 ring (6 × M3 on Ø50), and coupling plate to the RS00 output (6 × M3 on Ø27) |
 | M3 × 14 socket head, ISO 4762 | 6 | **12** | Sleeve flange and RS00 ring into the fork rim inserts |
 | M3 × 10 button head, ISO 7380 | 6 | **12** | Wrist flange into the tube end inserts |
@@ -90,6 +90,6 @@ Added 2026-11-07 for forearm B with the 6808 support pair (`forearm/README.md`).
 | M8 nut | | **2** | Locks the puck stack, plus one spare |
 | M8 washer | | **1** | Under the nut |
 | M3 × 10 socket head, ISO 4762 | | **6** | Test-weight adapter into the wrist flange inserts, shared |
-| M3 × 8 thread-forming for plastic | | **12** | Puck lids, 3 per puck, for four pucks |
+| M3 × 8 socket head, ISO 4762 | | **12** | Puck lids, 3 per puck, for four pucks, into Ruthex inserts (taken from the insert 100-pack) |
 
 All dry during testing, no thread-locker. Torques are set in the forearm assembly notes.

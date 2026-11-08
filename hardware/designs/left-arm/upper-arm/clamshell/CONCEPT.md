@@ -39,6 +39,36 @@ For comparison, the one-piece db71b23b is 226 g solid. Its best orientation stil
   - There are strain-relief tie bars at both ends.
   - Assembly: lay the cable in the lower half, then close the upper half over it.
 
+## Seam orientation: Z split vs X split (2026-11-08)
+
+The two options:
+- **Z split:** the plane through the elbow axis, Z 6. The seam lines run along the ±X sides of the tube.
+- **X split:** the plane across the elbow axis, like the forearm. Taken at X 165.2 so the plate ears land on the bed. The seam lines run along the top and bottom of the tube.
+
+Shear flow assumes a thin round tube, R 38 mm, at 5 kg. That gives V = 59 N, including the forearm. The yaw RS02 peak torque is 17 N·m.
+
+| | Z split | X split at X 165.2 |
+| --- | --- | --- |
+| Pitch-sweep shear flow at the seam (V/πR at the neutral plane, 0 at the extreme fibres) | **0.49 N/mm** (the maximum) | **about 0** |
+| Lateral-case shear flow at the seam | about 0 | 0.49 N/mm |
+| Twist shear flow (17 N·m / 2A), the same everywhere | 1.87 N/mm | 1.87 N/mm |
+| Worst seam shear flow | **2.4 N/mm** | 2.4 N/mm (lateral + twist), plus the load transfer below |
+| Load transfer between the halves | The seat ring is captured by both halves, so each takes its own share | The ring ears are all in the −X half. About 9.6 N·m (half the 19 N·m at Y 250) must cross the seam within about 40 mm of the plate root, roughly **4 N/mm locally** |
+| Support on the outer skin | 0 on the lower half, about 50 mm² on the upper half. That is two concept artefacts: the channel-end stub and tessellation slivers at the hub cut. Both come out in the CAD | 0 on both halves |
+| Trunk channel | On the seam, on the neutral plane of the pitch sweep, so the rib doubles as the seam flange | The seam lines are the top and bottom extreme fibres of the pitch bending. The channel can't share the seam, so it needs its own rib inside one half, and the split doesn't capture it |
+| Print | Both halves cut face down. Layers run along the arm | The same, and the plate ears sit flat on the bed |
+
+**Decision: keep the Z split.**
+- Its seam shear flow is the higher of the two for pitch, but only 2.4 N/mm at worst.
+- It keeps the elbow load path symmetric: the ring is captured by both halves.
+- It puts the channel and the seam flange on the neutral plane, as Joey asked.
+- The X split's one advantage is a clean outer skin, and the Z split gets that too once the two concept artefacts are cleaned up in CAD.
+
+**Seam sizing for the Z split.** With SF 2, the design shear flow is 4.8 N/mm. Over the 50 mm of tube seam per side, that is 240 N per side.
+- Ruthex M3 inserts at 25 mm pitch, 3 per side: about 80 N per insert in shear, well under the pull-out and shear capacity of an M3 insert in PETG (several hundred N).
+- Tongue and groove, 2 × 2 mm: the shear plane is 2 mm²/mm. At the 22.5 MPa layer allowable that is 45 N/mm, about 9× the design flow. The tongue locates the halves and takes the shear, so the screws mostly clamp.
+- The seam FEA with the bolted joint, at the upper-arm load cases, comes with the detailed CAD.
+
 ## RS02 tab pocket (Joey's fit report on db71b23b)
 
 The pocket in the Ø66 back bore clears the RS02's lower plug housing:
