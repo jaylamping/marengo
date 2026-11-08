@@ -69,3 +69,27 @@ The 14-way ribbon and the elbow cable guard are a separate small order, once the
 - Ø4 drill bit for clearing the dowel holes.
 - 2020 extrusion, 600 mm, as the rig lever.
 - Feeler gauges and calipers.
+
+## 6. Forearm, support bearings (option A) and test weights
+
+Added 2026-11-07 for forearm B with the 6808 support pair (`forearm/README.md`). **Quantities are for both arms** (left now, right later), except the test-weight hardware, which is one shared set. Joey is buying the 6808 10-pack, the inserts and the M8 hardware.
+
+| Part | Per arm | Both arms | Use |
+| --- | --- | --- | --- |
+| 6808-2RS, 40 × 52 × 7 | 2 | **4** | Forearm support pair. The 10-pack also covers the elbow bearing of the right arm, fit checks and spares |
+| Heat-set insert M3 × 5.7 (Ruthex / CNC Kitchen), Ø4.0 printed hole, 7 deep | 21 | **42** | Fork rim 6, sleeve bottom 3 (wrist cap), tube end 6 (wrist flange), wrist flange 6 (hand). Buy a 100-pack for coupons and spares |
+| M3 × 10 socket head, ISO 4762 | 6 | **12** | RS00 housing (6 × M3 on Ø50) to the sleeve flange |
+| M3 × 12 socket head, ISO 4762 | 6 | **12** | Sleeve flange into the fork rim inserts |
+| M3 × 6 socket head, ISO 4762 | 6 | **12** | Coupling plate to the RS00 output (6 × M3 on Ø27) |
+| M3 × 8 button head, ISO 7380 | 6 | **12** | Wrist flange into the tube end inserts |
+| M3 × 6 button head, ISO 7380 | 3 | **6** | Wrist cap into the sleeve inserts |
+| M5 × 20 button head, ISO 7380 | 1 | **2** | 6808 inner-race clamp through the fork stub |
+| M5 nyloc nut, DIN 985 | 1 | **2** | Captured in the clamp boss |
+| M5 washer, DIN 9021 (Ø15) | 1 | **2** | Under the clamp bolt head in the cheek cap |
+| M8 × 100 hex bolt, fully threaded, ISO 4017 | | **1** | Test-weight stud, shared |
+| M8 nut | | **2** | Locks the puck stack, plus one spare |
+| M8 washer | | **1** | Under the nut |
+| M3 × 10 socket head, ISO 4762 | | **6** | Test-weight adapter into the wrist flange inserts, shared |
+| M3 × 8 thread-forming for plastic | | **12** | Puck lids, 3 per puck, for four pucks |
+
+All dry during testing, no thread-locker. Torques are set in the forearm assembly notes.

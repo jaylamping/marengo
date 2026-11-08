@@ -218,3 +218,36 @@ Decided (Joey, 2026-11-07 06:25Z): option A; camera is his Logitech BRIO; the ar
 Still open (settled when the rig is set up, no need to decide now):
 1. Where the robot stands during testing, and the rigid spot about 1 m away for the camera.
 2. Bench host for the left arm: the Pi 5 on can1 with the BRIO on it is assumed.
+
+## 14. Test weights: mass and CoM bookkeeping
+
+Added 2026-11-07 with forearm B and its 6808 support pair (`../forearm/README.md`). The test weights stand in for the hand during gravity-compensation and calibration runs.
+
+**Hardware.** A PETG wrist adapter bolts to the wrist flange: 6 × M3 × 10 into the flange's heat-set inserts on Ø50, with a Ø34.8 pilot boss in the flange's Ø35 recess. An M8 × 100 fully threaded bolt sits head-down in the adapter's hex pocket as a stud along the forearm axis. Printed PLA pucks slide on, 250 g (30.0 mm tall) and 100 g (15.0 mm tall) when filled. Each has a sealed cavity and a 3-screw lid. An M8 nut and washer lock the stack. CAD is in `cad/parts/test_weights/`.
+
+**Datum.** The adapter's bottom face is the stack datum. It is 12.0 mm below the wrist flange face, and the flange face is 195.0 mm from the elbow axis along the forearm, so the datum is **207.0 mm from the elbow axis**. Pucks stack down from the datum with no gaps.
+
+**Bookkeeping, per puck.** Weigh each filled puck with its lid and screws, and write the mass on the label. Fill each cavity completely, with steel nuts, BBs or sand, and pack foam into any gap, so the contents can't shift. Then the puck's CoM is at its mid-height to within about ±3 mm for a 250 g puck. Puck *i* in the stack has its CoM at
+
+  d_i = 207.0 + (sum of the heights of the pucks above it) + h_i / 2   (mm from the elbow axis)
+
+Add the fixed parts:
+
+| Item | Mass | CoM from the elbow axis |
+| --- | --- | --- |
+| Wrist adapter | weigh it, about 38 g at 100% PETG | about 201 mm |
+| M8 × 100 bolt | weigh it, about 40 g | 207 + (100 − 5.6) / 2 − 5.6 ≈ 248 mm |
+| M8 nut and washer | about 7 g | at the bottom of the stack |
+
+The stack's mass is m_s = Σ m_i, and its CoM distance is d_s = Σ m_i d_i / m_s. Log m_s and d_s with every run.
+
+**Forearm itself (CAD, 100% infill; weigh the printed parts and update this).** 768 g, including the RS00 (310 g), the 6808 pair, the coupling, the race clamp and the screws. Its CoM is **101.9 mm below the elbow axis**, within 1 mm of the forearm axis. No hand is fitted during these tests.
+
+**Limits.** Allowable torque is the rated torque divided by a 1.5 dynamic factor, with the arm straight out horizontal:
+
+| Joint | Allowable | Self load | Maximum stack m_s at d_s |
+| --- | --- | --- | --- |
+| Elbow RS02 (6 N·m rated) | 4.0 N·m | forearm 0.77 N·m | m_s ≤ (0.4077 − 0.0783) / d_s, so **1.40 kg at d_s = 0.235 m** |
+| Shoulder pitch RS03 (20 N·m rated), full reach | 13.3 N·m | 4.0 N·m | m_s ≤ (1.3589 − 0.4078) / (0.215 + d_s), so 2.1 kg at d_s = 0.235 m |
+
+The elbow governs. The adapter is engraved **MAX 1.4 kg**. That holds for stacks with d_s up to 235 mm, which is two 250 g pucks or lighter. For a longer stack, use the formula. Peak torque is never the limit here. The forearm passes the 5 kg worst case, so the forearm structure is not the limit either.
