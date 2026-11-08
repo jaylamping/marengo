@@ -38,6 +38,14 @@ def half(m, n, p):
 ring_cut = xcyl(43.6, 150.5, 166.5)
 hub_cut = box(120, 220, 298.5, 330, -60, 70)
 ring = UA.intersection(ring_cut)
+# RS02 plug-housing pocket run through to the seat face (X 165.19) over 161-191 deg, floor r 36.9: removes the 1.7 mm lip Joey had to file
+from shapely.geometry import Polygon as _Poly
+_ang = np.radians(np.linspace(161, 191, 31))
+_sec = _Poly([(32.5 * np.cos(t), 32.5 * np.sin(t)) for t in _ang] + [(36.9 * np.cos(t), 36.9 * np.sin(t)) for t in _ang[::-1]])
+_pk = trimesh.creation.extrude_polygon(_sec, 4.0)                       # local x = Y offset, y = Z offset, z = X
+_pk.apply_transform(np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1.0]]))
+_pk.apply_translation([162.0, CY, CZ])
+ring = ring.difference(_pk)
 hub = UA.intersection(hub_cut)
 rest = UA.difference(ring_cut).difference(hub_cut)
 Z0 = 6.0
