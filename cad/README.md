@@ -19,7 +19,7 @@ Root assembly: `cad/marengo.SLDASM` at the top of the CAD tree.
 | The one current file per part/assembly: the file the robot assembly or a print uses today, in its region folder | Variants, studies, test and render copies: `_wip/<topic>/` |
 | The STEP/STL export of a current part that something consumes (a print, a review, a URDF, another tool) or that is released, in `exports/<region>/`, with its source recorded in `manifests/exports.json` | FEA/solver results: `_sim/<region>/`, `*.CWR`, `*.STE` |
 | The exact 3MF of anything actually printed, plus its G-code and settings checklist (`prints/<region>/`) | Pre-git old copies, duplicates, raw review logs: `_archive/` |
-| Review packets at a gate: markdown and key renders (`reviews/<region>/<YYYYMMDD>_<topic>/`) | SolidWorks `.checkpoints/`, `~$` lock files, `Backup of *` copies |
+| Review packets at a gate: markdown and key renders (`reviews/<region>/<YYYYMMDD>_<topic>/`) | SolidWorks `.checkpoints/`, `~$` lock files, `Backup of *` / `Backup (n) of *` copies |
 | Vendor models, references, drawings, CAD scripts and macros, manifests | Anything 100 MB or larger; the writer lock `cad/.cad-writer.lock` |
 
 ### Process
@@ -35,7 +35,8 @@ Root assembly: `cad/marengo.SLDASM` at the top of the CAD tree.
 3. **Promote when chosen.** A part moves into its region folder (with SolidWorks Pack and Go)
    when it is picked: it passes its gate, or an assembly or print starts using it. Stage it,
    then run `python tools/cad/check_sw_refs.py --all` (Windows; reads references without
-   opening files, so it covers every assembly and drawing, parents included): every reference
+   opening files, so it covers every part, assembly and drawing in git, parents included;
+   it refuses if a scanned file's working copy differs from its staged copy): every reference
    must resolve to a committed or staged file in `cad/` outside the scratch folders, or the
    committed assembly would be broken for everyone else. Rebuild the top assembly (Ctrl+Q)
    once before the commit.

@@ -5,7 +5,7 @@ Works from git history alone (pointer files), so it runs without LFS content.
 
 Usage:
     python tools/cad/lfs_budget.py report              storage used and new LFS bytes per month
-    python tools/cad/lfs_budget.py push REV...         check what these commits would add
+    python tools/cad/lfs_budget.py push [--remote R] REV...   check what these commits would add to R (origin)
                                                        (e.g. origin/main..HEAD); used by pre-push
 Limits: cad/manifests/lfs-budget.json. "push" fails (exit 1) when the push adds more than
 pushMaxBytes, takes this month past monthMaxBytes, or takes storage past storageMaxBytes,
@@ -87,10 +87,14 @@ def report(root: Path = REPO_ROOT) -> int:
 
 
 def check_push(
-    rev_args: list[str], root: Path = REPO_ROOT, budget: dict | None = None
+    rev_args: list[str],
+    root: Path = REPO_ROOT,
+    budget: dict | None = None,
+    remote: str = "origin",
 ) -> tuple[bool, list[str]]:
+    """Only objects the TARGET remote already has count as stored (another remote's copy doesn't)."""
     budget = budget or json.loads(BUDGET_PATH.read_text(encoding="utf-8"))
-    stored = lfs_history(["--remotes"], root=root)
+    stored = lfs_history([f"--remotes={remote}"], root=root)
     new = new_objects(rev_args, stored, root=root)
     adding = sum(new.values())
     total = sum(s for s, _ in stored.values())
@@ -136,7 +140,11 @@ def main(argv: list[str]) -> int:
     if argv == ["report"]:
         return report()
     if len(argv) >= 2 and argv[0] == "push":
-        ok, msgs = check_push(argv[1:])
+        args = argv[1:]
+        remote = "origin"
+        if args[:1] == ["--remote"] and len(args) >= 3:
+            remote, args = args[1], args[2:]
+        ok, msgs = check_push(args, remote=remote)
         print("\n".join(msgs))
         return 0 if ok else 1
     print(__doc__)

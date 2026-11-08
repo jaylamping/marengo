@@ -308,6 +308,32 @@ class LockTests(unittest.TestCase):
                 list(lock.parent.iterdir()), []
             )  # no temp files left behind
 
+    def test_stale_recovery_is_serialized(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            lock = Path(tmp) / ".cad-writer.lock"
+            self.assertTrue(cad_lock.acquire("left-arm", path=lock)[0])
+            data = json.loads(lock.read_text())
+            data["updated"] = time.time() - cad_lock.STALE_SECONDS - 1
+            lock.write_text(json.dumps(data))
+            guard = lock.with_name(lock.name + ".recover")
+            guard.write_text(
+                json.dumps({"updated": time.time()})
+            )  # another recoverer is mid-way
+            ok, msg = cad_lock.acquire("torso", path=lock, take_stale=True)
+            self.assertFalse(ok)
+            self.assertIn("recovering", msg)
+            self.assertEqual(json.loads(lock.read_text())["owner"], "left-arm")
+            guard.unlink()
+            # the record changed after it was judged stale (someone took it over): never overwrite it
+            new = dict(data, owner="shell", updated=time.time())
+            lock.write_text(json.dumps(new))
+            ok, _ = cad_lock._take_stale(
+                lock, data, {"owner": "torso", "updated": time.time()}
+            )
+            self.assertFalse(ok)
+            self.assertEqual(json.loads(lock.read_text())["owner"], "shell")
+            self.assertFalse(guard.exists())
+
     def test_unreadable_lock_is_held_not_stale(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             lock = Path(tmp) / ".cad-writer.lock"
@@ -408,6 +434,29 @@ class GitTests(unittest.TestCase):
             )
         finally:
             del os.environ["CAD_BUDGET_OK"]
+
+    def test_budget_counts_other_remotes_objects_as_new(self) -> None:
+        budget = {
+            "pushMaxBytes": 10**12,
+            "monthMaxBytes": 10**12,
+            "storageWarnBytes": 10**12,
+            "storageMaxBytes": 10**12,
+        }
+        build(
+            self.root,
+            {"cad/shoulder/marengo_shoulder_n.SLDPRT": pointer(80_000_000, "6" * 64)},
+        )
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "on fork only")
+        git(self.root, "update-ref", "refs/remotes/fork/main", "HEAD")
+        _, msgs = lfs_budget.check_push(
+            ["HEAD", "--not", "--remotes=origin"], self.root, budget, remote="origin"
+        )
+        self.assertIn("adds 80.0 MB in 1 new object", msgs[0])
+        _, msgs = lfs_budget.check_push(
+            ["HEAD", "--not", "--remotes=fork"], self.root, budget, remote="fork"
+        )
+        self.assertIn("adds 0.0 MB", msgs[0])
 
     def test_pre_push_rev_args(self) -> None:
         z = gitlfs.ZERO

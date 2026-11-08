@@ -91,11 +91,13 @@ def load_json(path: Path) -> dict:
         return json.load(fh)
 
 
-def load_exceptions(path: Path = EXCEPTIONS_PATH) -> list[str]:
-    if not path.exists():
-        return []
-    lines = (ln.strip() for ln in path.read_text(encoding="utf-8").splitlines())
+def parse_exceptions(text: str) -> list[str]:
+    lines = (ln.strip() for ln in text.splitlines())
     return [ln for ln in lines if ln and not ln.startswith("#")]
+
+
+def load_exceptions(path: Path = EXCEPTIONS_PATH) -> list[str]:
+    return parse_exceptions(path.read_text(encoding="utf-8")) if path.exists() else []
 
 
 class Checker:
@@ -446,9 +448,16 @@ def tracked_files(root: Path = REPO_ROOT) -> list[tuple[str, str]]:
 
 
 def check_repo(layout: dict, conventions: dict, root: Path = REPO_ROOT) -> Report:
-    exceptions = load_exceptions(root / "cad" / "manifests" / "layout-exceptions.txt")
     entries = tracked_files(root)
     sizes = blob_sizes([b for b, _ in entries], root=root)
+    # the staged copy of the exceptions list, so an unstaged edit can't hold a file
+    exc_blob = next(
+        (b for b, r in entries if r == "cad/manifests/layout-exceptions.txt"), None
+    )
+    exc_text = (
+        git("cat-file", "blob", exc_blob, root=root).decode("utf-8") if exc_blob else ""
+    )
+    exceptions = parse_exceptions(exc_text)
     cad_files = []
     report = Report(prefix="", exceptions=exceptions)
     cad_ext = {e.lower() for e in layout["cadExtensions"]}

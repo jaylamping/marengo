@@ -25,7 +25,7 @@ def main(argv: list[str]) -> int:
         return 0
     # every ref in this push is checked together, so the budget sees the whole upload
     failed = check_file_sizes.report(check_file_sizes.pushed(rev_args), "pushed") != 0
-    ok, msgs = lfs_budget.check_push(rev_args)
+    ok, msgs = lfs_budget.check_push(rev_args, remote=remote)
     print("\n".join(msgs))
     return 1 if failed or not ok else 0
 

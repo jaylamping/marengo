@@ -122,21 +122,49 @@ def acquire(
             f"stale lock (no refresh for 4 h) held by {describe(lock)}. Make sure that session has stopped "
             "and its SolidWorks is closed, then acquire again with --take-stale."
         )
-    # Move the stale lock aside under a unique name: only one session's rename can succeed.
-    aside = path.with_name(f"{path.name}.stale.{os.getpid()}.{time.time_ns()}")
+    return _take_stale(path, lock, data)
+
+
+RECOVERY_STALE_SECONDS = 60
+
+
+def _take_stale(path: Path, stale: dict, data: dict) -> tuple[bool, str]:
+    """Replace a stale lock, one recoverer at a time.
+
+    A recovery lock (created exclusively) serializes recoverers. Inside it the lock is
+    re-read; only if it is still the same stale record is it removed, and the new lock is
+    then created exclusively, so a normal acquire that slips in between wins and nothing is
+    ever put back or overwritten.
+    """
+    guard = path.with_name(path.name + ".recover")
+    if not _create(
+        guard,
+        {"pid": os.getpid(), "host": socket.gethostname(), "updated": time.time()},
+    ):
+        held = read(guard) or {}
+        if time.time() - float(held.get("updated", 0)) < RECOVERY_STALE_SECONDS:
+            return (
+                False,
+                "another session is recovering the stale lock; try again in a minute",
+            )
+        guard.unlink(missing_ok=True)  # a recoverer that crashed
+        if not _create(
+            guard,
+            {"pid": os.getpid(), "host": socket.gethostname(), "updated": time.time()},
+        ):
+            return (
+                False,
+                "another session is recovering the stale lock; try again in a minute",
+            )
     try:
-        os.rename(path, aside)
-    except FileNotFoundError:
+        if read(path) != stale:
+            return False, "the lock changed hands; check status and try again"
+        path.unlink(missing_ok=True)
+        if _create(path, data):
+            return True, f"took over a stale lock from {describe(stale)}"
         return False, "another session took the lock first"
-    if (
-        read(aside) != lock
-    ):  # someone replaced it between our read and rename: put theirs back
-        os.replace(aside, path)
-        return False, "the lock changed hands; try again"
-    aside.unlink(missing_ok=True)
-    if _create(path, data):
-        return True, f"took over a stale lock from {describe(lock)}"
-    return False, "another session took the lock first"
+    finally:
+        guard.unlink(missing_ok=True)
 
 
 def refresh(owner: str, path: Path = LOCK_PATH) -> tuple[bool, str]:

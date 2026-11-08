@@ -3,7 +3,7 @@
 to a file under cad/ that git will hold (not a scratch folder, not outside cad/).
 
     python tools/cad/check_sw_refs.py cad\\arm\\marengo_arm_left_asm.SLDASM [more files...]
-    python tools/cad/check_sw_refs.py --all      every SLDASM/SLDDRW in the region and drawings folders
+    python tools/cad/check_sw_refs.py --all      every SLDPRT/SLDASM/SLDDRW in cad/ outside the scratch folders
 
 Run it after staging a promoted part or assembly (git add), before committing: every
 reference must be committed or staged. Reads references with
@@ -73,6 +73,22 @@ def git_ignored(paths: list[Path]) -> set[str]:
     }
 
 
+def unstaged_paths() -> set[str]:
+    """Lower-case cad-relative paths whose working copy differs from the staged copy.
+
+    The scan reads working-tree files, so it only proves what gets committed when those match.
+    """
+    out = git("diff", "--name-only", "-z", "--", "cad").decode()
+    return {p[len("cad/") :].lower() for p in out.split("\0") if p.startswith("cad/")}
+
+
+def cad_key(path: Path) -> str | None:
+    try:
+        return path.resolve().relative_to(CAD_ROOT.resolve()).as_posix().lower()
+    except ValueError:
+        return None
+
+
 def index_paths() -> set[str]:
     """Lower-case cad-relative paths in the index (committed or staged)."""
     out = git("ls-files", "-z", "--", "cad").decode()
@@ -81,20 +97,22 @@ def index_paths() -> set[str]:
 
 def dependencies(sw, path: Path) -> list[str]:
     # (file, traverse all levels, search for files, add read-only info) -> [name, path, name, path, ...]
-    deps = sw.GetDocumentDependencies2(str(path), True, True, False) or ()
+    # search=False: report the stored paths, so a reference SolidWorks would only find by searching shows up as missing
+    deps = sw.GetDocumentDependencies2(str(path), True, False, False) or ()
     return [deps[i + 1] for i in range(0, len(deps) - 1, 2)]
 
 
 def targets(argv: list[str]) -> list[Path]:
+    """--all: every staged or committed native file in cad/ outside the scratch folders."""
     if argv == ["--all"]:
+        native = {".sldprt", ".sldasm", ".slddrw"}
+        out = git("ls-files", "-z", "--", "cad").decode()
         found = []
-        for p in CAD_ROOT.rglob("*"):
-            rel = p.relative_to(CAD_ROOT)
-            if p.suffix.lower() in {".sldasm", ".slddrw"} and not (
-                SCRATCH & {x.lower() for x in rel.parts}
-            ):
-                found.append(p)
-        return sorted(found)
+        for rel in sorted(p for p in out.split("\0") if p):
+            parts = {x.lower() for x in Path(rel).parts}
+            if Path(rel).suffix.lower() in native and not (SCRATCH & parts):
+                found.append(REPO_ROOT / rel)
+        return found
     return [Path(a).resolve() for a in argv]
 
 
@@ -105,12 +123,31 @@ def main(argv: list[str]) -> int:
     sys.path.insert(0, str(REPO_ROOT / "hardware" / "tools" / "solidworks"))
     from sw_instance import launch  # Windows only (pywin32)
 
+    indexed = index_paths()
     files = targets(argv)
     bad = 0
-    indexed = index_paths()
+    unstaged = unstaged_paths()
     with launch() as inst:
         for f in files:
+            key = cad_key(f)
+            if key is None or key not in indexed:
+                bad += 1
+                print(f"BAD  {f}: not staged or committed under cad/; git add it first")
+                continue
+            if key in unstaged:
+                bad += 1
+                print(
+                    f"BAD  {f.relative_to(REPO_ROOT)}: working copy differs from the staged copy; stage it (git add) or restore it, then re-run"
+                )
+                continue
             refs = dependencies(inst.sw, f)
+            for ref in refs:
+                rkey = cad_key(Path(ref))
+                if rkey and rkey in unstaged:
+                    bad += 1
+                    print(
+                        f"BAD  {f.relative_to(REPO_ROOT)} -> {PureWindowsPath(ref)}: working copy differs from the staged copy; stage it or restore it"
+                    )
             ignored = git_ignored([Path(r) for r in refs])
             for ref in refs:
                 why = classify(ref, ignored=ignored, indexed=indexed)
