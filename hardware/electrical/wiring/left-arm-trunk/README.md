@@ -27,7 +27,7 @@ Buy list with links: [BUY_LIST.md](BUY_LIST.md).
 | S1 | M11 splice | M12 splice (P1, roll RS03 housing) | pitch, 230° | ~350 mm (crossing provisional) | 450 mm |
 | S2 | M12 splice | M13 splice (P2, yaw RS02 housing) | roll, 195° | ~300 mm (crossing provisional) | 400 mm |
 | S3 | M13 splice | M14 splice (upper arm, shoulder end of tube) | yaw ±90° twist (~185 mm free) + elbow slack loop (~130 mm stored) | ~400 mm | 500 mm |
-| S4 | M14 splice (+ 5 A segment fuse) | M15 splice + hand drop (forearm) | elbow 0 to 124° (posterior back loop) | 148 mm free between the anchors | **Decided 2026-11-08 (Joey):** round high-flex wire in PTN0.38 loom, no guard. 2 × 18 AWG red + 2 × 18 AWG black (paralleled per rail), CAN pair 26 AWG. Cut 250 mm |
+| S4 | M14 splice (+ 5 A segment fuse) | M15 splice + hand drop (forearm) | elbow 0 to 124° (posterior back loop) | 190 mm free between the anchors | **Decided 2026-11-08 (Joey):** round high-flex wire in PTN0.38 loom, no guard. 2 × 18 AWG red + 2 × 18 AWG black (paralleled per rail), CAN pair 26 AWG. Cut 300 mm |
 | Drops ×5 | splice | motor plug, fuse holder in line | — | ≤150 mm | 200 mm each |
 
 Totals per arm: about 2.0 m of trunk plus 1.0 m of drops per conductor. **Buy 3.5 m each of red and black 16 AWG and 3.5 m of 26 AWG twisted pair per arm** (7 m each for both arms), plus 0.5 m of 18 AWG red/black.
@@ -35,15 +35,16 @@ Totals per arm: about 2.0 m of trunk plus 1.0 m of drops per conductor. **Buy 3.
 **Elbow crossing, decided 2026-11-08 (Joey): back loop in loom, no printed guard.** This supersedes the ribbon and clock-spring options below, which stay as history. The options compared are in `hardware/designs/left-arm/renders/elbow_loop_options.png`.
 
 - **Cable:** 2 × 18 AWG red and 2 × 18 AWG black high-strand silicone, paralleled per rail. That carries the RS00 plus the future hand, about 6 A. The 26 AWG CAN pair runs alongside. Bundle about 7 mm, in PTN0.38 loom about 8 mm OD.
-- **Anchors:** printed clamps moulded into the upper-arm halves and the forearm halves, close behind the elbow axis.
-  - Upper arm: r 48, 70° behind the axis.
-  - Forearm: r 48, 110° when the arm is straight.
-  - Exits rounded R25, above the 3 × OD = 24 mm minimum. The braid ends inside each clamp.
-- **Loop:** it has to pass outside the carrier and hoop (r 42–44), so the path grows about 95 mm from 0° to 124°.
-  - Free length **148 mm**, so it is never taut at 124°.
-  - At 0° the 115 mm of slack bows backward: about 53 mm over the anchor chord, up to about 67 mm proud of the carrier rim.
-  - Bend radius stays at 44 mm or more.
-- **Still to check:** the sweep against the RS02 back, the carrier screws and the fork comes with the clamshell CAD.
+- **Anchors:** printed tie-down saddles, r 48 about the elbow axis, in the plane X 132 (between the forearm cheek face and the carrier).
+  - Upper arm: on the **carrier** rim at 60° (the clamshell halves stop at Y 255 and do not reach behind the axis). Built: `hardware/designs/left-arm/upper-arm/clamshell/cad/ua_parts.py`, job `carrier`.
+  - Forearm: on the inboard cheek rim at 140° when the arm is straight. It is built with the forearm clamshell.
+  - Each saddle: an 8.4 mm U-groove with an 8 mm flat, tilted 15° outward from tangential. Beyond the flat the floor runs out on R25 arcs. A cable tie passes through a 4.5 × 2 mm tunnel under the floor. The braid ends inside each saddle.
+- **Loop:** free length **190 mm** between the saddle flats. Sizing is from a minimum-bending-energy loom model with the saddle directions as end conditions, swept against the meshes through 0–124° (`clamshell/cad/loop_sweep.py`, results in `loop_sweep_190.json`).
+  - Bend radius: 27.9 mm or more at every angle, above the 3 × OD = 24 mm minimum. 148 mm free bent the loom to about 15 mm at 0°.
+  - Bow at 0°: the outermost point is about 70 mm past r 48, which is about 74 mm off the carrier rim and about 110 mm behind the elbow axis. At 124° it lies about 9 mm off.
+  - Minimum clearance to the loom surface: forearm 8.5 mm, carrier screws 16, RS02 26, 6808 25, RS00 40, fork screws 65.
+  - At the saddles the loom rests on the R25 floor run-out, which is the intended contact. The nearest saddle edge is about 1.7 mm away at 120–124° in the model.
+- **Check after the first fit:** string-test the real loom at 0°, 60° and 124° before trimming.
 - **Rejected:** the inboard side spiral (bow about 23 mm) was turned down because it adds about 10 mm of width toward the torso.
 
 **Earlier options, rev 2 (2026-11-06 09:51Z), superseded:** CAD found no room for stored slack inside the upper-arm tube (40 to 48 mm free) or the forearm (RS00 fills it), and a coiled cord needs 150 to 170 mm stretched. A wrap on the carrier rim does not remove the r × θ path change. Lead option: S4 becomes a **high-flex 10-way 28 AWG flat ribbon** (3 conductors paralleled per power rail, ~4 A total, RS00 only; 2 for CAN; 2 spare), ~13 × 1 mm, bend radius 5 to 10 mm. It crosses the elbow on the posterior side over the Ø84 carrier rim, and stores its ~110 to 130 mm path change as a flat **rolling loop** in a thin printed cover on the posterior of the upper-arm tube (there is no shell on the upper arm): radial gap 12 to 20 mm, ~80 to 100 mm long, ~16 mm wide. It is protected by a 3 to 5 A segment fuse at the M14 splice. Fallback: a flat ribbon clock-spring at the elbow end face (~14 mm thick). A future hand needs its own sizing (wider ribbon or a separate feed).
