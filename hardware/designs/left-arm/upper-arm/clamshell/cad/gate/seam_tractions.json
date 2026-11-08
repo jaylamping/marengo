@@ -1,0 +1,26 @@
+{
+ "LC1A": {
+  "sz_max": 0.42,
+  "sz_mean_pos": 0.07,
+  "tau_mean": 0.31,
+  "tau_p95": 1.01
+ },
+ "LC1B": {
+  "sz_max": 0.15,
+  "sz_mean_pos": 0.03,
+  "tau_mean": 0.31,
+  "tau_p95": 1.01
+ },
+ "LC1C": {
+  "sz_max": 0.64,
+  "sz_mean_pos": 0.16,
+  "tau_mean": 0.06,
+  "tau_p95": 0.19
+ },
+ "LC2": {
+  "sz_max": 0.44,
+  "sz_mean_pos": 0.04,
+  "tau_mean": 0.36,
+  "tau_p95": 0.93
+ }
+}

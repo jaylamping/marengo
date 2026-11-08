@@ -9,6 +9,18 @@ Quantities are what's needed, with no spares, except where a row says so. Small 
 
 The rig and the arm share parts where a part comes out of the rig undamaged, so nothing is bought twice. After the rig, inspect anything you reuse: a bent screw, a stripped thread or a rough bearing gets replaced.
 
+## Upper arm clamshell, draft 1 (not released, buy when it passes review)
+
+It replaces the one-piece upper arm's cable-window cover (drop the 4 × M3 × 6 cover screws and 4 cover inserts above). The carrier and its screws are unchanged.
+
+| Part | Qty | Use |
+| --- | --- | --- |
+| M3 × 30 socket or button head | **4** | Seam posts, from below |
+| M3 × 40 socket or button head | **2** | Hub-lug posts, from below |
+| M3 × 12 socket or button head | **2** | Ring pins, one per half |
+| Ruthex M3 × 5.7 heat-set insert (Ø4.0 hole) | **8** | 4 seam posts, 2 hub-lug posts, 2 in the ring |
+| Cable tie, 3.6 mm | **3** | Loop clip, trunk entry, RS00 branch exit |
+
 ## 1. Bearings
 
 | Part | Qty | Notes |

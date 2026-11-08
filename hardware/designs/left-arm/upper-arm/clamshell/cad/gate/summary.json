@@ -1,0 +1,81 @@
+{
+ "ua_upper": {
+  "mesh": "PASS",
+  "support_mm2": 2402.7,
+  "outer_mm2": 83.5,
+  "inner_mm2": 2319.2,
+  "outer_where": [
+   [
+    146.4,
+    260.9,
+    16.5
+   ],
+   [
+    194.6,
+    293.1,
+    39.5
+   ]
+  ]
+ },
+ "ua_lower": {
+  "mesh": "PASS",
+  "support_mm2": 2839.4,
+  "outer_mm2": 0.4,
+  "inner_mm2": 2839.0,
+  "outer_where": [
+   [
+    145.4,
+    254.8,
+    -6.3
+   ],
+   [
+    147.4,
+    254.8,
+    -6.3
+   ]
+  ]
+ },
+ "ua_ring": {
+  "mesh": "PASS",
+  "support_mm2": 51.5,
+  "outer_mm2": 0.0,
+  "inner_mm2": 51.5,
+  "outer_where": []
+ },
+ "ua_hub": {
+  "mesh": "PASS",
+  "support_mm2": 1664.4,
+  "outer_mm2": 182.5,
+  "inner_mm2": 1481.9,
+  "outer_where": [
+   [
+    145.7,
+    300.0,
+    -18.9
+   ],
+   [
+    195.3,
+    302.5,
+    10.5
+   ]
+  ]
+ },
+ "ua_loop_clip": {
+  "mesh": "PASS",
+  "support_mm2": 106.3,
+  "outer_mm2": 68.5,
+  "inner_mm2": 37.8,
+  "outer_where": [
+   [
+    138.5,
+    209.3,
+    -30.1
+   ],
+   [
+    143.5,
+    240.9,
+    -13.3
+   ]
+  ]
+ }
+}

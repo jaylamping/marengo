@@ -36,7 +36,7 @@ Totals per arm: about 2.0 m of trunk plus 1.0 m of drops per conductor. **Buy 3.
 
 - **Cable:** 2 × 18 AWG red and 2 × 18 AWG black high-strand silicone, paralleled per rail. That carries the RS00 plus the future hand, about 6 A. The 26 AWG CAN pair runs alongside. Bundle about 7 mm, in PTN0.38 loom about 8 mm OD.
 - **Anchors:** printed tie-down saddles, r 48 about the elbow axis, in the plane X 132 (between the forearm cheek face and the carrier).
-  - Upper arm: on the **carrier** rim at 60° (the clamshell halves stop at Y 255 and do not reach behind the axis). Built: `hardware/designs/left-arm/upper-arm/clamshell/cad/ua_parts.py`, job `carrier`.
+  - Upper arm: a separate 7.7 g **loop clip** at 60° on the unchanged carrier. Two crush-ribbed spigots locate it in the carrier's screw-access bores, and it pops off by hand for the carrier screw retorque. The clamshell halves stop at Y 255 and do not reach behind the axis. Built: `hardware/designs/left-arm/upper-arm/clamshell/cad/ua_parts.py`, job `clip`.
   - Forearm: on the inboard cheek rim at 140° when the arm is straight. It is built with the forearm clamshell.
   - Each saddle: an 8.4 mm U-groove with an 8 mm flat, tilted 15° outward from tangential. Beyond the flat the floor runs out on R25 arcs. A cable tie passes through a 4.5 × 2 mm tunnel under the floor. The braid ends inside each saddle.
 - **Loop:** free length **190 mm** between the saddle flats. Sizing is from a minimum-bending-energy loom model with the saddle directions as end conditions, swept against the meshes through 0–124° (`clamshell/cad/loop_sweep.py`, results in `loop_sweep_190.json`).

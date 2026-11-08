@@ -77,4 +77,26 @@ WHITELIST = {
     'layer_coupons': {'bodies': None},
     'dummy_output': {'bodies': 2},
 }
+# upper-arm clamshell (hardware/designs/left-arm/upper-arm/clamshell/cad), cut from the db71b23b master: the entries
+# below are the master's own reviewed spots that land in each part, plus one ring end corner.
+WHITELIST['ua_ring'] = {
+    'corners': WHITELIST['upper_arm']['corners'][:2] + [
+        {'pt': (166.2, 233.65, 39.38), 'reason': 'ring +X end face meets the hoop outer surface at 167 deg (a gentle crease, not a spike), on the RS02 side under the halves skirt'},
+    ],
+    'thin': WHITELIST['upper_arm']['thin'][2:4] + [
+        {'box': ((162.0, 174.0, 17.4), (165.4, 175.3, 18.2)), 'reason': 'same port/flange relief corner, its far end, under the RS02 flange, not visible'},
+        {'box': ((151.5, 248.3, 27.0), (166.4, 248.9, 27.7)), 'reason': 'parting-line feather: the master hoop OD runs into the hoop-to-tube fillet tangentially, so any ring/halves cut radius grazes it; 0.16 mm, under the halves, prints as nothing'},
+        {'box': ((151.5, 248.3, -15.8), (166.4, 248.9, -15.1)), 'reason': 'same parting-line feather, back side'},
+        {'box': ((151.5, 250.9, -10.3), (166.4, 251.5, -9.3)), 'reason': 'widened port-slot wall meets the hoop OD fillet, 0.58 mm, inside the slot under the halves'},
+        {'box': ((165.3, 232.6, -27.6), (166.4, 234.4, -26.4)), 'reason': 'the master RS02-side skirt thin spot (0.35 mm in the master too) where it reaches the ring end face'},
+    ],
+}
+WHITELIST['ua_upper'] = {'corners': [WHITELIST['upper_arm']['corners'][2]]}
+WHITELIST['ua_lower'] = {'thin': [{'box': ((151.2, 252.2, -7.5), (152.0, 253.1, -1.5)), 'reason': WHITELIST['upper_arm']['thin'][4]['reason']},
+                                   {'box': ((143.6, 259.8, -17.6), (145.0, 264.2, -15.0)), 'reason': 'oblique counterbore exit: the Ø6.5 head pocket leaves the curved underside skin at a shallow angle on the outboard side, a wedge of about 2 mm2, not a free blade'},
+                                   {'box': ((143.6, 276.2, -20.2), (145.0, 279.0, -18.6)), 'reason': 'same counterbore exit, Y 278 post'},
+                                   {'box': ((196.0, 259.8, -17.6), (197.4, 264.2, -15.0)), 'reason': 'same counterbore exit, +X side'},
+                                   {'box': ((196.0, 276.2, -20.2), (197.4, 279.0, -18.6)), 'reason': 'same counterbore exit, +X side, Y 278 post'},
+                                   {'box': ((145.5, 267.8, -20.6), (148.6, 270.6, -19.0)), 'reason': 'acute lip where the Ø7.2 RS00-branch exit (along X) leaves the back wall, which leans 51 deg: a wedge under 1 mm2 at the bottom of the hole mouth, not a free blade'}], 'corners': [dict(c, reason=c['reason'].replace('under the cover', 'now inside the closed shell, not visible')) for c in WHITELIST['upper_arm']['corners'][3:5]]}
+
 WHITELIST['elbow_carrier'] = WHITELIST['elbow_carrier_strength'] = WHITELIST['carrier']  # same mesh as the arm carrier

@@ -1,0 +1,17 @@
+mesh check: ua_lower
+faces 7488, bounds [[131.99, 240.0, -32.72], [209.22, 302.0, 7.2]]
+[PASS] bodies 1 (allowed 1), watertight True
+[PASS] sharp vertices over 150 deg: 0 unlisted, 2 listed design corners
+    listed   [188.04, 271.08, -18.1] 187 deg: window frame corner meeting the inner taper at a grazing angle, now inside the closed shell, not visible
+    listed   [186.24, 264.07, -18.1] 193 deg: window frame corner meeting the inner taper at a grazing angle, now inside the closed shell, not visible
+[PASS] knife edges (fold over 170 deg, edge over 1 mm): 0 unlisted, 0 listed
+[INFO] needle triangles (min angle under 1 deg, edge over 2 mm): 596, tessellation only unless a check above fails
+[PASS] walls thinner than 0.6 mm over 0.5 mm2: 0 unlisted, 7 listed
+    listed   2.4 mm2, min 0.15 mm, box [196.3, 276.4, -19.9] to [197.1, 278.8, -18.8]: same counterbore exit, +X side, Y 278 post
+    listed   2.3 mm2, min 0.16 mm, box [196.3, 260.4, -16.5] to [197.0, 262.3, -15.4]: same counterbore exit, +X side
+    listed   2.1 mm2, min 0.17 mm, box [144.0, 260.2, -16.6] to [144.8, 262.0, -15.4]: oblique counterbore exit: the Ø6.5 head pocket leaves the curved underside skin at a shallow angle on the outboard side, a wedge of about 2 mm2, not a free blade
+    listed   2.0 mm2, min 0.16 mm, box [143.9, 276.6, -19.8] to [144.6, 278.6, -18.9]: same counterbore exit, Y 278 post
+    listed   0.9 mm2, min 0.47 mm, box [144.3, 262.6, -17.3] to [144.7, 263.6, -15.4]: oblique counterbore exit: the Ø6.5 head pocket leaves the curved underside skin at a shallow angle on the outboard side, a wedge of about 2 mm2, not a free blade
+    listed   0.7 mm2, min 0.27 mm, box [145.6, 268.6, -20.2] to [146.5, 270.0, -19.4]: acute lip where the Ø7.2 RS00-branch exit (along X) leaves the back wall, which leans 51 deg: a wedge under 1 mm2 at the bottom of the hole mouth, not a free blade
+    listed   0.6 mm2, min 0.09 mm, box [151.3, 252.4, -7.0] to [151.9, 253.0, -4.3]: 0.2 mm ROOT_EASE back face inside the port slot, one layer, not a blade
+RESULT: PASS

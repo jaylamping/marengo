@@ -1,0 +1,18 @@
+mesh check: ua_ring
+faces 2794, bounds [[151.7, 167.61, -36.23], [166.2, 252.45, 48.21]]
+[PASS] bodies 1 (allowed 1), watertight True
+[PASS] sharp vertices over 150 deg: 0 unlisted, 3 listed design corners
+    listed   [151.7, 230.09, -31.5] 155 deg: same corner, other side
+    listed   [166.2, 233.65, 39.38] 167 deg: ring +X end face meets the hoop outer surface at 167 deg (a gentle crease, not a spike), on the RS02 side under the halves skirt
+    listed   [151.7, 230.09, 43.48] 155 deg: hoop outer circle meets the straight web edge on the carrier face, near-tangent corner
+[PASS] knife edges (fold over 170 deg, edge over 1 mm): 0 unlisted, 0 listed
+[INFO] needle triangles (min angle under 1 deg, edge over 2 mm): 150, tessellation only unless a check above fails
+[PASS] walls thinner than 0.6 mm over 0.5 mm2: 0 unlisted, 7 listed
+    listed   4.8 mm2, min 0.58 mm, box [151.7, 251.1, -10.1] to [166.2, 251.3, -9.5]: widened port-slot wall meets the hoop OD fillet, 0.58 mm, inside the slot under the halves
+    listed   2.6 mm2, min 0.16 mm, box [151.7, 248.5, 27.2] to [166.2, 248.7, 27.5]: parting-line feather: the master hoop OD runs into the hoop-to-tube fillet tangentially, so any ring/halves cut radius grazes it; 0.16 mm, under the halves, prints as nothing
+    listed   2.6 mm2, min 0.16 mm, box [151.7, 248.5, -15.6] to [166.2, 248.7, -15.3]: same parting-line feather, back side
+    listed   1.4 mm2, min 0.58 mm, box [162.2, 172.9, 17.6] to [163.6, 174.8, 17.6]: same, upper relief
+    listed   0.9 mm2, min 0.37 mm, box [162.2, 174.4, 17.7] to [165.2, 174.9, 18.0]: same port/flange relief corner, its far end, under the RS02 flange, not visible
+    listed   0.7 mm2, min 0.19 mm, box [165.5, 232.8, -27.4] to [166.2, 234.2, -26.6]: the master RS02-side skirt thin spot (0.35 mm in the master too) where it reaches the ring end face
+    listed   0.5 mm2, min 0.02 mm, box [162.2, 172.9, -1.1] to [163.6, 173.2, -1.0]: corner where the merged port and flange reliefs meet, under the RS02 flange, not visible
+RESULT: PASS
