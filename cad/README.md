@@ -39,6 +39,15 @@ Process:
 6. **Prints:** commit the exact 3MF and settings that were printed, overwriting the previous
    print of that part.
 
+**One home for CAD files (Joey, 2026-11-08):** STEP, STL, 3MF, G-code and SolidWorks files live
+only under `cad/`. `hardware/designs/<design>/` keeps the docs, renders, FEA reports and review
+notes and links to the `cad/` paths; it holds no CAD file copies. A doc that must point at the
+exact version a review or print used links to that commit, not to a frozen copy.
+
+**Reviews and renders:** commit the packet's markdown (brief, summary, verdict) and the key
+renders; keep raw logs, prompts, hash lists and bulky data local (`_archive/reviews/`). Keep a
+render under about 2 MB.
+
 On a fresh clone, `git lfs pull --include "cad/**"` downloads the CAD content (clones without
 LFS see small pointer files).
 
@@ -58,6 +67,8 @@ cad/
   arm/                        whole-arm assemblies only (marengo_arm_left_asm, marengo_arm_right_asm)
   shell/                      body shell panels
   hip/  leg/  head/  neck/    created when that work starts
+  fixtures/                   test stands, jigs and rigs (not part of the robot)
+  electronics/                board models (PDB etc.) for fit checks
   # function folders
   vendor/                     robstride/<rs00|rs02|rs03|rs04>/, frame-hardware/, compute/, fasteners/, incoming/
   reference/                  read-only references (torso STEP, datum reports)

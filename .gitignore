@@ -3,6 +3,8 @@
 # CAD: the latest version of every CAD file lives in git (cad/ via Git LFS, see
 # .gitattributes and cad/README.md "Folder layout"). Scratch folders below stay local.
 # Hard limit: no file of 100 MB or more (tools/check_file_sizes.py enforces it).
+# Windows/WSL download markers
+*Zone.Identifier
 # WIP, simulation and checkpoint output anywhere in the repo
 **/_wip/
 **/_sim/

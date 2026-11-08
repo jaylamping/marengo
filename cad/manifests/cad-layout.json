@@ -16,7 +16,9 @@
     "hip",
     "leg",
     "head",
-    "neck"
+    "neck",
+    "fixtures",
+    "electronics"
   ],
   "functionFolders": {
     "manifests": { "extensions": [".json"] },
