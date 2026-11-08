@@ -1,4 +1,4 @@
-# Large runtime assets only (CAD lives outside this repo — see cad/README.md).
+# Large binaries go through Git LFS. CAD under cad/ is tracked here (see cad/README.md).
 *.onnx   filter=lfs diff=lfs merge=lfs -text
 hardware/designs/left-arm/envelope/*.stl filter=lfs diff=lfs merge=lfs -text
 hardware/designs/head/**/*.step filter=lfs diff=lfs merge=lfs -text
@@ -15,3 +15,16 @@ hardware/electrical/pdb/design/layout/*.step filter=lfs diff=lfs merge=lfs -text
 hardware/designs/actuator-test-stand/**/*.stl filter=lfs diff=lfs merge=lfs -text
 hardware/designs/actuator-test-stand/**/*.step filter=lfs diff=lfs merge=lfs -text
 hardware/designs/actuator-test-stand/**/*.3mf filter=lfs diff=lfs merge=lfs -text
+# Native and neutral CAD under cad/ (case-insensitive extensions; SolidWorks writes upper case)
+cad/**/*.[sS][lL][dD][pP][rR][tT] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[sS][lL][dD][aA][sS][mM] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[sS][lL][dD][dD][rR][wW] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[sS][tT][eE][pP] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[sS][tT][pP] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[sS][tT][eE] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[sS][tT][lL] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.3[mM][fF] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[gG][cC][oO][dD][eE] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[xX]_[tT] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[iI][gG][sS] filter=lfs diff=lfs merge=lfs -text
+cad/**/*.[iI][gG][eE][sS] filter=lfs diff=lfs merge=lfs -text

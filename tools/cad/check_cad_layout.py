@@ -18,6 +18,8 @@ Errors (break the rule):
   - a file type that does not belong in a function folder (e.g. SLDPRT in exports/)
   - exports/, prints/, reviews/, drawings/ not split by region
   - date-stamped folders outside reviews/, _wip/, _sim/, _archive/
+  - any file of 100 MB or more outside the scratch folders (it would be committed;
+    the repo forbids files that large)
 Warnings (should be fixed, do not fail without --strict):
   - native file names that do not match cad/manifests/cad-conventions.json
   - .checkpoints folders (SolidWorks recreates them beside open parts; gitignored)
@@ -32,6 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+MAX_FILE_BYTES = 100 * 1000 * 1000  # same limit as tools/check_file_sizes.py
 LAYOUT_PATH = REPO_ROOT / "cad" / "manifests" / "cad-layout.json"
 CONVENTIONS_PATH = REPO_ROOT / "cad" / "manifests" / "cad-conventions.json"
 
@@ -134,6 +137,12 @@ class Checker:
                 self.report.error(rel, "loose file at CAD root (only README.md and marengo.SLDASM belong here)")
             return
         top = parts[0].lower()
+        if top not in self.scratch:
+            size = (self.root / rel).stat().st_size
+            if size >= MAX_FILE_BYTES:
+                self.report.error(
+                    rel, f"{size / 1e6:.1f} MB: files of 100 MB or more can't go in git; move to _wip/ or _archive/"
+                )
         if top in self.scratch:
             if ext in self.sim_ext and top == "_wip":
                 self.report.error(rel, "simulation results belong in _sim/")
