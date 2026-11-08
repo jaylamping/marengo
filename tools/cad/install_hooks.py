@@ -5,9 +5,10 @@
     python tools/cad/install_hooks.py --check    exit 1 if they are missing or out of date
 
 pre-commit: tools/cad/hooks/pre_commit.py (staged sizes; layout + writer lock when CAD is staged).
-pre-push:   tools/cad/hooks/pre_push.py (pushed sizes, LFS budget), then Git LFS's own pre-push.
-Does not set core.hooksPath. An existing hook that is not ours (for example the one
-`git lfs install` writes) is kept as <hook>.local and still runs after ours.
+pre-push:   tools/cad/hooks/pre_push.py (pushed sizes, LFS budget), then `git lfs pre-push`
+            (fails if Git LFS is missing), then <hook>.local if present.
+Does not set core.hooksPath. Git LFS's own hook is replaced (ours runs it; a copy is kept as
+<hook>.lfs-orig); any other existing hook is kept as <hook>.local and still runs after ours.
 Run it once per clone (Joey-PC, Mac); re-run after `git lfs install`.
 """
 
@@ -21,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gitlfs import REPO_ROOT, git
 
-MARK = "# marengo-cad-hooks v1"
+MARK = "# marengo-cad-hooks v2"
 
 FIND_PY = """for c in python3 python py; do
   if command -v "$c" >/dev/null 2>&1 && "$c" -c "import sys; sys.exit(sys.version_info < (3, 9))" >/dev/null 2>&1; then
@@ -49,10 +50,14 @@ exit 0
 {MARK}
 {FIND_PY}input=$(cat)
 printf '%s\\n' "$input" | "$PY" "$TOP/tools/cad/hooks/pre_push.py" "$@" || exit 1
+# Git LFS must upload the objects, or the remote gets pointers with no content.
+if ! command -v git-lfs >/dev/null 2>&1; then
+  echo "marengo hooks: git-lfs not found; install Git LFS before pushing (https://git-lfs.com)" >&2
+  exit 1
+fi
+printf '%s\\n' "$input" | git lfs pre-push "$@" || exit 1
 if [ -x "$HOOKS/pre-push.local" ]; then
   printf '%s\\n' "$input" | "$HOOKS/pre-push.local" "$@" || exit 1
-elif command -v git-lfs >/dev/null 2>&1; then
-  printf '%s\\n' "$input" | git lfs pre-push "$@" || exit 1
 fi
 exit 0
 """,
@@ -72,7 +77,15 @@ def install(root: Path = REPO_ROOT) -> list[str]:
         path = d / name
         if path.exists():
             old = path.read_text(encoding="utf-8", errors="replace")
-            if MARK not in old:
+            if "# marengo-cad-hooks" in old:
+                pass  # an older version of ours: overwrite
+            elif "git lfs" in old and len(old) < 1024:
+                # Git LFS's own hook: ours already runs `git lfs pre-push`; keep a copy that does not run
+                path.replace(d / f"{name}.lfs-orig")
+                done.append(
+                    f"replaced Git LFS's {name} hook (ours runs git lfs; copy in {name}.lfs-orig)"
+                )
+            else:
                 local = d / f"{name}.local"
                 if local.exists():
                     raise SystemExit(

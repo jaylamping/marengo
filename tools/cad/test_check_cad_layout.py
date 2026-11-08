@@ -75,11 +75,22 @@ class LayoutTests(unittest.TestCase):
                 "_sim/shoulder/study.CWR": "",
                 "_archive/checkpoints/old.SLDPRT": "",
                 "shoulder/~$lock.SLDPRT": "",
-                "shoulder/x.step:Zone.Identifier": "",
             }
         )
         self.assertEqual(report.errors, [])
         self.assertEqual(report.warnings, [])
+
+    def test_ignored_names(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            c = checker(Path(tmp))
+            for name in [
+                "x.step:Zone.Identifier",
+                "~$a.SLDPRT",
+                "Thumbs.db",
+                ".cad-writer.lock",
+            ]:
+                self.assertTrue(c.ignored(name), name)
+            self.assertFalse(c.ignored("marengo_shoulder_a.SLDPRT"))
 
     def test_forbidden_and_misplaced(self) -> None:
         report = run(
@@ -270,22 +281,41 @@ class LockTests(unittest.TestCase):
     def test_acquire_check_release_stale(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             lock = Path(tmp) / "cad" / ".cad-writer.lock"
-            self.assertTrue(cad_lock.check("anyone", lock)[0])
+            self.assertFalse(
+                cad_lock.check("anyone", lock)[0]
+            )  # committing CAD needs the lock
             self.assertTrue(cad_lock.acquire("left-arm", path=lock)[0])
             self.assertFalse(cad_lock.acquire("torso", path=lock)[0])
             self.assertTrue(cad_lock.check("left-arm", lock)[0])
             self.assertFalse(cad_lock.check("torso", lock)[0])
             self.assertFalse(cad_lock.check(None, lock)[0])
             self.assertFalse(cad_lock.release("torso", lock)[0])
+            self.assertTrue(cad_lock.refresh("left-arm", lock)[0])
+            self.assertEqual(json.loads(lock.read_text())["owner"], "left-arm")
             data = json.loads(lock.read_text())
             data["updated"] = time.time() - cad_lock.STALE_SECONDS - 1
             lock.write_text(json.dumps(data))
-            self.assertTrue(cad_lock.check("torso", lock)[0])
+            self.assertFalse(cad_lock.check("torso", lock)[0])
             ok, msg = cad_lock.acquire("torso", path=lock)
+            self.assertFalse(ok)  # stale takeover is explicit
+            self.assertIn("--take-stale", msg)
+            ok, msg = cad_lock.acquire("torso", path=lock, take_stale=True)
             self.assertTrue(ok)
             self.assertIn("stale", msg)
             self.assertTrue(cad_lock.release("torso", lock)[0])
             self.assertFalse(lock.exists())
+            self.assertEqual(
+                list(lock.parent.iterdir()), []
+            )  # no temp files left behind
+
+    def test_unreadable_lock_is_held_not_stale(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            lock = Path(tmp) / ".cad-writer.lock"
+            lock.write_text("")  # e.g. a crash mid-write by some other tool
+            self.assertFalse(cad_lock.acquire("torso", path=lock, take_stale=True)[0])
+            self.assertFalse(cad_lock.check("torso", lock)[0])
+            self.assertFalse(cad_lock.release("torso", lock)[0])
+            self.assertTrue(lock.exists())
 
 
 def git(root: Path, *args: str) -> str:
@@ -384,8 +414,93 @@ class GitTests(unittest.TestCase):
         text = f"refs/heads/a {'1' * 40} refs/heads/a {'2' * 40}\nrefs/heads/b {'3' * 40} refs/heads/b {z}\nrefs/heads/c {z} refs/heads/c {'4' * 40}\n"
         self.assertEqual(
             gitlfs.pre_push_rev_args(text, "origin"),
-            [[f"{'2' * 40}..{'1' * 40}"], ["3" * 40, "--not", "--remotes=origin"]],
+            ["1" * 40, "3" * 40, f"^{'2' * 40}", "--not", "--remotes=origin"],
         )
+        self.assertEqual(
+            gitlfs.pre_push_rev_args(
+                f"refs/heads/c {z} refs/heads/c {'4' * 40}\n", "origin"
+            ),
+            [],
+        )
+
+    def test_merge_content_is_checked(self) -> None:
+        git(self.root, "checkout", "-q", "-b", "side")
+        build(self.root, {"side.txt": "s"})
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "side")
+        git(self.root, "checkout", "-q", "main")
+        build(self.root, {"main.txt": "m"})
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "main")
+        git(self.root, "merge", "-q", "--no-commit", "side")
+        build(
+            self.root,
+            {"cad/shoulder/marengo_shoulder_m.SLDPRT": pointer(130_000_000, "4" * 64)},
+        )
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "merge with new content")
+        sizes = cfs.pushed(["HEAD", "--not", "--remotes=origin"], self.root)
+        self.assertIn((130_000_000, "cad/shoulder/marengo_shoulder_m.SLDPRT"), sizes)
+        budget = {
+            "pushMaxBytes": 10**12,
+            "monthMaxBytes": 10**12,
+            "storageWarnBytes": 10**12,
+            "storageMaxBytes": 10**12,
+        }
+        _, msgs = lfs_budget.check_push(
+            ["HEAD", "--not", "--remotes=origin"], self.root, budget
+        )
+        self.assertIn("adds 130.0 MB in 1 new object", msgs[0])
+
+    def test_repo_mode_reads_index_and_needs_lfs(self) -> None:
+        exp, src = (
+            "exports/shoulder/marengo_shoulder_a.step",
+            "shoulder/marengo_shoulder_a.SLDPRT",
+        )
+        build(
+            self.root,
+            {
+                f"cad/{exp}": pointer(1000, "5" * 64),
+                "cad/manifests/exports.json": json.dumps(
+                    {
+                        "exports": [
+                            {
+                                "export": exp,
+                                "source": src,
+                                "config": "",
+                                "settings": "",
+                                "sourceSha256": "1" * 64,
+                                "exportSha256": "5" * 64,
+                                "recorded": "",
+                            }
+                        ]
+                    }
+                ),
+                "cad/shoulder/marengo_shoulder_raw.SLDPRT": "not a pointer",
+                "cad/shoulder/desktop.ini:Zone.Identifier".replace(":", "_"): "",
+                "cad/.cad-writer.lock": "{}",
+            },
+        )
+        git(self.root, "add", "-A", "-f")
+        (self.root / "cad" / exp).write_text("edited in the tree, not staged")
+        report = ccl.check_repo(
+            ccl.load_json(ccl.LAYOUT_PATH),
+            ccl.load_json(ccl.CONVENTIONS_PATH),
+            self.root,
+        )
+        joined = "\n".join(report.errors)
+        self.assertNotIn(
+            "changed since it was recorded", joined
+        )  # the staged export matches
+        self.assertIn(
+            "marengo_shoulder_raw.SLDPRT: CAD file committed as a plain git blob",
+            joined,
+        )
+        self.assertIn(
+            "cad/.cad-writer.lock: lock or download-marker file must not be tracked",
+            joined,
+        )
+        self.assertIn("Zone.Identifier: lock or download-marker", joined)
 
     def test_repo_mode(self) -> None:
         build(
@@ -415,12 +530,18 @@ class GitTests(unittest.TestCase):
         hooks = self.root / ".git" / "hooks"
         hooks.mkdir(exist_ok=True)
         (hooks / "pre-push").write_text('#!/bin/sh\ngit lfs pre-push "$@"\n')
+        (hooks / "pre-commit").write_text("#!/bin/sh\necho mine\n")
         self.assertFalse(install_hooks.is_current(self.root))
-        lines = install_hooks.install(self.root)
-        self.assertIn("kept the existing pre-push hook as pre-push.local", lines)
+        lines = "\n".join(install_hooks.install(self.root))
+        self.assertIn(
+            "replaced Git LFS's pre-push hook", lines
+        )  # ours runs git lfs pre-push itself
+        self.assertIn("kept the existing pre-commit hook as pre-commit.local", lines)
+        self.assertFalse((hooks / "pre-push.local").exists())
         self.assertTrue(install_hooks.is_current(self.root))
         install_hooks.install(self.root)  # idempotent: does not wrap itself
-        self.assertIn("git lfs pre-push", (hooks / "pre-push.local").read_text())
+        self.assertIn("echo mine", (hooks / "pre-commit.local").read_text())
+        self.assertIn("git lfs pre-push", (hooks / "pre-push").read_text())
 
 
 class SwRefsTests(unittest.TestCase):
@@ -449,6 +570,17 @@ class SwRefsTests(unittest.TestCase):
                 check_sw_refs.classify(
                     str(cad / "shoulder/a.SLDPRT"), cad, {"shoulder/a.sldprt"}
                 ),
+            )
+            self.assertIn(
+                "not in git yet",
+                check_sw_refs.classify(
+                    str(cad / "shoulder/a.SLDPRT"), cad, set(), set()
+                ),
+            )
+            self.assertIsNone(
+                check_sw_refs.classify(
+                    str(cad / "shoulder/a.SLDPRT"), cad, set(), {"shoulder/a.sldprt"}
+                )
             )
 
 

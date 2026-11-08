@@ -27,14 +27,18 @@ Root assembly: `cad/marengo.SLDASM` at the top of the CAD tree.
 1. **Take the writer lock** before opening SolidWorks to change anything in `cad/`:
    `python tools/cad/cad_lock.py acquire <thread-or-name>`, and set `CAD_WRITER=<same name>` in
    that shell. Release it after your commit (`... release <name>`). Many sessions share the
-   one checkout on Joey-PC; the pre-commit hook refuses a CAD commit while someone else holds
-   a live lock. A lock untouched for 4 hours is stale and the next `acquire` takes it over.
+   one checkout on Joey-PC; the pre-commit hook refuses a commit touching CAD unless
+   `CAD_WRITER` holds the lock. Hold it too while switching branches, resetting or pulling in
+   that checkout. A lock untouched for 4 hours is stale: make sure that session has stopped and
+   closed its SolidWorks, then `acquire <name> --take-stale`.
 2. **Work in `_wip/`.** New ideas, variants and experiments start there and never get committed.
 3. **Promote when chosen.** A part moves into its region folder (with SolidWorks Pack and Go)
-   when it is picked: it passes its gate, or an assembly or print starts using it. Then run
-   `python tools/cad/check_sw_refs.py <the assembly or part>` (Windows): every reference must
-   resolve to a file in `cad/` outside the scratch folders, or the committed assembly would be
-   broken for everyone else.
+   when it is picked: it passes its gate, or an assembly or print starts using it. Stage it,
+   then run `python tools/cad/check_sw_refs.py --all` (Windows; reads references without
+   opening files, so it covers every assembly and drawing, parents included): every reference
+   must resolve to a committed or staged file in `cad/` outside the scratch folders, or the
+   committed assembly would be broken for everyone else. Rebuild the top assembly (Ctrl+Q)
+   once before the commit.
 4. **Export what is consumed.** When a print, review, URDF or another tool uses the part, export
    its STEP/STL to `exports/<region>/` and record it:
    `python tools/cad/record_export.py exports/<region>/<file> <region>/<part>.SLDPRT --config <name> --settings "<STEP AP214, STL 0.01 mm/5 deg, ...>"`.
@@ -49,7 +53,10 @@ Root assembly: `cad/marengo.SLDASM` at the top of the CAD tree.
    `manifests/lfs-budget.json`) fails a push that adds more than 300 MB of new LFS data, takes
    the month past 1 GB, or takes storage past 9 GB (GitHub Free: 10 GiB storage, 10 GiB
    download a month). With Joey's OK for that push, set `CAD_BUDGET_OK=1` (the first `cad/`
-   commit will need it). `python tools/cad/lfs_budget.py report` shows the totals.
+   commit will need it). `python tools/cad/lfs_budget.py report` shows the totals. The script
+   counts what the local history can see and dates objects by commit, so it is a lower bound:
+   objects from deleted branches or rewritten history are still billed. Check the real number
+   on GitHub (Settings, Billing, Git LFS) at the start of each month.
 7. **Checks.** The hooks run them; by hand:
    `python tools/check_file_sizes.py --staged`, `python tools/cad/check_cad_layout.py cad`
    (the folder on disk) and `python tools/cad/check_cad_layout.py --repo` (what git tracks).
@@ -67,9 +74,11 @@ Install once per clone (Joey-PC and the Mac), and again after `git lfs install`:
 python tools/cad/install_hooks.py
 ```
 
-pre-commit checks staged sizes and, when CAD is staged, the writer lock and `--repo` layout.
-pre-push checks pushed sizes and the LFS budget, then runs Git LFS's own pre-push. An existing
-hook is kept as `<hook>.local` and still runs. CI repeats the size and layout checks, so a
+pre-commit checks staged sizes and, when CAD is staged, the writer lock and the `--repo`
+layout of the index (the bytes being committed, including that CAD files are LFS pointers and
+exports match `manifests/exports.json`). pre-push checks pushed sizes and the LFS budget for
+all refs of the push together, then runs `git lfs pre-push` (and fails if Git LFS is missing).
+Another existing hook is kept as `<hook>.local` and still runs. CI repeats the size and layout checks, so a
 `--no-verify` commit still gets caught at the PR.
 
 ### One home for CAD files (Joey, 2026-11-08)
@@ -92,10 +101,12 @@ overwritten. Raw logs, prompts, hash lists and bulky data stay in `_archive/revi
 
 ### Clones, CI and bandwidth
 
-Clones skip LFS content unless asked, which keeps the 10 GiB monthly download budget for real
-use: CI checks out without LFS, and cloud sessions see pointer files (every check here reads
-sizes and hashes from the pointers). Fetch only what you need, e.g.
-`git lfs pull --include "cad/shoulder/**"`; `git lfs pull --include "cad/**"` fetches all of it.
+Every LFS download counts against the 10 GiB monthly bandwidth. CI checks out without LFS
+content, and cloud sessions see pointer files; every check here reads sizes and hashes from
+the pointers. A normal `git clone` on a machine with Git LFS installed DOES download all LFS
+content, so clone with `GIT_LFS_SKIP_SMUDGE=1 git clone ...` unless you need the CAD, then fetch
+only what you need, e.g. `git lfs pull --include "cad/shoulder/**"`
+(`git lfs pull --include "cad/**"` fetches all of it).
 
 ### Backup
 

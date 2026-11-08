@@ -38,6 +38,7 @@ Held: paths listed in cad/manifests/layout-exceptions.txt report their errors as
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -52,6 +53,7 @@ from gitlfs import (
     blob_sizes,
     content_sha256,
     git,
+    parse_pointer,
     real_blob_size,
     real_size,
 )
@@ -107,8 +109,10 @@ class Checker:
         exports: dict | None = None,
         exceptions: list[str] | None = None,
         prefix: str = "cad/",
+        source: FileSource | None = None,
     ) -> None:
         self.root = root
+        self.source = source or DiskSource(root)
         self.layout = layout
         low = lambda xs: {x.lower() for x in xs}
         self.regions = low(layout["regionFolders"])
@@ -228,6 +232,12 @@ class Checker:
     def check_file(self, rel: PurePosixPath, size: int) -> None:
         parts = rel.parts
         ext = rel.suffix.lower()
+        top = parts[0].lower()
+        if top not in self.scratch and size >= MAX_FILE_BYTES:
+            self.report.error(
+                rel,
+                f"{size / 1e6:.1f} MB: files of 100 MB or more can't go in git; move to _wip/ or _archive/",
+            )
         if len(parts) == 1:
             if rel.name.lower() not in self.root_files:
                 self.report.error(
@@ -235,16 +245,10 @@ class Checker:
                     "loose file at CAD root (only README.md and marengo.SLDASM belong here)",
                 )
             return
-        top = parts[0].lower()
         if top in self.scratch:
             if ext in self.sim_ext and top == "_wip":
                 self.report.error(rel, "simulation results belong in _sim/")
             return
-        if size >= MAX_FILE_BYTES:
-            self.report.error(
-                rel,
-                f"{size / 1e6:.1f} MB: files of 100 MB or more can't go in git; move to _wip/ or _archive/",
-            )
         if ext in self.sim_ext:
             self.report.error(rel, "simulation results belong in _sim/<region>/")
             return
@@ -346,13 +350,8 @@ class Checker:
                 )
 
     def _has_pin(self, rel: PurePosixPath, pinned: re.Pattern) -> bool:
-        path = self.root / rel
-        try:
-            return bool(
-                pinned.search(path.read_text(encoding="utf-8", errors="replace"))
-            )
-        except OSError:
-            return False
+        data = self.source.read(rel.as_posix())
+        return bool(data and pinned.search(data.decode("utf-8", errors="replace")))
 
     # -- exports manifest ----------------------------------------------------
     def check_exports(self, present: set[str]) -> None:
@@ -360,21 +359,21 @@ class Checker:
         for entry in self.exports.get("exports", []):
             exp, src = entry["export"], entry["source"]
             recorded.add(exp.lower())
-            exp_path, src_path = self.root / exp, self.root / src
-            if not exp_path.is_file():
+            exp_sha, src_sha = self.source.sha256(exp), self.source.sha256(src)
+            if exp_sha is None:
                 self.report.error(exp, "listed in manifests/exports.json but missing")
                 continue
-            if content_sha256(exp_path) != entry["exportSha256"]:
+            if exp_sha != entry["exportSha256"]:
                 self.report.error(
                     exp,
                     "changed since it was recorded; run tools/cad/record_export.py again",
                 )
-            if not src_path.is_file():
+            if src_sha is None:
                 self.report.error(
                     exp,
                     f"source {src} is gone; re-export from the current part or delete the export",
                 )
-            elif content_sha256(src_path) != entry["sourceSha256"]:
+            elif src_sha != entry["sourceSha256"]:
                 self.report.warn(
                     exp,
                     f"stale: {src} changed after this export; re-export and record it",
@@ -391,6 +390,48 @@ class Checker:
                     rel,
                     "no source recorded; run tools/cad/record_export.py EXPORT SOURCE",
                 )
+
+
+# -- where file contents come from -------------------------------------------
+class DiskSource:
+    """Files on disk under the CAD root."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+
+    def read(self, rel: str) -> bytes | None:
+        try:
+            return (self.root / rel).read_bytes()
+        except OSError:
+            return None
+
+    def sha256(self, rel: str) -> str | None:
+        path = self.root / rel
+        return content_sha256(path) if path.is_file() else None
+
+
+class IndexSource:
+    """The staged (index) copy of files under cad/, i.e. exactly what a commit holds."""
+
+    def __init__(self, blobs: dict[str, str], root: Path = REPO_ROOT) -> None:
+        self.blobs = {
+            k.lower(): v for k, v in blobs.items()
+        }  # cad-relative path -> blob id
+        self.root = root
+
+    def read(self, rel: str) -> bytes | None:
+        blob = self.blobs.get(rel.lower())
+        return git("cat-file", "blob", blob, root=self.root) if blob else None
+
+    def sha256(self, rel: str) -> str | None:
+        data = self.read(rel)
+        if data is None:
+            return None
+        ptr = parse_pointer(data) if len(data) <= 1024 else None
+        return ptr[0] if ptr else hashlib.sha256(data).hexdigest()
+
+
+FileSource = DiskSource | IndexSource
 
 
 # -- repo mode ---------------------------------------------------------------
@@ -412,8 +453,18 @@ def check_repo(layout: dict, conventions: dict, root: Path = REPO_ROOT) -> Repor
     report = Report(prefix="", exceptions=exceptions)
     cad_ext = {e.lower() for e in layout["cadExtensions"]}
     scratch = {s.lower() for s in layout["scratchFolders"]} | {".checkpoints"}
+    never_tracked = re.compile(
+        r"(^~\$|Zone\.Identifier$|^\.cad-writer\.lock$)", re.IGNORECASE
+    )
+    cad_blobs = {}
     for blob, rel in entries:
         p = PurePosixPath(rel)
+        if never_tracked.search(p.name):
+            report.error(
+                rel,
+                "lock or download-marker file must not be tracked; git rm --cached it",
+            )
+            continue
         if scratch & {part.lower() for part in p.parts[:-1]}:
             report.error(
                 rel,
@@ -421,6 +472,13 @@ def check_repo(layout: dict, conventions: dict, root: Path = REPO_ROOT) -> Repor
             )
             continue
         if p.parts[0] == "cad":
+            cad_blobs[PurePosixPath(*p.parts[1:]).as_posix()] = blob
+            entry = sizes.get(blob)
+            if p.suffix.lower() in cad_ext and entry is not None and entry[1] is None:
+                report.error(
+                    rel,
+                    "CAD file committed as a plain git blob, not through Git LFS (git lfs install, then re-add it)",
+                )
             cad_files.append(
                 (PurePosixPath(*p.parts[1:]), real_blob_size(sizes.get(blob)))
             )
@@ -429,11 +487,9 @@ def check_repo(layout: dict, conventions: dict, root: Path = REPO_ROOT) -> Repor
                 rel,
                 "CAD file outside cad/ (Joey 2026-11-08: CAD files live only in cad/; docs link there)",
             )
-    exports = (
-        load_json(root / "cad" / "manifests" / "exports.json")
-        if (root / "cad" / "manifests" / "exports.json").exists()
-        else None
-    )
+    source = IndexSource(cad_blobs, root)
+    manifest = source.read("manifests/exports.json")
+    exports = json.loads(manifest) if manifest else None
     checker = Checker(
         root / "cad",
         layout,
@@ -441,6 +497,7 @@ def check_repo(layout: dict, conventions: dict, root: Path = REPO_ROOT) -> Repor
         exports=exports,
         exceptions=exceptions,
         prefix="cad/",
+        source=source,
     )
     sub = checker.check(cad_files)
     report.errors += [f"cad/{e}" for e in sub.errors]

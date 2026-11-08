@@ -114,6 +114,7 @@ just --list                # all recipes (vcan, sim-check, deploy-pi*, mcp-build
 - Consul `gen:proto`, proto checksum, `build:qualified`, `npm test -- --run`, dist leak check, `npm audit`
 - MCP and limit-sync node tests; research MCP pytest (uv, `-m 'not integration'`)
 - daily-audit and reference-journal `unittest`
+- CAD gates: `tools/check_file_sizes.py` (no file of 100 MB or more), `tools/cad` unittest, `tools/cad/check_cad_layout.py --repo`
 - `.cursor/hooks` JS drift check; println guard
 - `cargo fmt --check`, `clippy -D warnings`, `cargo test --workspace`
 - Shell contract tests; `scripts/check-dependencies.sh` (cargo deny + audit)

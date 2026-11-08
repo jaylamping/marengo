@@ -121,6 +121,7 @@ def changed_blobs(rev_args: list[str], root: Path = REPO_ROOT) -> list[tuple[str
     for rev in revs:
         tree = git(
             "diff-tree",
+            "-m",  # merges too: content created in a merge is compared against each parent
             "-r",
             "-z",
             "--no-commit-id",
@@ -144,9 +145,10 @@ def changed_blobs(rev_args: list[str], root: Path = REPO_ROOT) -> list[tuple[str
 ZERO = "0" * 40
 
 
-def pre_push_rev_args(stdin_text: str, remote: str) -> list[list[str]]:
-    """rev-list arguments for the commits a push sends, from the pre-push hook's stdin lines."""
-    ranges = []
+def pre_push_rev_args(stdin_text: str, remote: str) -> list[str]:
+    """One rev-list argument list for ALL commits a push sends (every ref together), from the
+    pre-push hook's stdin. Empty when the push sends nothing (only deletes)."""
+    tips, known = [], []
     for line in stdin_text.splitlines():
         parts = line.split()
         if len(parts) != 4:
@@ -154,8 +156,9 @@ def pre_push_rev_args(stdin_text: str, remote: str) -> list[list[str]]:
         _local_ref, local_sha, _remote_ref, remote_sha = parts
         if local_sha == ZERO:
             continue  # deleting a remote branch sends nothing
-        if remote_sha == ZERO:
-            ranges.append([local_sha, "--not", f"--remotes={remote}"])
-        else:
-            ranges.append([f"{remote_sha}..{local_sha}"])
-    return ranges
+        tips.append(local_sha)
+        if remote_sha != ZERO:
+            known.append(f"^{remote_sha}")
+    if not tips:
+        return []
+    return [*tips, *known, "--not", f"--remotes={remote}"]

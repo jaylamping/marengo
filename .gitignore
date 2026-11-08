@@ -14,6 +14,7 @@
 # SolidWorks Simulation output (.STE) and "Backup of" copies; the CAD writer lock file
 cad/**/*.[sS][tT][eE]
 Backup of *
+Backup (*) of *
 cad/.cad-writer.lock
 /target/
 # Pi deploy staging artifacts written into ~/marengo by scripts/deploy-pi.sh

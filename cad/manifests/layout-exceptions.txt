@@ -6,6 +6,7 @@
 # Each owning thread moves its files into cad/ and repoints its scripts, then deletes its line.
 hardware/designs/actuator-test-stand/
 hardware/designs/body-shell/prints/
+hardware/designs/head/
 hardware/designs/left-arm/
 hardware/designs/neck/
 hardware/designs/torso-frame/

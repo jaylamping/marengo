@@ -35,6 +35,7 @@ def lfs_history(
         "log",
         "--format=>%ct",
         "--raw",
+        "-m",
         "--no-abbrev",
         "--no-renames",
         "--diff-filter=AM",

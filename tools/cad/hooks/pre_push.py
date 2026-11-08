@@ -20,18 +20,14 @@ from gitlfs import pre_push_rev_args
 
 def main(argv: list[str]) -> int:
     remote = argv[0] if argv else "origin"
-    failed = False
-    for rev_args in pre_push_rev_args(sys.stdin.read(), remote):
-        failed |= (
-            check_file_sizes.report(
-                check_file_sizes.pushed(rev_args), f"pushed ({' '.join(rev_args)})"
-            )
-            != 0
-        )
-        ok, msgs = lfs_budget.check_push(rev_args)
-        print("\n".join(msgs))
-        failed |= not ok
-    return 1 if failed else 0
+    rev_args = pre_push_rev_args(sys.stdin.read(), remote)
+    if not rev_args:
+        return 0
+    # every ref in this push is checked together, so the budget sees the whole upload
+    failed = check_file_sizes.report(check_file_sizes.pushed(rev_args), "pushed") != 0
+    ok, msgs = lfs_budget.check_push(rev_args)
+    print("\n".join(msgs))
+    return 1 if failed or not ok else 0
 
 
 if __name__ == "__main__":
