@@ -3,9 +3,9 @@
 The software is being rebuilt as a fresh, lean stack for the **whole robot**. Every change is for the finished robot, never
 for the limb currently on the bench.
 
-1. [hardware/SOFTWARE_TENETS.md](hardware/SOFTWARE_TENETS.md): the rules every change is judged by. They override every ADR
+1. [roark/TENETS.md](https://github.com/jaylamping/roark/blob/main/TENETS.md): the rules every change is judged by. They override every ADR
    and every older doc.
-2. [hardware/SOFTWARE_PLAN.md](hardware/SOFTWARE_PLAN.md): what to build, in order.
+2. [roark/PLAN.md](https://github.com/jaylamping/roark/blob/main/PLAN.md): what to build, in order.
 3. [review/sw-foundation-20261108/RECONCILIATION.md](review/sw-foundation-20261108/RECONCILIATION.md): what to keep, rebuild
    or delete in the existing code, and the bench lessons to copy out first.
 4. [hardware/STATUS.md](hardware/STATUS.md): current hardware facts.

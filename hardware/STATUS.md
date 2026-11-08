@@ -86,7 +86,7 @@ fault table under it. Headlines (rev B5, not yet built):
 
 These are hardware-side asks; nothing in them is decided for software.
 
-**What to build next, in priority order:** [SOFTWARE_PLAN.md](SOFTWARE_PLAN.md) (the robot software plan, milestone 1 = left arm online, ranked). The specs below are the detail behind it.
+**What to build next, in priority order:** [roark/PLAN.md](https://github.com/jaylamping/roark/blob/main/PLAN.md) (the robot software plan in the new Roark repo, milestone 1 = left arm online, ranked). The specs below are the detail behind it.
 
 | Spec | Where |
 |---|---|

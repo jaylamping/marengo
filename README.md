@@ -4,8 +4,8 @@
 
 # Marengo
 
-> **Read first (2026-11-08):** the software is being rebuilt as a fresh, lean stack for the whole robot. Start with
-> [hardware/SOFTWARE_TENETS.md](hardware/SOFTWARE_TENETS.md) and [hardware/SOFTWARE_PLAN.md](hardware/SOFTWARE_PLAN.md). The
+> **Read first (2026-11-08):** the robot is now **Roark** and its software is being rebuilt as a fresh, lean stack in its own repo, [jaylamping/roark](https://github.com/jaylamping/roark). This repo is the hardware repo and the read-only reference for the legacy software. Start with
+> [roark/TENETS.md](https://github.com/jaylamping/roark/blob/main/TENETS.md) and [roark/PLAN.md](https://github.com/jaylamping/roark/blob/main/PLAN.md). The
 > tenets override everything below and every ADR. The existing crates (Davout, Berthier, Chappe, robstride, marengo-pi and the
 > rest) are **legacy**: don't extend them, fix their tests or copy their patterns; they are deleted once the new stack passes
 > (see [RECONCILIATION.md](review/sw-foundation-20261108/RECONCILIATION.md)).
