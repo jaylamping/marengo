@@ -241,13 +241,13 @@ Add the fixed parts:
 
 The stack's mass is m_s = Σ m_i, and its CoM distance is d_s = Σ m_i d_i / m_s. Log m_s and d_s with every run.
 
-**Forearm itself (CAD, 100% infill; weigh the printed parts and update this).** 768 g, including the RS00 (310 g), the 6808 pair, the coupling, the race clamp and the screws. Its CoM is **101.9 mm below the elbow axis**, within 1 mm of the forearm axis. No hand is fitted during these tests.
+**Forearm itself (CAD, 100% infill; weigh the printed parts and update this).** 779 g, including the RS00 (310 g), the RS00 ring, the 6808 pair, the coupling, the race clamp and the screws. Its CoM is **102.3 mm below the elbow axis**, within 1 mm of the forearm axis. No hand is fitted during these tests.
 
 **Limits.** Allowable torque is the rated torque divided by a 1.5 dynamic factor, with the arm straight out horizontal:
 
 | Joint | Allowable | Self load | Maximum stack m_s at d_s |
 | --- | --- | --- | --- |
-| Elbow RS02 (6 N·m rated) | 4.0 N·m | forearm 0.77 N·m | m_s ≤ (0.4077 − 0.0783) / d_s, so **1.40 kg at d_s = 0.235 m** |
-| Shoulder pitch RS03 (20 N·m rated), full reach | 13.3 N·m | 4.0 N·m | m_s ≤ (1.3589 − 0.4078) / (0.215 + d_s), so 2.1 kg at d_s = 0.235 m |
+| Elbow RS02 (6 N·m rated) | 4.0 N·m | forearm 0.78 N·m | m_s ≤ (0.4077 − 0.0797) / d_s, so **1.40 kg at d_s = 0.235 m** |
+| Shoulder pitch RS03 (20 N·m rated), full reach | 13.3 N·m | 4.0 N·m | m_s ≤ (1.3589 − 0.4114) / (0.215 + d_s), so 2.1 kg at d_s = 0.235 m |
 
 The elbow governs. The adapter is engraved **MAX 1.4 kg**. That holds for stacks with d_s up to 235 mm, which is two 250 g pucks or lighter. For a longer stack, use the formula. Peak torque is never the limit here. The forearm passes the 5 kg worst case, so the forearm structure is not the limit either.

@@ -67,6 +67,7 @@ The 14-way ribbon and the elbow cable guard are a separate small order, once the
 - Small torque screwdriver covering 0.3 to 0.6 N·m. The clamp torques are low on purpose.
 - 13 mm deep socket and a torque wrench covering about 5 to 25 N·m (M8 jam nuts at 15, rig test 5 up to 20).
 - Ø4 drill bit for clearing the dowel holes.
+- 2.5 mm ball-end hex key (long arm), for the 6 forearm fork-rim M3 × 14 screws: a straight key can't reach them past the sleeve.
 - 2020 extrusion, 600 mm, as the rig lever.
 - Feeler gauges and calipers.
 
@@ -78,10 +79,9 @@ Added 2026-11-07 for forearm B with the 6808 support pair (`forearm/README.md`).
 | --- | --- | --- | --- |
 | 6808-2RS, 40 × 52 × 7 | 2 | **4** | Forearm support pair. The 10-pack also covers the elbow bearing of the right arm, fit checks and spares |
 | Heat-set insert M3 × 5.7 (Ruthex / CNC Kitchen), Ø4.0 printed hole, 7 deep | 21 | **42** | Fork rim 6, sleeve bottom 3 (wrist cap), tube end 6 (wrist flange), wrist flange 6 (hand). Buy a 100-pack for coupons and spares |
-| M3 × 10 socket head, ISO 4762 | 6 | **12** | RS00 housing (6 × M3 on Ø50) to the sleeve flange |
-| M3 × 12 socket head, ISO 4762 | 6 | **12** | Sleeve flange into the fork rim inserts |
-| M3 × 6 socket head, ISO 4762 | 6 | **12** | Coupling plate to the RS00 output (6 × M3 on Ø27) |
-| M3 × 8 button head, ISO 7380 | 6 | **12** | Wrist flange into the tube end inserts |
+| M3 × 6 socket head, ISO 4762 | 12 | **24** | RS00 housing to the RS00 ring (6 × M3 on Ø50), and coupling plate to the RS00 output (6 × M3 on Ø27) |
+| M3 × 14 socket head, ISO 4762 | 6 | **12** | Sleeve flange and RS00 ring into the fork rim inserts |
+| M3 × 10 button head, ISO 7380 | 6 | **12** | Wrist flange into the tube end inserts |
 | M3 × 6 button head, ISO 7380 | 3 | **6** | Wrist cap into the sleeve inserts |
 | M5 × 20 button head, ISO 7380 | 1 | **2** | 6808 inner-race clamp through the fork stub |
 | M5 nyloc nut, DIN 985 | 1 | **2** | Captured in the clamp boss |

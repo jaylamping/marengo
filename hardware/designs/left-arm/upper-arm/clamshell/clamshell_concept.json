@@ -1,0 +1,97 @@
+{
+ "upper_arm": [
+  {
+   "part": "upper half (+Z)",
+   "g_solid": 50.0,
+   "up": [
+    0,
+    0,
+    1
+   ],
+   "support_mm2": 2715.9,
+   "outer_mm2": 52.2,
+   "inner_mm2": 2663.7
+  },
+  {
+   "part": "lower half (-Z)",
+   "g_solid": 40.4,
+   "up": [
+    0,
+    0,
+    -1
+   ],
+   "support_mm2": 1992.5,
+   "outer_mm2": 0.4,
+   "inner_mm2": 1992.1
+  },
+  {
+   "part": "RS02 seat ring",
+   "g_solid": 33.9,
+   "up": [
+    1,
+    0,
+    0
+   ],
+   "support_mm2": 2044.0,
+   "outer_mm2": 27.1,
+   "inner_mm2": 2016.9
+  },
+  {
+   "part": "hub disc",
+   "g_solid": 56.9,
+   "up": [
+    0,
+    -1,
+    0
+   ],
+   "support_mm2": 12.2,
+   "outer_mm2": 0.0,
+   "inner_mm2": 12.2
+  }
+ ],
+ "upper_arm_onepiece_minus_y": {
+  "support_mm2": 4478.5,
+  "outer_mm2": 31.6,
+  "inner_mm2": 4446.9
+ },
+ "upper_arm_onepiece_g": 225.7,
+ "forearm": [
+  {
+   "part": "outboard half (+X)",
+   "g_solid": 91.9,
+   "up": [
+    1,
+    0,
+    0
+   ],
+   "support_mm2": 6677.6,
+   "outer_mm2": 0.0,
+   "inner_mm2": 6677.6
+  },
+  {
+   "part": "inboard half (-X)",
+   "g_solid": 92.4,
+   "up": [
+    -1,
+    0,
+    0
+   ],
+   "support_mm2": 6255.4,
+   "outer_mm2": 0.0,
+   "inner_mm2": 6255.4
+  }
+ ],
+ "forearm_onepiece_plusx": {
+  "support_mm2": 13484.8,
+  "outer_mm2": 6733.8,
+  "inner_mm2": 6751.0
+ },
+ "forearm_onepiece_g": 184.3,
+ "ua_parts_g": {
+  "ring": 33.9,
+  "hub": 106.7,
+  "hub_lightened": 56.9,
+  "rest": 85.0,
+  "rest_with_rib": 90.4
+ }
+}
