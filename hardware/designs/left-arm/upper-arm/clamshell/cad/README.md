@@ -1,8 +1,8 @@
 # Upper arm clamshell: detailed CAD
 
-Draft 2, 2026-11-08.
+Draft 3, 2026-11-08.
 
-Status: **the mesh gate passes, the support check and seam FEA are done.** The two-reviewer gate is still to come, so don't print yet.
+Status: **the mesh gate passes and the support check is done. The governing lateral case does not yet pass in the FEA model** (see Checks). The two-reviewer gate is still to come, so don't print yet.
 
 ## Source
 
@@ -25,13 +25,13 @@ Sliced in Bambu Studio with the P2 process: PETG, 0.2 mm, `ua_slice.py`.
 
 | Part | What it is | Print | Sliced |
 | --- | --- | --- | --- |
-| `ua_upper` | Half above the seam (Z > 6). Four Ø7.5 seam posts and two hub-lug posts, with Ruthex inserts, M3 × 30 pilots and Ø5.9 pin sockets. Fuse pockets from the master | Seam face down. 4 walls, 50%, with 6 walls and 100% on the posts, the hub band (Y 286–303) and the ring capture | **55.3 g** |
+| `ua_upper` | Half above the seam (Z > 6). Four Ø7.5 seam posts and two hub-lug posts, with Ruthex inserts, M3 × 30 pilots and Ø5.9 pin sockets. Fuse pockets from the master | Seam face down. 4 walls, 50%, with 6 walls and 100% on the posts, the hub band (Y 286–303) and the ring capture | **55.6 g** |
 | `ua_lower` | Half below the seam. Matching posts with Ø5.5 × 1.2 pins and counterbores. Ø10 trunk entry through the back wall below the hub, with a tie boss. Ø6.8 RS00-branch exit at Y 270 through the back-inboard wall, with a tie boss | Seam face down. Same settings | **53.5 g** |
-| `ua_ring` | RS02 seat ring, X 150.8–166.2, keeping the master hoop OD (cut at r 44.25). It takes the skin flare below Y 242 and has a top slot widened to Z −9.5..18. Two M3 inserts on the OD at Y 246.5 | 6 walls, 100% | **32.2 g** |
+| `ua_ring` | RS02 seat ring, X 150.8–166.2, keeping the master hoop OD (cut at r 44.25). It takes the skin flare below Y 242 and has a top slot widened to Z −9.5..18. One M3 insert on the back OD at Y 246.5 | 6 walls, 100% | **32.3 g** |
 | `ua_hub` | Hub disc: a 4 mm plate at the yaw RS02 face with six windows, the old tube floor opened, a spigot r 28–35.8, and two seam lugs rooted in the spigot | RS02 face down. 6 walls, 50%, with 100% on the plate, the bosses and the spigot | **63.4 g** |
 | `ua_loop_clip` | Elbow back-loop saddle for the **unchanged** carrier: a 3 mm foot, and two crush-ribbed spigots in the carrier's Ø9.4 screw-access bores at 44° and 84° | Standing on its flat end. **No support** | **7.7 g** |
 
-**Total: 204.4 g sliced for the four arm parts.** The one-piece db71b23b arm sliced at 229.0 g on the same process, and weighed **202 g** on the scale. That is 10.7% lighter, so expect **about 180 g**, plus the 7.7 g clip.
+**Total: 204.7 g sliced for the four arm parts.** The one-piece db71b23b arm sliced at 229.0 g on the same process, and weighed **202 g** on the scale. That is 10.7% lighter, so expect **about 180 g**, plus the 7.7 g clip.
 
 The parts are small and thin, so 6 walls plus shells make them nearly solid; dropping the halves to 4 walls saved little. The real savings came from the hub plate (6 → 4 mm), the windows and the floor opening.
 
@@ -44,8 +44,25 @@ The parts are small and thin, so 6 walls plus shells make them nearly solid; dro
   - Upper posts run up to the upper skin.
   - M3 × 30 from below, through a counterbore whose floor is the post end.
 - **Hub lugs:** posts at X 147.5 / 193.5, Y 292, with M3 × 40.
-- **Ring pins:** one M3 × 12 per half along Z, at Y 246.5, into the ring inserts.
-  - These replace draft 1's lug. That lug sat inside the master's port slot and hung on 0.2 mm skins.
+- **Ring pin:** one M3 × 12 along Z from the back, at (X 158.5, Y 246.5), into a ring insert.
+  - It replaces draft 1's lug. That lug sat inside the master's port slot and hung on 0.2 mm skins.
+  - Draft 2 had a second pin from the front, but Joey wants clean front skin. Two pins side by side on the back hit the ring end faces.
+  - The ring is keyed against turning by its flare faces against the halves at Y 242, plus this pin.
+
+## Visible holes
+
+Every screw head is on the back (lower, −Z) half. The front (upper) half has no holes in its outer skin.
+
+| Where | Hole | Purpose |
+| --- | --- | --- |
+| Back, X 147.5 / 193.5, Y 262 and 278 | 4 × Ø6.5 counterbore, flat floor at the post end, head recessed 3.7–4.3 mm | M3 × 30 seam screws |
+| Back, X 147.5 / 193.5, Y 292 | 2 × Ø6.5 counterbore, flat floor, recessed about 3 mm | M3 × 40 hub-lug screws |
+| Back, X 158.5, Y 246.5 | 1 × Ø6.5 counterbore, flat floor, recessed about 5 mm | M3 × 12 ring pin |
+| Back, X 171, Y 289, below the hub | Ø10 | Trunk entry. A tie boss is just inside |
+| Back-inboard wall, Y 270 | Ø6.8 | RS00 branch out to the loop clip. A tie boss is just inside |
+
+- **Hidden holes:** the hub's M4 holes and windows sit under the yaw RS02 face. The ring's carrier-screw holes sit between the carrier and the RS02.
+- **Why the counterbores look oval from the side:** the screws are vertical and break out of the curved underside at an angle.
 - **Pins:** Ø5.5 × 1.2 pins on the lower posts locate the halves.
 
 ## Checks
@@ -95,6 +112,36 @@ The RS02-side skirt is trimmed above Y 240; its tip was the one visible down-fac
 | LC1A | 2.23 |
 | LC1C | 2.56 |
 | LC2 | 4.24 |
+
+**Governing case** (Joey: arm straight, 5 kg at the hand about 0.5 m from the shoulder pitch, plus self-weight):
+
+- **Load at the elbow point:** 62 N along gravity plus 17.2 N·m, which gives 24 N·m at the hub face.
+- **Sweep:** shoulder pitch 0/45/90/135/180°, gravity g = (0, −cos θ, −sin θ) in the arm frame. Lateral is gravity along ±X, with the moment about Z.
+- **Pass marks:** 1.5 bulk, 1.25 layer, and 2.0 at 90° for the motor-holding creep.
+- **How SF is taken:** per part, with each part's own layer normal (halves Z, ring X, hub Y). Points within 4.5 mm of the loaded carrier-screw holes and the fixture face are excluded.
+
+| Case | Upper bulk / layer | Lower | Ring | Hub | Seam σz peak, shear mean |
+| --- | --- | --- | --- | --- | --- |
+| G0 (hanging) | > 40 | > 40 | 19.7 | > 200 | 0.05, 0.00 MPa |
+| G45 | 4.22 / 8.7 | 10.0 | 5.8 | 23 | 0.09, 0.08 |
+| **G90 (horizontal, motor holding)** | **3.10 / 7.0** | 6.3 / 7.5 | 10.9 / 9.6 | 17.3 / 9.3 | 0.12, 0.11 |
+| G135 | 4.55 / 9.9 | 9.7 | 5.6 | 26 | 0.08, 0.08 |
+| G180 (overhead) | > 40 | > 40 | 19.7 | > 200 | 0.03, 0.00 |
+| **Lateral +X** | 2.14 / 3.55 | **1.17** / 3.95 | 1.69 / 9.3 | 21 / 10.9 | 0.97, 0.04 |
+| **Lateral −X** | 2.14 / 2.43 | **1.17 / 0.93** | 1.69 / **0.99** | 21 / 10.6 | 0.88, 0.04 |
+
+**Pitch sweep:** passes. The minimum is 3.10 bulk at 90°, above the 2.0 creep mark. The seam carries almost nothing in pitch.
+
+**Lateral: does not pass in this model.** The minimum is at (166.4, 240.0, ±22.5), the re-entrant corner where the ring's +X end face meets the RS02-side skirt trim (Y 240).
+
+- **Why the model may overstate it:** the one-body model bonds the ring to the halves there. In the real parts that boundary is a 0.15 mm gap, and the load goes through:
+  - the pocket contact;
+  - the flare faces at Y 242;
+  - the ring pin.
+- **What it does show:** the lateral moment, about 19 N·m at that section, has to cross the ring-to-halves interface. That interface is not verified.
+- **Next:** a contact model (no-penetration between the ring and the halves, with the pin bonded), plus a geometry fix at that corner:
+  - match the skirt trim and the ring flare tip at one Y, so there is no step at X 166.35;
+  - put a 3 mm radius on the corner.
 
 ## Elbow back loop
 

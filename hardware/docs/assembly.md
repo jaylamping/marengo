@@ -18,10 +18,10 @@ The assembly order, with the insertion and driver-access check for every step, i
 
 Parts and checks: [`designs/left-arm/upper-arm/clamshell/cad/README.md`](../designs/left-arm/upper-arm/clamshell/cad/README.md). The carrier is the released one, unchanged.
 
-1. **Inserts.** Heat-set 8 Ruthex M3 × 5.7:
+1. **Inserts.** Heat-set 7 Ruthex M3 × 5.7:
    - 4 in the upper-half seam posts;
    - 2 in the upper-half hub-lug posts;
-   - 2 in the seat ring, from the OD at Y 246.5, one each side.
+   - 1 in the seat ring, from the OD at Y 246.5, on the back side.
 2. **Ring.** Fit the carrier, ring and elbow RS02 with the carrier screws as before (M3 × 25 cut to 24, DIN 6796 + 9021, 0.35 N·m).
 3. **Trunk.** Lay the trunk into the lower half:
    - In through the Ø10 back entry below the hub. Tie it to the boss just inside.
@@ -32,7 +32,8 @@ Parts and checks: [`designs/left-arm/upper-arm/clamshell/cad/README.md`](../desi
 5. **Close the halves.** Close the upper half over the lower (the pins locate it). Fit, from below:
    - 4 × M3 × 30 at the seam posts;
    - 2 × M3 × 40 at the hub lugs;
-   - 2 × M3 × 12 through each half into the ring inserts.
+   - 1 × M3 × 12 through the lower half into the ring insert.
+   Every screw head is on the back (lower) half; the front half has no holes.
    Snug them evenly. No thread-locker during testing.
 6. **Loop clip.**
    - Push the clip's two spigots into the carrier's screw-access bores at 44° and 84° until the foot sits on the carrier face.

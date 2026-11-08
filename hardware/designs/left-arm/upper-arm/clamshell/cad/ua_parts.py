@@ -88,6 +88,7 @@ def box_cut(d, name, axis, at, sign, rect):
 LUGY0, LUGY1 = CY + LUG['r0'], CY + 56.0
 Y_FLARE = 242.0                 # ring / halves boundary plane under the tube flare
 RING_PIN_Y, RING_PIN_Z = 246.5, (29.6, -17.6)     # ring pin screws: ring OD surface along Z at this Y
+RING_PIN_X = (158.5,)           # one pin from the back (lower half): no holes in the front skin; two side by side hit the ring end faces
 SLOT_Z = (-9.5, 18.0)            # ring top slot (trunk port to the elbow RS02), widened from the master's -7.5..16.3
 Y_SKIRT = 240.0                 # RS02-side skirt trimmed above its down-facing tip (no support on visible skin)
 Y_TIP = 236.5                   # below this the flare skins feather out tangent to the ring OD: trimmed
@@ -168,8 +169,7 @@ def ring():
     feat(d, s.feat, 'POCKET_THRU', 15.0, True, want=(0, 1, 151.0))
     # no lug: the top of the ring is the master's port slot. Each half pins the ring with one M3 x 10 along Z into a
     # Ruthex insert at Y RING_PIN_Y, outside the slot (Z -7.5..16)
-    cyl_z(d, 'RING_INSERT_UP', [(158.5, RING_PIN_Y)], 2.0, 34.5, 34.5 - (RING_PIN_Z[0] - 6.0), True, -1)   # start in air
-    cyl_z(d, 'RING_INSERT_LO', [(158.5, RING_PIN_Y)], 2.0, -22.5, (RING_PIN_Z[1] + 6.0) + 22.5, True, 1)
+    cyl_z(d, 'RING_INSERT_LO', [(x, RING_PIN_Y) for x in RING_PIN_X], 2.0, -22.5, (RING_PIN_Z[1] + 6.0) + 22.5, True, 1)   # start in air
     # the master's port slot leaves 0.03-0.5 mm skins on the ring top beside the lug: clear them down to Y 250,
     # out to where the OD is below Y 250 on both sides, so the cut ends in air
     # widen the master's port slot (Z -7.5..16.3) to clean Z planes: its walls met the r 43.6 cut at grazing angles
@@ -271,8 +271,7 @@ def half(upper):
         cyl_z(d, 'SEAM_PILOT', TUBE_COLS, 1.6, Z0 + 6.9, 3.6, True, 1)          # M3 x 30 tips past the insert
         cyl_z(d, 'LUG_INSERTS', HUB_COLS, 2.0, Z0 + LUG['hz'] + CL - 0.01, 7.0, True, 1)
         cyl_z(d, 'LUG_PILOT', HUB_COLS, 1.6, Z0 + LUG['hz'] + CL + 6.9, 2.6, True, 1)
-        cyl_z(d, 'RING_SCREW', [(158.5, RING_PIN_Y)], 1.7, 26.5, 18.0, True, 1)
-        cyl_z(d, 'RING_SCREW_CB', [(158.5, RING_PIN_Y)], 3.25, 36.5, 10.0, True, 1)
+
         cyl_z(d, 'SEAM_PIN_SOCKET', TUBE_COLS, 2.95, Z0 - 0.01, 1.4, True, 1)
     else:
         for i, (q, zb) in enumerate(zip(TUBE_COLS, COL_BOT)):
@@ -281,8 +280,8 @@ def half(upper):
             cyl_z(d, f'LUG_COLUMN{i}', [q], POST_R, Z0 - LUG['hz'] - CL, Z0 - LUG['hz'] - CL - zb, False, -1)
         bosses_z(d, 'SEAM_PIN', TUBE_COLS, 2.75, Z0, 1.2, 1)
         cyl_z(d, 'SCREW_HOLES', TUBE_COLS + HUB_COLS, 1.7, Z0 + 2, 60.0, True, -1)
-        cyl_z(d, 'RING_SCREW', [(158.5, RING_PIN_Y)], 1.7, -14.5, 18.0, True, -1)
-        cyl_z(d, 'RING_SCREW_CB', [(158.5, RING_PIN_Y)], 3.25, -24.5, 10.0, True, -1)
+        cyl_z(d, 'RING_SCREW', [(x, RING_PIN_Y) for x in RING_PIN_X], 1.7, -14.5, 18.0, True, -1)
+        cyl_z(d, 'RING_SCREW_CB', [(x, RING_PIN_Y) for x in RING_PIN_X], 3.25, -24.5, 10.0, True, -1)
         for i, (q, zb) in enumerate(zip(TUBE_COLS + HUB_COLS, COL_BOT + LUG_BOT)):
             cyl_z(d, f'CBORE{i}', [q], 3.25, zb, 20.0, True, -1)               # head bears on the post end
         harness_lower(d)

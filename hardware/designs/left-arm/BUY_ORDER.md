@@ -17,8 +17,8 @@ It replaces the one-piece upper arm's cable-window cover (drop the 4 × M3 × 6 
 | --- | --- | --- |
 | M3 × 30 socket or button head | **4** | Seam posts, from below |
 | M3 × 40 socket or button head | **2** | Hub-lug posts, from below |
-| M3 × 12 socket or button head | **2** | Ring pins, one per half |
-| Ruthex M3 × 5.7 heat-set insert (Ø4.0 hole) | **8** | 4 seam posts, 2 hub-lug posts, 2 in the ring |
+| M3 × 12 socket or button head | **1** | Ring pin, from the back |
+| Ruthex M3 × 5.7 heat-set insert (Ø4.0 hole) | **7** | 4 seam posts, 2 hub-lug posts, 1 in the ring |
 | Cable tie, 3.6 mm | **3** | Loop clip, trunk entry, RS00 branch exit |
 
 ## 1. Bearings

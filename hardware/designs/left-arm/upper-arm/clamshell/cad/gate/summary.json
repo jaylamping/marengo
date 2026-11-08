@@ -37,9 +37,9 @@
  },
  "ua_ring": {
   "mesh": "PASS",
-  "support_mm2": 51.5,
+  "support_mm2": 29.9,
   "outer_mm2": 0.0,
-  "inner_mm2": 51.5,
+  "inner_mm2": 29.9,
   "outer_where": []
  },
  "ua_hub": {

@@ -17,5 +17,5 @@ for i, (d, lab) in enumerate((([0.55, -0.35, 0.75], 'from behind, inboard'), ([-
               dict(key='rs02', label='RS02', mesh=B['rs02e'], col=E.C['act'], ex=np.array((55 if ex else 0, 0, 0), float), alpha=1.0)]
         img, _ = E.render(P, d, [0, 1, 0], 900, (170, 250, 5), 115, explode=ex, scale=1.0)
         ax = axs[i, j]; ax.imshow(img); ax.axis('off'); ax.set_title(f'{"exploded" if ex else "assembled"}, {lab}', fontsize=22)
-fig.suptitle('Upper arm clamshell draft 1: halves (Z split), seat ring, hub disc, loop clip on the unchanged carrier', fontsize=26)
+fig.suptitle('Upper arm clamshell draft 3: halves (Z split), seat ring, hub disc, loop clip on the unchanged carrier. All screw heads on the back (lower) half', fontsize=24)
 plt.tight_layout(rect=(0, 0, 1, 0.97)); plt.savefig(OUT, dpi=45); print('saved', OUT)
