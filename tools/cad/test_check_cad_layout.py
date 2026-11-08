@@ -316,12 +316,12 @@ class LockTests(unittest.TestCase):
             data["updated"] = time.time() - cad_lock.STALE_SECONDS - 1
             lock.write_text(json.dumps(data))
             guard = lock.with_name(lock.name + ".recover")
-            guard.write_text(
-                json.dumps({"updated": time.time()})
-            )  # another recoverer is mid-way
+            # another recoverer is mid-way, or one crashed hours ago: either way, fail closed
+            guard.write_text(json.dumps({"token": "other", "updated": 0}))
             ok, msg = cad_lock.acquire("torso", path=lock, take_stale=True)
             self.assertFalse(ok)
-            self.assertIn("recovering", msg)
+            self.assertIn("recovery guard", msg)
+            self.assertTrue(guard.exists())  # never removed by someone else
             self.assertEqual(json.loads(lock.read_text())["owner"], "left-arm")
             guard.unlink()
             # the record changed after it was judged stale (someone took it over): never overwrite it

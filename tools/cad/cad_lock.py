@@ -125,37 +125,26 @@ def acquire(
     return _take_stale(path, lock, data)
 
 
-RECOVERY_STALE_SECONDS = 60
-
-
 def _take_stale(path: Path, stale: dict, data: dict) -> tuple[bool, str]:
-    """Replace a stale lock, one recoverer at a time.
+    """Replace a stale lock, one recoverer at a time, failing closed.
 
-    A recovery lock (created exclusively) serializes recoverers. Inside it the lock is
-    re-read; only if it is still the same stale record is it removed, and the new lock is
-    then created exclusively, so a normal acquire that slips in between wins and nothing is
-    ever put back or overwritten.
+    The recovery guard is created exclusively and is never removed by anyone but its
+    creator (checked by a unique token). If a guard is already there, recovery refuses:
+    a guard left by a crash is cleared by hand. Inside the guard the lock is re-read and
+    removed only if it is still the same stale record; the new lock is then created
+    exclusively, so a normal acquire that slips in between wins and nothing is put back.
     """
     guard = path.with_name(path.name + ".recover")
-    if not _create(
-        guard,
-        {"pid": os.getpid(), "host": socket.gethostname(), "updated": time.time()},
-    ):
-        held = read(guard) or {}
-        if time.time() - float(held.get("updated", 0)) < RECOVERY_STALE_SECONDS:
-            return (
-                False,
-                "another session is recovering the stale lock; try again in a minute",
-            )
-        guard.unlink(missing_ok=True)  # a recoverer that crashed
-        if not _create(
-            guard,
-            {"pid": os.getpid(), "host": socket.gethostname(), "updated": time.time()},
-        ):
-            return (
-                False,
-                "another session is recovering the stale lock; try again in a minute",
-            )
+    token = {
+        "pid": os.getpid(),
+        "host": socket.gethostname(),
+        "token": f"{os.getpid()}-{time.time_ns()}",
+    }
+    if not _create(guard, token):
+        return False, (
+            f"recovery guard {guard.name} is present: another session is recovering the lock, "
+            "or one crashed while doing so. If no other session is recovering, delete it by hand and retry."
+        )
     try:
         if read(path) != stale:
             return False, "the lock changed hands; check status and try again"
@@ -164,7 +153,8 @@ def _take_stale(path: Path, stale: dict, data: dict) -> tuple[bool, str]:
             return True, f"took over a stale lock from {describe(stale)}"
         return False, "another session took the lock first"
     finally:
-        guard.unlink(missing_ok=True)
+        if read(guard) == token:  # only ever remove our own guard
+            guard.unlink(missing_ok=True)
 
 
 def refresh(owner: str, path: Path = LOCK_PATH) -> tuple[bool, str]:
