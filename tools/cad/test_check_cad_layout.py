@@ -90,6 +90,11 @@ class LayoutTests(unittest.TestCase):
         self.assertIn("100 MB", report.errors[0])
         self.assertIn("shoulder/", report.errors[0])
 
+    def test_version_suffix_copy_is_warning(self) -> None:
+        report = run(["upper-arm/marengo_upper_arm_left_revC.SLDPRT"])
+        self.assertEqual(report.errors, [])
+        self.assertTrue(any("version-suffixed" in w for w in report.warnings))
+
     def test_bad_name_is_warning(self) -> None:
         report = run(["shoulder/P1_L01.SLDPRT"])
         self.assertEqual(report.errors, [])

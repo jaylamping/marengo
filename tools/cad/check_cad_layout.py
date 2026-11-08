@@ -22,6 +22,7 @@ Errors (break the rule):
     the repo forbids files that large)
 Warnings (should be fixed, do not fail without --strict):
   - native file names that do not match cad/manifests/cad-conventions.json
+  - version-suffixed copies (_v2, _revC, _final, _copy, ...) of native files in region folders
   - .checkpoints folders (SolidWorks recreates them beside open parts; gitignored)
 """
 
@@ -67,6 +68,8 @@ class Checker:
         self.native_ext = {e.lower() for e in layout["nativeExtensions"]}
         self.sim_ext = {e.lower() for e in layout["simExtensions"]}
         self.forbidden = [re.compile(p, re.IGNORECASE) for p in layout["forbiddenFolderPatterns"]]
+        vs = layout.get("versionSuffixPattern")
+        self.version_suffix = re.compile(vs, re.IGNORECASE) if vs else None
         self.warn_dirs = [re.compile(p, re.IGNORECASE) for p in layout.get("warnFolderPatterns", [])]
         self.dated = re.compile(layout["datedFolderPattern"])
         self.dated_ok = {d.lower() for d in layout["datedFoldersAllowedUnder"]}
@@ -153,6 +156,10 @@ class Checker:
         if top in self.regions:
             if ext in self.native_ext:
                 self.check_native_name(rel, top)
+                if self.version_suffix and self.version_suffix.search(rel.name):
+                    self.report.warn(
+                        rel, "version-suffixed copy in a region folder; keep one current file, history is in git"
+                    )
             return
         if top in self.functions:
             self.check_function_file(rel, top, ext)

@@ -40,6 +40,7 @@
     "^old$",
     "^solver_results$"
   ],
+  "versionSuffixPattern": "(_v\\d+|_rev[a-z0-9]+|_final|_copy|_old|_backup|_test|\\(\\d+\\))\\.[^.]+$",
   "warnFolderPatterns": ["^\\.checkpoints$"],
   "datedFolderPattern": "(19|20)\\d{6}",
   "datedFoldersAllowedUnder": ["reviews", "_wip", "_sim", "_archive"],

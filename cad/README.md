@@ -12,20 +12,35 @@ Root assembly: `marengo.SLDASM` at the top of the CAD tree.
 
 ## What goes in git
 
-| Tracked | Not tracked (gitignored, local to Joey-PC) |
-|---------|---------------------------------------------|
-| Region folders, `vendor/`, `reference/`, `exports/`, `prints/`, `reviews/`, `drawings/`, `scripts/`, `manifests/` | `_wip/`, `_sim/`, `_archive/`, `.checkpoints/`, `*.CWR`, `~$` lock files |
+**Git holds the design of record. Joey-PC holds everything that led to it.**
 
-- **Latest version only.** Overwrite a file in place when it improves; git history is the version
-  trail. Iterations, studies and variants stay in `_wip/` until one wins.
-- **No file of 100 MB or more**, LFS included. `python tools/check_file_sizes.py` (also run by
-  `scripts/check.sh`) and the layout checker both fail on one. Simplify or split a file that
-  large, or keep it in `_wip/` / `_archive/`.
-- **LFS budget:** GitHub Free includes 10 GiB of LFS storage and 10 GiB of download bandwidth a
-  month, and every pushed version of a file counts toward storage. Commit near-final saves, not
-  every intermediate save.
-- On a fresh clone, `git lfs pull --include "cad/**"` downloads the CAD content (clones without
-  LFS see small pointer files).
+| Versioned (tracked; binaries via LFS) | Ignored (local to Joey-PC) |
+|---------------------------------------|----------------------------|
+| The one current file per part/assembly: the file the robot assembly or a print uses today, in its region folder | Variants, studies, test and render copies: `_wip/<topic>/` |
+| The STEP/STL export of each current part (`exports/<region>/`), so people without SolidWorks can use it | FEA/solver results: `_sim/<region>/`, `*.CWR` |
+| The exact 3MF + settings checklist of anything actually printed (`prints/<region>/`) | Pre-git old copies and duplicates: `_archive/` |
+| Review packets at a gate (`reviews/<region>/<YYYYMMDD>_<topic>/`) | SolidWorks `.checkpoints/` and `~$` lock files |
+| Vendor models, references, drawings, CAD scripts, manifests | Anything 100 MB or larger |
+
+Process:
+
+1. **Work in `_wip/`.** New ideas, variants and experiments start there and never get committed.
+2. **Promote when chosen.** A part moves into its region folder (with SolidWorks Pack and Go)
+   when it is picked: it passes its gate, or an assembly or print starts using it. Export its
+   STEP/STL to `exports/<region>/` at the same time.
+3. **Overwrite in place.** The region folder holds only the current version; git history is the
+   version trail. Don't add `_v2`, `_revC`, `_final` copies beside it. The old version is in
+   history, not in `_archive/`.
+4. **Commit at the end of a design pass or gate, not every save.** Every pushed version counts
+   against the LFS budget (GitHub Free: 10 GiB storage, 10 GiB download bandwidth a month).
+5. **Before committing**, run `python tools/check_file_sizes.py` and
+   `python tools/cad/check_cad_layout.py cad`. No file may be 100 MB or more (LFS included);
+   simplify or split a file that large, or keep it in `_wip/` / `_sim/`.
+6. **Prints:** commit the exact 3MF and settings that were printed, overwriting the previous
+   print of that part.
+
+On a fresh clone, `git lfs pull --include "cad/**"` downloads the CAD content (clones without
+LFS see small pointer files).
 
 ## Folder layout (rule)
 
