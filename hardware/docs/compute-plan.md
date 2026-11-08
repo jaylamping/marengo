@@ -33,7 +33,13 @@ The key point: nothing in the roadmap up to walking needs more on-robot compute 
 - **Right job, keep it.** 4× Cortex-A76 at 2.4 GHz handles a 200 Hz loop for 23 joints, Davout, the IMU and the gateway with room left. Running a locomotion policy here is fine too.
 - **Watch:** keep it free of camera and AI work so the control loop stays boring. That's why the Hailo HAT is a no (section 4).
 - **I/O it needs for the full body:** USB for the CAN adapters (it has 2× USB 3 + 2× USB 2; a small powered hub if we pass four), I²C for the BNO085, GPIO for the E-stop sense and the TPS3431 heartbeat on the power board, one Gigabit Ethernet port (goes to the Jetson, section 6).
-- **Power:** 5 V at up to 5 A, ~5–12 W in use.
+- **Power:** 5 V at up to 5 A, ~5–12 W in use, from the 12 → 5 V 5 A buck at the Pi (power board Rev B parts list).
+- **Setup requirements** (from the software project's deploy conventions, sourced from Raspberry Pi's resilient-file-system and USB-PD whitepapers; 2026-11-08):
+  1. **Boot and run from an NVMe SSD on the official M.2 HAT+**; the SD card is recovery only. Logs and recordings write a few MB/s continuously, which wears out SD cards.
+  2. **Official Active Cooler** fitted.
+  3. **`PSU_MAX_CURRENT=5000` in the EEPROM.** The buck is a plain 5 V rail with no USB-PD, so without this the Pi caps its USB ports at 600 mA total and the USB-CAN adapters can brown out.
+  4. **A low-battery signal to the Pi** so it shuts down cleanly before power drops; consumer NVMe drives have no power-loss protection. Owned by the power board thread (BMS telemetry or a GPIO line).
+- **Bay height:** the M.2 HAT+ and the Active Cooler make the Pi stack taller than the 21 mm Pi + CAN HAT envelope in the torso frame (Y 376–397). The CAN HAT goes away with the USB-CAN adapters, which gives some back. The frame/compute-bay layout needs the new stack height checked (estimate ~30 mm; measure once assembled).
 
 ### Jetson Orin Nano 8 GB (perception and interaction computer)
 
@@ -150,7 +156,7 @@ Hardware consequences:
 ## 9. Answers so far (Joey 2026-11-07)
 
 - **Jetson:** Orin Nano 8 GB. No SSD installed yet. When the NVMe goes in, flash the latest JetPack that supports the Orin Nano (6.2 or later is what unlocks Super mode). Joey is using a spare 256 GB M.2 NVMe he already has: enough for JetPack + containers (~40–60 GB), models and ~150 GB of logs with nightly offload; swap for 512 GB–1 TB only if video logging outgrows it.
-- **Pi 5:** 4 GB. Enough for the control role: the Rust runtime, Davout, CAN, SQLite logging and the gateway use well under 1 GB. Don't upgrade at today's prices. Keep the router and anything model-related on the Jetson, as planned, and send bulky logs (video) to the Jetson's SSD, not the Pi.
+- **Pi 5:** 4 GB. Enough for the control role: the Rust runtime, Davout, CAN, SQLite logging and the gateway use well under 1 GB. Don't upgrade at today's prices. Keep the router and anything model-related on the Jetson, as planned, and send bulky logs (video) to the Jetson's SSD. The Pi still runs from its own NVMe (setup requirement 1 above).
 - **Language/offline:** robot stays in the house; heavy inference goes to the 5080, the MacBook or the cloud (section 7).
 
 ## Sources
