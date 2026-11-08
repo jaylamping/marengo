@@ -142,7 +142,7 @@ The motors are irreplaceable (no spares). Every rule below exists to protect the
 | Torque cap | `limit_torque` 0x700B | per joint: 1.5 x the largest gravity torque in that stage's window plus friction, and never above the weakest printed part's rating on that joint (e.g. the elbow stop wear part is rated 17 N·m, **repo**). Starting caps come from the existing `tau_ff_max_nm` values in `config/control.yaml` and are written into each stage plan. |
 | Current cap | `limit_cur` 0x7018 | consistent with the torque cap |
 | Speed cap | `limit_spd` 0x7017 | ≤ 1.0 rad/s for C1–C6, raised only in C7 |
-| Host-loss timeout | `canTimeout` 0x7028 (20000 = 1 s) | about 0.1–0.2 s: if the host stops sending, the drive drops to reset |
+| Host-loss timeout | `canTimeout` 0x7028 (20000 = 1 s) | 50 ms or less (1000), per the power board requirement and tenet 3: if the host stops sending, the drive drops to reset (2026-11-08, was 0.1–0.2 s) |
 
 The anti-backdrive damper stays at its default (on). It is never disabled (**vendor** 4.2.5; project memory).
 

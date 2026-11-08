@@ -13,6 +13,8 @@ registered and addressed; when it doesn't, it shows as offline. Nothing else.
 
 - No mix-and-match of actuator types per limb, no plugin layers, no generic "any limb, any motor" abstractions.
 - A limb that isn't built yet is just a limb whose drives are all offline. It needs no separate code path.
+- **We are building the robot, not a limb.** The limb on the bench is the current milestone, not the scope. No code, doc, file
+  or folder is named after the current step ("right arm", "torso", "left arm") unless it is truly limb-specific hardware data.
 
 ## 2. One skeleton file is the contract
 
