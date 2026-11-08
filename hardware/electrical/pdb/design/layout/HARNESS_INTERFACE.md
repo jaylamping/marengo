@@ -13,10 +13,10 @@ board, where it leaves, and what each run ends in. In-torso routing is the frame
 ## 1. Package frame (local origin and orientation)
 
 - **X, Y are the board floorplan coordinates.** These are the same numbers as the torso frame docs: board X −50..50 (robot's
-  left = +X), Y 190..340 (+Y up, the top edge at Y 340). They match the torso only while the board sits at its floorplan
+  left = +X), Y 170..340 (+Y up, the top edge at Y 340; 100 × 170 mm since option A, 2026-11-07). They match the torso only while the board sits at its floorplan
   position. Joey places the board in the upper cavity, so the frame thread applies one rigid transform to the whole package.
 - **Z = 0 is the board's bottom face.** Components are on +Z (top face at Z 1.6) and the heatsink is on −Z (option D, chosen:
-  thermal pad −0.5..0, 116 × 69 mm footprint at X −34.5..34.5, Y 200–316, base to −5.1, fins to −36.5). Air runs along Y;
+  thermal pad −0.5..0, 120 × 69 mm footprint at X −34.5..34.5, Y 196.5–316.5, base to −5.1, fins to −36.5). Air runs along Y;
   `KO_heatsink_air_inlet` / `_outlet` keep 20 mm free at both ends of the fins.
 - **Units:** mm. All parts are on the top side; the bottom carries only the heatsink.
 
@@ -38,7 +38,7 @@ Each `WIRE_*` body runs 80–120 mm. Rows that bend the same way use concentric 
 | Brake J3, J25 (Mini-Fit Jr, 18 AWG, 2.3 mm) | mated plug top, Z about 23.6, at X 29 and 37 | +Z, then +Y | R8 and up (nested) | `KO_brake_plugs_J3_J25` |
 | 12 V converter J24 (Micro-Fit 2 × 6, 18 AWG, 1.9 mm) | plug top, Z about 17.6, X −37.5..−22.5 | +Z, then +Y | R6 and up | `KO_12V_converter_plug_J24` |
 | 12 V outputs J5, J6, J7, J22, J23 (Micro-Fit) | plug top, Z about 17.6, Y about 194–197 | +Z, then −Y | 4 × OD and up | `KO_bottom_plugs_J5_J7_J21_J22_J23` |
-| Pi link J21 (GH 7, 26 AWG, 1.0 mm) | plug back at Y about 185, Z 3.8 | −Y (side entry) | none on the board | same |
+| Pi link J21 (GH 8, 26 AWG, 1.0 mm) | plug back at Y about 185, Z 3.8 | −Y (side entry) | none on the board | same |
 | E-stop loop J20 (GH 8, 26 AWG, 1.0 mm) | plug back at X about −48.5, Z 3.8 | −X (side entry) | none on the board | `KO_estop_plug_J20` |
 
 Rev B5 change in this hand-off: J20 was turned 180° so its plug enters from the −X edge. It used to face into the board.
@@ -64,7 +64,7 @@ All dimensions marked "about" are approximate. Take the drawing before freezing 
 | Brake ×2 | Mini-Fit Jr 5557-02R plug | HS50 tabs (solder or ring) | plug about 10 × 10 mm, 22 mm above the board |
 | 12 V converter | Micro-Fit 3.0 43025-1200 | the same plug on the buck board | plug about 21 × 10 mm |
 | 12 V outputs | Micro-Fit 3.0 43025-0200/-0400 | loads | plug about 7 × 10 mm |
-| Pi link, E-stop | JST GH GHR-07V-S / GHR-08V-S | Pi adapter; E-stop and reset buttons | plug about 10–11 × 4.25 × 6.5 mm |
+| Pi link, E-stop | JST GH GHR-08V-S (both) | Pi adapter; E-stop and reset buttons | plug about 11 × 4.25 × 6.5 mm |
 
 **Arm, waist and aux pigtails are 16 AWG** (coordinator 18:55Z, matching
 [wiring/left-arm-trunk](../../../wiring/left-arm-trunk/README.md): 16 AWG trunk power on XT30, GH1.25 CAN). The XT30 cups
@@ -79,6 +79,20 @@ pair of 16 AWG silicone (13.2 mΩ/m, 3.0 mm OD), in still air with about 12 W/m�
 | Fuse rating, software failed | 20 A | about 79 K → about 120 °C | survivable (silicone 200 °C), not a running point; the 20 A fuse clears a few × 20 A within seconds |
 | Port overload trip (TPS48111, 30 A, about 16 ms) | 30 A | 0.04 K (adiabatic) | negligible |
 | Short at the pigtail end (1.1–1.4 kA, under 2 µs) | — | 0.01 K | negligible |
+
+**Pi link J21 pinout** (JST GH 8, 26 AWG; rev B5 added pin 8 for the power-fail warning). Every Pi input here is
+open drain or driven at 3.3 V from the Pi's own rail; nothing above 3.3 V reaches the cable.
+
+| Pin | Net | Direction | Pi side |
+| --- | --- | --- | --- |
+| 1 | +3V3_PI | Pi → board | Pi 3.3 V: meters' supply, I²C and NO pull-ups |
+| 2 | I2C_SDA | both | dedicated Pi I²C controller, Pi pull-ups |
+| 3 | GND | | |
+| 4 | I2C_SCL | Pi → board | Pi pull-ups |
+| 5 | ESTOP_PI_N | board → Pi | GPIO input, no pull: low = E-stop pressed |
+| 6 | WD_FEED | Pi → board | GPIO output, heartbeat toggled from the control loop |
+| 7 | PORT_FLT_N | board → Pi | GPIO input, 10k pull-up on the board: low = a port latched off |
+| 8 | PWR_FAIL_N | board → Pi | GPIO input **with a pull-up to the Pi's 3.3 V** (10k, or the internal pull-up): low = converter input under 31.4 V (re-arms at 34.4 V) |
 
 The CAN pair for the XT30(2+2) signal pins doesn't come from this board. It comes from the Pi's USB-CAN adapter and joins at
 the pigtail's XT30(2+2)-F.

@@ -137,4 +137,12 @@ for j,nm in (('J5','Jetson'),('J6','Pi buck'),('J7','fans')):
     ok(any(r[0]=='F' and {n(r,1),n(r,2)}=={'+12V',n(j,1)} for r in comp),nm+' output fused')
 ok(all(any(r[0]=='D' and n(r,1)==o and n(r,2)=='GND' for r in comp) for o in (n('U9',5),'SPARE_ON')),'eFuse outputs clamped to GND')
 ok(any(r[0]=='D' and n(r,1)=='+12V' and n(r,2)=='GND' and val(r).startswith('SMBJ15') for r in comp),'+12V back-feed TVS')
+# power-fail warning (rev B5): comparator on the converter input, own reference, hysteresis, open drain to the Pi
+pf=[u for u in comp if val(u).startswith('TLV1805') and n(u,1)=='PF_OUT']
+pr=[u for u in comp if val(u).startswith('LM4040') and n(u,1)=='PF_VR']
+ok(len(pf)==1 and n(pf[0],6)=='VCTL' and n(pf[0],3)=='PF_SENSE' and n(pf[0],4)=='PF_REF' and len(pr)==1,'power-fail comparator on VCTL: sense on IN-, its own reference on IN+')
+ok(two('BRK_IN','PF_SENSE',('R',)) and two('PF_SENSE','GND',('R',)) and two('PF_SENSE','GND',('C',)),'power-fail sense divided from the converter input (BRK_IN), RC filtered')
+ok(two('PF_VR','PF_REF',('R',)) and two('PF_OUT','PF_REF',('R',)),'power-fail hysteresis: reference through a resistor, feedback from OUT')
+qf=[q for q in comp if q[0]=='Q' and n(q,1)=='PF_OUT' and n(q,2)=='GND']
+ok(len(qf)==1 and two(n(qf[0],3),'PWR_FAIL_N',('R',)) and n('J21',8)=='PWR_FAIL_N' and not two('PWR_FAIL_N','+3V3_PI',('R',)),'PWR_FAIL_N open drain on J21 pin 8, pull-up on the Pi side')
 print('audited',cnt[0]); print('FAILS',len(fail))

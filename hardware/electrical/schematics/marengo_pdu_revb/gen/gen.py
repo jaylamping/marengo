@@ -120,7 +120,7 @@ nic(s,'Sensor_Energy:INA228','U6',INA,(272,378),'Package_SO:TSSOP-10_3x3mm_P0.5m
 g=Grid(s,305,367,20.32,30.48,330); g.C('100nF','+3V3_PI','GND'); tp(g,'+12V')
 for nm,x,n in (('Jetson',360,'+12V_JET'),('Pi 5 V buck',400,'+12V_PI'),('fans',440,'+12V_FAN')):
     conn(2,'12 V to '+nm+' (fused, block 10c)',(x,378),MF2,[n,'GND'])
-conn(7,'Pi: 3V3, SDA, GND, SCL, E-stop pressed (low), heartbeat out, port fault (low)',(490,378),GH(7),['+3V3_PI','I2C_SDA','GND','I2C_SCL','ESTOP_PI_N','WD_FEED','PORT_FLT_N'],ref='J21')
+conn(8,'Pi: 3V3, SDA, GND, SCL, E-stop pressed (low), heartbeat out, port fault (low), power fail (low)',(490,378),GH(8),['+3V3_PI','I2C_SDA','GND','I2C_SCL','ESTOP_PI_N','WD_FEED','PORT_FLT_N','PWR_FAIL_N'],ref='J21')
 g=Grid(s,515,367,20.32,30.48,530); g.F('+3V3_PI')
 note('''Ahead of the E-stop: motors off, compute stays up. Soft start in block 5a; the converter's negative-logic ON/OFF is held off until U7's PGD is good (block 10).
 Off board on the top front rail (frame 3877317), baseplate down, 4x M3 into its threaded baseplate (50.8 x 15.24 mm, 3 mm max depth). J24 sits on the board's top edge, -X half. -Vin and -Vout both go to GND: the robot has one ground, P-.
@@ -331,6 +331,21 @@ g.C('4.7uF 100V X7R','SW_D','GND',C1210,k=2)
 # the 2 nH first budgeted. About 8.8 uF of ceramics at BAT (4 x 4.7 uF 100 V, about 2 uF each at 54 V bias) takes the fast
 # edge: BAT 73.8 V and the bank A drain 80-82 V with a 5 nH loop (absorber_sim, LAYOUT_RULES).
 g.C('4.7uF 100V X7R','BAT','GND',C1210,k=4)
+# ---------- rev B5: power-fail warning to the Pi (its NVMe boot drive has no power-loss protection), appended so earlier
+# refs keep their numbers ----------
+head('5b. Power-fail warning: PWR_FAIL_N low below about 31 V at the converter input, before the converter drops out',(300,880))
+uf_=s.nref('U'); ur_=s.nref('U')
+nic(s,TLV,uf_,'TLV1805DBVR',(320,905),'Package_TO_SOT_SMD:SOT-23-6',{'1':'PF_OUT','2':'GND','3':'PF_SENSE','4':'PF_REF','5':'GND','6':'VCTL'})
+nic(s,'Reference_Voltage:LM4040DBZ-2.5',ur_,'LM4040AIM3-2.5',(360,905),SOT23,{'1':'PF_VR','2':'GND','3':None})
+g=Grid(s,390,895,17,30.48,560)
+g.R('118k 1%','BRK_IN','PF_SENSE',R1206); g.R('10k 1%','PF_SENSE','GND'); g.C('220nF 25V X7R','PF_SENSE','GND',C603)
+g.R('9.09k','VCTL','PF_VR'); g.R('10k 1%','PF_VR','PF_REF'); g.R('499k 1%','PF_OUT','PF_REF'); g.C('100nF 50V X7R','VCTL','GND',C603)
+g.nl(); g.R('100k','PF_OUT','GND'); g.R('100R','PF_D','PWR_FAIL_N',R603); g.C('1nF 50V X7R','PWR_FAIL_N','GND',C603)
+Q('Transistor_FET:Q_NMOS_GSD','2N7002',(530,935),'PF_OUT','GND','PF_D')
+nic(s,'Diode:BAT54S',s.nref('D'),'BAT54S',(550,935),SOT23,{'1':'GND','2':'+3V3_PI','3':'PWR_FAIL_N'})
+wnote('''Why: the Pi 5 boots from NVMe and consumer drives have no power-loss protection, so the Pi needs warning to sync and remount read-only before the 12 V converter quits.
+Sense on BRK_IN, the converter input behind U7: 118k/10k, 220 nF (2 ms) against motor-current dips. TLV1805 on VCTL (alive with the pack), own LM4040 2.5 V into IN+ through 10k, 499k from OUT for hysteresis: trip 31.4 V falling, re-arm 34.4 V rising (VL 2.451 V, VH 2.689 V at OUT 0/12.1 V), above the converter's 27.2 V UVLO-off, so the Pi gets its warning while compute is still up.
+Output open drain: OUT high (input low) turns on the 2N7002, PWR_FAIL_N low. 100R + 1 nF at the pin, BAT54S clamp; the pull-up is on the Pi's 3.3 V side, J21 pin 8. Pack absent or U7 off: BRK_IN at 0, PWR_FAIL_N low. VCTL lost alone (F1 open) leaves it high: the 38 V / 3.0 V and BMS-telemetry rules still cover a low pack.''',(300,955),175)
 writelib()
 s.write([('/'+ROOT,'1')])
 print('ok',{k:v for k,v in s.refc.items() if not k.startswith('#')})

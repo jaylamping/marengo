@@ -15,7 +15,7 @@ W13,12 V Pi 5 V buck,+12V_PI / GND,2,18 AWG,1.9,PVC,J6 (43025-0200),Pi 5 V buck,
 W14,12 V fans,+12V_FAN / GND,2,22 AWG,1.3,PVC,J7 (43025-0200),fan splitter to 4 fans (about 0.15 A each),TBD,twisted pair,fitted,
 W15,spare switched 12 V,SPARE_SW x2 / GND x2,4,18 AWG,1.9,PVC,J22 (43025-0400),spare,TBD,twisted pairs,optional,
 W16,spare always-on 12 V,SPARE_ON / GND,2,18 AWG,1.9,PVC,J23 (43025-0200),head electronics (first use),TBD,twisted pair,optional,
-W17,Pi link,+3V3_PI / I2C_SDA / GND / I2C_SCL / ESTOP_PI_N / WD_FEED / PORT_FLT_N,7,26 AWG,1.0,JST GH pre-crimped,J21 (GHR-07V-S),Pi GPIO header (adapter),TBD,bundled (flat or loosely twisted),fitted,
+W17,Pi link,+3V3_PI / I2C_SDA / GND / I2C_SCL / ESTOP_PI_N / WD_FEED / PORT_FLT_N / PWR_FAIL_N,8,26 AWG,1.0,JST GH pre-crimped,J21 (GHR-08V-S),Pi GPIO header (adapter),TBD,bundled (flat or loosely twisted),fitted,
 W18,E-stop loop,LOOP_OUT / GND / LOOP_RET / GND / RST_SRC / RST_IN / GND / ESTOP_NO,8,26 AWG,1.0,JST GH pre-crimped,J20 (GHR-08V-S),E-stop switch NC pair + NO; thermostats in series in the NC loop; reset button,TBD,bundled; branch to the 2 thermostats,fitted,
 W19,brake thermostat +X,(in the NC loop),2,24 AWG,1.1,silicone,W18 loop splice,Airpax 67L120 on the +X HS50 plate,TBD,twisted pair,fitted,off-board; in series with W20
 W20,brake thermostat -X,(in the NC loop),2,24 AWG,1.1,silicone,W19,Airpax 67L120 on the -X HS50 plate,TBD,twisted pair,fitted,off-board

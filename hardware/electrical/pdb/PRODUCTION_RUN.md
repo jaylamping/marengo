@@ -12,12 +12,12 @@ so 5 + 5 bare boards are ordered and 2 + 2 are built. **All prices are estimates
 | Board parts for 2 main + 2 buck, cheapest per line (mostly LCSC, the rest DigiKey or Mouser), with spares on cheap parts | about $200 |
 | LCSC shipping (Global Direct or DHL) | about $20 |
 | US duty on the LCSC share (China origin, about 37.5 %; LCSC ships duty-unpaid) | about $55 |
-| Bare boards, JLCPCB: 5 main (100 × 150, 4 layers, 2 oz outer / 1 oz inner, ENIG) + 5 buck (about 45 × 60, same) | about $115–165 |
+| Bare boards, JLCPCB: 5 main (100 × 170, 4 layers, 2 oz outer / 1 oz inner, ENIG) + 5 buck (about 45 × 60, same) | about $115–165 |
 | 2 frameless stencils (JLC) | about $16 |
 | JLC shipping, DHL | about $25–45 |
 | JLC prepaid duty (US DDP: 35 % on boards, 90 % on stencils) | about $55–75 |
 | **Total, 2 sets** | **about $490–575** |
-| Heatsink kit, thermal option D (chosen; [THERMAL_OPTION.md](design/THERMAL_OPTION.md)): 120 × 69 × 36 mm extruded heatsink cut to 116 mm, insulating 0.5 mm pad, 2 × M3, 2 sets | about $41–53 |
+| Heatsink kit, thermal option D (chosen; [THERMAL_OPTION.md](design/THERMAL_OPTION.md)): 120 × 69 × 36 mm extruded heatsink (no cut), insulating 0.5 mm pad, 2 × M3, 2 sets | about $41–53 |
 | Tools (section 6), one-off | about $110–200 |
 
 **Why this is above the $370–470 estimated earlier:** US duty adds about $110–130 across parts, boards and stencils. JLC's
@@ -83,7 +83,7 @@ Both boards are ordered as **two separate designs in one JLC order**, not one pa
 
 ## 4. Kit list
 
-[design/kit-2sets.csv](design/kit-2sets.csv) lists every fitted line for 2 main + 2 buck boards: 149 lines and 809 parts,
+[design/kit-2sets.csv](design/kit-2sets.csv) lists every fitted line for 2 main + 2 buck boards: 153 lines and 855 parts,
 counting spares. Spares are about 15 % (minimum 2) on cheap passives, small diodes, small transistors and 1206 fuses only;
 expensive parts get none. The off-board parts (BMS, Class T fuse, brake resistors, thermostats, harness) are in the pack
 plan and REVB5_CHANGES.
@@ -110,7 +110,7 @@ Biggest lines (2 sets, cheapest source):
 
 ## 5. Bare boards and stencils, fab comparison (qty 5 each, estimates)
 
-| Fab | Main 100 × 150, 4L, 2/1 oz, ENIG | Buck 45 × 60, same | Stencil | Shipping to US | Duty |
+| Fab | Main 100 × 170, 4L, 2/1 oz, ENIG | Buck 45 × 60, same | Stencil | Shipping to US | Duty |
 | --- | --- | --- | --- | --- | --- |
 | **JLCPCB** | about $70–100 (2/2 oz on JLC3313: $90–130; 1/0.5 oz: $35–45) | about $45–65 | frameless about $7–9, framed $15–20 (+$15–30 shipping) | DHL about $25–45 | DDP prepaid: 35 % boards, 90 % stencils |
 | PCBWay | about $120–180 | about $80–110 | frameless $15–20, framed $25–35 | DHL about $25–40 | duty on arrival |
@@ -132,7 +132,7 @@ Joey has a good iron with many tips and a low-power hot-air gun. To buy:
 
 | Tool | Pick | About |
 | --- | --- | --- |
-| **Hot plate**, at least 100 × 150 mm of usable area, enough power for 4-layer 2 oz | UYUE 946C, 200 × 200 mm, 800 W, set point to about 350 °C ([listing](https://www.fruugo.us/electric-hot-plate-soldering-preheating-station-946c-lcd-digital-display-for-pcb-smd/p-405311245); often cheaper on Amazon or AliExpress, check the 110 V version) | $80–170 |
+| **Hot plate**, at least 100 × 170 mm of usable area, enough power for 4-layer 2 oz | UYUE 946C, 200 × 200 mm, 800 W, set point to about 350 °C ([listing](https://www.fruugo.us/electric-hot-plate-soldering-preheating-station-946c-lcd-digital-display-for-pcb-smd/p-405311245); often cheaper on Amazon or AliExpress, check the 110 V version) | $80–170 |
 | **Solder paste** | **Sn63/Pb37, no-clean, Type 4** (e.g. Chip Quik SMD291AX in a jar, or an equivalent from LCSC). Melts at 183 °C, peaks at 210–225 °C | $15–30 |
 | Gel flux | no-clean tacky gel flux (e.g. Amtech NC-559 class) | $10 |
 | Tweezers | fine, straight and curved, ESD-safe | $10 |
@@ -189,8 +189,8 @@ Work on the buck board first; it's the practice run. Inspect and test between ev
    - the 8 AWG pack pair last, the largest chisel tip at about 400 °C. Heat the pad and the wire together until the solder
      wicks fully into the hole.
 7. Cable ties through the tie holes; clean the flux again.
-8. Heatsink (option D): cut the 120 mm heatsink to 116 mm, drill 2.5 mm and tap M3 at 4.0 and 86.0 mm from the cut end on
-   the centre line, deburr. Thermal pad on the clean bottom copper, heatsink on with 2 × M3 × 12 stainless + washers through
+8. Heatsink (option D): drill 2.5 mm and tap M3 at 7.5 and 89.5 mm from one end of the 120 mm heatsink, on the centre
+   line, deburr. Thermal pad on the clean bottom copper, heatsink on with 2 × M3 × 12 stainless + washers through
    HS1/HS2, snug and even (about 0.5 N·m).
 9. Bring-up per [REV_B_PARTS.md](REV_B_PARTS.md) steps 1–13, starting at the current-limited bench supply. Never go
    straight to the pack.
