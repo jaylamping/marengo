@@ -3,7 +3,7 @@
 **Status:** brief for the software project, rev 3, 2026-11-08. Written by the hardware project. Joey pastes this page's link
 into the software project as its starting brief.
 
-**We are building the robot, not a limb.** The software is written once, for the whole robot: five limbs (left arm, right arm,
+**Every change is for the finished robot** ([tenet 0](SOFTWARE_TENETS.md#0-every-change-is-for-the-finished-robot)). **We are building the robot, not a limb.** The software is written once, for the whole robot: five limbs (left arm, right arm,
 left leg, right leg, waist) on five buses, as described by one skeleton file. Each hardware step only brings more drives
 online. The left arm is **milestone 1** because it's the next limb on the bench, not because the code is about it. Nothing in the
 code, the docs or the folder layout is named after the current step. Earlier code was written "for the right arm" and "for the

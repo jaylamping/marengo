@@ -1,9 +1,17 @@
 # Marengo software tenets
 
-**Agreed by Joey, 2026-11-08.** These are the rules the marengo software is judged against. The left arm is brought up on a
+**Agreed by Joey, 2026-11-08.** These are the rules the robot software is judged against. The left arm is brought up on a
 fresh, lean stack that follows them. Existing code that doesn't honour them gets rewritten or deleted, and once the left arm
 passes its tests, the right-arm-era code that wasn't carried over is deleted. A reviewer, human or agent, can cite a tenet by
 number as the reason for a change.
+
+## 0. Every change is for the finished robot
+
+We write, update and delete code for the **finished robot**: five limbs, every drive, the power board, the battery, the legs.
+Never for the current iteration of one limb. The limb on the bench decides what gets *tested* next, not what the code is *for*.
+
+Before any change, ask: **"Is this still right when the whole robot is built?"** If the answer is "only for this limb" or "only
+for now", it's the wrong change. This applies to code, config, docs, tests and folder names alike.
 
 ## 1. A fixed robot, not a kit
 
