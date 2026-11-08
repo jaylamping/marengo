@@ -8,7 +8,7 @@ Joey-PC; see "Folder layout" below. Joint names, axes, and limits live in
 [hardware/docs/kinematics.md](../hardware/docs/kinematics.md). After export, runtime reads
 [assets/urdf/marengo.urdf](../assets/urdf/marengo.urdf).
 
-Root assembly: `marengo.SLDASM` at the top of the CAD tree.
+Root assembly: `cad/marengo.SLDASM` at the top of the CAD tree.
 
 ## What goes in git
 
@@ -17,39 +17,90 @@ Root assembly: `marengo.SLDASM` at the top of the CAD tree.
 | Versioned (tracked; binaries via LFS) | Ignored (local to Joey-PC) |
 |---------------------------------------|----------------------------|
 | The one current file per part/assembly: the file the robot assembly or a print uses today, in its region folder | Variants, studies, test and render copies: `_wip/<topic>/` |
-| The STEP/STL export of each current part (`exports/<region>/`), so people without SolidWorks can use it | FEA/solver results: `_sim/<region>/`, `*.CWR` |
-| The exact 3MF + settings checklist of anything actually printed (`prints/<region>/`) | Pre-git old copies and duplicates: `_archive/` |
-| Review packets at a gate (`reviews/<region>/<YYYYMMDD>_<topic>/`) | SolidWorks `.checkpoints/` and `~$` lock files |
-| Vendor models, references, drawings, CAD scripts, manifests | Anything 100 MB or larger |
+| The STEP/STL export of a current part that something consumes (a print, a review, a URDF, another tool) or that is released, in `exports/<region>/`, with its source recorded in `manifests/exports.json` | FEA/solver results: `_sim/<region>/`, `*.CWR`, `*.STE` |
+| The exact 3MF of anything actually printed, plus its G-code and settings checklist (`prints/<region>/`) | Pre-git old copies, duplicates, raw review logs: `_archive/` |
+| Review packets at a gate: markdown and key renders (`reviews/<region>/<YYYYMMDD>_<topic>/`) | SolidWorks `.checkpoints/`, `~$` lock files, `Backup of *` copies |
+| Vendor models, references, drawings, CAD scripts and macros, manifests | Anything 100 MB or larger; the writer lock `cad/.cad-writer.lock` |
 
-Process:
+### Process
 
-1. **Work in `_wip/`.** New ideas, variants and experiments start there and never get committed.
-2. **Promote when chosen.** A part moves into its region folder (with SolidWorks Pack and Go)
-   when it is picked: it passes its gate, or an assembly or print starts using it. Export its
-   STEP/STL to `exports/<region>/` at the same time.
-3. **Overwrite in place.** The region folder holds only the current version; git history is the
-   version trail. Don't add `_v2`, `_revC`, `_final` copies beside it. The old version is in
-   history, not in `_archive/`.
-4. **Commit at the end of a design pass or gate, not every save.** Every pushed version counts
-   against the LFS budget (GitHub Free: 10 GiB storage, 10 GiB download bandwidth a month).
-5. **Before committing**, run `python tools/check_file_sizes.py` and
-   `python tools/cad/check_cad_layout.py cad`. No file may be 100 MB or more (LFS included);
-   simplify or split a file that large, or keep it in `_wip/` / `_sim/`.
-6. **Prints:** commit the exact 3MF and settings that were printed, overwriting the previous
-   print of that part.
+1. **Take the writer lock** before opening SolidWorks to change anything in `cad/`:
+   `python tools/cad/cad_lock.py acquire <thread-or-name>`, and set `CAD_WRITER=<same name>` in
+   that shell. Release it after your commit (`... release <name>`). Many sessions share the
+   one checkout on Joey-PC; the pre-commit hook refuses a CAD commit while someone else holds
+   a live lock. A lock untouched for 4 hours is stale and the next `acquire` takes it over.
+2. **Work in `_wip/`.** New ideas, variants and experiments start there and never get committed.
+3. **Promote when chosen.** A part moves into its region folder (with SolidWorks Pack and Go)
+   when it is picked: it passes its gate, or an assembly or print starts using it. Then run
+   `python tools/cad/check_sw_refs.py <the assembly or part>` (Windows): every reference must
+   resolve to a file in `cad/` outside the scratch folders, or the committed assembly would be
+   broken for everyone else.
+4. **Export what is consumed.** When a print, review, URDF or another tool uses the part, export
+   its STEP/STL to `exports/<region>/` and record it:
+   `python tools/cad/record_export.py exports/<region>/<file> <region>/<part>.SLDPRT --config <name> --settings "<STEP AP214, STL 0.01 mm/5 deg, ...>"`.
+   The layout checker warns when the source changed after the export (stale) and fails when
+   the export changed without a new record.
+5. **Overwrite in place.** Region, exports, prints and drawings folders hold only the current
+   version; git history is the version trail. `_v2`, `_revC`, `_final`, `(2)`, `Copy of` files
+   there are errors.
+6. **Commit at a gate, not every save.** Commit native files at the end of a design pass or a
+   review gate, and squash interim saves before pushing: every pushed version is stored in
+   LFS forever. The pre-push hook (`tools/cad/lfs_budget.py`, limits in
+   `manifests/lfs-budget.json`) fails a push that adds more than 300 MB of new LFS data, takes
+   the month past 1 GB, or takes storage past 9 GB (GitHub Free: 10 GiB storage, 10 GiB
+   download a month). With Joey's OK for that push, set `CAD_BUDGET_OK=1` (the first `cad/`
+   commit will need it). `python tools/cad/lfs_budget.py report` shows the totals.
+7. **Checks.** The hooks run them; by hand:
+   `python tools/check_file_sizes.py --staged`, `python tools/cad/check_cad_layout.py cad`
+   (the folder on disk) and `python tools/cad/check_cad_layout.py --repo` (what git tracks).
+   No file may be 100 MB or more (LFS included); simplify or split it, or keep it in `_wip/`.
+   `scripts/check.sh` and CI run the size check and `--repo` on every PR.
+8. **Prints:** commit the exact 3MF that was printed, its G-code, and the settings checklist,
+   overwriting the previous print of that part. The G-code is the true record of the print;
+   Bambu Studio has changed saved 3MF settings on open before.
 
-**One home for CAD files (Joey, 2026-11-08):** STEP, STL, 3MF, G-code and SolidWorks files live
-only under `cad/`. `hardware/designs/<design>/` keeps the docs, renders, FEA reports and review
-notes and links to the `cad/` paths; it holds no CAD file copies. A doc that must point at the
-exact version a review or print used links to that commit, not to a frozen copy.
+### Hooks
 
-**Reviews and renders:** commit the packet's markdown (brief, summary, verdict) and the key
-renders; keep raw logs, prompts, hash lists and bulky data local (`_archive/reviews/`). Keep a
-render under about 2 MB.
+Install once per clone (Joey-PC and the Mac), and again after `git lfs install`:
 
-On a fresh clone, `git lfs pull --include "cad/**"` downloads the CAD content (clones without
-LFS see small pointer files).
+```
+python tools/cad/install_hooks.py
+```
+
+pre-commit checks staged sizes and, when CAD is staged, the writer lock and `--repo` layout.
+pre-push checks pushed sizes and the LFS budget, then runs Git LFS's own pre-push. An existing
+hook is kept as `<hook>.local` and still runs. CI repeats the size and layout checks, so a
+`--no-verify` commit still gets caught at the PR.
+
+### One home for CAD files (Joey, 2026-11-08)
+
+STEP, STL, 3MF, G-code and SolidWorks files live only under `cad/`. `hardware/designs/<design>/`
+keeps the docs, renders, FEA reports and review notes and links to the `cad/` paths; it holds
+no CAD file copies. `check_cad_layout.py --repo` fails on a CAD file tracked anywhere else.
+Files that have not moved yet are listed in `manifests/layout-exceptions.txt` (reported as
+HELD); each owning thread moves its files, repoints its scripts and deletes its line. Once the
+list is empty the old `hardware/...` LFS patterns in `.gitattributes` go too.
+
+### Reviews and renders
+
+A packet is `reviews/<region>/<YYYYMMDD>_<topic>/` and holds markdown, key renders and small
+data (md, txt, png, jpg, svg, pdf, csv, json). Limits: a render under 2 MB (about 1600 px),
+no file over 10 MB, a packet under 15 MB and 10 images. The packet's markdown names the exact
+design it reviewed with a `Pinned commit: <full 40-character SHA>` line, so links to
+`https://github.com/jaylamping/marengo/blob/<sha>/cad/...` stay valid after the files are
+overwritten. Raw logs, prompts, hash lists and bulky data stay in `_archive/reviews/`.
+
+### Clones, CI and bandwidth
+
+Clones skip LFS content unless asked, which keeps the 10 GiB monthly download budget for real
+use: CI checks out without LFS, and cloud sessions see pointer files (every check here reads
+sizes and hashes from the pointers). Fetch only what you need, e.g.
+`git lfs pull --include "cad/shoulder/**"`; `git lfs pull --include "cad/**"` fetches all of it.
+
+### Backup
+
+`_wip/`, `_sim/` and `_archive/` exist only on Joey-PC. Git is not their backup: keep them in
+Joey-PC's own backup, or promote a `_wip/` design before it would hurt to lose it.
 
 ## Folder layout (rule)
 
@@ -86,10 +137,11 @@ cad/
 Rules:
 
 1. Every native part or assembly sits in exactly one region folder, `vendor/`, or a scratch folder. Only `marengo.SLDASM` sits at the top.
+   Region folders hold only SLDPRT/SLDASM (and notes in `.md`); `arm/` holds only whole-arm assemblies; drawings go in `drawings/<region>/`, exports in `exports/<region>/`.
 2. Names follow [manifests/cad-conventions.json](manifests/cad-conventions.json) (see Naming below).
 3. WIP, simulation and checkpoint output goes only in `_wip/`, `_sim/`, `_archive/`. Date-stamped folders are allowed only there and in `reviews/`.
 4. Move or rename native files **inside SolidWorks** (Pack and Go or SOLIDWORKS Explorer), never with a plain file move, so assembly references survive. Only one session drives SolidWorks at a time.
-5. Run the checker before and after CAD work; it must report 0 errors:
+5. Run the checker before and after CAD work; it must report 0 errors (held paths are listed, not failing):
 
 ```powershell
 python J:\code\marengo\tools\cad\check_cad_layout.py J:\code\marengo\cad
@@ -161,7 +213,7 @@ Place fasteners, inserts, and purchased hardware under a top-level feature folde
 
 ## Workflow
 
-1. Model in SolidWorks under `assemblies/marengo.SLDASM` (local).
+1. Model in SolidWorks under `cad/marengo.SLDASM`.
 2. Run `marengo_design_review` before saving assemblies.
 3. Export URDF manually (Brawner) → `assets/urdf/marengo.urdf`.
 4. Run `scripts/validate-urdf.sh` and update [hardware/docs/kinematics.md](../hardware/docs/kinematics.md) if joints changed.

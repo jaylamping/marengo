@@ -21,7 +21,6 @@ cad/**/*.[sS][lL][dD][aA][sS][mM] filter=lfs diff=lfs merge=lfs -text
 cad/**/*.[sS][lL][dD][dD][rR][wW] filter=lfs diff=lfs merge=lfs -text
 cad/**/*.[sS][tT][eE][pP] filter=lfs diff=lfs merge=lfs -text
 cad/**/*.[sS][tT][pP] filter=lfs diff=lfs merge=lfs -text
-cad/**/*.[sS][tT][eE] filter=lfs diff=lfs merge=lfs -text
 cad/**/*.[sS][tT][lL] filter=lfs diff=lfs merge=lfs -text
 cad/**/*.3[mM][fF] filter=lfs diff=lfs merge=lfs -text
 cad/**/*.[gG][cC][oO][dD][eE] filter=lfs diff=lfs merge=lfs -text

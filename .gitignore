@@ -10,8 +10,11 @@
 **/_sim/
 **/_archive/
 **/.checkpoints/
-*.CWR
-*.cwr
+*.[cC][wW][rR]
+# SolidWorks Simulation output (.STE) and "Backup of" copies; the CAD writer lock file
+cad/**/*.[sS][tT][eE]
+Backup of *
+cad/.cad-writer.lock
 /target/
 # Pi deploy staging artifacts written into ~/marengo by scripts/deploy-pi.sh
 /.deploy-rev
@@ -19,6 +22,8 @@
 **/*.rs.bk
 .DS_Store
 *.swp
+# SolidWorks VBA macros are .swp too; keep the ones in cad/scripts/
+!cad/scripts/**/*.swp
 *.swo
 .idea/
 .vscode/
