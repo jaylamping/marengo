@@ -39,7 +39,7 @@ The key point: nothing in the roadmap up to walking needs more on-robot compute 
   2. **Official Active Cooler** fitted.
   3. **`PSU_MAX_CURRENT=5000` in the EEPROM.** The buck is a plain 5 V rail with no USB-PD, so without this the Pi caps its USB ports at 600 mA total and the USB-CAN adapters can brown out.
   4. **A low-battery signal to the Pi** so it shuts down cleanly before power drops; consumer NVMe drives have no power-loss protection. Owned by the power board thread (BMS telemetry or a GPIO line).
-- **Bay height:** the M.2 HAT+ and the Active Cooler make the Pi stack taller than the 21 mm Pi + CAN HAT envelope in the torso frame (Y 376–397). The CAN HAT goes away with the USB-CAN adapters, which gives some back. The frame/compute-bay layout needs the new stack height checked (estimate ~30 mm; measure once assembled).
+- **Bay height (hard ceiling 33 mm, Y 376 to the Jetson underside at Y 410; frame thread, main 77bbf49).** Pick: **official M.2 HAT+ on its supplied 16 mm standoffs, Active Cooler underneath, a single-sided M.2 2230 or 2242 NVMe on top** (the HAT+ takes only 2230/2242, so Joey's spare drive goes to the Jetson and the Pi needs its own small one). Stack estimate: ~3 mm mounting standoffs under the Pi + 1.6 mm Pi PCB + 16 mm + 1.6 mm HAT PCB + ~2.5 mm SSD ≈ **25 mm**, leaving ~8 mm of air for the cooler to draw from the sides. The CAN HAT goes away with the USB-CAN adapters. 16 mm is the minimum: Tom's Hardware found 10 mm hits the cooler fan. Measure the assembled stack before the Jetson shelf goes in; if it's over 30 mm, flag the frame thread.
 
 ### Jetson Orin Nano 8 GB (perception and interaction computer)
 
