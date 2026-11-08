@@ -2,8 +2,7 @@
 """Stage 3 input for Freerouting: export the Specctra DSN and make it safe to autoroute around the power copper.
 Freerouting reads every (plane) and every polygon wire as a non-obstacle conduction area, so other nets would be routed
 straight through the power pours. This script therefore:
-  - removes every plane, then adds GND back on In1 only and declares In1 a power layer (no signals on it; GND pins
-    get vias to it);
+  - removes every plane; In1 stays solid GND because no class may route on it, and GND is not autorouted (see below);
   - drops the GND fills on L1, In2 and L4 (they are refilled around the signals after import);
   - exports every other filled zone (power pours, +12V_RAW strip) as fixed traces of its own net: scan lines 0.5 mm wide
     at 0.4 mm pitch inside the fill. They are obstacles to other nets, and their own net's pins can still connect to them;
@@ -58,8 +57,14 @@ for z in b.Zones():
             for x0,x1,y in scan(rings):
                 wires.append(f'    (wire (path {LN[L]} {round(W*1000)}  {round(x0*1000)} {round(-y*1000)}  {round(x1*1000)} {round(-y*1000)})(net {q(n)})(type fix))')
                 nseg[n]=nseg.get(n,0)+1; HATCH.append([LN[L],n,round(x0*1000),round(y*1000),round(x1*1000)])
-# ---- planes: remove all, put GND back on In1 only
-def drop_scopes(text,head):
+# ---- planes: the power pours stay as planes, run with --router.plane_as_obstacle=true so they block other nets and their
+# own net connects to them. The GND fills go: a GND plane on In1 stops other nets' vias through it (fanout escaped 43 % of
+# the pins with it, 90 % without), and a class use_layer that leaves out In1 drops every via type that crosses it. In1 is
+# priced out in <dsn>.rules instead (marking it inactive blocks every via through it too); it stays (nearly) solid GND. GND is class GNDC: tools/gnd_fanout.py has already dropped a
+# via at almost every GND pad, and Freerouting connects the rest (fine-pitch IC pins). The L1/In2/L4 GND fills are refilled
+# around the signals after import. HATCH=1 rebuilds the earlier fixed-trace stand-ins for comparison.
+HATCHMODE=os.environ.get('HATCH')=='1'
+def drop_scopes(text,head,keep=lambda scope: False):
     out=[]; i=0
     while True:
         j=text.find(head,i)
@@ -71,24 +76,24 @@ def drop_scopes(text,head):
                 d-=1
                 if d==0: break
             k+=1
+        if keep(text[j:k+1]): out.append(text[j:k+1])
         i=k+1
-s=drop_scopes(s,'(plane ')
+s=drop_scopes(s,'(plane ',keep=lambda sc: (not HATCHMODE) and not sc.startswith('(plane GND'))
 # rule areas that only stop pour fills (the E-stop guards from tools/hv_spacing.py) export as full keep-outs: drop them
 s=re.sub(r'\n    \(keepout "" \(polygon [^)]*\)\)','',s)   # structure-level keep-outs only; footprint-image ones are indented deeper
-bb=b.GetBoardEdgesBoundingBox(); c=0.4
-x0,x1,y0,y1=um(bb.GetLeft())+400,um(bb.GetRight())-400,-um(bb.GetBottom())+400,-um(bb.GetTop())-400
-s=s.replace('    (via "Via[0-3]',f'    (plane GND (polygon In1.Cu 0  {x0} {y0}  {x1} {y0}  {x1} {y1}  {x0} {y1}  {x0} {y0}))\n    (via "Via[0-3]',1)
-s=re.sub(r'(\(layer In1\.Cu\s*\(type )signal\)',r'\1power)',s)
 # ---- classes
 m=re.search(r'\(class kicad_default(.*?)\(circuit',s,re.S)
 names=re.findall(r'"[^"]*"|[^\s"]+',m.group(1))
-rest=[n for n in names if n.strip('"') not in POWER+P12]
+rest=[n for n in names if n.strip('"') not in POWER+P12+['GND']]
 def cls(name,nets,w,cl): return f'    (class {name} {" ".join(nets)}\n      (circuit\n        (use_via "Via[0-3]_600:300_um")\n      )\n      (rule\n        (width {w})\n        (clearance {cl})\n      )\n    )\n'
 start=s.rfind('    (class kicad_default',0,m.end()); end=s.find('\n    )\n',m.end())+len('\n    )\n')
-s=s[:start]+cls('kicad_default',rest,200,200)+cls('POWER',[q(n) for n in POWER if b.FindNet(n)],600,int(os.environ.get('PWRCL','350')))+cls('P12',[q(n) for n in P12 if b.FindNet(n)],1000,300)+s[end:]
+s=s[:start]+cls('kicad_default',rest,200,200)+cls('POWER',[q(n) for n in POWER if b.FindNet(n)],600,int(os.environ.get('PWRCL','350')))+cls('P12',[q(n) for n in P12 if b.FindNet(n)],1000,300)+cls('GNDC',['GND'],300,200)+s[end:]
 # ---- append the hatch to the wiring
 k=s.rfind('  (wiring'); e=s.find('\n  )\n',k)
-if not os.environ.get('NOHATCH'): s=s[:e]+'\n'+'\n'.join(wires)+s[e:]   # NOHATCH=1: diagnostic export without the pour stand-ins
+if HATCHMODE: s=s[:e]+'\n'+'\n'.join(wires)+s[e:]
+# In1: active (an inactive layer also blocks every via through it) but 50x the trace cost, so the router keeps off it;
+# tools/ses_import.py reports anything left on In1
+open(os.path.splitext(sys.argv[2])[0]+'.rules','w').write('(rules PCB pdu\n  (autoroute_settings\n    (layer_rule In1.Cu (active on) (preferred_direction_trace_costs 50.0) (against_preferred_direction_trace_costs 50.0))\n  )\n)\n')
 open(sys.argv[2],'w',encoding='utf-8').write(s)
-json.dump(HATCH,open(sys.argv[2]+'.hatch.json','w'))   # tools/ses_import.py deletes exactly these after the import
+json.dump(HATCH if HATCHMODE else [],open(sys.argv[2]+'.hatch.json','w'))   # tools/ses_import.py deletes exactly these after the import
 print('dsn',sys.argv[2],'hatch segments',sum(nseg.values()),{k:v for k,v in sorted(nseg.items())})

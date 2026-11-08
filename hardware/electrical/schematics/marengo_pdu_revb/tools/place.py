@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Rev B5 placement: puts every part on the front of the 100 x 150 mm board, in the blocks below (pdb/design/LAYOUT_RULES_REVB.md).
+"""Rev B5 placement: puts every part on the front of the 100 x 170 mm board (option A, Joey 2026-11-07), in the blocks below (pdb/design/LAYOUT_RULES_REVB.md).
 Run with KiCad's Python: <kicad python> tools/place.py <net.net> <out.kicad_pcb> <placement.json>
-Board coordinates follow the floorplan: X -50..50 (robot's left = +X), Y 190..340 (up). No routing."""
+Board coordinates follow the floorplan: X -50..50 (robot's left = +X), Y 170..340 (up). No routing."""
 import os,sys,json
 sys.path.insert(0,os.path.dirname(__file__)); from sx import *
 import pcbnew
@@ -11,6 +11,10 @@ N=parse(open(sys.argv[1]).read())
 OX,OY=100,100                       # page offset, mm
 def P(X,Y): return pcbnew.VECTOR2I(pcbnew.FromMM(OX+X+50),pcbnew.FromMM(OY+340-Y))
 b=pcbnew.BOARD(); b.SetCopperLayerCount(4)
+# board bottom edge: 170 is the 100 x 170 board (option A, Joey 2026-11-07: routing room); PDU_YBOT=190 rebuilds the old
+# 100 x 150 placement, whose control blocks were too dense to route (74-84 % fill). The extra 20 mm go to
+# the bottom, under the ports, so the pack entry, absorber, banks, heatsink and ports keep their coordinates
+YB=float(os.environ.get('PDU_YBOT','170')); WIDE=YB<190
 # ---- blocks: (X0,X1,Y0,Y1) in floorplan coordinates. Rev B5 (docs: pdb/design/LAYOUT_RULES_REVB.md):
 # single-sided; pack pair on the top edge; flow RS1 -> bank A -> bank B (upper fan) -> bus caps -> port breakers -> pigtails
 BLK=dict(
@@ -31,6 +35,15 @@ put('out','U3 U4 R18 R19 R20 R21 R22 R64 C8 C9 R65 R66 C48')
 put('soft','Q7 U7 R25 R26 C19 C20 TP5 C14 C15 F2 R51 D15 Q12 R60')
 put('out','U17 C30 R47 D18 RS8 U6 C16 C17 C18 TP4 C41 F3 F4 F5 D20 U9 RS10 U10 R38 R39 R40 R41 R42 R43 C31 C32 C33 C34 C35 C36 D5 D19 U18 TP9 R44 R45 C37 D6 D13')
 put('latch','U25 R128 R129 R130 R131 Q21 C80 C81 D41 R67')   # watchdog beside the latch it drops (L_E, Q5)
+PF='U26 U27 R132 R133 R134 R135 R136 R137 R138 C93 C94 C95 Q22 D42'   # power-fail warning (block 5b): beside the 12 V block and J21
+put('out',PF)
+if WIDE:
+    # option A: the control blocks spread to about 50 % fill. The latch and soft start take the left edge (J20 fixed there,
+    # the M3 hole reserved), bank B's controller takes the latch's old column, and a new low-voltage band along the new
+    # bottom edge takes the 12 V distribution (next to its Micro-Fit outputs) and the watchdog
+    BLK.update(soft=(-48.0,-11.0,311.0,328.4),latch=(-48.0,-31.0,254.0,310.5),bankctl=(-30.5,-17.8,268.0,310.5),lv=(-48.0,48.0,YB+11.0,200.5))
+    put('lv','U17 C30 R47 D18 RS8 U6 C16 C17 C18 TP4 C41 F3 F4 F5 D20 U9 RS10 U10 R38 R39 R40 R41 R42 R43 C31 C32 C33 C34 C35 C36 D5 D19 U18 TP9 R44 R45 C37 D6 D13')
+    put('lv','U25 R128 R129 R130 R131 Q21 C80 C81 D41 R67'); put('lv',PF)
 RES={}; PFIX={}
 PORT={1:('RS2','U11','C21','U19','Q15',68,50,23),2:('RS3','U12','C22','U20','Q16',78,55,26),3:('RS4','U13','C23','U21','Q17',88,60,29),
       4:('RS5','U14','C24','U22','Q18',98,65,32),5:('RS6','U15','C25','U23','Q19',108,70,35),6:('RS7','U16','C26','U24','Q20',118,75,38)}
@@ -50,6 +63,12 @@ for k,(rs,ina,cd,u,q,r0,c0,d0) in PORT.items():
         PFIX[ina]=(-14.45,Y0+7.6,180)
         RES.setdefault('out',[]).append((-9.0,-6.8,Y0,Y0+7.5))
         RES[f'L{k}']=[(-42.5,-38.8,Y1-5.2,Y1)]     # V_L neck from the output clamp to the pigtail
+if WIDE:
+    # each port's RUN_P resistors (EN and INP feeds, and the EN pull-down) sit in the out block, away from the port's
+    # 54 V shunt and sense parts (E-stop 1.5 mm rule); the out block's VBUS via fields keep 1.6 mm round them
+    for k,(rs,ina,cd,u,q,r0,c0,d0) in PORT.items(): put('out',' '.join(f'R{r0+i}' for i in (7,8,9)))
+    RES['out']=[(x0-1.6,x1+1.6,y0-1.6,y1+1.6) for x0,x1,y0,y1 in RES['out']]
+    RES.setdefault('bankactl',[]).append((17.8,19.4,289.5,301.2))   # 1.6 mm from bank A's Q9 tab (SW_D)
 FIX={}   # ref: (X,Y,rot,back); back is never used: the board is single-sided (Joey, 2026-11-07)
 FIX['J1']=(8.0,335.0,0,False); FIX['J3']=(29.0,333.9,0,False); FIX['J25']=(37.0,333.9,0,False); FIX['J24']=(-30.0,334.0,0,False)
 # power flow (routing stage 1): RS1 vertical, BAT pad up, SW_D pad down, Kelvin pads on the left; D7/D21 between the BAT
@@ -72,7 +91,13 @@ for X,Y in HSINK:
 RES.setdefault('soft',[]).append((-16.0,-11.0,323.6,328.4))   # BAT neck from RS9 to D1 and the pack pour
 for Y,r in ((244.7,'J8'),(227.2,'J10'),(209.7,'J12')): FIX[r]=(45.0,Y,90,False)
 for Y,r in ((244.7,'J9'),(227.2,'J11'),(209.7,'J13')): FIX[r]=(-45.0,Y,270,False)   # + at the top, toward the turned FET's pins
-for X,r in ((-31.0,'J21'),(-19.0,'J5'),(-10.5,'J6'),(-2.0,'J7'),(6.5,'J23'),(17.5,'J22')): FIX[r]=(X,195.0,0,False)
+for X,r in ((-31.0,'J21'),(-19.0,'J5'),(-10.5,'J6'),(-2.0,'J7'),(6.5,'J23'),(17.5,'J22')): FIX[r]=(X,YB+5.0,0,False)
+if WIDE:
+    FIX['J20']=(-45.25,303.2,270,False); G.pop('J20',None)        # E-stop GH at the -X edge, opening outward
+    RES.setdefault('latch',[]).append((-50.0,-41.8,260.8,269.2))   # M3 hole H at (-46, 265)
+    RES.setdefault('soft',[]).append((-50.0,-41.8,328.4,340.0))
+    for s in (-1,1): RES.setdefault('lv',[]).append(tuple(sorted((s*42.0,s*50.0)))+(197.0,200.5))   # L5/L6 pigtail tie holes at (+-45, 200.95)
+    FIX['F2']=(-24.31,320.67,0,False); G.pop('F2',None)   # THT fuse holder: pins at Y 319 and above, clear of the heatsink (Y 196.5-316.5)
 # ---- nets and footprints
 nets={}
 for net in getall(get(N,'nets'),'net'):
@@ -135,11 +160,19 @@ def maxrects(W,H,items,occ=(),GAP=GAP):
         free=[a for a in nf if not any(a is not c and a[0]>=c[0]-1e-9 and a[1]>=c[1]-1e-9 and a[0]+a[2]<=c[0]+c[2]+1e-9 and a[1]+a[3]<=c[1]+c[3]+1e-9 for c in nf)]
         free=list(dict.fromkeys(free))
     return out
-for blk,(X0,X1,Y0,Y1) in BLK.items():
-    refs=[r for r,g in G.items() if g==blk]
+# spacing margins (tools/domains.py): courtyards touch (about 0.3-0.5 mm pad to pad between 0603s), which breaks the
+# 0.6 mm rule between 54 V domains and the 1.5 mm E-stop rule. Parts with a pad riding on 54 V get 0.3 mm more on each
+# side, E-stop parts 0.6 mm; a block that then overflows is packed without them (tools/hv_spacing.py moves what's left)
+import domains
+def margin(fp):
+    ns=[p.GetNetname() for p in fp.Pads()]
+    if any(domains.is_estop(n) for n in ns): return 1.2
+    if any(domains.rides(n) for n in ns): return 0.6
+    return 0.0
+def pack(blk,X0,X1,Y0,Y1,refs):
     items=[]
     for r in refs:
-        fp=fps[r]; bb=bbox(fp); items.append((pcbnew.ToMM(bb.GetWidth()),pcbnew.ToMM(bb.GetHeight()),r))
+        fp=fps[r]; bb=bbox(fp); m=margin(fp); items.append((pcbnew.ToMM(bb.GetWidth())+m,pcbnew.ToMM(bb.GetHeight())+m,r))
     items.sort(key=lambda i:-i[0]*i[1])
     occ=[]
     for f in fps.values():   # fixed parts inside the block
@@ -148,6 +181,11 @@ for blk,(X0,X1,Y0,Y1) in BLK.items():
             if fx1>X0 and fx0<X1 and fy1>Y0 and fy0<Y1: occ.append((fx0-X0-GAP/2,Y1-fy1-GAP/2,fx1-fx0+GAP,fy1-fy0+GAP))
     for (rx0,rx1,ry0,ry1) in RES.get(blk,[]): occ.append((rx0-X0,Y1-ry1,rx1-rx0,ry1-ry0))
     res=maxrects(X1-X0,Y1-Y0,items,occ,BGAP.get(blk,GAP)); over=[]
+    if any(q is None for q in res.values()):   # no room for the margins: a uniform 0.35 mm gap, else pack as before
+        items=[(pcbnew.ToMM(bbox(fps[r]).GetWidth()),pcbnew.ToMM(bbox(fps[r]).GetHeight()),r) for _,_,r in items]
+        res=maxrects(X1-X0,Y1-Y0,items,occ,0.35)
+        if any(q is None for q in res.values()): res=maxrects(X1-X0,Y1-Y0,items,occ,BGAP.get(blk,GAP)); print('no room for spacing in',blk)
+        else: print('uniform 0.35 mm gap in',blk)
     for w,h,r in items:
         q=res[r]
         if q is None: over.append(r); continue
@@ -155,7 +193,20 @@ for blk,(X0,X1,Y0,Y1) in BLK.items():
         if rot: fps[r].SetOrientationDegrees(90)
         place_at(fps[r],X0+x+ww/2,Y1-y-hh/2)
     used=sum(w*h for w,h,r in items); area=(X1-X0)*(Y1-Y0)
-    rep[blk]=dict(parts=len(items),used=round(used),fill=round(used/area*100),overflow=over)
+    return dict(parts=len(items),used=round(used),fill=round(used/area*100),overflow=over)
+# 54 V strips (option A): in the latch and bank B controller blocks the few 54 V parts (BAT fuse and cap, MID and VBUS
+# zeners, MID bias, the absorber option) go in a strip along the block's bottom edge, toward the power stage, 1.6 mm from
+# the E-stop parts that fill the rest (E-stop 1.5 mm rule)
+HVSTRIP={'latch','bankctl'} if WIDE else set()
+for blk,(X0,X1,Y0,Y1) in BLK.items():
+    refs=[r for r,g in G.items() if g==blk]
+    hv=[r for r in refs if blk in HVSTRIP and any(domains.is_hv(p.GetNetname()) for p in fps[r].Pads()) and not any(domains.is_estop(p.GetNetname()) for p in fps[r].Pads()) and r not in FIX]
+    if hv:
+        a_=sum(pcbnew.ToMM(bbox(fps[r]).GetWidth())*pcbnew.ToMM(bbox(fps[r]).GetHeight()) for r in hv)
+        hs=min(0.5*(Y1-Y0),max(a_*2.0/(X1-X0),max(min(pcbnew.ToMM(bbox(fps[r]).GetWidth()),pcbnew.ToMM(bbox(fps[r]).GetHeight())) for r in hv)+0.6))
+        print(blk,'54 V strip',round(hs,1),'mm:',' '.join(hv)); r1=pack(blk,X0,X1,Y0,Y0+hs,hv); r2=pack(blk,X0,X1,Y0+hs+1.6,Y1,[r for r in refs if r not in hv])
+        rep[blk]=dict(parts=r1['parts']+r2['parts'],fill=r2['fill'],hv_strip=round(hs,1),overflow=r1['overflow']+r2['overflow'])
+    else: rep[blk]=pack(blk,X0,X1,Y0,Y1,refs)
 # J20 (JST GH horizontal, E-stop loop) must open toward the -X edge (KO_estop); maxrects only knows its box, so turn it 180
 # about the courtyard centre, which keeps the box
 if round(fps['J20'].GetOrientationDegrees())==90: fps['J20'].Rotate(bbox(fps['J20']).GetCenter(),pcbnew.EDA_ANGLE(180,pcbnew.DEGREES_T))
@@ -163,7 +214,7 @@ if round(fps['J20'].GetOrientationDegrees())==90: fps['J20'].Rotate(bbox(fps['J2
 px=-50
 for blk in rep:
     for r in rep[blk]['overflow']:
-        bb=bbox(fps[r]); w=pcbnew.ToMM(bb.GetWidth()); place_at(fps[r],px+w/2,184); px+=w+1
+        bb=bbox(fps[r]); w=pcbnew.ToMM(bb.GetWidth()); place_at(fps[r],px+w/2,YB-6); px+=w+1
 missing=[r for r in fps if r not in G and r not in FIX]
 # ---- outline, holes, keep-outs, notes
 def seg(layer,a,c,w=0.15):
@@ -171,9 +222,9 @@ def seg(layer,a,c,w=0.15):
     s.SetStart(P(*a)); s.SetEnd(P(*c)); b.Add(s); return s
 def txt(layer,X,Y,t,sz=1.2):
     x=pcbnew.PCB_TEXT(b); x.SetText(t); x.SetLayer(layer); x.SetPosition(P(X,Y)); x.SetTextSize(pcbnew.VECTOR2I(pcbnew.FromMM(sz),pcbnew.FromMM(sz))); b.Add(x)
-seg(pcbnew.Edge_Cuts,(-50,340),(50,190),0.1)
+seg(pcbnew.Edge_Cuts,(-50,340),(50,YB),0.1)
 for sx_ in (-1,1):
-    for Y in (194,265,336):
+    for Y in (YB+4,265,336):
         h=pcbnew.FootprintLoad(FPDIR+'MountingHole.pretty','MountingHole_3.2mm_M3_Pad'); h.SetReference(f'H{len([f for f in b.GetFootprints() if f.GetReference().startswith("H")])+1}')
         gnd=nets.get(('J2','1'));
         b.Add(h); h.SetPosition(P(sx_*46,Y))
@@ -184,6 +235,21 @@ for X,Y in TIE:
     for d in (0,):
         h=pcbnew.FootprintLoad(FPDIR+'MountingHole.pretty','MountingHole_2.2mm_M2'); h.SetReference(f'TH{len([f for f in b.GetFootprints() if f.GetReference().startswith("TH")])+1}')
         b.Add(h); h.SetPosition(P(X,Y))
+# copper keep-outs round the holes (rule areas, all copper layers): heatsink screws HS1/HS2 no copper within 2 mm of the
+# hole (LAYOUT_RULES_REVB.md, the screw and the heatsink are not insulated from it); tie holes and the M3 mounting pads
+# 0.6 mm (54 V pours and tracks otherwise close to 0.25 mm, IPC-2221B 0.6 mm for 51-100 V)
+import math
+def keepout(X,Y,r,name):
+    k=pcbnew.ZONE(b); k.SetIsRuleArea(True); k.SetDoNotAllowZoneFills(True); k.SetDoNotAllowTracks(True); k.SetDoNotAllowVias(True)
+    k.SetDoNotAllowPads(False); k.SetDoNotAllowFootprints(False); k.SetLayerSet(pcbnew.LSET.AllCuMask()); k.SetZoneName(name)
+    o=k.Outline(); o.NewOutline()
+    r/=math.cos(math.pi/32)   # the 32-gon's flats sit at r
+    for i in range(32): o.Append(P(X+r*math.cos(i*math.pi/16),Y+r*math.sin(i*math.pi/16)))
+    b.Add(k)
+for k,(X,Y) in enumerate(HSINK): keepout(X,Y,1.6+2.0,f'KO_HS{k+1}')
+for k,(X,Y) in enumerate(TIE): keepout(X,Y,1.1+0.6,f'KO_TH{k+1}')
+for sx_ in (-1,1):
+    for Y in (YB+4,265,336): keepout(sx_*46,Y,3.2+0.6,f'KO_H_{sx_*46}_{Y:g}')
 for a,c,t in (((-40,304),(40,264),'Fan zone (upper)'),((-40,233),(40,193),'Fan zone (lower)')):
     seg(pcbnew.Cmts_User,a,c); txt(pcbnew.Cmts_User,a[0]+12,a[1]-1.5,t)
 for (a,c,t) in (((-15,304),(15,287),'Thermal: bank A drain SW_D, all 4 layers (2 oz), 30 vias/tab'),

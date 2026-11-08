@@ -1,29 +1,19 @@
 #!/usr/bin/env python3
 """Stage 3 checks after the signal routing (LAYOUT_RULES_REVB.md), beyond KiCad's DRC:
-  1. E-stop safety nets (ESTOP_SAFE) keep >= 1.5 mm to 54 V copper on every layer (the rule exists because 0.44 MOhm of
-     leakage into UVLO enables bank B by itself). Pad-to-pad pairs inside one footprint are listed separately: the
-     package sets those, not the routing.
-  2. 54 V copper keeps >= 0.6 mm (outer) / 0.2 mm (inner) to every other net (IPC-2221B, 51-100 V).
+  1. E-stop safety nets keep >= 1.5 mm to 54 V copper on every layer (the rule exists because 0.44 MOhm of leakage into
+     UVLO enables bank B by itself).
+  2. 54 V copper keeps >= 0.6 mm (outer) / 0.2 mm (inner) to every net of another voltage domain (IPC-2221B, 51-100 V).
+  Net classes and domains: tools/domains.py (the router uses the same table). Pairs inside one footprint are listed
+  separately: the package sets those, not the routing.
   3. Kelvin sense pairs: each SH*_P / SH*_N pair runs as a tight pair; reports the length of each leg and the share of
      the P leg that lies within 1.0 mm of the N leg.
 Run with KiCad's Python: <kicad python> tools/route_checks.py <board.kicad_pcb>   (exit 1 on a routing violation)"""
 import re,sys
 import pcbnew
 b=pcbnew.LoadBoard(sys.argv[1]); mm=pcbnew.FromMM
-ESTOP=set('/'+n for n in 'RUN RUN_A RUN_B RUN_P UVLO EN_A FLT_A FLT_D L_B L_E L_PB L_PC MID_B VB_B INT_B WDO_N VWD'.split())
-ESTOP|={n for n in b.GetNetsByName().keys() if re.match(r'/(LOOP_|RST_)',str(n))}
-ESTOP={str(n) for n in ESTOP}
-HV=lambda n: bool(re.match(r'/(BAT|SW_D|MID|VBUS|ABS|ABS_N|CL_D)$|/(BRK_|SH|V_L|D_L)',n)) and n not in ESTOP and not n.startswith('/SH12')
-def dom(n):
-    """54 V-riding domain: a port's gate, bootstrap and pull-up/down nets ride on its V_L, its sense and input nets on VBUS;
-    pairs inside one domain are tens of volts apart at most, so the 0.6 mm rule doesn't apply to them"""
-    m=re.match(r'/(?:V|G|GPD|GPU|BST|GC)_L(\d)$',n)
-    if m: return 'VL'+m.group(1)
-    if re.match(r'/(?:D_L\d|CSP_L\d|INP_L\d|SHL\d_[PN]|VBUS)$',n): return 'VBUS'
-    if re.match(r'/(?:BAT|SW_D|SH_[PN]|SH9_[PN]|BRK_D|CSP_A|CSN_A|VS_A)$',n): return 'BAT'
-    return None
-# LAYOUT_RULES_REVB.md's list, read literally (BAT, SW_D, MID, VBUS, ABS, CL_D, BRK_*, SH*, V_L*) plus ABS_N and the port
-# drains D_L*; the latch's own supply chain (BAT_F, BAT_R, BAT_CTL) and the divider taps are not in it
+sys.path.insert(0,__import__('os').path.dirname(__file__)); import domains
+ESTOP={n for n in map(str,b.GetNetsByName().keys()) if domains.is_estop(n)}
+HV=domains.is_hv; dom=domains.dom; RIDES=domains.rides
 LAYERS=[pcbnew.F_Cu,pcbnew.In1_Cu,pcbnew.In2_Cu,pcbnew.B_Cu]
 OUTER={pcbnew.F_Cu,pcbnew.B_Cu}
 items=[]   # (net, layer, shape, label, footprint ref or None)
@@ -60,18 +50,25 @@ def collide(a,c,cl):
 bad=[]; pkg=[]
 byL={L:[i for i in items if i[1]==L] for L in LAYERS}
 for L in LAYERS:
-    es=[i for i in byL[L] if i[0] in ESTOP]; hv=[i for i in byL[L] if HV(i[0])]
-    for n,_,s,lab,ref in es:
-        for m,_,h,lab2,ref2 in hv:
-            if collide(s,h,1.5-0.001):
-                rec=(b.GetLayerName(L),n,lab,m,lab2,pos(s))
-                (pkg if ref and ref==ref2 else bad).append(rec)
-    cl=0.6 if L in OUTER else 0.2
-    oth=[i for i in byL[L] if not HV(i[0])]
-    for m,_,h,lab2,ref2 in hv:
-        for n,_,s,lab,ref in oth:
-            if n!=m and not (ref and ref==ref2) and not (dom(n) and dom(n)==dom(m)) and collide(h,s,cl-0.001):
-                bad.append((b.GetLayerName(L),m,lab2,n,lab,pos(s),f'<{cl} mm'))
+    # every pair of different nets where one side is 54 V (or rides on 54 V) or E-stop: the rule from tools/domains.py
+    hot=[i for i in byL[L] if RIDES(i[0]) or i[0] in ESTOP]
+    G=5000000   # 5 mm buckets
+    bk={}
+    for it in byL[L]:
+        x0,x1,y0,y1=box(it[2])
+        for gx in range(x0//G,x1//G+1):
+            for gy in range(y0//G,y1//G+1): bk.setdefault((gx,gy),[]).append(it)
+    for m,_,h,lab2,ref2 in hot:
+        x0,x1,y0,y1=box(h); r=mm(1.5); cand={}
+        for gx in range((x0-r)//G,(x1+r)//G+1):
+            for gy in range((y0-r)//G,(y1+r)//G+1):
+                for it in bk.get((gx,gy),()): cand[id(it)]=it
+        for n,_,s_,lab,ref in cand.values():
+            if n==m or ((RIDES(n) or n in ESTOP) and (n,lab)<(m,lab2)): continue   # each hot-hot pair once
+            cl=domains.clearance(m,n,L in OUTER)
+            if cl<=0.2 or not collide(h,s_,cl-0.001): continue
+            rec=(b.GetLayerName(L),m,lab2,n,lab,pos(s_),f'<{cl} mm')
+            (pkg if ref and ref==ref2 else bad).append(rec)
 print('1/2. clearance violations (routing):',len(bad))
 for r in bad: print('   ',r)
 print('   inside one footprint (package-set, review only):',len(pkg))

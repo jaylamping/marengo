@@ -7,7 +7,7 @@ power pours under the FETs (heatsink pads) and the VBUS sheet to the ports, GND 
 Prints, for each pour, any pad of another net that lies inside it (to be moved or carved), then fills and saves."""
 import os,sys
 import pcbnew
-YB=float(os.environ.get('PDU_YBOT','190'))   # board bottom edge (tools/place.py)
+YB=float(os.environ.get('PDU_YBOT','170'))   # board bottom edge (tools/place.py)
 OX,OY=100,100
 def P(X,Y): return pcbnew.VECTOR2I(pcbnew.FromMM(OX+X+50),pcbnew.FromMM(OY+340-Y))
 b=pcbnew.LoadBoard(sys.argv[1])
@@ -27,11 +27,15 @@ def zone(net,layer,rects,prio,clear=0.6,name=''):
     o.Simplify()
     b.Add(z)
 VIAS=[]
+KO=[z for z in b.Zones() if z.GetIsRuleArea() and z.GetDoNotAllowVias()]   # hole keep-outs from tools/place.py
+def in_ko(X,Y,r):
+    q=P(X,Y); return any(z.Outline().Contains(q) or z.Outline().SquaredDistance(q)<pcbnew.FromMM(r)**2 for z in KO)
 def vias(net,x0,x1,y0,y1,pitch=1.0,drill=0.3,dia=0.6):
     n=0; X=x0
     while X<=x1+1e-6:
         Y=y0
         while Y<=y1+1e-6:
+            if in_ko(X,Y,dia/2): Y+=pitch; continue
             v=pcbnew.PCB_VIA(b); v.SetPosition(P(X,Y)); v.SetDrill(pcbnew.FromMM(drill)); v.SetWidth(pcbnew.FromMM(dia))
             v.SetNet(NET[net]); b.Add(v); n+=1; Y+=pitch
         X+=pitch

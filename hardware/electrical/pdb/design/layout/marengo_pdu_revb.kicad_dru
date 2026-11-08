@@ -1,0 +1,15 @@
+(version 1)
+# Fine-pitch ICs whose footprint puts pads 0.15 mm apart: U1 and U7 (LM5069, MSOP-10 0.5 mm) and U2 (TPS7A4001,
+# HVSSOP-8 0.65 mm with its large pads). Only clearances to that IC's own pads, from copper that enters the IC's
+# courtyard (its other pads and the first escape segment), drop to 0.15 mm; everything else keeps the defaults, and
+# the 54 V (0.6 mm) and E-stop/UVLO (1.5 mm) spacing is checked by tools/route_checks.py and tools/hv_spacing.py.
+# tools/grid_route.py routes to the same rule (FINE, courtyard boxes).
+(rule fine_pitch_U1
+  (constraint clearance (min 0.15mm))
+  (condition "(A.memberOfFootprint('U1') && B.intersectsCourtyard('U1')) || (B.memberOfFootprint('U1') && A.intersectsCourtyard('U1'))"))
+(rule fine_pitch_U2
+  (constraint clearance (min 0.15mm))
+  (condition "(A.memberOfFootprint('U2') && B.intersectsCourtyard('U2')) || (B.memberOfFootprint('U2') && A.intersectsCourtyard('U2'))"))
+(rule fine_pitch_U7
+  (constraint clearance (min 0.15mm))
+  (condition "(A.memberOfFootprint('U7') && B.intersectsCourtyard('U7')) || (B.memberOfFootprint('U7') && A.intersectsCourtyard('U7'))"))

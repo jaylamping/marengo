@@ -4,7 +4,10 @@
 
 ## Board
 
-- 100 × 150 mm, set by the carrier. M3 holes at X ±46, Y 194 / 265 / 336.
+- **100 × 170 mm** (option A, Joey 2026-11-07: the 100 × 150 placement packed the control blocks to 74–84 % and couldn't be
+  routed). The extra 20 mm are at the bottom (Y 170–190): the 12 V distribution and the watchdog moved there, next to the
+  Micro-Fit outputs (now at Y 175); the latch and soft start widened to the left edge. Power path, banks, heatsink and ports
+  kept their coordinates. M3 holes at X ±46, Y 174 / 265 / 336.
 - **Single-sided: every part on the front face.** The rear has 6 mm to the carrier, and a back-side part would need a second reflow pass (Joey, 2026-11-07).
 - 4 layers, 1.6 mm, **2 oz outer / 1 oz inner** (JLC's standard stackup; rev B5 thermal option D takes the FET heat into a heatsink, so the copper only carries current).
   - L1: positive pours and parts.
@@ -80,7 +83,33 @@
 
 ## Clearance
 
-IPC-2221B: 0.6 mm external, 0.2 mm internal for 51–100 V nets. The 0.15 mm intra-footprint gaps on U2 and U7 need a fine-pitch rule on those footprints only.
+IPC-2221B Table 6-1, 51–100 V row (the values used here, from the standard's table; check against your copy): B1
+internal 0.1 mm; B2 external bare, up to 3050 m, 0.6 mm; B3 above 3050 m 1.5 mm; B4 external with permanent polymer
+coating 0.13 mm; A5 external with conformal coating over the assembly 0.13 mm; A6 external component lead or termination,
+uncoated, 0.5 mm; A7 the same, coated, 0.13 mm. So uncoated, the package-set pad pairs at 0.3–0.5 mm fail A6 as well as
+B2; coated, everything at 0.13 mm or more passes.
+
+**Coating (decision pending with Joey, coordinator's recommendation: coat).** With the acrylic coat after bring-up
+(PRODUCTION_RUN step 10), the 54 V domain rule below drops to the 0.2 mm default (`MARENGO_COATED=1` for the tools).
+Uncoated it stays 0.6 mm on the outer layers.
+
+- **One rule table** ([tools/domains.py](../../schematics/marengo_pdu_revb/tools/domains.py)), used by the router, the
+  placement spacing pass, the GND fanout and the checks (2026-11-08):
+  - E-stop nets (the ESTOP_SAFE list above) keep **1.5 mm** to the 54 V list (BAT, SW_D, MID, VBUS, ABS, ABS_N, CL_D,
+    BRK_*, SH*, V_L*, D_L*) on every layer.
+  - Copper on 54 V, or riding on a 54 V node (a gate or bootstrap on its source, a sense tap on VBUS), keeps **0.6 mm**
+    on the outer layers (0.2 mm inner) to every net of another voltage domain; 0.2 mm on all layers if the board is
+    coated. Nets in one domain (a port's V_L, G_L,
+    GPD/GPU, BST, GC; bank B's MID with GA1/GA2 and BST_A; the VBUS taps) are tens of volts apart at most, so 0.2 mm.
+  - Everything else 0.2 mm.
+- **Fine-pitch footprints** (the only DRC rule beyond the defaults, layout/marengo_pdu_revb.kicad_dru): U1 and U7 (LM5069,
+  MSOP-10 0.5 mm) and U2 (TPS7A4001, HVSSOP-8) put their own pads 0.15 mm apart, so **only clearances to that IC's own
+  pads, from copper that enters its courtyard**, drop to 0.15 mm:
+  `(rule fine_pitch_U1 (constraint clearance (min 0.15mm)) (condition "(A.memberOfFootprint('U1') && B.intersectsCourtyard('U1')) || (B.memberOfFootprint('U1') && A.intersectsCourtyard('U1'))"))`,
+  and the same for U2 and U7. Outside the courtyards 54 V to low-voltage copper stays at 0.6 mm and E-stop copper at
+  1.5 mm.
+- **Holes:** no copper within 2 mm of the heatsink screw holes HS1/HS2 (the screw and the heatsink aren't insulated from
+  it), 0.6 mm round the tie holes and the M3 mounting pads (rule areas from tools/place.py).
 
 ## Air
 

@@ -181,7 +181,13 @@ Work on the buck board first; it's the practice run. Inspect and test between ev
    paste around the D2PAK tabs and the cans, not the plate reading.
 4. Inspect all the fine-pitch ICs, the WSON eFuses (look at the side fillets) and the FET tabs (solder flowed out to the
    pad edge). Rework with flux and the iron, or the hot-air gun.
-5. Wash off the flux (IPA and a brush) around U1, U8 and the latch block. The ESTOP_SAFE nets need clean, dry board.
+5. Wash off the flux (IPA and a brush) around U1, U7, U8 and the latch block, no-clean flux included, and let it dry
+   fully (warm air or 30 min). The ESTOP_SAFE nets need clean, dry board: U1 pin 2 (SH_P, 54 V) sits 0.15 mm from pin 3
+   (UVLO), and leakage of about 0.44–0.57 MΩ there closes bank B by itself (UVLO 33k to GND plus U1's 21 µA hysteresis
+   sink against 54.6–57.5 V). Inspect the gap under magnification: no residue, no solder whisker. An unpowered ohmmeter
+   check can't see it in-circuit (UVLO has 33k to GND and SH_P about 50 kΩ to GND through the MID bias and the absorber
+   bleed), so the leakage check is powered: bring-up step 15. The whole-board conformal coat comes after bring-up
+   (step 10).
 6. Through-hole parts, with the board on the plate at about 150 °C (below the paste's 183 °C melt) so the iron doesn't
    fight the 2 oz copper:
    - Micro-Fit and Mini-Fit headers and the F2 fuse holder;
@@ -192,10 +198,17 @@ Work on the buck board first; it's the practice run. Inspect and test between ev
 8. Heatsink (option D): drill 2.5 mm and tap M3 at 7.5 and 89.5 mm from one end of the 120 mm heatsink, on the centre
    line, deburr. Thermal pad on the clean bottom copper, heatsink on with 2 × M3 × 12 stainless + washers through
    HS1/HS2, snug and even (about 0.5 N·m).
-9. Bring-up per [REV_B_PARTS.md](REV_B_PARTS.md) steps 1–13, starting at the current-limited bench supply. Never go
+9. Bring-up per [REV_B_PARTS.md](REV_B_PARTS.md) steps 1–15, starting at the current-limited bench supply. Never go
    straight to the pack.
 
 Hot air is for rework only (removing or reseating a part). Joey's low-power gun can't reflow the 2 oz board by itself.
+10. **Conformal coat, after bring-up passes** (the board is laid out for it: IPC-2221B 51–100 V external spacing coated is
+    0.13 mm, uncoated 0.6 mm; [LAYOUT_RULES_REVB.md](design/LAYOUT_RULES_REVB.md) "Clearance"). Bring-up runs uncoated so
+    every pad stays probeable and reworkable. Then: wash and dry again (IPA, warm air), mask the Micro-Fit and Mini-Fit
+    headers, the JST GH connectors, the F2 fuse holder, the pigtail and pack solder joints' contact faces, every test
+    point, the M3 and heatsink holes and the bottom copper under the heatsink pad. Brush or spray an acrylic conformal
+    coat (MG Chemicals 419D class), two thin coats, cure per the datasheet, inspect under UV. After coating, rework means
+    stripping the coat locally and recoating.
 
 ## 8. Order checklist
 
