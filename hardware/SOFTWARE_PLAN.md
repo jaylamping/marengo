@@ -31,6 +31,10 @@ Each milestone is "these drives come online and pass their tests". None of them 
 
 ## Start here
 
+The existing code, its ADRs, `AGENTS.md` files and CI describe the **legacy** stack. Mine them for facts and bench lessons,
+but don't extend them, fix their tests or copy their patterns. The tenets override every ADR. If a legacy doc and this plan
+disagree, this plan wins.
+
 1. **Read the tenets.** They are the yardstick for every item below.
 2. **Set up the new crate layout** (section below) and **write the skeleton YAML** (item 1). No hardware needed; everything reads it.
 3. **Lift the hard-won knowledge** out of the old code into notes and test vectors (item 2), before anything is deleted.
@@ -81,7 +85,8 @@ Final names are the software project's call; the rule is "names say what things 
 
 ## 1. The skeleton YAML (tenets 1 and 2)
 
-One file describes the whole robot: limbs (left arm, right arm, left leg, right leg, waist), and in each, every joint with its
+One file, `config/skeleton.yaml`, describes the whole robot (the software project owns its schema and loader; the hardware
+side supplies and edits the values, as tenet 2 says): limbs (left arm, right arm, left leg, right leg, waist), and in each, every joint with its
 actuator type, bus, device ID, direction, zero, soft and hard limits, and torque, current and speed caps. Left arm: `can1`,
 IDs 11 to 15, joint names `left_shoulder_pitch`, `left_shoulder_roll`, `left_upper_arm_yaw`, `left_elbow_pitch`,
 `left_lower_arm_yaw`. Right arm stays `can0`, IDs 1 to 5. Unbuilt limbs are listed and simply show offline.

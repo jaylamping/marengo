@@ -4,6 +4,12 @@
 
 # Marengo
 
+> **Read first (2026-11-08):** the software is being rebuilt as a fresh, lean stack for the whole robot. Start with
+> [hardware/SOFTWARE_TENETS.md](hardware/SOFTWARE_TENETS.md) and [hardware/SOFTWARE_PLAN.md](hardware/SOFTWARE_PLAN.md). The
+> tenets override everything below and every ADR. The existing crates (Davout, Berthier, Chappe, robstride, marengo-pi and the
+> rest) are **legacy**: don't extend them, fix their tests or copy their patterns; they are deleted once the new stack passes
+> (see [RECONCILIATION.md](review/sw-foundation-20261108/RECONCILIATION.md)).
+
 Returning to the project: start with [docs/status.md](docs/status.md) for where things stand (bench checkpoint, open issues, open decisions, next steps), then [docs/roadmap.md](docs/roadmap.md).
 
 One repo for a personal, full-size walking humanoid in the Unitree G1 class (1524 mm, 23 DOF, Robstride actuators): CAD manifests, wiring, URDF, the Rust runtime, and the operator UI. The live hardware today is the right 5-DOF arm on the bench, the deliberate first slice of the full body. SolidWorks and the harness docs define joints, frames, and limits. Control, safety, planning, and the operator UI read that same definition. When the robot changes in CAD, software should change with it.

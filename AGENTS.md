@@ -1,5 +1,11 @@
 # Repository Guidelines
 
+> **Read first (2026-11-08):** the software is being rebuilt as a fresh, lean stack for the whole robot. Start with
+> [hardware/SOFTWARE_TENETS.md](hardware/SOFTWARE_TENETS.md) and [hardware/SOFTWARE_PLAN.md](hardware/SOFTWARE_PLAN.md). The
+> tenets override everything below and every ADR. The existing crates (Davout, Berthier, Chappe, robstride, marengo-pi and the
+> rest) are **legacy**: don't extend them, fix their tests or copy their patterns; they are deleted once the new stack passes
+> (see [RECONCILIATION.md](review/sw-foundation-20261108/RECONCILIATION.md)).
+
 Marengo is a personal, full-size walking humanoid (Unitree G1 class, 23 DOF) in one repo: CAD manifests, wiring docs, URDF, the Rust runtime (**Armée**), and the operator UI (**Consul**). The current execution slice is a **5-DOF right bench arm** on a Raspberry Pi 5: a deliberate first step, not the goal. Build everything so it carries over to the full body (`docs/roadmap.md`). Current state, open issues and open decisions: `docs/status.md`.
 
 **Before editing:** read `docs/rust-patterns.md`. For control, CAN, enable or reference code, also read `docs/safety.md`. Navigation starts at `codemap.md`; ADR index at `docs/decisions/README.md`. Per-folder guides: `crates/AGENTS.md`, `bins/AGENTS.md`, `consul/AGENTS.md`, `config/AGENTS.md`, `scripts/AGENTS.md`. Vocabulary (Set Zero vs Home, Joint/Limb/Robot Ready): `CONTEXT.md`.

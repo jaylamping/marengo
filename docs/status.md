@@ -1,5 +1,11 @@
 # Marengo status
 
+> **Read first (2026-11-08):** the software is being rebuilt as a fresh, lean stack for the whole robot. Start with
+> [hardware/SOFTWARE_TENETS.md](../hardware/SOFTWARE_TENETS.md) and [hardware/SOFTWARE_PLAN.md](../hardware/SOFTWARE_PLAN.md). The
+> tenets override everything below and every ADR. The existing crates (Davout, Berthier, Chappe, robstride, marengo-pi and the
+> rest) are **legacy**: don't extend them, fix their tests or copy their patterns; they are deleted once the new stack passes
+> (see [RECONCILIATION.md](../review/sw-foundation-20261108/RECONCILIATION.md)).
+
 **As of:** 2026-10-28. The last code and bench work was on 2026-10-04; nothing changed in between. Update this page whenever a milestone, bench result or open decision changes. It is the entry point for "where are we"; history lives in the [reviews](reviews/) and [commissioning records](commissioning/).
 
 ## Goal
