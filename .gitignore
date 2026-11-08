@@ -1,16 +1,8 @@
 # SolidWorks editor lock files
 ~$*
-# CAD binaries — local SolidWorks tree only (not in git). See cad/README.md "Folder layout".
-# Everything under cad/ is ignored except the README, manifests and the vendor intake note.
-cad/*
-!cad/README.md
-!cad/.gitkeep
-!cad/manifests/
-!cad/vendor/
-cad/vendor/*
-!cad/vendor/incoming/
-cad/vendor/incoming/*
-!cad/vendor/incoming/README.md
+# CAD: the latest version of every CAD file lives in git (cad/ via Git LFS, see
+# .gitattributes and cad/README.md "Folder layout"). Scratch folders below stay local.
+# Hard limit: no file of 100 MB or more (tools/check_file_sizes.py enforces it).
 # WIP, simulation and checkpoint output anywhere in the repo
 **/_wip/
 **/_sim/

@@ -76,6 +76,20 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(report.errors, [])
         self.assertTrue(any(".checkpoints" in w for w in report.warnings))
 
+    def test_file_of_100mb_or_more_is_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            build(root, ["shoulder/marengo_shoulder_big.SLDPRT", "_wip/x/huge.step"])
+            for rel in ["shoulder/marengo_shoulder_big.SLDPRT", "_wip/x/huge.step"]:
+                with (root / rel).open("wb") as fh:
+                    fh.truncate(ccl.MAX_FILE_BYTES)  # sparse file, no real disk use
+            report = ccl.Checker(
+                root, ccl.load_json(ccl.LAYOUT_PATH), ccl.load_json(ccl.CONVENTIONS_PATH)
+            ).run()
+        self.assertEqual(len(report.errors), 1)
+        self.assertIn("100 MB", report.errors[0])
+        self.assertIn("shoulder/", report.errors[0])
+
     def test_bad_name_is_warning(self) -> None:
         report = run(["shoulder/P1_L01.SLDPRT"])
         self.assertEqual(report.errors, [])

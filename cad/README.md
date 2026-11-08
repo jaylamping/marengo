@@ -1,18 +1,31 @@
-# CAD (local only)
+# CAD
 
-SolidWorks models and vendor imports are **not stored in git**. Keep your working tree under `cad/` in the host checkout (`J:\code\marengo\cad`); see "Folder layout" below. Joint names, axes, and limits live in [hardware/docs/kinematics.md](../hardware/docs/kinematics.md). After export, runtime reads [assets/urdf/marengo.urdf](../assets/urdf/marengo.urdf).
+The **latest version of every CAD file** lives in git under `cad/`: SolidWorks parts, assemblies
+and drawings, STEP/STL exports, print 3MF/G-code, vendor models, references and review packets.
+Binary CAD goes through **Git LFS** (patterns in the repo's `.gitattributes`); PNG, PDF, text
+and scripts are plain git. The working tree is the host checkout `J:\code\marengo\cad` on
+Joey-PC; see "Folder layout" below. Joint names, axes, and limits live in
+[hardware/docs/kinematics.md](../hardware/docs/kinematics.md). After export, runtime reads
+[assets/urdf/marengo.urdf](../assets/urdf/marengo.urdf).
 
-Root assembly: `marengo.SLDASM` at the top of the local CAD tree.
+Root assembly: `marengo.SLDASM` at the top of the CAD tree.
 
-## What stays in this repo
+## What goes in git
 
-| Path | Purpose |
-|------|---------|
-| `README.md` | This file, including the layout rule below |
-| `manifests/` | MCP conventions, folder layout (`cad-layout.json`), vendor registry, design packages (text JSON) |
-| `vendor/incoming/README.md` | Vendor intake notes |
+| Tracked | Not tracked (gitignored, local to Joey-PC) |
+|---------|---------------------------------------------|
+| Region folders, `vendor/`, `reference/`, `exports/`, `prints/`, `reviews/`, `drawings/`, `scripts/`, `manifests/` | `_wip/`, `_sim/`, `_archive/`, `.checkpoints/`, `*.CWR`, `~$` lock files |
 
-Everything else under `cad/` is gitignored. Near-final exports and renders that should be viewable anywhere are copied into `hardware/designs/<design>/` (STEP/STL/3MF via Git LFS, PNG in plain git).
+- **Latest version only.** Overwrite a file in place when it improves; git history is the version
+  trail. Iterations, studies and variants stay in `_wip/` until one wins.
+- **No file of 100 MB or more**, LFS included. `python tools/check_file_sizes.py` (also run by
+  `scripts/check.sh`) and the layout checker both fail on one. Simplify or split a file that
+  large, or keep it in `_wip/` / `_archive/`.
+- **LFS budget:** GitHub Free includes 10 GiB of LFS storage and 10 GiB of download bandwidth a
+  month, and every pushed version of a file counts toward storage. Commit near-final saves, not
+  every intermediate save.
+- On a fresh clone, `git lfs pull --include "cad/**"` downloads the CAD content (clones without
+  LFS see small pointer files).
 
 ## Folder layout (rule)
 
@@ -23,7 +36,7 @@ name, not the folder.
 
 ```
 cad/
-  README.md, manifests/       tracked
+  README.md, manifests/       docs and rules
   marengo.SLDASM              root robot assembly
   # body regions: native parts + that region's assemblies
   torso/  waist/  shoulder/  upper-arm/  elbow/  forearm/  hand/
@@ -38,7 +51,7 @@ cad/
   reviews/<region>/<YYYYMMDD>_<topic>/   review packets, views, briefs, reconciled findings
   drawings/<region>/          SLDDRW / PDF drawings
   scripts/                    CAD automation scripts
-  # scratch: never referenced by a kept assembly
+  # scratch (gitignored): never referenced by a kept assembly
   _wip/<topic>/               in-progress studies, layout experiments, render copies
   _sim/<region>/              .CWR and other simulation results
   _archive/                   superseded versions, old copies, SolidWorks .checkpoints
