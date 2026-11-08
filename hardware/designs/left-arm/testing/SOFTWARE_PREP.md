@@ -39,7 +39,8 @@ Hardware state, joint table and IDs: [hardware/STATUS.md](../../../STATUS.md).
 
 Plain names that say what each piece does (tenet 7). The Napoleon names go. New code gets the new names from day one; the old
 crates are **not renamed**, they're deleted when their replacement passes, so nobody pays for a rename twice. Proposed layout,
-about 10 crates in place of 15 crates and 6 bins (binaries keep a `marengo-` prefix so they read clearly in `ps` and systemd):
+about 10 crates in place of 15 crates and 6 bins. **"Marengo" is not permanent** (Joey may rename the robot), so no crate,
+binary, service or config key carries the robot's name; it lives once, as `name:` in the skeleton.
 
 | New | Does | Replaces |
 |---|---|---|
@@ -51,12 +52,15 @@ about 10 crates in place of 15 crates and 6 bins (binaries keep a `marengo-` pre
 | `dynamics` | Kinematics, gravity, calibration fits | armee-kinematics, armee-dynamics |
 | `telemetry` | MCAP recording, metrics export, logging setup | marengo-store, marengo-candump, marengo-host-metrics, marengo-support, Chappe's log layer |
 | `api` | The one interface to the realtime process | Chappe, armee-proto |
-| `marengo-runtime` (bin) | The one realtime process | marengo-pi |
-| `marengo-sim-drive` (bin) | Simulated drives on `vcan` | sim-harness |
-| `marengo-cli` (bin) | Scan, set ID, independent disable, one-off checks | motor-repl, parts of marengo-log-cli |
-| `ui/` and `marengo-mcp` | Operator UI (and its thin bridge) and agent tools, both clients of `api` | Consul, marengo-gateway, marengo-pi-mcp |
+| `runtime` (bin) | The one realtime process | marengo-pi |
+| `sim-drive` (bin) | Simulated drives on `vcan` | sim-harness |
+| `robot-cli` (bin) | Scan, set ID, independent disable, one-off checks | motor-repl, parts of marengo-log-cli |
+| `ui/` and `mcp/` | Operator UI (and its thin bridge) and agent tools, both clients of `api` | Consul, marengo-gateway, marengo-pi-mcp |
 
 Final names are the software project's call; the rule is "names say what things do".
+
+**Clean-up sweep (Joey, 2026-11-08):** once the new stack lands, go through all docs, ADRs, agent guides (AGENTS.md, codemap.md,
+.cursor, skills) and config, and remove references to deleted crates and the old names, so no stale map misleads an agent.
 
 ## 1. The skeleton YAML (tenets 1 and 2)
 
