@@ -222,7 +222,7 @@ for sx in (1, -1):
 # ---- compute shelf, Pi, PDB, IMU -------------------------------------------------------------
 box('shelf', 14, 'Compute shelf plate (existing: X +-55 between the shelf rails, Y 354.6 to 372.6; arm thread CAD check)', (-55, 354.6, -50), (55, 372.6, 50), COL['shelf'], 'electronics',
     (0, 40, 0), balloon=True, mass_g=60, material='existing part')
-box('pi5', 15, 'Raspberry Pi 5 + 2-CH CAN HAT (existing)', (-37.5, 376, -71.8), (19.7, 397, 13.2), COL['pi'], 'electronics',
+box('pi5', 15, 'Raspberry Pi 5 + official Active Cooler + M.2 HAT+ with NVMe (compute plan dcaafa4; CAN HAT dropped for USB-CAN adapters). Stack ~30 mm estimated, measure once assembled: hard ceiling Y 409 (Jetson underside Y 410), so the stack may not exceed 33 mm above Y 376', (-37.5, 376, -71.8), (19.7, 406, 13.2), COL['pi'], 'electronics',
     (0, 70, 0), balloon=True, mass_g=110, material='electronics', note='Position from the arm thread CAD check; ports face the rear (-Z) and reach Z -71.8')
 # power and peripheral board (board thread, main 0b6a6ef, hardware/electrical/pdb/PLAN.md s.5-6): two PCBs coplanar on one carrier, 6 x M3 at X +-46, Y 194/265/336.
 # Rear face moved from Z 34 to 37.5: 3 mm air plus a 0.5 mm insulating sheet over the pack lid (board thread ask 1). Front face Z 61.5, 8.5 mm behind the frame front face (Z 70; the front rails are only at Y 155-175 and 353.6-373.6, so the board sees open space between the posts).
