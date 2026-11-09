@@ -290,14 +290,376 @@
         "via_diameter": 0.6,
         "via_drill": 0.3,
         "wire_width": 6
+      },
+      {
+        "bus_width": 12,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "ESTOP",
+        "pcb_color": "rgb(255, 0, 255)",
+        "priority": 1,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.2,
+        "tuning_profile": "",
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
+        "wire_width": 6
+      },
+      {
+        "bus_width": 12,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "HV54",
+        "pcb_color": "rgb(255, 64, 0)",
+        "priority": 1,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.25,
+        "tuning_profile": "",
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
+        "wire_width": 6
+      },
+      {
+        "bus_width": 12,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "P12",
+        "pcb_color": "rgb(255, 200, 0)",
+        "priority": 1,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.6,
+        "tuning_profile": "",
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
+        "wire_width": 6
       }
     ],
     "meta": {
       "version": 5
     },
     "net_colors": {},
-    "netclass_assignments": {},
-    "netclass_patterns": []
+    "netclass_assignments": null,
+    "netclass_patterns": [
+      {
+        "netclass": "P12",
+        "pattern": "/+12V"
+      },
+      {
+        "netclass": "P12",
+        "pattern": "/+12V_JET"
+      },
+      {
+        "netclass": "P12",
+        "pattern": "/+12V_PI"
+      },
+      {
+        "netclass": "P12",
+        "pattern": "/+12V_RAW"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/ABS"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/ABS_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BAT"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_D"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_F"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_G1"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_GATE"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_IN"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_ON"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_OND"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_PG"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/BRK_T"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/CL_D"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/D_L1"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/D_L2"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/D_L3"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/D_L4"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/D_L5"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/D_L6"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/EN_A"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/FLT_A"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/FLT_D"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/INT_B"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/LOOP_OUT"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/LOOP_RET"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/L_B"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/L_E"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/L_PB"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/L_PC"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/MID"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/MID_B"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/RST_C"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/RST_IN"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/RST_SRC"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/RUN"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/RUN_A"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/RUN_B"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/RUN_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SH9_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SH9_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL1_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL1_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL2_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL2_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL3_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL3_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL4_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL4_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL5_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL5_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL6_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHL6_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHSP_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SHSP_P"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SH_N"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SH_P"
+      },
+      {
+        "netclass": "P12",
+        "pattern": "/SPARE_ON"
+      },
+      {
+        "netclass": "P12",
+        "pattern": "/SPARE_SW"
+      },
+      {
+        "netclass": "P12",
+        "pattern": "/SP_SW1"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/SW_D"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/UVLO"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/VBUS"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/VB_B"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/VWD"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/V_L1"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/V_L2"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/V_L3"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/V_L4"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/V_L5"
+      },
+      {
+        "netclass": "HV54",
+        "pattern": "/V_L6"
+      },
+      {
+        "netclass": "ESTOP",
+        "pattern": "/WDO_N"
+      }
+    ]
   },
   "pcbnew": {
     "last_paths": {

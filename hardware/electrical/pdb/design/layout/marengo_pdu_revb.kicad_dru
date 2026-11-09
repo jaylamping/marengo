@@ -4,6 +4,11 @@
 # the first escape segment of each pin, drawn straight out of the courtyard) drop to 0.15 mm; everything else keeps the defaults, and
 # the 54 V (0.6 mm) and E-stop/UVLO (1.5 mm) spacing is checked by tools/route_checks.py and tools/hv_spacing.py.
 # tools/grid_route.py routes to the same rule (FINE, courtyard boxes).
+# E-stop safety nets keep 1.5 mm to 54 V copper on every layer (LAYOUT_RULES_REVB.md, tools/domains.py); the fine-pitch
+# rules below come later in this file, so they win inside U1/U2/U7's courtyards
+(rule estop_to_54v
+  (constraint clearance (min 1.5mm))
+  (condition "A.hasNetclass('ESTOP') && B.hasNetclass('HV54')"))
 (rule fine_pitch_U1
   (constraint clearance (min 0.15mm))
   (condition "(A.memberOfFootprint('U1') && B.intersectsCourtyard('U1')) || (B.memberOfFootprint('U1') && A.intersectsCourtyard('U1')) || (A.intersectsCourtyard('U1') && B.intersectsCourtyard('U1'))"))
