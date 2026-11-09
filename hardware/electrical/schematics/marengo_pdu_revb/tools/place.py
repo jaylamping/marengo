@@ -55,12 +55,14 @@ for k,(rs,ina,cd,u,q,r0,c0,d0) in PORT.items():
     # stays on the inner side and the source pins face the pigtail (a mirror image isn't possible single-sided)
     if s>0:
         PFIX[rs]=(14.6,Y1-2.15,0); PFIX[q]=(25.9,Y0+8.75,90); PFIX[f'D{d0+2}']=(35.4,Y0+5.0,90)
-        PFIX[ina]=(14.45,Y1-7.6,0)   # meter in the Kelvin channel, straight under the shunt
+        # port controller straight under the shunt, its power-side row (sense, gate, V_L) facing it: Kelvin legs under
+        # 8 mm; the meter under the controller
+        PFIX[u]=(15.0,Y1-7.8,90); PFIX[ina]=(14.45,Y1-13.4,0)
         RES.setdefault('out',[]).append((6.8,9.0,Y1-7.5,Y1))   # VBUS via field at the shunt's bus pad, on the out block's edge
         RES[f'L{k}']=[(38.8,42.5,Y0,Y0+5.2)]   # V_L neck; the D_L copper runs in the gap between the shunt and FET courtyards
     else:
         PFIX[rs]=(-14.6,Y0+2.15,180); PFIX[q]=(-25.9,Y1-8.75,270); PFIX[f'D{d0+2}']=(-35.4,Y1-5.0,270)
-        PFIX[ina]=(-14.45,Y0+7.6,180)
+        PFIX[u]=(-15.0,Y0+7.8,270); PFIX[ina]=(-14.45,Y0+13.4,180)
         RES.setdefault('out',[]).append((-9.0,-6.8,Y0,Y0+7.5))
         RES[f'L{k}']=[(-42.5,-38.8,Y1-5.2,Y1)]     # V_L neck from the output clamp to the pigtail
 if WIDE:
@@ -75,6 +77,9 @@ FIX['J1']=(8.0,335.0,0,False); FIX['J3']=(29.0,333.9,0,False); FIX['J25']=(37.0,
 # pour and the cans, ABS pads down; RS9 BAT end toward the pack pour; R53 (ABS_N-GND link) under the can stack
 FIX['RS1']=(0.0,309.3,270,False); FIX['D7']=(14.8,308.4,90,False); FIX['D21']=(21.65,308.4,90,False)
 FIX['RS9']=(-20.4,326.4,180,False); FIX['R53']=(45.5,270.3,0,False)
+# bank A and bank B controllers beside their shunts (Kelvin legs under 8 mm): U1 in the GND gap left of RS1, sense pins
+# toward its Kelvin pads, GATE toward Q8 (UVLO leaves through a via under the body); U7 sense pins up toward RS9
+FIX['U1']=(-8.25,312.6,180,False); FIX['U7']=(-13.8,320.15,270,False)
 FIX['C87']=(-8.6,307.6,90,False); FIX['C88']=(-13.1,307.6,90,False)   # bank A drain ceramics, SW_D pad down onto the drain pour
 FIX['C89']=(5.8,312.4,90,False); FIX['C90']=(9.4,312.4,90,False); FIX['C91']=(-8.6,327.6,0,False); FIX['C92']=(-8.6,331.0,0,False)   # pack-entry ceramics on the BAT pour
 # absorber: six 10 x 10 cans in a 2 x 3 block right of the pack keep-out (X -5..25, Y 315-340), D7 pair beside RS1
@@ -125,6 +130,7 @@ def place_at(fp,X,Y,rot=0,back=False):
     bb=bbox(fp); c=bb.GetCenter(); t=P(X,Y)
     fp.Move(pcbnew.VECTOR2I(t.x-c.x,t.y-c.y))
 FIX.update({r:(X,Y,rot,False) for r,(X,Y,rot) in PFIX.items()})
+for r in FIX: G.pop(r,None)
 for r,(X,Y,rot,back) in FIX.items(): place_at(fps[r],X,Y,rot,back)
 rep={}
 GAP=0.25  # courtyards already carry their own margin

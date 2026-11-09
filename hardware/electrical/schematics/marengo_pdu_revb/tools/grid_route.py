@@ -44,6 +44,7 @@ ESC=float(__import__("os").environ.get("ESC","0.8"))   # escape zone round the n
 ESCE=1.0   # the same for the E-stop 1.5 mm rule
 HVCL=float(os.environ.get("HVCL","0.2" if domains.COATED else "0.6"))   # outer-layer clearance between voltage domains: 0.6 uncoated (IPC-2221B B2), 0.2 coated (B4: 0.13)
 EM=float(__import__("os").environ.get("EM","-0.06"))   # clearance margin inside the escape zone (cancels rasterization growth)
+KFAR=float(os.environ.get('KFAR','2.0'))   # Kelvin second leg: cost of a step not alongside the first leg
 HW=float(os.environ.get('HW','1.5'))   # A* heuristic weight
 NEG=os.environ.get('NEG','1')=='1'   # negotiated congestion (PathFinder) instead of sequential rip-up
 NITER=int(os.environ.get('NITER','25')); PRES=1.0
@@ -243,9 +244,10 @@ def fields(v,r0,r1,c0,c1,base_only=False):
         fes=fo&(onp>0)&(ES[np.clip(onp,0,None)] if HV[v] else HV[np.clip(onp,0,None)]) if (HV[v] or ES[v]) else np.zeros(o.shape,bool)   # E-stop vs 54 V
         fesp=(pd>0)&(pd!=v)&(ES[np.clip(pd,0,None)] if HV[v] else HV[np.clip(pd,0,None)]) if (HV[v] or ES[v]) else np.zeros(o.shape,bool)
         des=ndimage.distance_transform_edt(~(fes|fesp))*RES if (fes|fesp).any() else np.full(o.shape,99.0)
-        esce=ndimage.distance_transform_edt(pd!=v)*RES<=ESCE if (pd==v).any() else np.zeros(o.shape,bool)
-        es_ok=esce|(des>=hw+1.5+M)
-        es_vok=esce|(des>=0.3+1.5+M)
+        # E-stop escape relaxation only inside the fine-pitch courtyards (the .kicad_dru scope); elsewhere 1.5 mm holds
+        esce=(ndimage.distance_transform_edt(pd!=v)*RES<=ESCE)&incy[r0:r1,c0:c1] if (pd==v).any() else np.zeros(o.shape,bool)
+        es_ok=esce|(des>=hw+1.5+M+0.05)    # +0.05: raster error on pad outlines left 1.47-1.49 mm in DRC
+        es_vok=esce|(des>=0.3+1.5+M+0.05)
         pdom=DOM[np.clip(pd,0,None)]
         fhvp=(((pd>0)&(pd!=v)&(pdom!=dv_)&((pdom!=0)|(dv_!=0)))|((pd==NONET)&(dv_!=0)))   # 54 V pads of another domain (raster, used outside the escape zone)
         esc=ndimage.distance_transform_edt(pd!=v)*RES<=ESC if (pd==v).any() else np.zeros(o.shape,bool)
@@ -265,10 +267,18 @@ def fields(v,r0,r1,c0,c1,base_only=False):
         dp=ndimage.distance_transform_edt(pd==0)*RES if (pd!=0).any() else np.full(o.shape,99.0)
         via_ok&=(dl>=0.3+cllv+M)&(dv>=0.3+clhv+M)&(dp>=0.3+M)&(px>=0.3+0.2+PM)&(hvp_ok|(dvp>=0.3+HVCL+M))&es_vok
     return ok,via_ok,ESCM
+# ONLY=<regex>: route only the matching nets (the critical pre-routes: Kelvin pairs, gate drives, UVLO), sequentially.
+# FONLY=<regex>: those nets try F.Cu alone first (no via, so the In1 GND plane lies straight under the whole run), and fall
+# back to all layers only if that fails
+ONLY=os.environ.get('ONLY'); FONLY=re.compile(os.environ.get('FONLY','^$')); FTRY=False
 LASTCONG=[]   # congested cells (layer, row, col) on the last path astar returned (negotiated mode)
 def astar(v,src,dst,r0,r1,c0,c1,base_only=False):
     global LASTCONG
     ok,via_ok,escm=fields(v,r0,r1,c0,c1,base_only); h_,w_=r1-r0,c1-c0
+    if FTRY:
+        for L in RL:
+            if L!=0: ok[L]=np.zeros_like(ok[L])
+        via_ok=np.zeros_like(via_ok)
     PEN=None
     if NEG and base_only is False:
         # negotiated congestion: other nets' routed copper is passable at a price that grows each pass (PRES) and with
@@ -294,7 +304,7 @@ def astar(v,src,dst,r0,r1,c0,c1,base_only=False):
     LC=[{0:1.0,1:2.0,2:1.15,3:1.0}[L] for L in RL]
     # Kelvin pairs (/SH*_P with /SH*_N): steps within 0.6 mm of the partner leg's routed copper cost half, so the second
     # leg runs alongside the first
-    pv=PARTNER.get(v); NEAR=None
+    pv=PARTNER.get(v); NEAR=None   # KFAR: step cost away from the partner (1.0 = plain; higher holds the pair tighter)
     if pv:
         NEAR=b''.join(((ndimage.distance_transform_edt(dyn[L][r0:r1,c0:c1]!=pv)*RES<=0.6).ravel().tobytes()) for L in RL)
     INF=1e18; best=[INF]*(nl*N); prev=[-1]*(nl*N); pq=[]
@@ -326,7 +336,7 @@ def astar(v,src,dst,r0,r1,c0,c1,base_only=False):
             if dx>1 or dx<-1: continue
             t=base+j
             if OK[t]:
-                ng=gc+c*lc*(0.5 if (NEAR and NEAR[t]) else 1.0)+(PEN[t] if PEN is not None else 0.0)
+                ng=gc+c*lc*((0.5 if NEAR[t] else KFAR) if NEAR else 1.0)+(PEN[t] if PEN is not None else 0.0)
                 if ng<best[t]: best[t]=ng; prev[t]=k; heapq.heappush(pq,(ng+HD[j],ng,t))
         if VO[i]:
             for l2 in range(nl):
@@ -393,6 +403,7 @@ for n in NETS:
         if o in NID: PARTNER[NID[n]]=NID[o]
 # Kelvin legs first (P before N), so they take the short direct paths before the board fills; then shortest nets first
 todo.sort(key=lambda t:(0 if KELV.match(t[1]) else 1, (0 if t[1].endswith('_P') else 1) if KELV.match(t[1]) else 0, t[0]))
+if ONLY: todo=[t for t in todo if re.match(ONLY,t[1])]; NEG=False
 print('nets to route',len(todo),flush=True)
 fails=[]; t0=time.time(); nconn=0; tries={}; queue=[n for _,n in todo]; nrip=0; ripped={}
 TMAX=float(os.environ.get('TMAX','3000'))   # wall-clock budget in s; whatever is still queued then is reported open
@@ -410,10 +421,14 @@ def connect(v,base_only=False):
     ba=bbox(A); cy,cx=(ba[0]+ba[1])/2,(ba[2]+ba[3])/2
     rest.sort(key=lambda c: (lambda b:((b[0]+b[1])/2-cy)**2+((b[2]+b[3])/2-cx)**2)(bbox(c)))
     bb_=bbox(rest[0])
-    for m in ((60,) if v in PARTNER else (60,300)):   # a Kelvin leg never detours far: it fails and rips up instead
-        r0=max(0,min(ba[0],bb_[0])-m); r1=min(H,max(ba[1],bb_[1])+m+1); c0=max(0,min(ba[2],bb_[2])-m); c1=min(W,max(ba[3],bb_[3])+m+1)
-        res=astar(v,A,[x for c in rest for x in c],r0,r1,c0,c1,base_only)
-        if res: return res
+    global FTRY
+    for ft in ((True,False) if FONLY.match(NETS[v-1]) else (False,)):
+        FTRY=ft
+        for m in ((60,) if v in PARTNER else (60,300)):   # a Kelvin leg never detours far: it fails and rips up instead
+            r0=max(0,min(ba[0],bb_[0])-m); r1=min(H,max(ba[1],bb_[1])+m+1); c0=max(0,min(ba[2],bb_[2])-m); c1=min(W,max(ba[3],bb_[3])+m+1)
+            res=astar(v,A,[x for c in rest for x in c],r0,r1,c0,c1,base_only)
+            if res: FTRY=False; return res
+    FTRY=False
     return None
 def blockers(v,res):
     """nets whose routed copper sits within clearance reach of this path (base-only route); a via counts on all layers"""

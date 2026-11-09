@@ -71,6 +71,19 @@
   - the gate resistor at the gate pin;
   - the gate return taken as its own trace from the source pin nearest the gate, running beside the gate trace;
   - symmetric between the two FETs of a bank.
+- **Controllers at their shunts (2026-11-08):** tools/place.py fixes each controller next to its shunt, sense pins facing
+  the sense pads:
+  - U1 in the GND gap left of RS1, GATE toward Q8; UVLO leaves through a via under the body;
+  - U7 with its sense pins toward RS9;
+  - each port controller (U19–U24) straight under its shunt, with the meter (U11–U16) under the controller.
+  Routed controller legs (shunt pad to pin): U1 2.9/7.1 mm; port controllers 1.7–6.3 mm. Meter legs are 12–37 mm,
+  each as a pair beside the controller's.
+- **Critical nets are routed first by script and locked:**
+  - the nets: every Kelvin pair, the gate drives (GATE, GATE_A, GA1/GA2, G1/G2, G_L*, GPU/GPD_L*, BRK_GATE, PRE_G, CL_G)
+    and UVLO;
+  - tools/grid_route.py with `ONLY=<regex>`; `FONLY` makes them try F.Cu alone first (no via, so the solid In1 GND
+    plane lies under the whole run), falling back to all layers;
+  - the autorouter takes the rest, and tools/ses_import.py `LOCK=<regex>` keeps the pre-routes locked for hand finishing.
 
 ## E-stop safety nets
 
@@ -78,7 +91,7 @@
 - At least 1.5 mm (2 mm preferred) to any BAT, SW_D, MID, VBUS, ABS, CL_D, BRK_*, SH* or V_L* copper, on all layers, with a GND guard trace or pour between them.
 - Why: 0.44 MΩ of leakage from 54 V into UVLO enables bank B by itself.
 - No 54 V plane on L2–L4 under the latch block.
-- Wash off the flux, and consider conformal coating over U1, U8 and the latch.
+- Wash off the flux. The whole board is conformal-coated after bring-up (Clearance below; PRODUCTION_RUN step 10).
 - J20 (the loop connector) sits on the far side of the latch block from the converter soft start.
 
 ## Clearance
@@ -89,27 +102,55 @@ coating 0.13 mm; A5 external with conformal coating over the assembly 0.13 mm; A
 uncoated, 0.5 mm; A7 the same, coated, 0.13 mm. So uncoated, the package-set pad pairs at 0.3–0.5 mm fail A6 as well as
 B2; coated, everything at 0.13 mm or more passes.
 
-**Coating (decision pending with Joey, coordinator's recommendation: coat).** With the acrylic coat after bring-up
-(PRODUCTION_RUN step 10), the 54 V domain rule below drops to the 0.2 mm default (`MARENGO_COATED=1` for the tools).
-Uncoated it stays 0.6 mm on the outer layers.
+**Coating: the board is conformal-coated (Joey, 2026-11-09).** The coat is acrylic (MG Chemicals 419D), applied after
+bring-up passes, with the connectors, test points, holes and heatsink pad masked (PRODUCTION_RUN step 10). The 54 V domain
+rule below is therefore the 0.2 mm default (IPC-2221B A5/A7, 0.13 mm); the tools run with `MARENGO_COATED=1`. The 1.5 mm
+E-stop rule and the hole keep-outs don't change. Without the coat it would be 0.6 mm on the outer layers, so a board
+that is never coated must not go on the pack.
 
 - **One rule table** ([tools/domains.py](../../schematics/marengo_pdu_revb/tools/domains.py)), used by the router, the
   placement spacing pass, the GND fanout and the checks (2026-11-08):
   - E-stop nets (the ESTOP_SAFE list above) keep **1.5 mm** to the 54 V list (BAT, SW_D, MID, VBUS, ABS, ABS_N, CL_D,
     BRK_*, SH*, V_L*, D_L*) on every layer.
   - Copper on 54 V, or riding on a 54 V node (a gate or bootstrap on its source, a sense tap on VBUS), keeps **0.6 mm**
-    on the outer layers (0.2 mm inner) to every net of another voltage domain; 0.2 mm on all layers if the board is
-    coated. Nets in one domain (a port's V_L, G_L,
+    on the outer layers (0.2 mm inner) to every net of another voltage domain uncoated; the board is coated, so 0.2 mm
+    on all layers. Nets in one domain (a port's V_L, G_L,
     GPD/GPU, BST, GC; bank B's MID with GA1/GA2 and BST_A; the VBUS taps) are tens of volts apart at most, so 0.2 mm.
   - Everything else 0.2 mm.
-- **Fine-pitch footprints** (the only DRC rule beyond the defaults, layout/marengo_pdu_revb.kicad_dru): U1 and U7 (LM5069,
-  MSOP-10 0.5 mm) and U2 (TPS7A4001, HVSSOP-8) put their own pads 0.15 mm apart, so **only clearances to that IC's own
-  pads, from copper that enters its courtyard**, drop to 0.15 mm:
-  `(rule fine_pitch_U1 (constraint clearance (min 0.15mm)) (condition "(A.memberOfFootprint('U1') && B.intersectsCourtyard('U1')) || (B.memberOfFootprint('U1') && A.intersectsCourtyard('U1'))"))`,
-  and the same for U2 and U7. Outside the courtyards 54 V to low-voltage copper stays at 0.6 mm and E-stop copper at
-  1.5 mm.
+- **DRC rules** (layout/marengo_pdu_revb.kicad_dru; a later rule wins in KiCad):
+  - `estop_to_54v`: 1.5 mm from net class ESTOP to net class HV54 on every layer (classes set by
+    tools/handfinish_prep.py from tools/domains.py).
+  - **Fine-pitch footprints:** U1 and U7 (LM5069, MSOP-10 0.5 mm) and U2 (TPS7A4001, HVSSOP-8) put their own pads
+    0.15 mm apart, so **only clearances between copper that enters that IC's courtyard** (its own pads, and each pin's
+    first escape segment) drop to 0.15 mm:
+    `(rule fine_pitch_U1 (constraint clearance (min 0.15mm)) (condition "(A.memberOfFootprint('U1') && B.intersectsCourtyard('U1')) || (B.memberOfFootprint('U1') && A.intersectsCourtyard('U1')) || (A.intersectsCourtyard('U1') && B.intersectsCourtyard('U1'))"))`,
+    and the same for U2 and U7.
+  - Outside the courtyards, E-stop copper stays at 1.5 mm from 54 V, and 54 V domains at 0.2 mm (coated).
+    tools/route_checks.py tests the same scope.
+  - U1's UVLO pin sits between SH_P and the GND pins. tools/route_u1.py therefore draws U1's escapes as single straight
+    segments: SH_P and SH_N straight out to RS1, and UVLO inward to a via under the body.
 - **Holes:** no copper within 2 mm of the heatsink screw holes HS1/HS2 (the screw and the heatsink aren't insulated from
   it), 0.6 mm round the tie holes and the M3 mounting pads (rule areas from tools/place.py).
+
+## Hand finishing (2026-11-08)
+
+The autorouters don't finish this board:
+- tools/grid_route.py stalls at about 100 open nets.
+- Freerouting 2.5 thrashed: 313 unrouted connections after pass 1, and 498 after pass 2.
+
+The rest is finished by hand in KiCad, starting from the board with the power stage and the locked critical pre-routes:
+- Net classes ESTOP, HV54 and P12 are set, and the DRC holds the E-stop rule.
+- Run `MARENGO_COATED=1 tools/route_checks.py` after each session. It is the authority for the 54 V domain rule; coated,
+  that rule is the 0.2 mm default.
+- The open nets are in layout/open_nets.csv (tools/open_nets.py, from the DRC's unconnected items).
+
+Placement moves to make while finishing (the gate loops):
+- Each port's gate clamp pair (D23/D24, D26/D27, D29/D30, D32/D33, D35/D36, D38/D39) sits on the pigtail side of the
+  FET, about 15 mm from its gate pin. Move each pair to the gate pin; that puts the G_L loop under 10 mm.
+- Bank B's gate resistors R1/R2 (G1/G2) and bank A's R31/R32 (GA1/GA2) sit at their controllers. Move each to its FET's
+  gate pin.
+- U1 stays at RS1 because the Kelvin rule needs it there, so GATE runs about 35 mm to Q1/Q2. GATE carries the
+  LM5069's slow charge current and its fault pull-down; keep it on F.Cu over In1, with a GND return beside it.
 
 ## Air
 

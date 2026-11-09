@@ -13,6 +13,7 @@ straight through the power pours. This script therefore:
 Run with KiCad's Python: <kicad python> tools/dsn_prep.py <board.kicad_pcb> <out.dsn>"""
 import json,os,re,sys
 import pcbnew
+sys.path.insert(0,os.path.dirname(os.path.abspath(__file__))); import domains
 POWER=['/BAT','/SW_D','/MID','/VBUS','/ABS','/ABS_N','/CL_D','/BRK_D','/BRK_F','/BAT_F','/PWR']+[f'/{a}_L{k}' for a in 'DV' for k in range(1,7)]
 P12=['/+12V_RAW','/+12V','/+12V_JET','/+12V_PI','/SPARE_SW','/SPARE_ON','/SP_SW1']
 W,PITCH=0.5,0.4
@@ -84,10 +85,17 @@ s=re.sub(r'\n    \(keepout "" \(polygon [^)]*\)\)','',s)   # structure-level kee
 # ---- classes
 m=re.search(r'\(class kicad_default(.*?)\(circuit',s,re.S)
 names=re.findall(r'"[^"]*"|[^\s"]+',m.group(1))
-rest=[n for n in names if n.strip('"') not in POWER+P12+['GND']]
+ESTN=[n for n in names if domains.is_estop(n.strip('"'))]
+HVN=[n for n in names if domains.is_hv(n.strip('"')) and n.strip('"') not in POWER+P12]
+rest=[n for n in names if n.strip('"') not in POWER+P12+['GND'] and n not in ESTN+HVN]
 def cls(name,nets,w,cl): return f'    (class {name} {" ".join(nets)}\n      (circuit\n        (use_via "Via[0-3]_600:300_um")\n      )\n      (rule\n        (width {w})\n        (clearance {cl})\n      )\n    )\n'
 start=s.rfind('    (class kicad_default',0,m.end()); end=s.find('\n    )\n',m.end())+len('\n    )\n')
-s=s[:start]+cls('kicad_default',rest,200,200)+cls('POWER',[q(n) for n in POWER if b.FindNet(n)],600,int(os.environ.get('PWRCL','350')))+cls('P12',[q(n) for n in P12 if b.FindNet(n)],1000,300)+cls('GNDC',['GND'],300,200)+s[end:]
+# coated (MARENGO_COATED=1, tools/domains.py): 0.2 mm between 54 V domains; E-stop nets keep 1.5 mm to 54 V copper
+# through class-to-class rules (route_checks.py re-checks it after import)
+HVW=250; PCL=int(os.environ.get('PWRCL','200' if domains.COATED else '350'))
+cc=('    (class_class (classes ESTOPC HV) (rule (clearance 1500)))\n'
+    '    (class_class (classes ESTOPC POWER) (rule (clearance 1500)))\n')
+s=s[:start]+cls('kicad_default',rest,200,200)+cls('ESTOPC',ESTN,200,200)+cls('HV',HVN,HVW,PCL)+cls('POWER',[q(n) for n in POWER if b.FindNet(n)],600,PCL)+cls('P12',[q(n) for n in P12 if b.FindNet(n)],1000,300)+cls('GNDC',['GND'],300,200)+cc+s[end:]
 # ---- append the hatch to the wiring
 k=s.rfind('  (wiring'); e=s.find('\n  )\n',k)
 if HATCHMODE: s=s[:e]+'\n'+'\n'.join(wires)+s[e:]

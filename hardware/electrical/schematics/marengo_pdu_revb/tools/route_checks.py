@@ -3,7 +3,8 @@
   1. E-stop safety nets keep >= 1.5 mm to 54 V copper on every layer (the rule exists because 0.44 MOhm of leakage into
      UVLO enables bank B by itself).
   2. 54 V copper keeps >= 0.6 mm (outer) / 0.2 mm (inner) to every net of another voltage domain (IPC-2221B, 51-100 V).
-  Net classes and domains: tools/domains.py (the router uses the same table). Pairs inside one footprint are listed
+  Net classes and domains: tools/domains.py (the router uses the same table). Copper entering a fine-pitch IC's courtyard
+  (U1, U2, U7) keeps 0.15 mm, as in the .kicad_dru. Pairs inside one footprint are listed
   separately: the package sets those, not the routing.
   3. Kelvin sense pairs: each SH*_P / SH*_N pair runs as a tight pair; reports the length of each leg and the share of
      the P leg that lies within 1.0 mm of the N leg.
@@ -34,6 +35,14 @@ for L in LAYERS:
         if z.IsOnLayer(L) and not z.GetIsRuleArea() and z.GetNetname():
             fp=z.GetFilledPolysList(L)
             if fp.OutlineCount(): items.append((z.GetNetname(),L,fp,f'zone {z.GetNetname()}',None))
+# fine-pitch courtyards (the .kicad_dru rules fine_pitch_U1/U2/U7): between copper that enters one of these courtyards
+# (the IC's own pads, each pin's first escape segment) the rule is 0.15 mm, the package's own pad gap
+FINE={}
+for r in ('U1','U2','U7'):
+    f=b.FindFootprintByReference(r)
+    if f: cb=f.GetCourtyard(pcbnew.F_CrtYd).BBox(); FINE[r]=(cb.GetLeft(),cb.GetRight(),cb.GetTop(),cb.GetBottom())
+def incy(s,ref):
+    A=box(s); return {r for r,(x0,x1,y0,y1) in FINE.items() if not (A[1]<x0 or A[0]>x1 or A[3]<y0 or A[2]>y1)}
 def pos(s):
     bb=s.BBox(); c=bb.GetCenter(); return round(pcbnew.ToMM(c.x)-150,1),round(340-(pcbnew.ToMM(c.y)-100),1)
 BB={}
@@ -66,6 +75,8 @@ for L in LAYERS:
         for n,_,s_,lab,ref in cand.values():
             if n==m or ((RIDES(n) or n in ESTOP) and (n,lab)<(m,lab2)): continue   # each hot-hot pair once
             cl=domains.clearance(m,n,L in OUTER)
+            ca=({ref2} if ref2 in FINE else set())|(incy(h,None) or set()); cc=({ref} if ref in FINE else set())|(incy(s_,None) or set())
+            if ca&cc: cl=min(cl,0.15)
             if cl<=0.2 or not collide(h,s_,cl-0.001): continue
             rec=(b.GetLayerName(L),m,lab2,n,lab,pos(s_),f'<{cl} mm')
             (pkg if ref and ref==ref2 else bad).append(rec)

@@ -26,10 +26,10 @@ def rides(n):
     """54 V copper, or copper riding on a 54 V node (a gate or bootstrap on its source, a sense tap on VBUS)"""
     return is_hv(n) or dom(n) is not None
 import os
-# MARENGO_COATED=1: the board gets an acrylic conformal coat after bring-up (IPC-2221B Table 6-1, 51-100 V: A5/A7 0.13 mm,
-# B4 0.13 mm, against B2 0.6 mm and A6 0.5 mm uncoated), so the 0.6 mm domain rule drops to the 0.2 mm default. The E-stop
-# 1.5 mm rule and the hole keep-outs don't change.
-COATED=os.environ.get('MARENGO_COATED','0')=='1'
+# The board gets an acrylic conformal coat after bring-up (Joey, 2026-11-09; IPC-2221B Table 6-1, 51-100 V: A5/A7 0.13 mm,
+# B4 0.13 mm, against B2 0.6 mm and A6 0.5 mm uncoated), so the 0.6 mm domain rule is the 0.2 mm default. The E-stop
+# 1.5 mm rule and the hole keep-outs don't change. MARENGO_COATED=0 checks the bare-board rule.
+COATED=os.environ.get('MARENGO_COATED','1')=='1'
 def clearance(a,b,outer):
     """required copper clearance (mm) between nets a and b on an outer (True) or inner layer"""
     if a==b: return 0.0
