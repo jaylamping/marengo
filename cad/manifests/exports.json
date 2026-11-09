@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "description": "Where each STEP/STL in cad/exports/ came from. Written by tools/cad/record_export.py; checked by tools/cad/check_cad_layout.py (a changed source makes its export stale). Paths are relative to cad/.",
+  "exports": []
+}

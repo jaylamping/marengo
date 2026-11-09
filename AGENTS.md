@@ -95,7 +95,7 @@ stdin REPL / MCP ──▶ marengo-pi (sync std thread, 200 Hz)
 | `scripts/` | `check.sh`, deploy/install, `pi-remote.sh`, vcan, systemd units (`scripts/systemd/`) |
 | `docs/` | `status.md`, `roadmap.md`, `safety.md`, `rust-patterns.md`, ADRs `decisions/` (index in its README), `commissioning/`, `reviews/` |
 | `sim/` | MuJoCo smoke (`sim/scripts/smoke_test.py`, `sim/fixtures/minimal.xml`) |
-| `cad/`, `hardware/` | `cad/` holds the latest version of every CAD file (SolidWorks, STEP/STL, 3MF) via Git LFS, organized by body region per `cad/README.md` ("Folder layout"); scratch folders `_wip/_sim/_archive` stay local on Joey-PC. No file of 100 MB or more (`python tools/check_file_sizes.py`). Check layout with `python tools/cad/check_cad_layout.py <cad root>` Every session that uses SolidWorks launches its own instance and attaches by PID, per `hardware/tools/solidworks/RULES.md`; never attach to the running SolidWorks. |
+| `cad/`, `hardware/` | `cad/` holds the latest version of every CAD file (SolidWorks, STEP/STL, 3MF) via Git LFS, organized by body region per `cad/README.md` ("Folder layout"); scratch folders `_wip/_sim/_archive` stay local on Joey-PC. No file of 100 MB or more (`python tools/check_file_sizes.py`). Check layout with `python tools/cad/check_cad_layout.py <cad root>` and `--repo`. Before changing CAD files take the writer lock (`python tools/cad/cad_lock.py acquire <name>`, set `CAD_WRITER`), and follow cad/README.md "What goes in git" (promote, record exports, commit at gates). Every session that uses SolidWorks launches its own instance and attaches by PID, per `hardware/tools/solidworks/RULES.md`; never attach to the running SolidWorks. |
 | `var/` | Runtime output; `var/log`, `var/enable-soak`, `var/gravity-calibration` and `var/firmware-captures` are gitignored |
 
 ---
@@ -114,6 +114,7 @@ just --list                # all recipes (vcan, sim-check, deploy-pi*, mcp-build
 - Consul `gen:proto`, proto checksum, `build:qualified`, `npm test -- --run`, dist leak check, `npm audit`
 - MCP and limit-sync node tests; research MCP pytest (uv, `-m 'not integration'`)
 - daily-audit and reference-journal `unittest`
+- CAD gates: `tools/check_file_sizes.py` (no file of 100 MB or more), `tools/cad` unittest, `tools/cad/check_cad_layout.py --repo`
 - `.cursor/hooks` JS drift check; println guard
 - `cargo fmt --check`, `clippy -D warnings`, `cargo test --workspace`
 - Shell contract tests; `scripts/check-dependencies.sh` (cargo deny + audit)

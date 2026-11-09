@@ -1,0 +1,19 @@
+# Paths (repo-relative, prefix match) that may break the CAD layout rule for now.
+# Checked by: python tools/cad/check_cad_layout.py --repo
+# Remove a line as soon as its files have moved; the goal is an empty list.
+
+# CAD files still under hardware/ (Joey 2026-11-08: CAD lives only in cad/).
+# Each owning thread moves its files into cad/ and repoints its scripts, then deletes its line.
+hardware/designs/actuator-test-stand/
+hardware/designs/body-shell/prints/
+hardware/designs/head/
+hardware/designs/left-arm/
+hardware/designs/neck/
+hardware/designs/torso-frame/
+hardware/designs/torso-stepped/
+hardware/electrical/pdb/design/layout/
+
+# Held local folders on Joey-PC: left-arm scripts still read these paths (left-arm thread repoints them).
+cad/parts/
+cad/assemblies/
+cad/exports/left_arm/

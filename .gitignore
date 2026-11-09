@@ -3,13 +3,19 @@
 # CAD: the latest version of every CAD file lives in git (cad/ via Git LFS, see
 # .gitattributes and cad/README.md "Folder layout"). Scratch folders below stay local.
 # Hard limit: no file of 100 MB or more (tools/check_file_sizes.py enforces it).
+# Windows/WSL download markers
+*Zone.Identifier
 # WIP, simulation and checkpoint output anywhere in the repo
 **/_wip/
 **/_sim/
 **/_archive/
 **/.checkpoints/
-*.CWR
-*.cwr
+*.[cC][wW][rR]
+# SolidWorks Simulation output (.STE) and "Backup of" copies; the CAD writer lock file
+cad/**/*.[sS][tT][eE]
+Backup of *
+Backup (*) of *
+cad/.cad-writer.lock
 /target/
 # Pi deploy staging artifacts written into ~/marengo by scripts/deploy-pi.sh
 /.deploy-rev
@@ -17,6 +23,8 @@
 **/*.rs.bk
 .DS_Store
 *.swp
+# SolidWorks VBA macros are .swp too; keep the ones in cad/scripts/
+!cad/scripts/**/*.swp
 *.swo
 .idea/
 .vscode/

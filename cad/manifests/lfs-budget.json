@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "description": "Git LFS budget (GitHub Free: 10 GiB storage, 10 GiB download a month; every pushed version of a file is stored). Checked by tools/cad/lfs_budget.py in the pre-push hook. A push over a limit fails unless CAD_BUDGET_OK=1 is set for that push, which Joey must OK.",
+  "pushMaxBytes": 300000000,
+  "monthMaxBytes": 1000000000,
+  "storageWarnBytes": 6000000000,
+  "storageMaxBytes": 9000000000
+}

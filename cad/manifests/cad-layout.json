@@ -1,8 +1,12 @@
 {
   "version": 1,
-  "description": "Folder layout rule for the local CAD tree (J:\\code\\marengo\\cad). Checked by tools/cad/check_cad_layout.py. See cad/README.md.",
+  "description": "Folder layout rule for the CAD tree (J:\\code\\marengo\\cad). Checked by tools/cad/check_cad_layout.py (also --repo). See cad/README.md.",
   "cadRoot": "cad",
-  "rootFiles": ["README.md", ".gitkeep", "marengo.SLDASM"],
+  "rootFiles": [
+    "README.md",
+    ".gitkeep",
+    "marengo.SLDASM"
+  ],
   "regionFolders": [
     "torso",
     "waist",
@@ -16,21 +20,139 @@
     "hip",
     "leg",
     "head",
-    "neck"
+    "neck",
+    "fixtures",
+    "electronics"
   ],
-  "functionFolders": {
-    "manifests": { "extensions": [".json"] },
-    "vendor": { "extensions": [".sldprt", ".sldasm", ".step", ".stp", ".pdf", ".md", ".identifier", ".png"] },
-    "reference": { "extensions": [".step", ".stp", ".stl", ".txt", ".md", ".json", ".csv", ".png"] },
-    "exports": { "extensions": [".step", ".stp", ".stl", ".png", ".json", ".md", ".txt", ".csv"], "regionSubfolders": true },
-    "prints": { "extensions": [".3mf", ".gcode", ".stl", ".step", ".txt", ".md", ".json", ".png", ".csv"], "regionSubfolders": true },
-    "reviews": { "extensions": null, "regionSubfolders": true, "datedSubfolders": true },
-    "drawings": { "extensions": [".slddrw", ".pdf", ".dxf", ".png"], "regionSubfolders": true },
-    "scripts": { "extensions": [".py", ".ps1", ".sh", ".json", ".md", ".txt", ".vbs", ".swp"] }
+  "regionExtensions": [
+    ".sldprt",
+    ".sldasm",
+    ".md"
+  ],
+  "regionExtensionOverrides": {
+    "arm": [
+      ".sldasm",
+      ".md"
+    ]
   },
-  "scratchFolders": ["_wip", "_sim", "_archive"],
-  "nativeExtensions": [".sldprt", ".sldasm"],
-  "simExtensions": [".cwr"],
+  "functionFolders": {
+    "manifests": {
+      "extensions": [
+        ".json",
+        ".txt"
+      ]
+    },
+    "vendor": {
+      "extensions": [
+        ".sldprt",
+        ".sldasm",
+        ".step",
+        ".stp",
+        ".pdf",
+        ".md",
+        ".png"
+      ]
+    },
+    "reference": {
+      "extensions": [
+        ".step",
+        ".stp",
+        ".stl",
+        ".txt",
+        ".md",
+        ".json",
+        ".csv",
+        ".png"
+      ]
+    },
+    "exports": {
+      "extensions": [
+        ".step",
+        ".stp",
+        ".stl",
+        ".png",
+        ".json",
+        ".md",
+        ".txt",
+        ".csv"
+      ],
+      "regionSubfolders": true
+    },
+    "prints": {
+      "extensions": [
+        ".3mf",
+        ".gcode",
+        ".txt",
+        ".md",
+        ".json",
+        ".png",
+        ".csv"
+      ],
+      "regionSubfolders": true
+    },
+    "reviews": {
+      "extensions": [
+        ".md",
+        ".txt",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".svg",
+        ".pdf",
+        ".csv",
+        ".json"
+      ],
+      "regionSubfolders": true,
+      "datedSubfolders": true
+    },
+    "drawings": {
+      "extensions": [
+        ".slddrw",
+        ".pdf",
+        ".dxf",
+        ".png"
+      ],
+      "regionSubfolders": true
+    },
+    "scripts": {
+      "extensions": [
+        ".py",
+        ".ps1",
+        ".sh",
+        ".json",
+        ".md",
+        ".txt",
+        ".vbs",
+        ".swp"
+      ]
+    }
+  },
+  "scratchFolders": [
+    "_wip",
+    "_sim",
+    "_archive"
+  ],
+  "nativeExtensions": [
+    ".sldprt",
+    ".sldasm"
+  ],
+  "simExtensions": [
+    ".cwr",
+    ".ste"
+  ],
+  "cadExtensions": [
+    ".sldprt",
+    ".sldasm",
+    ".slddrw",
+    ".step",
+    ".stp",
+    ".stl",
+    ".3mf",
+    ".gcode",
+    ".x_t",
+    ".igs",
+    ".iges"
+  ],
   "forbiddenFolderPatterns": [
     "^codex$",
     "^task(-\\d+)?$",
@@ -40,8 +162,37 @@
     "^old$",
     "^solver_results$"
   ],
-  "warnFolderPatterns": ["^\\.checkpoints$"],
-  "datedFolderPattern": "(19|20)\\d{6}",
-  "datedFoldersAllowedUnder": ["reviews", "_wip", "_sim", "_archive"],
-  "ignoreFilePatterns": ["^~\\$", "^\\.gitkeep$", "^desktop\\.ini$", "^Thumbs\\.db$"]
+  "versionSuffixPattern": "(_v\\d+(_|\\.)|_rev[a-z0-9]{1,3}(_left|_right)?\\.|_(final|copy|old|backup|test)(_left|_right)?\\.|\\s?\\(\\d+\\)\\.|^(copy|backup) of )",
+  "versionSuffixFolders": [
+    "regions",
+    "exports",
+    "prints",
+    "drawings"
+  ],
+  "warnFolderPatterns": [
+    "^\\.checkpoints$"
+  ],
+  "datedFolderPattern": "(^|[^0-9])(19|20)\\d{6}([^0-9]|$)",
+  "datedFoldersAllowedUnder": [
+    "reviews",
+    "_wip",
+    "_sim",
+    "_archive"
+  ],
+  "reviewFolderPattern": "^(19|20)\\d{6}_[a-z0-9][a-z0-9-]*$",
+  "reviewLimits": {
+    "fileWarnBytes": 2000000,
+    "fileMaxBytes": 10000000,
+    "packetWarnBytes": 15000000,
+    "packetImagesWarn": 10,
+    "pinnedCommitPattern": "Pinned commit: [0-9a-f]{40}"
+  },
+  "ignoreFilePatterns": [
+    "^~\\$",
+    "^\\.gitkeep$",
+    "^desktop\\.ini$",
+    "^Thumbs\\.db$",
+    "Zone\\.Identifier$",
+    "^\\.cad-writer\\.lock$"
+  ]
 }
