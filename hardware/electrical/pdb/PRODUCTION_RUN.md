@@ -18,6 +18,7 @@ so 5 + 5 bare boards are ordered and 2 + 2 are built. **All prices are estimates
 | JLC prepaid duty (US DDP: 35 % on boards, 90 % on stencils) | about $55–75 |
 | **Total, 2 sets** | **about $490–575** |
 | Heatsink kit, thermal option D (chosen; [THERMAL_OPTION.md](design/THERMAL_OPTION.md)): 120 × 69 × 36 mm extruded heatsink (no cut), insulating 0.5 mm pad, 2 × M3, 2 sets | about $41–53 |
+| Conformal coat (Joey chose coating, 2026-11-09): MG Chemicals 419D acrylic, 55 mL brush bottle, enough for both boards; Kapton tape for masking | about $10 |
 | Tools (section 6), one-off | about $110–200 |
 
 **Why this is above the $370–470 estimated earlier:** US duty adds about $110–130 across parts, boards and stencils. JLC's
@@ -202,8 +203,8 @@ Work on the buck board first; it's the practice run. Inspect and test between ev
    straight to the pack.
 
 Hot air is for rework only (removing or reseating a part). Joey's low-power gun can't reflow the 2 oz board by itself.
-10. **Conformal coat, after bring-up passes** (the board is laid out for it: IPC-2221B 51–100 V external spacing coated is
-    0.13 mm, uncoated 0.6 mm; [LAYOUT_RULES_REVB.md](design/LAYOUT_RULES_REVB.md) "Clearance"). Bring-up runs uncoated so
+10. **Conformal coat, after bring-up passes** (Joey's decision, 2026-11-09; the board is laid out for it: IPC-2221B
+    51–100 V coated assembly spacing (A5/A7) is 0.13 mm, used as 0.2 mm between 54 V domains, against 0.6 mm bare; [LAYOUT_RULES_REVB.md](design/LAYOUT_RULES_REVB.md) "Clearance"). Bring-up runs uncoated so
     every pad stays probeable and reworkable. Then: wash and dry again (IPA, warm air), mask the Micro-Fit and Mini-Fit
     headers, the JST GH connectors, the F2 fuse holder, the pigtail and pack solder joints' contact faces, every test
     point, the M3 and heatsink holes and the bottom copper under the heatsink pad. Brush or spray an acrylic conformal
